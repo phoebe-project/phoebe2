@@ -91,9 +91,34 @@ def gaussian_process(feature, **kwargs):
     * components: not allowed
     * datasets with kind: lc
 
+    If `compute_times` or `compute_phases` is used: the underlying model without
+    gaussian_processes will be computed at the given times/phases but will then
+    be interpolated into the times of the underlying dataset to include the
+    contribution of gaussian processes and will be exposed at the dataset
+    times (with a warning in the logger and in
+    <phoebe.frontend.bundle.Bundle.run_checks_compute>).  If the system is
+    time-dependent without GPs
+    (see <phoebe.parameters.HierarchyParameter.is_time_dependent>), then
+    the underlying model will need to cover the entire dataset or an error
+    will be raised by <phoebe.frontend.bundle.Bundle.run_checks_compute>.
+
 
     Arguments
     ----------
+    * `kernel` (string, optional, default='matern32'): Kernel for the gaussian
+        process (see https://celerite.readthedocs.io/en/stable/python/kernel/)
+    * `log_S0` (float, optional, default=0): only applicable if `kernel` is
+        'sho'. Log of the GP parameter S0.
+    * `log_Q` (float, optional, default=0): only applicable if `kernel` is
+        'sho'.  Log of the GP parameter Q.
+    * `log_omega0` (float, optional, default=0): only applicable if `kernel` is
+        'sho'.  Log of the GP parameter omega0.
+    * `log_sigma` (float, optional, default=0): only applicable if `kernel` is
+        'matern32'.  Log of the GP parameter sigma.
+    * `log_rho` (float, optional, default=0): only applicable if `kernel` is
+        'matern32'.  Log of the GP parameter rho.
+    * `eps` (float, optional, default=0): only applicable if `kernel` is
+        'matern32'.  Log of the GP parameter epsilon.
 
 
     Returns

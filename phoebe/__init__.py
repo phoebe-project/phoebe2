@@ -21,6 +21,7 @@ import os as _os
 import sys as _sys
 import inspect as _inspect
 import atexit
+import re
 
 # People shouldn't import Phoebe from the installation directory (inspired upon
 # pymc warning message).
@@ -244,11 +245,6 @@ class Settings(object):
         # See #255 (https://github.com/phoebe-project/phoebe2/issues/255)
         self._interactive_checks = not hasattr(__main__, '__file__') or bool(_sys.flags.interactive)
 
-        # we'll enable check_default and check_default by default (can still
-        # be disabled by passing to filter)
-        self._check_visible = True
-        self._check_default = True
-
         self._download_passband_defaults = {'content': _env_variable_string_or_list('PHOEBE_DOWNLOAD_PASSBAND_DEFAULTS_CONTENT', 'all'),
                                             'gzipped': _env_variable_bool('PHOEBE_DOWNLOAD_PASSBAND_DEFAULTS_GZIPPED', False)}
 
@@ -292,26 +288,6 @@ class Settings(object):
     @property
     def interactive_constraints(self):
         return self._interactive_constraints
-
-    def check_visible_on(self):
-        self._check_visible = True
-
-    def check_visible_off(self):
-        self._check_visible = False
-
-    @property
-    def check_visible(self):
-        return self._check_visible
-
-    def check_default_on(self):
-        self._check_default = True
-
-    def check_default_off(self):
-        self._check_default = False
-
-    @property
-    def check_default(self):
-        return self._check_default
 
     def devel_on(self):
         self._devel = True
@@ -603,56 +579,6 @@ def interactive_checks_off():
     """
     conf.interactive_checks_off()
 
-def check_visible_on():
-    """
-    Enable checking for visibility of parameters by default.  Passing
-    `check_visible=False` to <phoebe.parameters.ParameterSet.filter> (or many
-    other methods that involve filtering) can still be used to temporarily
-    skip checking visiblity.
-
-    See also:
-    * <phoebe.check_visible_off>
-    * <phoebe.parameters.Parameter.is_visible>
-    """
-    conf.check_visible_on()
-
-def check_visible_off():
-    """
-    Disable checking for visibility of parameters by default.  Passing
-    `check_visible=True` to <phoebe.parameters.ParameterSet.filter> (or many
-    other methods that involve filtering) will be ignored.
-
-    See also:
-    * <phoebe.check_visible_on>
-    * <phoebe.parameters.Parameter.is_visible>
-    """
-    conf.check_visible_off()
-
-def check_default_on():
-    """
-    Enable ignoring parameters tagged with component or dataset of '_default'
-    by default.  Passing `check_default=False` to
-     <phoebe.parameters.ParameterSet.filter> (or many other methods that involve
-     filtering) can still be used to temporarily skip ignoring '_default'
-     parameters.
-
-    See also:
-    * <phoebe.check_default_off>
-    """
-    conf.check_default_on()
-
-def check_default_off():
-    """
-    Distable ignoring parameters tagged with component or dataset of '_default'
-    by default.  Passing `check_default=True` to
-    <phoebe.parameters.ParameterSet.filter> (or many other methods that involve
-    filtering) will be ignored.
-
-    See also:
-    * <phoebe.check_default_off>
-    """
-    conf.check_default_off()
-
 def devel_on():
     conf.devel_on()
 
@@ -760,11 +686,19 @@ atexit.register(mpi.shutdown_workers)
 
 # edit API docs for imported functions
 
+def strip_docstring_refs(matchobj):
+    text = matchobj.group(0)
+    path = text[1:-1]
+    return path
+
 def add_nparray_docstring(obj):
 
     docsprefix = """This is an included dependency from [nparray 1.1.0](https://nparray.readthedocs.io/en/1.1.0/).\n\n===============================================================\n\n"""
 
-    obj.__doc__ = docsprefix + "\n".join([l.lstrip() for l in obj.__doc__.split("\n")])
+    docstring = docsprefix + "\n".join([l.lstrip() for l in obj.__doc__.split("\n")])
+    docstring = re.sub(r"(?P<name>\<[0-9a-zA-Z_\.]*\>)", strip_docstring_refs, docstring)
+
+    obj.__doc__ = docstring
 
 add_nparray_docstring(array)
 add_nparray_docstring(linspace)
@@ -777,7 +711,10 @@ add_nparray_docstring(invspace)
 def add_distl_docstring(obj):
     docsprefix = """This is an included dependency from [distl](https://distl.readthedocs.io).\n\n===============================================================\n\n"""
 
-    obj.__doc__ = docsprefix + "\n".join([l.lstrip() for l in obj.__doc__.split("\n")])
+    docstring = docsprefix + "\n".join([l.lstrip() for l in obj.__doc__.split("\n")])
+    docstring = re.sub(r"(?P<name>\<[0-9a-zA-Z_\.]*\>)", strip_docstring_refs, docstring)
+
+    obj.__doc__ = docstring
 
 add_distl_docstring(uniform)
 add_distl_docstring(boxcar)
@@ -962,4 +899,7 @@ del logging
 del Settings
 del MPI
 
+del re
+del strip_docstring_refs
 del add_nparray_docstring
+del add_distl_docstring

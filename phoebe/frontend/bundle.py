@@ -1498,10 +1498,12 @@ class Bundle(ParameterSet):
         self._last_client_update = datetime.now()
 
     def __repr__(self):
-        return super(Bundle, self).__repr__().replace('ParameterSet', 'PHOEBE Bundle')
+        # filter to handle any visibility checks, etc
+        return self.filter().__repr__().replace('ParameterSet', 'PHOEBE Bundle')
 
     def __str__(self):
-        return super(Bundle, self).__str__().replace('ParameterSet', 'PHOEBE Bundle')
+        # filter to handle any visibility checks, etc
+        return self.filter().__str__().replace('ParameterSet', 'PHOEBE Bundle')
 
     def _default_label(self, base, context, **kwargs):
         """
@@ -3236,7 +3238,7 @@ class Bundle(ParameterSet):
                                 True, ['system', 'run_compute'])
 
             # also check to make sure that we'll be able to handle the interpolation in time if the system is time-dependent
-            if self.hierarchy.is_time_dependent():
+            if self.hierarchy.is_time_dependent(consider_gaussian_process=False):
                 compute_times = self.get_value(qualifier='compute_times', dataset=param.dataset, context='dataset', **_skip_filter_checks)
                 times = self.get_value(qualifier='times', dataset=param.dataset, context='dataset', **_skip_filter_checks)
                 if len(times) and len(compute_times) and (min(times) < min(compute_times) or max(times) > max(compute_times)):
@@ -3615,7 +3617,6 @@ class Bundle(ParameterSet):
 
             for dataset in self.filter(context='dataset', kind=['lc', 'rv'], check_default=True).datasets:
                 if dataset=='_default':
-                    # just in case conf.check_default = False
                     continue
                 dataset_ps = self.get_dataset(dataset=dataset, check_visible=False)
 
@@ -3763,6 +3764,10 @@ class Bundle(ParameterSet):
         for compute in computes:
             compute_kind = self.get_compute(compute=compute, **_skip_filter_checks).kind
 
+            gps = self.filter(kind='gaussian_process', context='feature', **_skip_filter_checks).features
+            compute_enabled_gps = self.filter(qualifier='enabled', feature=gps, value=True, **_skip_filter_checks).features
+            compute_enabled_datasets = self.filter(qualifier='enabled', dataset=self.datasets, value=True, **_skip_filter_checks)
+
             # sample_from and solution checks
             # check if any parameter is in sample_from but is constrained
             # NOTE: similar logic exists for init_from in run_checks_solver
@@ -3816,6 +3821,35 @@ class Bundle(ParameterSet):
                 else:
                     raise ValueError("{} could not be found in distributions or solutions".format(dist_or_solution))
 
+            # check for time-dependency issues with GPs
+
+            if len(compute_enabled_gps):
+                # then if we're using compute_times/phases, compute_times must cover the range of the dataset times
+                for dataset in compute_enabled_datasets:
+                    compute_times = self.get_value(qualifier='compute_times', dataset=dataset, context='dataset', unit=u.d, **_skip_filter_checks)
+                    if len(compute_times):
+                        for time_param in self.filter(qualifier='times', dataset=dataset, context='dataset', check_visible=True).to_list():
+                            gp_warning = True
+                            if self.hierarchy.is_time_dependent(consider_gaussian_process=False):
+                                ds_times = time_param.get_value(unit=u.d)
+
+                                if min(ds_times) < min(compute_times) or max(ds_times) > max(compute_times):
+                                    gp_warning = False
+                                    report.add_item(self,
+                                                    "compute_times must cover full range of times for {} in order to include gaussian processes".format("@".join([time_param.dataset, time_param.component] if time_param.component is not None else [time_param.dataset])),
+                                                    [self.get_parameter(qualifier='compute_times', dataset=dataset, context='dataset', **_skip_filter_checks),
+                                                     self.get_parameter(qualifier='compute_phases', dataset=dataset, context='dataset', **_skip_filter_checks),
+                                                     time_param]+self.filter(qualifier='enabled', feature=compute_enabled_gps, **_skip_filter_checks).to_list()+addl_parameters,
+                                                     True, 'run_compute')
+                            if gp_warning:
+                                # then raise a warning to tell that the resulting model will be at different times
+                                report.add_item(self,
+                                                "underlying model will be computed at compute_times for {} but exposed at dataset times in order to include gaussian processes".format("@".join([time_param.dataset, time_param.component] if time_param.component is not None else [time_param.dataset])),
+                                                [self.get_parameter(qualifier='compute_times', dataset=dataset, context='dataset', **_skip_filter_checks),
+                                                 self.get_parameter(qualifier='compute_phases', dataset=dataset, context='dataset', **_skip_filter_checks),
+                                                 time_param]+self.filter(qualifier='enabled', feature=compute_enabled_gps, **_skip_filter_checks).to_list()+addl_parameters,
+                                                 False, 'run_compute')
+
             # 2.2 disables support for boosting.  The boosting parameter in 2.2 only has 'none' as an option, but
             # importing a bundle from old releases may still have 'linear' as an option, so we'll check here
             if compute_kind in ['phoebe'] and self.get_value(qualifier='boosting_method', compute=compute, boosting_method=kwargs.get('boosting_method', None), **_skip_filter_checks) != 'none':
@@ -3824,6 +3858,29 @@ class Bundle(ParameterSet):
                                 [self.get_parameter(qualifier='boosting_method', compute=compute, boosting_method=kwargs.get('boosting_method', None), **_skip_filter_checks)
                                 ]+addl_parameters,
                                 True, 'run_compute')
+
+            # misalignment checks
+            if compute_kind != 'phoebe' and np.any([p.get_value() != 0 for p in self.filter(qualifier=['pitch', 'yaw'], context='component', **_skip_filter_checks).to_list()]):
+                # then we have a misaligned system in an alternate backend
+                if compute_kind == 'ellc':
+                    if np.all([p.get_value(distortion_method=kwargs.get('distortion_method')) == 'sphere' for p in self.filter(qualifier='distortion_method', compute=compute, context='compute', **_skip_filter_checks).to_list()]):
+                        # then misalignment is supported, but we'll raise a warning that it only handles RM in RVs
+                        report.add_item(self,
+                                        "ellc (compute='{}') only considers misalginment for the Rossiter-McLaughlin contribution to RVs".format(compute),
+                                        self.filter(qualifier=['pitch', 'yaw'], context='component', **_skip_filter_checks).to_list()+addl_parameters,
+                                        False, 'run_compute')
+                    else:
+                        report.add_item(self,
+                                        "ellc (compute='{}') only supports misalignment (for Rossiter-McLaughlin contribution to RVs) with distortion_method='sphere'".format(compute),
+                                        self.filter(qualifier=['pitch', 'yaw'], context='component', **_skip_filter_checks).to_list()+
+                                        self.filter(qualifier='distortion_method', compute=compute, context='compute', **_skip_filter_checks).to_list()+addl_parameters,
+                                        True, 'run_compute')
+                else:
+                    report.add_item(self,
+                                    "compute='{}' with kind {} does not support misalignment".format(compute, compute_kind),
+                                    self.filter(qualifier=['pitch', 'yaw'], context='component', **_skip_filter_checks).to_list()+
+                                    self.filter(qualifier='distortion_method', compute=compute, context='compute', **_skip_filter_checks).to_list()+addl_parameters,
+                                    True, 'run_compute')
 
             # mesh-consistency checks
             mesh_methods = [p.get_value(mesh_method=kwargs.get('mesh_method', None)) for p in self.filter(qualifier='mesh_method', compute=compute, force_ps=True, check_default=True, check_visible=False).to_list()]
@@ -3867,6 +3924,7 @@ class Bundle(ParameterSet):
                                         ]+addl_parameters,
                                         False, 'run_compute')
 
+            # ellc-specific checks
             if compute_kind == 'ellc':
                 irrad_method = self.get_value(qualifier='irrad_method', compute=compute, context='compute', **_skip_filter_checks)
                 rv_datasets = self.filter(kind='rv', context='dataset', **_skip_filter_checks).datasets
@@ -3885,6 +3943,22 @@ class Bundle(ParameterSet):
                                         self.filter(qualifier='rv_method', compute=compute, component=offending_components, context='compute', **_skip_filter_checks).to_list()+
                                         self.filter(qualifier='enabled', kind='rv', compute=compute, context='compute', value=True, **_skip_filter_checks).to_list()+
                                         self.filter(qualifier='irrad_frac_refl_bol', component=offending_components, context='component', **_skip_filter_checks).to_list()+
+                                        addl_parameters,
+                                        True, 'run_compute')
+
+            # jktebop-specific checks
+            if compute_kind == 'jktebop':
+                requiv_max_limit = self.get_value(qualifier='requiv_max_limit', compute=compute, context='compute', requiv_max_limit=kwargs.get('requiv_max_limit', None), **_skip_filter_checks)
+                for component in hier_stars:
+                    requiv = self.get_value(qualifier='requiv', component=component, context='component', unit=u.solRad, **_skip_filter_checks)
+                    requiv_max = self.get_value(qualifier='requiv_max', component=component, context='component', unit=u.solRad, **_skip_filter_checks)
+
+                    if requiv > requiv_max_limit * requiv_max:
+                        report.add_item(self,
+                                        "requiv@{} ({}) > requiv_max_limit ({}) * requiv_max ({}): past user-set limit for allowed distortion for jktebop (compute='{}')".format(component, requiv, requiv_max_limit, requiv_max, compute),
+                                        self.filter(qualifier='requiv_max_limit', compute=compute, context='compute', **_skip_filter_checks).to_list()+
+                                        self.filter(qualifier=['requiv', 'requiv_max'], component=component, context='component', **_skip_filter_checks).to_list()+
+                                        self.filter(qualifier=['sma'], component=self.hierarchy.get_parent_of(component), context='component', **_skip_filter_checks).to_list()+
                                         addl_parameters,
                                         True, 'run_compute')
 
@@ -3982,7 +4056,10 @@ class Bundle(ParameterSet):
             solver_ps = self.get_solver(solver=solver)
             solver_kind = solver_ps.kind
             if 'compute' in solver_ps.qualifiers and kwargs.get('run_checks_compute', True):
-                compute = solver_ps.get_value(qualifier='compute', compute=kwargs.get('compute', None), **_skip_filter_checks)
+                # NOTE: we can't pass compute as a kwarg to get_value or it will be used as a filter instead... which means technically we can't be sure compute is in self.computes
+                compute = kwargs.get('compute', solver_ps.get_value(qualifier='compute', **_skip_filter_checks))
+                if compute not in self.computes:
+                    raise ValueError("compute='{}' not in computes".format(compute))
                 report = self.run_checks_compute(compute=compute, raise_logger_warning=False, raise_error=False, report=report, addl_parameters=[solver_ps.get_parameter(qualifier='compute', **_skip_filter_checks)])
 
 
@@ -4820,6 +4897,8 @@ class Bundle(ParameterSet):
     def add_spot(self, component=None, feature=None, **kwargs):
         """
         Shortcut to <phoebe.frontend.bundle.Bundle.add_feature> but with kind='spot'.
+
+        For details on the resulting parameters, see <phoebe.parameters.feature.spot>.
         """
         if component is None:
             if len(self.hierarchy.get_stars())==1:
@@ -4856,6 +4935,8 @@ class Bundle(ParameterSet):
     def add_gaussian_process(self, dataset=None, feature=None, **kwargs):
         """
         Shortcut to <phoebe.frontend.bundle.Bundle.add_feature> but with kind='gaussian_process'.
+
+        For details on the resulting parameters, see <phoebe.parameters.feature.gaussian_process>.
         """
         if dataset is None:
             if len(self.datasets)==1:
@@ -8477,15 +8558,6 @@ class Bundle(ParameterSet):
             logger.debug("temporarily disabling interactive_checks")
             conf._interactive_checks = False
 
-        conf_check_default = conf.check_default
-        if conf_check_default:
-            logger.debug("temporarily disabling check_default")
-            conf.check_default_off()
-
-        conf_check_visible = conf.check_visible
-        if conf_check_visible:
-            logger.debug("temporarily disabling check_visible")
-            conf.check_visible_off()
 
         def restore_conf():
             # restore user-set interactive checks
@@ -8493,13 +8565,6 @@ class Bundle(ParameterSet):
                 logger.debug("restoring interactive_checks={}".format(conf_interactive_checks))
                 conf._interactive_checks = conf_interactive_checks
 
-            if conf_check_visible:
-                logger.debug("restoring check_visible")
-                conf.check_visible_on()
-
-            if conf_check_default:
-                logger.debug("restoring check_default")
-                conf.check_default_on()
 
         system_compute = compute if compute_kind=='phoebe' else None
         logger.debug("creating system with compute={} kwargs={}".format(system_compute, kwargs))
@@ -9039,6 +9104,8 @@ class Bundle(ParameterSet):
         <phoebe.list_available_computes> and include:
         * <phoebe.parameters.compute.phoebe>
         * <phoebe.parameters.compute.legacy>
+        * <phoebe.parameters.compute.ellc>
+        * <phoebe.parameters.compute.jktebop>
 
         Arguments
         ----------
@@ -9315,10 +9382,11 @@ class Bundle(ParameterSet):
         # any kwargs that were used just to filter for get_compute should  be
         # removed so that they aren't passed on to all future get_value(...
         # **kwargs) calls
-        computes_ps = self.get_compute(compute=compute, check_visible=False, **kwargs)
-        for k in parameters._meta_fields_filter:
-            if k in kwargs.keys():
-                dump = kwargs.pop(k)
+        for compute_ in computes:
+            computes_ps = self.get_compute(compute=compute_, kind=kwargs.get('kind'), **_skip_filter_checks)
+            for k in parameters._meta_fields_filter:
+                if k in kwargs.keys():
+                    dump = kwargs.pop(k)
 
         # we'll wait to here to run kwargs and system checks so that
         # add_compute is already called if necessary
@@ -9328,7 +9396,7 @@ class Bundle(ParameterSet):
         self._kwargs_checks(kwargs, allowed_kwargs, ps=computes_ps)
 
         if not kwargs.get('skip_checks', False):
-            report = self.run_checks_compute(compute=compute, allow_skip_constraints=False,
+            report = self.run_checks_compute(compute=computes, allow_skip_constraints=False,
                                              raise_logger_warning=True, raise_error=True,
                                              run_checks_system=True,
                                              **kwargs)
@@ -9357,12 +9425,14 @@ class Bundle(ParameterSet):
         return model, computes, datasets, do_create_fig_params, changed_params, overwrite_ps, kwargs
 
 
-    def _write_export_compute_script(self, script_fname, out_fname, compute, model, dataset, do_create_fig_params, import_from_older, kwargs):
+    def _write_export_compute_script(self, script_fname, out_fname, compute, model, dataset, do_create_fig_params, import_from_older, log_level, kwargs):
         """
         """
         f = open(script_fname, 'w')
         f.write("import os; os.environ['PHOEBE_ENABLE_PLOTTING'] = 'FALSE'; os.environ['PHOEBE_ENABLE_SYMPY'] = 'FALSE';\n")
         f.write("import phoebe; import json\n")
+        if log_level is not None:
+            f.write("phoebe.logger('{}')\n".format(log_level))
         # TODO: can we skip the history context?  And maybe even other models
         # or datasets (except times and only for run_compute but not run_solver)
         exclude_contexts = ['model', 'figure', 'constraint', 'solver']
@@ -9394,7 +9464,7 @@ class Bundle(ParameterSet):
 
     def export_compute(self, script_fname, out_fname=None,
                        compute=None, model=None, dataset=None,
-                       pause=False,
+                       pause=False, log_level=None,
                        import_from_older=False, **kwargs):
         """
         Export a script to call run_compute externally (in a different thread
@@ -9436,6 +9506,8 @@ class Bundle(ParameterSet):
             with instructions for running the exported script and calling
             <phoebe.frontend.bundle.Bundle.import_model>.  Particularly
             useful if running in an interactive notebook or a script.
+        * `log_level` (string, optional, default=None): `clevel` to set in the
+            logger in the exported script.  See <phoebe.logger>.
         * `import_from_older` (boolean, optional, default=False): whether to allow
             the script to run on a newer version of PHOEBE.  If True and executing
             the outputed script (`script_fname`) on a newer version of PHOEBE,
@@ -9457,7 +9529,7 @@ class Bundle(ParameterSet):
 
         """
         model, computes, datasets, do_create_fig_params, changed_params, overwrite_ps, kwargs = self._prepare_compute(compute, model, dataset, **kwargs)
-        script_fname, out_fname = self._write_export_compute_script(script_fname, out_fname, compute, model, dataset, do_create_fig_params, import_from_older, kwargs)
+        script_fname, out_fname = self._write_export_compute_script(script_fname, out_fname, compute, model, dataset, do_create_fig_params, import_from_older, log_level, kwargs)
 
         if pause:
             input("* optional:  call b.save(...) to save the bundle to disk, you can then safely close the active python session and recover the bundle with phoebe.load(...)\n"+
@@ -9629,7 +9701,7 @@ class Bundle(ParameterSet):
             script_fname = "_{}.py".format(jobid)
             out_fname = "_{}.out".format(jobid)
             err_fname = "_{}.err".format(jobid)
-            script_fname, out_fname = self._write_export_compute_script(script_fname, out_fname, compute, model, dataset, do_create_fig_params, False, kwargs)
+            script_fname, out_fname = self._write_export_compute_script(script_fname, out_fname, compute, model, dataset, do_create_fig_params, False, None, kwargs)
 
             script_fname = os.path.abspath(script_fname)
             cmd = mpi.detach_cmd.format(script_fname)
@@ -9685,16 +9757,6 @@ class Bundle(ParameterSet):
             logger.debug("temporarily disabling interactive_constraints")
             conf._interactive_constraints = False
 
-        conf_check_default = conf.check_default
-        if conf_check_default:
-            logger.debug("temporarily disabling check_default")
-            conf.check_default_off()
-
-        conf_check_visible = conf.check_visible
-        if conf_check_visible:
-            logger.debug("temporarily disabling check_visible")
-            conf.check_visible_off()
-
         def restore_conf():
             # restore user-set interactive checks
             if conf_interactive_checks:
@@ -9705,14 +9767,6 @@ class Bundle(ParameterSet):
                 logger.debug("restoring interactive_constraints={}".format(conf_interactive_constraints))
                 conf._interactive_constraints = conf_interactive_constraints
                 self.run_delayed_constraints()
-
-            if conf_check_visible:
-                logger.debug("restoring check_visible")
-                conf.check_visible_on()
-
-            if conf_check_default:
-                logger.debug("restoring check_default")
-                conf.check_default_on()
 
         ret_changes = []
 
@@ -9757,6 +9811,8 @@ class Bundle(ParameterSet):
                 l3s = self.compute_l3s(compute=compute, use_pbfluxes=pbfluxes, ret_structured_dicts=True, skip_checks=True, **{k:v for k,v in kwargs.items() if k in computeparams.qualifiers})
 
                 logger.info("run_compute: calling {} backend to create '{}' model".format(computeparams.kind, model))
+                if mpi.within_mpirun:
+                    logger.info("run_compute: within mpirun with nprocs={}".format(mpi.nprocs))
                 compute_class = getattr(backends, '{}Backend'.format(computeparams.kind.title()))
                 if computeparams.kind == 'phoebe':
                     kwargs['system'] = system
@@ -9781,16 +9837,16 @@ class Bundle(ParameterSet):
                 for ds in ml_params.datasets:
                     # not all dataset-types currently support exposure times.
                     # Once they do, this ugly if statement can be removed
-                    if len(self.filter(dataset=ds, qualifier='exptime')):
-                        exptime = self.get_value(qualifier='exptime', dataset=ds, context='dataset', unit=u.d)
+                    if len(self.filter(dataset=ds, qualifier='exptime', **_skip_filter_checks)):
+                        exptime = self.get_value(qualifier='exptime', dataset=ds, context='dataset', unit=u.d, **_skip_filter_checks)
                         if exptime > 0:
                             logger.info("handling fti for dataset='{}'".format(ds))
                             if self.get_value(qualifier='fti_method', dataset=ds, compute=compute, context='compute', fti_method=kwargs.get('fti_method', None), **_skip_filter_checks)=='oversample':
-                                times_ds = self.get_value(qualifier='compute_times', dataset=ds, context='dataset')
+                                times_ds = self.get_value(qualifier='compute_times', dataset=ds, context='dataset', **_skip_filter_checks)
                                 if not len(times_ds):
-                                    times_ds = self.get_value(qualifier='times', dataset=ds, context='dataset')
+                                    times_ds = self.get_value(qualifier='times', dataset=ds, context='dataset', **_skip_filter_checks)
                                 # exptime = self.get_value(qualifier='exptime', dataset=ds, context='dataset', unit=u.d)
-                                fti_oversample = self.get_value(qualifier='fti_oversample', dataset=ds, compute=compute, context='compute', check_visible=False, **kwargs)
+                                fti_oversample = self.get_value(qualifier='fti_oversample', dataset=ds, compute=compute, context='compute', fti_oversample=kwargs.get('fti_oversample', None), **_skip_filter_checks)
                                 # NOTE: this is hardcoded for LCs which is the
                                 # only dataset that currently supports oversampling,
                                 # but this will need to be generalized if/when
@@ -9802,8 +9858,8 @@ class Bundle(ParameterSet):
                                 # exposures to "overlap" each other, so we'll
                                 # later need to determine which times (and
                                 # therefore fluxes) belong to which datapoint
-                                times_oversampled_sorted = ml_params.get_value(qualifier='times', dataset=ds)
-                                fluxes_oversampled = ml_params.get_value(qualifier='fluxes', dataset=ds)
+                                times_oversampled_sorted = ml_params.get_value(qualifier='times', dataset=ds, **_skip_filter_checks)
+                                fluxes_oversampled = ml_params.get_value(qualifier='fluxes', dataset=ds, **_skip_filter_checks)
 
                                 for i,t in enumerate(times_ds):
                                     # rebuild the unsorted oversampled times - see backends._extract_from_bundle_by_time
@@ -9813,8 +9869,8 @@ class Bundle(ParameterSet):
 
                                     fluxes[i] = np.mean(fluxes_oversampled[sample_inds])
 
-                                ml_params.set_value(qualifier='times', dataset=ds, value=times_ds, ignore_readonly=True)
-                                ml_params.set_value(qualifier='fluxes', dataset=ds, value=fluxes, ignore_readonly=True)
+                                ml_params.set_value(qualifier='times', dataset=ds, value=times_ds, ignore_readonly=True, **_skip_filter_checks)
+                                ml_params.set_value(qualifier='fluxes', dataset=ds, value=fluxes, ignore_readonly=True, **_skip_filter_checks)
 
                 # handle flux scaling for any pblum_mode == 'dataset-scaled'
                 # or for any dataset in which pblum_mode == 'dataset-coupled' and pblum_dataset points to a 'dataset-scaled' dataset
@@ -9850,9 +9906,9 @@ class Bundle(ParameterSet):
                             l3_fracs = np.append(l3_fracs, np.full_like(ds_times, fill_value=l3_frac))
                             l3_pblum_abs_sums = np.append(l3_pblum_abs_sums, np.full_like(ds_times, fill_value=np.sum(list(pblums_abs.get(dataset).values()))))
 
-                        ds_fluxes = ds_obs.get_value(qualifier='fluxes', unit=u.W/u.m**2)
+                        ds_fluxes = ds_obs.get_value(qualifier='fluxes', unit=u.W/u.m**2, **_skip_filter_checks)
                         ds_fluxess = np.append(ds_fluxess, ds_fluxes)
-                        ds_sigmas = ds_obs.get_value(qualifier='sigmas')
+                        ds_sigmas = ds_obs.get_value(qualifier='sigmas', **_skip_filter_checks)
                         if len(ds_sigmas):
                             ds_sigmass = np.append(ds_sigmass, ds_sigmas)
                         else:
@@ -9900,7 +9956,7 @@ class Bundle(ParameterSet):
 
                         ml_addl_params += [FloatParameter(qualifier='flux_scale', value=scale_factor, readonly=True, default_unit=u.dimensionless_unscaled, description='scaling applied to fluxes (intensities/luminosities) due to dataset-scaling')]
 
-                        for mesh_param in ml_params.filter(kind='mesh').to_list():
+                        for mesh_param in ml_params.filter(kind='mesh', **_skip_filter_checks).to_list():
                             if param.qualifier in ['intensities', 'abs_intensities', 'normal_intensities', 'abs_normal_intensities', 'pblum_ext']:
                                 logger.debug("applying scale_factor={} to {} parameter in mesh".format(scale_factor, mesh_param.qualifier))
                                 mesh_param.set_value(mesh_param.get_value()*scale_factor, ignore_readonly=True)
@@ -9993,17 +10049,21 @@ class Bundle(ParameterSet):
                                 raise ValueError("gaussian_process requires sigma of same length as {}".format(xqualifier))
                             gp_kernel.compute(ds_x, ds_sigmas, check_sorted=True)
 
-                            residuals = self.calculate_residuals(model=model, dataset=ds, component=ds_comp, as_quantity=False)
-                            gp_y = gp_kernel.predict(residuals, model_x, return_cov=False)
+                            residuals, model_y_dstimes = self.calculate_residuals(model=model, dataset=ds, component=ds_comp, return_interp_model=True, as_quantity=False, consider_gaussian_process=False)
+                            gp_y = gp_kernel.predict(residuals, ds_x, return_cov=False)
                             model_y = model_ps.get_quantity(qualifier=yqualifier, dataset=ds, component=ds_comp, **_skip_filter_checks)
 
                             # store just the GP component in the model PS as well
                             gp_param = FloatArrayParameter(qualifier='gps', value=gp_y, default_unit=model_y.unit, readonly=True, description='GP contribution to the model {}'.format(yqualifier))
-                            y_nogp_param = FloatArrayParameter(qualifier='{}_nogps'.format(yqualifier), value=model_y, default_unit=model_y.unit, readonly=True, description='{} before adding gps'.format(yqualifier))
+                            y_nogp_param = FloatArrayParameter(qualifier='{}_nogps'.format(yqualifier), value=model_y_dstimes, default_unit=model_y.unit, readonly=True, description='{} before adding gps'.format(yqualifier))
+                            if not np.all(ds_x == model_x):
+                                logger.warning("model for dataset='{}' resampled at dataset times when adding GPs".format(ds))
+                                model_ps.set_value(qualifier=xqualifier, dataset=ds, component=ds_comp, value=ds_x, ignore_readonly=True, **_skip_filter_checks)
+
                             self._attach_params([gp_param, y_nogp_param], check_copy_for=False, **metawargs)
 
                             # update the model to include the GP contribution
-                            model_ps.set_value(qualifier=yqualifier, value=model_y.value+gp_y, dataset=ds, component=ds_comp, ignore_readonly=True, **_skip_filter_checks)
+                            model_ps.set_value(qualifier=yqualifier, value=model_y_dstimes+gp_y, dataset=ds, component=ds_comp, ignore_readonly=True, **_skip_filter_checks)
 
 
             redo_kwargs = _deepcopy(kwargs)
@@ -10557,10 +10617,10 @@ class Bundle(ParameterSet):
 
         self._check_label(solution, allow_overwrite=kwargs.get('overwrite', solution=='latest'))
 
-        kwargs['check_default'] = False
-        kwargs['check_visible'] = False
+        solver_ps = self.get_solver(solver=solver, kind=kwargs.get('kind'), **_skip_filter_checks)
+        if solver_ps is None:
+            raise ValueError("could not find solver with solver={} kwargs={}".format(solver, kwargs))
 
-        solver_ps = self.get_solver(solver=solver, **kwargs)
         if 'compute' in solver_ps.qualifiers:
             compute = kwargs.pop('compute', solver_ps.get_value(qualifier='compute', **_skip_filter_checks))
             compute_ps = self.get_compute(compute=compute, **_skip_filter_checks)
@@ -10573,7 +10633,7 @@ class Bundle(ParameterSet):
             compute = compute_ps.compute
 
         else:
-            compute = None
+            compute = kwargs.pop('compute', None)
 
         if not kwargs.get('skip_checks', False):
             report = self.run_checks_solver(solver=solver, run_checks_compute=True,
@@ -10584,12 +10644,14 @@ class Bundle(ParameterSet):
         return solver, solution, compute, solver_ps
 
 
-    def _write_export_solver_script(self, script_fname, out_fname, solver, solution, import_from_older, kwargs):
+    def _write_export_solver_script(self, script_fname, out_fname, solver, solution, import_from_older, log_level, kwargs):
         """
         """
         f = open(script_fname, 'w')
         f.write("import os; os.environ['PHOEBE_ENABLE_PLOTTING'] = 'FALSE'; os.environ['PHOEBE_ENABLE_SYMPY'] = 'FALSE';\n")
         f.write("import phoebe; import json\n")
+        if log_level is not None:
+            f.write("phoebe.logger('{}')\n".format(log_level))
         # TODO: can we skip the history context?  And maybe even other models
         # or datasets (except times and only for run_compute but not run_solver)
         exclude_contexts = ['model', 'figure']
@@ -10629,6 +10691,7 @@ class Bundle(ParameterSet):
                       solver=None, solution=None,
                       pause=False,
                       import_from_older=False,
+                      log_level=None,
                       **kwargs):
         """
         Export a script to call run_solver externally (in a different thread
@@ -10660,6 +10723,8 @@ class Bundle(ParameterSet):
             the bundle will attempt to migrate to the newer version.  If False,
             an error will be raised when attempting to run the script.  See
             also: <phoebe.frontend.bundle.Bundle.open>.
+        * `log_level` (string, optional, default=None): `clevel` to set in the
+            logger in the exported script.  See <phoebe.logger>.
         * `custom_lnprobability_callable` (callable, optional, default=None):
             custom callable function which takes the following arguments:
             `b, model, lnpriors, priors, priors_combine` and returns the lnlikelihood
@@ -10679,7 +10744,7 @@ class Bundle(ParameterSet):
 
         """
         solver, solution, compute, solver_ps = self._prepare_solver(solver, solution, **kwargs)
-        script_fname, out_fname = self._write_export_solver_script(script_fname, out_fname, solver, solution, import_from_older, kwargs)
+        script_fname, out_fname = self._write_export_solver_script(script_fname, out_fname, solver, solution, import_from_older, log_level, kwargs)
 
         if pause:
             input("* optional:  call b.save(...) to save the bundle to disk, you can then safely close the active python session and recover the bundle with phoebe.load(...)\n"+
@@ -10838,15 +10903,6 @@ class Bundle(ParameterSet):
             logger.debug("temporarily disabling interactive_constraints")
             conf._interactive_constraints = False
 
-        conf_check_default = conf.check_default
-        if conf_check_default:
-            logger.debug("temporarily disabling check_default")
-            conf.check_default_off()
-
-        conf_check_visible = conf.check_visible
-        if conf_check_visible:
-            logger.debug("temporarily disabling check_visible")
-            conf.check_visible_off()
 
         def restore_conf():
             # restore user-set interactive checks
@@ -10858,14 +10914,6 @@ class Bundle(ParameterSet):
                 logger.debug("restoring interactive_constraints={}".format(conf_interactive_constraints))
                 conf._interactive_constraints = conf_interactive_constraints
                 self.run_delayed_constraints()
-
-            if conf_check_visible:
-                logger.debug("restoring check_visible")
-                conf.check_visible_on()
-
-            if conf_check_default:
-                logger.debug("restoring check_default")
-                conf.check_default_on()
 
         if kwargs.get('overwrite', solution=='latest') and solution in self.solutions:
             # NOTE: default (instead of detached_job=) is correct here
@@ -10921,7 +10969,7 @@ class Bundle(ParameterSet):
             out_fname = "_{}.out".format(jobid)
             err_fname = "_{}.err".format(jobid)
             kill_fname = "_{}.kill".format(jobid)
-            script_fname, out_fname = self._write_export_solver_script(script_fname, out_fname, solver, solution, False, kwargs)
+            script_fname, out_fname = self._write_export_solver_script(script_fname, out_fname, solver, solution, False, None, kwargs)
 
             script_fname = os.path.abspath(script_fname)
             cmd = mpi.detach_cmd.format(script_fname)
@@ -10961,7 +11009,7 @@ class Bundle(ParameterSet):
 
 
         solver_class = getattr(_solverbackends, '{}Backend'.format(solver_ps.kind.title()))
-        params = solver_class().run(self, solver_ps.solver, compute, solution=solution, **kwargs)
+        params = solver_class().run(self, solver_ps.solver, compute, solution=solution, **{k:v for k,v in kwargs.items() if k not in ['compute']})
         metawargs = {'context': 'solution',
                      'solver': solver_ps.solver,
                      'compute': compute,

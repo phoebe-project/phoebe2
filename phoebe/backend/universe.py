@@ -152,16 +152,16 @@ class System(object):
         # now pull general compute options
         if compute is not None:
             if isinstance(compute, str) or isinstance(compute, unicode):
-                compute_ps = b.get_compute(compute)
+                compute_ps = b.get_compute(compute=compute, **_skip_filter_checks)
             else:
                 # then hopefully compute is the parameterset
                 compute_ps = compute
 
-            eclipse_method = compute_ps.get_value(qualifier='eclipse_method', **kwargs)
-            horizon_method = compute_ps.get_value(qualifier='horizon_method', **kwargs)
-            dynamics_method = compute_ps.get_value(qualifier='dynamics_method', **kwargs)
-            irrad_method = compute_ps.get_value(qualifier='irrad_method', **kwargs)
-            boosting_method = compute_ps.get_value(qualifier='boosting_method', **kwargs)
+            eclipse_method = compute_ps.get_value(qualifier='eclipse_method', eclipse_method=kwargs.get('eclipse_method', None), **_skip_filter_checks)
+            horizon_method = compute_ps.get_value(qualifier='horizon_method', horizon_method=kwargs.get('horizon_method', None), **_skip_filter_checks)
+            dynamics_method = compute_ps.get_value(qualifier='dynamics_method', dynamics_method=kwargs.get('dynamics_method', None), **_skip_filter_checks)
+            irrad_method = compute_ps.get_value(qualifier='irrad_method', irrad_method=kwargs.get('irrad_method', None), **_skip_filter_checks)
+            boosting_method = compute_ps.get_value(qualifier='boosting_method', boosting_method=kwargs.get('boosting_method', None), **_skip_filter_checks)
         else:
             eclipse_method = 'native'
             horizon_method = 'boolean'
@@ -185,10 +185,10 @@ class System(object):
             if compute_ps is None:
                 return 'roche'
 
-            if compute_ps.get_value(qualifier='mesh_method', component=component, **kwargs)=='wd':
+            if compute_ps.get_value(qualifier='mesh_method', component=component, mesh_method=kwargs.get('mesh_method', None), **_skip_filter_checks)=='wd':
                 return 'roche'
 
-            return compute_ps.get_value(qualifier='distortion_method', component=component, **kwargs)
+            return compute_ps.get_value(qualifier='distortion_method', component=component, distortion_method=kwargs.get('distortion_method', None), **_skip_filter_checks)
 
         bodies_dict = {comp: globals()[_get_classname(hier.get_kind_of(comp), get_distortion_method(hier, compute_ps, comp, **kwargs))].from_bundle(b, comp, compute, dynamics_method=dynamics_method, datasets=datasets, **kwargs) for comp in meshables}
 
@@ -1176,14 +1176,14 @@ class Star(Body):
         ind_sibling = starrefs.index(label_sibling) if (isinstance(label_sibling, str) or isinstance(label_sibling, unicode)) else [starrefs.index(l) for l in label_sibling]
         comp_no = ['primary', 'secondary'].index(hier.get_primary_or_secondary(component))+1
 
-        self_ps = b.filter(component=component, context='component')
-        requiv = self_ps.get_value(qualifier='requiv', unit=u.solRad)
+        self_ps = b.filter(component=component, context='component', **_skip_filter_checks)
+        requiv = self_ps.get_value(qualifier='requiv', unit=u.solRad, **_skip_filter_checks)
 
 
-        masses = [b.get_value(qualifier='mass', component=star, context='component', unit=u.solMass) for star in starrefs]
+        masses = [b.get_value(qualifier='mass', component=star, context='component', unit=u.solMass, **_skip_filter_checks) for star in starrefs]
         if b.hierarchy.get_parent_of(component) is not None:
-            sma = b.get_value(qualifier='sma', component=label_orbit, context='component', unit=u.solRad)
-            ecc = b.get_value(qualifier='ecc', component=label_orbit, context='component')
+            sma = b.get_value(qualifier='sma', component=label_orbit, context='component', unit=u.solRad, **_skip_filter_checks)
+            ecc = b.get_value(qualifier='ecc', component=label_orbit, context='component', **_skip_filter_checks)
             is_single = False
         else:
             # single star case
@@ -1191,49 +1191,49 @@ class Star(Body):
             ecc = 0.0
             is_single = True
 
-        incl = b.get_value(qualifier='incl', component=label_orbit, context='component', unit=u.rad)
-        long_an = b.get_value(qualifier='long_an', component=label_orbit, context='component', unit=u.rad)
+        incl = b.get_value(qualifier='incl', component=label_orbit, context='component', unit=u.rad, **_skip_filter_checks)
+        long_an = b.get_value(qualifier='long_an', component=label_orbit, context='component', unit=u.rad, **_skip_filter_checks)
 
         # NOTE: these may not be used when not visible for contact systems, so
         # Star_roche_envelope_half should ignore and override with
         # aligned/synchronous
-        incl_star = self_ps.get_value(qualifier='incl', unit=u.rad)
-        long_an_star = self_ps.get_value(qualifier='long_an', unit=u.rad)
+        incl_star = self_ps.get_value(qualifier='incl', unit=u.rad, **_skip_filter_checks)
+        long_an_star = self_ps.get_value(qualifier='long_an', unit=u.rad, **_skip_filter_checks)
         polar_direction_uvw = mesh.spin_in_system(incl_star, long_an_star)
         # freq_rot for contacts will be provided by that subclass as 2*pi/P_orb since they're always synchronous
-        freq_rot = self_ps.get_value(qualifier='freq', unit=u.rad/u.d)
+        freq_rot = self_ps.get_value(qualifier='freq', unit=u.rad/u.d, **_skip_filter_checks)
 
-        t0 = b.get_value(qualifier='t0', context='system', unit=u.d)
+        t0 = b.get_value(qualifier='t0', context='system', unit=u.d, **_skip_filter_checks)
 
-        teff = b.get_value(qualifier='teff', component=component, context='component', unit=u.K)
-        gravb_bol= b.get_value(qualifier='gravb_bol', component=component, context='component')
+        teff = b.get_value(qualifier='teff', component=component, context='component', unit=u.K, **_skip_filter_checks)
+        gravb_bol= b.get_value(qualifier='gravb_bol', component=component, context='component', **_skip_filter_checks)
 
-        abun = b.get_value(qualifier='abun', component=component, context='component')
-        irrad_frac_refl = b.get_value(qualifier='irrad_frac_refl_bol', component=component, context='component')
+        abun = b.get_value(qualifier='abun', component=component, context='component', **_skip_filter_checks)
+        irrad_frac_refl = b.get_value(qualifier='irrad_frac_refl_bol', component=component, context='component', **_skip_filter_checks)
 
         try:
             rv_grav_override = kwargs.pop('rv_grav', None)
-            do_rv_grav = b.get_value(qualifier='rv_grav', component=component, compute=compute, rv_grav=rv_grav_override) if compute is not None else False
+            do_rv_grav = b.get_value(qualifier='rv_grav', component=component, compute=compute, rv_grav=rv_grav_override, **_skip_filter_checks) if compute is not None else False
         except ValueError:
             # rv_grav may not have been copied to this component if no rvs are attached
             do_rv_grav = False
 
         if b.hierarchy.is_meshable(component):
             mesh_method_override = kwargs.pop('mesh_method', None)
-            mesh_method = b.get_value(qualifier='mesh_method', component=component, compute=compute, mesh_method=mesh_method_override) if compute is not None else 'marching'
+            mesh_method = b.get_value(qualifier='mesh_method', component=component, compute=compute, mesh_method=mesh_method_override, **_skip_filter_checks) if compute is not None else 'marching'
 
             if mesh_method == 'marching':
                 # we need check_visible=False in each of these in case mesh_method
                 # was overriden from kwargs
                 ntriangles_override = kwargs.pop('ntriangles', None)
-                kwargs['ntriangles'] = b.get_value(qualifier='ntriangles', component=component, compute=compute, ntriangles=ntriangles_override, check_visible=False) if compute is not None else 1000
+                kwargs['ntriangles'] = b.get_value(qualifier='ntriangles', component=component, compute=compute, ntriangles=ntriangles_override, **_skip_filter_checks) if compute is not None else 1000
                 distortion_method_override = kwargs.pop('distortion_method', None)
-                kwargs['distortion_method'] = b.get_value(qualifier='distortion_method', component=component, compute=compute, distortion_method=distortion_method_override, check_visible=False) if compute is not None else distortion_method_override if distortion_method_override is not None else 'roche'
+                kwargs['distortion_method'] = b.get_value(qualifier='distortion_method', component=component, compute=compute, distortion_method=distortion_method_override, **_skip_filter_checks) if compute is not None else distortion_method_override if distortion_method_override is not None else 'roche'
             elif mesh_method == 'wd':
                 # we need check_visible=False in each of these in case mesh_method
                 # was overriden from kwargs
                 gridsize_override = kwargs.pop('gridsize', None)
-                kwargs['gridsize'] = b.get_value(qualifier='gridsize', component=component, compute=compute, gridsize=gridsize_override, check_visible=False) if compute is not None else 30
+                kwargs['gridsize'] = b.get_value(qualifier='gridsize', component=component, compute=compute, gridsize=gridsize_override, **_skip_filter_checks) if compute is not None else 30
             else:
                 raise NotImplementedError
         else:
@@ -1241,8 +1241,8 @@ class Star(Body):
             mesh_method = kwargs.pop('mesh_method', None)
 
         features = []
-        for feature in b.filter(qualifier='enabled', compute=compute, value=True).features:
-            feature_ps = b.get_feature(feature=feature)
+        for feature in b.filter(qualifier='enabled', compute=compute, value=True, **_skip_filter_checks).features:
+            feature_ps = b.get_feature(feature=feature, **_skip_filter_checks)
             if feature_ps.component != component:
                 continue
             feature_cls = globals()[feature_ps.kind.title()]
@@ -1251,41 +1251,41 @@ class Star(Body):
         if conf.devel:
             mesh_offset_override = kwargs.pop('mesh_offset', None)
             try:
-                do_mesh_offset = b.get_value(qualifier='mesh_offset', compute=compute, mesh_offset=mesh_offset_override)
+                do_mesh_offset = b.get_value(qualifier='mesh_offset', compute=compute, mesh_offset=mesh_offset_override, **_skip_filter_checks)
             except ValueError:
                 do_mesh_offset = mesh_offset_override
         else:
             do_mesh_offset = True
 
         if conf.devel and mesh_method=='marching' and compute is not None:
-            kwargs.setdefault('mesh_init_phi', b.get_compute(compute).get_value(qualifier='mesh_init_phi', component=component, unit=u.rad, **kwargs))
+            kwargs.setdefault('mesh_init_phi', b.get_value(qualifier='mesh_init_phi', compute=compute, component=component, unit=u.rad, mesh_init_phi=kwargs.get('mesh_init_phi', None), **_skip_filter_checks))
 
         datasets_intens = [ds for ds in b.filter(kind=['lc', 'rv', 'lp'], context='dataset').datasets if ds != '_default']
-        datasets_lp = [ds for ds in b.filter(kind='lp', context='dataset').datasets if ds != '_default']
+        datasets_lp = [ds for ds in b.filter(kind='lp', context='dataset', **_skip_filter_checks).datasets if ds != '_default']
         atm_override = kwargs.pop('atm', None)
-        atm = b.get_value(qualifier='atm', compute=compute, component=component, atm=atm_override) if compute is not None else 'ck2004'
+        atm = b.get_value(qualifier='atm', compute=compute, component=component, atm=atm_override, **_skip_filter_checks) if compute is not None else 'ck2004'
         passband_override = kwargs.pop('passband', None)
-        passband = {ds: b.get_value(qualifier='passband', dataset=ds, passband=passband_override) for ds in datasets_intens}
+        passband = {ds: b.get_value(qualifier='passband', dataset=ds, passband=passband_override, **_skip_filter_checks) for ds in datasets_intens}
         intens_weighting_override = kwargs.pop('intens_weighting', None)
-        intens_weighting = {ds: b.get_value(qualifier='intens_weighting', dataset=ds, intens_weighting=intens_weighting_override) for ds in datasets_intens}
+        intens_weighting = {ds: b.get_value(qualifier='intens_weighting', dataset=ds, intens_weighting=intens_weighting_override, **_skip_filter_checks) for ds in datasets_intens}
         ebv_override = kwargs.pop('ebv', None)
-        extinct = b.get_value('ebv', context='system', ebv=ebv_override)
+        extinct = b.get_value('ebv', context='system', ebv=ebv_override, **_skip_filter_checks)
         Rv_override = kwargs.pop('Rv', None)
         Rv = b.get_value('Rv', context='system', Rv=Rv_override)
         ld_mode_override = kwargs.pop('ld_mode', None)
-        ld_mode = {ds: b.get_value(qualifier='ld_mode', dataset=ds, component=component, ld_mode=ld_mode_override) for ds in datasets_intens}
+        ld_mode = {ds: b.get_value(qualifier='ld_mode', dataset=ds, component=component, ld_mode=ld_mode_override, **_skip_filter_checks) for ds in datasets_intens}
         ld_func_override = kwargs.pop('ld_func', None)
-        ld_func = {ds: b.get_value(qualifier='ld_func', dataset=ds, component=component, ld_func=ld_func_override, check_visible=False) for ds in datasets_intens}
+        ld_func = {ds: b.get_value(qualifier='ld_func', dataset=ds, component=component, ld_func=ld_func_override, **_skip_filter_checks) for ds in datasets_intens}
         ld_coeffs_override = kwargs.pop('ld_coeffs', None)
-        ld_coeffs = {ds: b.get_value(qualifier='ld_coeffs', dataset=ds, component=component, ld_coeffs=ld_coeffs_override, check_visible=False) for ds in datasets_intens}
+        ld_coeffs = {ds: b.get_value(qualifier='ld_coeffs', dataset=ds, component=component, ld_coeffs=ld_coeffs_override, **_skip_filter_checks) for ds in datasets_intens}
         ld_coeffs_source_override = kwargs.pop('ld_coeffs_source', None)
-        ld_coeffs_source = {ds: b.get_value(qualifier='ld_coeffs_source', dataset=ds, component=component, ld_coeffs_source=ld_coeffs_source_override, check_visible=False) for ds in datasets_intens}
+        ld_coeffs_source = {ds: b.get_value(qualifier='ld_coeffs_source', dataset=ds, component=component, ld_coeffs_source=ld_coeffs_source_override, **_skip_filter_checks) for ds in datasets_intens}
         ld_func_bol_override = kwargs.pop('ld_func_bol', None)
-        ld_func['bol'] = b.get_value(qualifier='ld_func_bol', component=component, context='component', ld_func_bol=ld_func_bol_override)
+        ld_func['bol'] = b.get_value(qualifier='ld_func_bol', component=component, context='component', ld_func_bol=ld_func_bol_override, **_skip_filter_checks)
         ld_coeffs_bol_override = kwargs.pop('ld_coeffs_bol', None)
-        ld_coeffs['bol'] = b.get_value(qualifier='ld_coeffs_bol', component=component, context='component', ld_coeffs_bol=ld_coeffs_bol_override, check_visible=False)
+        ld_coeffs['bol'] = b.get_value(qualifier='ld_coeffs_bol', component=component, context='component', ld_coeffs_bol=ld_coeffs_bol_override, **_skip_filter_checks)
         profile_rest_override = kwargs.pop('profile_rest', None)
-        lp_profile_rest = {ds: b.get_value(qualifier='profile_rest', dataset=ds, unit=u.nm, profile_rest=profile_rest_override) for ds in datasets_lp}
+        lp_profile_rest = {ds: b.get_value(qualifier='profile_rest', dataset=ds, unit=u.nm, profile_rest=profile_rest_override, **_skip_filter_checks) for ds in datasets_lp}
 
 
         # we'll pass kwargs on here so they can be overridden by the classmethod
@@ -1976,8 +1976,8 @@ class Star_roche(Star):
     def from_bundle(cls, b, component, compute=None,
                     datasets=[], **kwargs):
 
-        self_ps = b.filter(component=component, context='component')
-        F = self_ps.get_value(qualifier='syncpar')
+        self_ps = b.filter(component=component, context='component', **_skip_filter_checks)
+        F = self_ps.get_value(qualifier='syncpar', **_skip_filter_checks)
 
         return super(Star_roche, cls).from_bundle(b, component, compute,
                                                   datasets,
@@ -2115,7 +2115,9 @@ class Star_roche(Star):
 
                     mesh_init_phi = np.random.random()*2*np.pi
                     logger.warning("mesh failed to converge, trying attempt #{} with mesh_init_phi={}".format(mesh_init_phi_attempts, mesh_init_phi))
-                    return self._build_mesh(mesh_method, mesh_init_phi=mesh_init_phi, mesh_init_phi_attempts=mesh_init_phi_attempts, **kwargs)
+                    kwargs['mesh_init_phi_attempts'] = mesh_init_phi_attempts
+                    kwargs['mesh_init_phi'] = mesh_init_phi
+                    return self._build_mesh(mesh_method, **kwargs)
                 else:
                     raise err
 
@@ -2206,12 +2208,12 @@ class Star_roche_envelope_half(Star):
         envelope = b.hierarchy.get_envelope_of(component)
 
         if pot is None:
-            pot = b.get_value(qualifier='pot', component=envelope, context='component')
+            pot = b.get_value(qualifier='pot', component=envelope, context='component', **_skip_filter_checks)
 
         mesh_method_override = kwargs.pop('mesh_method', None)
-        kwargs.setdefault('mesh_method', b.get_value(qualifier='mesh_method', component=envelope, compute=compute, mesh_method=mesh_method_override) if compute is not None else 'marching')
+        kwargs.setdefault('mesh_method', b.get_value(qualifier='mesh_method', component=envelope, compute=compute, mesh_method=mesh_method_override, **_skip_filter_checks) if compute is not None else 'marching')
         ntriangles_override = kwargs.pop('ntriangles', None)
-        kwargs.setdefault('ntriangles', b.get_value(qualifier='ntriangles', component=envelope, compute=compute, ntriangles=ntriangles_override) if compute is not None else 1000)
+        kwargs.setdefault('ntriangles', b.get_value(qualifier='ntriangles', component=envelope, compute=compute, ntriangles=ntriangles_override, **_skip_filter_checks) if compute is not None else 1000)
 
         return super(Star_roche_envelope_half, cls).from_bundle(b, component, compute,
                                                   datasets,
@@ -2320,7 +2322,9 @@ class Star_roche_envelope_half(Star):
 
                     mesh_init_phi = np.random.random()*2*np.pi
                     logger.warning("mesh failed to converge, trying attempt #{} with mesh_init_phi={}".format(mesh_init_phi_attempts, mesh_init_phi))
-                    return self._build_mesh(mesh_method, mesh_init_phi=mesh_init_phi, mesh_init_phi_attempts=mesh_init_phi_attempts, **kwargs)
+                    kwargs['mesh_init_phi_attempts'] = mesh_init_phi_attempts
+                    kwargs['mesh_init_phi'] = mesh_init_phi
+                    return self._build_mesh(mesh_method, **kwargs)
                 else:
                     raise err
 
@@ -2503,7 +2507,9 @@ class Star_rotstar(Star):
 
                     mesh_init_phi = np.random.random()*2*np.pi
                     logger.warning("mesh failed to converge, trying attempt #{} with mesh_init_phi={}".format(mesh_init_phi_attempts, mesh_init_phi))
-                    return self._build_mesh(mesh_method, mesh_init_phi=mesh_init_phi, mesh_init_phi_attempts=mesh_init_phi_attempts, **kwargs)
+                    kwargs['mesh_init_phi_attempts'] = mesh_init_phi_attempts
+                    kwargs['mesh_init_phi'] = mesh_init_phi
+                    return self._build_mesh(mesh_method, **kwargs)
                 else:
                     raise err
 
@@ -2570,7 +2576,7 @@ class Star_sphere(Star):
     def from_bundle(cls, b, component, compute=None,
                     datasets=[], **kwargs):
 
-        self_ps = b.filter(component=component, context='component')
+        self_ps = b.filter(component=component, context='component', **_skip_filter_checks)
 
         return super(Star_sphere, cls).from_bundle(b, component, compute,
                                                    datasets,
@@ -2668,7 +2674,9 @@ class Star_sphere(Star):
 
                     mesh_init_phi = np.random.random()*2*np.pi
                     logger.warning("mesh failed to converge, trying attempt #{} with mesh_init_phi={}".format(mesh_init_phi_attempts, mesh_init_phi))
-                    return self._build_mesh(mesh_method, mesh_init_phi=mesh_init_phi, mesh_init_phi_attempts=mesh_init_phi_attempts, **kwargs)
+                    kwargs['mesh_init_phi_attempts'] = mesh_init_phi_attempts
+                    kwargs['mesh_init_phi'] = mesh_init_phi
+                    return self._build_mesh(mesh_method, **kwargs)
                 else:
                     raise err
 
@@ -2795,18 +2803,18 @@ class Envelope(Body):
         if not len(stars)==2:
             raise ValueError("hieararchy cannot find two stars in envelope")
 
-        pot = b.get_value(qualifier='pot', component=component, context='component')
+        pot = b.get_value(qualifier='pot', component=component, context='component', **_skip_filter_checks)
 
         orbit = b.hierarchy.get_parent_of(component)
-        q = b.get_value(qualifier='q', component=orbit, context='component')
+        q = b.get_value(qualifier='q', component=orbit, context='component', **_skip_filter_checks)
 
         mesh_method_override = kwargs.pop('mesh_method', None)
-        mesh_method = b.get_value(qualifier='mesh_method', component=component, compute=compute, mesh_method=mesh_method_override) if compute is not None else 'marching'
+        mesh_method = b.get_value(qualifier='mesh_method', component=component, compute=compute, mesh_method=mesh_method_override, **_skip_filter_checks) if compute is not None else 'marching'
 
         if conf.devel:
             mesh_init_phi_override = kwargs.pop('mesh_init_phi', 0.0)
             try:
-                mesh_init_phi = b.get_compute(compute).get_value(qualifier='mesh_init_phi', component=component, unit=u.rad, mesh_init_phi=mesh_init_phi_override)
+                mesh_init_phi = b.get_value(qualifier='mesh_init_phi', compute=compute, component=component, unit=u.rad, mesh_init_phi=mesh_init_phi_override, **_skip_filter_checks)
             except ValueError:
                 kwargs.setdefault('mesh_init_phi', mesh_init_phi_override)
             else:
@@ -3079,26 +3087,26 @@ class Spot(Feature):
         Initialize a Spot feature from the bundle.
         """
 
-        feature_ps = b.get_feature(feature)
+        feature_ps = b.get_feature(feature=feature, **_skip_filter_checks)
 
-        colat = feature_ps.get_value(qualifier='colat', unit=u.rad)
-        longitude = feature_ps.get_value(qualifier='long', unit=u.rad)
+        colat = feature_ps.get_value(qualifier='colat', unit=u.rad, **_skip_filter_checks)
+        longitude = feature_ps.get_value(qualifier='long', unit=u.rad, **_skip_filter_checks)
 
         if len(b.hierarchy.get_stars())>=2:
-            star_ps = b.get_component(feature_ps.component)
-            orbit_ps = b.get_component(b.hierarchy.get_parent_of(feature_ps.component))
-            syncpar = star_ps.get_value(qualifier='syncpar')
-            period = orbit_ps.get_value(qualifier='period')
+            star_ps = b.get_component(component=feature_ps.component, **_skip_filter_checks)
+            orbit_ps = b.get_component(component=b.hierarchy.get_parent_of(feature_ps.component), **_skip_filter_checks)
+            syncpar = star_ps.get_value(qualifier='syncpar', **_skip_filter_checks)
+            period = orbit_ps.get_value(qualifier='period', **_skip_filter_checks)
             dlongdt = (syncpar - 1) / period * 2 * np.pi
         else:
-            star_ps = b.get_component(feature_ps.component)
-            dlongdt = star_ps.get_value(qualifier='freq', unit=u.rad/u.d)
+            star_ps = b.get_component(component=feature_ps.component, **_skip_filter_checks)
+            dlongdt = star_ps.get_value(qualifier='freq', unit=u.rad/u.d, **_skip_filter_checks)
             longitude += np.pi/2
 
-        radius = feature_ps.get_value(qualifier='radius', unit=u.rad)
-        relteff = feature_ps.get_value(qualifier='relteff', unit=u.dimensionless_unscaled)
+        radius = feature_ps.get_value(qualifier='radius', unit=u.rad, **_skip_filter_checks)
+        relteff = feature_ps.get_value(qualifier='relteff', unit=u.dimensionless_unscaled, **_skip_filter_checks)
 
-        t0 = b.get_value(qualifier='t0', context='system', unit=u.d)
+        t0 = b.get_value(qualifier='t0', context='system', unit=u.d, **_skip_filter_checks)
 
         return cls(colat, longitude, dlongdt, radius, relteff, t0)
 
@@ -3171,15 +3179,15 @@ class Pulsation(Feature):
         Initialize a Pulsation feature from the bundle.
         """
 
-        feature_ps = b.get_feature(feature)
-        freq = feature_ps.get_value(qualifier='freq', unit=u.d**-1)
-        radamp = feature_ps.get_value(qualifier='radamp', unit=u.dimensionless_unscaled)
-        l = feature_ps.get_value(qualifier='l', unit=u.dimensionless_unscaled)
-        m = feature_ps.get_value(qualifier='m', unit=u.dimensionless_unscaled)
-        teffext = feature_ps.get_value(qualifier='teffext')
+        feature_ps = b.get_feature(feature=feature, **_skip_filter_checks)
+        freq = feature_ps.get_value(qualifier='freq', unit=u.d**-1, **_skip_filter_checks)
+        radamp = feature_ps.get_value(qualifier='radamp', unit=u.dimensionless_unscaled, **_skip_filter_checks)
+        l = feature_ps.get_value(qualifier='l', unit=u.dimensionless_unscaled, **_skip_filter_checks)
+        m = feature_ps.get_value(qualifier='m', unit=u.dimensionless_unscaled, **_skip_filter_checks)
+        teffext = feature_ps.get_value(qualifier='teffext', **_skip_filter_checks)
 
-        GM = c.G.to('solRad3 / (solMass d2)').value*b.get_value(qualifier='mass', component=feature_ps.component, context='component', unit=u.solMass)
-        R = b.get_value(qualifier='rpole', component=feature_ps.component, section='component', unit=u.solRad)
+        GM = c.G.to('solRad3 / (solMass d2)').value*b.get_value(qualifier='mass', component=feature_ps.component, context='component', unit=u.solMass, **_skip_filter_checks)
+        R = b.get_value(qualifier='rpole', component=feature_ps.component, section='component', unit=u.solRad, **_skip_filter_checks)
 
         tanamp = GM/R**3/freq**2
 

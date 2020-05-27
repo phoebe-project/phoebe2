@@ -226,6 +226,14 @@ def legacy(**kwargs):
     * `enabled` (bool, optional, default=True): whether to create synthetics in
         compute/solver run.
     * `atm` (string, optional, default='extern_atmx'): atmosphere tables.
+    * `pblum_method` (string, optional, default='phoebe'): Method to estimate
+        passband luminosities and handle scaling of returned fluxes from legacy.
+        stefan-boltzmann: approximate the star as a uniform sphere and estimate
+        the luminosities from teff, requiv, logg, and abun from the internal
+        passband and atmosphere tables.
+        phoebe: build the mesh using roche distortion at time t0 and compute
+        luminosities use the internal atmosphere tables (considerable overhead,
+        but more accurate for distorted stars).
     * `gridsize` (int, optional, default=60): number of meshpoints for WD.
     * `distortion_method` (string, optional, default='roche'): method to use
         for distorting stars (legacy only supports roche).
@@ -236,6 +244,11 @@ def legacy(**kwargs):
     * `ie` (bool, optional, default=False): whether data should be de-reddened.
     * `rv_method` (string, optional, default='flux-weighted'): which method to
         use for computing radial velocities.
+    * `fti_method` (string, optional, default='none'): How to handle finite-time
+        integration (when non-zero exptime)
+    * `fit_oversample` (int, optiona, default=5): Number of times to sample
+        per-datapoint for finite-time integration (only applicable when `fit_method`
+        is 'oversample')
 
     Returns
     --------
@@ -397,7 +410,7 @@ def photodynam(**kwargs):
 def jktebop(**kwargs):
     """
     Create a <phoebe.parameters.ParameterSet> for compute options for John
-    Southworth's [jktebop](http://www.astro.keele.ac.uk/jkt/codes/jktebop.html) code.
+    Southworth's [jktebop](https://www.astro.keele.ac.uk/jkt/codes/jktebop.html) code.
 
     Use jktebop to compute radial velocities and light curves for binary systems.
     jktebop must be installed and available on the system in order to use
@@ -437,18 +450,16 @@ def jktebop(**kwargs):
     * period
     * t0_supconj
 
-    Dataset (LC only):
+    Dataset:
     * l3_frac (will be estimated if l3_mode=='flux', but will cost time)
     * ld_mode (cannot be 'interp'.  If 'lookup', coefficients are queried from PHOEBE tables and passed as ld_coeffs)
     * ld_func (supports linear, logarithmic, square_root, quadratic)
     * ld_coeffs (will call <phoebe.frontend.bundle.Bundle.compute_ld_coeffs> if necessary)
     * pblum (will use <phoebe.frontend.bundle.Bundle.compute_pblums> if necessary)
 
-    Note that jktebop works in magnitudes (not fluxes) and returns a phased synthetic
-    model sampled at 1001 evenly-spaced phases.  These are then converted to phases
-    and renormalized so that the maximum values matches the estimated total
-    eclipse flux determined by <phoebe.frontend.bundle.Bundle.compute_pblums>
-    and are then linearly interpolated onto the requested times.  This renormalization
+    Note that jktebop works in magnitudes (not fluxes) and is normalized at
+    quadrature.  Once converted to fluxes, these are then re-scaled according
+    to `pblum_method`.  This renormalization
     is crude and should not be trusted to give absolute fluxes, but should behave
     reasonably with plbum_mode='dataset-scaled'.
 
@@ -458,6 +469,10 @@ def jktebop(**kwargs):
     LCs:
     * times
     * fluxes
+
+    RVs:
+    * times
+    * rvs
 
     Generally, this will be used as an input to the kind argument in
     <phoebe.frontend.bundle.Bundle.add_compute>.  If attaching through
@@ -477,13 +492,33 @@ def jktebop(**kwargs):
     ----------
     * `enabled` (bool, optional, default=True): whether to create synthetics in
         compute/solver runs.
+    * `requiv_max_limit` (float, optional, default=0.5): Maximum allowed fraction
+        of requiv_max (as jktebop does not handle highly distorted systems)
+        before raising an error in <phoebe.frontend.bundle.Bundle.run_checks_compute>.
+    * `atm` (string, optional, default='ck2003'): Atmosphere table to use when
+        estimating passband luminosities and flux scaling (see pblum_method).
+        Note jktebop itself does not support atmospheres.
+    * `pblum_method` (string, optional, default='stefan-boltzmann'): Method to
+        estimate passband luminosities and handle scaling of returned fluxes from
+        jktebop.  stefan-boltzmann: approximate the star as a uniform sphere and
+        estimate the luminosities from teff, requiv, logg, and abun from the
+        internal passband and atmosphere tables.  phoebe: build the mesh using
+        roche distortion at time t0 and compute luminosities use the internal
+         atmosphere tables (considerable overhead, but more accurate for
+         distorted stars).
     * `ringsize` (float, optional, default=5): integration ring size.
+    * `rv_method` (string, optional, default='dynamical'): Method to use for
+        computing RVs.  jktebop only supports dynamical (Keplerian) RVs.
     * `distortion_method` (string, optional, default='sphere/biaxial spheroid'):
-        method to use for distorting stars.  See note above for jktebop's
-        treatment.
+        Method to use for distorting stars (applies to all components).
+        sphere/biaxial-spheroid: spheres for eclipse shapes and biaxial spheroid
+        for calculation of ellipsoidal effects and reflection,
+        sphere: sphere for eclipse shapes and no ellipsoidal or reflection effects
     * `irrad_method` (string, optional, default='biaxial spheroid'): method
         to use for computing irradiation.  See note above regarding jktebop's
         treatment of `distortion_method`.
+    * `irrad_method` (string, optional, default='none'): method to use for
+        irradiation (ellc does not support irradiation).
 
     Returns
     --------
@@ -493,15 +528,21 @@ def jktebop(**kwargs):
     params = _sampling_params(**kwargs)
     params += _comments_params(**kwargs)
 
-    params += [BoolParameter(qualifier='enabled', copy_for={'context': 'dataset', 'kind': ['lc'], 'dataset': '*'}, dataset='_default', value=kwargs.get('enabled', True), description='Whether to create synthetics in compute/solver run')]
-    params += [BoolParameter(qualifier='enabled', copy_for={'context': 'feature', 'kind': [], 'feature': '*'}, feature='_default', value=kwargs.get('enabled', True), description='Whether to enable the feature in compute/solver run')]
+    params += [BoolParameter(qualifier='enabled', copy_for={'context': 'dataset', 'kind': ['lc', 'rv'], 'dataset': '*'}, dataset='_default', value=kwargs.get('enabled', True), description='Whether to create synthetics in compute/solver run')]
+    # params += [BoolParameter(qualifier='enabled', copy_for={'context': 'feature', 'kind': [], 'feature': '*'}, feature='_default', value=kwargs.get('enabled', True), description='Whether to enable the feature in compute/solver run')]
+
+    params += [FloatParameter(qualifier='requiv_max_limit', value=kwargs.get('requiv_max_limit', 0.5), limits=(0.01,1), default_unit=u.dimensionless_unscaled, advanced=True, description='Maximum allowed fraction of requiv_max (as jktebop does not handle highly distorted systems) before raising an error in run_checks_compute.')]
 
     params += [ChoiceParameter(copy_for = {'kind': ['star'], 'component': '*'}, component='_default', qualifier='atm', value=kwargs.get('atm', 'ck2004'), advanced=True, choices=_atm_choices, description='Atmosphere table to use when estimating passband luminosities and flux scaling (see pblum_method).  Note jktebop itself does not support atmospheres.')]
     params += [ChoiceParameter(qualifier='pblum_method', value=kwargs.get('pblum_method', 'stefan-boltzmann'), choices=['stefan-boltzmann', 'phoebe'], description='Method to estimate passband luminosities and handle scaling of returned fluxes from jktebop.  stefan-boltzmann: approximate the star as a uniform sphere and estimate the luminosities from teff, requiv, logg, and abun from the internal passband and atmosphere tables.  phoebe: build the mesh using roche distortion at time t0 and compute luminosities use the internal atmosphere tables (considerable overhead, but more accurate for distorted stars).')]
 
     params += [FloatParameter(qualifier='ringsize', value=kwargs.get('ringsize', 5), default_unit=u.deg, description='Integration ring size')]
 
-    params += [ChoiceParameter(copy_for={'kind': ['star'], 'component': '*'}, component='_default', qualifier='distortion_method', value=kwargs.get('distortion_method', 'sphere/biaxial spheroid'), choices=["sphere/biaxial spheroid"], description='Method to use for distorting stars (jktebop only supports spheres for eclipse shapes and biaxial spheroid for calculation of ellipsoidal effects and reflection)')]
+    params += [ChoiceParameter(qualifier='rv_method', copy_for = {'component': {'kind': 'star'}, 'dataset': {'kind': 'rv'}}, component='_default', dataset='_default',
+                               value=kwargs.get('rv_method', 'dynamical'), choices=['dynamical'], description='Method to use for computing RVs.  jktebop only supports dynamical (Keplerian) RVs.')]
+
+
+    params += [ChoiceParameter(qualifier='distortion_method', value=kwargs.get('distortion_method', 'sphere/biaxial spheroid'), choices=["sphere/biaxial spheroid", "sphere"], description='Method to use for distorting stars (applies to all components). sphere/biaxial-spheroid: spheres for eclipse shapes and biaxial spheroid for calculation of ellipsoidal effects and reflection, sphere: sphere for eclipse shapes and no ellipsoidal or reflection effects')]
     params += [ChoiceParameter(qualifier='irrad_method', value=kwargs.get('irrad_method', 'biaxial-spheroid'), choices=['none', 'biaxial-spheroid'], description='Which method to use to handle all irradiation effects')]
 
     params += [ChoiceParameter(qualifier='fti_method', copy_for = {'kind': ['lc'], 'dataset': '*'}, dataset='_default', value=kwargs.get('fti_method', 'none'), choices=['none', 'oversample'], description='How to handle finite-time integration (when non-zero exptime)')]
@@ -534,7 +575,7 @@ def ellc(**kwargs):
     * <phoebe.frontend.bundle.Bundle.references>
 
     Note that the wrapper around ellc only uses its forward model.
-    ellc also includes its own solver methods, including emccee.
+    ellc also includes its own solver methods, including emcee.
     Those capabilities cannot be accessed from PHOEBE.
 
     The following parameters are "exported/translated" when using the ellc
@@ -546,6 +587,7 @@ def ellc(**kwargs):
     * gravb_bol
     * teff (ratio^4 used as an estimate of surface brightness ratio, unless pblum_mode='decoupled' in which case pblum ratio is passed directly)
     * irrad_frac_refl_bol
+    * yaw (misalignment only supported with `distortion_method='sphere'` and only included for Rossiter-McLaughlin contribution to RVs)
 
     Orbit:
     * sma
@@ -573,10 +615,10 @@ def ellc(**kwargs):
     * ld_coeffs (will call <phoebe.frontend.bundle.Bundle.compute_ld_coeffs> if necessary)
     * pblum (will use <phoebe.frontend.bundle.Bundle.compute_pblums> if necessary)
 
-    Note: ellc returns fluxes in arbitrary units.  These are then rescaled according
-    to the values of pblum, but converted to a flux-scale by assuming spherical stars.
-    For the non-spherical case, the fluxes may be off by a (small) factor.
-
+    Note: ellc returns fluxes that are normalized based on the sum of the irradiated
+    faces of each of the components.  These are then rescaled according to
+    `pblum_method`.  Note that this re-normalization is not exact, but should behave
+    reasonably with plbum_mode='dataset-scaled'.
 
     The following parameters are populated in the resulting model when using the
     ellc backend:
@@ -607,6 +649,17 @@ def ellc(**kwargs):
     ----------
     * `enabled` (bool, optional, default=True): whether to create synthetics in
         compute/solver runs.
+    * `atm` (string, optional, default='ck2003'): Atmosphere table to use when
+        estimating passband luminosities and flux scaling (see pblum_method).
+        Note jktebop itself does not support atmospheres.
+    * `pblum_method` (string, optional, default='stefan-boltzmann'): Method to
+        estimate passband luminosities and handle scaling of returned fluxes from
+        jktebop.  stefan-boltzmann: approximate the star as a uniform sphere and
+        estimate the luminosities from teff, requiv, logg, and abun from the
+        internal passband and atmosphere tables.  phoebe: build the mesh using
+        roche distortion at time t0 and compute luminosities use the internal
+         atmosphere tables (considerable overhead, but more accurate for
+         distorted stars).
     * `distortion_method` (string, optional, default='roche'): method to use
         for distorting stars.
     * `hf` (float, optional, default=1.5): fluid second love number (only applicable
@@ -618,22 +671,18 @@ def ellc(**kwargs):
         gravity at 4 points on the star.
     * `rv_method` (string, optional, default='flux-weighted'): which method to
         use for computing radial velocities.
+    * `irrad_method` (string, optional, default='none'): method to use for
+        irradiation (ellc does not support irradiation).
     * `fti_method` (string, optional, default='none'): method to use when accounting
         for finite exposure times.
     * `fti_oversample` (int, optional, default=1): number of integration points
         used to account for finite exposure time.  Only used if `fti_method`='oversample'.
-    * `irrad_method` (string, optional, default='none'): method to use for
-        irradiation (ellc does not support irradiation).
-
 
     Returns
     --------
     * (<phoebe.parameters.ParameterSet>): ParameterSet of all newly created
         <phoebe.parameters.Parameter> objects.
     """
-    # if not conf.devel:
-        # raise NotImplementedError("'ellc' backend not officially supported for this release.  Enable developer mode to test.")
-
     params = _sampling_params(**kwargs)
     params += _comments_params(**kwargs)
 
@@ -651,7 +700,6 @@ def ellc(**kwargs):
 
     params += [BoolParameter(qualifier='exact_grav', value=kwargs.get('exact_grav', False), description='Whether to use point-by-point calculation of local surface gravity for calculation of gravity darkening or a (much faster) approximation based on functional form fit to local gravity at 4 points on the star.')]
 
-    # TODO: enable flux-weighted once fixed within ellc
     params += [ChoiceParameter(qualifier='rv_method', copy_for = {'component': {'kind': 'star'}, 'dataset': {'kind': 'rv'}}, component='_default', dataset='_default',
                                value=kwargs.get('rv_method', 'dynamical'), choices=['flux-weighted', 'dynamical'], description='Method to use for computing RVs (must be flux-weighted for Rossiter-McLaughlin).  Note that \'flux-weighted\' is not allowed and will raise an error if irradiation is enabled (see irrad_method).')]
 

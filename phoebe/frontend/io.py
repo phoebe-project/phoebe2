@@ -792,6 +792,8 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
 
 #        if not fti_ind:
 
+#        if not fti_ind:
+
 #            if fti_ts != 'Mid-exposure':
 #                logger.warning('Phoebe 2 only uses Mid-Exposure times for calculating finite exposure times.')
 #            if fti:
