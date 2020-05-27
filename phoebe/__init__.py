@@ -8,6 +8,7 @@ Available environment variables:
 * PHOEBE_PBDIR (directory to search for passbands, in addition to phoebe.list_passband_directories())
 * PHOEBE_DOWNLOAD_PASSBAND_DEFAULTS_GZIPPED=TRUE/FALSE (whether to download gzipped version of passbands by default.  Defaults to False.  Note that gzipped files take longer to load and will increase time for import, but take significantly less disk-space.)
 * PHOEBE_DOWNLOAD_PASSBAND_DEFAULTS_CONTENT (default content, comma separated for list.  Defaults to 'all')
+* PHOEBE_UPDATE_PASSBAND_IGNORE_VERSION=TRUE/FALSE (update passbands that need new content even if the online version is newer than the installed version.  Defaults to False.)
 * PHOEBE_ENABLE_MPI=TRUE/FALSE (whether to use internal parallelization: defaults to True if within mpirun, otherwise False, can override in python with phoebe.mpi.on() and phoebe.mpi.off())
 * PHOEBE_MPI_NPROCS=INT (number of procs to spawn in mpi is enabled but not running within mpirun: defaults to 4, only applicable if not within mpirun and PHOEBE_ENABLE_MPI=TRUE or phoebe.mpi.on() called, can override in python by passing nprocs to phoebe.mpi.on() or by setting phoebe.mpi.nprocs)
 * PHOEBE_PBDIR (directory to search for passbands, in addition to phoebe.list_passband_directories())
@@ -248,6 +249,8 @@ class Settings(object):
         self._download_passband_defaults = {'content': _env_variable_string_or_list('PHOEBE_DOWNLOAD_PASSBAND_DEFAULTS_CONTENT', 'all'),
                                             'gzipped': _env_variable_bool('PHOEBE_DOWNLOAD_PASSBAND_DEFAULTS_GZIPPED', False)}
 
+        self._update_passband_ignore_version = _env_variable_bool('PHOEBE_UPDATE_PASSBAND_IGNORE_VERSION', False)
+
         # And we'll require explicitly setting developer mode on
         self._devel = _env_variable_bool('PHOEBE_DEVEL', False)
 
@@ -317,6 +320,16 @@ class Settings(object):
     @property
     def download_passband_defaults(self):
         return self._download_passband_defaults
+
+    @property
+    def update_passband_ignore_version(self):
+        return self._update_passband_ignore_version
+
+    def update_passband_ignore_version_on(self):
+        self._update_passband_ignore_version = True
+
+    def update_passband_ignore_version_on(self):
+        self._update_passband_ignore_version = False
 
 conf = Settings()
 
@@ -624,6 +637,41 @@ def get_download_passband_defaults():
     * dictionary of defaults, including `content` and `gzipped`.
     """
     return conf.get_download_passband_defaults()
+
+def update_passband_ignore_version_on():
+    """
+    Turn ingoring passband versions when checking for necessary updates on.
+    <phoebe.frontend.bundle.Bundle.run_checks_compute> checks to see if any
+    additional content is required from the used passbands.  If so, these will
+    be queried from the online tables if the timestamps match.  Otherwise, an
+    error will be raised requiring manually calling <phoebe.atmospheres.passbands.update_passband>.
+    By enabling this, this version conflict will be ignored, preventing the need
+    to manually update the passbands.
+
+    This can also be set at import time via the following environment variables:
+    * PHOEBE_UPDATE_PASSBAND_IGNORE_VERSION (defaults to FALSE)
+
+    See also:
+    * <phoebe.update_passband_ignore_version_off>
+
+    """
+    conf.update_passband_ignore_version_on()
+
+def update_passband_ignore_version_off():
+    """
+    Turn ingoring passband versions when checking for necessary updates off.
+    <phoebe.frontend.bundle.Bundle.run_checks_compute> checks to see if any
+    additional content is required from the used passbands.  If so, these will
+    be queried from the online tables if the timestamps match.  Otherwise, an
+    error will be raised requiring manually calling <phoebe.atmospheres.passbands.update_passband>.
+
+    This can also be set at import time via the following environment variables:
+    * PHOEBE_UPDATE_PASSBAND_IGNORE_VERSION (defaults to FALSE)
+
+    See also:
+    * <phoebe.update_passband_ignore_version_on>
+    """
+    conf.update_passband_ignore_version_on()
 
 # Shortcuts to MPI options
 def mpi_on(nprocs=None):

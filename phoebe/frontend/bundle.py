@@ -3509,8 +3509,12 @@ class Bundle(ParameterSet):
                                         'Attempt to download {} passband failed.  Check internet connection, wait for tables.phoebe-project.org to come back online, or try another passband.'.format(pb),
                                         [pbparam],
                                         True, 'run_compute')
-                elif _timestamp_to_dt(installed_timestamp) == _timestamp_to_dt(online_timestamp):
-                    logger.warning("updating installed {} passband (with matching online timestamp) to include content={}".format(pb, missing_pb_content))
+                elif conf.update_passband_ignore_version or _timestamp_to_dt(installed_timestamp) == _timestamp_to_dt(online_timestamp):
+                    if _timestamp_to_dt(installed_timestamp) == _timestamp_to_dt(online_timestamp):
+                        logger.warning("updating installed {} passband (with matching online timestamp) to include content={}".format(pb, missing_pb_content))
+                    else:
+                        logger.warning("updating installed {} passband (ignoring timestamp mismatch) to include content={}".format(pb, missing_pb_content))
+
                     try:
                         update_passband(pb, content=missing_pb_content)
                     except IOError:
