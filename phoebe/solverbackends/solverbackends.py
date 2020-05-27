@@ -693,10 +693,11 @@ class Rv_GeometryBackend(BaseSolverBackend):
         for i,starref in enumerate(starrefs):
             times, phases, rvs, sigmas = _get_combined_rv(b, kwargs.get('rv_datasets'), components=[starref], phase_component=kwargs.get('orbit'), mask=True, normalize=False, mirror_secondary=False, phase_sorted=False)
 
+            s = np.argsort(phases)
             if i==0:
-                rv1data = np.vstack((times, rvs, sigmas)).T
+                rv1data = np.vstack((phases[s], rvs[s], sigmas[s])).T
             else:
-                rv2data = np.vstack((times, rvs, sigmas)).T
+                rv2data = np.vstack((phases[s], rvs[s], sigmas[s])).T
 
         period = b.get_value(qualifier='period', component=orbit, context='component', unit=u.d, **_skip_filter_checks)
 
@@ -720,12 +721,12 @@ class Rv_GeometryBackend(BaseSolverBackend):
 
         vgamma_param = b.get_parameter(qualifier='vgamma', context='system', **_skip_filter_checks)
 
-        fitted_params = [t0_supconj_param, q_param, asini_param, ecc_param, per0_param]
+        fitted_params = [t0_supconj_param, q_param, asini_param, ecc_param, per0_param, vgamma_param]
         fitted_uniqueids = [p.uniqueid for p in fitted_params]
         fitted_twigs = [p.twig for p in fitted_params]
         fitted_values = [est_dict.get(p.qualifier) for p in fitted_params]
         # TODO: check units!
-        fitted_units = [u.d.to_string(), u.dimensionless_unscaled.to_string(), u.km.to_string(), u.dimensionless_unscaled.to_string(), u.rad.to_string()]
+        fitted_units = [u.d.to_string(), u.dimensionless_unscaled.to_string(), u.km.to_string(), u.dimensionless_unscaled.to_string(), u.rad.to_string(), (u.km/u.s).to_string()]
 
         return_ = [
                      {'qualifier': 'input_phases', 'component': starrefs[0], 'value': b.to_phase(rv1data[:,0], component=orbit, t0='t0_supconj')},

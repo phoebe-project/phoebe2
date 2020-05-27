@@ -6,20 +6,17 @@ from scipy.interpolate import interp1d
 from scipy.signal import savgol_filter
 
 
-def estimate_period(rvdata, use_sigma=False, component=1):
-    from astropy.timeseries import LombScargle
-    if use_sigma:
-        frequency, power = LombScargle(rvdata[:,0], rvdata[:,1], rvdata[:,2]).autopower(
-            minimum_frequency=1./(rvdata[:,0][-1]-rvdata[:,0][0]),
-            maximum_frequency=0.5/((rvdata[:,0][-1]-rvdata[:,0][0])/len(rvdata)),
-            samples_per_peak=10)
-    else:
-        frequency, power = LombScargle(rvdata[:,0], rvdata[:,1]).autopower(
-            minimum_frequency=1./(rvdata[:,0][-1]-rvdata[:,0][0]),
-            maximum_frequency=0.5/(rvdata[:,0][1]-rvdata[:,0][0]),
-            samples_per_peak=10)
+def smooth_rv(rvdata):
+    if rvdata is None:
+        return None
+    
+    win_len = int(len(rvdata))/5
+    win_len = int(win_len + 1) if win_len%2 == 0 else int(win_len)
+    win_len = 5 if win_len <= 3 else win_len
+    poly_ord = 3
+    rv_smooth = savgol_filter(rvdata[:,1], window_length=win_len, polyorder=poly_ord)
 
-    return 1./frequency[np.argmax(power)]
+    return np.array([rvdata[:,0], rv_smooth, rvdata[:,2]]).T
 
 
 def estimate_q(rvdata1, rvdata2):
@@ -28,9 +25,9 @@ def estimate_q(rvdata1, rvdata2):
     return rv1_amp/rv2_amp
 
 
-def estimate_sma(rvdata, period=1*u.d, incl = np.pi/2):
+def estimate_asini(rvdata, period=1*u.d):
     K = 0.5*(rvdata[:,1].max()-rvdata[:,1].min())
-    return K/(2*np.pi/(period.to(u.s)).value*np.sin(incl))
+    return K/(2*np.pi/(period.to(u.s)).value)
 
 
 def estimate_vgamma(rvdata):
@@ -38,34 +35,22 @@ def estimate_vgamma(rvdata):
     return 0.5*((rvdata[:,1].max()-K)+(rvdata[:,1].min()+K))
 
 
-def estimate_t0_supconj(rvdata, vgamma, period, component=1):
-    # TODO: fold with period so there are more points available for interpolation?
-    # limit to one period
-    times_fold = rvdata[:,0]%period
-    s = np.argsort(times_fold)
-    times_fold = times_fold[s]
-    rvs_fold = rvdata[:,1][s]
+def estimate_phase_supconj(rvdata, vgamma, component=1):
 
-    rvs_fold_smooth = savgol_filter(rvs_fold, 51, 3)
-    grad = np.gradient(rvs_fold_smooth)
+    grad = np.gradient(rvdata[:,1])
 
     if component==1:
-        t_rv_interp = interp1d(rvs_fold_smooth[grad<=0], times_fold[grad<=0])
+        ph_rv_interp = interp1d(rvdata[:,1][grad<=0], rvdata[:,0][grad<=0])
     elif component==2:
-        t_rv_interp = interp1d(rvs_fold_smooth[grad>=0], times_fold[grad>=0])
+        ph_rv_interp = interp1d(rvdata[:,1][grad>=0], rvdata[:,0][grad>=0])
     else:
         raise ValueError
 
-    t_vgamma = t_rv_interp(vgamma)
+    ph_vgamma = ph_rv_interp(vgamma)
 
-    return t_vgamma
+    return ph_vgamma
 
-def estimate_some_params(rvdata, period, vgamma, sma, component=1):
-    period = estimate_period(rvdata, component=component) if period is None else period
-    sma = estimate_sma(rvdata, period = period*u.d) if sma is None else sma
-    vgamma = estimate_vgamma(rvdata) if vgamma is None else vgamma
 
-    return period, sma, vgamma
 
 def rv(tanoms, asini=1., q=1., e=0., P=1., per0=0., component=1):
     # asini: km, P:s (passed in days so this will need to be converted first), per0: rad
@@ -109,52 +94,68 @@ def rv_model(times, t0_supconj, P, per0, ecc, asini, q, vgamma, component=1):
     return rv(tanoms, asini=asini, q=q, e=ecc, P=P, per0=per0, component=component)+vgamma
 
 
-def loglike(params, rv1data, rv2data, period, q, sma, vgamma, t0):
+def loglike(params, rv1data, rv2data, q, asini, vgamma, t0):
     logl1 = 0
     logl2 = 0
 
     per0, ecc = params
+    period = 1. # because phase-folded rv
     if rv1data is not None:
-        rvs1 = rv_model(rv1data[:,0], t0, period, per0, ecc, sma, q, vgamma, component=1)
+        rvs1 = rv_model(rv1data[:,0], t0, period, per0, ecc, asini, q, vgamma, component=1)
         logl1 = -0.5*np.sum((rv1data[:,1]-rvs1)**2/(rv1data[:,2])**2)
 
     if rv2data is not None:
-        rvs2 = rv_model(rv2data[:,0], t0, period, per0, ecc, sma, q, vgamma, component=2)
+        rvs2 = rv_model(rv2data[:,0], t0, period, per0, ecc, asini, q, vgamma, component=2)
         logl2 = -0.5*np.sum((rv2data[:,1]-rvs2)**2/(rv2data[:,2])**2)
 #     print(logl1+logl2)
     return logl1+logl2
 
 
 def estimate_rv_parameters(rv1data=None, rv2data=None,
-                           period=None, t0=None, q=None, vgamma=None, sma=None, ecc=None, per0=None):
+                           period =1., t0=None, q=None, vgamma=None, asini=None, ecc=None, per0=None):
+
+    rv1_smooth = rv1data
+    rv2_smooth = rv2data
 
     if rv1data is None and rv2data is None:
         raise ValueError('Both rv1 and rv2 data cannot be None. Please provide at least one.')
 
     if rv1data is not None and rv2data is None:
+        rv1_smooth = smooth_rv(rv1data)
         q = 1 if q is None else q
-        period, sma, vgamma = estimate_some_params(rv1data, period, vgamma, sma, component=1)
-        sma = 2*sma
-        t0 = estimate_t0_supconj(rv1data, vgamma, period, component=1) if t0 is None else t0
+        # period, sma, vgamma = estimate_some_params(rv1data, period, vgamma, sma, component=1)
+        asini = estimate_asini(rv1_smooth) 
+        asini = 2*asini if asini is None else asini
+        vgamma = estimate_vgamma(rv1_smooth) if vgamma is None else vgamma
+        t0 = estimate_phase_supconj(rv1_smooth, vgamma, component=1) if t0 is None else t0
 
     if rv2data is not None and rv1data is None:
+        rv2_smooth = smooth_rv(rv2data)
         q = 1 if q is None else q
-        period, sma, vgamma = estimate_some_params(rv2data, period, vgamma, sma, component=1)
-        sma = 2*sma
-        t0 = estimate_t0_supconj(rv2data, vgamma, period, component=2) if t0 is None else t0
+        # period, sma, vgamma = estimate_some_params(rv1data, period, vgamma, sma, component=1)
+        asini = estimate_asini(rv2_smooth) 
+        asini = 2*asini if asini is None else asini
+        vgamma = estimate_vgamma(rv2_smooth) if vgamma is None else vgamma
+        t0 = estimate_phase_supconj(rv2_smooth, vgamma, component=2) if t0 is None else t0
 
     if rv1data is not None and rv2data is not None:
-        q = estimate_q(rv1data, rv2data) if q is None else q
-        period1, sma1, vgamma1 = estimate_some_params(rv1data, period, vgamma, sma, component=1)
-        period2, sma2, vgamma2 = estimate_some_params(rv2data, period, vgamma, sma, component=2)
+        rv1_smooth = smooth_rv(rv1data)
+        rv2_smooth = smooth_rv(rv2data)
 
-        period = np.mean([period1, period2])
-        sma = sma1+sma2
-        vgamma = np.mean([vgamma1, vgamma2])
+        q = estimate_q(rv1_smooth, rv2_smooth) if q is None else q
+        if asini is None:
+            asini1 = estimate_asini(rv1_smooth)
+            asini2 = estimate_asini(rv2_smooth)
+            asini = asini1+asini2
+        if vgamma is None:
+            vgamma1 = estimate_vgamma(rv1_smooth)
+            vgamma2 = estimate_vgamma(rv2_smooth)
+            vgamma = np.mean([vgamma1, vgamma2])
 
-        t01 = estimate_t0_supconj(rv1data, vgamma, period, component=1) if t0 is None else t0
-        t02 = estimate_t0_supconj(rv2data, vgamma, period, component=2) if t0 is None else t0
-        t0 = np.mean([t01, t02])
+        if t0 is None:
+            t01 = estimate_phase_supconj(rv1_smooth, vgamma, component=1)
+            t02 = estimate_phase_supconj(rv2_smooth, vgamma, component=2)
+            t0 = np.mean([t01, t02])
 
     # set initial values for ecc and per0
     ecc = 0 if ecc is None else ecc
@@ -165,10 +166,11 @@ def estimate_rv_parameters(rv1data=None, rv2data=None,
           #bounds = ((times.min(), 0, 0., rvs.min()),(times.min()+period, 2*np.pi, 0.9, rvs.max())),
           bounds = ((0.,0.), (2*np.pi, 0.9)),
           kwargs={'rv1data':rv1data, 'rv2data':rv2data,
-                  'period': period, 'q':q, 'sma': sma1+sma2,
+                  'q':q, 'asini': asini,
                  'vgamma': vgamma, 't0':t0})
 
-    return {'period':period, 't0_supconj':t0, 'q':q, 'asini':sma,
-            'vgamma':vgamma, 'ecc':result.x[1], 'per0':result.x[0],
-            'rv1_analytic': rv_model(rv1data[:,0], t0, period, result.x[0], result.x[1], sma, q, vgamma, component=1),
-            'rv2_analytic': rv_model(rv2data[:,0], t0, period, result.x[0], result.x[1], sma, q, vgamma, component=2)}
+
+    return {'t0_supconj':t0*period, 'q':q, 'asini':asini*period,
+            'vgamma':vgamma, 'ecc':result.x[1], 'per0':result.x[0]}
+            # 'rv1_analytic': rv_model(rv1data[:,0], t0, period, result.x[0], result.x[1], asini*period, q, vgamma, component=1),
+            # 'rv2_analytic': rv_model(rv2data[:,0], t0, period, result.x[0], result.x[1], asini*period, q, vgamma, component=2)}
