@@ -277,7 +277,8 @@ def rv_geometry(**kwargs):
     normalization.  These combined data are then used to estimate the
     semi-amplitude and `t0_supconj` which are then used to fit a Keplerian
     orbit using least-squares.  This results in proposed values for `t0_supconj`,
-    `q`, `asini`, `ecc`, and `per0` for the corresponding `orbit`.
+    `q`, `asini`, `ecc`, and `per0` for the corresponding `orbit` and `vgamma`
+    of the system.
     If `expose_model` is True, the analytical Keplerian RVs are exposed in the
     solution and available for
     plotting with <phoebe.parameters.ParameterSet.plot>.
