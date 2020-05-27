@@ -4275,6 +4275,21 @@ class Bundle(ParameterSet):
             if adopt_values:
                 adopt_parameters = solution_ps.get_value(qualifier='adopt_parameters', adopt_parameters=kwargs.get('adopt_parameters', None), expand=True, **_skip_filter_checks)
                 fitted_uniqueids = solution_ps.get_value(qualifier='fitted_uniqueids', **_skip_filter_checks)
+                fitted_twigs = solution_ps.get_value(qualifier='fitted_twigs', **_skip_filter_checks)
+
+                adopt_inds = [list(fitted_twigs).index(twig) for twig in adopt_parameters]
+
+                # NOTE: samplers won't have fitted_values so this will default to the empty list
+                fitted_values = solution_ps.get_value(qualifier='fitted_values', default=[], **_skip_filter_checks)
+                # NOTE: the following list-comprehension is necessary because fitted_values may not be an array of floats/nans
+                if len(fitted_values) and np.any([np.isnan(v) for v in fitted_values[adopt_inds]]):
+                    report.add_item(self,
+                                    "at least one parameter in adopt_parameters includes nan in adopt_values",
+                                    [solution_ps.get_parameter(qualifier='adopt_parameters', **_skip_filter_checks),
+                                     solution_ps.get_parameter(qualifier='fitted_values', **_skip_filter_checks)
+                                    ]+addl_parameters,
+                                    True, 'adopt_solution')
+
                 # TODO: fix this annoying need to handle strings vs unicode
                 fitted_ps = self.filter(uniqueid=[str(u) for u in fitted_uniqueids], **_skip_filter_checks)
                 for adopt_twig in adopt_parameters:
