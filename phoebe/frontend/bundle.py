@@ -3772,6 +3772,29 @@ class Bundle(ParameterSet):
             compute_enabled_gps = self.filter(qualifier='enabled', feature=gps, value=True, **_skip_filter_checks).features
             compute_enabled_datasets = self.filter(qualifier='enabled', dataset=self.datasets, value=True, **_skip_filter_checks)
 
+            # per-compute hierarchy checks
+            if len(self.hierarchy.get_envelopes()):
+                if compute_kind not in ['phoebe', 'legacy']:
+                    report.add_item(self,
+                                    "{} (compute='{}') does not support contact systems".format(compute_kind, compute),
+                                    [self.hierarchy
+                                     ]+addl_parameters,
+                                     True, 'run_compute')
+            if len(self.hierarchy.get_stars()) == 1:
+                if compute_kind not in ['phoebe']:
+                    report.add_item(self,
+                                    "{} (compute='{}') does not support single star systems".format(compute_kind, compute),
+                                    [self.hierarchy
+                                     ]+addl_parameters,
+                                     True, 'run_compute')
+            elif len(self.hierarchy.get_stars()) > 2:
+                if compute_kind not in []:
+                    report.add_item(self,
+                                    "{} (compute='{}') does not support multiple systems".format(compute_kind, compute),
+                                    [self.hierarchy
+                                     ]+addl_parameters,
+                                     True, 'run_compute')
+
             # sample_from and solution checks
             # check if any parameter is in sample_from but is constrained
             # NOTE: similar logic exists for init_from in run_checks_solver
