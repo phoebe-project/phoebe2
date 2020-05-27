@@ -3443,7 +3443,7 @@ def update_passband_available(passband, history_dict=False):
     elif online_timestamp is None:
         return _return(passband, False)
 
-    elif conf.update_passband_ignore_version or _timestamp_to_dt(installed_timestamp) < _timestamp_to_dt(online_timestamp):
+    elif _timestamp_to_dt(installed_timestamp) < _timestamp_to_dt(online_timestamp):
         return _return(passband, True)
 
     return _return(passband, False)

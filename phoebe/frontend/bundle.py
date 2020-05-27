@@ -3524,7 +3524,7 @@ class Bundle(ParameterSet):
                                         True, 'run_compute')
                 else:
                     report.add_item(self,
-                                    'installed passband "{}" is missing the following tables: {}. The available online version ({}) is newer than the installed version ({}), so will not be updated automatically.  Call phoebe.update_passband("{}", content={}) or phoebe.update_all_passbands() to update to the latest version.'.format(pb, missing_pb_content, installed_timestamp, online_timestamp, pb, atm, missing_pb_content),
+                                    'installed passband "{}" is missing the following tables: {}. The available online version ({}) is newer than the installed version ({}), so will not be updated automatically.  Call phoebe.update_passband("{}", content={}) or phoebe.update_all_passbands() to update to the latest version.  Set phoebe.update_passband_ignore_version_on() to ignore version mismatches and update automatically.'.format(pb, missing_pb_content, installed_timestamp, online_timestamp, pb, atm, missing_pb_content),
                                     [pbparam],
                                     True, 'run_compute')
 
