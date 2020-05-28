@@ -775,7 +775,7 @@ class ParameterSet(object):
         Returns
         --------
         * (list) a list of all uniqueids for each <phoebe.parameters.Parameter>
-            in this <phoebe.parmaeters.ParameterSet>
+            in this <phoebe.parameters.ParameterSet>
         """
         return [p.uniqueid for p in self.to_list()]
 
@@ -793,7 +793,7 @@ class ParameterSet(object):
         Returns
         --------
         * (list) a list of all twigs for each <phoebe.parameters.Parameter>
-            in this <phoebe.parmaeters.ParameterSet>
+            in this <phoebe.parameters.ParameterSet>
         """
         return [p.twig for p in self.to_list()]
 
@@ -844,7 +844,7 @@ class ParameterSet(object):
         Returns
         --------
         * (list) a list of all qualifiers for each <phoebe.parameters.Parameter>
-            in this <phoebe.parmaeters.ParameterSet>
+            in this <phoebe.parameters.ParameterSet>
         """
         return self._options_for_tag('qualifier')
 
@@ -878,7 +878,7 @@ class ParameterSet(object):
         Returns
         --------
         * (list) a list of all times for each <phoebe.parameters.Parameter>
-            in this <phoebe.parmaeters.ParameterSet>
+            in this <phoebe.parameters.ParameterSet>
         """
         return self._options_for_tag('time')
 
@@ -913,7 +913,7 @@ class ParameterSet(object):
         Returns
         --------
         * (list) a list of all histories for each <phoebe.parameters.Parameter>
-            in this <phoebe.parmaeters.ParameterSet>
+            in this <phoebe.parameters.ParameterSet>
         """
         return self._options_for_tag('history')
 
@@ -932,7 +932,7 @@ class ParameterSet(object):
         Returns
         --------
         * (list) a list of all twigs for each <phoebe.parameters.Parameter>
-            in this <phoebe.parmaeters.ParameterSet>
+            in this <phoebe.parameters.ParameterSet>
         """
         return self.histories
 
@@ -967,7 +967,7 @@ class ParameterSet(object):
         Returns
         --------
         * (list) a list of all features for each <phoebe.parameters.Parameter>
-            in this <phoebe.parmaeters.ParameterSet>
+            in this <phoebe.parameters.ParameterSet>
         """
         return self._options_for_tag('feature', include_default=False)
 
@@ -1010,7 +1010,7 @@ class ParameterSet(object):
         Returns
         --------
         * (list) a list of all components for each <phoebe.parameters.Parameter>
-            in this <phoebe.parmaeters.ParameterSet>
+            in this <phoebe.parameters.ParameterSet>
         """
         return self._options_for_tag('component', include_default=False)
 
@@ -1044,7 +1044,7 @@ class ParameterSet(object):
         Returns
         --------
         * (list) a list of all datasets for each <phoebe.parameters.Parameter>
-            in this <phoebe.parmaeters.ParameterSet>
+            in this <phoebe.parameters.ParameterSet>
         """
         return self._options_for_tag('dataset', include_default=False)
 
@@ -1078,7 +1078,7 @@ class ParameterSet(object):
         Returns
         --------
         * (list) a list of all constraints for each <phoebe.parameters.Parameter>
-            in this <phoebe.parmaeters.ParameterSet>
+            in this <phoebe.parameters.ParameterSet>
         """
         return self._options_for_tag('constraint')
 
@@ -1112,7 +1112,7 @@ class ParameterSet(object):
         Returns
         --------
         * (list) a list of all constraints for each <phoebe.parameters.Parameter>
-            in this <phoebe.parmaeters.ParameterSet>
+            in this <phoebe.parameters.ParameterSet>
         """
         return self._options_for_tag('distribution')
 
@@ -1146,7 +1146,7 @@ class ParameterSet(object):
         Returns
         --------
         * (list) a list of all computes for each <phoebe.parameters.Parameter>
-            in this <phoebe.parmaeters.ParameterSet>
+            in this <phoebe.parameters.ParameterSet>
         """
         return self._options_for_tag('compute')
 
@@ -1180,7 +1180,7 @@ class ParameterSet(object):
         Returns
         --------
         * (list) a list of all models for each <phoebe.parameters.Parameter>
-            in this <phoebe.parmaeters.ParameterSet>
+            in this <phoebe.parameters.ParameterSet>
         """
         return self._options_for_tag('model')
 
@@ -1214,7 +1214,7 @@ class ParameterSet(object):
         Returns
         --------
         * (list) a list of all figures for each <phoebe.parameters.Parameter>
-            in this <phoebe.parmaeters.ParameterSet>
+            in this <phoebe.parameters.ParameterSet>
         """
         return self._options_for_tag('figure')
 
@@ -1248,7 +1248,7 @@ class ParameterSet(object):
         Returns
         --------
         * (list) a list of all solvers for each <phoebe.parameters.Parameter>
-            in this <phoebe.parmaeters.ParameterSet>
+            in this <phoebe.parameters.ParameterSet>
         """
         return self._options_for_tag('solver')
 
@@ -1282,7 +1282,7 @@ class ParameterSet(object):
         Returns
         --------
         * (list) a list of all solutions for each <phoebe.parameters.Parameter>
-            in this <phoebe.parmaeters.ParameterSet>
+            in this <phoebe.parameters.ParameterSet>
         """
         return self._options_for_tag('solution')
 
@@ -1316,7 +1316,7 @@ class ParameterSet(object):
         Returns
         --------
         * (list) a list of all kinds for each <phoebe.parameters.Parameter>
-            in this <phoebe.parmaeters.ParameterSet>
+            in this <phoebe.parameters.ParameterSet>
         """
         return self._options_for_tag('kind')
 
@@ -1350,7 +1350,7 @@ class ParameterSet(object):
         Returns
         --------
         * (list) a list of all contexts for each <phoebe.parameters.Parameter>
-            in this <phoebe.parmaeters.ParameterSet>
+            in this <phoebe.parameters.ParameterSet>
         """
         return self._options_for_tag('context')
 
@@ -1995,7 +1995,7 @@ class ParameterSet(object):
 
     def values(self):
         """
-        Return the values from <phoebe.parmaeters.ParameterSet.to_dict>
+        Return the values from <phoebe.parameters.ParameterSet.to_dict>
 
         Returns
         -------
@@ -2007,7 +2007,7 @@ class ParameterSet(object):
     def items(self):
         """
         Returns the items (key, value pairs) from
-        <phoebe.parmaeters.ParameterSet.to_dict>.
+        <phoebe.parameters.ParameterSet.to_dict>.
 
         :return: string, :class:`Parameter` or :class:`ParameterSet` pairs
         """
@@ -2781,7 +2781,7 @@ class ParameterSet(object):
 
         Returns
         -----------
-        * the removed <phoebe.parmaeters.Parameter>.
+        * the removed <phoebe.parameters.Parameter>.
 
         Raises
         ------
@@ -3002,7 +3002,7 @@ class ParameterSet(object):
         * `value` (optional, default=None): valid value to set for the
             matched Parameter.
         * `index` (int, optional): only applicable for
-            <phoebe.parmaeters.FloatArrayParameter>.  Passing `index` will call
+            <phoebe.parameters.FloatArrayParameter>.  Passing `index` will call
             <phoebe.parameters.FloatArrayParameter.set_index_value> and pass
             `index` instead of <phoebe.parameters.FloatArrayParameter.set_value>.
         * `**kwargs`: filter options to be passed along to
@@ -3093,7 +3093,7 @@ class ParameterSet(object):
         * `value` (optional, default=None): valid value to set for each
             matched Parameter.
         * `index` (int, optional): only applicable for
-            <phoebe.parmaeters.FloatArrayParameter>.  Passing `index` will call
+            <phoebe.parameters.FloatArrayParameter>.  Passing `index` will call
             <phoebe.parameters.FloatArrayParameter.set_index_value> and pass
             `index` instead of <phoebe.parameters.FloatArrayParameter.set_value>.
         * `ignore_none` (bool, optional, default=False): if `ignore_none=True`,
@@ -5665,7 +5665,7 @@ class Parameter(object):
     def to_string_short(self):
         """
         Return a short/abreviated string representation of the
-        <phoebe.parmaeters.Parameter>.
+        <phoebe.parameters.Parameter>.
 
         See also:
         * <phoebe.parameters.Parameter.to_string>
@@ -7452,7 +7452,7 @@ class SelectParameter(Parameter):
         Set the current value of the <phoebe.parameters.SelectParameter>.
 
         `value` must be valid according to
-        <phoebe.parmaeters.SelectParameter.valid_selection>, otherwise a
+        <phoebe.parameters.SelectParameter.valid_selection>, otherwise a
         ValueError will be raised.
 
         Arguments
@@ -8494,7 +8494,7 @@ class FloatParameter(Parameter):
         Arguments
         -------------
         * `distribution` (string list or None, optional, default=None): distribution
-            to use when filtering.  If None, will default to <phoebe.parmaeters.FloatParameter.in_distributions>
+            to use when filtering.  If None, will default to <phoebe.parameters.FloatParameter.in_distributions>
         * `follow_constraints` (bool, optional, default=True): whether to include
             the distributions of parameters in the constrained parameter.  Only
             applicable if this parameter is currently constrained.  See also

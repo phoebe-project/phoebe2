@@ -2398,7 +2398,7 @@ class Bundle(ParameterSet):
         hierarchy, see <phoebe.frontend.bundle.Bundle.add_constraint>.
 
         See the built-in functions for building hierarchy reprentations:
-        * <phoebe.parmaeters.hierarchy>
+        * <phoebe.parameters.hierarchy>
         * <phoebe.parameters.hierarchy.binaryorbit>
         * <phoebe.parameters.hierarchy.component>
 
@@ -5030,7 +5030,7 @@ class Bundle(ParameterSet):
         Available kinds can be found in <phoebe.parameters.component> or by calling
         <phoebe.list_available_components> and include:
         * <phoebe.parameters.component.star>
-        * <phoebe.parmaeters.component.orbit>
+        * <phoebe.parameters.component.orbit>
         * <phoebe.parameters.component.envelope>
 
         Arguments
