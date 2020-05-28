@@ -8692,7 +8692,7 @@ class Bundle(ParameterSet):
             if l3_mode == 'flux':
                 l3_flux = self.get_value(qualifier='l3', context='dataset', dataset=dataset, unit=u.W/u.m**2, **_skip_filter_checks)
                 # pbflux could be 0.0 for the distortion_method='none' case
-                l3_frac = l3_flux / use_pbfluxes.get(dataset) if use_pbfluxes.get(dataset) != 0.0 else 0.0
+                l3_frac = l3_flux / (l3_flux + use_pbfluxes.get(dataset)) if use_pbfluxes.get(dataset) != 0.0 else 0.0
                 if ret_structured_dicts:
                     l3s[dataset] = l3_flux
                 else:
@@ -8702,7 +8702,7 @@ class Bundle(ParameterSet):
 
             elif l3_mode == 'fraction':
                 l3_frac = self.get_value(qualifier='l3_frac', context='dataset', dataset=dataset, **_skip_filter_checks)
-                l3_flux = l3_frac * use_pbfluxes.get(dataset)
+                l3_flux = (l3_frac)/(1-l3_frac) * use_pbfluxes.get(dataset)
 
                 if ret_structured_dicts:
                     l3s[dataset] = l3_flux

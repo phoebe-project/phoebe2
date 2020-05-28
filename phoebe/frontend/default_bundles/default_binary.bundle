@@ -54,7 +54,7 @@ null
 "qualifier": "distance"
 }, 
 {
-"description": "Systemic velocity (in the direction of positive RV or negative vz)", 
+"description": "Constant barycentric systemic velocity (in the direction of positive RV or negative vz)", 
 "limits": [
 null, 
 null
