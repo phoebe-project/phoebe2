@@ -11,6 +11,7 @@ from phoebe.parameters.twighelpers import _twig_to_uniqueid
 from phoebe.frontend import tabcomplete
 from phoebe.dependencies import nparray, distl
 from phoebe.utils import parse_json, phase_mask_inds
+from phoebe import helpers as _helpers
 
 import sys
 import random
@@ -4438,12 +4439,9 @@ class ParameterSet(object):
 
             adopt_inds, adopt_uniqueids = self._bundle._get_adopt_inds_uniqueids(ps, **kwargs)
 
-            def _filter_by_adopt_inds(p, adopt_inds):
-                if p.qualifier in ['samples', 'samples_u']:
-                    return p.value[:, adopt_inds]
-                return p.value
+            if kwargs.get('style') != 'corner':
+                kwargs['results'] = _helpers.get_dynesty_object_from_solution(ps._bundle, ps.solution, adopt_parameters=kwargs.get('adopt_parameters'))
 
-            kwargs['results'] = {p.qualifier: _filter_by_adopt_inds(p, adopt_inds) for p in self._bundle.filter(solution=ps.solution, context='solution', **_skip_filter_checks).to_list()}
             if kwargs.get('style') == 'corner':
                 # kwargs['dynesty_method'] = 'cornerplot'
 
@@ -4475,11 +4473,13 @@ class ParameterSet(object):
             lnprob_cutoff = ps.get_value(qualifier='lnprob_cutoff', lnprob_cutoff=kwargs.get('lnprob_cutoff', None), **_skip_filter_checks)
 
             lnprobabilities = ps.get_value(qualifier='lnprobabilities', **_skip_filter_checks)
+            samples = ps.get_value(qualifier='samples', **_skip_filter_checks)
 
-            return_ = []
             styles = kwargs.get('style')
             if isinstance(styles, str):
                 styles = [styles]
+
+            return_ = []
             for style in styles:
                 kwargs = _deepcopy(kwargs)
 
@@ -4490,11 +4490,11 @@ class ParameterSet(object):
                     if style=='failed' and len(adopt_inds) < 2:
                         raise ValueError("cannot plot failed_samples with < 2 parameters")
 
-                    kwargs['dc'], _ = ps._bundle.get_distribution_collection(solution=ps.solution, adopt_parameters=adopt_parameters, **{k:v for k,v in kwargs.items() if k in ['burnin', 'thin', 'lnprob_cutoff', 'distributions_convert', 'distributions_bins', 'parameters']})
+                    kwargs['dc'], _ = ps._bundle.get_distribution_collection(solution=ps.solution,
+                                                                            **{k:v for k,v in kwargs.items() if k in ['burnin', 'thin', 'lnprob_cutoff', 'distributions_convert', 'distributions_bins', 'parameters', 'adopt_parameters']})
 
                     if style=='failed':
                         kwargs['failed_samples'] = {k: np.asarray(v)[:,adopt_inds] for k,v in ps.get_value(qualifier='failed_samples', **_skip_filter_checks).items()}
-
 
                     return_ += [kwargs]
 
@@ -4504,14 +4504,15 @@ class ParameterSet(object):
                     kwargs.setdefault('marker', 'None')
                     kwargs.setdefault('linestyle', 'solid')
 
+                    lnprobabilities, samples = _helpers.process_mcmc_chains(lnprobabilities, samples, burnin, thin, -np.inf, adopt_inds, flatten=False)
+
                     # we'll be editing items in the array, so we need to make a deepcopy first
-                    lnprobabilities = _deepcopy(lnprobabilities[burnin:, :][::thin, :])
+                    lnprobabilities = _deepcopy(lnprobabilities)
+                    lnprobabilities[lnprobabilities < lnprob_cutoff] = np.nan
 
                     for lnp in lnprobabilities.T:
                         if not np.any(np.isfinite(lnp)):
                             continue
-
-                        lnprobabilities[lnprobabilities < lnprob_cutoff] = np.nan
 
                         if np.all(np.isnan(lnp)):
                             continue
@@ -4532,26 +4533,25 @@ class ParameterSet(object):
                     kwargs.setdefault('linestyle', 'solid')
 
                     fitted_uniqueids = self._bundle.get_value(qualifier='fitted_uniqueids', context='solution', solution=ps.solution, **_skip_filter_checks)
-                    fitted_twigs = self._bundle.get_value(qualifier='fitted_twigs', context='solution', solution=ps.solution, **_skip_filter_checks)
+                    # fitted_twigs = self._bundle.get_value(qualifier='fitted_twigs', context='solution', solution=ps.solution, **_skip_filter_checks)
                     fitted_units = self._bundle.get_value(qualifier='fitted_units', context='solution', solution=ps.solution, **_skip_filter_checks)
-                    fitted_ps = self._bundle.filter(uniqueid=list(fitted_uniqueids), **_skip_filter_checks)
-                    if len(fitted_ps.twigs) != len(fitted_twigs):
-                        fitted_ps = self._bundle.filter(twig=list(fitted_twigs), **_skip_filter_checks).exclude(context=['solution', 'distribution', 'model', 'compute', 'solver'], **_skip_filter_checks)
+                    fitted_ps = self._bundle.filter(uniqueid=list(adopt_uniqueids), **_skip_filter_checks)
 
-                    samples = self._bundle.get_value(qualifier='samples', context='solution', solution=ps.solution, **_skip_filter_checks)
-                    samples = samples[burnin:, :, :][::thin, : :][:, :, adopt_inds]
+                    lnprobabilities, samples = _helpers.process_mcmc_chains(lnprobabilities, samples, burnin, thin, lnprob_cutoff, adopt_inds, flatten=False)
+
                     # samples [niters, nwalkers, parameter]
-                    ys = kwargs.get('y', adopt_parameters)
+                    ys = kwargs.get('y', fitted_ps.filter(uniquied=list(adopt_uniqueids), **_skip_filter_checks).twigs)
                     if isinstance(ys, str):
                         ys = [ys]
                     yparams = fitted_ps.filter(twig=ys, **_skip_filter_checks)
 
                     for yparam in yparams.to_list():
-                        parameter_ind = list(fitted_uniqueids[adopt_inds]).index(yparam.uniqueid)
+                        parameter_ind = list(adopt_uniqueids).index(yparam.uniqueid)
 
                         for walker_ind in range(samples.shape[1]):
                             kwargs = _deepcopy(kwargs)
 
+                            # this needs to be the unflattened version
                             samples_y = samples[:, walker_ind, parameter_ind]
 
                             kwargs['x'] = np.arange(len(samples_y), dtype=float)*thin+burnin

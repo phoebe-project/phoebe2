@@ -42,6 +42,7 @@ from phoebe.frontend import io
 from phoebe.atmospheres.passbands import list_installed_passbands, list_online_passbands, get_passband, update_passband, _timestamp_to_dt
 from phoebe.dependencies import distl as _distl
 from phoebe.utils import _bytes, parse_json
+from phoebe import helpers as _helpers
 import libphoebe
 
 from phoebe import u
@@ -7480,12 +7481,7 @@ class Bundle(ParameterSet):
                     thin = solution_ps.get_value(qualifier='thin', thin=kwargs.get('thin', None), **_skip_filter_checks)
                     lnprob_cutoff = solution_ps.get_value(qualifier='lnprob_cutoff', lnprob_cutoff=kwargs.get('lnprob_cutoff', None), **_skip_filter_checks)
 
-                    # lnprobabilities[iteration, walker]
-                    lnprobabilities = lnprobabilities[burnin:, :][::thin, :]
-                    # samples[iteration, walker, parameter]
-                    samples = samples[burnin:, :, :][::thin, : :][:, :, adopt_inds]
-
-                    samples = samples[np.where(lnprobabilities > lnprob_cutoff)]
+                    lnprobabilities, samples = _helpers.process_mcmc_chains(lnprobabilities, samples, burnin, thin, lnprob_cutoff, adopt_inds)
                     weights = None
 
                 elif solver_kind == 'dynesty':
@@ -11067,7 +11063,8 @@ class Bundle(ParameterSet):
         return ret_ps
 
     def _get_adopt_inds_uniqueids(self, solution_ps, **kwargs):
-        adopt_parameters = solution_ps.get_value(qualifier='adopt_parameters', adopt_parameters=kwargs.get('adopt_parameters', None), expand=True, **_skip_filter_checks)
+
+        adopt_parameters = solution_ps.get_value(qualifier='adopt_parameters', adopt_parameters=kwargs.get('adopt_parameters', kwargs.get('parameters', None)), expand=True, **_skip_filter_checks)
         fitted_uniqueids = solution_ps.get_value(qualifier='fitted_uniqueids', **_skip_filter_checks)
         fitted_twigs = solution_ps.get_value(qualifier='fitted_twigs', **_skip_filter_checks)
 
@@ -11075,7 +11072,7 @@ class Bundle(ParameterSet):
 
         adoptable_ps = self.get_adjustable_parameters(exclude_constrained=False) + self.filter(qualifier='mask_phases', context='dataset', **_skip_filter_checks)
         if np.all([uniqueid in b_uniqueids for uniqueid in fitted_uniqueids]):
-            fitted_ps = ParameterSet([adoptable_ps.get_parameter(uniqueid=uniqueid, **_skip_filter_checks) for uniqueid in fitted_uniqueids])
+            fitted_ps = adoptable_ps.filter(uniqueid=list(fitted_uniqueids), **_skip_filter_checks)
         else:
             logger.warning("not all uniqueids in fitted_uniqueids@{}@solution are still valid.  Falling back on twigs.  Save and load same bundle to prevent this extra cost.".format(solution_ps.solution))
             fitted_ps = adoptable_ps.filter(twig=fitted_twigs.tolist(), **_skip_filter_checks)
