@@ -4435,9 +4435,8 @@ class ParameterSet(object):
 
         elif ps.kind == 'dynesty':
             kwargs.setdefault('style', 'corner')
-            adopt_parameters = ps.get_value(qualifier='adopt_parameters', expand=True, adopt_parameters=kwargs.get('adopt_parameters', None), **_skip_filter_checks)
-            fitted_twigs = ps.get_value(qualifier='fitted_twigs', **_skip_filter_checks)
-            adopt_inds = [list(fitted_twigs).index(twig) for twig in adopt_parameters]
+
+            adopt_inds, adopt_uniqueids = self._bundle._get_adopt_inds_uniqueids(ps, **kwargs)
 
             def _filter_by_adopt_inds(p, adopt_inds):
                 if p.qualifier in ['samples', 'samples_u']:
@@ -4468,9 +4467,8 @@ class ParameterSet(object):
             return (kwargs,)
         elif ps.kind == 'emcee':
             kwargs.setdefault('style', ['trace', 'lnprobability'])
-            adopt_parameters = ps.get_value(qualifier='adopt_parameters', expand=True, adopt_parameters=kwargs.get('adopt_parameters', None), **_skip_filter_checks)
-            fitted_twigs = ps.get_value(qualifier='fitted_twigs', **_skip_filter_checks)
-            adopt_inds = [list(fitted_twigs).index(twig) for twig in adopt_parameters]
+
+            adopt_inds, adopt_uniqueids = self._bundle._get_adopt_inds_uniqueids(ps, **kwargs)
 
             burnin = ps.get_value(qualifier='burnin', burnin=kwargs.get('burnin', None), **_skip_filter_checks)
             thin = ps.get_value(qualifier='thin', thin=kwargs.get('thin', None), **_skip_filter_checks)
@@ -4549,11 +4547,7 @@ class ParameterSet(object):
                     yparams = fitted_ps.filter(twig=ys, **_skip_filter_checks)
 
                     for yparam in yparams.to_list():
-                        try:
-                            parameter_ind = list(fitted_uniqueids[adopt_inds]).index(yparam.uniqueid)
-
-                        except:
-                            parameter_ind = list(fitted_twigs[adopt_inds]).index(yparam.twig)
+                        parameter_ind = list(fitted_uniqueids[adopt_inds]).index(yparam.uniqueid)
 
                         for walker_ind in range(samples.shape[1]):
                             kwargs = _deepcopy(kwargs)
@@ -5188,7 +5182,7 @@ class ParameterSet(object):
                     dump = kwargs.pop('qualifier', None)
                     func = getattr(self.gcf(), autofig_method)
 
-                    if autofig_method == 'plot' and len(plot_kwargs.get('y', np.array([])).shape) > 1:
+                    if autofig_method == 'plot' and len(np.asarray(plot_kwargs.get('y', [])).shape) > 1:
                         # then we want to loop over the y index
                         for y in plot_kwargs.get('y'):
                             func(y=y, **{k:v for k,v in plot_kwargs.items() if k!='y'})
