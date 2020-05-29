@@ -9951,7 +9951,8 @@ class Bundle(ParameterSet):
                     scale_factor_approx = np.median(ds_fluxess / model_fluxess_interp)
 
                     def _scale_fluxes(fluxes, scale_factor, l3_frac, l3_pblum_abs_sum, l3_flux):
-                        return scale_factor * (fluxes + l3_frac * l3_pblum_abs_sum) + l3_flux
+                        # note: l3_frac or l3_flux will be zero, based on which is provided
+                        return scale_factor * (fluxes + l3_frac/(1-l3_frac) * l3_pblum_abs_sum) + l3_flux
 
                     def _scale_fluxes_cfit(fluxes, scale_factor):
                         # use values in this namespace rather than passing directly
