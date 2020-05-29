@@ -186,7 +186,7 @@ def phoebe(**kwargs):
 def legacy(**kwargs):
     """
     Create a <phoebe.parameters.ParameterSet> for compute options for the
-    [PHOEBE 1.0 (legacy)](http://phoebe-project.org/1.0) backend.
+    [PHOEBE 1.0 legacy](http://phoebe-project.org/1.0) backend.
 
     See also:
     * <phoebe.frontend.bundle.Bundle.export_legacy>

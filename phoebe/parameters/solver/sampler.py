@@ -49,8 +49,8 @@ def emcee(**kwargs):
     then exposes the raw-products from `emcee`, after which the following
     actions can be taken:
 
-    * <phoebe.parameters.ParameterSet.plot> with `style` as one of
-        ['corner', 'failed', 'lnprobabilities', 'trace'/'walks'].
+    * <phoebe.parameters.ParameterSet.plot> with `style` as one of:
+        'corner', 'failed', 'lnprobabilities', 'trace'/'walks'.
     * <phoebe.frontend.bundle.Bundle.adopt_solution> to adopt the resulting
         posteriors in a distribution.  Use `adopt_values=True` (defaults to False)
         to adopt the face-values.  Use `trial_run=True` to see the adopted
@@ -177,8 +177,8 @@ def dynesty(**kwargs):
     then exposes the raw-products from `dynesty`, after which the following
     actions can be taken:
 
-    * <phoebe.parameters.ParameterSet.plot> with `style` as one of
-        ['corner', 'trace', 'run'].
+    * <phoebe.parameters.ParameterSet.plot> with `style` as one of:
+        'corner', 'trace', 'run'.
     * <phoebe.frontend.bundle.Bundle.adopt_solution> to adopt the resulting
         posteriors in a distribution.  Use `adopt_values=True` (defaults to False)
         to adopt the face-values.  Use `trial_run=True` to see the adopted
