@@ -8663,6 +8663,8 @@ class Bundle(ParameterSet):
         if not isinstance(compute, str):
             raise TypeError("compute must be a single value (string)")
 
+        self.run_delayed_constraints()
+
         datasets_need_pbflux = [d for d in datasets if d not in use_pbfluxes.keys()]
         if len(datasets_need_pbflux):
             _, _, _, _, compute_pblums_pbfluxes = self.compute_pblums(compute=compute, dataset=datasets_need_pbflux, ret_structured_dicts=True, **kwargs)
@@ -8869,6 +8871,7 @@ class Bundle(ParameterSet):
         if not kwargs.get('skip_checks', False):
             self._kwargs_checks(kwargs, additional_allowed_keys=['system', 'skip_checks', 'ret_structured_dicts', 'overwrite', 'pblum_mode', 'pblum_method']+compute_ps.qualifiers, additional_forbidden_keys=forbidden_keys)
 
+        self.run_delayed_constraints()
 
         # make sure we pass system checks
         if not kwargs.get('skip_checks', False):
