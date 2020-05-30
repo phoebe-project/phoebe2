@@ -146,7 +146,7 @@ def lc(syn=False, as_ps=True, is_lc=True, **kwargs):
     * `l3` (float/quantity, optional): third light in flux units (only applicable
         if `l3_mode` is 'flux'). Only applicable if `syn` is False and `is_lc`
         is True.
-    * `l3_frac` (float/quantity, optional): third light in fraction
+    * `l3_frac` (float/quantity, optional): third light in fraction of total light.
         (only applicable if `l3_mode` is 'fraction').
         Only applicable if `syn` is False and `is_lc` is True.
     * `exptime` (float/quantity, optional): exposure time of the observations
@@ -225,7 +225,7 @@ def lc(syn=False, as_ps=True, is_lc=True, **kwargs):
 
         params += [ChoiceParameter(qualifier='l3_mode', value=kwargs.get('l3_mode', 'flux'), choices=['flux', 'fraction'], description='Whether third light is given in units of flux or as a fraction of total light')]
         params += [FloatParameter(visible_if='l3_mode:flux', qualifier='l3', value=kwargs.get('l3', 0.), limits=[0, None], default_unit=u.W/u.m**2, description='Third light in flux units')]
-        params += [FloatParameter(visible_if='l3_mode:fraction', qualifier='l3_frac', value=kwargs.get('l3_frac', 0.), limits=[0, 1], default_unit=u.dimensionless_unscaled, description='Third light as a fraction of total light')]
+        params += [FloatParameter(visible_if='l3_mode:fraction', qualifier='l3_frac', value=kwargs.get('l3_frac', 0.), limits=[0, 1], default_unit=u.dimensionless_unscaled, description='Third light as a fraction of total flux (both system and third light)')]
 
         params += [FloatParameter(qualifier='exptime', value=kwargs.get('exptime', 0.0), default_unit=u.s, description='Exposure time (time is defined as mid-exposure)')]
 

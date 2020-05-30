@@ -16,7 +16,8 @@ def system(**kwargs):
     * `dec` (float/quantity, optiona): declination.
     * `epoch` (string, optional): epoch of `ra` and `dec`.
     * `distance` (float/quantity, optional): distance to the system.
-    * `vgamma` (float/quantity, optional): systemic velocity.
+    * `vgamma` (float/quantity, optional): Constant barycentric systemic velocity
+        (in the direction of positive RV or negative vz)
     * `ebv` (float, optional, default=0): extinction E(B-V).
     * `Av` (float, optional, default=0): extinction Av.
     * `Rv` (float, optional, default=3.1): extinction law parameter.
@@ -38,7 +39,7 @@ def system(**kwargs):
     #params += [FloatParameter(qualifier='pmdec', value=kwargs.get('pmdec', 0.0), default_unit=u.mas/u.yr, description='Proper motion in declination')]
 
     params += [FloatParameter(qualifier='distance', value=kwargs.get('distance', 1.0), default_unit=u.m, description='Distance to the system')]
-    params += [FloatParameter(qualifier='vgamma', value=kwargs.get('vgamma', 0.0), default_unit=u.km/u.s, description='Systemic velocity (in the direction of positive RV or negative vz)')]
+    params += [FloatParameter(qualifier='vgamma', value=kwargs.get('vgamma', 0.0), default_unit=u.km/u.s, description='Constant barycentric systemic velocity (in the direction of positive RV or negative vz)')]
 
     params += [FloatParameter(qualifier='ebv', value=kwargs.get('ebv', 0.0), default_unit=u.dimensionless_unscaled, limits=(None, None), description='Extinction E(B-V)')]
     params += [FloatParameter(qualifier='Av', value=kwargs.get('Av', 0.0), default_unit=u.dimensionless_unscaled, limits=(None, None), description='Extinction Av')]

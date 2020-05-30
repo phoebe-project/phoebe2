@@ -13,7 +13,8 @@ env:
     - PIP_DEPENDENCIES='nose rebound requests mpi4py pytest asdf'
     - NOSETESTS=1
     - BENCHMARK=0
-    - PHOEBE_ENABLE_PLOTTING = 'FALSE'
+    - PHOEBE_ENABLE_PLOTTING='FALSE'
+    - PHOEBE_UPDATE_PASSBAND_IGNORE_VERSION='TRUE'
 
 
 matrix:

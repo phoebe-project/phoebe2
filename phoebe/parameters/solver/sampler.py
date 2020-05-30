@@ -44,6 +44,23 @@ def emcee(**kwargs):
     will be handled at the compute-level (per-time).  In all other cases,
     parallelization is handled at the solver-level (per-model).
 
+    The resulting solution (from <phoebe.frontend.bundle.Bundle.run_solver> or
+    <phoebe.frontend.bundle.Bundle.export_solver> and <phoebe.frontend.bundle.Bundle.import_solution>)
+    then exposes the raw-products from `emcee`, after which the following
+    actions can be taken:
+
+    * <phoebe.parameters.ParameterSet.plot> with `style` as one of:
+        'corner', 'failed', 'lnprobabilities', 'trace'/'walks'.
+    * <phoebe.frontend.bundle.Bundle.adopt_solution> to adopt the resulting
+        posteriors in a distribution.  Use `adopt_values=True` (defaults to False)
+        to adopt the face-values.  Use `trial_run=True` to see the adopted
+        distributions and/or values without applying to the Bundle.
+    * <phoebe.frontend.bundle.Bundle.get_distribution_collection> to access
+        the multivariate distribution representation of the posteriors.
+    * <phoebe.helpers.process_mcmc_chains> or <phoebe.helpers.process_mcmc_chains_from_solution>
+        to manually access the `lnprobabilities` and `samples` after applying
+        `burnin`, `thin`, `lnprob_cutoff`, and `adopt_parameters`/`adopt_inds`.
+
     Arguments
     ----------
     * `compute` (string, optional): compute options to use for forward model
@@ -154,6 +171,24 @@ def dynesty(**kwargs):
 
     Parallelization support: dynesty supports both MPI and multiprocessing, always
     at the solver-level (per-model).
+
+    The resulting solution (from <phoebe.frontend.bundle.Bundle.run_solver> or
+    <phoebe.frontend.bundle.Bundle.export_solver> and <phoebe.frontend.bundle.Bundle.import_solution>)
+    then exposes the raw-products from `dynesty`, after which the following
+    actions can be taken:
+
+    * <phoebe.parameters.ParameterSet.plot> with `style` as one of:
+        'corner', 'trace', 'run'.
+    * <phoebe.frontend.bundle.Bundle.adopt_solution> to adopt the resulting
+        posteriors in a distribution.  Use `adopt_values=True` (defaults to False)
+        to adopt the face-values.  Use `trial_run=True` to see the adopted
+        distributions and/or values without applying to the Bundle.
+    * <phoebe.frontend.bundle.Bundle.get_distribution_collection> to access
+        the multivariate distribution representation of the posteriors.
+    * <phoebe.helpers.get_dynesty_object> or <phoebe.helpers.get_dynesty_object_from_solution>
+        to manually access the dynesty object which can then be passed to any
+        [dynesty helper function](https://dynesty.readthedocs.io/en/latest/api.html#module-dynesty.results)
+        which accepts the `results` object.
 
 
     Arguments

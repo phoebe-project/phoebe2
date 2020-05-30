@@ -42,6 +42,7 @@ from phoebe.frontend import io
 from phoebe.atmospheres.passbands import list_installed_passbands, list_online_passbands, get_passband, update_passband, _timestamp_to_dt
 from phoebe.dependencies import distl as _distl
 from phoebe.utils import _bytes, parse_json
+from phoebe import helpers as _helpers
 import libphoebe
 
 from phoebe import u
@@ -462,7 +463,7 @@ class Bundle(ParameterSet):
         self._last_client_update = None
         self._lock = False
 
-        self._within_sampling = False
+        self._within_solver = False
 
         super(Bundle, self).__init__(params=params)
 
@@ -2218,7 +2219,7 @@ class Bundle(ParameterSet):
 
         # TODO: should we also check to make sure p.component in [None]+self.hierarchy.get_components()?  If so, we'll need to call this method in set_hierarchy as well.
 
-        choices = self.get_adjustable_parameters().twigs
+        choices = self.get_adjustable_parameters(exclude_constrained=False).twigs
         for param in params:
             choices_changed = False
             if return_changes and choices != param._choices:
@@ -2397,7 +2398,7 @@ class Bundle(ParameterSet):
         hierarchy, see <phoebe.frontend.bundle.Bundle.add_constraint>.
 
         See the built-in functions for building hierarchy reprentations:
-        * <phoebe.parmaeters.hierarchy>
+        * <phoebe.parameters.hierarchy>
         * <phoebe.parameters.hierarchy.binaryorbit>
         * <phoebe.parameters.hierarchy.component>
 
@@ -3509,8 +3510,12 @@ class Bundle(ParameterSet):
                                         'Attempt to download {} passband failed.  Check internet connection, wait for tables.phoebe-project.org to come back online, or try another passband.'.format(pb),
                                         [pbparam],
                                         True, 'run_compute')
-                elif _timestamp_to_dt(installed_timestamp) == _timestamp_to_dt(online_timestamp):
-                    logger.warning("updating installed {} passband (with matching online timestamp) to include content={}".format(pb, missing_pb_content))
+                elif conf.update_passband_ignore_version or _timestamp_to_dt(installed_timestamp) == _timestamp_to_dt(online_timestamp):
+                    if _timestamp_to_dt(installed_timestamp) == _timestamp_to_dt(online_timestamp):
+                        logger.warning("updating installed {} passband (with matching online timestamp) to include content={}".format(pb, missing_pb_content))
+                    else:
+                        logger.warning("updating installed {} passband (ignoring timestamp mismatch) to include content={}".format(pb, missing_pb_content))
+
                     try:
                         update_passband(pb, content=missing_pb_content)
                     except IOError:
@@ -3520,7 +3525,7 @@ class Bundle(ParameterSet):
                                         True, 'run_compute')
                 else:
                     report.add_item(self,
-                                    'installed passband "{}" is missing the following tables: {}. The available online version ({}) is newer than the installed version ({}), so will not be updated automatically.  Call phoebe.update_passband("{}", content={}) or phoebe.update_all_passbands() to update to the latest version.'.format(pb, missing_pb_content, installed_timestamp, online_timestamp, pb, atm, missing_pb_content),
+                                    'installed passband "{}" is missing the following tables: {}. The available online version ({}) is newer than the installed version ({}), so will not be updated automatically.  Call phoebe.update_passband("{}", content={}) or phoebe.update_all_passbands() to update to the latest version.  Set phoebe.update_passband_ignore_version_on() to ignore version mismatches and update automatically.'.format(pb, missing_pb_content, installed_timestamp, online_timestamp, pb, atm, missing_pb_content),
                                     [pbparam],
                                     True, 'run_compute')
 
@@ -3767,6 +3772,29 @@ class Bundle(ParameterSet):
             gps = self.filter(kind='gaussian_process', context='feature', **_skip_filter_checks).features
             compute_enabled_gps = self.filter(qualifier='enabled', feature=gps, value=True, **_skip_filter_checks).features
             compute_enabled_datasets = self.filter(qualifier='enabled', dataset=self.datasets, value=True, **_skip_filter_checks)
+
+            # per-compute hierarchy checks
+            if len(self.hierarchy.get_envelopes()):
+                if compute_kind not in ['phoebe', 'legacy']:
+                    report.add_item(self,
+                                    "{} (compute='{}') does not support contact systems".format(compute_kind, compute),
+                                    [self.hierarchy
+                                     ]+addl_parameters,
+                                     True, 'run_compute')
+            if len(self.hierarchy.get_stars()) == 1:
+                if compute_kind not in ['phoebe']:
+                    report.add_item(self,
+                                    "{} (compute='{}') does not support single star systems".format(compute_kind, compute),
+                                    [self.hierarchy
+                                     ]+addl_parameters,
+                                     True, 'run_compute')
+            elif len(self.hierarchy.get_stars()) > 2:
+                if compute_kind not in []:
+                    report.add_item(self,
+                                    "{} (compute='{}') does not support multiple systems".format(compute_kind, compute),
+                                    [self.hierarchy
+                                     ]+addl_parameters,
+                                     True, 'run_compute')
 
             # sample_from and solution checks
             # check if any parameter is in sample_from but is constrained
@@ -4090,6 +4118,16 @@ class Bundle(ParameterSet):
                                     ]+addl_parameters,
                                     True, 'run_solver')
 
+                adjustable_parameters = self.get_adjustable_parameters(exclude_constrained=False)
+                for twig in fit_parameters:
+                    fit_parameter = adjustable_parameters.get_parameter(twig=twig, **_skip_filter_checks)
+                    if len(fit_parameter.constrained_by):
+                        report.add_item(self,
+                                        "fit_parameters contains the constrained parameter '{}'".format(twig),
+                                        [solver_ps.get_parameter(qualifier='fit_parameters', **_skip_filter_checks),
+                                         fit_parameter.is_constraint
+                                        ]+addl_parameters,
+                                        True, 'run_solver')
 
             if 'init_from' in solver_ps.qualifiers:
                 _, init_from_uniqueids = self.get_distribution_collection(kwargs.get('init_from', 'init_from@{}'.format(solver)), keys='uniqueid', return_dc=False)
@@ -4246,20 +4284,22 @@ class Bundle(ParameterSet):
 
             adopt_values = solution_ps.get_value(qualifier='adopt_values', adopt_values=kwargs.get('adopt_values', None), **_skip_filter_checks)
             if adopt_values:
-                adopt_parameters = solution_ps.get_value(qualifier='adopt_parameters', adopt_parameters=kwargs.get('adopt_parameters', None), expand=True, **_skip_filter_checks)
-                fitted_uniqueids = solution_ps.get_value(qualifier='fitted_uniqueids', **_skip_filter_checks)
-                # TODO: fix this annoying need to handle strings vs unicode
-                fitted_ps = self.filter(uniqueid=[str(u) for u in fitted_uniqueids], **_skip_filter_checks)
-                for adopt_twig in adopt_parameters:
-                    adopt_ps = fitted_ps.filter(twig=adopt_twig, **_skip_filter_checks)
-                    if not len(adopt_ps.to_list()):
-                        report.add_item(self,
-                                        "no match for {} in 'adopt_parameters' could be found in 'fitted_uniqueids'".format(adopt_twig),
-                                        [solution_ps.get_parameter(qualifier='adopt_parameters', **_skip_filter_checks)
-                                        ]+addl_parameters,
-                                        False, 'adopt_solution')
-                    elif not kwargs.get('trial_run', False):
-                        adopt_param = adopt_ps.get_parameter(**_skip_filter_checks)
+                adopt_inds, adopt_uniqueids = self._get_adopt_inds_uniqueids(solution_ps, **kwargs)
+
+                # NOTE: samplers won't have fitted_values so this will default to the empty list
+                fitted_values = solution_ps.get_value(qualifier='fitted_values', default=[], **_skip_filter_checks)
+                # NOTE: the following list-comprehension is necessary because fitted_values may not be an array of floats/nans
+                if len(fitted_values) and np.any([np.isnan(v) for v in fitted_values[adopt_inds]]):
+                    report.add_item(self,
+                                    "at least one parameter in adopt_parameters includes nan in fitted_values",
+                                    [solution_ps.get_parameter(qualifier='adopt_parameters', **_skip_filter_checks),
+                                     solution_ps.get_parameter(qualifier='fitted_values', **_skip_filter_checks)
+                                    ]+addl_parameters,
+                                    True, 'adopt_solution')
+
+                if not kwargs.get('trial_run', False):
+                    for adopt_uniqueid in adopt_uniqueids:
+                        adopt_param = self.get_parameter(uniqueid=adopt_uniqueid, **_skip_filter_checks)
                         if len(adopt_param.constrained_by):
                             constrained_by_ps = ParameterSet(adopt_param.constrained_by)
                             validsolvefor = [v for v in _constraint._validsolvefor.get(adopt_param.is_constraint.constraint_func, []) if adopt_param.qualifier not in v]
@@ -4275,7 +4315,7 @@ class Bundle(ParameterSet):
 
                             else:
                                 report.add_item(self,
-                                                "{} is currently constrained but cannot automatically temporarily flip as solve_for has several options ({}).  Flip the constraint manually first, or remove {} from adopt_parameters.".format(adopt_twig, ", ".join([p.twig for p in adopt_param.constrained_by]), adopt_twig),
+                                                "{} is currently constrained but cannot automatically temporarily flip as solve_for has several options ({}).  Flip the constraint manually first, or remove {} from adopt_parameters.".format(adopt_param.twig, ", ".join([p.twig for p in adopt_param.constrained_by]), adopt_param.twig),
                                                 [solution_ps.get_parameter(qualifier='adopt_parameters', **_skip_filter_checks),
                                                  adopt_param.is_constraint
                                                 ]+addl_parameters,
@@ -4990,7 +5030,7 @@ class Bundle(ParameterSet):
         Available kinds can be found in <phoebe.parameters.component> or by calling
         <phoebe.list_available_components> and include:
         * <phoebe.parameters.component.star>
-        * <phoebe.parmaeters.component.orbit>
+        * <phoebe.parameters.component.orbit>
         * <phoebe.parameters.component.envelope>
 
         Arguments
@@ -7426,17 +7466,12 @@ class Bundle(ParameterSet):
                 solution_ps = self.get_solution(solution=dist_filter['solution'], **_skip_filter_checks)
                 solver_kind = solution_ps.kind
 
-                adopt_parameters = solution_ps.get_value(qualifier='adopt_parameters', adopt_parameters=kwargs.get('adopt_parameters', None), expand=True, **_skip_filter_checks)
-                # b_uniqueids = self.uniqueids
-
-                fitted_twigs = solution_ps.get_value(qualifier='fitted_twigs', **_skip_filter_checks)
-                fitted_units = solution_ps.get_value(qualifier='fitted_units', **_skip_filter_checks)
-
-                adopt_inds = [list(fitted_twigs).index(twig) for twig in adopt_parameters]
+                adopt_inds, adopt_uniqueids = self._get_adopt_inds_uniqueids(solution_ps, **kwargs)
 
                 if not len(adopt_inds):
                     raise ValueError('no parameters selected by adopt_parameters')
 
+                fitted_units = solution_ps.get_value(qualifier='fitted_units', **_skip_filter_checks)
 
                 if solver_kind == 'emcee':
                     lnprobabilities = solution_ps.get_value(qualifier='lnprobabilities', **_skip_filter_checks)
@@ -7446,12 +7481,7 @@ class Bundle(ParameterSet):
                     thin = solution_ps.get_value(qualifier='thin', thin=kwargs.get('thin', None), **_skip_filter_checks)
                     lnprob_cutoff = solution_ps.get_value(qualifier='lnprob_cutoff', lnprob_cutoff=kwargs.get('lnprob_cutoff', None), **_skip_filter_checks)
 
-                    # lnprobabilities[iteration, walker]
-                    lnprobabilities = lnprobabilities[burnin:, :][::thin, :]
-                    # samples[iteration, walker, parameter]
-                    samples = samples[burnin:, :, :][::thin, : :][:, :, adopt_inds]
-
-                    samples = samples[np.where(lnprobabilities > lnprob_cutoff)]
+                    lnprobabilities, samples = _helpers.process_mcmc_chains(lnprobabilities, samples, burnin, thin, lnprob_cutoff, adopt_inds)
                     weights = None
 
                 elif solver_kind == 'dynesty':
@@ -7467,10 +7497,9 @@ class Bundle(ParameterSet):
                     # then this is an estimator or optimizer, so we just want Delta
                     # distributions around 'fitted_values'
 
-                    fitted_uniqueids = solution_ps.get_value(qualifier='fitted_uniqueids', **_skip_filter_checks)
                     fitted_values = solution_ps.get_value(qualifier='fitted_values', **_skip_filter_checks)
 
-                    for fitted_value, fitted_unit, fitted_uniqueid in zip(fitted_values[adopt_inds], fitted_units[adopt_inds], fitted_uniqueids[adopt_inds]):
+                    for fitted_value, fitted_unit, fitted_uniqueid in zip(fitted_values[adopt_inds], fitted_units[adopt_inds], adopt_uniqueids):
                         param = self.get_parameter(uniqueid=fitted_uniqueid, **_skip_filter_checks)
                         ret_keys += [getattr(param, keys)]
                         if kwargs.get('return_dc', True):
@@ -7483,8 +7512,7 @@ class Bundle(ParameterSet):
                 distributions_convert = solution_ps.get_value(qualifier='distributions_convert', distributions_convert=kwargs.get('distributions_convert', None), **_skip_filter_checks)
                 distributions_bins = solution_ps.get_value(qualifier='distributions_bins', distributions_bins=kwargs.get('distributions_bins', None), **_skip_filter_checks)
 
-                # TODO: try to use uniqueid in the get_parameter if there are matches?
-                labels = [_corner_twig(self.get_parameter(twig=twig, **_skip_filter_checks)) for twig in fitted_twigs[adopt_inds]]
+                labels = [_corner_twig(self.get_parameter(uniqueid=uniqueid, **_skip_filter_checks)) for uniqueid in adopt_uniqueids]
                 dist_samples = _distl.mvsamples(samples,
                                                 weights=weights,
                                                 units=[u.Unit(unit) for unit in fitted_units[adopt_inds]],
@@ -7506,7 +7534,7 @@ class Bundle(ParameterSet):
                 else:
                     raise NotImplementedError("distributions_convert='{}' not supported".format(distributions_convert))
 
-                ret_keys += [getattr(self.get_parameter(twig=twig, **_skip_filter_checks), keys) for twig in fitted_twigs[adopt_inds]]
+                ret_keys += [getattr(self.get_parameter(uniqueid=uniqueid, **_skip_filter_checks), keys) for uniqueid in adopt_uniqueids]
 
                 if len(distribution_filters) == 1 and kwargs.get('allow_non_dc', True):
                     # then try to avoid slicing since we don't have to combine with anything else
@@ -8660,7 +8688,7 @@ class Bundle(ParameterSet):
             if l3_mode == 'flux':
                 l3_flux = self.get_value(qualifier='l3', context='dataset', dataset=dataset, unit=u.W/u.m**2, **_skip_filter_checks)
                 # pbflux could be 0.0 for the distortion_method='none' case
-                l3_frac = l3_flux / use_pbfluxes.get(dataset) if use_pbfluxes.get(dataset) != 0.0 else 0.0
+                l3_frac = l3_flux / (l3_flux + use_pbfluxes.get(dataset)) if use_pbfluxes.get(dataset) != 0.0 else 0.0
                 if ret_structured_dicts:
                     l3s[dataset] = l3_flux
                 else:
@@ -8670,7 +8698,7 @@ class Bundle(ParameterSet):
 
             elif l3_mode == 'fraction':
                 l3_frac = self.get_value(qualifier='l3_frac', context='dataset', dataset=dataset, **_skip_filter_checks)
-                l3_flux = l3_frac * use_pbfluxes.get(dataset)
+                l3_flux = (l3_frac)/(1-l3_frac) * use_pbfluxes.get(dataset)
 
                 if ret_structured_dicts:
                     l3s[dataset] = l3_flux
@@ -9923,7 +9951,8 @@ class Bundle(ParameterSet):
                     scale_factor_approx = np.median(ds_fluxess / model_fluxess_interp)
 
                     def _scale_fluxes(fluxes, scale_factor, l3_frac, l3_pblum_abs_sum, l3_flux):
-                        return scale_factor * (fluxes + l3_frac * l3_pblum_abs_sum) + l3_flux
+                        # note: l3_frac or l3_flux will be zero, based on which is provided
+                        return scale_factor * (fluxes + l3_frac/(1-l3_frac) * l3_pblum_abs_sum) + l3_flux
 
                     def _scale_fluxes_cfit(fluxes, scale_factor):
                         # use values in this namespace rather than passing directly
@@ -11034,6 +11063,32 @@ class Bundle(ParameterSet):
             return ret_ps + ret_changes
         return ret_ps
 
+    def _get_adopt_inds_uniqueids(self, solution_ps, **kwargs):
+
+        adopt_parameters = solution_ps.get_value(qualifier='adopt_parameters', adopt_parameters=kwargs.get('adopt_parameters', kwargs.get('parameters', None)), expand=True, **_skip_filter_checks)
+        fitted_uniqueids = solution_ps.get_value(qualifier='fitted_uniqueids', **_skip_filter_checks)
+        fitted_twigs = solution_ps.get_value(qualifier='fitted_twigs', **_skip_filter_checks)
+
+        b_uniqueids = self.uniqueids
+
+        adoptable_ps = self.get_adjustable_parameters(exclude_constrained=False) + self.filter(qualifier='mask_phases', context='dataset', **_skip_filter_checks)
+        if np.all([uniqueid in b_uniqueids for uniqueid in fitted_uniqueids]):
+            fitted_ps = adoptable_ps.filter(uniqueid=list(fitted_uniqueids), **_skip_filter_checks)
+        else:
+            logger.warning("not all uniqueids in fitted_uniqueids@{}@solution are still valid.  Falling back on twigs.  Save and load same bundle to prevent this extra cost.".format(solution_ps.solution))
+            fitted_ps = adoptable_ps.filter(twig=fitted_twigs.tolist(), **_skip_filter_checks)
+
+        adopt_uniqueids = []
+        for adopt_twig in adopt_parameters:
+            fitted_ps_filtered = fitted_ps.filter(twig=adopt_twig, **_skip_filter_checks)
+            if len(fitted_ps_filtered) == 1:
+                adopt_uniqueids.append(fitted_ps_filtered.get_parameter(**_skip_filter_checks).uniqueid)
+            elif len(fitted_ps_filtered) > 1:
+                raise ValueError("multiple valid matches found for adopt_parameter='{}'".format(adopt_twig))
+
+        adopt_inds = [fitted_uniqueids.tolist().index(uniqueid) for uniqueid in adopt_uniqueids]
+
+        return adopt_inds, adopt_uniqueids
 
     def adopt_solution(self, solution=None,
                        adopt_parameters=None, adopt_distributions=None, adopt_values=None,
@@ -11101,7 +11156,6 @@ class Bundle(ParameterSet):
         if solver_kind is None:
             raise ValueError("could not find solution='{}'".format(solution))
 
-        adopt_parameters = solution_ps.get_value(qualifier='adopt_parameters', adopt_parameters=adopt_parameters, expand=True, **_skip_filter_checks)
         adopt_distributions = solution_ps.get_value(qualifier='adopt_distributions', adopt_distributions=adopt_distributions, **_skip_filter_checks)
         adopt_values = solution_ps.get_value(qualifier='adopt_values', adopt_values=adopt_values, **_skip_filter_checks)
 
@@ -11121,16 +11175,12 @@ class Bundle(ParameterSet):
         if not (adopt_distributions or adopt_values):
             raise ValueError('either adopt_distributions or adopt_values must be True for adopt_solution to do anything.')
 
-        b_uniqueids = self.uniqueids
 
-        fitted_uniqueids = solution_ps.get_value(qualifier='fitted_uniqueids', **_skip_filter_checks)
-        fitted_twigs = solution_ps.get_value(qualifier='fitted_twigs', **_skip_filter_checks)
-        fitted_units = solution_ps.get_value(qualifier='fitted_units', **_skip_filter_checks)
-
-        adopt_inds = [list(fitted_twigs).index(twig) for twig in adopt_parameters]
-
+        adopt_inds, adopt_uniqueids = self._get_adopt_inds_uniqueids(solution_ps, adopt_parameters=adopt_parameters)
         if not len(adopt_inds):
             raise ValueError('no parameters selected by adopt_parameters')
+
+        fitted_units = solution_ps.get_value(qualifier='fitted_units', **_skip_filter_checks)
 
         user_interactive_constraints = conf.interactive_constraints
         conf.interactive_constraints_off(suppress_warning=True)
@@ -11149,7 +11199,7 @@ class Bundle(ParameterSet):
 
         if adopt_values and not trial_run:
             # check to make sure no constraint issues
-            for uniqueid in fitted_uniqueids[adopt_inds]:
+            for uniqueid in adopt_uniqueids:
                 param = self.get_parameter(uniqueid=uniqueid, **_skip_filter_checks)
                 if len(param.constrained_by):
                     constrained_by_ps = ParameterSet(param.constrained_by)
@@ -11170,28 +11220,16 @@ class Bundle(ParameterSet):
         if solver_kind in ['emcee', 'dynesty']:
             dist, _ = self.get_distribution_collection(solution=solution, **{k:v for k,v in kwargs.items() if k in solution_ps.qualifiers})
 
-            for i, uniqueid in enumerate(fitted_uniqueids[adopt_inds]):
-                if uniqueid in b_uniqueids:
-                    if adopt_distributions:
-                        ps = self.add_distribution(uniqueid=uniqueid, value=dist.slice(i), distribution=distribution, auto_add_figure=kwargs.get('auto_add_figure', None), check_label=distribution is not None)
-                    if adopt_values:
-                        param = self.get_parameter(uniqueid=uniqueid, **_skip_filter_checks)
-                        # TODO: what to do if constrained?
-                        if trial_run:
-                            param = param.copy()
-                        param.set_value(value=dist.slice(i).mean(), unit=dist.slice(i).unit)
-                        changed_params.append(param)
-                else:
-                    logger.warning("uniqueid not found, falling back on twig={}".format(fitted_twigs[i]))
-                    if adopt_distributions:
-                        ps = self.add_distribution(twig=fitted_twigs[i], value=dist.slice(i), distribution=distribution, auto_add_figure=kwargs.get('auto_add_figure', None), check_label=distribution is not None)
-                    if adopt_values:
-                        param = self.get_parameter(twig=fitted_twigs[i], **_skip_filter_checks)
-                        # TODO: what to do if constrained?
-                        if trial_run:
-                            param = param.copy()
-                        param.set_value(value=dist.slice(i).mean(), unit=dist.slice(i).unit)
-                        changed_params.append(param)
+            for i, uniqueid in enumerate(adopt_uniqueids):
+                if adopt_distributions:
+                    ps = self.add_distribution(uniqueid=uniqueid, value=dist.slice(i), distribution=distribution, auto_add_figure=kwargs.get('auto_add_figure', None), check_label=distribution is not None)
+                if adopt_values:
+                    param = self.get_parameter(uniqueid=uniqueid, **_skip_filter_checks)
+                    # TODO: what to do if constrained?
+                    if trial_run:
+                        param = param.copy()
+                    param.set_value(value=dist.slice(i).mean(), unit=dist.slice(i).unit)
+                    changed_params.append(param)
 
         else:
             fitted_values = solution_ps.get_value(qualifier='fitted_values', **_skip_filter_checks)
@@ -11199,28 +11237,16 @@ class Bundle(ParameterSet):
             if solver_kind in ['lc_periodogram', 'rv_periodogram']:
                 fitted_values = fitted_values * solution_ps.get_value(qualifier='period_factor', period_factor=kwargs.get('period_factor', None), **_skip_filter_checks)
 
-            for uniqueid, twig, value, unit in zip(fitted_uniqueids[adopt_inds], fitted_twigs[adopt_inds], fitted_values[adopt_inds], fitted_units[adopt_inds]):
-                if uniqueid in b_uniqueids:
-                    if adopt_distributions:
-                        dist = _distl.delta(value, unit=unit)
-                        ps = self.add_distribution(uniqueid=uniqueid, value=dist, distribution=distribution, auto_add_figure=kwargs.get('auto_add_figure', None), check_label=distribution is not None)
-                    if adopt_values:
-                        param = self.get_parameter(uniqueid=uniqueid, **_skip_filter_checks)
-                        if trial_run:
-                            param = param.copy()
-                        changed_params.append(param)
-                        param.set_value(value, unit=unit, force=trial_run)
-                else:
-                    logger.warning("uniqueid not found, falling back on twig={}".format(twig))
-                    if adopt_distributions:
-                        dist = _distl.delta(value, unit=unit)
-                        ps = self.add_distribution(twig=twig, value=dist, distribution=distribution, auto_add_figure=kwargs.get('auto_add_figure', None), check_label=distribution is not None)
-                    if adopt_values:
-                        param = self.get_parameter(twig=twig, **_skip_filter_checks)
-                        if trial_run:
-                            param = param.copy()
-                        changed_params.append(param)
-                        param.set_value(value, unit=unit)
+            for uniqueid, value, unit in zip(adopt_uniqueids, fitted_values[adopt_inds], fitted_units[adopt_inds]):
+                if adopt_distributions:
+                    dist = _distl.delta(value, unit=unit)
+                    ps = self.add_distribution(uniqueid=uniqueid, value=dist, distribution=distribution, auto_add_figure=kwargs.get('auto_add_figure', None), check_label=distribution is not None)
+                if adopt_values:
+                    param = self.get_parameter(uniqueid=uniqueid, **_skip_filter_checks)
+                    if trial_run:
+                        param = param.copy()
+                    changed_params.append(param)
+                    param.set_value(value, unit=unit, force=trial_run)
 
 
         changed_params += self.run_delayed_constraints()
@@ -11368,6 +11394,14 @@ class Bundle(ParameterSet):
         self._attach_params(result_ps, override_tags=True, new_uniqueids=new_uniqueids, **metawargs)
 
         ret_ps = self.get_solution(solution=solution if solution is not None else result_ps.solutions)
+
+        # attempt to map fitted_twigs -> fitted_uniqueids if not all match now, to prevent having to continuously repeat
+        fitted_uniqueids = ret_ps.get_value(qualifier='fitted_uniqueids', **_skip_filter_checks)
+        b_uniqueids = self.uniqueids
+        if not np.all([u in b_uniqueids for u in fitted_uniqueids]):
+            _, fitted_uniquieds = self._get_adopt_inds_uniqueids(ret_ps, adopt_parameters='*')
+            ret_ps.set_value(qualifier='fitted_uniqueids', value=fitted_uniquieds, ignore_readonly=True, **_skip_filter_checks)
+
         ret_changes += self._run_solver_changes(ret_ps, return_changes=return_changes)
 
         if return_changes:

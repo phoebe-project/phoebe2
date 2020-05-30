@@ -11,6 +11,7 @@ from phoebe.parameters.twighelpers import _twig_to_uniqueid
 from phoebe.frontend import tabcomplete
 from phoebe.dependencies import nparray, distl
 from phoebe.utils import parse_json, phase_mask_inds
+from phoebe import helpers as _helpers
 
 import sys
 import random
@@ -242,7 +243,7 @@ _forbidden_labels += ['enabled', 'dynamics_method', 'ltte', 'comments',
                       'ntriangles', 'rv_grav',
                       'mesh_offset', 'mesh_init_phi', 'horizon_method', 'eclipse_method',
                       'atm', 'lc_method', 'rv_method', 'fti_method', 'fti_oversample',
-                      'pblum_method',
+                      'pblum_method', 'requiv_max_limit',
                       'etv_method', 'etv_tol',
                       'gridsize', 'refl_num', 'ie',
                       'stepsize', 'orbiterror', 'ringsize',
@@ -774,7 +775,7 @@ class ParameterSet(object):
         Returns
         --------
         * (list) a list of all uniqueids for each <phoebe.parameters.Parameter>
-            in this <phoebe.parmaeters.ParameterSet>
+            in this <phoebe.parameters.ParameterSet>
         """
         return [p.uniqueid for p in self.to_list()]
 
@@ -792,7 +793,7 @@ class ParameterSet(object):
         Returns
         --------
         * (list) a list of all twigs for each <phoebe.parameters.Parameter>
-            in this <phoebe.parmaeters.ParameterSet>
+            in this <phoebe.parameters.ParameterSet>
         """
         return [p.twig for p in self.to_list()]
 
@@ -843,7 +844,7 @@ class ParameterSet(object):
         Returns
         --------
         * (list) a list of all qualifiers for each <phoebe.parameters.Parameter>
-            in this <phoebe.parmaeters.ParameterSet>
+            in this <phoebe.parameters.ParameterSet>
         """
         return self._options_for_tag('qualifier')
 
@@ -877,7 +878,7 @@ class ParameterSet(object):
         Returns
         --------
         * (list) a list of all times for each <phoebe.parameters.Parameter>
-            in this <phoebe.parmaeters.ParameterSet>
+            in this <phoebe.parameters.ParameterSet>
         """
         return self._options_for_tag('time')
 
@@ -912,7 +913,7 @@ class ParameterSet(object):
         Returns
         --------
         * (list) a list of all histories for each <phoebe.parameters.Parameter>
-            in this <phoebe.parmaeters.ParameterSet>
+            in this <phoebe.parameters.ParameterSet>
         """
         return self._options_for_tag('history')
 
@@ -931,7 +932,7 @@ class ParameterSet(object):
         Returns
         --------
         * (list) a list of all twigs for each <phoebe.parameters.Parameter>
-            in this <phoebe.parmaeters.ParameterSet>
+            in this <phoebe.parameters.ParameterSet>
         """
         return self.histories
 
@@ -966,7 +967,7 @@ class ParameterSet(object):
         Returns
         --------
         * (list) a list of all features for each <phoebe.parameters.Parameter>
-            in this <phoebe.parmaeters.ParameterSet>
+            in this <phoebe.parameters.ParameterSet>
         """
         return self._options_for_tag('feature', include_default=False)
 
@@ -1009,7 +1010,7 @@ class ParameterSet(object):
         Returns
         --------
         * (list) a list of all components for each <phoebe.parameters.Parameter>
-            in this <phoebe.parmaeters.ParameterSet>
+            in this <phoebe.parameters.ParameterSet>
         """
         return self._options_for_tag('component', include_default=False)
 
@@ -1043,7 +1044,7 @@ class ParameterSet(object):
         Returns
         --------
         * (list) a list of all datasets for each <phoebe.parameters.Parameter>
-            in this <phoebe.parmaeters.ParameterSet>
+            in this <phoebe.parameters.ParameterSet>
         """
         return self._options_for_tag('dataset', include_default=False)
 
@@ -1077,7 +1078,7 @@ class ParameterSet(object):
         Returns
         --------
         * (list) a list of all constraints for each <phoebe.parameters.Parameter>
-            in this <phoebe.parmaeters.ParameterSet>
+            in this <phoebe.parameters.ParameterSet>
         """
         return self._options_for_tag('constraint')
 
@@ -1111,7 +1112,7 @@ class ParameterSet(object):
         Returns
         --------
         * (list) a list of all constraints for each <phoebe.parameters.Parameter>
-            in this <phoebe.parmaeters.ParameterSet>
+            in this <phoebe.parameters.ParameterSet>
         """
         return self._options_for_tag('distribution')
 
@@ -1145,7 +1146,7 @@ class ParameterSet(object):
         Returns
         --------
         * (list) a list of all computes for each <phoebe.parameters.Parameter>
-            in this <phoebe.parmaeters.ParameterSet>
+            in this <phoebe.parameters.ParameterSet>
         """
         return self._options_for_tag('compute')
 
@@ -1179,7 +1180,7 @@ class ParameterSet(object):
         Returns
         --------
         * (list) a list of all models for each <phoebe.parameters.Parameter>
-            in this <phoebe.parmaeters.ParameterSet>
+            in this <phoebe.parameters.ParameterSet>
         """
         return self._options_for_tag('model')
 
@@ -1213,7 +1214,7 @@ class ParameterSet(object):
         Returns
         --------
         * (list) a list of all figures for each <phoebe.parameters.Parameter>
-            in this <phoebe.parmaeters.ParameterSet>
+            in this <phoebe.parameters.ParameterSet>
         """
         return self._options_for_tag('figure')
 
@@ -1247,7 +1248,7 @@ class ParameterSet(object):
         Returns
         --------
         * (list) a list of all solvers for each <phoebe.parameters.Parameter>
-            in this <phoebe.parmaeters.ParameterSet>
+            in this <phoebe.parameters.ParameterSet>
         """
         return self._options_for_tag('solver')
 
@@ -1281,7 +1282,7 @@ class ParameterSet(object):
         Returns
         --------
         * (list) a list of all solutions for each <phoebe.parameters.Parameter>
-            in this <phoebe.parmaeters.ParameterSet>
+            in this <phoebe.parameters.ParameterSet>
         """
         return self._options_for_tag('solution')
 
@@ -1315,7 +1316,7 @@ class ParameterSet(object):
         Returns
         --------
         * (list) a list of all kinds for each <phoebe.parameters.Parameter>
-            in this <phoebe.parmaeters.ParameterSet>
+            in this <phoebe.parameters.ParameterSet>
         """
         return self._options_for_tag('kind')
 
@@ -1349,7 +1350,7 @@ class ParameterSet(object):
         Returns
         --------
         * (list) a list of all contexts for each <phoebe.parameters.Parameter>
-            in this <phoebe.parmaeters.ParameterSet>
+            in this <phoebe.parameters.ParameterSet>
         """
         return self._options_for_tag('context')
 
@@ -1994,7 +1995,7 @@ class ParameterSet(object):
 
     def values(self):
         """
-        Return the values from <phoebe.parmaeters.ParameterSet.to_dict>
+        Return the values from <phoebe.parameters.ParameterSet.to_dict>
 
         Returns
         -------
@@ -2006,7 +2007,7 @@ class ParameterSet(object):
     def items(self):
         """
         Returns the items (key, value pairs) from
-        <phoebe.parmaeters.ParameterSet.to_dict>.
+        <phoebe.parameters.ParameterSet.to_dict>.
 
         :return: string, :class:`Parameter` or :class:`ParameterSet` pairs
         """
@@ -2780,7 +2781,7 @@ class ParameterSet(object):
 
         Returns
         -----------
-        * the removed <phoebe.parmaeters.Parameter>.
+        * the removed <phoebe.parameters.Parameter>.
 
         Raises
         ------
@@ -3001,7 +3002,7 @@ class ParameterSet(object):
         * `value` (optional, default=None): valid value to set for the
             matched Parameter.
         * `index` (int, optional): only applicable for
-            <phoebe.parmaeters.FloatArrayParameter>.  Passing `index` will call
+            <phoebe.parameters.FloatArrayParameter>.  Passing `index` will call
             <phoebe.parameters.FloatArrayParameter.set_index_value> and pass
             `index` instead of <phoebe.parameters.FloatArrayParameter.set_value>.
         * `**kwargs`: filter options to be passed along to
@@ -3092,7 +3093,7 @@ class ParameterSet(object):
         * `value` (optional, default=None): valid value to set for each
             matched Parameter.
         * `index` (int, optional): only applicable for
-            <phoebe.parmaeters.FloatArrayParameter>.  Passing `index` will call
+            <phoebe.parameters.FloatArrayParameter>.  Passing `index` will call
             <phoebe.parameters.FloatArrayParameter.set_index_value> and pass
             `index` instead of <phoebe.parameters.FloatArrayParameter.set_value>.
         * `ignore_none` (bool, optional, default=False): if `ignore_none=True`,
@@ -4435,16 +4436,12 @@ class ParameterSet(object):
 
         elif ps.kind == 'dynesty':
             kwargs.setdefault('style', 'corner')
-            adopt_parameters = ps.get_value(qualifier='adopt_parameters', expand=True, adopt_parameters=kwargs.get('adopt_parameters', None), **_skip_filter_checks)
-            fitted_twigs = ps.get_value(qualifier='fitted_twigs', **_skip_filter_checks)
-            adopt_inds = [list(fitted_twigs).index(twig) for twig in adopt_parameters]
 
-            def _filter_by_adopt_inds(p, adopt_inds):
-                if p.qualifier in ['samples', 'samples_u']:
-                    return p.value[:, adopt_inds]
-                return p.value
+            adopt_inds, adopt_uniqueids = self._bundle._get_adopt_inds_uniqueids(ps, **kwargs)
 
-            kwargs['results'] = {p.qualifier: _filter_by_adopt_inds(p, adopt_inds) for p in self._bundle.filter(solution=ps.solution, context='solution', **_skip_filter_checks).to_list()}
+            if kwargs.get('style') != 'corner':
+                kwargs['results'] = _helpers.get_dynesty_object_from_solution(ps._bundle, ps.solution, adopt_parameters=kwargs.get('adopt_parameters'))
+
             if kwargs.get('style') == 'corner':
                 # kwargs['dynesty_method'] = 'cornerplot'
 
@@ -4468,20 +4465,21 @@ class ParameterSet(object):
             return (kwargs,)
         elif ps.kind == 'emcee':
             kwargs.setdefault('style', ['trace', 'lnprobability'])
-            adopt_parameters = ps.get_value(qualifier='adopt_parameters', expand=True, adopt_parameters=kwargs.get('adopt_parameters', None), **_skip_filter_checks)
-            fitted_twigs = ps.get_value(qualifier='fitted_twigs', **_skip_filter_checks)
-            adopt_inds = [list(fitted_twigs).index(twig) for twig in adopt_parameters]
+
+            adopt_inds, adopt_uniqueids = self._bundle._get_adopt_inds_uniqueids(ps, **kwargs)
 
             burnin = ps.get_value(qualifier='burnin', burnin=kwargs.get('burnin', None), **_skip_filter_checks)
             thin = ps.get_value(qualifier='thin', thin=kwargs.get('thin', None), **_skip_filter_checks)
             lnprob_cutoff = ps.get_value(qualifier='lnprob_cutoff', lnprob_cutoff=kwargs.get('lnprob_cutoff', None), **_skip_filter_checks)
 
             lnprobabilities = ps.get_value(qualifier='lnprobabilities', **_skip_filter_checks)
+            samples = ps.get_value(qualifier='samples', **_skip_filter_checks)
 
-            return_ = []
             styles = kwargs.get('style')
             if isinstance(styles, str):
                 styles = [styles]
+
+            return_ = []
             for style in styles:
                 kwargs = _deepcopy(kwargs)
 
@@ -4492,11 +4490,11 @@ class ParameterSet(object):
                     if style=='failed' and len(adopt_inds) < 2:
                         raise ValueError("cannot plot failed_samples with < 2 parameters")
 
-                    kwargs['dc'], _ = ps._bundle.get_distribution_collection(solution=ps.solution, adopt_parameters=adopt_parameters, **{k:v for k,v in kwargs.items() if k in ['burnin', 'thin', 'lnprob_cutoff', 'distributions_convert', 'distributions_bins', 'parameters']})
+                    kwargs['dc'], _ = ps._bundle.get_distribution_collection(solution=ps.solution,
+                                                                            **{k:v for k,v in kwargs.items() if k in ['burnin', 'thin', 'lnprob_cutoff', 'distributions_convert', 'distributions_bins', 'parameters', 'adopt_parameters']})
 
                     if style=='failed':
                         kwargs['failed_samples'] = {k: np.asarray(v)[:,adopt_inds] for k,v in ps.get_value(qualifier='failed_samples', **_skip_filter_checks).items()}
-
 
                     return_ += [kwargs]
 
@@ -4506,14 +4504,15 @@ class ParameterSet(object):
                     kwargs.setdefault('marker', 'None')
                     kwargs.setdefault('linestyle', 'solid')
 
+                    lnprobabilities, samples = _helpers.process_mcmc_chains(lnprobabilities, samples, burnin, thin, -np.inf, adopt_inds, flatten=False)
+
                     # we'll be editing items in the array, so we need to make a deepcopy first
-                    lnprobabilities = _deepcopy(lnprobabilities[burnin:, :][::thin, :])
+                    lnprobabilities = _deepcopy(lnprobabilities)
+                    lnprobabilities[lnprobabilities < lnprob_cutoff] = np.nan
 
                     for lnp in lnprobabilities.T:
                         if not np.any(np.isfinite(lnp)):
                             continue
-
-                        lnprobabilities[lnprobabilities < lnprob_cutoff] = np.nan
 
                         if np.all(np.isnan(lnp)):
                             continue
@@ -4534,30 +4533,25 @@ class ParameterSet(object):
                     kwargs.setdefault('linestyle', 'solid')
 
                     fitted_uniqueids = self._bundle.get_value(qualifier='fitted_uniqueids', context='solution', solution=ps.solution, **_skip_filter_checks)
-                    fitted_twigs = self._bundle.get_value(qualifier='fitted_twigs', context='solution', solution=ps.solution, **_skip_filter_checks)
+                    # fitted_twigs = self._bundle.get_value(qualifier='fitted_twigs', context='solution', solution=ps.solution, **_skip_filter_checks)
                     fitted_units = self._bundle.get_value(qualifier='fitted_units', context='solution', solution=ps.solution, **_skip_filter_checks)
-                    fitted_ps = self._bundle.filter(uniqueid=list(fitted_uniqueids), **_skip_filter_checks)
-                    if len(fitted_ps.twigs) != len(fitted_twigs):
-                        fitted_ps = self._bundle.filter(twig=list(fitted_twigs), **_skip_filter_checks).exclude(context=['solution', 'distribution', 'model', 'compute', 'solver'], **_skip_filter_checks)
+                    fitted_ps = self._bundle.filter(uniqueid=list(adopt_uniqueids), **_skip_filter_checks)
 
-                    samples = self._bundle.get_value(qualifier='samples', context='solution', solution=ps.solution, **_skip_filter_checks)
-                    samples = samples[burnin:, :, :][::thin, : :][:, :, adopt_inds]
+                    lnprobabilities, samples = _helpers.process_mcmc_chains(lnprobabilities, samples, burnin, thin, lnprob_cutoff, adopt_inds, flatten=False)
+
                     # samples [niters, nwalkers, parameter]
-                    ys = kwargs.get('y', adopt_parameters)
+                    ys = kwargs.get('y', fitted_ps.filter(uniquied=list(adopt_uniqueids), **_skip_filter_checks).twigs)
                     if isinstance(ys, str):
                         ys = [ys]
                     yparams = fitted_ps.filter(twig=ys, **_skip_filter_checks)
 
                     for yparam in yparams.to_list():
-                        try:
-                            parameter_ind = list(fitted_uniqueids[adopt_inds]).index(yparam.uniqueid)
-
-                        except:
-                            parameter_ind = list(fitted_twigs[adopt_inds]).index(yparam.twig)
+                        parameter_ind = list(adopt_uniqueids).index(yparam.uniqueid)
 
                         for walker_ind in range(samples.shape[1]):
                             kwargs = _deepcopy(kwargs)
 
+                            # this needs to be the unflattened version
                             samples_y = samples[:, walker_ind, parameter_ind]
 
                             kwargs['x'] = np.arange(len(samples_y), dtype=float)*thin+burnin
@@ -5188,7 +5182,7 @@ class ParameterSet(object):
                     dump = kwargs.pop('qualifier', None)
                     func = getattr(self.gcf(), autofig_method)
 
-                    if autofig_method == 'plot' and len(plot_kwargs.get('y', np.array([])).shape) > 1:
+                    if autofig_method == 'plot' and len(np.asarray(plot_kwargs.get('y', [])).shape) > 1:
                         # then we want to loop over the y index
                         for y in plot_kwargs.get('y'):
                             func(y=y, **{k:v for k,v in plot_kwargs.items() if k!='y'})
@@ -5671,7 +5665,7 @@ class Parameter(object):
     def to_string_short(self):
         """
         Return a short/abreviated string representation of the
-        <phoebe.parmaeters.Parameter>.
+        <phoebe.parameters.Parameter>.
 
         See also:
         * <phoebe.parameters.Parameter.to_string>
@@ -7458,7 +7452,7 @@ class SelectParameter(Parameter):
         Set the current value of the <phoebe.parameters.SelectParameter>.
 
         `value` must be valid according to
-        <phoebe.parmaeters.SelectParameter.valid_selection>, otherwise a
+        <phoebe.parameters.SelectParameter.valid_selection>, otherwise a
         ValueError will be raised.
 
         Arguments
@@ -8142,7 +8136,7 @@ class DistributionParameter(Parameter):
         if default is not None: return default
         dist = self._value
 
-        if isinstance(dist, distl.BaseAroundGenerator) and not self._bundle._within_sampling:
+        if isinstance(dist, distl.BaseAroundGenerator) and not self._bundle._within_solver:
             if dist.unit is not None:
                 value = self.get_referenced_parameter().get_quantity().to(dist.unit).value
             else:
@@ -8500,7 +8494,7 @@ class FloatParameter(Parameter):
         Arguments
         -------------
         * `distribution` (string list or None, optional, default=None): distribution
-            to use when filtering.  If None, will default to <phoebe.parmaeters.FloatParameter.in_distributions>
+            to use when filtering.  If None, will default to <phoebe.parameters.FloatParameter.in_distributions>
         * `follow_constraints` (bool, optional, default=True): whether to include
             the distributions of parameters in the constrained parameter.  Only
             applicable if this parameter is currently constrained.  See also
@@ -8978,7 +8972,7 @@ class FloatParameter(Parameter):
         if value is not None and value.unit.physical_type == 'angle':
             # NOTE: this may fail for nparray types
             if value > (360*u.deg) or value < (0*u.deg):
-                if self._bundle is not None and self._bundle._within_sampling and not kwargs.get('from_constraint', False):
+                if self._bundle is not None and self._bundle._within_solver and not kwargs.get('from_constraint', False):
                     if abs(value.to(u.deg).value - self._value.to(u.deg).value) > 180:
                         raise ValueError("value further than 180 deg from {}".format(self._value.to(u.deg).value))
                 value = value % (360*u.deg)
