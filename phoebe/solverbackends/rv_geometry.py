@@ -85,20 +85,8 @@ def estimate_phase_supconj(rv1data, rv2data, vgamma):
     return np.nanmean([ph_vgamma_1, ph_vgamma_2])
 
 
-def rv(tanoms, asini=1., q=1., e=0., P=1., per0=0., component=1):
-    # asini: km, P:s (passed in days so this will need to be converted first), per0: rad
-    # since I'm passing P in days everywhere else, here is the only place I'll use
-    # astropy.units to convert to seconds for the computation
-    Ps = ((P*u.d).to(u.s)).value
-    if component==1:
-        const = 2*np.pi*q*asini/(Ps*(1+q)*(1-e**2)**0.5)
-    elif component==2:
-        const = -2*np.pi*asini/(Ps*(1+q)*(1-e**2)**0.5)
-    else:
-        raise ValueError('Unrecognized component %i, can only be 1 or 2' % (component))
-
-    tdep = e*np.cos(per0)+np.cos(per0+tanoms)
-    return (const*tdep)
+def ecc_anomaly(x, phases, ph0, ecc):
+    return x-ecc*np.sin(x) - 2*np.pi*(phases-ph0)
 
 
 def rv_model(phases, P, per0, ecc, asini, q, vgamma, ph_supconj, component=1):
@@ -119,10 +107,6 @@ def rv_model(phases, P, per0, ecc, asini, q, vgamma, ph_supconj, component=1):
     return (const*tdep) + vgamma
 
 
-def ecc_anomaly(x, phases, ph0, ecc):
-    return x-ecc*np.sin(x) - 2*np.pi*(phases-ph0)
-
-
 def loglike(params, rv1data, rv2data, q, asini, vgamma, ph_supconj):
     logl1 = 0
     logl2 = 0
@@ -141,7 +125,7 @@ def loglike(params, rv1data, rv2data, q, asini, vgamma, ph_supconj):
 
 
 def estimate_rv_parameters(rv1data=None, rv2data=None,
-                           period =1., q=None, vgamma=None, asini=None, ecc=None, per0=None):
+                           q=None, vgamma=None, asini=None, ecc=None, per0=None):
 
     rv1_smooth = smooth_rv(rv1data) if rv1data is not None else rv1data
     rv2_smooth = smooth_rv(rv2data) if rv2data is not None else rv2data
@@ -171,7 +155,7 @@ def estimate_rv_parameters(rv1data=None, rv2data=None,
             results[i,j] = result.x
 
     [ecc, per0] = results.reshape(6,2)[np.argmax(loglikes.reshape(6))]
-    return {'q':q, 'asini':asini*period,
+    return {'q':q, 'asini':asini,
             'vgamma':vgamma, 'ecc':ecc, 'per0':per0, 'ph_supconj': ph_supconj}
             # 'rv1_analytic': rv_model(rv1data[:,0], t0, period, result.x[0], result.x[1], asini*period, q, vgamma, component=1),
             # 'rv2_analytic': rv_model(rv2data[:,0], t0, period, result.x[0], result.x[1], asini*period, q, vgamma, component=2)}

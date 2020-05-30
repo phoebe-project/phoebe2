@@ -714,8 +714,9 @@ class Rv_GeometryBackend(BaseSolverBackend):
 
         period = b.get_value(qualifier='period', component=orbit, context='component', unit=u.d, **_skip_filter_checks)
 
-        est_dict = rv_geometry.estimate_rv_parameters(rv1data, rv2data, period=period)
+        est_dict = rv_geometry.estimate_rv_parameters(rv1data, rv2data)
         est_dict['t0_supconj'] = b.to_time(est_dict['ph_supconj'], component=orbit, t0='t0_supconj')
+        est_dict['asini'] *= period
 
         # est_dict['period']
         # est_dict['t0_supconj']
