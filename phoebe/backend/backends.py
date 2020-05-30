@@ -66,6 +66,8 @@ def _simplify_error_message(msg):
         msg = 'roche overflow'
     elif 'lookup ld_coeffs' in msg:
         msg = 'ld_coeffs lookup out-of-bounds'
+    elif 'Atmosphere parameters out of bounds' in msg:
+        msg = 'atm out-of-bounds'
     return msg
 
 def _needs_mesh(b, dataset, kind, component, compute):
