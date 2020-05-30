@@ -1710,7 +1710,7 @@ class FillBetween(Call):
 
             fb_kwargs = {}
             fb_kwargs['color'] = color
-            fb_kwargs['alpha'] = 0.25 # TODO: make this an option
+            fb_kwargs['alpha'] = 0.6 # TODO: make this an option
             if do_colorscale:
                 fb_kwargs['norm'] = self.axes_c.get_norm(i=i) if self.axes_c is not None else None
                 fb_kwargs['cmap'] = self.axes_c.cmap if self.axes_c is not None else None

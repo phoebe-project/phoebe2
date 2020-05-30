@@ -3599,12 +3599,42 @@ class ParameterSet(object):
         # contexts/datasets/kinds/components/etc.
         # the dataset tag can appear in the compute context as well, so if the
         # context tag isn't in kwargs, let's default it to dataset or model
-        if 'context' not in kwargs.keys():
-            default_contexts = ['dataset', 'model']
+        # print("**************************************************")
+        # print("*** kwargs['context'] (provided)", kwargs.get('context'))
+        # print("*** _filter['context']", self._filter.get('context'))
+        if 'context' not in kwargs.keys() and 'context' not in self._filter.keys():
+            provided_tags = list(self._filter.keys()) + list(kwargs.keys())
+            # print("*** getting default contexts, provided_tags=", provided_tags)
+            default_contexts = []
             if 'style' in kwargs.keys():
                 default_contexts += ['solution']
-            default_contexts += [context for context in self.contexts if (context in kwargs.keys() or 'twig' in kwargs.keys()) and context in ['dataset', 'compute', 'model', 'distribution', 'solver', 'solution']]
+            # if we have a tag-filter (either before or within .plot), we want to
+            # include that context.  For example:
+            # b.filter(model='mymodel').plot(solution='mysolution')
+            # should include contexts ['model', 'solution']
+            default_contexts += [context for context in self.contexts if (context in provided_tags or 'twig' in kwargs.keys()) and context in ['dataset', 'compute', 'model', 'distribution', 'solver', 'solution']]
+
+            if not len(default_contexts):
+                # then there were no tag filters so we'll default to model
+                # (and therefore dataset)
+                default_contexts += ['model']
+
+            if 'model' in default_contexts and 'dataset' not in default_contexts:
+                # then we also want to include context='dataset'
+                # NOTE: this will not be the case if context was explicitly
+                # provided by the user
+                default_contexts += ['dataset']
+
+            if 'dataset' in default_contexts and 'model' not in default_contexts:
+                default_contexts += ['model']
+
             kwargs.setdefault('context', default_contexts)
+
+        if isinstance(kwargs.get('context'), str):
+            kwargs['context'] = [kwargs['context']]
+
+        # print("*** kwargs['context'] (after defaults)", kwargs.get('context'))
+        # print("*** before filter self.contexts", self.contexts)
 
         filter_kwargs = {}
         for k in list(self.get_meta(ignore=['uniqueid', 'uniquetwig', 'twig']).keys())+['twig']:
@@ -3613,7 +3643,9 @@ class ParameterSet(object):
                 continue
             filter_kwargs[k] = kwargs.pop(k, None)
 
-        ps = self.filter(check_visible=False, **filter_kwargs).exclude(qualifier=['compute_times', 'compute_phases', 'compute_phases_t0', 'phases_t0', 'mask_phases'], check_visible=False)
+        # print("*** filter_kwargs", filter_kwargs)
+        # print("*** applying filter", {k:v for k,v in filter_kwargs.items() if (filter_kwargs.get('context', []) is None or k not in filter_kwargs.get('context', []))})
+        ps = self.filter(check_visible=False, **{k:v for k,v in filter_kwargs.items() if (filter_kwargs.get('context', []) is None or k not in filter_kwargs.get('context', []))}).exclude(qualifier=['compute_times', 'compute_phases', 'compute_phases_t0', 'phases_t0', 'mask_phases'], check_visible=False)
 
         if 'time' in kwargs.keys() and ps.kind in ['mesh', 'lp']:
             ps = ps.filter(time=kwargs.get('time'), check_visible=False)
@@ -3628,9 +3660,16 @@ class ParameterSet(object):
         # to pass directly to autofig
         return_ = []
 
+        # print("*** after filter ps.contexts", ps.contexts)
+        # print("*** after filter ps.tags", ps.tags)
         if len(ps.contexts) > 1:
             for context in ps.contexts:
-                this_return = ps.filter(check_visible=False, context=context)._unpack_plotting_kwargs(animate=animate, **kwargs)
+                # print("*** context loop, context={}".format(context))
+                filter_ = {'context': context, context: filter_kwargs.get(context, None)}
+                if context == 'model':
+                    filter_['dataset'] = filter_kwargs.get('dataset', None)
+                # print("*** context loop, applying filter", filter_)
+                this_return = ps.filter(check_visible=False, **filter_)._unpack_plotting_kwargs(animate=animate, **kwargs)
                 return_ += this_return
             return _handle_additional_calls(ps, return_)
 
@@ -3640,26 +3679,28 @@ class ParameterSet(object):
         #         return_ += this_return
         #     return _handle_additional_calls(ps, return_)
 
-        if len(ps.computes)>1:
-            for compute in ps.computes:
+        if ps.context=='compute' and len(ps.computes)>1:
+            for compute in ps.filter(compute=filter_kwargs.get('compute', None), **_skip_filter_checks).computes:
                 this_return = ps.filter(check_visible=False, compute=compute)._unpack_plotting_kwargs(animate=animate, **kwargs)
                 return_ += this_return
             return _handle_additional_calls(ps, return_)
 
-        if len(ps.solvers)>1:
-            for solver in ps.solvers:
+        elif ps.context=='solver' and len(ps.solvers)>1:
+            for solver in ps.filter(solver=filter_kwargs.get('solver', None), **_skip_filter_checks).solvers:
                 this_return = ps.filter(check_visible=False, solver=solver)._unpack_plotting_kwargs(animate=animate, **kwargs)
                 return_ += this_return
             return _handle_additional_calls(ps, return_)
 
-        if len(ps.solutions)>1:
-            for solution in ps.solutions:
+        elif ps.context=='solution' and len(ps.solutions)>1:
+            for solution in ps.filter(solution=filter_kwargs.get('solution', None), **_skip_filter_checks).solutions:
+                # print("*** solution loop, solution={}".format(solution))
                 this_return = ps.filter(check_visible=False, solution=solution)._unpack_plotting_kwargs(animate=animate, **kwargs)
                 return_ += this_return
             return _handle_additional_calls(ps, return_)
 
-        if len(ps.datasets)>1 and ps.kind not in ['mesh']:
-            for dataset in ps.datasets:
+        elif ps.context in ['dataset', 'model'] and len(ps.datasets)>1 and ps.kind not in ['mesh']:
+            for dataset in ps.filter(dataset=filter_kwargs.get('dataset', None), **_skip_filter_checks).datasets:
+                # print("*** dataset loop, context={}, dataset={}".format(ps.context, dataset))
                 this_return = ps.filter(check_visible=False, dataset=dataset)._unpack_plotting_kwargs(animate=animate, **kwargs)
                 return_ += this_return
             return _handle_additional_calls(ps, return_)
@@ -3884,12 +3925,12 @@ class ParameterSet(object):
                         else:
                             psf = ps
 
-                        psff = psf.filter(twig=current_value)
+                        psff = psf.filter(twig=current_value, **_skip_filter_checks)
                         if len(psff)==1:
-                            array_value = psff.get_quantity()
+                            array_value = psff.get_quantity(**_skip_filter_checks)
                         elif len(psff.times) > 1 and psff.get_value(time=psff.times[0], **_skip_filter_checks):
                             # then we'll assume we have something like volume vs times.  If not, then there may be a length mismatch issue later
-                            unit = psff.get_quantity(time=psff.times[0]).unit
+                            unit = psff.get_quantity(time=psff.times[0], **_skip_filter_checks).unit
                             array_value = np.array([psff.get_quantity(time=time, **_skip_filter_checks).to(unit).value for time in psff.times])*unit
                         else:
                             raise ValueError("could not find Parameter for {} in {}".format(current_value, psf.get_meta(ignore=['uniqueid', 'uniquetwig', 'twig'])))
@@ -3985,7 +4026,10 @@ class ParameterSet(object):
                     if '-sigma' in self._bundle.get_value(qualifier='sample_mode', model=ps.model, context='model', default='none', **_skip_filter_checks):
                         kwargs[direction] = ps.get_quantity(qualifier=['fluxes', 'rvs'], model=ps.model, dataset=ps.dataset, component=ps.component, context='model', **_skip_filter_checks)
                         kwargs[direction] -= kwargs[direction][1]
+                        kwargs.setdefault('{}label'.format(direction), '{} residuals'.format({'lc': 'flux', 'rv': 'rv'}.get(ps.kind, '')))
                         kwargs['{}qualifier'.format(direction)] = 'residuals'
+                        # try to place on top of data/error bars since transparency will be applied
+                        kwargs.setdefault('z', 1)
                         return kwargs
                     else:
                         return {}
@@ -3997,7 +4041,8 @@ class ParameterSet(object):
 
                     if '-sigma' in self._bundle.get_value(qualifier='sample_mode', model=ps.model, context='model', default='none', **_skip_filter_checks):
                         # TODO: if we ever use this for anything else, then we'll need to make it a list instead and append new items
-                        kwargs['additional_calls'] = {'y': 'residuals_spread', 'ps': ps}
+                        # kwargs['additional_calls'] = {'y': 'residuals_spread', 'ps': ps, **{k:v for k,v in kwargs.items() if k in ['x']}} # not python2 safe :-(
+                        kwargs['additional_calls'] = {'y': 'residuals_spread', 'ps': ps, 'x': kwargs.get('x')}
 
                     # we're currently within the MODEL context
                     # NOTE: calculate_residuals will already handle masking
@@ -4054,6 +4099,7 @@ class ParameterSet(object):
                         else:
                             # maybe a hex or anything not in the cycler? or should we raise an error instead?
                             logger.warning("could not find Parameter match for {}={} at time={}, assuming named color".format(direction, current_value, full_mesh_meta['time']))
+
 
                     # Nothing has been found, so we'll assume the string is
                     # the name of a color.  If the color isn't accepted by
@@ -4604,6 +4650,10 @@ class ParameterSet(object):
         # try to find 'times' in the cartesian dimensions:
         if 'phases' not in [_singular_to_plural_get(kwargs['{}qualifier'.format(af_direction)].split(':')[0]) for af_direction in ['x', 'y', 'z'] if isinstance(kwargs.get('{}qualifier'.format(af_direction), None), str)]:
             iqualifier_default = 'times'
+        elif kwargs.get('yqualifier') == 'residuals' and kwargs.get('additional_calls', {}).get('y', None) == 'residuals_spread':
+            # then we won't be using linestyle by default and we want to be
+            # compatible with an axis that does residuals_spread
+            iqualifier_default= 'times'
         elif self._bundle.hierarchy.is_time_dependent():
             if 'i' not in kwargs.keys():
                 logger.warning("defaulting to i='times' to plot in time-order because system is time_dependent.  Pass i='phases' to override.")
@@ -5295,7 +5345,7 @@ class ParameterSet(object):
 
             if isinstance(time, str):
                 # TODO: need to expand this whole logic to be the same as include_times in backends.py
-                time = self.get_value(time, context=['component', 'system'], check_visible=False)
+                time = self._bundle.get_value(time, context=['component', 'system'], check_visible=False)
 
             # plotting doesn't currently support highlighting at multiple times
             # if isinstance(time, list) or isinstance(time, tuple):
