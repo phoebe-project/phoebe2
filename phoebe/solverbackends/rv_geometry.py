@@ -10,7 +10,7 @@ from phoebe.constraints.builtin import t0_supconj_to_perpass
 def smooth_rv(rvdata):
     if rvdata is None:
         return None
-    
+
     win_len = int(len(rvdata))/5
     win_len = int(win_len + 1) if win_len%2 == 0 else int(win_len)
     win_len = 5 if win_len <= 3 else win_len
@@ -36,13 +36,13 @@ def estimate_vgamma(rv1data, rv2data, q=1.):
 
 def estimate_q_vgamma(rv1data, rv2data):
     if rv2data is None:
-        rv1_flipped = np.array([rv1data[:,0], 
+        rv1_flipped = np.array([rv1data[:,0],
                                 -rv1data[:,1] + rv1data[:,1].max() + rv1data[:,1].min(),
                                 rv1data[:,2]]).T
         return 1., estimate_vgamma(rv1data, rv1_flipped, q=1.)
-    
+
     if rv1data is None:
-        rv2_flipped = np.array([rv2data[:,0], 
+        rv2_flipped = np.array([rv2data[:,0],
                                 -rv2data[:,1] + rv2data[:,1].max() + rv2data[:,1].min(),
                                 rv2data[:,2]]).T
         return 1., estimate_vgamma(rv2data, rv2_flipped, q=1.)
@@ -51,13 +51,13 @@ def estimate_q_vgamma(rv1data, rv2data):
     for i in range(5):
         q_est = estimate_q(rv1data, rv2data, vgamma=vgamma_est)
         vgamma_est = estimate_vgamma(rv1data, rv2data, q_est)
-    
+
     return q_est[0], vgamma_est[0]
 
 
 def estimate_asini(rv1data, rv2data, period = 1*u.d, vgamma = 0., q=1., ecc=0.):
     period  = (period.to(u.s)).value
-    
+
     K1 = 0.5*(max(rv1data[:,1]-vgamma)-min(rv1data[:,1]-vgamma)) if rv1data is not None else np.nan
     asini1 = K1*period*(1+q)*(1-ecc**2)**0.5/(2*np.pi*q)
     K2 = 0.5*(max(rv2data[:,1]-vgamma)-min(rv2data[:,1]-vgamma)) if rv2data is not None else np.nan
@@ -169,9 +169,9 @@ def estimate_rv_parameters(rv1data=None, rv2data=None,
                 asini = estimate_asini(rv1data, rv2data, period = 1.*u.d, vgamma = vgamma, q=q, ecc=result.x[0])
             loglikes[i,j] = loglike(result.x, rv1data, rv2data, q, asini, vgamma, ph_supconj)
             results[i,j] = result.x
-            
+
     [ecc, per0] = results.reshape(6,2)[np.argmax(loglikes.reshape(6))]
     return {'q':q, 'asini':asini*period,
-            'vgamma':vgamma, 'ecc':ecc, 'per0':per0, 't0_supconj': ph_supconj*period}
+            'vgamma':vgamma, 'ecc':ecc, 'per0':per0, 'ph_supconj': ph_supconj}
             # 'rv1_analytic': rv_model(rv1data[:,0], t0, period, result.x[0], result.x[1], asini*period, q, vgamma, component=1),
             # 'rv2_analytic': rv_model(rv2data[:,0], t0, period, result.x[0], result.x[1], asini*period, q, vgamma, component=2)}

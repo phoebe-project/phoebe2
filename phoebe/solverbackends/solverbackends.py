@@ -715,6 +715,7 @@ class Rv_GeometryBackend(BaseSolverBackend):
         period = b.get_value(qualifier='period', component=orbit, context='component', unit=u.d, **_skip_filter_checks)
 
         est_dict = rv_geometry.estimate_rv_parameters(rv1data, rv2data, period=period)
+        est_dict['t0_supconj'] = b.to_time(est_dict['ph_supconj'], component=orbit, t0='t0_supconj')
 
         # est_dict['period']
         # est_dict['t0_supconj']
@@ -758,8 +759,9 @@ class Rv_GeometryBackend(BaseSolverBackend):
 
         if kwargs.get('expose_model', True):
             analytic_phases = np.linspace(-0.5, 0.5, 201)
-            analytic_rv1 = rv_geometry.rv_model(analytic_phases, est_dict['t0_supconj'], period, est_dict['per0'], est_dict['ecc'], est_dict['asini'], est_dict['q'], est_dict['vgamma'], component=1)
-            analytic_rv2 = rv_geometry.rv_model(analytic_phases, est_dict['t0_supconj'], period, est_dict['per0'], est_dict['ecc'], est_dict['asini'], est_dict['q'], est_dict['vgamma'], component=2)
+            ph_supconj = b.to_phase(est_dict['t0_supconj'])
+            analytic_rv1 = rv_geometry.rv_model(analytic_phases, period, est_dict['per0'], est_dict['ecc'], est_dict['asini'], est_dict['q'], est_dict['vgamma'], est_dict['ph_supconj'], component=1)
+            analytic_rv2 = rv_geometry.rv_model(analytic_phases, period, est_dict['per0'], est_dict['ecc'], est_dict['asini'], est_dict['q'], est_dict['vgamma'], est_dict['ph_supconj'], component=2)
 
             return_ += [
                          {'qualifier': 'analytic_phases', 'value': analytic_phases},
