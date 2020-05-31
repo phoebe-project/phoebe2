@@ -66,6 +66,8 @@ def _simplify_error_message(msg):
         msg = 'roche overflow'
     elif 'lookup ld_coeffs' in msg:
         msg = 'ld_coeffs lookup out-of-bounds'
+    elif 'compute_pblums failed' in msg:
+        msg = 'atm out-of-bounds during compute_pblums'
     elif 'Atmosphere parameters out of bounds' in msg:
         msg = 'atm out-of-bounds'
     return msg

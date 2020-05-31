@@ -8976,16 +8976,33 @@ class Bundle(ParameterSet):
                     pb = get_passband(passband, content=required_content)
 
                     # TODO: why is Inorm returning an array when passing all floats but ldint isn't??
-                    Inorm = pb.Inorm(Teff=teffs[component], logg=loggs[component],
-                                     abun=abuns[component], atm=atms[component],
-                                     ldatm=atms[component],
-                                     ldint=None, ld_func=ld_func, ld_coeffs=ld_coeffs,
-                                     photon_weighted=intens_weighting=='photon')[0]
+                    try:
+                        Inorm = pb.Inorm(Teff=teffs[component], logg=loggs[component],
+                                         abun=abuns[component], atm=atms[component],
+                                         ldatm=atms[component],
+                                         ldint=None, ld_func=ld_func, ld_coeffs=ld_coeffs,
+                                         photon_weighted=intens_weighting=='photon')[0]
+                    except ValueError as err:
+                        if str(err).split(":")[0] == 'Atmosphere parameters out of bounds':
+                            # let's override with a more helpful error message
+                            logger.warning(str(err))
+                            raise ValueError("compute_pblums failed with pblum_method='{}', atm='{}' with an atmosphere out-of-bounds error when querying for Inorm. Enable 'warning' logger to see out-of-bound arrays.".format(pblum_method, atms[component]))
+                        else:
+                            raise err
 
-                    ldint = pb.ldint(Teff=teffs[component], logg=loggs[component],
-                                     abun=abuns[component],
-                                     ldatm=atms[component], ld_func=ld_func, ld_coeffs=ld_coeffs,
-                                     photon_weighted=intens_weighting=='photon')
+                    try:
+                        ldint = pb.ldint(Teff=teffs[component], logg=loggs[component],
+                                         abun=abuns[component],
+                                         ldatm=atms[component], ld_func=ld_func, ld_coeffs=ld_coeffs,
+                                         photon_weighted=intens_weighting=='photon')
+                    except ValueError as err:
+                        if str(err).split(":")[0] == 'Atmosphere parameters out of bounds':
+                            # let's override with a more helpful error message
+                            logger.warning(str(err))
+                            raise ValueError("compute_pblums failed with pblum_method='{}', atm='{}' with an atmosphere out-of-bounds error when querying for ldint. Enable 'warning' logger to see out-of-bound arrays.".format(pblum_method, atms[component]))
+                        else:
+                            raise err
+
 
                     if intens_weighting=='photon':
                         ptfarea = pb.ptf_photon_area/pb.h/pb.c
