@@ -8479,7 +8479,7 @@ class Bundle(ParameterSet):
         if not isinstance(compute, str):
             raise TypeError("compute must be a single value (string)")
 
-        compute_ps = self.get_compute(compute)
+        compute_ps = self.get_compute(compute, **_skip_filter_checks)
         # we'll add 'bol' to the list of default datasets... but only if bolometric is needed for irradiation
         needs_bol = compute_ps.get_value(qualifier='irrad_method', irrad_method=kwargs.get('irrad_method', None), default='none', **_skip_filter_checks) != 'none'
 
@@ -8899,7 +8899,8 @@ class Bundle(ParameterSet):
         if pblum_method == 'phoebe':
             # we'll need to make sure we've done any necessary interpolation if
             # any ld_bol or ld_mode_bol are set to 'lookup'.
-            self.compute_ld_coeffs(compute=compute, set_value=True, **{k:v for k,v in kwargs.items() if k not in ['ret_structured_dicts', 'pblum_mode', 'pblum_method']})
+            if not kwargs.get('skip_compute_ld_coeffs', False):
+                self.compute_ld_coeffs(compute=compute, set_value=True, skip_checks=True, **{k:v for k,v in kwargs.items() if k not in ['ret_structured_dicts', 'pblum_mode', 'pblum_method', 'skip_checks']})
             # TODO: make sure this accepts all compute parameter overrides (distortion_method, etc)
             system = kwargs.get('system', self._compute_intrinsic_system_at_t0(compute=compute, datasets=pblum_datasets, **kwargs))
             logger.debug("computing observables with ignore_effects=True for {}".format(pblum_datasets))
@@ -8963,6 +8964,12 @@ class Bundle(ParameterSet):
                     if ld_mode == 'manual':
                         ld_func = self.get_value(qualifier='ld_func', component=component, dataset=dataset, context='dataset', **_skip_filter_checks)
                         ld_coeffs = self.get_value(qualifier='ld_coeffs', component=component, dataset=dataset, context='dataset', **_skip_filter_checks)
+                    elif ld_mode == 'lookup':
+                        ld_func = self.get_value(qualifier='ld_func', component=component, dataset=dataset, context='dataset', **_skip_filter_checks)
+                        # TODO: can we optimize this or have some kwarg if this has already been done?
+                        if not kwargs.get('skip_compute_ld_coeffs', False):
+                            self.compute_ld_coeffs(compute=compute, dataset=dataset, set_value=True, skip_checks=True, **{k:v for k,v in kwargs.items() if k not in ['ret_structured_dicts', 'pblum_mode', 'pblum_method', 'skip_checks']})
+                        ld_coeffs = self.get_value(qualifier='ld_coeffs', component=component, dataset=dataset, context='dataset', **_skip_filter_checks)
                     else:
                         ld_func = 'interp'
                         ld_coeffs = None
@@ -8986,7 +8993,7 @@ class Bundle(ParameterSet):
                         if str(err).split(":")[0] == 'Atmosphere parameters out of bounds':
                             # let's override with a more helpful error message
                             logger.warning(str(err))
-                            raise ValueError("compute_pblums failed with pblum_method='{}', atm='{}' with an atmosphere out-of-bounds error when querying for Inorm. Enable 'warning' logger to see out-of-bound arrays.".format(pblum_method, atms[component]))
+                            raise ValueError("compute_pblums failed with pblum_method='{}', atm='{}', ld_mode='{}' with an atmosphere out-of-bounds error when querying for Inorm. Enable 'warning' logger to see out-of-bound arrays.".format(pblum_method, atms[component], ld_mode))
                         else:
                             raise err
 
@@ -8999,7 +9006,7 @@ class Bundle(ParameterSet):
                         if str(err).split(":")[0] == 'Atmosphere parameters out of bounds':
                             # let's override with a more helpful error message
                             logger.warning(str(err))
-                            raise ValueError("compute_pblums failed with pblum_method='{}', atm='{}' with an atmosphere out-of-bounds error when querying for ldint. Enable 'warning' logger to see out-of-bound arrays.".format(pblum_method, atms[component]))
+                            raise ValueError("compute_pblums failed with pblum_method='{}', atm='{}', ld_mode='{}' with an atmosphere out-of-bounds error when querying for ldint. Enable 'warning' logger to see out-of-bound arrays.".format(pblum_method, atms[component], ld_mode))
                         else:
                             raise err
 
@@ -9856,7 +9863,7 @@ class Bundle(ParameterSet):
                 # the phoebe backend can then skip initializing the system at least on the master proc
                 # (workers will need to recreate the mesh)
                 system, pblums_abs, pblums_scale, pblums_rel, pbfluxes = self.compute_pblums(compute=compute, ret_structured_dicts=True, skip_checks=True, **{k:v for k,v in kwargs.items() if k in computeparams.qualifiers})
-                l3s = self.compute_l3s(compute=compute, use_pbfluxes=pbfluxes, ret_structured_dicts=True, skip_checks=True, **{k:v for k,v in kwargs.items() if k in computeparams.qualifiers})
+                l3s = self.compute_l3s(compute=compute, use_pbfluxes=pbfluxes, ret_structured_dicts=True, skip_checks=True, skip_compute_ld_coeffs=True, **{k:v for k,v in kwargs.items() if k in computeparams.qualifiers})
 
                 logger.info("run_compute: calling {} backend to create '{}' model".format(computeparams.kind, model))
                 if mpi.within_mpirun:
