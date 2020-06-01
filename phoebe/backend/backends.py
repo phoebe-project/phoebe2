@@ -1963,6 +1963,16 @@ class JktebopBackend(BaseBackendByDataset):
         out = commands.getoutput('jktebop')
         if 'not found' in out:
             raise ImportError('jktebop executable not found.')
+        version = out.split('JKTEBOP  ')[1].split(' ')[0]
+        try:
+            version_int = int(float(version[1:]))
+        except Exception as e:
+            print(e)
+            raise ImportError("could not parse jktebop version.  PHOEBE is tested for v40, but may work on newer versions.")
+        else:
+            min_version = 40
+            if version_int < min_version:
+                raise ImportError("PHOEBE requires jktebop v{}+, found v{}".format(min_version, version_int))
 
         hier = b.get_hierarchy()
 
