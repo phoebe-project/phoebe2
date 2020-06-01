@@ -1677,7 +1677,7 @@ def mass(b, component, solve_for=None, **kwargs):
     #
     # return lhs, rhs, [esinw, ecosw, ecc, per0], {'orbit': orbit}
 
-_validsolvefor['comp_sma'] = ['comp@star', 'comp@orbit']
+_validsolvefor['comp_sma'] = ['sma@star', 'incl@orbit']
 def comp_sma(b, component, solve_for=None, **kwargs):
     """
     Create a constraint for the star's semi-major axes WITHIN its
@@ -1689,7 +1689,7 @@ def comp_sma(b, component, solve_for=None, **kwargs):
 
     This is usually passed as an argument to
      <phoebe.frontend.bundle.Bundle.add_constraint> as
-     `b.add_constraint('mass', component='primary')`, where `component` is
+     `b.add_constraint('comp_sma', component='primary')`, where `component` is
      one of <phoebe.parameters.HierarchyParameter.get_stars>.
 
     If 'sma' does not exist in the component, it will be created
@@ -1750,6 +1750,85 @@ def comp_sma(b, component, solve_for=None, **kwargs):
     elif solve_for == sma:
         lhs = sma
         rhs = compsma * qthing
+
+    else:
+        raise NotImplementedError
+
+    return lhs, rhs, [], {'component': component}
+
+_validsolvefor['comp_asini'] = ['asini@star', 'sma@orbit']
+def comp_asini(b, component, solve_for=None, **kwargs):
+    """
+    Create a constraint for the star's projected semi-major axes WITHIN its
+    parent orbit.
+
+    This constraint is automatically created and attached for all stars
+    in binary orbits via <phoebe.frontend.bundle.Bundle.set_hierarchy>.
+
+    This is usually passed as an argument to
+     <phoebe.frontend.bundle.Bundle.add_constraint> as
+     `b.add_constraint('comp_asini', component='primary')`, where `component` is
+     one of <phoebe.parameters.HierarchyParameter.get_stars>.
+
+    If 'asini' does not exist in the component, it will be created
+
+    Arguments
+    -----------
+    * `b` (<phoebe.frontend.bundle.Bundle>): the Bundle
+    * `component` (string): the label of the orbit or component in which this
+        constraint should be built.
+    * `solve_for` (<phoebe.parameters.Parameter>, optional, default=None): if
+        'asini@star' should not be the derived/constrained parameter, provide which
+        other parameter should be derived (ie 'sma@orbit').
+
+    Returns
+    ----------
+    * (<phoebe.parameters.Parameter>, <phoebe.parameters.ConstraintParameter>, list):
+        lhs (Parameter), rhs (ConstraintParameter), addl_params (list of additional
+        parameters that may be included in the constraint), kwargs (dict of
+        keyword arguments that were passed to this function).
+
+    Raises
+    --------
+    * NotImplementedError: if the value of `solve_for` is not implemented.
+    """
+    hier = b.get_hierarchy()
+    if not len(hier.get_value()):
+        # TODO: change to custom error type to catch in bundle.add_component
+        # TODO: check whether the problem is 0 hierarchies or more than 1
+        raise NotImplementedError("constraint for comp_sma requires hierarchy")
+
+    component_ps = _get_system_ps(b, component)
+
+    parentorbit = hier.get_parent_of(component)
+    parentorbit_ps = _get_system_ps(b, parentorbit)
+
+    metawargs = component_ps.meta
+    metawargs.pop('qualifier')
+    compasini_def = FloatParameter(qualifier='asini', value=4.0, default_unit=u.solRad, advanced=True, description='Projected semi major axis of the component in the orbit')
+    compasini, created = b.get_or_create('asini', compasini_def, **metawargs)
+
+    sma = parentorbit_ps.get_parameter(qualifier='sma', **_skip_filter_checks)
+    q = parentorbit_ps.get_parameter(qualifier='q', **_skip_filter_checks)
+    incl = parentorbit_ps.get_parameter(qualifier='incl', **_skip_filter_checks)
+
+    # NOTE: similar logic is also in dynamics.keplerian.dynamics_from_bundle to
+    # handle nested hierarchical orbits.  If changing any of the logic here,
+    # it should be changed there as well.
+
+    if hier.get_primary_or_secondary(component) == 'primary':
+        qthing = (1. + 1./q)
+    else:
+        qthing = (1. + q)
+
+
+    if solve_for in [None, compasini]:
+        lhs = compasini
+        rhs = sma * sin(incl) / qthing
+
+    elif solve_for == sma:
+        lhs = sma
+        rhs = compasini / sin(incl) * qthing
 
     else:
         raise NotImplementedError

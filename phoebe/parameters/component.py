@@ -39,6 +39,9 @@ def orbit(component, **kwargs):
     * <phoebe.parameters.constraint.mean_anom>
     * <phoebe.parameters.constraint.freq>
 
+    In addition, some constraints are created automatically by <phoebe.frontend.bundle.Bundle.set_hierarchy>.
+    For a list of these, see <phoebe.frontend.bundle.Bundle.add_constraint>.
+
     Arguments
     ----------
     * `period` (float/quantity, optional): orbital period.
@@ -123,6 +126,9 @@ def star(component, **kwargs):
     * <phoebe.parameters.constraint.freq>
     * <phoebe.parameters.constraint.irrad_frac>
     * <phoebe.parameters.constraint.logg>
+
+    In addition, some constraints are created automatically by <phoebe.frontend.bundle.Bundle.set_hierarchy>.
+    For a list of these, see <phoebe.frontend.bundle.Bundle.add_constraint>.
 
     Arguments
     ----------
@@ -229,9 +235,11 @@ def star(component, **kwargs):
     # - requiv_detached_max
     # - mass
     # - comp_sma
+    # - asini
     # - rotation_period
     # - pitch
     # - yaw
+
 
     constraints += [(constraint.freq, component)]
     constraints += [(constraint.logg, component)]
@@ -249,6 +257,9 @@ def envelope(component, **kwargs):
     passed on to set the values as described in the arguments below.  Alternatively,
     see <phoebe.parameters.ParameterSet.set_value> to set/change the values
     after creating the Parameters.
+
+    In addition, some constraints are created automatically by <phoebe.frontend.bundle.Bundle.set_hierarchy>.
+    For a list of these, see <phoebe.frontend.bundle.Bundle.add_constraint>.
 
     Arguments
     ----------

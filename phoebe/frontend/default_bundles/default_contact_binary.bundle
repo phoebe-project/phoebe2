@@ -1136,6 +1136,22 @@ null
 }, 
 {
 "kind": "star", 
+"description": "Projected semi major axis of the component in the orbit", 
+"limits": [
+null, 
+null
+], 
+"default_unit": "solRad", 
+"component": "primary", 
+"value": 1.675, 
+"context": "component", 
+"copy_for": false, 
+"Class": "FloatParameter", 
+"advanced": true, 
+"qualifier": "asini"
+}, 
+{
+"kind": "star", 
 "description": "Semi major axis of the component in the orbit", 
 "limits": [
 null, 
@@ -1149,6 +1165,22 @@ null
 "Class": "FloatParameter", 
 "advanced": true, 
 "qualifier": "sma"
+}, 
+{
+"kind": "star", 
+"description": "Projected semi major axis of the component in the orbit", 
+"limits": [
+null, 
+null
+], 
+"default_unit": "solRad", 
+"component": "secondary", 
+"value": 1.675, 
+"context": "component", 
+"copy_for": false, 
+"Class": "FloatParameter", 
+"advanced": true, 
+"qualifier": "asini"
 }, 
 {
 "kind": "extinction", 
@@ -1500,6 +1532,22 @@ null
 }, 
 {
 "kind": "star", 
+"qualifier": "asini", 
+"constraint_kwargs": {
+"component": "primary"
+}, 
+"constraint_addl_vars": [], 
+"component": "primary", 
+"value": "({sma@binary@component} * (sin({incl@binary@component}))) / (1.000000 + (1.000000 / {q@binary@component}))", 
+"constraint_func": "comp_asini", 
+"context": "constraint", 
+"in_solar_units": true, 
+"default_unit": "solRad", 
+"Class": "ConstraintParameter", 
+"description": "expression that determines the constraint"
+}, 
+{
+"kind": "star", 
 "qualifier": "period", 
 "constraint_kwargs": {
 "component": "primary"
@@ -1609,6 +1657,22 @@ null
 "component": "secondary", 
 "value": "{sma@binary@component} / (1.000000 + {q@binary@component})", 
 "constraint_func": "comp_sma", 
+"context": "constraint", 
+"in_solar_units": true, 
+"default_unit": "solRad", 
+"Class": "ConstraintParameter", 
+"description": "expression that determines the constraint"
+}, 
+{
+"kind": "star", 
+"qualifier": "asini", 
+"constraint_kwargs": {
+"component": "secondary"
+}, 
+"constraint_addl_vars": [], 
+"component": "secondary", 
+"value": "({sma@binary@component} * (sin({incl@binary@component}))) / (1.000000 + {q@binary@component})", 
+"constraint_func": "comp_asini", 
 "context": "constraint", 
 "in_solar_units": true, 
 "default_unit": "solRad", 

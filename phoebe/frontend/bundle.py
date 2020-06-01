@@ -650,6 +650,9 @@ class Bundle(ParameterSet):
                 # there were no constraints before
                 b.add_constraint(*constraint)
 
+            # call set_hierarchy to force asini@component constraints (comp_asini) to be built
+            b.set_hierarchy()
+
 
         if phoebe_version_import < StrictVersion("2.2.0"):
             warning = "importing from an older version ({}) of PHOEBE which did not support compute_times, ld_mode/ld_coeffs_source, pblum_mode, l3_mode, etc... all datasets will be migrated to include all new options.  This may take some time.  Please check all values.".format(phoebe_version_import)
@@ -2596,6 +2599,25 @@ class Bundle(ParameterSet):
                 else:
                     self.add_constraint(constraint.comp_sma, component,
                                         constraint=self._default_label('comp_sma', context='constraint'))
+
+                logger.debug('re-creating comp_asini constraint for {}'.format(component))
+                # TODO: will this cause problems if the constraint has been flipped?
+                if len(self.filter(context='constraint',
+                                   constraint_func='comp_asini',
+                                   component=component,
+                                   **_skip_filter_checks)):
+                    constraint_param = self.get_constraint(constraint_func='comp_asini',
+                                                           component=component,
+                                                           **_skip_filter_checks)
+                    self.remove_constraint(constraint_func='comp_asini',
+                                           component=component,
+                                           **_skip_filter_checks)
+                    self.add_constraint(constraint.comp_asini, component,
+                                        solve_for=constraint_param.constrained_parameter.uniquetwig,
+                                        constraint=constraint_param.constraint)
+                else:
+                    self.add_constraint(constraint.comp_asini, component,
+                                        constraint=self._default_label('comp_asini', context='constraint'))
 
                 logger.debug('re-creating rotation_period constraint for {}'.format(component))
                 # TODO: will this cause problems if the constraint has been flipped?
@@ -6305,6 +6327,7 @@ class Bundle(ParameterSet):
         <phoebe.frontend.bundle.Bundle.default_binary>:
         * <phoebe.parameters.constraint.mass>
         * <phoebe.parameters.constraint.comp_sma>
+        * <phoebe.parameters.constraint.comp_asini>
         * <phoebe.parameters.constraint.rotation_period> (detached only)
         * <phoebe.parameters.constraint.pitch> (detached only)
         * <phoebe.parameters.constraint.yaw> (detached only)
@@ -6385,7 +6408,7 @@ class Bundle(ParameterSet):
             # solve_for is a twig, we need to pass the parameter
             kwargs['solve_for'] = self.get_parameter(kwargs['solve_for'], context=['component', 'dataset', 'model'], check_visible=False)
 
-        lhs, rhs, addl_vars, constraint_kwargs = func(self, *func_args, **kwargs)
+        lhs, rhs, addl_vars, constraint_kwargs = func(self, *func_args, **{k:v for k,v in kwargs.items() if k not in ['constraint']})
         # NOTE that any component parameters required have already been
         # created by this point
 
