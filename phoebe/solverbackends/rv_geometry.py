@@ -39,13 +39,13 @@ def estimate_q_vgamma(rv1data, rv2data):
         rv1_flipped = np.array([rv1data[:,0],
                                 -rv1data[:,1] + rv1data[:,1].max() + rv1data[:,1].min(),
                                 rv1data[:,2]]).T
-        return 1., estimate_vgamma(rv1data, rv1_flipped, q=1.)
+        return np.nan, estimate_vgamma(rv1data, rv1_flipped, q=1.)
 
     if rv1data is None:
         rv2_flipped = np.array([rv2data[:,0],
                                 -rv2data[:,1] + rv2data[:,1].max() + rv2data[:,1].min(),
                                 rv2data[:,2]]).T
-        return 1., estimate_vgamma(rv2data, rv2_flipped, q=1.)
+        return np.nan, estimate_vgamma(rv2data, rv2_flipped, q=1.)
 
     vgamma_est = None
     for i in range(5):
@@ -55,15 +55,15 @@ def estimate_q_vgamma(rv1data, rv2data):
     return q_est[0], vgamma_est[0]
 
 
-def estimate_asini(rv1data, rv2data, period = 1*u.d, vgamma = 0., q=1., ecc=0.):
+def estimate_asini(rv1data, rv2data, period = 1*u.d, vgamma = 0., ecc=0.):
     period  = (period.to(u.s)).value
 
     K1 = 0.5*(max(rv1data[:,1]-vgamma)-min(rv1data[:,1]-vgamma)) if rv1data is not None else np.nan
-    asini1 = K1*period*(1+q)*(1-ecc**2)**0.5/(2*np.pi*q)
+    asini1 = K1*period*(1-ecc**2)**0.5/(2*np.pi)
     K2 = 0.5*(max(rv2data[:,1]-vgamma)-min(rv2data[:,1]-vgamma)) if rv2data is not None else np.nan
-    asini2 = K2*period*(1+q)*(1-ecc**2)**0.5/(2*np.pi)
+    asini2 = K2*period*(1-ecc**2)**0.5/(2*np.pi)
 
-    return np.nanmean([asini1, asini2])
+    return [asini1, asini2]
 
 
 def estimate_phase_supconj(rv1data, rv2data, vgamma):
@@ -89,7 +89,7 @@ def ecc_anomaly(x, phases, ph0, ecc):
     return x-ecc*np.sin(x) - 2*np.pi*(phases-ph0)
 
 
-def rv_model(phases, P, per0, ecc, asini, q, vgamma, ph_supconj, component=1):
+def rv_model(phases, P, per0, ecc, asini, vgamma, ph_supconj, component=1):
 
     ph0 = t0_supconj_to_perpass(ph_supconj, 1., ecc, per0, 0., 0., 0.)
 
@@ -97,9 +97,9 @@ def rv_model(phases, P, per0, ecc, asini, q, vgamma, ph_supconj, component=1):
     thetas = 2*np.arctan(((1+ecc)/(1-ecc))**0.5*np.tan(Es/2))
     P_s = ((P*u.d).to(u.s)).value
     if component==1:
-        const = 2*np.pi*q*asini/(P_s*(1+q)*(1-ecc**2)**0.5)
+        const = 2*np.pi*asini[0]/(P_s*(1-ecc**2)**0.5)
     elif component==2:
-        const = -2*np.pi*asini/(P_s*(1+q)*(1-ecc**2)**0.5)
+        const = -2*np.pi*asini[1]/(P_s*(1-ecc**2)**0.5)
     else:
         raise ValueError('Unrecognized component %i, can only be 1 or 2' % (component))
 
@@ -107,18 +107,18 @@ def rv_model(phases, P, per0, ecc, asini, q, vgamma, ph_supconj, component=1):
     return (const*tdep) + vgamma
 
 
-def loglike(params, rv1data, rv2data, q, asini, vgamma, ph_supconj):
+def loglike(params, rv1data, rv2data, asini, vgamma, ph_supconj):
     logl1 = 0
     logl2 = 0
 
     ecc, per0 = params
     period = 1. # because phase-folded rv
     if rv1data is not None:
-        rvs1 = rv_model(rv1data[:,0], period, per0, ecc, asini, q, vgamma, ph_supconj,component=1)
+        rvs1 = rv_model(rv1data[:,0], period, per0, ecc, asini, vgamma, ph_supconj,component=1)
         logl1 = -0.5*np.sum((rv1data[:,1]-rvs1)**2/(rv1data[:,2])**2)
 
     if rv2data is not None:
-        rvs2 = rv_model(rv2data[:,0], period, per0, ecc, asini, q, vgamma, ph_supconj, component=2)
+        rvs2 = rv_model(rv2data[:,0], period, per0, ecc, asini, vgamma, ph_supconj, component=2)
         logl2 = -0.5*np.sum((rv2data[:,1]-rvs2)**2/(rv2data[:,2])**2)
 #     print(logl1+logl2)
     return logl1+logl2
@@ -131,7 +131,7 @@ def estimate_rv_parameters(rv1data=None, rv2data=None,
     rv2_smooth = smooth_rv(rv2data) if rv2data is not None else rv2data
 
     q, vgamma = estimate_q_vgamma(rv1_smooth, rv2_smooth)
-    asini = estimate_asini(rv1_smooth, rv2_smooth, period = 1.*u.d, vgamma = vgamma, q=q, ecc=0.)
+    asinis = estimate_asini(rv1_smooth, rv2_smooth, period = 1.*u.d, vgamma = vgamma, ecc=0.)
     ph_supconj = estimate_phase_supconj(rv1_smooth, rv2_smooth, vgamma)
     # set initial values for ecc and per0
     ecc_inits = [0., 0.4]
@@ -147,15 +147,15 @@ def estimate_rv_parameters(rv1data=None, rv2data=None,
                     #bounds = ((times.min(), 0, 0., rvs.min()),(times.min()+period, 2*np.pi, 0.9, rvs.max())),
                     bounds = ((0.,0.), (0.9, 2*np.pi)),
                     kwargs={'rv1data':rv1data, 'rv2data':rv2data,
-                            'q':q, 'asini': asini,
+                            'asini': asinis,
                             'vgamma': vgamma, 'ph_supconj':ph_supconj})
                 init_params = result.x
-                asini = estimate_asini(rv1data, rv2data, period = 1.*u.d, vgamma = vgamma, q=q, ecc=result.x[0])
-            loglikes[i,j] = loglike(result.x, rv1data, rv2data, q, asini, vgamma, ph_supconj)
+                asinis = estimate_asini(rv1data, rv2data, period = 1.*u.d, vgamma = vgamma, ecc=result.x[0])
+            loglikes[i,j] = loglike(result.x, rv1data, rv2data, asinis, vgamma, ph_supconj)
             results[i,j] = result.x
 
     [ecc, per0] = results.reshape(6,2)[np.argmax(loglikes.reshape(6))]
-    return {'q':q, 'asini':asini,
+    return {'q':q, 'asini': np.array(asinis),
             'vgamma':vgamma, 'ecc':ecc, 'per0':per0, 'ph_supconj': ph_supconj}
             # 'rv1_analytic': rv_model(rv1data[:,0], t0, period, result.x[0], result.x[1], asini*period, q, vgamma, component=1),
             # 'rv2_analytic': rv_model(rv2data[:,0], t0, period, result.x[0], result.x[1], asini*period, q, vgamma, component=2)}

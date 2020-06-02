@@ -716,6 +716,12 @@ class Rv_GeometryBackend(BaseSolverBackend):
 
         est_dict = rv_geometry.estimate_rv_parameters(rv1data, rv2data)
         est_dict['t0_supconj'] = b.to_time(est_dict['ph_supconj'], component=orbit, t0='t0_supconj')
+
+        # the below is required to ensure that a = a1+a2 is returned (for now?)
+        # but the separate a1sini and a2sini need to be kept for the 
+        # analytical model computation in expose_model = True
+        asini_12 = est_dict['asini'].copy()
+        est_dict['asini'] = np.nansum(est_dict['asini'])
         est_dict['asini'] *= period
 
         # est_dict['period']
@@ -761,8 +767,8 @@ class Rv_GeometryBackend(BaseSolverBackend):
         if kwargs.get('expose_model', True):
             analytic_phases = np.linspace(-0.5, 0.5, 201)
             ph_supconj = b.to_phase(est_dict['t0_supconj'])
-            analytic_rv1 = rv_geometry.rv_model(analytic_phases, period, est_dict['per0'], est_dict['ecc'], est_dict['asini'], est_dict['q'], est_dict['vgamma'], est_dict['ph_supconj'], component=1)
-            analytic_rv2 = rv_geometry.rv_model(analytic_phases, period, est_dict['per0'], est_dict['ecc'], est_dict['asini'], est_dict['q'], est_dict['vgamma'], est_dict['ph_supconj'], component=2)
+            analytic_rv1 = rv_geometry.rv_model(analytic_phases, period, est_dict['per0'], est_dict['ecc'], asini_12, est_dict['vgamma'], est_dict['ph_supconj'], component=1)
+            analytic_rv2 = rv_geometry.rv_model(analytic_phases, period, est_dict['per0'], est_dict['ecc'], asini_12, est_dict['vgamma'], est_dict['ph_supconj'], component=2)
 
             return_ += [
                          {'qualifier': 'analytic_phases', 'value': analytic_phases},
