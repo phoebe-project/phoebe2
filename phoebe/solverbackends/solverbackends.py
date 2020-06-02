@@ -708,26 +708,28 @@ class Rv_GeometryBackend(BaseSolverBackend):
 
             s = np.argsort(phases)
             if i==0:
-                rv1data = np.vstack((phases[s], rvs[s], sigmas[s])).T
+                if len(phases):
+                    rv1data = np.vstack((phases[s], rvs[s], sigmas[s])).T
+                else:
+                    rv1data = None
             else:
-                rv2data = np.vstack((phases[s], rvs[s], sigmas[s])).T
+                if len(phases):
+                    rv2data = np.vstack((phases[s], rvs[s], sigmas[s])).T
+                else:
+                    rv2data = None
+
+        if rv1data is None and rv2data is None:
+            raise ValueError("no rv data found, cannot run rv_geometry")
 
         period = b.get_value(qualifier='period', component=orbit, context='component', unit=u.d, **_skip_filter_checks)
 
         est_dict = rv_geometry.estimate_rv_parameters(rv1data, rv2data)
         est_dict['t0_supconj'] = b.to_time(est_dict['ph_supconj'], component=orbit, t0='t0_supconj')
 
-        # the below is required to ensure that a = a1+a2 is returned (for now?)
-        # but the separate a1sini and a2sini need to be kept for the 
-        # analytical model computation in expose_model = True
-        asini_12 = est_dict['asini'].copy()
-        est_dict['asini'] = np.nansum(est_dict['asini'])
-        est_dict['asini'] *= period
-
         # est_dict['period']
         # est_dict['t0_supconj']
         # est_dict['q']
-        # est_dict['asini']
+        # est_dict['asini']  (list of a1sini, a2sini)
         # est_dict['vgamma']
         # est_dict['ecc']
         # est_dict['per0']
@@ -735,27 +737,47 @@ class Rv_GeometryBackend(BaseSolverBackend):
         orbit_ps = b.get_component(component=orbit, **_skip_filter_checks)
 
         t0_supconj_param = orbit_ps.get_parameter(qualifier='t0_supconj', **_skip_filter_checks)
-        q_param = orbit_ps.get_parameter(qualifier='q', **_skip_filter_checks)
-        asini_param = orbit_ps.get_parameter(qualifier='asini', **_skip_filter_checks)
         ecc_param = orbit_ps.get_parameter(qualifier='ecc', **_skip_filter_checks)
         per0_param = orbit_ps.get_parameter(qualifier='per0', **_skip_filter_checks)
 
         vgamma_param = b.get_parameter(qualifier='vgamma', context='system', **_skip_filter_checks)
 
-        fitted_params = [t0_supconj_param, q_param, asini_param, ecc_param, per0_param, vgamma_param]
+        if rv2data is None:
+            # then we have an SB1 system with only primary RVs
+            asini_param = b.get_parameter(qualifier='asini', component=starrefs[0], context='component', **_skip_filter_checks)
+
+            fitted_params = [t0_supconj_param, asini_param, ecc_param, per0_param, vgamma_param]
+            fitted_values = [est_dict.get(p.qualifier) if p.qualifier != 'asini' else est_dict.get('asini')[0]*period for p in fitted_params]
+            fitted_units = [u.d.to_string(), u.km.to_string(), u.dimensionless_unscaled.to_string(), u.rad.to_string(), (u.km/u.s).to_string()]
+
+        elif rv1data is None:
+            # then we have an SB1 system with only secondary RVs
+            asini_param = b.get_parameter(qualifier='asini', component=starrefs[1], context='component', **_skip_filter_checks)
+
+            fitted_params = [t0_supconj_param, asini_param, ecc_param, per0_param, vgamma_param]
+            fitted_values = [est_dict.get(p.qualifier) if p.qualifier != 'asini' else est_dict.get('asini')[1]*period for p in fitted_params]
+            fitted_units = [u.d.to_string(), u.km.to_string(), u.dimensionless_unscaled.to_string(), u.rad.to_string(), (u.km/u.s).to_string()]
+
+        else:
+            # then we have an SB2 system
+            asini_param = orbit_ps.get_parameter(qualifier='asini', **_skip_filter_checks)
+            q_param = orbit_ps.get_parameter(qualifier='q', **_skip_filter_checks)
+
+            fitted_params = [t0_supconj_param, q_param, asini_param, ecc_param, per0_param, vgamma_param]
+            fitted_values = [est_dict.get(p.qualifier) if p.qualifier != 'asini' else np.nansum(est_dict.get('asini'))*period for p in fitted_params]
+            fitted_units = [u.d.to_string(), u.dimensionless_unscaled.to_string(), u.km.to_string(), u.dimensionless_unscaled.to_string(), u.rad.to_string(), (u.km/u.s).to_string()]
+
+
         fitted_uniqueids = [p.uniqueid for p in fitted_params]
         fitted_twigs = [p.twig for p in fitted_params]
-        fitted_values = [est_dict.get(p.qualifier) for p in fitted_params]
-        # TODO: check units!
-        fitted_units = [u.d.to_string(), u.dimensionless_unscaled.to_string(), u.km.to_string(), u.dimensionless_unscaled.to_string(), u.rad.to_string(), (u.km/u.s).to_string()]
 
         return_ = [
-                     {'qualifier': 'input_phases', 'component': starrefs[0], 'value': b.to_phase(rv1data[:,0], component=orbit, t0='t0_supconj')},
-                     {'qualifier': 'input_rvs', 'component': starrefs[0], 'value': rv1data[:,1]},
-                     {'qualifier': 'input_sigmas', 'component': starrefs[0], 'value': rv1data[:,2]},
-                     {'qualifier': 'input_phases', 'component': starrefs[1], 'value': b.to_phase(rv2data[:,0], component=orbit, t0='t0_supconj')},
-                     {'qualifier': 'input_rvs', 'component': starrefs[1], 'value': rv2data[:,1]},
-                     {'qualifier': 'input_sigmas', 'component': starrefs[1], 'value': rv2data[:,2]},
+                     {'qualifier': 'input_phases', 'component': starrefs[0], 'value': b.to_phase(rv1data[:,0], component=orbit, t0='t0_supconj') if rv1data is not None else []},
+                     {'qualifier': 'input_rvs', 'component': starrefs[0], 'value': rv1data[:,1] if rv1data is not None else []},
+                     {'qualifier': 'input_sigmas', 'component': starrefs[0], 'value': rv1data[:,2] if rv1data is not None else []},
+                     {'qualifier': 'input_phases', 'component': starrefs[1], 'value': b.to_phase(rv2data[:,0], component=orbit, t0='t0_supconj') if rv2data is not None else []},
+                     {'qualifier': 'input_rvs', 'component': starrefs[1], 'value': rv2data[:,1] if rv2data is not None else []},
+                     {'qualifier': 'input_sigmas', 'component': starrefs[1], 'value': rv2data[:,2] if rv2data is not None else []},
                      {'qualifier': 'orbit', 'value': orbit},
                      {'qualifier': 'fitted_uniqueids', 'value': fitted_uniqueids},
                      {'qualifier': 'fitted_twigs', 'value': fitted_twigs},
@@ -767,8 +789,14 @@ class Rv_GeometryBackend(BaseSolverBackend):
         if kwargs.get('expose_model', True):
             analytic_phases = np.linspace(-0.5, 0.5, 201)
             ph_supconj = b.to_phase(est_dict['t0_supconj'])
-            analytic_rv1 = rv_geometry.rv_model(analytic_phases, period, est_dict['per0'], est_dict['ecc'], asini_12, est_dict['vgamma'], est_dict['ph_supconj'], component=1)
-            analytic_rv2 = rv_geometry.rv_model(analytic_phases, period, est_dict['per0'], est_dict['ecc'], asini_12, est_dict['vgamma'], est_dict['ph_supconj'], component=2)
+            if rv1data is not None:
+                analytic_rv1 = rv_geometry.rv_model(analytic_phases, period, est_dict['per0'], est_dict['ecc'], est_dict['asini'], est_dict['vgamma'], est_dict['ph_supconj'], component=1)
+            else:
+                analytic_rv1 = []
+            if rv2data is not None:
+                analytic_rv2 = rv_geometry.rv_model(analytic_phases, period, est_dict['per0'], est_dict['ecc'], est_dict['asini'], est_dict['vgamma'], est_dict['ph_supconj'], component=2)
+            else:
+                analytic_rv2 = []
 
             return_ += [
                          {'qualifier': 'analytic_phases', 'value': analytic_phases},

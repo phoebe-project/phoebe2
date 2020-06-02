@@ -276,9 +276,12 @@ def rv_geometry(**kwargs):
     The input radial velocity datasets (`rv_datasets`) are combined without
     normalization.  These combined data are then used to estimate the
     semi-amplitude and `t0_supconj` which are then used to fit a Keplerian
-    orbit using least-squares.  This results in proposed values for `t0_supconj`,
+    orbit using least-squares.  If RVs are available for both components,
+    this results in proposed values for `t0_supconj`,
     `q`, `asini`, `ecc`, and `per0` for the corresponding `orbit` and `vgamma`
-    of the system.
+    of the system .  If RVs are only available for one of the components, then
+    `q` is excluded, and the proposed `asini` is for the stellar component instead
+    of the binary orbit.
     If `expose_model` is True, the analytical Keplerian RVs are exposed in the
     solution and available for
     plotting with <phoebe.parameters.ParameterSet.plot>.

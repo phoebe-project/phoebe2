@@ -4248,7 +4248,7 @@ class Bundle(ParameterSet):
         * `solution` (string or list of strings, optional, default=None): the
             solution to use  when running checks.  If None (or not provided),
             the compute options in the 'run_checks_solution@setting' parameter
-            will be used (which defaults to not solutions, if not set).
+            will be used (which defaults to no solutions, if not set).
         * `run_checks_compute` (bool, optional, default=True): whether to also
             call <phoebe.frontend.bundle.run_checks_compute> on any `compute`
             listed in the solution in `solution`.
@@ -4329,7 +4329,7 @@ class Bundle(ParameterSet):
                                 solve_for = constrained_by_ps.get_parameter(twig=validsolvefor[0], **_skip_filter_checks)
 
                                 report.add_item(self,
-                                                "{} is currently constrained but will temporarily flip to solve_for='{}'".format(adopt_twig, solve_for.twig),
+                                                "{} is currently constrained but will temporarily flip to solve_for='{}'".format(adopt_param.twig, solve_for.twig),
                                                 [solution_ps.get_parameter(qualifier='adopt_parameters', **_skip_filter_checks),
                                                  adopt_param.is_constraint
                                                 ]+addl_parameters,
