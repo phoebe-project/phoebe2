@@ -34,7 +34,7 @@ def estimate_vgamma(rv1data, rv2data, q=1.):
     return np.mean(rv1data[:,1]+q*rv2data[:,1])/(1+q)
 
 
-def estimate_q_vgamma(rv1data, rv2data):
+def estimate_q_vgamma(rv1data, rv2data, maxiter=10):
     if rv2data is None:
         rv1_flipped = np.array([rv1data[:,0],
                                 -rv1data[:,1] + rv1data[:,1].max() + rv1data[:,1].min(),
@@ -47,10 +47,19 @@ def estimate_q_vgamma(rv1data, rv2data):
                                 rv2data[:,2]]).T
         return np.nan, estimate_vgamma(rv2data, rv2_flipped, q=1.)
 
-    vgamma_est = None
-    for i in range(5):
-        q_est = estimate_q(rv1data, rv2data, vgamma=vgamma_est)
+
+    q_prev = estimate_q(rv1data, rv2data, vgamma=None)
+    vgamma_prev = estimate_vgamma(rv1data, rv2data, q_prev)
+
+    for i in range(maxiter):
+        q_est = estimate_q(rv1data, rv2data, vgamma=vgamma_prev)
         vgamma_est = estimate_vgamma(rv1data, rv2data, q_est)
+
+        if np.abs((q_est - q_prev)/q_est) < 1e-2 and np.abs((vgamma_est -  vgamma_prev)/vgamma_est) < 1e-2:
+            break
+
+        q_prev = q_est
+        vgamma_prev = vgamma_est
 
     return q_est[0], vgamma_est[0]
 
@@ -125,7 +134,7 @@ def loglike(params, rv1data, rv2data, asini, vgamma, ph_supconj):
 
 
 def estimate_rv_parameters(rv1data=None, rv2data=None,
-                           q=None, vgamma=None, asini=None, ecc=None, per0=None):
+                           q=None, vgamma=None, asini=None, ecc=None, per0=None, maxiter=10):
 
     rv1_smooth = smooth_rv(rv1data) if rv1data is not None else rv1data
     rv2_smooth = smooth_rv(rv2data) if rv2data is not None else rv2data
@@ -142,15 +151,18 @@ def estimate_rv_parameters(rv1data=None, rv2data=None,
     for i,ecc in enumerate(ecc_inits):
         for j,per0 in enumerate(per0_inits):
             init_params = [ecc, per0]
-            for k in range(5):
+            for k in range(maxiter):
                 result = least_squares(loglike, x0=init_params, ftol=1e-8, xtol=1e-8,
                     #bounds = ((times.min(), 0, 0., rvs.min()),(times.min()+period, 2*np.pi, 0.9, rvs.max())),
                     bounds = ((0.,0.), (0.9, 2*np.pi)),
                     kwargs={'rv1data':rv1data, 'rv2data':rv2data,
                             'asini': asinis,
                             'vgamma': vgamma, 'ph_supconj':ph_supconj})
-                init_params = result.x
                 asinis = estimate_asini(rv1data, rv2data, period = 1.*u.d, vgamma = vgamma, ecc=result.x[0])
+                if np.abs((result.x[0] - init_params[0])/result.x[0]) < 1e-2 and np.abs((result.x[1] - init_params[1])/result.x[1]) < 1e-2:
+                    break
+                init_params = result.x
+
             loglikes[i,j] = loglike(result.x, rv1data, rv2data, asinis, vgamma, ph_supconj)
             results[i,j] = result.x
 
