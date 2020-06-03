@@ -403,10 +403,12 @@ def ecc_w_from_geometry(sep, pwidth, swidth):
         sep = 1+sep
 
     psi = newton(func=f, x0=(12*pi*sep)**(1./3), fprime=df, args=(sep,), maxiter=5000)
-    ecc = sqrt( (0.25*tan(psi-pi)**2+(swidth-pwidth)**2/(swidth+pwidth)**2)/(1+0.25*tan(psi-pi)**2) )
+    # ecc = sqrt( (0.25*(tan(psi-pi))**2+(swidth-pwidth)**2/(swidth+pwidth)**2)/(1+0.25*(tan(psi-pi))**2) )
+    ecc = (np.sin(0.5*(psi-pi))**2+((swidth-pwidth)/(swidth+pwidth))**2*np.cos(0.5*(psi-pi))**2)**0.5
     try:
-        w1 = arcsin((pwidth-swidth)/(swidth+pwidth)/ecc)
-        w2 = arccos(sqrt(1-ecc**2)/2/ecc*tan(psi-pi))
+        w1 = np.arcsin((swidth-pwidth)/(swidth+pwidth)/ecc)
+        w2 = np.arccos((1-ecc**2)**0.5/ecc * np.tan(0.5*(psi-np.pi)))
+
         w = w2 if w1 >= 0 else 2*pi-w2
     except:
         w = pi/2
