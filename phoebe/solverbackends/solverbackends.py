@@ -995,6 +995,7 @@ class EbaiBackend(BaseSolverBackend):
         solution_params += [_parameters.StringParameter(qualifier='orbit', value='', readonly=True, description='orbit used for phasing the input light curve(s)')]
         solution_params += [_parameters.FloatArrayParameter(qualifier='input_phases', value=[], readonly=True, default_unit=u.dimensionless_unscaled, description='input phases used for determining ebai_phases/ebai_fluxes')]
         solution_params += [_parameters.FloatArrayParameter(qualifier='input_fluxes', value=[], readonly=True, default_unit=u.dimensionless_unscaled, description='input fluxes used for determining ebai_phases/ebai_fluxes')]
+        solution_params += [_parameters.FloatArrayParameter(qualifier='input_sigmas', value=[], readonly=True, default_unit=u.dimensionless_unscaled, description='input sigmas used for determining ebai_phases/ebai_fluxes')]
 
         solution_params += [_parameters.FloatArrayParameter(qualifier='ebai_phases', value=[], readonly=True, default_unit=u.dimensionless_unscaled, description='input phases to ebai')]
         solution_params += [_parameters.FloatArrayParameter(qualifier='ebai_fluxes', value=[], readonly=True, default_unit=u.dimensionless_unscaled, description='input fluxes to ebai')]
@@ -1055,6 +1056,7 @@ class EbaiBackend(BaseSolverBackend):
         return [[{'qualifier': 'orbit', 'value': orbit},
                  {'qualifier': 'input_phases', 'value': b.to_phase(times, component=orbit, t0=t0_supconj)},
                  {'qualifier': 'input_fluxes', 'value': fluxes},
+                 {'qualifier': 'input_sigmas', 'value': sigmas},
                  {'qualifier': 'ebai_phases', 'value': ebai_phases},
                  {'qualifier': 'ebai_fluxes', 'value': ebai_fluxes},
                  {'qualifier': 'fitted_uniqueids', 'value': fitted_uniqueids},

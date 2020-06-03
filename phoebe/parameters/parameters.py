@@ -4453,6 +4453,7 @@ class ParameterSet(object):
 
             input_phases = ps.get_value(qualifier='input_phases', **_skip_filter_checks)
             input_fluxes = ps.get_value(qualifier='input_fluxes', **_skip_filter_checks)
+            input_sigmas = ps.get_value(qualifier='input_sigmas', **_skip_filter_checks)
             ebai_phases = ps.get_value(qualifier='ebai_phases', **_skip_filter_checks)
             ebai_fluxes = ps.get_value(qualifier='ebai_fluxes', **_skip_filter_checks)
 
@@ -4467,6 +4468,7 @@ class ParameterSet(object):
             kwargss[1]['x'] = ebai_phases
             kwargss[0]['y'] = input_fluxes
             kwargss[1]['y'] = ebai_fluxes
+            kwargss[0]['yerror'] = input_sigmas
             kwargss[0]['z'] = 0.0
             kwargss[1]['z'] = 1.0  # force ebai model on top of data
             kwargss[0]['marker'] = '.'
