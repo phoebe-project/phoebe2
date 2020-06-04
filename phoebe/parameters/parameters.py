@@ -4487,27 +4487,35 @@ class ParameterSet(object):
 
             adopt_inds, adopt_uniqueids = self._bundle._get_adopt_inds_uniqueids(ps, **kwargs)
 
-            if kwargs.get('style') != 'corner':
+            style = kwargs.get('style')
+            if not isinstance(style, str):
+                raise ValueError("style must be a (single) string for dynesty")
+
+            if style != 'corner':
                 kwargs['results'] = _helpers.get_dynesty_object_from_solution(ps._bundle, ps.solution, adopt_parameters=kwargs.get('adopt_parameters'))
 
-            if kwargs.get('style') == 'corner':
-                # kwargs['dynesty_method'] = 'cornerplot'
-
+            if style in ['corner', 'failed']:
                 kwargs['plot_package'] = 'distl'
+                if 'parameters' in kwargs.keys() and style=='failed':
+                    raise ValueError("cannot currently plot failed_samples while providing parameters.  Pass or set adopt_parameters to plot a subset of available parameters")
+                if style=='failed' and len(adopt_inds) < 2:
+                    raise ValueError("cannot plot failed_samples with < 2 parameters")
+
                 kwargs['dc'], _ = ps._bundle.get_distribution_collection(solution=ps.solution, **{k:v for k,v in kwargs.items() if k in ['distributions_convert', 'distributions_bins', 'parameters']})
 
-                # if style=='failed':
-                    # kwargs['failed_samples'] = ps.get_value(qualifier='failed_samples', **_skip_filter_checks)
+                if style=='failed':
+                    kwargs['failed_samples'] = {k: np.asarray(v)[:,adopt_inds] for k,v in ps.get_value(qualifier='failed_samples', **_skip_filter_checks).items()}
 
                 return_ += [kwargs]
 
-
-            elif kwargs.get('style') == 'trace':
+            elif style == 'trace':
                 kwargs['plot_package'] = 'dynesty'
                 kwargs['dynesty_method'] = 'traceplot'
-            elif kwargs.get('style') == 'run':
+            elif style == 'run':
                 kwargs['plot_package'] = 'dynesty'
                 kwargs['dynesty_method'] = 'runplot'
+
+
             else:
                 raise ValueError("dynesty plots with style='{}' not recognized".format(kwargs.get('style')))
             return (kwargs,)

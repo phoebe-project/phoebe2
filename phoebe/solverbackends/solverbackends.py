@@ -1157,6 +1157,11 @@ class EmceeBackend(BaseSolverBackend):
                      {'qualifier': 'progress', 'value': progress}]
 
             if expose_failed:
+                failed_samples = _deepcopy(continued_failed_samples)
+                if expose_failed:
+                    for msg, fsamples in failed_samples_buffer:
+                        failed_samples[msg] = failed_samples.get(msg, []) + [fsamples]
+
                 return_ += [{'qualifier': 'failed_samples', 'value': failed_samples}]
 
             return [return_]
@@ -1364,11 +1369,6 @@ class EmceeBackend(BaseSolverBackend):
                         burnin =0
                         thin = 1
 
-                    failed_samples = _deepcopy(continued_failed_samples)
-                    if expose_failed:
-                        for msg, fsamples in failed_samples_buffer:
-                            failed_samples[msg] = failed_samples.get(msg, []) + [fsamples]
-
                     if progress_every_niters > 0:
                         logger.info("emcee: saving output from iteration {}".format(sampler.iteration))
 
@@ -1468,6 +1468,10 @@ class DynestyBackend(BaseSolverBackend):
 
         solution_params += [_parameters.FloatParameter(qualifier='progress', value=0, limits=(0,100), default_unit=u.dimensionless_unscaled, advanced=True, readonly=True, descrition='percentage of requested iterations completed')]
 
+        if kwargs.get('expose_failed', True):
+            solution_params += [_parameters.DictParameter(qualifier='failed_samples', value={}, readonly=True, description='Samples that returned lnprobability=-inf.  Dictionary keys are the messages with values being an array with shape (N, len(fitted_twigs))')]
+
+
         return kwargs, _parameters.ParameterSet(solution_params)
 
     def _run_worker(self, packet):
@@ -1479,7 +1483,7 @@ class DynestyBackend(BaseSolverBackend):
     def run_worker(self, b, solver, compute, **kwargs):
 
         def _get_packetlist(results, progress):
-            return [[{'qualifier': 'wrap_central_values', 'value': wrap_central_values},
+            return_ = [{'qualifier': 'wrap_central_values', 'value': wrap_central_values},
                      {'qualifier': 'fitted_uniqueids', 'value': params_uniqueids},
                      {'qualifier': 'fitted_twigs', 'value': params_twigs},
                      {'qualifier': 'fitted_units', 'value': params_units},
@@ -1503,22 +1507,55 @@ class DynestyBackend(BaseSolverBackend):
                      {'qualifier': 'samples_bound', 'value': results.samples_bound},
                      {'qualifier': 'scale', 'value': results.scale},
                      {'qualifier': 'progress', 'value': progress}
-                    ]]
+                    ]
 
-        if mpi.within_mpirun:
-            pool = _pool.MPIPool()
-            is_master = pool.is_master()
-        else:
-            pool = _pool.MultiPool()
-            is_master = True
+            if expose_failed:
+                failed_samples = {}
+                if expose_failed:
+                    for msg, fsamples in failed_samples_buffer:
+                        failed_samples[msg] = failed_samples.get(msg, []) + [fsamples]
 
+                return_ += [{'qualifier': 'failed_samples', 'value': failed_samples}]
 
-        # temporarily disable MPI within run_compute to disabled parallelizing
-        # per-time.
+            return [return_]
+
         within_mpirun = mpi.within_mpirun
         mpi_enabled = mpi.enabled
-        mpi._within_mpirun = False
-        mpi._enabled = False
+
+        # emcee handles workers itself.  So here we'll just take the workers
+        # from our own waiting loop in phoebe's __init__.py and subscribe them
+        # to emcee's pool.
+        if mpi.within_mpirun:
+            logger.info("using MPI pool for dynesty")
+
+            global failed_samples_buffer
+            failed_samples_buffer = []
+
+            global _MPI
+            from mpi4py import MPI as _MPI # needed for the cost-function to send failed samples
+
+            def mpi_failed_samples_callback(result):
+                global failed_samples_buffer
+                if isinstance(result, tuple):
+                    failed_samples_buffer.append(result)
+                    return False
+                else:
+                    return True
+
+            pool = _pool.MPIPool(callback=mpi_failed_samples_callback)
+            is_master = pool.is_master()
+
+            # temporarily disable MPI within run_compute to disabled parallelizing
+            # per-time.
+            mpi._within_mpirun = False
+            mpi._enabled = False
+
+        else:
+            logger.info("using multiprocessing pool for dynesty")
+
+            pool = _pool.MultiPool()
+            failed_samples_buffer = multiprocessing.Manager().list()
+            is_master = True
 
         if is_master:
             priors = kwargs.get('priors')
@@ -1526,6 +1563,7 @@ class DynestyBackend(BaseSolverBackend):
 
             maxiter = kwargs.get('maxiter')
             progress_every_niters = kwargs.get('progress_every_niters')
+            expose_failed = kwargs.get('expose_failed')
 
             solution_ps = kwargs.get('solution_ps')
             solution = kwargs.get('solution')
@@ -1558,7 +1596,8 @@ class DynestyBackend(BaseSolverBackend):
                                    'priors_combine': 'and',
                                    'solution': kwargs.get('solution', None),
                                    'compute_kwargs': {k:v for k,v in kwargs.items() if k in b.get_compute(compute=compute, **_skip_filter_checks).qualifiers},
-                                   'custom_lnprobability_callable': kwargs.pop('custom_lnprobability_callable', None)}
+                                   'custom_lnprobability_callable': kwargs.pop('custom_lnprobability_callable', None),
+                                   'failed_samples_buffer': False if not expose_failed else failed_samples_buffer}
 
 
 

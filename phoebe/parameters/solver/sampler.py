@@ -178,7 +178,7 @@ def dynesty(**kwargs):
     actions can be taken:
 
     * <phoebe.parameters.ParameterSet.plot> with `style` as one of:
-        'corner', 'trace', 'run'.
+        'corner', 'failed', 'trace', 'run'.
     * <phoebe.frontend.bundle.Bundle.adopt_solution> to adopt the resulting
         posteriors in a distribution.  Use `adopt_values=True` (defaults to False)
         to adopt the face-values.  Use `trial_run=True` to see the adopted
@@ -218,6 +218,10 @@ def dynesty(**kwargs):
         If using detach=True within run_solver, attach job will load the progress
         and allow re-attaching until the job is completed.  If 0 will not save
         and will only return after completion.
+    * `expose_failed` (bool, optional, default=True): only applicable if
+        `continue_from` is 'None'. whether to expose dictionary of failed samples
+        and their error messages.  Note: depending on the number of failed
+        samples, this could add overhead.
 
 
     Returns
@@ -237,5 +241,8 @@ def dynesty(**kwargs):
     params += [IntParameter(qualifier='maxcall', value=kwargs.get('maxcall', 1000), limits=(1,1e12), description='maximum number of calls (forward models)')]
 
     params += [IntParameter(qualifier='progress_every_niters', value=kwargs.get('progress_every_niters', 0), limits=(0,1e6), description='save the progress of the solution every n iterations.  The solution can only be recovered from an early termination by loading the bundle from a saved file and then calling b.import_solution(filename).  The filename of the saved file will default to solution.ps.progress within run_solver, or the output filename provided to export_solver suffixed with .progress.  If using detach=True within run_solver, attach job will load the progress and allow re-attaching until the job is completed.  If 0 will not save and will only return after completion.')]
+
+    params += [BoolParameter(qualifier='expose_failed', value=kwargs.get('expose_failed', True), description='whether to expose dictionary of failed samples and their error messages.  Note: depending on the number of failed samples, this could add overhead.')]
+
 
     return ParameterSet(params)
