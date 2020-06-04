@@ -1652,7 +1652,8 @@ class DynestyBackend(BaseSolverBackend):
                         else:
                             fname = '{}.progress.ps'.format(solution)
 
-                    solution_ps.save(fname, compact=True, sort_by_context=False)
+                    if progress_every_niters > 0
+                        solution_ps.save(fname, compact=True, sort_by_context=False)
 
 
         else:
