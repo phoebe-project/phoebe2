@@ -8738,7 +8738,7 @@ class Bundle(ParameterSet):
 
         return l3s
 
-    def compute_pblums(self, compute=None, pblum=True, pblum_abs=False,
+    def compute_pblums(self, compute=None, model=None, pblum=True, pblum_abs=False,
                        pblum_scale=False, pbflux=False,
                        set_value=False, **kwargs):
         """
@@ -8759,9 +8759,9 @@ class Bundle(ParameterSet):
         For any dataset with `pblum_mode='dataset-scaled'` or `pblum_mode='dataset-coupled'`
         where `pblum_dataset` references a dataset-scaled dataset, `pblum`,
         `pblum_scale`, and `pbflux` are excluded from the output (but `pblum_abs`
-        can be exposed).  To translate from `pblum_abs` to relative `pblum`,
-        call <phoebe.frontend.bundle.Bundle.run_compute> and see the resulting
-        `flux_scale` parameter in the resulting model.
+        can be exposed), unless `model` is provided (see below) in which case
+        the scaling factor in the model will be adopted to translate from absolute
+        to relative units.
 
         Note about eclipses: `pbflux` estimates will not include
         any eclipsing or ellipsoidal effects (even if an eclipse occurs at time
@@ -8800,6 +8800,10 @@ class Bundle(ParameterSet):
         ------------
         * `compute` (string, optional, default=None): label of the compute
             options (not required if only one is attached to the bundle).
+        * `model` (string, optional, default=None): label of the model to use
+            for scaling absolute luminosities for any cases where
+            `pblum_mode='dataset-scaled'`.  If not provided, entries
+            using 'dataset-scaled' will be excluded from the output.
         * `pblum` (bool, optional, default=True): whether to include
             intrinsic (excluding irradiation & features) pblums.  These
             will be exposed in the returned dictionary as pblum@component@dataset.
@@ -9132,16 +9136,21 @@ class Bundle(ParameterSet):
 
             pbflux_this_dataset = 0.0
             for component in valid_components:
-                pblum_rel = pblums_abs[dataset][component] * pblums_scale[dataset].get(component, 1.0)
+                if ds_scaled and model is not None:
+                    flux_scale = self.get_value(qualifier='flux_scale', dataset=dataset, model=model, context='model', **_skip_filter_checks)
+                    pblum_rel = pblums_abs[dataset][component] * flux_scale
+                else:
+                    pblum_rel = pblums_abs[dataset][component] * pblums_scale[dataset].get(component, 1.0)
+
                 pblums_rel[dataset][component] = pblum_rel
 
                 if set_value:
                     self.set_value(qualifier='pblum', component=component, dataset=dataset, context='dataset', value=pblum_rel*u.W, **_skip_filter_checks)
 
                 if not ret_structured_dicts and component in components:
-                    if pblum and not ds_scaled:
+                    if pblum and (not ds_scaled or model is not None):
                         ret["{}@{}@{}".format('pblum', component, dataset)] = pblum_rel*u.W
-                    if pblum_scale and not ds_scaled:
+                    if pblum_scale and (not ds_scaled or model is not None):
                         ret["{}@{}@{}".format('pblum_scale', component, dataset)] = pblums_scale[dataset].get(component, 1.0)
                     if pblum_abs:
                         ret["{}@{}@{}".format('pblum_abs', component, dataset)] = pblums_abs[dataset][component]*u.W
@@ -9153,7 +9162,7 @@ class Bundle(ParameterSet):
             if set_value:
                 self.set_value(qualifier='pbflux', dataset=dataset, context='dataset', value=pbflux_this_dataset*u.W/u.m**2, **_skip_filter_checks)
 
-            if pbflux and not ret_structured_dicts and not ds_scaled:
+            if pbflux and not ret_structured_dicts and (not ds_scaled or model is not None):
                 ret["{}@{}".format('pbflux', dataset)] = pbflux_this_dataset*u.W/u.m**2
             elif ret_structured_dicts:
                 pbfluxes[dataset] = pbflux_this_dataset
@@ -10033,7 +10042,7 @@ class Bundle(ParameterSet):
 
                         flux_param.set_value(qualifier='fluxes', value=syn_fluxes, ignore_readonly=True)
 
-                        ml_addl_params += [FloatParameter(qualifier='flux_scale', value=scale_factor, readonly=True, default_unit=u.dimensionless_unscaled, description='scaling applied to fluxes (intensities/luminosities) due to dataset-scaling')]
+                        ml_addl_params += [FloatParameter(qualifier='flux_scale', dataset=dataset, value=scale_factor, readonly=True, default_unit=u.dimensionless_unscaled, description='scaling applied to fluxes (intensities/luminosities) due to dataset-scaling')]
 
                         for mesh_param in ml_params.filter(kind='mesh', **_skip_filter_checks).to_list():
                             if param.qualifier in ['intensities', 'abs_intensities', 'normal_intensities', 'abs_normal_intensities', 'pblum_ext']:
