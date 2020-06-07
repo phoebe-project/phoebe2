@@ -2807,22 +2807,45 @@ class ParameterSet(object):
                 else:
                     return self._bundle.get_value(string, context=['system', 'component'], check_default=False, check_visible=False)
 
-        # TODO: replace with key,value in kwargs.items()... unless there was
-        # some reason that won't work?
-        for key in kwargs.keys():
-            if len(params) and \
-                    key in _meta_fields_filter and \
-                    kwargs[key] is not None:
+        def _match(pi, kwargs):
+            # pi is an individual param
+            # kwargs is a dictionary of filter key-value pairs
+            for k, v in kwargs.items():
+                if v is None:
+                    # allow None to match on anything
+                    continue
+                elif hasattr(pi, k):
+                    # pikv is the attribute of the parameter for this key
+                    pikv = getattr(pi, k)
+                    if pikv is None:
+                        return False
+                    elif k == 'time' and abs(float(pikv)-string_to_time(v)) > 1e-6:
+                        return False
+                    # elif k=='kind' and isinstance(v, str) and isinstance(pikv, str) and v.lower() != pikv.lower():
+                        # allow case mismatch for kind
+                        # TODO: remove this or work into _fnmatch?
+                        # return False
+                    # elif k=='kind' and hasattr(v, '__iter__') and pikv.lower() not in [vi.lower() for vi in v]:
+                        # TODO: what is the point of this... can we remove this one too?
+                        # return False
+                    elif isinstance(v, list):
+                        if pikv not in v and not np.any([_fnmatch(pikv,vi) for vi in v]):
+                            return False
+                    elif isinstance(v, str) and isinstance(pikv, str):
+                        if not _fnmatch(pikv, v):
+                            return False
+        
+                elif isinstance(v, list) and None in v:
+                    # TODO: not sure this logic is correct
+                    continue
+        
+                else:
+                    # could be something like unit or value which we ignore for the filter
+                    # TODO: check for anything that could be a typo here and raise a warning/error
+                    continue
+            return True
 
-                params = [pi for pi in params if (hasattr(pi,key) and getattr(pi,key) is not None or isinstance(kwargs[key], list) and None in kwargs[key]) and
-                    (getattr(pi,key) is kwargs[key] or
-                    (isinstance(kwargs[key],list) and getattr(pi,key) in kwargs[key]) or
-                    (isinstance(kwargs[key],list) and np.any([_fnmatch(getattr(pi,key),keyi) for keyi in kwargs[key]])) or
-                    (isinstance(kwargs[key],str) and isinstance(getattr(pi,key),str) and _fnmatch(getattr(pi,key),kwargs[key])) or
-                    (key=='kind' and isinstance(kwargs[key],str) and getattr(pi,key).lower()==kwargs[key].lower()) or
-                    (key=='kind' and hasattr(kwargs[key],'__iter__') and getattr(pi,key).lower() in [k.lower() for k in kwargs[key]]) or
-                    (key=='time' and abs(float(getattr(pi,key))-string_to_time(kwargs[key]))<1e-6))]
-                    #(key=='time' and abs(float(getattr(pi,key))-float(kwargs[key]))<=abs(np.array([p._time for p in params])-float(kwargs[key]))))]
+        params = [pi for pi in params if _match(pi, kwargs)]
 
         # handle hiding _default (cheaper than visible_if so let's do first)
         if check_default:
