@@ -1,10 +1,19 @@
 import numpy as np
-import matplotlib.pyplot as plt
 from astropy import units as u
 from scipy.optimize import newton, minimize, least_squares
 from scipy.interpolate import interp1d
 from scipy.signal import savgol_filter
 from phoebe.constraints.builtin import t0_supconj_to_perpass
+
+# if os.getenv('PHOEBE_ENABLE_PLOTTING', 'TRUE').upper() == 'TRUE':
+#     try:
+#         import matplotlib.pyplot as plt
+#     except (ImportError, TypeError):
+#         _use_mpl = False
+#     else:
+#         _use_mpl = True
+# else:
+#     _use_mpl = False
 
 
 def smooth_rv(rvdata):
