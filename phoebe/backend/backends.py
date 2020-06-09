@@ -2540,10 +2540,7 @@ class EllcBackend(BaseBackendByDataset):
             else:
                 n_int = 1
 
-            logger.info("calling ellc.lc for dataset='{}'".format(info['dataset']))
-            # print(info['times'], radius_1, radius_2, sbratio, incl, light_3, t_zero, period, a, q, f_c, f_s, ld_1, ld_2, ldc_1, ldc_2, gdc_1, gdc_2, didt, domdt, rotfac_1, rotfac_2, hf_1, hf_2, None, None, heat_1, heat_2, None, None, None, None, t_exp, n_int, grid_1, grid_2, shape_1, shape_2, spots_1, spots_2, exact_grav, 1)
-
-            fluxes = ellc.lc(t_obs=info['times'],
+            lc_kwargs = dict(t_obs=info['times'],
                              radius_1=radius_1, radius_2=radius_2,
                              sbratio=sbratio,
                              incl=incl,
@@ -2569,6 +2566,11 @@ class EllcBackend(BaseBackendByDataset):
                              spots_1=spots_1, spots_2=spots_2,
                              exact_grav=exact_grav,
                              verbose=1)
+
+            logger.info("calling ellc.lc for dataset='{}'".format(info['dataset']))
+            logger.debug("ellc.lc(**{})".format(lc_kwargs))
+
+            fluxes = ellc.lc(**lc_kwargs)
 
             # ellc returns "arbitrary" flux values... these will be rescaled
             # by run compute to pbflux
@@ -2607,32 +2609,35 @@ class EllcBackend(BaseBackendByDataset):
             lambda_1 = kwargs.get('lambda_1')
             lambda_2 = kwargs.get('lambda_2')
 
+            rv_kwargs = dict(t_obs=info['times'],
+                             radius_1=radius_1, radius_2=radius_2,
+                             sbratio=sbratio,
+                             incl=incl,
+                             t_zero=t_zero,
+                             period=period,
+                             a=a,
+                             q=q,
+                             f_c=f_c, f_s=f_s,
+                             ld_1=ld_1, ld_2=ld_2,
+                             ldc_1=ldc_1, ldc_2=ldc_2,
+                             gdc_1=gdc_1, gdc_2=gdc_2,
+                             didt=didt, domdt=domdt,
+                             rotfac_1=rotfac_1, rotfac_2=rotfac_2,
+                             hf_1=hf_1, hf_2=hf_2,
+                             bfac_1=None, bfac_2=None,
+                             heat_1=heat_1, heat_2=heat_2,
+                             lambda_1=lambda_1, lambda_2=lambda_2,
+                             vsini_1=0., vsini_2=0.,
+                             t_exp=t_exp, n_int=n_int,
+                             grid_1=grid_1, grid_2=grid_2,
+                             shape_1=shape_1, shape_2=shape_2,
+                             spots_1=spots_1, spots_2=spots_2,
+                             flux_weighted=flux_weighted,
+                             verbose=1)
+
             logger.info("calling ellc.rv for dataset='{}'".format(info['dataset']))
-            rvs1, rvs2 = ellc.rv(t_obs=info['times'],
-                                 radius_1=radius_1, radius_2=radius_2,
-                                 sbratio=sbratio,
-                                 incl=incl,
-                                 t_zero=t_zero,
-                                 period=period,
-                                 a=a,
-                                 q=q,
-                                 f_c=f_c, f_s=f_s,
-                                 ld_1=ld_1, ld_2=ld_2,
-                                 ldc_1=ldc_1, ldc_2=ldc_2,
-                                 gdc_1=gdc_1, gdc_2=gdc_2,
-                                 didt=didt, domdt=domdt,
-                                 rotfac_1=rotfac_1, rotfac_2=rotfac_2,
-                                 hf_1=hf_1, hf_2=hf_2,
-                                 bfac_1=None, bfac_2=None,
-                                 heat_1=heat_1, heat_2=heat_2,
-                                 lambda_1=lambda_1, lambda_2=lambda_2,
-                                 vsini_1=0., vsini_2=0.,
-                                 t_exp=t_exp, n_int=n_int,
-                                 grid_1=grid_1, grid_2=grid_2,
-                                 shape_1=shape_1, shape_2=shape_2,
-                                 spots_1=spots_1, spots_2=spots_2,
-                                 flux_weighted=flux_weighted,
-                                 verbose=1)
+            logger.debug("ellc.rv(**{})".format(rv_kwargs))
+            rvs1, rvs2 = ellc.rv(**rv_kwargs)
 
 
             # fill packets
