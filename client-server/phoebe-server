@@ -423,7 +423,7 @@ def info():
     # phoebe-server, but WILL attempt to connect as long as the client's
     # phoebe_min_version is in range.
     return _get_response({'success': True, 'phoebe_version': phoebe.__version__, 'parentid': app._parent,
-                          'client_min_version': '0.1.0', 'client_max_version': '0.1.0',
+                          'client_min_version': '0.1.0',
                           'nclients': len(app._clients), 'clients': app._clients,
                           'nbundles': len(app._bundles.keys()), 'clients_per_bundle': app._clients_per_bundle, 'last_access_per_bundle': app._last_access_per_bundle,
                           'available_kinds': _available_kinds,
