@@ -589,7 +589,10 @@ def export_compute(bundleid, compute, model=None):
     ef = tempfile.NamedTemporaryFile(prefix="export_compute", suffix=".py")
 
     script_fname=ef.name
-    b.export_compute(script_fname, out_fname=None, compute=compute, model=model)
+    try:
+        b.export_compute(script_fname, out_fname=None, compute=compute, model=model)
+    except Exception as err:
+        return _get_response({'success': False, 'error': str(err)})
 
     return send_file(ef.name, as_attachment=True, attachment_filename='{}_run_compute_{}.py'.format(bundleid, compute))
 
@@ -612,7 +615,10 @@ def export_solver(bundleid, solver, solution=None):
     ef = tempfile.NamedTemporaryFile(prefix="export_solver", suffix=".py")
 
     script_fname=ef.name
-    b.export_solver(script_fname, out_fname=None, solver=solver, solution=solution)
+    try:
+        b.export_solver(script_fname, out_fname=None, solver=solver, solution=solution)
+    except Exception as err:
+        return _get_response({'success': False, 'error': str(err)})
 
     return send_file(ef.name, as_attachment=True, attachment_filename='{}_run_solver_{}.py'.format(bundleid, solver))
 
