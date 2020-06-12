@@ -128,7 +128,8 @@ def bundle_memory_cleanup(stale_limit_seconds=600):
     # out... but the entry is still made here and never cleared
 
     now = datetime.now()
-    for bundleid, last_access in app._last_access_per_bundle.items():
+    # NOTE: cast to list to prevent dictionary changed during iteration error
+    for bundleid, last_access in list(app._last_access_per_bundle.items()):
         stale_for = (now-last_access).total_seconds()
         clients = app._clients_per_bundle.get(bundleid, [])
         active_clients = [c for c in clients if c in app._clients]
