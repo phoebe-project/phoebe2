@@ -4,7 +4,7 @@ import sys
 from phoebe.dependencies import autofig
 
 if not len(sys.argv)==2:
-   print("usage: autofig filename")
+   print("usage: phoebe-autofig filename")
    exit()
 
 autofig.open(sys.argv[1], do_renders=True)

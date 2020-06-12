@@ -347,7 +347,7 @@ setup (name = 'phoebe',
                      'phoebe.solverbackends.ebai': ['*.data', '*.weights']
                     },
        ext_modules = ext_modules,
-       scripts=['client-server/phoebe-server', 'client-server/autofig'] if _env_variable_bool('PHOEBE_DEVEL', False) else None,
+       scripts=['client-server/phoebe-server', 'client-server/phoebe-autofig'] if _env_variable_bool('PHOEBE_DEVEL', False) else None,
        cmdclass = {
          'build_ext': build_check,
          'check_imports': import_check,
