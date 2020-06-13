@@ -24,6 +24,7 @@ import os
 import difflib
 import time
 import types
+import tempfile
 from collections import OrderedDict
 from fnmatch import fnmatch
 from copy import deepcopy as _deepcopy
@@ -513,6 +514,9 @@ class ParameterSet(object):
         """
         self._bundle = None
         self._filter = {}
+
+        if isinstance(params, str):
+            params = json.loads(params)
 
         if len(params) and not isinstance(params[0], Parameter):
             # then attempt to load as if json
@@ -1766,12 +1770,20 @@ class ParameterSet(object):
 
         return filename
 
-    def ui(self, client='http://localhost:3000', full_ui=None, **kwargs):
+    def ui(self, client=None, full_ui=None, **kwargs):
         """
         Open an interactive user-interface for the ParameterSet.
 
-        The bundle must be in client mode in order to open the web-interface.
-        See <phoebe.frontend.bundle.Bundle.as_client> to switch to client mode.
+        If the bundle is in client mode (see <phoebe.frontend.bundle.Bundle.as_client>)
+        then the UI will open asynchronously (allowing you to interact from
+        both python and the UI simultaneously).  Otherwise the UI will open
+        synchronously (you will need to close the UI before continuing in Python).
+
+        Synchronous mode is available whether the UI is installed locally or not.
+        If not installed, ui.phoebe-project.org will launch in the web browser
+        and connect to the same server as was defined when entering client
+        mode in <phoebe.frontend.bundle.Bundle.as_client>.  Asynchronous
+        mode requires the UI to be installed locally.
 
         See also:
         * <phoebe.frontend.bundle.Bundle.from_server>
@@ -1781,11 +1793,15 @@ class ParameterSet(object):
 
         Arguments
         -----------
-        * `client` (str, optional, default='http://localhost:3000'): URL to find
-            and launch the web-client.
-        * `full_ui` (bool or None, optional, default=None): whether to launch
-            the full navigatable UI (as opposed to just the ParameterSet view).
-            If None, will default to True for a Bundle or False for a ParameterSet.
+        * `client` (string, optional, default=None): web-address of the web-client.
+            If not provided or None, will try for a locally installed desktop
+            app first, and if that fails, will fallback on http://ui.phoebe-project.org.
+            Only applicable if in client mode (see <phoebe.frontend.bundle.Bundle.as_client>
+            and <phoebe.frontend.bundle.Bundle.is_client>).
+        * `full_ui` (bool, optional, default=None): whether to show the entire
+            bundle or just the filtered ParameterSet.  If not provided, will
+            default to True if acting on the Bundle, or False if acting on
+            a filtered ParameterSet.
         * `**kwargs`: additional kwargs will be sent to
             <phoebe.parameters.ParameterSet.filter>.
 
@@ -1794,14 +1810,12 @@ class ParameterSet(object):
         * `url` (string): the opened URL (will attempt to launch in the system
             webbrowser)
         """
-        if not conf.devel:
-            raise NotImplementedError("'ui' not officially supported for this release.  Enable developer mode to test.")
+        if self._bundle is None:
+            raise ValueError("cannot call ui on a ParameterSet not attached to a Bundle")
 
-        if self._bundle is None or not self._bundle.is_client:
-            raise ValueError("bundle must be in client mode.  Call bundle.as_client()")
 
         if len(kwargs):
-            return self.filter(**kwargs).ui(client=client)
+            return self.filter(**kwargs).ui(client=client, full_ui=full_ui)
 
         def filteritem(v):
             if isinstance(v, list):
@@ -1809,22 +1823,122 @@ class ParameterSet(object):
             else:
                 return [v]
 
-        querystr = "&".join(["{}={}".format(k, filteritem(v))
-                             for k, v in self._filter.items()])
-        # print self._filter
         if full_ui is None:
-            full_ui = len(self._filter.keys()) == 0
+            # default to True for the full bundle, False for a filtered PS
+            full_ui = len(self._filter.items()) == 0
+
+        # TODO: expose options for advanced filters (or include everything by default)
+        tmpfilename = None
+        if client is None:
+            cmd = 'phoebe'
+            if self._bundle.is_client:
+                # then we're attaching the UI to an already existing instance on an already running server
+                cmd += ' -s {} -b {}'.format(self._bundle.is_client.strip('http://'), self._bundle._bundleid)
+                cmd += ' --skip-child-server'
+                _async = True
+            else:
+                # then we want to pass the json to the server
+                # TODO: allow passing server, pass s and --skip-child-server, and use async
 
 
-        ### TODO: can we support launching the electron instance if installed?
-        if full_ui:
-            url = "{}/{}/{}?{}".format(client, self._bundle.is_client.strip("http://"), self._bundle._bundleid, querystr)
-        else:
-            url = "{}/{}/{}/ps?{}".format(client, self._bundle.is_client.strip("http://"), self._bundle._bundleid, querystr)
+                # tmpfilename = next(tempfile._get_candidate_names())
+                # self._bundle.save(tmpfilename, compact=True, incl_uniqueid=True)
+                # bundleid = _uniqueid(6)
+                # cmd += ' -j {} -b {} -p 5000'.format(os.path.join(os.getcwd(), tmpfilename), bundleid)
+                # _async = False
 
-        logger.info("opening {} in browser".format(url))
-        webbrowser.open(url)
-        return url
+                bundleid = _uniqueid(6)
+                cmd += ' -p 5000 -b {} -w'.format(bundleid)
+
+            if len(self._filter.items()):
+                querystr = "&".join(["{}={}".format(k, filteritem(v))
+                                     for k, v in self._filter.items()])
+
+                cmd += ' -f \'{}\''.format(querystr)
+
+
+            if not full_ui:
+                cmd += ' -a ps'
+
+
+
+            # if _async:
+            cmd += ' &'
+
+            logger.info("system call: "+cmd)
+            # TODO: switch to async subprocess?
+            os.system(cmd)
+
+            if not self._bundle.is_client:
+                # the bundle will handle uploading to the server, but will have
+                # to wait for it to be launched as a child process by the server
+                # first.  The UI will also be waiting for the bundle to be available
+                # to the server.
+                logger.info("entering client mode")
+                self._bundle.as_client(server='http://localhost:5000', bundleid=bundleid, wait_for_server=True)
+
+
+            if tmpfilename is not None:
+                os.remove(tmpfilename)
+
+        # TODO: IF this fails OR if client is not None, then instead buildup the url for ui.phoebe-project.org and open in a browser
+        # TODO: raise an error if not self._bundle.is_client as this only supports asynchronous
+        # if client is None:
+        #     client = 'http://ui.phoebe-project.org'
+        # if full_ui:
+        #     url = "http://{}/{}/{}?{}".format(client, self._bundle.is_client.strip("http://"), self._bundle._bundleid, querystr)
+        # else:
+        #     url = "{}/{}/{}/ps?{}".format(client, self._bundle.is_client.strip("http://"), self._bundle._bundleid, querystr)
+        #
+        # logger.info("opening {} in browser".format(url))
+        # webbrowser.open(url)
+        # return url
+
+    # def ui_figures(self, client=None, full_ui=None):
+    #     """
+    #     Open an interactive user-interface for all figures in the Bundle.
+    #
+    #     The bundle must be in client mode in order to open the web-interface.
+    #     See <phoebe.frontend.bundle.Bundle.as_client> to switch to client mode.
+    #
+    #     See also:
+    #     * <phoebe.frontend.bundle.Bundle.from_server>
+    #     * <phoebe.frontend.bundle.Bundle.as_client>
+    #     * <phoebe.frontend.bundle.Bundle.is_client>
+    #     * <phoebe.frontend.bundle.Bundle.client_update>
+    #
+    #     Arguments
+    #     -----------
+    #     * `client` (string, optional, default=None): web-address of the web-client.
+    #         If not provided or None, will try for a locally installed desktop
+    #         app first, and if that fails, will fallback on http://ui.phoebe-project.org
+    #
+    #     Returns
+    #     ----------
+    #     * `url` (string): the opened URL (will attempt to launch in the system
+    #         webbrowser)
+    #     """
+    #
+    #     if self._bundle is None or not self._bundle.is_client:
+    #         raise ValueError("bundle must be in client mode.  Call bundle.as_client()")
+    #
+    #
+    #     if full_ui is None:
+    #         full_ui = len(self._filter.items()) == 0
+    #
+    #     # TODO: expose options for advanced filters (or include everything by default)
+    #
+    #     if client is None:
+    #         cmd = 'phoebe -s {} -b {}'.format(self._bundle.is_client.strip("http://"), self._bundle._bundleid)
+    #         cmd += ' -a figures'
+    #         cmd += ' --skip-child-server'
+    #
+    #         logger.info("system call: "+cmd)
+    #         # TODO: switch to async subprocess?
+    #         os.system(cmd+' &')
+    #
+    #     # TODO: browser fallback (see PS.ui())
+
 
     def to_list(self, **kwargs):
         """

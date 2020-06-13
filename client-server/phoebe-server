@@ -506,13 +506,15 @@ def open_bundle(type):
             if app._verbose: print("opening bundle from json data")
             try:
                 bundle_data = data['json']
-            except:
-                return _get_response({'success': False, 'error': "could not read json data"}, api=True)
+            except Exception as err:
+                if app._verbose: print("failed with error: {}".format(err))
+                return _get_response({'success': False, 'error': "could not read json data ({})".format(err)}, api=True)
                 if app._debug: raise
 
         try:
             b = phoebe.Bundle(bundle_data)
         except Exception as err:
+            if app._verbose: print("failed to load bundle with error: {}".format(err))
             return _get_response({'success': False, 'error': "failed to load bundle with error: "+str(err)}, api=True)
             if app._debug: raise
 

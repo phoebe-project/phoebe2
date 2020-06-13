@@ -11,6 +11,7 @@ except ImportError:
 import re
 import json
 import atexit
+import time
 from datetime import datetime
 from distutils.version import StrictVersion
 from copy import deepcopy as _deepcopy
@@ -67,6 +68,11 @@ _skip_filter_checks = {'check_default': False, 'check_visible': False}
 
 # Attempt imports for client requirements
 try:
+    """
+    requirements for client mode:
+    pip install socketIO-client
+    """
+
     import requests
     if sys.version_info[0] < 3:
       from urllib2 import urlopen as _urlopen
@@ -1259,7 +1265,7 @@ class Bundle(ParameterSet):
         #return io.pass_to_legacy(self, filename, compute=compute)
 
 
-    def _test_server(self, server='http://localhost:5555', start_if_fail=True):
+    def _test_server(self, server='http://localhost:5555', wait_for_server=False):
         """
         [NOT IMPLEMENTED]
         """
@@ -1271,10 +1277,11 @@ class Bundle(ParameterSet):
             resp = json.loads(resp.read())
             test_passed = resp['data']['success']
 
-        if not test_passed and \
-                start_if_fail and \
-                'localhost' in re.sub(r'[\/\:]', ' ', server).split():
-            raise NotImplementedError("start_if_fail not yet supported - manually start server")
+        if not test_passed:
+            if wait_for_server:
+                time.sleep(0.5)
+                return self._test_server(server=server, wait_for_server=wait_for_server)
+
             return False
 
         return test_passed
@@ -1291,6 +1298,11 @@ class Bundle(ParameterSet):
         test
         """
         logger.warning("disconnected from server")
+        if self.is_client:
+            logger.warning("exiting client mode")
+
+            self._bundleid = None
+            self._is_client = False
 
     def _on_socket_push_updates(self, resp):
         """
@@ -1372,7 +1384,7 @@ class Bundle(ParameterSet):
         self._socketio = None
 
     def as_client(self, as_client=True, server='http://localhost:5555',
-                  bundleid=None, start_if_fail=True):
+                  bundleid=None, wait_for_server=False):
         """
         Enter (or exit) client mode.
 
@@ -1394,7 +1406,7 @@ class Bundle(ParameterSet):
             from the server, the current bundle will be uploaded and assigned
             the given bundleid.  If not provided, the current bundle will be
             uploaded and assigned a random bundleid.
-        * `start_if_fail` (bool, optional, default=True): NOT CURRENTLY IMPLEMENTED
+
 
         Raises
         ---------
@@ -1402,15 +1414,12 @@ class Bundle(ParameterSet):
         * ValueError: if the server at `server` is not running or reachable.
         * ValueError: if the server returns an error.
         """
-        if not conf.devel:
-            raise NotImplementedError("'as_client' not officially supported for this release.  Enable developer mode to test.")
-
         if as_client:
             if not _can_client:
                 raise ImportError("dependencies to support client mode not met - see docs")
 
             server_running = self._test_server(server=server,
-                                               start_if_fail=start_if_fail)
+                                               wait_for_server=wait_for_server)
             if not server_running:
                 raise ValueError("server {} is not running".format(server))
 
@@ -1431,7 +1440,7 @@ class Bundle(ParameterSet):
                 upload = True
 
             if upload:
-                upload_url = "{}/open_bundle".format(server)
+                upload_url = "{}/open_bundle/load:phoebe2".format(server)
                 logger.info("uploading bundle to server {}".format(upload_url))
                 data = json.dumps({'json': self.to_json(incl_uniqueid=True), 'bundleid': bundleid})
                 rj = requests.post(upload_url, data=data, timeout=5).json()
@@ -1489,17 +1498,17 @@ class Bundle(ParameterSet):
         * <phoebe.frontend.bundle.Bundle.is_client>
 
         """
-        if not conf.devel:
-            raise NotImplementedError("'client_update' not officially supported for this release.  Enable developer mode to test.")
-
         if not self.is_client:
             raise ValueError("Bundle is not in client mode, cannot update")
 
         logger.info("updating client...")
         # wait briefly to pickup any missed messages, which should then fire
         # the corresponding callbacks and update the bundle
-        self._socketio.wait(seconds=0.1)
-        self._last_client_update = datetime.now()
+        if self._socketio.connected:
+            self._socketio.wait(seconds=0.1)
+            self._last_client_update = datetime.now()
+        else:
+            logger.warning("socketio not connected")
 
     def __repr__(self):
         # filter to handle any visibility checks, etc
