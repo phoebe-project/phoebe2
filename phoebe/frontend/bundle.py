@@ -1688,6 +1688,7 @@ class Bundle(ParameterSet):
         else:
             return ps  # TODO: reverse the order?
 
+    @send_if_client
     def remove_history(self, i=None):
         """
         Remove a history item from the bundle by index.
@@ -4632,7 +4633,7 @@ class Bundle(ParameterSet):
 
         return {r: {'url': citation_urls.get(r, None), 'uses': v} for r,v in recs.items()}
 
-
+    @send_if_client
     def add_feature(self, kind, component=None, dataset=None,
                     return_changes= False, **kwargs):
         """
@@ -4788,6 +4789,7 @@ class Bundle(ParameterSet):
         kwargs['context'] = 'feature'
         return self.filter(**kwargs)
 
+    @send_if_client
     def remove_feature(self, feature=None, return_changes=False, **kwargs):
         """
         Remove a 'feature' from the bundle.
@@ -5182,6 +5184,7 @@ class Bundle(ParameterSet):
         kwargs['context'] = 'component'
         return self.filter(**kwargs)
 
+    @send_if_client
     def remove_component(self, component, return_changes=False, **kwargs):
         """
         Remove a 'component' from the bundle.
@@ -5256,7 +5259,6 @@ class Bundle(ParameterSet):
         ret_params += [self.hierarchy]
 
         return ParameterSet(ret_params)
-
 
     def add_orbit(self, component=None, **kwargs):
         """
@@ -6032,6 +6034,7 @@ class Bundle(ParameterSet):
             kwargs['kind'] = kwargs['kind'].lower()
         return self.filter(**kwargs)
 
+    @send_if_client
     def remove_dataset(self, dataset=None, return_changes=False, **kwargs):
         """
         Remove a 'dataset' from the Bundle.
@@ -6268,17 +6271,7 @@ class Bundle(ParameterSet):
 
         return self.get_dataset(dataset=dataset)
 
-    def add_parameter(self):
-        """
-        [NOT IMPLEMENTED]
-
-        Add a new parameter to the bundle
-
-        :raises NotImplementedError: because it isn't
-        """
-        # TODO: don't forget add_history
-        raise NotImplementedError
-
+    @send_if_client
     def add_constraint(self, *args, **kwargs):
         """
         Add a <phoebe.parameters.ConstraintParameter> to the
@@ -6482,6 +6475,7 @@ class Bundle(ParameterSet):
         kwargs['context'] = 'constraint'
         return self.get(**kwargs)
 
+    @send_if_client
     def remove_constraint(self, twig=None, return_changes=False, **kwargs):
         """
         Remove a 'constraint' from the bundle.
@@ -7212,6 +7206,7 @@ class Bundle(ParameterSet):
             return ret_ps + ret_changes
         return ret_ps
 
+    @send_if_client
     def remove_distribution(self, distribution, return_changes=False, **kwargs):
         """
         Remove a distribution from the bundle.
@@ -8096,6 +8091,7 @@ class Bundle(ParameterSet):
 
         return ret_ps
 
+    @send_if_client
     def remove_figure(self, figure, return_changes=False, **kwargs):
         """
         Remove a 'figure' from the bundle.
@@ -9343,6 +9339,7 @@ class Bundle(ParameterSet):
         kwargs['context'] = 'compute'
         return self.filter(**kwargs)
 
+    @send_if_client
     def remove_compute(self, compute, return_changes=False, **kwargs):
         """
         Remove a 'compute' from the bundle.
@@ -10321,6 +10318,7 @@ class Bundle(ParameterSet):
             return ret_ps + ret_changes
         return ret_ps
 
+    @send_if_client
     def remove_model(self, model, return_changes=False, **kwargs):
         """
         Remove a 'model' from the bundle.
@@ -10632,6 +10630,7 @@ class Bundle(ParameterSet):
         kwargs['context'] = 'solver'
         return self.filter(**kwargs)
 
+    @send_if_client
     def remove_solver(self, solver, return_changes=False, **kwargs):
         """
         Remove a 'solver' from the bundle.
@@ -11499,7 +11498,7 @@ class Bundle(ParameterSet):
             return ret_ps + ret_changes
         return ret_ps
 
-
+    @send_if_client
     def remove_solution(self, solution, return_changes=False, **kwargs):
         """
         Remove a 'solution' from the bundle.
