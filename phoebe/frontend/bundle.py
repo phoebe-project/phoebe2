@@ -467,7 +467,8 @@ class Bundle(ParameterSet):
         # set to be not a client by default
         self._is_client = False
         self._client_allow_disconnect = False
-        self._lock = False
+        self._waiting_on_server = False
+        self._server_changes = None
 
         self._within_solver = False
 
@@ -1311,11 +1312,15 @@ class Bundle(ParameterSet):
         # TODO: check to make sure resp['meta']['bundleid']==bundleid ?
         # TODO: handle added parameters
         # TODO: handle removed (isDeleted) parameters
+        logger.debug('_on_socket_push_updates resp={}'.format(resp))
+
+        requestid = resp.pop('requestid', None)
+
+        server_changes = ParameterSet([])
 
         # resp['data'] = {'success': True/False, 'parameters': {uniqueid: {context: 'blah', value: 'blah', ...}}}
-        # print("*** _on_socket_push_updates resp={}".format(resp))
+        added_new_params = False
         for uniqueid, paramdict in resp['parameters'].items():
-            # print("*** _on_socket_push_updates uniquide in uniqueids={}, paramdict={}".format(uniqueid in self.uniqueids, paramdict))
             if uniqueid in self.uniqueids:
                 param = self.get_parameter(uniqueid=uniqueid, check_visible=False, check_default=False, check_advanced=False)
                 for attr, value in paramdict.items():
@@ -1330,47 +1335,63 @@ class Bundle(ParameterSet):
                             if 'nparray' in value.keys():
                                 value = nparray.from_json(value)
 
-                        if attr == 'value' and hasattr(param, 'default_unit'):
+                        if attr == 'value' and hasattr(param, 'default_unit') and param.__class__.__name__ != "ConstraintParameter":
                             if 'default_unit' in paramdict.keys():
                                 unit = u.Unit(paramdict.get('default_unit'))
                             else:
                                 unit = param.default_unit
+                            if isinstance(unit, str):
+                                unit = u.Unit(unit)
                             value = value * unit
 
                         setattr(param, "_{}".format(attr), value)
+
+                    server_changes += [param]
             else:
-                self._attach_param_from_server(paramdict)
+                server_changes += self._attach_param_from_server(paramdict)
+                added_new_params = True
 
+        if added_new_params:
+            # we skipped processing copy_for to avoid copying before all parameters
+            # were loaded, so we should do that now.
+            self._check_copy_for()
 
-    def _attach_param_from_server(self, item):
+        if len(resp.get('removed_parameters', [])):
+            # print("*** removed_parameters", resp.get('removed_parameters'))
+            server_changes += self.remove_parameters_all(uniqueid=resp.get('removed_parameters'), **_skip_filter_checks)
+
+        if requestid == self._waiting_on_server:
+            self._waiting_on_server = False
+
+        self._server_changes = server_changes
+
+    def _on_socket_push_error(self, resp):
         """
         [NOT IMPLEMENTED]
         """
+        # TODO: check to make sure resp['meta']['bundleid']==bundleid ?
+        requestid = resp.pop('requestid', None)
+        if requestid == self._waiting_on_server:
+            self._waiting_on_server = False
+
+        raise ValueError("error from server: {}".format(resp.get('error', 'error message not provided')))
+
+    def _attach_param_from_server(self, item):
+        """
+        """
         if isinstance(item, list):
+            ret_ = []
             for itemi in item:
-                self._attach_param_from_server(itemi)
+                ret_ += [self._attach_param_from_server(itemi)]
+            return ret_
         else:
             # then we need to add a new parameter
             d = item
-
-            print("*** _attach_param_from_server d={}".format(d))
-
-            d['Class'] = d.pop('type')
-            for attr, value in d.pop('attributes', {}).items():
-                d[attr] = value
-            for tag, value in d.pop('meta', {}).items():
-                d[tag] = value
-
-            _dump = d.pop('readonly', None)
-            _dump = d.pop('valuestr', None)
-            _dump = d.pop('twig', None)
-            _dump = d.pop('valueunit', None)  # TODO: may need to account for unit?
-
-            # print "*** _attach_param_from_server", d
             param = parameters.parameter_from_json(d, bundle=self)
 
             metawargs = {}
-            self._attach_params([param], **metawargs)
+            self._attach_params([param], check_copy_for=False, **metawargs)
+            return [param]
 
     def _deregister_client(self, bundleid=None):
         # called at python exit as well as b.as_client(False)
@@ -1461,6 +1482,7 @@ class Bundle(ParameterSet):
             self._socketio.emit('register client', {'clientid': _clientid, 'bundleid': bundleid})
 
             self._socketio.on('{}:changes:python'.format(bundleid), self._on_socket_push_updates)
+            self._socketio.on('{}:errors:python'.format(bundleid), self._on_socket_push_error)
 
             self._bundleid = bundleid
 
@@ -6542,7 +6564,7 @@ class Bundle(ParameterSet):
 
         return removed_param
 
-
+    @send_if_client
     def flip_constraint(self, twig=None, solve_for=None, **kwargs):
         """
         Flip an existing constraint to solve for a different parameter.
@@ -9763,6 +9785,8 @@ class Bundle(ParameterSet):
         * ValueError: if any given dataset is enabled in more than one set of
             compute options sent to run_compute.
         """
+        # NOTE: if we're already in client mode, we'll never get here in the client
+        # there detach is handled slightly differently (see parameters._send_if_client)
         if isinstance(detach, str) or isinstance(detach, unicode):
             # then we want to temporarily go in to client mode
             raise NotImplementedError("detach currently must be a bool")
@@ -10414,6 +10438,7 @@ class Bundle(ParameterSet):
             return ret_ps + ret_changes
         return ret_ps
 
+    @send_if_client
     def attach_job(self, twig=None, wait=True, sleep=5, cleanup=True,
                    return_changes=False, **kwargs):
         """

@@ -338,27 +338,54 @@ def send_if_client(fctn):
     def _send_if_client(self, *args, **kwargs):
         fctn_map = {'set_quantity': 'set_value',
                     'set_value': 'set_value',
-                    'set_default_unit': 'set_default_unit'}
+                    'set_default_unit': 'set_default_unit',
+                    'flip_for': 'flip_constraint'}
         b = self._bundle
         if b is not None and hasattr(b, 'is_client') and b.is_client:
             # TODO: self._filter???
             # TODO: args???
+            requestid = _uniqueid(6)
+            self._bundle._waiting_on_server = requestid
+
             method = fctn_map.get(fctn.__name__, 'bundle_method')
-            d = self._filter if hasattr(self, '_filter') \
+            # NOTE: the deepcopy is necessary here so we don't overwrite self._filter
+            d = self._filter.copy() if hasattr(self, '_filter') \
                 else {'uniqueid': self.uniqueid}
             d['bundleid'] = b._bundleid
+            d['requestid'] = requestid
             d['args'] = args
-            d['fctn'] = fctn.__name__
+            if method == 'bundle_method':
+                d['method'] = fctn.__name__
             for k, v in kwargs.items():
                 if hasattr(v, 'to_json'):
                     v = v.to_json()
                 d[k] = v
 
+            if d.get('method', None) in ['run_compute', 'run_solver']:
+                detach = d.pop('detach', False)
+
             logger.info('emitting {} ({}) to server'.format(method, d))
+
             b._socketio.emit(method, d)
+
+            while self._bundle._waiting_on_server:
+                # print("waiting on server for method: {}, bundleid: {}, requestid: {}".format(d.get('method', None), self._bundle._bundleid, self._bundle._waiting_on_server))
+                time.sleep(0.2)
+
+            ret_ = self._bundle._server_changes
+            self._bundle._server_changes = None
+
+            if d.get('method', None) in ['run_compute', 'run_solver'] and not detach:
+                # then we need to sit in a poll loop until the job returns as completed
+                # otherwise the user will have to call b.attach_job manually?  Or will the results just come in once done?
+                # should be the single job parameter
+                ret_ += self._bundle.attach_job(uniqueid=ParameterSet([p for p in ret_.to_list() if p._bundle is not None]).get_parameter(qualifier='detached_job', **_skip_filter_checks).uniqueid)
+
+            return ret_
 
         else:
             return fctn(self, *args, **kwargs)
+
     return _send_if_client
 
 
@@ -11242,6 +11269,7 @@ class ConstraintParameter(Parameter):
 
         return value
 
+    @send_if_client
     def flip_for(self, twig=None, expression=None, **kwargs):
         """
         Flip the constraint expression to solve for for any of the parameters

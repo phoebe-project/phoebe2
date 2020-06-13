@@ -374,6 +374,7 @@ def _param_json_detailed(param):
 
     return p
 
+
 def _sort_tags(group, tags):
     if group=='contexts':
         # try to order contexts in same order as shown in UI.. then fill in with the rest
@@ -835,7 +836,8 @@ def serve_distribution_plot(bundleid, parameter_uniqueid, distribution):
         err = 'bundle not found with bundleid={}'.format(bundleid)
         if app._verbose:
             print("set_value {} error: {}".format(msg, err))
-        # emit('{}:errors:react'.format(bundleid), {'success': False, 'error': err}, broadcast=False)
+        # emit('{}:errors:react'.format(bundleid), {'success': False, 'requestid': requestid, 'error': err}, broadcast=False)
+        # emit('{}:errors:python'.format(bundleid), {'success': False, 'requestid': requestid, 'error': err}, broadcast=False)
         return
 
     b = app._bundles[bundleid]
@@ -889,12 +891,14 @@ def disconnect():
 def register_client(msg):
     clientid = msg.get('clientid', None)
     bundleid = msg.get('bundleid', None)
+    requestid = msg.get('requestid', None)
     if bundleid is not None and bundleid not in app._bundles.keys():
         err = 'bundle not found with bundleid={}'.format(bundleid)
         if app._verbose:
             print("register client {} error: {}".format(msg, err))
 
-        emit('{}:errors:react'.format(bundleid), {'success': False, 'error': err}, broadcast=False)
+        emit('{}:errors:react'.format(bundleid), {'success': False, 'requestid': requestid, 'error': err}, broadcast=False)
+        emit('{}:errors:python'.format(bundleid), {'success': False, 'requestid': requestid, 'error': err}, broadcast=False)
         return
 
     if app._verbose:
@@ -1047,12 +1051,14 @@ def set_value(msg):
         print("set_value: ", msg)
 
     bundleid = msg.pop('bundleid')
+    requestid = msg.pop('requestid', None)
 
     if bundleid not in app._bundles.keys():
         err = 'bundle not found with bundleid={}'.format(bundleid)
         if app._verbose:
             print("set_value {} error: {}".format(msg, err))
-        emit('{}:errors:react'.format(bundleid), {'success': False, 'error': err}, broadcast=False)
+        emit('{}:errors:react'.format(bundleid), {'success': False, 'requestid': requestid, 'error': err}, broadcast=False)
+        emit('{}:errors:python'.format(bundleid), {'success': False, 'requestid': requestid, 'error': err}, broadcast=False)
         return
 
 
@@ -1074,7 +1080,8 @@ def set_value(msg):
     except Exception as err:
         if app._verbose:
             print("set_value {} error: {}".format(msg, str(err)))
-        emit('{}:errors:react'.format(bundleid), {'success': False, 'error': str(err)}, broadcast=False)
+        emit('{}:errors:react'.format(bundleid), {'success': False, 'requestid': requestid, 'error': str(err)}, broadcast=False)
+        emit('{}:errors:python'.format(bundleid), {'success': False, 'requestid': requestid, 'error': str(err)}, broadcast=False)
         if app._debug: raise
         return
 
@@ -1083,7 +1090,8 @@ def set_value(msg):
     except Exception as err:
         if app._verbose:
             print("set_value {} error on filter: {}".format(msg, str(err)))
-        emit('{}:errors:react'.format(bundleid), {'success': False, 'error': str(err)}, broadcast=False)
+        emit('{}:errors:react'.format(bundleid), {'success': False, 'requestid': requestid, 'error': str(err)}, broadcast=False)
+        emit('{}:errors:python'.format(bundleid), {'success': False, 'requestid': requestid, 'error': str(err)}, broadcast=False)
         if app._debug: raise
         return
     else:
@@ -1095,10 +1103,11 @@ def set_value(msg):
             param_list = sorted([_param_json_overview(param) for param in ps_list], key=lambda p: p['qualifier'])
             param_dict = OrderedDict((p.pop('uniqueid'), p) for p in param_list)
 
+            packet = {'success': True, 'requestid': requestid, 'parameters': param_dict}
             if app._verbose:
-                print("set_value success, broadcasting changes:react: {}".format(param_dict))
+                print("set_value success, broadcasting {}:changes:react: {}".format(bundleid, packet))
 
-            emit('{}:changes:react'.format(bundleid), {'success': True, 'parameters': param_dict}, broadcast=True)
+            emit('{}:changes:react'.format(bundleid), packet, broadcast=True)
 
             # flush so the changes goes through before running checks and updating figures
             socketio.sleep(0)
@@ -1108,11 +1117,11 @@ def set_value(msg):
 
         if 'python' in client_types:
             ps_dict = {p.uniqueid: {'value': p.to_json()['value']} for p in ps_list}
-
+            packet = {'success': True, 'requestid': requestid, 'parameters': ps_dict}
             if app._verbose:
-                print("set_value success, broadcasting changes:python: {}".format(ps_dict))
+                print("set_value success, broadcasting {}:changes:python: {}".format(bundleid, packet))
 
-            emit('{}:changes:python'.format(bundleid), {'success': True, 'parameters': ps_dict}, broadcast=True)
+            emit('{}:changes:python'.format(bundleid), packet, broadcast=True)
 
 
 # TODO: now that set_default_unit_all returns a PS, we could use bundle_method
@@ -1123,12 +1132,14 @@ def set_default_unit(msg):
         print("set_default_unit: ", msg)
 
     bundleid = msg.pop('bundleid')
+    requestid = msg.pop('requestid', None)
 
     if bundleid not in app._bundles.keys():
         err = 'bundle not found with bundleid={}'.format(bundleid)
         if app._verbose:
             print("set_default_unit {} error: {}".format(msg, err))
-        emit('{}:errors:react'.format(bundleid), {'success': False, 'error': err}, broadcast=False)
+        emit('{}:errors:react'.format(bundleid), {'success': False, 'requestid': requestid, 'error': err}, broadcast=False)
+        emit('{}:errors:python'.format(bundleid), {'success': False, 'requestid': requestid, 'error': err}, broadcast=False)
         return
 
 
@@ -1147,7 +1158,8 @@ def set_default_unit(msg):
     except Exception as err:
         if app._verbose:
             print("set_default_unit {} error: {}".format(msg, str(err)))
-        emit('{}:errors:react'.format(bundleid), {'success': False, 'error': str(err)}, broadcast=False)
+        emit('{}:errors:react'.format(bundleid), {'success': False, 'requestid': requestid, 'error': str(err)}, broadcast=False)
+        emit('{}:errors:python'.format(bundleid), {'success': False, 'requestid': requestid, 'error': str(err)}, broadcast=False)
         if app._debug: raise
         return
 
@@ -1156,7 +1168,8 @@ def set_default_unit(msg):
     except Exception as err:
         if app._verbose:
             print("set_default_unit {} error on filter: {}".format(msg, str(err)))
-        emit('{}:errors:react'.format(bundleid), {'success': False, 'error': str(err)}, broadcast=False)
+        emit('{}:errors:react'.format(bundleid), {'success': False, 'requestid': requestid, 'error': str(err)}, broadcast=False)
+        emit('{}:errors:python'.format(bundleid), {'success': False, 'requestid': requestid, 'error': str(err)}, broadcast=False)
         if app._debug: raise
         return
     else:
@@ -1174,10 +1187,10 @@ def set_default_unit(msg):
         if 'python' in client_types:
             ps_dict = {p.uniqueid: {'default_unit': p.get_default_unit()} for p in ps_list}
 
-            if app._verbose:
-                print("set_default_unit success, broadcasting changes:python: {}".format(ps_dict))
+            # if app._verbose:
+                # print("set_default_unit success, broadcasting changes:python: {}".format(ps_dict))
 
-            emit('{}:changes:python'.format(bundleid), {'success': True, 'parameters': ps_dict}, broadcast=True)
+            emit('{}:changes:python'.format(bundleid), {'success': True, 'requestid': requestid, 'parameters': ps_dict}, broadcast=True)
 
 @socketio.on('bundle_method')
 def bundle_method(msg):
@@ -1185,20 +1198,23 @@ def bundle_method(msg):
         print("bundle_method: ", msg)
 
     bundleid = msg.pop('bundleid', None)
+    requestid = msg.pop('requestid', None)
 
     for k,v in msg.items():
         if isinstance(v, unicode):
             msg[k] = str(v)
 
     if bundleid is None:
-        emit('errors', {'success': False, 'error': "must provide bundleid"}, broadcast=False)
+        emit('{}:errors:react', {'success': False, 'requestid': requestid, 'error': "must provide bundleid"}, broadcast=False)
+        emit('{}:errors:python', {'success': False, 'requestid': requestid, 'error': "must provide bundleid"}, broadcast=False)
         return
 
     if bundleid not in app._bundles.keys():
         err = 'bundle not found with bundleid={}'.format(bundleid)
         if app._verbose:
             print("bundle_method {} error: {}".format(msg, err))
-        emit('{}:errors:react'.format(bundleid), {'success': False, 'error': err}, broadcast=False)
+        emit('{}:errors:react'.format(bundleid), {'success': False, 'requestid': requestid, 'error': err}, broadcast=False)
+        emit('{}:errors:python'.format(bundleid), {'success': False, 'requestid': requestid, 'error': err}, broadcast=False)
         return
 
 
@@ -1216,7 +1232,8 @@ def bundle_method(msg):
     if _disable_solvers and method == 'run_solver':
         solver_kind = b.get_solver(solver=msg.get('solver')).kind
         if solver_kind not in _allowed_solver_kinds:
-            emit('{}:errors:react'.format(bundleid), {'success': False, 'error': 'solver with kind {} is disabled on this server.  Export and run manually instead'.format(solver_kind)}, broadcast=False)
+            emit('{}:errors:react'.format(bundleid), {'success': False, 'requestid': requestid, 'error': 'solver with kind {} is disabled on this server.  Export and run manually instead'.format(solver_kind)}, broadcast=False)
+            emit('{}:errors:python'.format(bundleid), {'success': False, 'requestid': requestid, 'error': 'solver with kind {} is disabled on this server.  Export and run manually instead'.format(solver_kind)}, broadcast=False)
             return
 
     if method in ['run_compute', 'run_solver']:
@@ -1241,8 +1258,15 @@ def bundle_method(msg):
     if method.split('_')[0] in ['add', 'run', 'remove', 'rename', 'attach', 'import', 'adopt']:
         msg['return_changes'] = True
 
+    args = msg.pop('args', [])
+
+    if method in ['flip_constraint']:
+        constraint_filter = {k:v for k,v in msg.items() if k!='solve_for'}
+        constraint_filter['context'] = 'constraint'
+        param_constraint = b.get_parameter(*args, **constraint_filter)
+
     try:
-        ps = getattr(b, method)(**msg)
+        ps = getattr(b, method)(*args, **msg)
         ps_list = ps.to_list() if hasattr(ps, 'to_list') else [ps] if isinstance(ps, phoebe.parameters.Parameter) else []
     except Exception as err:
         if app._verbose:
@@ -1255,37 +1279,33 @@ def bundle_method(msg):
             # TODO: catch this within PHOEBE instead and return a reasonable status
             pass
         else:
-            emit('{}:errors:react'.format(bundleid), {'success': False, 'error': str(err)}, broadcast=False)
+            emit('{}:errors:react'.format(bundleid), {'success': False, 'requestid': requestid, 'error': str(err)}, broadcast=False)
+            emit('{}:errors:python'.format(bundleid), {'success': False, 'requestid': requestid, 'error': str(err)}, broadcast=False)
 
 
             if method=='attach_job' and ('web' in client_types or 'desktop' in client_types):
                 # then we still need to emit the change the the status of the job parameter so the client stops polling
                 pjo = _param_json_overview(b.get_parameter(uniqueid=msg.get('uniqueid'), check_visible=False, check_default=False))
                 param_dict = {pjo.pop('uniqueid'): pjo}
-                packet = {'success': True, 'parameters': param_dict}
+                packet = {'success': True, 'requestid': requestid, 'parameters': param_dict}
 
                 emit('{}:changes:react'.format(bundleid), packet, broadcast=True)
 
             return
 
-
     if method in ['flip_constraint']:
-        param = b.get_parameter(**{k:v for k,v in msg.items() if k!='solve_for'})
-        ps_list += param.vars.to_list()
+        ps_list += param_constraint.vars.to_list()
 
+
+    # handle any deleted parameters
+    removed_params_list = [param.uniqueid for param in ps_list if param._bundle is None]
 
     if 'web' in client_types or 'desktop' in client_types:
-        # handle any deleted parameters
-        removed_params_list = [param.uniqueid for param in ps_list if param._bundle is None]
-
         # since some params have been removed, we'll skip any that have param._bundle is None
         param_list = sorted([_param_json_overview(param) for param in ps_list if param._bundle is not None], key=lambda p: p['qualifier'])
         param_dict = OrderedDict((p.pop('uniqueid'), p) for p in param_list)
 
-        if app._verbose:
-            print("bundle_method success, broadcasting changes:react: {}".format(param_dict))
-
-        packet = {'success': True, 'parameters': param_dict, 'removed_parameters': removed_params_list}
+        packet = {'success': True, 'requestid': requestid, 'parameters': param_dict, 'removed_parameters': removed_params_list}
 
         if method.split('_')[0] not in []:
             # if we added new parameters, then the tags likely have changed
@@ -1317,17 +1337,16 @@ def bundle_method(msg):
         _update_figures(b, bundleid, phoebe.parameters.ParameterSet(ps_list))
 
     if 'python' in client_types:
-        # TODO: this probably isn't sufficient for all methods.  What information
-        # do we need to pass to the python clients for things like remove_*, run_*?
-        ps_dict = {p.uniqueid: {'default_unit': p.get_default_unit()} for p in ps_list}
+        # since some params have been removed, we'll skip any that have param._bundle is None
+        param_list = [param.to_json(incl_uniqueid=True) for param in ps_list if param._bundle is not None]
+        param_dict = OrderedDict((p.get('uniqueid'), p) for p in param_list)
 
-        if app._verbose:
-            print("bundle_method success, broadcasting changes:python: {}".format(ps_dict))
+        packet = {'success': True, 'requestid': requestid, 'parameters': param_dict, 'removed_parameters': removed_params_list}
 
-        emit('{}:changes:python'.format(bundleid), {'success': True, 'parameters': ps_dict}, broadcast=True)
+        # if app._verbose:
+            # print("bundle_method success, broadcasting changes:python: {}".format(packet))
 
-    # app._bundles[bundleid] = b
-
+        emit('{}:changes:python'.format(bundleid), packet, broadcast=True)
 
 
 @socketio.on('rerun_all_figures')
@@ -1336,6 +1355,7 @@ def rerun_all_figures(msg):
         print("bundle_method: ", msg)
 
     bundleid = msg.pop('bundleid', None)
+    requestid = msg.pop('requestid', None)
 
     if bundleid is None:
         emit('errors', {'success': False, 'error': "must provide bundleid"}, broadcast=False)
@@ -1345,7 +1365,8 @@ def rerun_all_figures(msg):
         err = 'bundle not found with bundleid={}'.format(bundleid)
         if app._verbose:
             print("bundle_method {} error: {}".format(msg, err))
-        emit('{}:errors:react'.format(bundleid), {'success': False, 'error': err}, broadcast=False)
+        emit('{}:errors:react'.format(bundleid), {'success': False, 'requestid': requestid, 'error': err}, broadcast=False)
+        emit('{}:errors:python'.format(bundleid), {'success': False, 'requestid': requestid, 'error': err}, broadcast=False)
         return
 
 
