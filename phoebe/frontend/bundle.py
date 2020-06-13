@@ -1426,6 +1426,9 @@ class Bundle(ParameterSet):
             if not _can_client:
                 raise ImportError("dependencies to support client mode not met - see docs")
 
+            if 'http' not in server[:5]:
+                server = 'http://'+server
+
             server_running = self._test_server(server=server,
                                                wait_for_server=wait_for_server)
             if not server_running:
@@ -8175,6 +8178,7 @@ class Bundle(ParameterSet):
         and is less clumsy if plotting from the python frontend.
 
         See also:
+        * <phoebe.frontend.bundle.Bundle.ui_figures>
         * <phoebe.frontend.bundle.Bundle.add_figure>
         * <phoebe.frontend.bundle.Bundle.get_figure>
         * <phoebe.frontend.bundle.Bundle.remove_figure>
@@ -8440,6 +8444,40 @@ class Bundle(ParameterSet):
         kwargs.setdefault('tight_layout', True)
         logger.info("calling plot(**{})".format(kwargs))
         return self.plot(**kwargs)
+
+    def ui_figures(self, web_client=None):
+        """
+        Open an interactive user-interface for all figures in the Bundle.
+
+        The bundle must be in client mode in order to open the web-interface.
+        See <phoebe.frontend.bundle.Bundle.as_client> to switch to client mode.
+
+        See also:
+        * <phoebe.frontend.bundle.Bundle.run_figure>
+        * <phoebe.parameters.ParameterSet.ui>
+        * <phoebe.frontend.bundle.Bundle.as_client>
+        * <phoebe.frontend.bundle.Bundle.is_client>
+
+        Arguments
+        -----------
+        * `web_client` (bool or string, optional, default=False):
+            If not provided or None, this will default to the values in the
+            settings for `web_client` and `web_client_url`.
+            If True, a web-client will be preferred over a desktop-client and
+            will default to using the settings for `web_client_url`.
+            If False, will use the desktop-client instead of a web-client.
+            If a string, the string will be used as the url for the web-client.
+            Note that if using a web-client, the bundle must already be
+            in client mode.  See <phoebe.frontend.bundle.Bundle.is_client>
+            and <phoebe.frontend.bundle.Bundle.as_client>.
+
+        Returns
+        ----------
+        * `url` (string): the opened URL (will attempt to launch in the system
+            webbrowser)
+        """
+
+        return self._launch_ui(web_client, 'figures')
 
 
     def compute_ld_coeffs(self, compute=None, set_value=False, **kwargs):
