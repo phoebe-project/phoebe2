@@ -357,29 +357,9 @@ def send_if_client(fctn):
             logger.info('emitting {} ({}) to server'.format(method, d))
             b._socketio.emit(method, d)
 
-            if fctn.__name__ in ['run_compute', 'run_solver']:
-                # then we're expecting a quick response with an added jobparam
-                # let's add that now
-                self._bundle.client_update()
         else:
             return fctn(self, *args, **kwargs)
     return _send_if_client
-
-
-def update_if_client(fctn):
-    """Intercept and check updates from server if bundle is in client mode."""
-    @functools.wraps(fctn)
-    def _update_if_client(self, *args, **kwargs):
-        b = self._bundle
-        if b is None or not hasattr(b, 'is_client'):
-            return fctn(self, *args, **kwargs)
-        elif b.is_client and \
-                (b._last_client_update is None or
-                (datetime.now() - b._last_client_update).seconds > 1):
-
-            b.client_update()
-        return fctn(self, *args, **kwargs)
-    return _update_if_client
 
 
 def _uniqueid(n=30):
@@ -1789,7 +1769,6 @@ class ParameterSet(object):
         * <phoebe.frontend.bundle.Bundle.from_server>
         * <phoebe.frontend.bundle.Bundle.as_client>
         * <phoebe.frontend.bundle.Bundle.is_client>
-        * <phoebe.frontend.bundle.Bundle.client_update>
 
         Arguments
         -----------
@@ -1845,7 +1824,7 @@ class ParameterSet(object):
                 # self._bundle.save(tmpfilename, compact=True, incl_uniqueid=True)
                 # bundleid = _uniqueid(6)
                 # cmd += ' -j {} -b {} -p 5000'.format(os.path.join(os.getcwd(), tmpfilename), bundleid)
-                # _async = False
+                _async = False
 
                 bundleid = _uniqueid(6)
                 cmd += ' -p 5000 -b {} -w'.format(bundleid)
@@ -1860,7 +1839,7 @@ class ParameterSet(object):
             if not full_ui:
                 cmd += ' -a ps'
 
-
+            cmd += ' --noWarnOnClose'
 
             # if _async:
             cmd += ' &'
@@ -1869,17 +1848,33 @@ class ParameterSet(object):
             # TODO: switch to async subprocess?
             os.system(cmd)
 
+
+
+            if tmpfilename is not None:
+                os.remove(tmpfilename)
+
+
             if not self._bundle.is_client:
                 # the bundle will handle uploading to the server, but will have
                 # to wait for it to be launched as a child process by the server
                 # first.  The UI will also be waiting for the bundle to be available
                 # to the server.
                 logger.info("entering client mode")
-                self._bundle.as_client(server='http://localhost:5000', bundleid=bundleid, wait_for_server=True)
+
+                # TODO: we need to asynchronously launch the server, but be able to control it to kill it later....
+
+                # by setting this, once the UI is closed by the user and the child-server is killed
+                # the bundle will gracefully disconnect and leave client mode
+                self._client_allow_disconnect = True
+                # TODO: allow the user requesting sync mode here... in which case the bundle will remain in client mode until the server is killed, either by the UI or otherwise
+                # NOTE: the automatic disconnect signal doesn't always work well which is why this isn't the default
+                # NOTE: when sync=True, the bundle will automatically exit client mode once closed
+                self._bundle.as_client(server='http://localhost:5000', bundleid=bundleid, wait_for_server=True, reconnection_attempts=3, sync=not _async)
 
 
-            if tmpfilename is not None:
-                os.remove(tmpfilename)
+            #
+            # if not _async:
+            #     self._bundle.as_client(False)
 
         # TODO: IF this fails OR if client is not None, then instead buildup the url for ui.phoebe-project.org and open in a browser
         # TODO: raise an error if not self._bundle.is_client as this only supports asynchronous
@@ -1905,7 +1900,6 @@ class ParameterSet(object):
     #     * <phoebe.frontend.bundle.Bundle.from_server>
     #     * <phoebe.frontend.bundle.Bundle.as_client>
     #     * <phoebe.frontend.bundle.Bundle.is_client>
-    #     * <phoebe.frontend.bundle.Bundle.client_update>
     #
     #     Arguments
     #     -----------
@@ -7059,8 +7053,7 @@ class Parameter(object):
     def get_value(self, *args, **kwargs):
         """
         This method should be overriden by any subclass of
-        <phoebe.parameters.Parameter>, and should be decorated with the
-        @update_if_client decorator.
+        <phoebe.parameters.Parameter>.
         Please see the individual classes documentation:
 
         * <phoebe.parameters.FloatParameter.get_value>
@@ -7138,7 +7131,6 @@ class StringParameter(Parameter):
         self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for', 'readonly', 'advanced']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
-    @update_if_client
     def get_value(self, **kwargs):
         """
         Get the current value of the <phoebe.parameters.StringParameter>.
@@ -7225,7 +7217,6 @@ class TwigParameter(Parameter):
         """
         return self._bundle.get_parameter(uniqueid=self._value)
 
-    @update_if_client
     def get_value(self, **kwargs):
         """
         Get the current value of the <phoebe.parameters.TwigParameter>.
@@ -7333,7 +7324,6 @@ class ChoiceParameter(Parameter):
         """
         return self._choices
 
-    @update_if_client
     def get_value(self, **kwargs):
         """
         Get the current value of the <phoebe.parameters.ChoiceParameter>.
@@ -7542,7 +7532,6 @@ class SelectParameter(Parameter):
 
         return False
 
-    @update_if_client
     def get_value(self, expand=False, **kwargs):
         """
         Get the current value of the <phoebe.parameters.SelectParameter>.
@@ -7849,7 +7838,6 @@ class BoolParameter(Parameter):
         self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for', 'readonly', 'advanced']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
-    @update_if_client
     def get_value(self, **kwargs):
         """
         Get the current value of the <phoebe.parameters.BoolParameter>.
@@ -7946,7 +7934,6 @@ class UnitParameter(ChoiceParameter):
 
         return value
 
-    @update_if_client
     def get_value(self, **kwargs):
         """
         Get the current value of the <phoebe.parameters.UnitParameter>.
@@ -8008,7 +7995,6 @@ class DictParameter(Parameter):
         self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for', 'readonly', 'advanced']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
-    @update_if_client
     def get_value(self, **kwargs):
         """
         Get the current value of the <phoebe.parameters.DictParameter>.
@@ -8171,7 +8157,6 @@ class IntParameter(Parameter):
 
         return value
 
-    @update_if_client
     def get_value(self, **kwargs):
         """
         Get the current value of the <phoebe.parameters.IntParameter>.
@@ -8301,7 +8286,6 @@ class DistributionParameter(Parameter):
 
         return self.get_value().logpdf(param_quantity.value, unit=param_quantity.unit)
 
-    @update_if_client
     def get_value(self, **kwargs):
         """
         Get the current value of the <phoebe.parameters.DistributionParameter>
@@ -8891,7 +8875,6 @@ class FloatParameter(Parameter):
             self.set_value(value, ignore_readonly=True)
         return value
 
-    #@update_if_client is on the called get_quantity
     def get_value(self, unit=None, t=None,
                   **kwargs):
         """
@@ -8912,7 +8895,6 @@ class FloatParameter(Parameter):
         else:
             return quantity
 
-    @update_if_client
     def get_quantity(self, unit=None, t=None,
                      **kwargs):
         """
@@ -9648,7 +9630,6 @@ class ArrayParameter(Parameter):
         #~ """
         #~ raise NotImplementedError
 
-    @update_if_client
     def get_value(self, **kwargs):
         """
         Get the current value of the <phoebe.parameters.ArrayParameter>.
@@ -10951,7 +10932,6 @@ class ConstraintParameter(Parameter):
         """
         return self.get_value()
 
-    #@update_if_client  # TODO: this breaks
     def get_value(self):
         """
         Return the expression/value of the
@@ -11625,7 +11605,6 @@ class JobParameter(Parameter):
         # TODO: implement a nice(r) string representation
         return "qualifier: {}\nstatus: {}".format(self.qualifier, self.status)
 
-    #@update_if_client # get_status will make API call if JobParam points to a server
     def get_value(self, **kwargs):
         """
         JobParameter doesn't really have a value, but for the sake of Parameter

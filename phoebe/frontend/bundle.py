@@ -70,7 +70,7 @@ _skip_filter_checks = {'check_default': False, 'check_visible': False}
 try:
     """
     requirements for client mode:
-    pip install socketIO-client
+    pip install "python-socketio[client]"
     """
 
     import requests
@@ -81,8 +81,8 @@ try:
       from urllib.request import urlopen as _urlopen
       from urllib.error import URLError
 
-    from socketIO_client import SocketIO, BaseNamespace
-    #  pip install -U socketIO-client
+    import socketio
+
 except ImportError:
     _can_client = False
 else:
@@ -466,7 +466,7 @@ class Bundle(ParameterSet):
 
         # set to be not a client by default
         self._is_client = False
-        self._last_client_update = None
+        self._client_allow_disconnect = False
         self._lock = False
 
         self._within_solver = False
@@ -876,7 +876,6 @@ class Bundle(ParameterSet):
         * <phoebe.parameters.ParameterSet.ui>
         * <phoebe.frontend.bundle.Bundle.as_client>
         * <phoebe.frontend.bundle.Bundle.is_client>
-        * <phoebe.frontend.bundle.Bundle.client_update>
 
         Arguments
         ----------
@@ -903,8 +902,7 @@ class Bundle(ParameterSet):
 
         if as_client:
             b.as_client(as_client, server=server,
-                        bundleid=rjson['meta']['bundleid'],
-                        start_if_fail=False)
+                        bundleid=rjson['meta']['bundleid'])
 
             logger.warning("This bundle is in client mode, meaning all computations will be handled by the server at {}.  To disable client mode, call as_client(False) or in the future pass as_client=False to from_server".format(server))
 
@@ -1298,11 +1296,13 @@ class Bundle(ParameterSet):
         test
         """
         logger.warning("disconnected from server")
-        if self.is_client:
+        if self.is_client and self._client_allow_disconnect:
             logger.warning("exiting client mode")
 
+            self._socketio.disconnect()
             self._bundleid = None
             self._is_client = False
+            self._client_allow_disconnect = False
 
     def _on_socket_push_updates(self, resp):
         """
@@ -1373,6 +1373,8 @@ class Bundle(ParameterSet):
             self._attach_params([param], **metawargs)
 
     def _deregister_client(self, bundleid=None):
+        # called at python exit as well as b.as_client(False)
+
         if self._socketio is None:
             return
 
@@ -1384,7 +1386,8 @@ class Bundle(ParameterSet):
         self._socketio = None
 
     def as_client(self, as_client=True, server='http://localhost:5555',
-                  bundleid=None, wait_for_server=False):
+                  bundleid=None, wait_for_server=False, reconnection_attempts=None,
+                  sync=False):
         """
         Enter (or exit) client mode.
 
@@ -1392,7 +1395,6 @@ class Bundle(ParameterSet):
         * <phoebe.frontend.bundle.Bundle.from_server>
         * <phoebe.parameters.ParameterSet.ui>
         * <phoebe.frontend.bundle.Bundle.is_client>
-        * <phoebe.frontend.bundle.Bundle.client_update>
 
         Arguments
         -----------
@@ -1406,6 +1408,12 @@ class Bundle(ParameterSet):
             from the server, the current bundle will be uploaded and assigned
             the given bundleid.  If not provided, the current bundle will be
             uploaded and assigned a random bundleid.
+        * `wait_for_server`
+        * `reconnection_attempts`
+        * `sync` (bool, optional, default=False): whether to enter client-mode
+            synchronously (will not return until the connection is closed).
+            This is used internally by <phoebe.parameters.ParameterSet.ui>,
+            but should be overridden with caution.
 
 
         Raises
@@ -1423,12 +1431,10 @@ class Bundle(ParameterSet):
             if not server_running:
                 raise ValueError("server {} is not running".format(server))
 
-            server_split = server.split('://')[-1].split(':')
-            host = ':'.join(server_split[:-1]) if len(server_split) > 1 else server_split[0]
-            port = int(float(server_split[-1])) if len(server_split) > 1 else None
-            self._socketio = SocketIO(host, port, BaseNamespace)
+            self._socketio = socketio.Client(reconnection_delay=0.1, reconnection_attempts=0 if reconnection_attempts is None else reconnection_attempts)
             self._socketio.on('connect', self._on_socket_connect)
             self._socketio.on('disconnect', self._on_socket_disconnect)
+            self._socketio.connect(server)
 
             if bundleid is not None:
                 rj = requests.get("{}/info".format(server)).json()
@@ -1459,8 +1465,12 @@ class Bundle(ParameterSet):
 
             atexit.register(self._deregister_client)
 
-            logger.info("connected as client {} to server at {}:{}".
-                        format(_clientid, host, port))
+            logger.info("connected as client {} to server at {}".
+                        format(_clientid, server))
+
+            if sync:
+                self._socketio.wait()
+                self.as_client(False)
 
         else:
             logger.warning("This bundle is now permanently detached from the instance on the server and will not receive future updates.  To start a client in sync with the version on the server or other clients currently subscribed, you must instantiate a new bundle with Bundle.from_server.")
@@ -1478,37 +1488,12 @@ class Bundle(ParameterSet):
         * <phoebe.frontend.bundle.Bundle.from_server>
         * <phoebe.parameters.ParameterSet.ui>
         * <phoebe.frontend.bundle.Bundle.as_client>
-        * <phoebe.frontend.bundle.Bundle.client_update>
 
         Returns
         ---------
         * False if the bundle is not in client mode, otherwise the URL of the server.
         """
         return self._is_client
-
-    def client_update(self):
-        """
-        Check for updates from the server and update the client.  In general,
-        it should not be necessary to call this manually.
-
-        See also:
-        * <phoebe.frontend.bundle.Bundle.from_server>
-        * <phoebe.parameters.ParameterSet.ui>
-        * <phoebe.frontend.bundle.Bundle.as_client>
-        * <phoebe.frontend.bundle.Bundle.is_client>
-
-        """
-        if not self.is_client:
-            raise ValueError("Bundle is not in client mode, cannot update")
-
-        logger.info("updating client...")
-        # wait briefly to pickup any missed messages, which should then fire
-        # the corresponding callbacks and update the bundle
-        if self._socketio.connected:
-            self._socketio.wait(seconds=0.1)
-            self._last_client_update = datetime.now()
-        else:
-            logger.warning("socketio not connected")
 
     def __repr__(self):
         # filter to handle any visibility checks, etc
