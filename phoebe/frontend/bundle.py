@@ -9791,9 +9791,9 @@ class Bundle(ParameterSet):
             # then we want to temporarily go in to client mode
             raise NotImplementedError("detach currently must be a bool")
             self.as_client(server=detach)
-            self.run_compute(compute=compute, model=model, times=times, **kwargs)
+            ret_ = self.run_compute(compute=compute, model=model, dataset=dataset, times=times, return_changes=return_changes, **kwargs)
             self.as_client(False)
-            return self.get_model(model=model)
+            return ret_
 
         if isinstance(times, float) or isinstance(times, int):
             times = [times]
