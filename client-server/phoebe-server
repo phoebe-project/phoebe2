@@ -100,6 +100,7 @@ import inspect
 from time import sleep
 from collections import OrderedDict
 from datetime import datetime
+from distutils.version import StrictVersion
 
 from phoebe.parameters.unit_choices import unit_choices as _unit_choices
 
@@ -406,11 +407,15 @@ def _get_response(data, status_code=200, api=False, **metawargs):
     else:
         return d
 
-@app.route("/info", methods=['GET'])
+@app.route("/info", methods=['GET', 'POST'])
 @crossdomain(origin='*')
 def info():
+    j = request.get_json()
+    clientid = j.get('clientid', None) if j is not None else None
+    client_version = j.get('client_version', None) if j is not None else None
+
     if app._verbose:
-        print("info", phoebe.__version__, app._parent)
+        print("info phoebe_version: {}, parentid: {}, clientid: {}, client_version: {}".format(phoebe.__version__, app._parent, clientid, client_version))
 
     bundle_memory_cleanup()
 
@@ -424,8 +429,15 @@ def info():
     # later versions will show a warning, provide information for updating
     # phoebe-server, but WILL attempt to connect as long as the client's
     # phoebe_min_version is in range.
+
+    client_warning = None
+    if client_version is not None:
+        if StrictVersion(client_version) < StrictVersion('1.0.0'):
+            client_warning = 'client still in development'
+
     return _get_response({'success': True, 'phoebe_version': phoebe.__version__, 'parentid': app._parent,
                           'client_min_version': '0.1.0',
+                          'client_warning': client_warning,
                           'nclients': len(app._clients), 'clients': app._clients,
                           'nbundles': len(app._bundles.keys()), 'clients_per_bundle': app._clients_per_bundle, 'last_access_per_bundle': app._last_access_per_bundle,
                           'available_kinds': _available_kinds,
@@ -434,7 +446,7 @@ def info():
                           },
                           api=True)
 
-@app.route('/new_bundle/<string:type>', methods=['GET'])
+@app.route('/new_bundle/<string:type>', methods=['GET', 'POST'])
 @crossdomain(origin='*')
 def new_bundle(type):
     """
@@ -443,6 +455,10 @@ def new_bundle(type):
 
     type: 'binary:detached'
     """
+    j = request.get_json()
+    clientid = j.get('clientid', None) if j is not None else None
+    client_version = j.get('client_version', None) if j is not None else None
+
     if app._verbose:
         print("new_bundle(type={})".format(type))
 
@@ -485,8 +501,15 @@ def new_bundle(type):
 def open_bundle(type):
     """
     """
+    j = request.get_json()
+    if j is None:
+        j = request.form
+    clientid = j.get('clientid', None)
+    client_version = j.get('client_version', None)
+
     if app._verbose:
-        print("open_bundle")
+        # print("open_bundle")
+        print("open_bundle clientid: {}, client_version: {}".format(clientid, client_version))
 
     try:
         data = json.loads(request.data)
@@ -539,11 +562,15 @@ def open_bundle(type):
 
     return _get_response({'success': True, 'bundleid': bundleid}, api=True)
 
-@app.route('/json_bundle/<string:bundleid>', methods=['GET'])
+@app.route('/json_bundle/<string:bundleid>', methods=['GET', 'POST'])
 @crossdomain(origin='*')
 def json_bundle(bundleid):
     """
     """
+    j = request.get_json()
+    clientid = j.get('clientid', None) if j is not None else None
+    client_version = j.get('client_version', None) if j is not None else None
+
     if app._verbose:
         print("json_bundle(bundleid={})".format(bundleid))
 
@@ -555,11 +582,15 @@ def json_bundle(bundleid):
 
     return _get_response({'success': True, 'bundle': bjson, 'bundleid': bundleid}, bundleid=bundleid, api=True)
 
-@app.route('/save_bundle/<string:bundleid>', methods=['GET'])
+@app.route('/save_bundle/<string:bundleid>', methods=['GET', 'POST'])
 @crossdomain(origin='*')
 def save_bundle(bundleid):
     """
     """
+    j = request.get_json()
+    clientid = j.get('clientid', None) if j is not None else None
+    client_version = j.get('client_version', None) if j is not None else None
+
     if app._verbose:
         print("save_bundle(bundleid={})".format(bundleid))
 
@@ -574,12 +605,16 @@ def save_bundle(bundleid):
 
     return resp
 
-@app.route('/export_compute/<string:bundleid>/<string:compute>', defaults={'model': None}, methods=['GET'])
-@app.route('/export_compute/<string:bundleid>/<string:compute>/<string:model>', methods=['GET'])
+@app.route('/export_compute/<string:bundleid>/<string:compute>', defaults={'model': None}, methods=['GET', 'POST'])
+@app.route('/export_compute/<string:bundleid>/<string:compute>/<string:model>', methods=['GET', 'POST'])
 @crossdomain(origin='*')
 def export_compute(bundleid, compute, model=None):
     """
     """
+    j = request.get_json()
+    clientid = j.get('clientid', None) if j is not None else None
+    client_version = j.get('client_version', None) if j is not None else None
+
     if app._verbose:
         print("export_compute(bundleid={}, compute={})".format(bundleid, compute))
 
@@ -600,12 +635,16 @@ def export_compute(bundleid, compute, model=None):
 
     return send_file(ef.name, as_attachment=True, attachment_filename='{}_run_compute_{}.py'.format(bundleid, compute))
 
-@app.route('/export_solver/<string:bundleid>/<string:solver>', defaults={'solution': None}, methods=['GET'])
-@app.route('/export_solver/<string:bundleid>/<string:solver>/<string:solution>', methods=['GET'])
+@app.route('/export_solver/<string:bundleid>/<string:solver>', defaults={'solution': None}, methods=['GET', 'POST'])
+@app.route('/export_solver/<string:bundleid>/<string:solver>/<string:solution>', methods=['GET', 'POST'])
 @crossdomain(origin='*')
 def export_solver(bundleid, solver, solution=None):
     """
     """
+    j = request.get_json()
+    clientid = j.get('clientid', None) if j is not None else None
+    client_version = j.get('client_version', None) if j is not None else None
+
     if app._verbose:
         print("export_solver(bundleid={}, solver={})".format(bundleid, solver))
 
@@ -626,11 +665,15 @@ def export_solver(bundleid, solver, solution=None):
 
     return send_file(ef.name, as_attachment=True, attachment_filename='{}_run_solver_{}.py'.format(bundleid, solver))
 
-@app.route('/export_arrays/<string:bundleid>/<string:params>', methods=['GET'])
+@app.route('/export_arrays/<string:bundleid>/<string:params>', methods=['GET', 'POST'])
 @crossdomain(origin='*')
 def export_params(bundleid, params):
     """
     """
+    j = request.get_json()
+    clientid = j.get('clientid', None) if j is not None else None
+    client_version = j.get('client_version', None) if j is not None else None
+
     if app._verbose:
         print("export_arrays(bundleid={}, params={})".format(bundleid, params))
 
@@ -649,11 +692,15 @@ def export_params(bundleid, params):
 
 
 
-@app.route('/bundle/<string:bundleid>', methods=['GET'])
+@app.route('/bundle/<string:bundleid>', methods=['GET', 'POST'])
 @crossdomain(origin='*')
 def bundle(bundleid):
     """
     """
+    j = request.get_json()
+    clientid = j.get('clientid', None) if j is not None else None
+    client_version = j.get('client_version', None) if j is not None else None
+
     if app._verbose:
         print("bundle(bundleid={})".format(bundleid))
 
@@ -678,11 +725,15 @@ def bundle(bundleid):
 
     return _get_response(info, api=True)
 
-@app.route('/parameter/<string:bundleid>/<string:uniqueid>', methods=['GET'])
+@app.route('/parameter/<string:bundleid>/<string:uniqueid>', methods=['GET', 'POST'])
 @crossdomain(origin='*')
 def parameter(bundleid, uniqueid):
     """
     """
+    j = request.get_json()
+    clientid = j.get('clientid', None) if j is not None else None
+    client_version = j.get('client_version', None) if j is not None else None
+
     if app._verbose:
         print("parameter(bundleid={}, uniqueid={})".format(bundleid, uniqueid))
 
@@ -702,11 +753,15 @@ def parameter(bundleid, uniqueid):
 
     return _get_response({'success': True, 'parameter': data}, api=True)
 
-@app.route('/adjustable_parameters/<string:bundleid>', methods=['GET'])
+@app.route('/adjustable_parameters/<string:bundleid>', methods=['GET', 'POST'])
 @crossdomain(origin='*')
 def adjustable_parameters(bundleid):
     """
     """
+    j = request.get_json()
+    clientid = j.get('clientid', None) if j is not None else None
+    client_version = j.get('client_version', None) if j is not None else None
+
     if app._verbose:
         print("adjustable_parameters(bundleid={})".format(bundleid))
 
@@ -720,11 +775,15 @@ def adjustable_parameters(bundleid):
 
     return _get_response({'success': True, 'adjustable_parameters': adjustable_parameters}, api=True)
 
-@app.route('/run_checks/<string:bundleid>/<string:run_checks_method>/<string:label>', methods=['GET'])
+@app.route('/run_checks/<string:bundleid>/<string:run_checks_method>/<string:label>', methods=['GET', 'POST'])
 @crossdomain(origin='*')
 def run_checks(bundleid, run_checks_method, label):
     """
     """
+    j = request.get_json()
+    clientid = j.get('clientid', None) if j is not None else None
+    client_version = j.get('client_version', None) if j is not None else None
+
     if app._verbose:
         print("run_checks(bundleid={}, run_checks_method={}, label={})".format(bundleid, run_checks_method, label))
 
@@ -740,9 +799,13 @@ def run_checks(bundleid, run_checks_method, label):
 
     return _get_response(info, api=True)
 
-@app.route('/nparray/<string:input>', methods=['GET'])
+@app.route('/nparray/<string:input>', methods=['GET', 'POST'])
 @crossdomain(origin='*')
 def nparray(input):
+    j = request.get_json()
+    clientid = j.get('clientid', None) if j is not None else None
+    client_version = j.get('client_version', None) if j is not None else None
+
     if app._verbose:
         print("nparray(input={}))".format(input))
     # input is a json-string representation of an array or nparray helper dictionary
@@ -779,9 +842,13 @@ def nparray(input):
     return _get_response({'success': True, 'response': data}, api=True)
 
 
-@app.route('/distl/<string:input>/<float:current_face_value>', methods=['GET'])
+@app.route('/distl/<string:input>/<float:current_face_value>', methods=['GET', 'POST'])
 @crossdomain(origin='*')
 def distl_convert(input, current_face_value):
+    j = request.get_json()
+    clientid = j.get('clientid', None) if j is not None else None
+    client_version = j.get('client_version', None) if j is not None else None
+
     if app._verbose:
         print("distl(input={}))".format(input))
     # input is a json-string representation of a distl distribution object
@@ -813,22 +880,34 @@ def distl_convert(input, current_face_value):
 
     return _get_response({'success': True, 'response': data}, api=True)
 
-@app.route("/<string:bundleid>/figure/<string:figure>", methods=['GET'])
+@app.route("/<string:bundleid>/figure/<string:figure>", methods=['GET', 'POST'])
 def serve_figure(bundleid, figure):
+    j = request.get_json()
+    clientid = j.get('clientid', None) if j is not None else None
+    client_version = j.get('client_version', None) if j is not None else None
+
     fname = '{}_{}.png'.format(bundleid, figure)
     if app._verbose:
         print("serve_figure", fname)
     return send_from_directory(_dir_tmpimages, fname)
 
-@app.route("/<string:bundleid>/figure_afig/<string:figure>", methods=['GET'])
+@app.route("/<string:bundleid>/figure_afig/<string:figure>", methods=['GET', 'POST'])
 def serve_figure_afig(bundleid, figure):
+    j = request.get_json()
+    clientid = j.get('clientid', None) if j is not None else None
+    client_version = j.get('client_version', None) if j is not None else None
+
     fname = '{}_{}.afig'.format(bundleid, figure)
     if app._verbose:
         print("serve_figure_afig", fname)
     return send_from_directory(_dir_tmpimages, fname)
 
-@app.route('/<string:bundleid>/distribution_plot/<string:parameter_uniqueid>/<string:distribution>', methods=['GET'])
+@app.route('/<string:bundleid>/distribution_plot/<string:parameter_uniqueid>/<string:distribution>', methods=['GET', 'POST'])
 def serve_distribution_plot(bundleid, parameter_uniqueid, distribution):
+    j = request.get_json()
+    clientid = j.get('clientid', None) if j is not None else None
+    client_version = j.get('client_version', None) if j is not None else None
+
     if app._verbose:
         print("serve_distribution_plot", bundleid, distribution, parameter_uniqueid)
 
@@ -890,8 +969,10 @@ def disconnect():
 @socketio.on('register client')
 def register_client(msg):
     clientid = msg.get('clientid', None)
+    client_version = msg.get('client_version', None)
     bundleid = msg.get('bundleid', None)
     requestid = msg.get('requestid', None)
+
     if bundleid is not None and bundleid not in app._bundles.keys():
         err = 'bundle not found with bundleid={}'.format(bundleid)
         if app._verbose:
@@ -918,7 +999,10 @@ def register_client(msg):
 @socketio.on('deregister client')
 def deregister_client(msg):
     clientid = msg.get('clientid', None)
+    client_version = msg.get('client_version', None)
     bundleid = msg.get('bundleid', None)
+    requestid = msg.get('requestid', None)
+
     if app._verbose:
         print("deregister_client(clientid={}, bundleid={})".format(clientid, bundleid))
 
@@ -1052,6 +1136,8 @@ def set_value(msg):
 
     bundleid = msg.pop('bundleid')
     requestid = msg.pop('requestid', None)
+    clientid = msg.pop('clientid', None)
+    client_version = msg.pop('client_version', None)
 
     if bundleid not in app._bundles.keys():
         err = 'bundle not found with bundleid={}'.format(bundleid)
@@ -1133,6 +1219,8 @@ def set_default_unit(msg):
 
     bundleid = msg.pop('bundleid')
     requestid = msg.pop('requestid', None)
+    clientid = msg.pop('clientid', None)
+    client_version = msg.pop('client_version', None)
 
     if bundleid not in app._bundles.keys():
         err = 'bundle not found with bundleid={}'.format(bundleid)
@@ -1199,6 +1287,8 @@ def bundle_method(msg):
 
     bundleid = msg.pop('bundleid', None)
     requestid = msg.pop('requestid', None)
+    clientid = msg.pop('clientid', None)
+    client_version = msg.pop('client_version', None)
 
     for k,v in msg.items():
         if isinstance(v, unicode):
@@ -1356,6 +1446,8 @@ def rerun_all_figures(msg):
 
     bundleid = msg.pop('bundleid', None)
     requestid = msg.pop('requestid', None)
+    clientid = msg.pop('clientid', None)
+    client_version = msg.pop('client_version', None)
 
     if bundleid is None:
         emit('errors', {'success': False, 'error': "must provide bundleid"}, broadcast=False)
