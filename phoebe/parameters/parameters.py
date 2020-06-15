@@ -332,6 +332,16 @@ def _singular_to_plural_get(k):
 def _plural_to_singular_get(k):
     return _plural_to_singular.get(k, k)
 
+def _return_ps(b, ps):
+    """set the _filter of the ps to be the uniqueids and return"""
+    if isinstance(ps, list):
+        ps = ParameterSet(ps)
+    if ps._bundle is None:
+        ps._bundle = b
+    if not len(ps._filter.keys()):
+        ps._filter = {'uniqueid': ps.uniqueids}
+    return ps
+
 def send_if_client(fctn):
     """Intercept and send to the server if bundle is in client mode."""
     @functools.wraps(fctn)
@@ -380,6 +390,9 @@ def send_if_client(fctn):
                 # otherwise the user will have to call b.attach_job manually?  Or will the results just come in once done?
                 # should be the single job parameter
                 ret_ += self._bundle.attach_job(uniqueid=ParameterSet([p for p in ret_.to_list() if p._bundle is not None]).get_parameter(qualifier='detached_job', **_skip_filter_checks).uniqueid)
+
+            if isinstance(ret_, ParameterSet) and not len(ret_._filter.keys()):
+                ret_ = _return_ps(self._bundle, ret_)
 
             return ret_
 
@@ -1779,15 +1792,18 @@ class ParameterSet(object):
 
     def _launch_ui(self, web_client, action, filter={}):
 
-        def filteritem(v):
+        def filteritem(k, v):
             if isinstance(v, list):
                 return v
             else:
                 return [v]
 
         if len(filter.items()):
-            querystr = "&".join(["{}={}".format(k, filteritem(v))
+            querystr = "&".join(["{}={}".format(k, filteritem(k, v))
                                  for k, v in filter.items()])
+
+            querystr += "&advanced=['is_advanced','is_single','is_constraint']"
+
         else:
             querystr = None
 
@@ -1816,7 +1832,7 @@ class ParameterSet(object):
 
 
             if querystr:
-                cmd += ' -f \'{}\''.format(querystr)
+                cmd += ' -f \"{}\"'.format(querystr.replace(' ', ''))
 
 
             if action:
@@ -1854,6 +1870,9 @@ class ParameterSet(object):
 
             if web_client is True:
                 web_client = 'http://ui.phoebe-project.org'
+
+            if 'http' not in web_client[:5]:
+                web_client = 'http://'+web_client
 
             if action:
                 url = "{}/{}/{}/{}?{}".format(web_client, self._bundle.is_client.strip("http://"), self._bundle._bundleid, action, querystr)
@@ -1929,7 +1948,7 @@ class ParameterSet(object):
 
 
         if len(kwargs):
-            return self.filter(**kwargs).ui(client=client, full_ui=full_ui)
+            return self.filter(**kwargs).ui(web_client=web_client, full_ui=full_ui)
 
         if full_ui is None:
             # default to True for the full bundle, False for a filtered PS

@@ -34,7 +34,7 @@ from phoebe.parameters import solver as _solver
 from phoebe.parameters import constraint as _constraint
 from phoebe.parameters import feature as _feature
 from phoebe.parameters import figure as _figure
-from phoebe.parameters.parameters import _uniqueid
+from phoebe.parameters.parameters import _uniqueid, _return_ps
 from phoebe.backend import backends, mesh
 from phoebe.backend import universe as _universe
 from phoebe.solverbackends import solverbackends as _solverbackends
@@ -1790,7 +1790,7 @@ class Bundle(ParameterSet):
             return_ = self.remove_parameter(uniqueid=param.uniqueid)
 
         # let's not add_history for this one...
-        return return_
+        return _return_ps(self, return_)
 
     @property
     def history_enabled(self):
@@ -4835,8 +4835,8 @@ class Bundle(ParameterSet):
         ret_ps = self.filter(feature=kwargs['feature'], **_skip_filter_checks)
 
         if kwargs.get('overwrite', False) and return_changes:
-            return ret_ps + overwrite_ps
-        return ret_ps
+            ret_ps += overwrite_ps
+        return _return_ps(self, ret_ps)
 
     def get_feature(self, feature=None, **kwargs):
         """
@@ -5230,8 +5230,8 @@ class Bundle(ParameterSet):
             ret_changes += overwrite_ps
 
         if return_changes:
-            return ret_ps + ret_changes
-        return ret_ps
+            ret_ps += ret_changes
+        return _return_ps(self, ret_ps)
 
     def get_component(self, component=None, **kwargs):
         """
@@ -5287,8 +5287,8 @@ class Bundle(ParameterSet):
             ret_changes += self._handle_component_selectparams(return_changes=return_changes)
 
         if return_changes:
-            return ret_ps + ret_changes
-        return ret_ps
+            ret_ps += ret_changes
+        return _return_ps(self, ret_ps)
 
     @send_if_client
     def rename_component(self, old_component, new_component, return_changes=False):
@@ -6074,8 +6074,8 @@ class Bundle(ParameterSet):
         ret_changes += self._handle_fitparameters_selecttwigparams(return_changes=return_changes)
 
         if return_changes:
-            return ret_ps + ret_changes
-        return ret_ps
+            ret_ps += ret_changes
+        return _return_ps(self, ret_ps)
 
     def get_dataset(self, dataset=None, **kwargs):
         """
@@ -6188,8 +6188,8 @@ class Bundle(ParameterSet):
                           undo_kwargs={})
 
         if return_changes:
-            return ret_ps + ret_changes
-        return ret_ps
+            ret_ps += ret_changes
+        return _return_ps(self, ret_ps)
 
     def remove_datasets_all(self, return_changes=False):
         """
@@ -6252,8 +6252,8 @@ class Bundle(ParameterSet):
                 ret_changes += [param]
 
         if return_changes:
-            return ret_ps + ret_changes
-        return ret_ps
+            ret_ps += ret_changes
+        return _return_ps(self, ret_ps)
 
 
     def enable_dataset(self, dataset=None, **kwargs):
@@ -6990,7 +6990,7 @@ class Bundle(ParameterSet):
         if kwargs.get('overwrite_individual', False) and return_changes:
             ret_ps += overwrite_ps
 
-        return ret_ps
+        return _return_ps(self, ret_ps)
 
 
     @send_if_client
@@ -7198,8 +7198,8 @@ class Bundle(ParameterSet):
                           undo_kwargs={'distribution': kwargs['distribution']})
 
         if return_changes:
-            return ret_ps + ret_changes
-        return ret_ps
+            ret_ps += ret_changes
+        return _return_ps(self, ret_ps)
 
     def get_distribution(self, distribution=None, **kwargs):
         """
@@ -7274,8 +7274,8 @@ class Bundle(ParameterSet):
         ret_changes += self._handle_computesamplefrom_selectparams(return_changes=return_changes)
 
         if return_changes:
-            return ret_ps + ret_changes
-        return ret_ps
+            ret_ps += ret_changes
+        return _return_ps(self, ret_ps)
 
     @send_if_client
     def remove_distribution(self, distribution, return_changes=False, **kwargs):
@@ -7311,8 +7311,8 @@ class Bundle(ParameterSet):
             ret_changes += self._handle_computesamplefrom_selectparams(return_changes=return_changes)
 
         if return_changes:
-            return ret_ps + ret_changes
-        return ret_ps
+            ret_ps += ret_changes
+        return _return_ps(self, ret_ps)
 
     def _distribution_collection_defaults(self, twig=None, **kwargs):
         filter_kwargs = {k:v for k,v in kwargs.items() if k in parameters._meta_fields_filter}
@@ -7819,9 +7819,9 @@ class Bundle(ParameterSet):
             changed_params += self.run_delayed_constraints()
             if user_interactive_constraints:
                 conf.interactive_constraints_on()
-            return ParameterSet(changed_params)
+            return _return_ps(self, ParameterSet(changed_params))
         else:
-            return ret
+            return _return_ps(self, ret)
 
     def plot_distribution_collection(self, twig=None,
                                     set_labels=True,
@@ -8124,8 +8124,8 @@ class Bundle(ParameterSet):
             ret_ps += overwrite_ps
 
         if return_changes:
-            return ret_ps + ret_changes
-        return ret_ps
+            ret_ps += ret_changes
+        return _return_ps(self, ret_ps)
 
     def get_figure(self, figure=None, **kwargs):
         """
@@ -8160,7 +8160,7 @@ class Bundle(ParameterSet):
         elif len(ret_ps.figures) > 1:
             raise ValueError("more than one figure matched: {}".format(kwargs))
 
-        return ret_ps
+        return _return_ps(self, ret_ps)
 
     @send_if_client
     def remove_figure(self, figure, return_changes=False, **kwargs):
@@ -8194,8 +8194,8 @@ class Bundle(ParameterSet):
             ret_changes += self._handle_figure_selectparams(return_changes=return_changes)
 
         if return_changes:
-            return ret_ps + ret_changes
-        return ret_ps
+            ret_ps += ret_changes
+        return _return_ps(self, ret_ps)
 
     @send_if_client
     def rename_figure(self, old_figure, new_figure,
@@ -9392,8 +9392,8 @@ class Bundle(ParameterSet):
             ret_ps += overwrite_ps
 
         if return_changes:
-            return ret_ps + ret_changes
-        return ret_ps
+            ret_ps += ret_changes
+        return _return_ps(self, ret_ps)
 
     def get_compute(self, compute=None, **kwargs):
         """
@@ -9448,8 +9448,8 @@ class Bundle(ParameterSet):
             ret_changes += self._handle_compute_selectparams(return_changes=return_changes)
 
         if return_changes:
-            return ret_ps + ret_changes
-        return ret_ps
+            ret_ps += ret_changes
+        return _return_ps(self, ret_ps)
 
     def remove_computes_all(self, return_changes=False):
         """
@@ -9850,7 +9850,7 @@ class Bundle(ParameterSet):
             self.as_client(as_client=detach)
             ret_ = self.run_compute(compute=compute, model=model, dataset=dataset, times=times, return_changes=return_changes, **kwargs)
             self.as_client(as_client=False)
-            return ret_
+            return _return_ps(self, ret_)
 
         if isinstance(times, float) or isinstance(times, int):
             times = [times]
@@ -10289,8 +10289,8 @@ class Bundle(ParameterSet):
             ret_ps += overwrite_ps
 
         if return_changes:
-            return ret_ps + ret_changes
-        return ret_ps
+            ret_ps += ret_changes
+        return _return_ps(self, ret_ps)
 
     def get_model(self, model=None, **kwargs):
         """
@@ -10396,8 +10396,8 @@ class Bundle(ParameterSet):
                                                 do_create_fig_params=False)
 
         if return_changes:
-            return ret_ps + ret_changes
-        return ret_ps
+            ret_ps += ret_changes
+        return _return_ps(self, ret_ps)
 
     @send_if_client
     def remove_model(self, model, return_changes=False, **kwargs):
@@ -10436,8 +10436,8 @@ class Bundle(ParameterSet):
                                                 **kwargs)
 
         if return_changes:
-            return ret_ps + ret_changes
-        return ret_ps
+            ret_ps += ret_changes
+        return _return_ps(self, ret_ps)
 
     def remove_models_all(self, return_changes=False):
         """
@@ -10492,8 +10492,8 @@ class Bundle(ParameterSet):
         ret_changes += self._handle_model_selectparams(return_changes=return_changes)
 
         if return_changes:
-            return ret_ps + ret_changes
-        return ret_ps
+            ret_ps += ret_changes
+        return _return_ps(self, ret_ps)
 
     @send_if_client
     def attach_job(self, twig=None, wait=True, sleep=5, cleanup=True,
@@ -10687,8 +10687,8 @@ class Bundle(ParameterSet):
             # TODO: else raise warning?
 
         if return_changes:
-            return ret_ps + ret_changes
-        return ret_ps
+            ret_ps += ret_changes
+        return _return_ps(self, ret_ps)
 
     def get_solver(self, solver=None, **kwargs):
         """
@@ -10751,8 +10751,8 @@ class Bundle(ParameterSet):
             ret_changes += self._handle_solver_selectparams(return_changes=return_changes)
 
         if return_changes:
-            return ret_ps + ret_changes
-        return ret_ps
+            ret_ps += ret_changes
+        return _return_ps(self, ret_ps)
 
     def remove_solvers_all(self, return_changes=False):
         """
@@ -10805,8 +10805,8 @@ class Bundle(ParameterSet):
         ret_changes += self._handle_solver_selectparams(return_changes=return_changes)
 
         if return_changes:
-            return ret_ps + ret_changes
-        return ret_ps
+            ret_ps += ret_changes
+        return _return_ps(self, ret_ps)
 
 
     def _prepare_solver(self, solver, solution, **kwargs):
@@ -11232,8 +11232,8 @@ class Bundle(ParameterSet):
 
 
         if return_changes:
-            return ret_ps + ret_changes
-        return ret_ps
+            ret_ps += ret_changes
+        return _return_ps(self, ret_ps)
 
     def _get_adopt_inds_uniqueids(self, solution_ps, **kwargs):
 
@@ -11446,8 +11446,8 @@ class Bundle(ParameterSet):
             ret_changes += self.remove_solution(solution=solution)
 
         if return_changes:
-            return ret_ps + ret_changes
-        return ret_ps
+            ret_ps += ret_changes
+        return _return_ps(self, ret_ps)
 
     def get_solution(self, solution=None, **kwargs):
         """
@@ -11577,8 +11577,8 @@ class Bundle(ParameterSet):
         ret_changes += self._run_solver_changes(ret_ps, return_changes=return_changes)
 
         if return_changes:
-            return ret_ps + ret_changes
-        return ret_ps
+            ret_ps += ret_changes
+        return _return_ps(self, ret_ps)
 
     @send_if_client
     def remove_solution(self, solution, return_changes=False, **kwargs):
@@ -11611,8 +11611,8 @@ class Bundle(ParameterSet):
                                                during_overwrite=kwargs.get('during_overwrite', False))
 
         if return_changes:
-            return ret_ps + ret_changes
-        return ret_ps
+            ret_ps += ret_changes
+        return _return_ps(self, ret_ps)
 
     def remove_solutions_all(self, return_changes=False, **kwargs):
         """
@@ -11663,4 +11663,4 @@ class Bundle(ParameterSet):
 
         ret_ps = self.filter(solution=new_solution)
 
-        return ret_ps
+        return _return_ps(self, ret_ps)
