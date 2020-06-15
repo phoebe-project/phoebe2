@@ -469,6 +469,7 @@ class Bundle(ParameterSet):
         self._client_allow_disconnect = False
         self._waiting_on_server = False
         self._server_changes = None
+        self._server_secret = None  # if not None, will attempt to send kill signal atexit and as_client=False
 
         self._within_solver = False
 
@@ -885,7 +886,8 @@ class Bundle(ParameterSet):
         * `server` (string, optional, default='http://localhost:5555'): the
             host (and port) of the server.
         * `as_client` (bool, optional, default=True):  whether to attach in
-            client mode.  See <phoebe.frontend.bundle.Bundle.as_client>.
+            client mode.  If True, `server` will be passed to
+            <phoebe.frontend.bundle.Bundle.as_client> as `as_client`.
         """
         # TODO: support default cases from server?
 
@@ -902,7 +904,7 @@ class Bundle(ParameterSet):
         b = cls(rjson['data']['bundle'])
 
         if as_client:
-            b.as_client(as_client, server=server,
+            b.as_client(as_client=server,
                         bundleid=rjson['meta']['bundleid'])
 
             logger.warning("This bundle is in client mode, meaning all computations will be handled by the server at {}.  To disable client mode, call as_client(False) or in the future pass as_client=False to from_server".format(server))
@@ -1403,36 +1405,62 @@ class Bundle(ParameterSet):
         self._socketio.emit('deregister client', {'clientid': _clientid, 'bundleid': None})
         if bundleid is not None:
             self._socketio.emit('deregister client', {'clientid': _clientid, 'bundleid': bundleid})
+
+
+        if self._server_secret is not None:
+            logger.warning("attempting to kill child server process at {}".format(self.is_client))
+            self._socketio.emit('kill', {'clientid': _clientid, 'secret': self._server_secret})
+            self._server_secret = None
+
         self._socketio.disconnect()
         self._socketio = None
 
-    def as_client(self, as_client=True, server='http://localhost:5555',
+    def as_client(self, as_client='http://localhost:5555',
                   bundleid=None, wait_for_server=False, reconnection_attempts=None,
-                  sync=False):
+                  blocking=False):
         """
-        Enter (or exit) client mode.
+        Enter (or exit) client mode.  Client mode allows a server (either running
+        locally on localhost or on an external machine) to host the bundle
+        and handle all computations.  Any changes to parameters, etc, are then
+        transmitted to each of the attached clients so that they remain in
+        sync.
+
+        PHOEBE will first try a connection with `as_client`.  If an instance of
+        PHOEBE server is not found, `as_client` includes 'localhost', and
+        the port is open, then the server will be launched automatically as a
+        child process of this thread (it will attempt to be killed when
+        calling `as_client(as_client=False)` or when closing python) - but
+        is not always successful and the thread may need to be killed manually.
 
         See also:
         * <phoebe.frontend.bundle.Bundle.from_server>
         * <phoebe.parameters.ParameterSet.ui>
+        * <phoebe.frontend.bundle.Bundle.ui_figures>
         * <phoebe.frontend.bundle.Bundle.is_client>
 
         Arguments
         -----------
-        * `as_client` (bool, optional, default=True): whether to enter (True)
-            or exit (False) client mode.
-        * `server` (string, optional, default='http://localhost:5555'): the URL
-            location (including port, if necessary) to find the phoebe-server.
+        * `as_client` (bool or string, optional, default='localhost:5555'):
+            If a string: will attach to the server at the provided URL.  If
+            the server does not exist but is at localhost, one will attempt
+            to be launched as a child process and will be closed when exiting
+            or leaving client-mode.  If True, will default to the above
+            with 'localhost:5555'.  If False, will disconnect from the existing
+            connection and exit client mode.
         * `bundleid` (string, optional, default=None): if provided and the
             bundleid is available from the given server, that bundle will be
             downloaded and attached.  If provided but bundleid is not available
             from the server, the current bundle will be uploaded and assigned
             the given bundleid.  If not provided, the current bundle will be
             uploaded and assigned a random bundleid.
-        * `wait_for_server`
-        * `reconnection_attempts`
-        * `sync` (bool, optional, default=False): whether to enter client-mode
-            synchronously (will not return until the connection is closed).
+        * `wait_for_server` (bool, optional, default=False): whether to wait
+            for the server to be started externally rather than attempt to
+            launch a child-process or raise an error.
+        * `reconnection_attempts` (int or None, optional, default=None): number
+            of reconnection attempts to allow before disonnnecting automatically.
+        * `blocking` (bool, optional, default=False): whether to enter client-mode
+            synchronously (will not return until the connection is closed) at
+            which point the bundle will no longer be in client mode.
             This is used internally by <phoebe.parameters.ParameterSet.ui>,
             but should be overridden with caution.
 
@@ -1447,13 +1475,32 @@ class Bundle(ParameterSet):
             if not _can_client:
                 raise ImportError("dependencies to support client mode not met - see docs")
 
+            if as_client is True:
+                server = 'localhost:5555'
+            else:
+                server = as_client
+
             if 'http' not in server[:5]:
                 server = 'http://'+server
 
             server_running = self._test_server(server=server,
                                                wait_for_server=wait_for_server)
             if not server_running:
-                raise ValueError("server {} is not running".format(server))
+                if 'localhost' not in server:
+                    raise ValueError("server {} is not running and does not include 'localhost' so will not be launched automatically".format(server))
+
+                try:
+                    port = int(server.split(':')[-1])
+                except:
+                    raise ValueError("could not detect port from server='{}' when attempting to launch.  server should have the format 'localhost:5500'")
+
+                self._server_secret = _uniqueid(6)
+                cmd = 'phoebe-server --port {} --parent {} --secret {} &'.format(port, _clientid, self._server_secret)
+                logger.info("system command: {}".format(cmd))
+                os.system(cmd)
+
+                server_running = self._test_server(server=server,
+                                                   wait_for_server=True)
 
             self._socketio = socketio.Client(reconnection_delay=0.1, reconnection_attempts=0 if reconnection_attempts is None else reconnection_attempts)
             self._socketio.on('connect', self._on_socket_connect)
@@ -1493,9 +1540,9 @@ class Bundle(ParameterSet):
             logger.info("connected as client {} to server at {}".
                         format(_clientid, server))
 
-            if sync:
+            if blocking:
                 self._socketio.wait()
-                self.as_client(False)
+                self.as_client(as_client=False)
 
         else:
             logger.warning("This bundle is now permanently detached from the instance on the server and will not receive future updates.  To start a client in sync with the version on the server or other clients currently subscribed, you must instantiate a new bundle with Bundle.from_server.")
@@ -1509,6 +1556,8 @@ class Bundle(ParameterSet):
     @property
     def is_client(self):
         """
+        Whether the <phoebe.frontend.bundle.Bundle> is currently in client-mode.
+
         See also:
         * <phoebe.frontend.bundle.Bundle.from_server>
         * <phoebe.parameters.ParameterSet.ui>
@@ -8493,6 +8542,14 @@ class Bundle(ParameterSet):
         ----------
         * `url` (string): the opened URL (will attempt to launch in the system
             webbrowser)
+
+        Raises
+        -----------
+        * ValueError: if the <phoebe.parameters.ParameterSet> is not attached
+            to a parent <phoebe.frontend.bundle.Bundle>.
+        * ValueError: if `web_client` is provided but the <phoebe.frontend.bundle.Bundle>
+            is not in client mode (see <phoebe.frontend.bundle.Bundle.is_client>
+            and <phoebe.frontend.bundle.Bundle.as_client>)
         """
 
         return self._launch_ui(web_client, 'figures')
@@ -9790,9 +9847,9 @@ class Bundle(ParameterSet):
         if isinstance(detach, str) or isinstance(detach, unicode):
             # then we want to temporarily go in to client mode
             raise NotImplementedError("detach currently must be a bool")
-            self.as_client(server=detach)
+            self.as_client(as_client=detach)
             ret_ = self.run_compute(compute=compute, model=model, dataset=dataset, times=times, return_changes=return_changes, **kwargs)
-            self.as_client(False)
+            self.as_client(as_client=False)
             return ret_
 
         if isinstance(times, float) or isinstance(times, int):
@@ -11024,9 +11081,9 @@ class Bundle(ParameterSet):
         if isinstance(detach, str) or isinstance(detach, unicode):
             # then we want to temporarily go in to client mode
             raise NotImplementedError("detach currently must be a bool")
-            self.as_client(server=detach)
+            self.as_client(as_client=detach)
             self.run_solver(solver=solver, solution=solution, **kwargs)
-            self.as_client(False)
+            self.as_client(as_client=False)
             return self.get_solution(solution=solution)
 
         solver, solution, compute, solver_ps = self._prepare_solver(solver, solution, **kwargs)

@@ -1803,13 +1803,13 @@ class ParameterSet(object):
                 # then we're attaching the UI to an already existing instance on an already running server
                 cmd += ' -s {} -b {}'.format(self._bundle.is_client.strip('http://'), self._bundle._bundleid)
                 cmd += ' --skip-child-server'
-                _async = True
+                blocking = False
             else:
                 # then we'll upload the bundle to the server that will be launched
                 # by the UI itself.  By default we'll force synchronous mode.
                 # TODO: allow an option to use async mode with warnings that
                 # disconnection may not be automatic
-                _async = False
+                blocking = True
 
                 bundleid = _uniqueid(6)
                 cmd += ' -p 5000 -b {} -w'.format(bundleid)
@@ -1823,8 +1823,6 @@ class ParameterSet(object):
                 cmd += ' -a {}'.format(action)
 
             cmd += ' --noWarnOnClose'
-
-            # if _async:
             cmd += ' &'
 
             logger.info("system call: "+cmd)
@@ -1836,22 +1834,23 @@ class ParameterSet(object):
                 # to wait for it to be launched as a child process by the server
                 # first.  The UI will also be waiting for the bundle to be available
                 # to the server.
-                logger.info("entering client mode")
-
-                # TODO: we need to asynchronously launch the server, but be able to control it to kill it later....
+                logger.info("(temporarily) entering client mode")
 
                 # by setting this, once the UI is closed by the user and the child-server is killed
                 # the bundle will gracefully disconnect and leave client mode
                 self._client_allow_disconnect = True
-                # TODO: allow the user requesting sync mode here... in which case the bundle will remain in client mode until the server is killed, either by the UI or otherwise
-                # NOTE: the automatic disconnect signal doesn't always work well which is why this isn't the default
-                # NOTE: when sync=True, the bundle will automatically exit client mode once closed
-                self._bundle.as_client(server='http://localhost:5000', bundleid=bundleid, wait_for_server=True, reconnection_attempts=3, sync=not _async)
+
+                # NOTE: we use 5000 here because that is what we passed to the
+                # UI which will launch the server
+                self._bundle.as_client(as_client='http://localhost:5000', bundleid=bundleid, wait_for_server=True, reconnection_attempts=3, blocking=blocking)
 
         else:
             # then we must be in client mode already
             if not self._bundle.is_client:
                 raise ValueError("bundle must be in client mode (see b.as_client) before launching a web_client.")
+
+                # TODO: could allow passing as_client to PS.ui() to launch in one line...
+                # self._bundle.as_client(as_client=as_client, bundleid=bundleid, wait_for_server=True, reconnection_attempts=3, blocking=False)
 
             if web_client is True:
                 web_client = 'http://ui.phoebe-project.org'
@@ -1870,15 +1869,19 @@ class ParameterSet(object):
         """
         Open an interactive user-interface for the ParameterSet.
 
-        If the bundle is in client mode (see <phoebe.frontend.bundle.Bundle.as_client>)
-        then the UI will open asynchronously (allowing you to interact from
+        If the bundle is in client mode (see <phoebe.frontend.bundle.Bundle.is_client>
+        and <phoebe.frontend.bundle.Bundle.as_client>) then the UI will open
+        asynchronously or non-blocking (allowing you to interact from
         both python and the UI simultaneously).  Otherwise the UI will open
-        synchronously (you will need to close the UI before continuing in Python).
+        synchronously by blocking the thread until the UI is closed and the
+        bundle will continue outside of client mode (in this case the server
+        will actually be launched by the client).
 
-        If not installed, pass a URL to `web_client` (ie. http://ui.phoebe-project.org)
-        to launch the web-client in the default system browser. Note that
-        this is only supported in asynchronous mode and requires the bundle
-        to already be in client mode.
+        If the UI is not installed, pass a URL to `web_client`
+        (ie. http://ui.phoebe-project.org) to launch the web-client in the
+        default system browser. Note that this is only supported in asynchronous
+        (non-blocking) mode and requires the bundle to already be in client mode.
+        Call <phoebe.frontend.bundle.Bundle.as_client> first to use `web_client`.
 
         To more information or to install the desktop-client, see
         http://phoebe-project.org/clients
@@ -1912,6 +1915,14 @@ class ParameterSet(object):
         ----------
         * if `web_client`: `url` (string): the opened URL (will attempt to launch in the system
             webbrowser)
+
+        Raises
+        -----------
+        * ValueError: if the <phoebe.parameters.ParameterSet> is not attached
+            to a parent <phoebe.frontend.bundle.Bundle>.
+        * ValueError: if `web_client` is provided but the <phoebe.frontend.bundle.Bundle>
+            is not in client mode (see <phoebe.frontend.bundle.Bundle.is_client>
+            and <phoebe.frontend.bundle.Bundle.as_client>)
         """
         if self._bundle is None:
             raise ValueError("cannot call ui on a ParameterSet not attached to a Bundle")
