@@ -7,13 +7,7 @@ pip install flask-socketio
 pip install gevent-websocket
 
 to launch with MPI enabled:
-PHOEBE_ENABLE_MPI=TRUE PHOEBE_MPI_NP=8 phoebe-server [port]
-
-to set a maximum number of allowed max_computations
-PHOEBE_SERVER_MAX_COMPUTATIONS=100 phoebe-server [port]
-
-to disable any compute-required solvers (optimizers/samplers)
-PHOEBE_SERVER_DISABLE_SOLVERS=True phoebe-server [port]
+PHOEBE_ENABLE_MPI=TRUE PHOEBE_MPI_NP=8 phoebe-server [...]
 """
 
 try:
@@ -34,7 +28,7 @@ app._bundles = {}
 app._clients = []
 app._clients_per_bundle = {}
 app._last_access_per_bundle = {}
-app._verbose = True
+app._verbose = False # set with --verbose flag at command line
 app._debug = False  # NOTE: setting this to True will fail to raise error messages in the UI
 app._killable = False
 
@@ -88,6 +82,7 @@ import os
 import sys
 import tempfile
 import traceback
+import argparse
 # if _sys.version_info[0] < 3:
 #     import urllib2 as urllib
 # else:
@@ -108,16 +103,6 @@ phoebe.devel_on() # currently needed for client mode, remove for actual release
 phoebe.interactive_off()
 phoebe.parameters._is_server = True
 
-_max_computations = os.getenv('PHOEBE_SERVER_MAX_COMPUTATIONS', None)
-if _max_computations is not None:
-    _max_computations = int(_max_computations)
-
-_disable_solvers = os.getenv('PHOEBE_SERVER_DISABLE_SOLVERS', 'False').lower()=='true'
-if _disable_solvers:
-    _allowed_solver_kinds = [s.split('.')[-1] for s in phoebe.list_available_solvers() if s.split('.')[0] not in ['optimizer', 'sampler']]
-else:
-    _allowed_solver_kinds = [s.split('.')[-1] for s in phoebe.list_available_solvers()]
-
 _dir_tmpimages = os.path.join(tempfile.gettempdir(), 'phoebe-server-tmpimages')
 
 if not os.path.exists(_dir_tmpimages):
@@ -134,7 +119,7 @@ def bundle_memory_cleanup(stale_limit_seconds=600):
         stale_for = (now-last_access).total_seconds()
         clients = app._clients_per_bundle.get(bundleid, [])
         active_clients = [c for c in clients if c in app._clients]
-        print("bundle_memory_cleanup: {} stale for {}/{} seconds with {} active clients and {} total clients".format(bundleid, stale_for, stale_limit_seconds, len(active_clients), len(clients)))
+        if app._verbose: print("bundle_memory_cleanup: {} stale for {}/{} seconds with {} active clients and {} total clients".format(bundleid, stale_for, stale_limit_seconds, len(active_clients), len(clients)))
         # we'll delete if any of the following
         # * no active clients and past the stale limit
         # * no clients at all and stale for 30 seconds (in the case of closing where the client sent a deregister signal)
@@ -441,8 +426,8 @@ def info():
                           'nclients': len(app._clients), 'clients': app._clients,
                           'nbundles': len(app._bundles.keys()), 'clients_per_bundle': app._clients_per_bundle, 'last_access_per_bundle': app._last_access_per_bundle,
                           'available_kinds': _available_kinds,
-                          'max_computations': _max_computations,
-                          'allowed_solver_kinds': _allowed_solver_kinds
+                          'max_computations': app._maxcomputations if app._maxcomputations > 0 else None,
+                          'allowed_solver_kinds': app._allowed_solver_kinds
                           },
                           api=True)
 
@@ -1017,6 +1002,27 @@ def deregister_client(msg):
     # now cleanup from memory any bundle with NO cients
     bundle_memory_cleanup()
 
+@socketio.on('kill')
+def kill(msg):
+    clientid = msg.get('clientid', None)
+    client_version = msg.get('client_version', None)
+    bundleid = msg.get('bundleid', None)
+    requestid = msg.get('requestid', None)
+    secret = msg.get('secret', None)
+
+    if app._secret is None:
+        emit('{}:errors:react', {'success': False, 'error': 'server is not killable as it was not launched with a secret'}, broadcast=False)
+        emit('{}:errors:python', {'success': False, 'error': 'server is not killable as it was not launched with a secret'}, broadcast=False)
+        return
+
+    if app._secret != secret:
+        emit('{}:errors:react', {'success': False, 'error': 'incorrect secret'}, broadcast=False)
+        emit('{}:errors:python', {'success': False, 'error': 'incorrect secret'}, broadcast=False)
+        return
+
+    if app._verbose: print("killing from API call with matching secret")
+    socketio.stop()
+
 ########## BUNDLE METHODS
 def _run_checks(b, bundleid, run_checks_method='run_checks', run_checks_kwargs={}, do_emit=True):
     report = getattr(b, run_checks_method)(**run_checks_kwargs)
@@ -1029,6 +1035,7 @@ def _run_checks(b, bundleid, run_checks_method='run_checks', run_checks_kwargs={
     except Exception as err:
         emit('{}:errors:react'.format(bundleid), {'success': True, 'level': 'warning', 'error': str(err)}, broadcast=False)
         if app._debug: raise
+        return
     # if len(b._failed_constraints):
         # msg = 'Constraints for the following parameters failed to run: {}.  Affected values will not be updated until the constraints can succeed.'.format(', '.join([b.get_parameter(uniqueid=c, check_visible=False).constrained_parameter.uniquetwig for c in b._failed_constraints]))
         # emit('{}:errors:react'.format(bundleid), {'success': True, 'level': 'warning', 'error': msg}, broadcast=False)
@@ -1321,7 +1328,7 @@ def bundle_method(msg):
 
     if _disable_solvers and method == 'run_solver':
         solver_kind = b.get_solver(solver=msg.get('solver')).kind
-        if solver_kind not in _allowed_solver_kinds:
+        if solver_kind not in app._allowed_solver_kinds:
             emit('{}:errors:react'.format(bundleid), {'success': False, 'requestid': requestid, 'error': 'solver with kind {} is disabled on this server.  Export and run manually instead'.format(solver_kind)}, broadcast=False)
             emit('{}:errors:python'.format(bundleid), {'success': False, 'requestid': requestid, 'error': 'solver with kind {} is disabled on this server.  Export and run manually instead'.format(solver_kind)}, broadcast=False)
             return
@@ -1329,7 +1336,7 @@ def bundle_method(msg):
     if method in ['run_compute', 'run_solver']:
         # TODO: have this be a environment variable or flag at the top-level?
         # forbid expensive computations on this server
-        msg['max_computations'] = _max_computations
+        msg['max_computations'] = app._maxcomputations if app._maxcomputations > 0 else None
         msg['detach'] = True
     elif method in ['attach_job']:
         msg['wait'] = False
@@ -1470,25 +1477,30 @@ def rerun_all_figures(msg):
 
 
 if __name__ == "__main__":
-    #phoebe_server.py port, parent, host
-    if len(sys.argv) >= 2:
-        port = int(float(sys.argv[1]))
-    else:
-        port = 5555
 
-    if len(sys.argv) >= 3:
-        parent = sys.argv[2]
-    else:
-        parent = 'notprovided'
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--host', help='IP of the host to launch the server (default: 127.0.0.1/localhost)', default='127.0.0.1')
+    parser.add_argument('--port', help='port to launch the server (default: 5555)', default=5555, type=int)
+    parser.add_argument('--parent', help='id of the parent client (default: notprovided)', default='notprovided')
+    parser.add_argument('--secret', help='secret key to allow killing the process from an API call (default: None)', default=None)
+    parser.add_argument('--maxcomputations', help='number of maximum timepoints to allow in run_compute calls.  If 0 (default), no limit will be set.', default=0)
+    parser.add_argument('--disablesolvers', help='disable optimizers/samplers (estimators will still be allowed)', action='store_true', default=False)
+    parser.add_argument('--verbose', help='print verbose messages', action='store_true', default=False)
 
-    if len(sys.argv) >=4:
-        host = sys.argv[3]
-    else:
-        host = '127.0.0.1'
+    args = parser.parse_args()
 
-    app._parent = parent
+    app._parent = args.parent
+    app._secret = args.secret
+
+    app._maxcomputations = args.maxcomputations
+    if args.disablesolvers:
+        app._allowed_solver_kinds = [s.split('.')[-1] for s in phoebe.list_available_solvers() if s.split('.')[0] not in ['optimizer', 'sampler']]
+    else:
+        app._allowed_solver_kinds = [s.split('.')[-1] for s in phoebe.list_available_solvers()]
+
+    app._verbose = args.verbose
 
     if app._verbose:
-        print("*** SERVER READY at {}:{} ***".format(host, port))
+        print("*** SERVER READY at {}:{} ***".format(args.host, args.port))
 
-    socketio.run(app, host=host, port=port)
+    socketio.run(app, host=args.host, port=args.port)
