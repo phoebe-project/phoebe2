@@ -1326,7 +1326,7 @@ def bundle_method(msg):
 
     method = msg.pop('method')
 
-    if _disable_solvers and method == 'run_solver':
+    if app._disable_solvers and method == 'run_solver':
         solver_kind = b.get_solver(solver=msg.get('solver')).kind
         if solver_kind not in app._allowed_solver_kinds:
             emit('{}:errors:react'.format(bundleid), {'success': False, 'requestid': requestid, 'error': 'solver with kind {} is disabled on this server.  Export and run manually instead'.format(solver_kind)}, broadcast=False)
@@ -1493,6 +1493,7 @@ if __name__ == "__main__":
     app._secret = args.secret
 
     app._maxcomputations = args.maxcomputations
+    app._disable_solvers = args.disablesolvers
     if args.disablesolvers:
         app._allowed_solver_kinds = [s.split('.')[-1] for s in phoebe.list_available_solvers() if s.split('.')[0] not in ['optimizer', 'sampler']]
     else:
