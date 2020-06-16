@@ -232,7 +232,11 @@ def _value_string(param):
     param_type = param.__class__.__name__
 
     if param_type in ['StringParameter', 'ChoiceParameter', 'HierarchyParameter']:
-        return param.get_value()
+        v = param.get_value()
+        if not len(v):
+            return '<empty>'
+        else:
+            return v
     elif param_type in ['ConstraintParameter']:
         return "f({})".format(",".join([p.qualifier for p in param.vars.to_list() if p != param.constrained_parameter]))
     elif param_type in ['SelectParameter', 'SelectTwigParameter']:
