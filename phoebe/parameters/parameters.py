@@ -1828,6 +1828,12 @@ class ParameterSet(object):
         else:
             is_jupyter = False
 
+        if is_jupyter:
+            if self._bundle.is_client:
+                querystr += "&disconnectButton=disconnect"
+            # else:
+            #     querystr += "&disconnectButton=continue"
+
         # now if full_ui was passed to auto, then we want to default to False
         # for Jupyter, but to True if no filter otherwise
         if full_ui == 'auto':
