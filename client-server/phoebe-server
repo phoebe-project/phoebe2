@@ -966,7 +966,8 @@ def ui(path=''):
 ########## SOCKET ERRORS
 @socketio.on_error()
 def error_handler(err):
-    print("websocket error:", err)
+    if app._verbose:
+        print("websocket error:", err)
 
     if app._verbose:
         ex_type, ex, tb = sys.exc_info()
