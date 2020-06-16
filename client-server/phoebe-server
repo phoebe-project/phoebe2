@@ -1059,6 +1059,7 @@ def kill(msg):
 
     if app._verbose: print("killing from API call with matching secret")
     socketio.stop()
+    exit()
 
 ########## BUNDLE METHODS
 def _run_checks(b, bundleid, run_checks_method='run_checks', run_checks_kwargs={}, do_emit=True):

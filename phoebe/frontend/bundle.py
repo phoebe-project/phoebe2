@@ -1327,7 +1327,7 @@ class Bundle(ParameterSet):
                 param = self.get_parameter(uniqueid=uniqueid, check_visible=False, check_default=False, check_advanced=False)
                 for attr, value in paramdict.items():
                     if hasattr(param, "_{}".format(attr)):
-                        logger.info("updates from server: setting {}@{}={}".
+                        logger.debug("updates from server: setting {}@{}={}".
                                     format(attr, param.twig, value))
 
                         # we cannot call param.set_value because that will
@@ -1401,16 +1401,16 @@ class Bundle(ParameterSet):
         if self._socketio is None:
             return
 
-        logger.info("deregistering {} client from {}".format(_clientid, self.is_client))
-        self._socketio.emit('deregister client', {'clientid': _clientid, 'bundleid': None})
-        if bundleid is not None:
-            self._socketio.emit('deregister client', {'clientid': _clientid, 'bundleid': bundleid})
-
-
         if self._server_secret is not None:
             logger.warning("attempting to kill child server process at {}".format(self.is_client))
             self._socketio.emit('kill', {'clientid': _clientid, 'secret': self._server_secret})
             self._server_secret = None
+        else:
+            logger.info("deregistering {} client from {}".format(_clientid, self.is_client))
+            self._socketio.emit('deregister client', {'clientid': _clientid, 'bundleid': None})
+            if bundleid is not None:
+                self._socketio.emit('deregister client', {'clientid': _clientid, 'bundleid': bundleid})
+
 
         self._socketio.disconnect()
         self._socketio = None

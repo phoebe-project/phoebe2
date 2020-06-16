@@ -1889,52 +1889,35 @@ class ParameterSet(object):
             # then we'll attempt to launch the desktop app on this machine
             cmd = 'phoebe'
             if self._bundle.is_client:
-                # then we're attaching the UI to an already existing instance on an already running server
-                cmd += ' -s {} -b {}'.format(self._bundle.is_client.strip('http://'), self._bundle._bundleid)
-                cmd += ' --skip-child-server'
                 blocking = False
-            else:
-                # then we'll upload the bundle to the server that will be launched
-                # by the UI itself.  By default we'll force synchronous mode.
-                # TODO: allow an option to use async mode with warnings that
-                # disconnection may not be automatic
+            if not self._bundle.is_client:
                 blocking = True
+                logger.info("(temporarily) entering client mode")
+                self._bundle.as_client()
 
-                bundleid = _uniqueid(6)
-                cmd += ' -p 5000 -b {} -w'.format(bundleid)
-
+            # then we're attaching the UI to an already existing instance on an already running server
+            cmd += ' -s {} -b {}'.format(self._bundle.is_client.strip('http://'), self._bundle._bundleid)
+            cmd += ' --skip-child-server'
 
             if querystr:
                 cmd += ' -f \"{}\"'.format(querystr.replace(' ', ''))
 
-
             if action:
                 cmd += ' -a {}'.format(action)
 
-
-
             # then we want to launch the UI in a separate thread
             cmd += ' --noWarnOnClose'
-            cmd += ' &'
+
+            if not blocking:
+                cmd += ' &'
 
             logger.info("system call: "+cmd)
             # TODO: switch to async subprocess?
             os.system(cmd)
 
-            if not self._bundle.is_client:
-                # the bundle will handle uploading to the server, but will have
-                # to wait for it to be launched as a child process by the server
-                # first.  The UI will also be waiting for the bundle to be available
-                # to the server.
-                logger.info("(temporarily) entering client mode")
-
-                # by setting this, once the UI is closed by the user and the child-server is killed
-                # the bundle will gracefully disconnect and leave client mode
-                self._client_allow_disconnect = True
-
-                # NOTE: we use 5000 here because that is what we passed to the
-                # UI which will launch the server
-                self._bundle.as_client(as_client='http://localhost:5000', bundleid=bundleid, wait_for_server=True, reconnection_attempts=3, blocking=blocking)
+            if blocking:
+                logger.info("leaving client mode")
+                self._bundle.as_client(False)
 
 
     def ui(self, web_client=None, full_ui=None, **kwargs):
