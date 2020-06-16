@@ -1472,7 +1472,7 @@ def bundle_method(msg):
 
     if 'python' in client_types:
         # since some params have been removed, we'll skip any that have param._bundle is None
-        param_list = [param.to_json(incl_uniqueid=True) for param in ps_list if param._bundle is not None]
+        param_list = [param.to_json(incl_uniqueid=True, incl_none=True) for param in ps_list if param._bundle is not None]
         param_dict = OrderedDict((p.get('uniqueid'), p) for p in param_list)
 
         packet = {'success': True, 'requestid': requestid, 'parameters': param_dict, 'removed_parameters': removed_params_list}

@@ -2299,7 +2299,7 @@ class ParameterSet(object):
         """
         return iter(self.to_dict())
 
-    def to_json(self, incl_uniqueid=False, exclude=[], sort_by_context=True):
+    def to_json(self, incl_uniqueid=False, incl_none=False, exclude=[], sort_by_context=True):
         """
         Convert the <phoebe.parameters.ParameterSet> to a json-compatible
         object.
@@ -2318,6 +2318,8 @@ class ParameterSet(object):
         * `incl_uniqueid` (bool, optional, default=False): whether to include
             uniqueids in the file (only needed if its necessary to maintain the
             uniqueids when reloading)
+        * `incl_none` (bool, optional, default=False): whether to include tags
+            whose values are None.
         * `exclude` (list, optional, default=[]): tags to exclude when saving.
 
         Returns
@@ -2327,7 +2329,7 @@ class ParameterSet(object):
         lst = []
         if sort_by_context:
             for context in _contexts:
-                lst += [v.to_json(incl_uniqueid=incl_uniqueid, exclude=exclude)
+                lst += [v.to_json(incl_uniqueid=incl_uniqueid, incl_none=incl_none, exclude=exclude)
                         for v in self.filter(context=context,
                                              check_visible=False,
                                              check_default=False).to_list()]
@@ -6021,7 +6023,7 @@ class Parameter(object):
 
         return filename
 
-    def to_json(self, incl_uniqueid=False, exclude=[]):
+    def to_json(self, incl_uniqueid=False, incl_none=False, exclude=[]):
         """
         Convert the <phoebe.parameters.Parameter> to a json-compatible
         object.
@@ -6036,6 +6038,8 @@ class Parameter(object):
         * `incl_uniqueid` (bool, optional, default=False): whether to include
             uniqueids in the file (only needed if its necessary to maintain the
             uniqueids when reloading)
+        * `incl_none` (bool, optional, default=False): whether to include tags
+            whose values are None.
         * `exclude` (list, optional, default=[]): tags to exclude when saving.
 
         Returns
@@ -6084,7 +6088,7 @@ class Parameter(object):
                 except:
                     raise NotImplementedError("could not parse {} of '{}' to json".format(k, self.uniquetwig))
 
-        return {k: _parse(k, v) for k,v in self.to_dict().items() if (v is not None and k not in ['twig', 'uniquetwig', 'quantity']+exclude and (k!='uniqueid' or incl_uniqueid or self.qualifier=='detached_job'))}
+        return {k: _parse(k, v) for k,v in self.to_dict().items() if ((v is not None or incl_none) and k not in ['twig', 'uniquetwig', 'quantity']+exclude and (k!='uniqueid' or incl_uniqueid or self.qualifier=='detached_job'))}
 
     @property
     def attributes(self):
