@@ -19,10 +19,10 @@ except ImportError:
 
 ### NOTE: tested to work with eventlet, not sure about gevent
 
-
 ################################ SERVER/APP SETUP ##############################
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder=None)
+# app.url_map.converters['anything'] = CatchAnything
 CORS(app)
 app._bundles = {}
 app._clients = []
@@ -92,6 +92,7 @@ if sys.version_info[0] == 3:
   unicode = str
   basestring = str
 import inspect
+import subprocess
 from time import sleep
 from collections import OrderedDict
 from datetime import datetime
@@ -104,6 +105,11 @@ phoebe.interactive_off()
 phoebe.parameters._is_server = True
 
 _dir_tmpimages = os.path.join(tempfile.gettempdir(), 'phoebe-server-tmpimages')
+
+try:
+    _ui_path = subprocess.check_output('phoebe -u', shell=True).decode('utf-8')
+except:
+    _ui_path = None
 
 if not os.path.exists(_dir_tmpimages):
     os.makedirs(_dir_tmpimages)
@@ -157,7 +163,7 @@ if not os.path.exists(_dir_tmpimages):
 # The following code that accomplishes this is taken (borrowed) almost entirely
 # from http://flask.pocoo.org/snippets/56/
 from datetime import timedelta
-from flask import make_response, request, current_app
+from flask import make_response, request, current_app, render_template
 from functools import update_wrapper
 
 
@@ -918,6 +924,37 @@ def serve_distribution_plot(bundleid, parameter_uniqueid, distribution):
     plt.close(figure)
 
     return send_from_directory(_dir_tmpimages, fname)
+
+@app.route('/static/<path:static_file>', methods=['GET'])
+@app.route('/bootstrap/<path:bootstrap_file>', methods=['GET'])
+@app.route('/fontawesome/<path:fa_file>', methods=['GET'])
+def ui_file(static_file=None, bootstrap_file=None, fa_file=None):
+    if _ui_path is None: return None
+
+    base = os.path.dirname(_ui_path)
+    if static_file:
+        path = os.path.join(base, 'static', static_file)
+    if bootstrap_file:
+        path = os.path.join(base, 'bootstrap', bootstrap_file)
+    if fa_file:
+        path = os.path.join(base, 'fontawesome', fa_file)
+
+    dir = os.path.dirname(path)
+    fname = os.path.basename(path)
+
+    return send_from_directory(dir, fname)
+
+
+# NOTE: this MUST be the last defined route because of the catch-all
+@app.route('/', methods=['GET', 'POST'])
+@app.route('/<path:path>', methods=['GET', 'POST'])
+def ui(path=''):
+    if _ui_path is None:
+        return redirect('http://ui.phoebe-project.org/'+path+'?'+request.query_string)
+
+    base, fname = os.path.dirname(_ui_path), os.path.basename(_ui_path)
+    return send_from_directory(base, fname)
+
 
 
 ############################# WEBSOCKET ROUTES ################################

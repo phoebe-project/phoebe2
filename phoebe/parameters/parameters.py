@@ -25,6 +25,7 @@ import difflib
 import time
 import types
 import tempfile
+import subprocess
 from collections import OrderedDict
 from fnmatch import fnmatch
 from copy import deepcopy as _deepcopy
@@ -467,6 +468,14 @@ def _fnmatch(to_this, expression_or_string):
         return fnmatch(to_this, expression_or_string)
     else:
         return expression_or_string == to_this
+
+class JupyterUI(object):
+    def __init__(self, url):
+        self.url = url
+    def __repr__(self):
+        return self.url
+    def _repr_html_(self):
+        return "<iframe src=\"{}\" style='width:100%;min-height:400px'></iframe>".format(self.url)
 
 class ParameterSetInfo(dict):
     def __init__(self, ps, attribute):
@@ -1790,7 +1799,7 @@ class ParameterSet(object):
 
         return filename
 
-    def _launch_ui(self, web_client, action, filter={}):
+    def _launch_ui(self, web_client, action, filter={}, full_ui=False):
 
         def filteritem(k, v):
             if isinstance(v, list):
@@ -1807,13 +1816,77 @@ class ParameterSet(object):
         else:
             querystr = None
 
+        # let's handle some defaults.
+        # First determine if we're in jupyter, ipython, or python
+        try:
+            ipython_class = get_ipython().__class__.__name__
+        except NameError:
+            ipython_class = None
+
+        if ipython_class == 'ZMQInteractiveShell':
+            is_jupyter = True
+        else:
+            is_jupyter = False
+
+        # now if full_ui was passed to auto, then we want to default to False
+        # for Jupyter, but to True if no filter otherwise
+        if full_ui == 'auto':
+            if is_jupyter:
+                full_ui = False
+            else:
+                full_ui = len(self._filter.items()) == 0
+
+        # and now disable the passed action from the parent method if full_ui
+        # is (still) true
+        action = action if not full_ui else None
+
         if web_client is None:
             web_client = self._bundle.get_value(qualifier='web_client', context='setting', default=False, **_skip_filter_checks)
         if web_client is True:
             web_client = self._bundle.get_value(qualifier='web_client_url', context='setting', default='ui.phoebe-project.org', **_skip_filter_checks)
 
         # TODO: expose options for advanced filters (or include everything by default)
-        if not web_client:
+
+        if web_client or (is_jupyter and isinstance(self._bundle.is_client, str) and 'localhost' in self._bundle.is_client):
+            if not web_client:
+                # then we want to launch the UI inline.  We can't do this from
+                # the installed client directly, BUT since the server is on
+                # localhost, it will be serving the static web-version of the
+                # desktop-client to self._bundle.is_client/ui
+                web_client = self._bundle.is_client
+                is_static_file = True
+            else:
+                is_static_file = False
+
+            # then we must be in client mode already, if not, we'll raise an error
+            if not self._bundle.is_client:
+                # TODO: could allow passing as_client to PS.ui() to launch in one line...
+                # self._bundle.as_client(as_client=as_client, bundleid=bundleid, wait_for_server=True, reconnection_attempts=3, blocking=False)
+                raise ValueError("bundle must be in client mode (see b.as_client) before launching a web_client.")
+
+            if web_client is True:
+                web_client = 'http://ui.phoebe-project.org'
+
+            if 'http' not in web_client[:5]:
+                web_client = 'http://'+web_client
+
+            if action:
+                url = "{}/{}/{}/{}?{}".format(web_client, self._bundle.is_client.strip("http://"), self._bundle._bundleid, action, querystr)
+            else:
+                url = "{}/{}/{}?{}".format(web_client, self._bundle.is_client.strip("http://"), self._bundle._bundleid, querystr)
+
+
+            if is_jupyter:
+                return JupyterUI(url)
+            else:
+                # the is_jupyter case will be
+                logger.info("opening {} in browser".format(url))
+                webbrowser.open(url)
+                return url
+
+
+        else:
+            # then we'll attempt to launch the desktop app on this machine
             cmd = 'phoebe'
             if self._bundle.is_client:
                 # then we're attaching the UI to an already existing instance on an already running server
@@ -1838,6 +1911,9 @@ class ParameterSet(object):
             if action:
                 cmd += ' -a {}'.format(action)
 
+
+
+            # then we want to launch the UI in a separate thread
             cmd += ' --noWarnOnClose'
             cmd += ' &'
 
@@ -1859,29 +1935,6 @@ class ParameterSet(object):
                 # NOTE: we use 5000 here because that is what we passed to the
                 # UI which will launch the server
                 self._bundle.as_client(as_client='http://localhost:5000', bundleid=bundleid, wait_for_server=True, reconnection_attempts=3, blocking=blocking)
-
-        else:
-            # then we must be in client mode already
-            if not self._bundle.is_client:
-                raise ValueError("bundle must be in client mode (see b.as_client) before launching a web_client.")
-
-                # TODO: could allow passing as_client to PS.ui() to launch in one line...
-                # self._bundle.as_client(as_client=as_client, bundleid=bundleid, wait_for_server=True, reconnection_attempts=3, blocking=False)
-
-            if web_client is True:
-                web_client = 'http://ui.phoebe-project.org'
-
-            if 'http' not in web_client[:5]:
-                web_client = 'http://'+web_client
-
-            if action:
-                url = "{}/{}/{}/{}?{}".format(web_client, self._bundle.is_client.strip("http://"), self._bundle._bundleid, action, querystr)
-            else:
-                url = "{}/{}/{}?{}".format(web_client, self._bundle.is_client.strip("http://"), self._bundle._bundleid, querystr)
-
-            logger.info("opening {} in browser".format(url))
-            webbrowser.open(url)
-            return url
 
 
     def ui(self, web_client=None, full_ui=None, **kwargs):
@@ -1952,10 +2005,10 @@ class ParameterSet(object):
 
         if full_ui is None:
             # default to True for the full bundle, False for a filtered PS
-            full_ui = len(self._filter.items()) == 0
+            full_ui = 'auto'
 
-        action = None if full_ui else 'ps'
-        return self._launch_ui(web_client, action, self._filter)
+        action = 'ps'
+        return self._launch_ui(web_client, action, self._filter, full_ui)
 
     def to_list(self, **kwargs):
         """
