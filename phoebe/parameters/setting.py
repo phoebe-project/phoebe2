@@ -37,6 +37,11 @@ def settings(**kwargs):
     * `auto_remove_figure` (bool, optional, default=False): Whether to
         automatically remove figure parameters when the referenced
         dataset/solution are removed.
+    * `web_client` (bool, optional, default=False): Whether to default to using
+        the web-client over a locally installed desktop-client when opening the
+        UI from the desktop client.
+    * `web_client_url` (string, optional, default='ui.phoebe-project.org'):
+        Default location of web-client.  Will only be used if web_client is True.
 
     Returns
     --------
@@ -59,7 +64,7 @@ def settings(**kwargs):
     params += [BoolParameter(qualifier='auto_add_figure', value=kwargs.get('auto_add_figure', True), description='Whether to automatically add figure parameters when a dataset is added with a new dataset type, or a solution is added.')]
     params += [BoolParameter(qualifier='auto_remove_figure', value=kwargs.get('auto_remove_figure', True), description='Whether to automatically remove figure parameters when the referenced dataset/solution are removed.')]
 
-    params += [BoolParameter(qualifier='web_client', value=kwargs.get('web_client', False), description='Whether to default to using the web-client over a locally installed desktop-client.')]
-    params += [StringParameter(qualifier='web_client_url', value=kwargs.get('web_client_url', 'ui.phoebe-project.org'), description='Default location of web-client.  Will only be used if web_client is True.')]
+    params += [BoolParameter(qualifier='web_client', value=kwargs.get('web_client', False), advanced=True, description='Whether to default to using the web-client over a locally installed desktop-client when opening the UI from the desktop client.')]
+    params += [StringParameter(qualifier='web_client_url', value=kwargs.get('web_client_url', 'ui.phoebe-project.org'), advanced=True, description='Default location of web-client.  Will only be used if web_client is True.')]
 
     return ParameterSet(params)

@@ -1136,11 +1136,12 @@ null
 "qualifier": "auto_remove_figure"
 }, 
 {
-"description": "Whether to default to using the web-client over a locally installed desktop-client.", 
+"description": "Whether to default to using the web-client over a locally installed desktop-client when opening the UI from the desktop client.", 
 "value": false, 
 "context": "setting", 
 "copy_for": false, 
 "Class": "BoolParameter", 
+"advanced": true, 
 "qualifier": "web_client"
 }, 
 {
@@ -1149,6 +1150,7 @@ null
 "context": "setting", 
 "copy_for": false, 
 "Class": "StringParameter", 
+"advanced": true, 
 "qualifier": "web_client_url"
 }
 ]
