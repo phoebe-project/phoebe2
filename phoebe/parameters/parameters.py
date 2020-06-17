@@ -414,6 +414,8 @@ def _uniqueid(n=30):
                    string.ascii_uppercase + string.ascii_lowercase)
                    for _ in range(n))
 
+_clientid = 'python-'+_uniqueid(5)
+
 def _is_unit(unit):
     return isinstance(unit, u.Unit) or isinstance(unit, u.CompositeUnit) or isinstance(unit, u.IrreducibleUnit)
 
@@ -1799,7 +1801,7 @@ class ParameterSet(object):
 
         return filename
 
-    def _launch_ui(self, web_client, action, filter={}, full_ui=False):
+    def _launch_ui(self, web_client, action, filter={}, full_ui=False, blocking=None):
 
         def filteritem(k, v):
             if isinstance(v, list):
@@ -1811,10 +1813,12 @@ class ParameterSet(object):
             querystr = "&".join(["{}={}".format(k, filteritem(k, v))
                                  for k, v in filter.items()])
 
-            querystr += "&advanced=['is_advanced','is_single','is_constraint']"
-
         else:
-            querystr = None
+            querystr = ""
+
+        querystr += "&advanced=['is_advanced','is_single','is_constraint']"
+
+        was_client = self._bundle.is_client
 
         # let's handle some defaults.
         # First determine if we're in jupyter, ipython, or python
@@ -1831,8 +1835,8 @@ class ParameterSet(object):
         if is_jupyter:
             if self._bundle.is_client:
                 querystr += "&disconnectButton=disconnect"
-            # else:
-            #     querystr += "&disconnectButton=continue"
+            else:
+                querystr += "&disconnectButton=continue"
 
         # now if full_ui was passed to auto, then we want to default to False
         # for Jupyter, but to True if no filter otherwise
@@ -1853,22 +1857,36 @@ class ParameterSet(object):
 
         # TODO: expose options for advanced filters (or include everything by default)
 
-        if web_client or (is_jupyter and isinstance(self._bundle.is_client, str) and 'localhost' in self._bundle.is_client):
+        if web_client or is_jupyter:
             if not web_client:
                 # then we want to launch the UI inline.  We can't do this from
                 # the installed client directly, BUT since the server is on
                 # localhost, it will be serving the static web-version of the
                 # desktop-client to self._bundle.is_client/ui
+                if not self._bundle.is_client:
+                    blocking = blocking if blocking is not None else True
+                    if blocking:
+                        logger.info("(temporarily) entering client mode")
+                    else:
+                        logger.info("entering client mode for non-blocking UI.  Must manually call b.as_client(False) to exit client mode.")
+                    self._bundle.as_client()
+                else:
+                    blocking = blocking if blocking is not None else False
+
                 web_client = self._bundle.is_client
                 is_static_file = True
+
             else:
                 is_static_file = False
+                blocking = blocking if blocking is not None else False
 
-            # then we must be in client mode already, if not, we'll raise an error
-            if not self._bundle.is_client:
-                # TODO: could allow passing as_client to PS.ui() to launch in one line...
-                # self._bundle.as_client(as_client=as_client, bundleid=bundleid, wait_for_server=True, reconnection_attempts=3, blocking=False)
-                raise ValueError("bundle must be in client mode (see b.as_client) before launching a web_client.")
+                # then we must be in client mode already, if not, we'll raise an error
+                # note that we do allow not in client-mode for the case of jupyter
+                # as we will launch the server on localhost and manage it
+                if not self._bundle.is_client:
+                    # TODO: could allow passing as_client to PS.ui() to launch in one line...
+                    # self._bundle.as_client(as_client=as_client, bundleid=bundleid, wait_for_server=True, reconnection_attempts=3, blocking=False)
+                    raise ValueError("bundle must be in client mode (see b.as_client) before launching a web_client.")
 
             if web_client is True:
                 web_client = 'http://ui.phoebe-project.org'
@@ -1883,7 +1901,26 @@ class ParameterSet(object):
 
 
             if is_jupyter:
-                return JupyterUI(url)
+                jui = JupyterUI(url)
+                if blocking:
+                    from IPython.display import display, HTML
+                    display(HTML(jui._repr_html_()))
+
+                    # first wait to make sure the jupyter client connects
+                    while len(self._bundle._server_clients) < 2:
+                        logger.debug("blocking: waiting for jupyter client to connect", self._bundle._server_clients)
+                        time.sleep(0.1)
+
+                    # now the server is connect to at least the jupyter client and python-client
+                    while len(self._bundle._server_clients) > 1:
+                        logger.debug("blocking: waiting for jupyter client to disconnect", self._bundle._server_clients)
+                        time.sleep(0.5)
+
+                    if not was_client:
+                        logger.info("leaving client mode")
+                        self._bundle.as_client(False)
+                else:
+                    return jui
             else:
                 # the is_jupyter case will be
                 logger.info("opening {} in browser".format(url))
@@ -1895,10 +1932,13 @@ class ParameterSet(object):
             # then we'll attempt to launch the desktop app on this machine
             cmd = 'phoebe'
             if self._bundle.is_client:
-                blocking = False
+                blocking = blocking if blocking is not None else False
             if not self._bundle.is_client:
-                blocking = True
-                logger.info("(temporarily) entering client mode")
+                blocking = blocking if blocking is not None else True
+                if blocking:
+                    logger.info("(temporarily) entering client mode")
+                else:
+                    logger.info("entering client mode for non-blocking UI.  Must manually call b.as_client(False) to exit client mode.")
                 self._bundle.as_client()
 
             # then we're attaching the UI to an already existing instance on an already running server
@@ -1918,15 +1958,15 @@ class ParameterSet(object):
                 cmd += ' &'
 
             logger.info("system call: "+cmd)
-            # TODO: switch to async subprocess?
+            # NOTE: this will block if not blocking
             os.system(cmd)
 
-            if blocking:
+            if not was_client and blocking:
                 logger.info("leaving client mode")
                 self._bundle.as_client(False)
 
 
-    def ui(self, web_client=None, full_ui=None, **kwargs):
+    def ui(self, web_client=None, full_ui=None, blocking=None, **kwargs):
         """
         Open an interactive user-interface for the ParameterSet.
 
@@ -1935,14 +1975,20 @@ class ParameterSet(object):
         asynchronously or non-blocking (allowing you to interact from
         both python and the UI simultaneously).  Otherwise the UI will open
         synchronously by blocking the thread until the UI is closed and the
-        bundle will continue outside of client mode (in this case the server
-        will actually be launched by the client).
+        bundle will continue outside of client mode.  To override this default
+        behavior, see `blocking`. Note that if the bundle is not currently in
+        client-mode but `blocking` is manually set to False, then the bundle
+        will remain in client mode until manually passing `False` to
+        <phoebe.frontend.bundle.Bundle.as_client>
 
         If the UI is not installed, pass a URL to `web_client`
         (ie. http://ui.phoebe-project.org) to launch the web-client in the
-        default system browser. Note that this is only supported in asynchronous
-        (non-blocking) mode and requires the bundle to already be in client mode.
+        default system browser. Note that this requires the bundle to already be in client mode.
         Call <phoebe.frontend.bundle.Bundle.as_client> first to use `web_client`.
+
+        In Jupyter notebooks, the UI will be shown in-line with a button to disconnect
+        that instance of the client (if not blocking) or to disconnect and "continue"
+        the notebook execution if blocking.
 
         To more information or to install the desktop-client, see
         http://phoebe-project.org/clients
@@ -1969,6 +2015,12 @@ class ParameterSet(object):
             bundle or just the filtered ParameterSet.  If not provided, will
             default to True if acting on the Bundle, or False if acting on
             a filtered ParameterSet.
+        * `blocking` (bool, optional, default=None): whether the clal to the
+            UI should be blocking (wait for the client to close/disconnect)
+            before continuing the python-thread or not.  If not provided or
+            None, will default to True if not currently in client-mode
+            (see <phoebe.frontend.bundle.Bundle.is_client> and
+            <phoebe.frontend.bundle.Bundle.as_client>) or False otherwise.
         * `**kwargs`: additional kwargs will be sent to
             <phoebe.parameters.ParameterSet.filter>.
 
@@ -1990,14 +2042,14 @@ class ParameterSet(object):
 
 
         if len(kwargs):
-            return self.filter(**kwargs).ui(web_client=web_client, full_ui=full_ui)
+            return self.filter(**kwargs).ui(web_client=web_client, full_ui=full_ui, blocking=blocking)
 
         if full_ui is None:
             # default to True for the full bundle, False for a filtered PS
             full_ui = 'auto'
 
         action = 'ps'
-        return self._launch_ui(web_client, action, self._filter, full_ui)
+        return self._launch_ui(web_client, action, self._filter, full_ui, blocking)
 
     def to_list(self, **kwargs):
         """

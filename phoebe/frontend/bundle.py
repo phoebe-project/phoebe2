@@ -34,7 +34,7 @@ from phoebe.parameters import solver as _solver
 from phoebe.parameters import constraint as _constraint
 from phoebe.parameters import feature as _feature
 from phoebe.parameters import figure as _figure
-from phoebe.parameters.parameters import _uniqueid, _return_ps
+from phoebe.parameters.parameters import _uniqueid, _clientid, _return_ps
 from phoebe.backend import backends, mesh
 from phoebe.backend import universe as _universe
 from phoebe.solverbackends import solverbackends as _solverbackends
@@ -62,8 +62,6 @@ elif sys.version_info[0] < 3:
 
 _bundle_cache_dir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'default_bundles'))+'/'
 
-_clientid = 'python-'+_uniqueid(5)
-
 _skip_filter_checks = {'check_default': False, 'check_visible': False}
 
 # Attempt imports for client requirements
@@ -81,7 +79,7 @@ try:
       from urllib.request import urlopen as _urlopen
       from urllib.error import URLError
 
-    import socketio
+    import socketio # https://python-socketio.readthedocs.io/en/latest/client.html
 
 except ImportError:
     _can_client = False
@@ -470,6 +468,7 @@ class Bundle(ParameterSet):
         self._waiting_on_server = False
         self._server_changes = None
         self._server_secret = None  # if not None, will attempt to send kill signal atexit and as_client=False
+        self._server_clients = []
 
         self._within_solver = False
 
@@ -1292,6 +1291,7 @@ class Bundle(ParameterSet):
         [NOT IMPLEMENTED]
         """
         logger.info("connected to server")
+        self._server_clients = [_clientid]
 
     def _on_socket_disconnect(self, *args):
         """
@@ -1306,6 +1306,8 @@ class Bundle(ParameterSet):
             self._bundleid = None
             self._is_client = False
             self._client_allow_disconnect = False
+
+            self._server_clients = []
 
     def _on_socket_push_updates(self, resp):
         """
@@ -1368,15 +1370,15 @@ class Bundle(ParameterSet):
         self._server_changes = server_changes
 
     def _on_socket_push_error(self, resp):
-        """
-        [NOT IMPLEMENTED]
-        """
         # TODO: check to make sure resp['meta']['bundleid']==bundleid ?
         requestid = resp.pop('requestid', None)
         if requestid == self._waiting_on_server:
             self._waiting_on_server = False
 
         raise ValueError("error from server: {}".format(resp.get('error', 'error message not provided')))
+
+    def _on_socket_push_registeredclients(self, resp):
+        self._server_clients = resp.get('connected_clients', [])
 
     def _attach_param_from_server(self, item):
         """
@@ -1530,6 +1532,7 @@ class Bundle(ParameterSet):
 
             self._socketio.on('{}:changes:python'.format(bundleid), self._on_socket_push_updates)
             self._socketio.on('{}:errors:python'.format(bundleid), self._on_socket_push_error)
+            self._socketio.on('{}:registeredclients'.format(bundleid), self._on_socket_push_registeredclients)
 
             self._bundleid = bundleid
 
@@ -1552,6 +1555,7 @@ class Bundle(ParameterSet):
 
             self._bundleid = None
             self._is_client = False
+            self._server_clients = []
 
     @property
     def is_client(self):
@@ -8512,12 +8516,12 @@ class Bundle(ParameterSet):
         logger.info("calling plot(**{})".format(kwargs))
         return self.plot(**kwargs)
 
-    def ui_figures(self, web_client=None):
+    def ui_figures(self, web_client=None, blocking=None):
         """
         Open an interactive user-interface for all figures in the Bundle.
 
-        The bundle must be in client mode in order to open the web-interface.
-        See <phoebe.frontend.bundle.Bundle.as_client> to switch to client mode.
+        See <phoebe.parameters.ParameterSet.ui> for more details on the
+        behavior of `blocking`, `web_client`, and Jupyter notebook support.
 
         See also:
         * <phoebe.frontend.bundle.Bundle.run_figure>
@@ -8537,6 +8541,12 @@ class Bundle(ParameterSet):
             Note that if using a web-client, the bundle must already be
             in client mode.  See <phoebe.frontend.bundle.Bundle.is_client>
             and <phoebe.frontend.bundle.Bundle.as_client>.
+        * `blocking` (bool, optional, default=None): whether the clal to the
+            UI should be blocking (wait for the client to close/disconnect)
+            before continuing the python-thread or not.  If not provided or
+            None, will default to True if not currently in client-mode
+            (see <phoebe.frontend.bundle.Bundle.is_client> and
+            <phoebe.frontend.bundle.Bundle.as_client>) or False otherwise.
 
         Returns
         ----------
@@ -8552,7 +8562,7 @@ class Bundle(ParameterSet):
             and <phoebe.frontend.bundle.Bundle.as_client>)
         """
 
-        return self._launch_ui(web_client, 'figures')
+        return self._launch_ui(web_client, 'figures', blocking=blocking)
 
 
     def compute_ld_coeffs(self, compute=None, set_value=False, **kwargs):

@@ -990,6 +990,7 @@ def disconnect():
     if app._verbose:
         print('Client disconnected')
 
+
     # emit('disconnect', {'success': True, 'data': {'clients': app._clients, 'parentid': app._parent}})
 
 
@@ -1021,6 +1022,10 @@ def register_client(msg):
         elif clientid not in app._clients_per_bundle.get(bundleid, []):
             app._clients_per_bundle[bundleid].append(clientid)
 
+        clients = app._clients_per_bundle.get(bundleid, [])
+        connected_clients = [c for c in clients if c in app._clients]
+        emit('{}:registeredclients'.format(bundleid), {'success': True, 'clients': clients, 'connected_clients': connected_clients}, broadcast=True)
+
     bundle_memory_cleanup()
 
 @socketio.on('deregister client')
@@ -1040,6 +1045,10 @@ def deregister_client(msg):
         # note: we'll leave the clientid in app._clients_per_bundle.  Those bundles
         # will become stale and eventually deleted by timeout in bundle_memory_cleanup.
         app._clients.remove(clientid)
+
+    clients = app._clients_per_bundle.get(bundleid, [])
+    connected_clients = [c for c in clients if c in app._clients and c!=clientid]
+    emit('{}:registeredclients'.format(bundleid), {'success': True, 'clients': clients, 'connected_clients': connected_clients}, broadcast=True)
 
     # now cleanup from memory any bundle with NO cients
     bundle_memory_cleanup()
