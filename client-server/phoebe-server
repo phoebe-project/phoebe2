@@ -1412,7 +1412,9 @@ def bundle_method(msg):
     if method in ['flip_constraint']:
         constraint_filter = {k:v for k,v in msg.items() if k!='solve_for'}
         constraint_filter['context'] = 'constraint'
-        param_constraint = b.get_parameter(*args, **constraint_filter)
+        param_constraint = b.get_parameter(args[0], **constraint_filter)
+
+
 
     try:
         ps = getattr(b, method)(*args, **msg)
@@ -1442,8 +1444,12 @@ def bundle_method(msg):
 
             return
 
-    if method in ['flip_constraint']:
+    if method == 'add_constraint':
+        param_constraint = ps.get_parameter()
+
+    if method in ['flip_constraint', 'add_constraint']:
         ps_list += param_constraint.vars.to_list()
+        b.run_delayed_constraints()
 
 
     # handle any deleted parameters
@@ -1464,7 +1470,7 @@ def bundle_method(msg):
             packet['params_allow_dist'] = {p.uniqueid: p.twig for p in b.filter(context=['component', 'system', 'dataset', 'feature'], check_visible=True).to_list() if p.__class__.__name__ in ['FloatParameter', 'FloatArrayParameter']}
 
 
-        if method.split('_')[0] == 'add':
+        if method.split('_')[0] == 'add' and method not in ['add_constraint']:
             context = method.split('_')[1]
             packet['add_filter'] = {context: getattr(ps.filter(context=context, check_visible=False), context)}
         elif method.split('_')[0] == 'run':
