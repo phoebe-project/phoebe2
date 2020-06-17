@@ -1,16 +1,11 @@
 import logging
 
 import sys
-if sys.version_info[0] == 3:
-  unicode = str
 
 import numpy as np
 
 def _bytes(s):
-    if sys.version_info[0] == 3:
-        return bytes(s, 'utf-8')
-    else:
-        return bytes(s)
+    return bytes(s, 'utf-8')
 
 def get_basic_logger(clevel='WARNING',flevel='DEBUG',
                      style="default",filename=None,filemode='w'):
@@ -156,8 +151,6 @@ def parse_json(pairs):
         if isinstance(item, bytes):
             # return item.decode('utf-8')
             return _bytes(item)
-        elif sys.version_info[0] == 2 and isinstance(item, unicode):
-            return item.encode('utf-8')
         else:
             return item
 

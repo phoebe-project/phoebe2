@@ -56,9 +56,6 @@ if os.getenv('PHOEBE_ENABLE_EXTERNAL_JOBS', 'FALSE').upper() == 'TRUE':
 else:
     _can_requests = False
 
-if sys.version_info[0] == 3:
-  unicode = str
-
 # things needed to be imported at top-level for constraints to solve:
 from numpy import sin, cos, tan, arcsin, arccos, arctan, sqrt
 
@@ -2674,7 +2671,7 @@ class ParameterSet(object):
                 params += self.filter(twig=t, check_visible=check_visible, check_default=check_default, check_advanced=check_advanced, check_single=check_single, **kwargs).to_list()
             return _return(params, force_ps)
 
-        if not (twig is None or isinstance(twig, str) or isinstance(twig, unicode)):
+        if not (twig is None or isinstance(twig, str)):
             raise TypeError("first argument (twig) must be of type str or None, got {}".format(type(twig)))
 
         if kwargs.get('component', None) == '_default' or\
@@ -2720,22 +2717,9 @@ class ParameterSet(object):
         # TODO: replace with key,value in kwargs.items()... unless there was
         # some reason that won't work?
         for key in kwargs.keys():
-            # TODO [optimize]: this probably isn't efficient, but I'm getting
-            # sick of running into bugs caused by passing unicodes
-            if isinstance(kwargs[key], unicode):
-                kwargs[key] = str(kwargs[key])
-
             if len(params) and \
                     key in _meta_fields_filter and \
                     kwargs[key] is not None:
-
-                #if kwargs[key] is None:
-                #    params = [pi for pi in params if getattr(pi,key) is None]
-                #else:
-                if isinstance(kwargs[key], unicode):
-                    # unicodes can cause all sorts of confusions with fnmatch,
-                    # so let's just cast now and be done with it
-                    kwargs[key] = str(kwargs[key])
 
                 params = [pi for pi in params if (hasattr(pi,key) and getattr(pi,key) is not None or isinstance(kwargs[key], list) and None in kwargs[key]) and
                     (getattr(pi,key) is kwargs[key] or
@@ -5801,10 +5785,6 @@ class Parameter(object):
             attr = '_{}'.format(attr)
             val = getattr(self, attr)
 
-            if isinstance(val, unicode) and attr not in ['_copy_for']:
-              setattr(self, attr, str(val))
-
-
             #if attr == '_copy_for' and isinstance(self._copy_for, str):
             #    print "***", self._copy_for
             #    self._copy_for = json.loads(self._copy_for)
@@ -7394,7 +7374,7 @@ class TwigParameter(Parameter):
         if self._bundle is None:
             raise ValueError("TwigParameters must be attached from the bundle, and cannot be standalone")
 
-        value = str(value)  # <-- in case unicode
+        value = str(value)
 
         # NOTE: this means that in all saving of bundles, we MUST keep the uniqueid and retain them when re-opening
         value = _twig_to_uniqueid(self._bundle, value, **kwargs)
@@ -8045,7 +8025,7 @@ class UnitParameter(ChoiceParameter):
         if value in ['', 'dimensionless']:
             return 'dimensionless'
 
-        if isinstance(value, str) or isinstance(value, unicode):
+        if isinstance(value, str) :
             try:
                 value = u.Unit(str(value))
             except:
@@ -8525,8 +8505,8 @@ class FloatParameter(Parameter):
 
         unit = kwargs.get('unit', None)  # will default to default_unit in set_value
 
-        if isinstance(unit, unicode):
-          unit = u.Unit(str(unit))
+        if isinstance(unit, str):
+          unit = u.Unit(unit)
 
 
         timederiv = kwargs.get('timederiv', None)
@@ -8594,8 +8574,8 @@ class FloatParameter(Parameter):
         # TODO: add to docstring documentation about what happens (does the value convert, etc)
         # TODO: check to make sure isinstance(unit, astropy.u.Unit)
         # TODO: check to make sure can convert from current default unit (if exists)
-        if isinstance(unit, unicode) or isinstance(unit, str):
-          unit = u.Unit(str(unit))
+        if isinstance(unit, str):
+          unit = u.Unit(unit)
         elif unit is None:
             unit = u.dimensionless_unscaled
 
@@ -9111,7 +9091,7 @@ class FloatParameter(Parameter):
         # accept tuples (ie 1.2, 'rad') from dictionary access
         if isinstance(value, tuple) and unit is None:
             value, unit = value
-        if isinstance(value, str) or isinstance(value, unicode):
+        if isinstance(value, str):
             if len(value.strip().split(' ')) == 2 and unit is None and self.__class__.__name__ == 'FloatParameter':
                 # support value unit as string
                 valuesplit = value.strip().split(' ')
@@ -9225,7 +9205,7 @@ class FloatParameter(Parameter):
 
         value, unit = self._check_value(value, unit)
 
-        if isinstance(unit, str) or isinstance(unit, unicode):
+        if isinstance(unit, str):
             # print "*** converting string to unit"
             unit = u.Unit(unit)  # should raise error if not a recognized unit
         elif unit is not None and not _is_unit(unit):
@@ -9621,7 +9601,7 @@ class FloatArrayParameter(FloatParameter):
         """
         if isinstance(value, u.Quantity):
             value = value.to(self.default_unit).value
-        elif isinstance(value, str) or isinstance(value, unicode):
+        elif isinstance(value, str):
             value = float(value)
         #else:
             #value = value*self.default_unit
@@ -10376,7 +10356,7 @@ class HierarchyParameter(StringParameter):
             items = self._get_by_trace(structure, trace[:-1]+[trace[-1]+1])
             # we want to ignore suborbits
             #return [str(ch.split(':')[-1]) for ch in items if isinstance(ch, unicode)]
-            return [str(ch.split(':')[-1]) for ch in items if isinstance(ch, unicode) and (kind is None or ch.split(':')[0] in kind)]
+            return [str(ch.split(':')[-1]) for ch in items if isinstance(ch, str) and (kind is None or ch.split(':')[0] in kind)]
 
     def get_stars_of_children_of(self, component):
         """
@@ -10961,8 +10941,8 @@ class ConstraintParameter(Parameter):
         * Error: if the new and current units are incompatible.
         """
         # TODO: check to make sure can convert from current default unit (if exists)
-        if isinstance(unit, unicode) or isinstance(unit, str):
-            unit = u.Unit(str(unit))
+        if isinstance(unit, str):
+            unit = u.Unit(unit)
 
         if not _is_unit(unit):
             raise TypeError("unit must be a Unit")
@@ -10995,7 +10975,7 @@ class ConstraintParameter(Parameter):
 
         if self._bundle is None:
             raise ValueError("ConstraintParameters must be attached from the bundle, and cannot be standalone")
-        value = str(value) # <-- in case unicode
+        value = str(value)
         # if the user wants to see the expression, we'll replace all
         # var.safe_label with var.curly_label
         self._value, self._vars = self._parse_expr(value)

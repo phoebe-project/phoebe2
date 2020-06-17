@@ -83,14 +83,7 @@ import sys
 import tempfile
 import traceback
 import argparse
-# if _sys.version_info[0] < 3:
-#     import urllib2 as urllib
-# else:
-#     import urllib
-# import StringIO
-if sys.version_info[0] == 3:
-  unicode = str
-  basestring = str
+
 import inspect
 import subprocess
 from time import sleep
@@ -172,9 +165,9 @@ def crossdomain(origin=None, methods=None, headers=None,
                 automatic_options=True):
     if methods is not None:
         methods = ', '.join(sorted(x.upper() for x in methods))
-    if headers is not None and not isinstance(headers, basestring):
+    if headers is not None and not isinstance(headers, str):
         headers = ', '.join(x.upper() for x in headers)
-    if not isinstance(origin, basestring):
+    if not isinstance(origin, str):
         origin = ', '.join(origin)
     if isinstance(max_age, timedelta):
         max_age = max_age.total_seconds()
@@ -1219,7 +1212,7 @@ def set_value(msg):
         is_visible_before = {p.uniqueid: p.is_visible for p in b.to_list(check_visible=False, check_default=False, check_advanced=False)}
 
     try:
-        # TODO: handle getting nparray objects (probably as json strings/unicodes)
+        # TODO: handle getting nparray objects (probably as json strings)
         b.set_value_all(**msg)
         ps_constraints = b.run_delayed_constraints()
     except Exception as err:
@@ -1348,10 +1341,6 @@ def bundle_method(msg):
     requestid = msg.pop('requestid', None)
     clientid = msg.pop('clientid', None)
     client_version = msg.pop('client_version', None)
-
-    for k,v in msg.items():
-        if isinstance(v, unicode):
-            msg[k] = str(v)
 
     if bundleid is None:
         emit('{}:errors:react', {'success': False, 'requestid': requestid, 'error': "must provide bundleid"}, broadcast=False)

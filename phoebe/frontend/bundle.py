@@ -54,11 +54,7 @@ import logging
 logger = logging.getLogger("BUNDLE")
 logger.addHandler(logging.NullHandler())
 
-if sys.version_info[0] == 3:
-  unicode = str
-  from io import IOBase
-elif sys.version_info[0] < 3:
-  input = raw_input
+from io import IOBase
 
 _bundle_cache_dir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'default_bundles'))+'/'
 
@@ -72,12 +68,8 @@ try:
     """
 
     import requests
-    if sys.version_info[0] < 3:
-      from urllib2 import urlopen as _urlopen
-      from urllib2 import URLError
-    else:
-      from urllib.request import urlopen as _urlopen
-      from urllib.error import URLError
+    from urllib2 import urlopen as _urlopen
+    from urllib2 import URLError
 
     import socketio # https://python-socketio.readthedocs.io/en/latest/client.html
 
@@ -96,9 +88,6 @@ else:
 
 
 def _get_add_func(mod, func, return_none_if_not_found=False):
-    if isinstance(func, unicode):
-        func = str(func)
-
     if isinstance(func, str) and "." in func:
         # allow recursive submodule access
         # example: mod=solver, func='samplers.emcee'
@@ -583,7 +572,7 @@ class Bundle(ParameterSet):
 
         if io._is_file(filename):
             f = filename
-        elif isinstance(filename, str) or isinstance(filename, unicode):
+        elif isinstance(filename, str):
             filename = os.path.expanduser(filename)
             logger.debug("importing from {}".format(filename))
             f = open(filename, 'r')
@@ -591,7 +580,7 @@ class Bundle(ParameterSet):
             # we'll handle later
             pass
         else:
-            raise TypeError("filename must be string, unicode, or file object, got {}".format(type(filename)))
+            raise TypeError("filename must be string or file object, got {}".format(type(filename)))
 
         if isinstance(filename, list):
             data = filename
@@ -2520,10 +2509,7 @@ class Bundle(ParameterSet):
 
             repr_ = func(*func_args)
 
-            if sys.version_info[0] == 3:
-              kind = func.__name__
-            else:
-              kind = func.__name__
+            kind = func.__name__
 
         hier_param = HierarchyParameter(value=repr_,
                                         description='Hierarchy representation')
@@ -3721,8 +3707,7 @@ class Bundle(ParameterSet):
                 dataset_ps = self.get_dataset(dataset=dataset, check_visible=False)
 
                 ld_mode = dataset_ps.get_value(qualifier='ld_mode', component=component, **_skip_filter_checks)
-                # cast to string to ensure not a unicode since we're passing to libphoebe
-                ld_func = str(dataset_ps.get_value(qualifier='ld_func', component=component, **_skip_filter_checks))
+                ld_func = dataset_ps.get_value(qualifier='ld_func', component=component, **_skip_filter_checks)
                 ld_coeffs_source = dataset_ps.get_value(qualifier='ld_coeffs_source', component=component, **_skip_filter_checks)
                 ld_coeffs = dataset_ps.get_value(qualifier='ld_coeffs', component=component, **_skip_filter_checks)
                 pb = dataset_ps.get_value(qualifier='passband', **kwargs)
@@ -5159,11 +5144,7 @@ class Bundle(ParameterSet):
 
         func = _get_add_func(_component, kind)
 
-        if sys.version_info[0] == 3:
-          fname = func.__name__
-        else:
-          fname = func.__name__
-
+        fname = func.__name__
 
         if kwargs.get('component', False) is None:
             # then we want to apply the default below, so let's pop for now
@@ -5756,11 +5737,6 @@ class Bundle(ParameterSet):
                                               **{'context': 'dataset',
                                                  'kind': func.__name__}))
 
-        if not isinstance(kwargs['dataset'], str):
-            # if dataset is a unicode, that conflicts with copy-for
-            # TODO: this really should be replaced with a more elegant handling
-            # of unicode within parameters.ParameterSet._check_copy_for
-            kwargs['dataset'] = str(kwargs['dataset'])
 
         if kwargs.pop('check_label', True):
             self._check_label(kwargs['dataset'], allow_overwrite=kwargs.get('overwrite', False))
@@ -8042,11 +8018,7 @@ class Bundle(ParameterSet):
 
         func = _get_add_func(_figure, kind)
 
-        if sys.version_info[0] == 3:
-          fname = func.__name__
-        else:
-          fname = func.__name__
-
+        fname = func.__name__
 
         if kwargs.get('figure', False) is None:
             # then we want to apply the default below, so let's pop for now
@@ -9565,9 +9537,6 @@ class Bundle(ParameterSet):
 
         # handle the ability to send multiple compute options/backends - here
         # we'll just always send a list of compute options
-        if isinstance(compute, unicode):
-            compute = str(compute)
-
         if isinstance(compute, str):
             computes = [compute]
         else:
@@ -9650,7 +9619,7 @@ class Bundle(ParameterSet):
         f.write("b = phoebe.open(bdict, import_from_older={})\n".format(import_from_older))
         # TODO: make sure this works with multiple computes
         compute_kwargs = list(kwargs.items())+[('compute', compute), ('model', str(model)), ('dataset', dataset), ('do_create_fig_params', do_create_fig_params)]
-        compute_kwargs_string = ','.join(["{}={}".format(k,"\'{}\'".format(str(v)) if (isinstance(v, str) or isinstance(v, unicode)) else v) for k,v in compute_kwargs])
+        compute_kwargs_string = ','.join(["{}={}".format(k,"\'{}\'".format(str(v)) if isinstance(v, str) else v) for k,v in compute_kwargs])
         # as the return from run_compute just does a filter on model=model,
         # model_ps here should include any created figure parameters
 
@@ -9854,7 +9823,7 @@ class Bundle(ParameterSet):
         """
         # NOTE: if we're already in client mode, we'll never get here in the client
         # there detach is handled slightly differently (see parameters._send_if_client)
-        if isinstance(detach, str) or isinstance(detach, unicode):
+        if isinstance(detach, str):
             # then we want to temporarily go in to client mode
             raise NotImplementedError("detach currently must be a bool")
             self.as_client(as_client=detach)
@@ -10877,7 +10846,7 @@ class Bundle(ParameterSet):
         f.write("bdict = json.loads(\"\"\"{}\"\"\", object_pairs_hook=phoebe.utils.parse_json)\n".format(json.dumps(b.exclude(context=exclude_contexts, **_skip_filter_checks).exclude(solution=exclude_solutions, **_skip_filter_checks).to_json(incl_uniqueid=True, exclude=['description', 'advanced', 'readonly', 'copy_for']))))
         f.write("b = phoebe.open(bdict, import_from_older={})\n".format(import_from_older))
         solver_kwargs = list(kwargs.items())+[('solver', solver), ('solution', str(solution))]
-        solver_kwargs_string = ','.join(["{}={}".format(k,"\'{}\'".format(str(v)) if (isinstance(v, str) or isinstance(v, unicode)) else v) for k,v in solver_kwargs])
+        solver_kwargs_string = ','.join(["{}={}".format(k,"\'{}\'".format(str(v)) if isinstance(v, str) else v) for k,v in solver_kwargs])
 
         custom_lnprobability_callable = kwargs.get('custom_lnprobability_callable', None)
         if custom_lnprobability_callable is not None:
@@ -11088,7 +11057,7 @@ class Bundle(ParameterSet):
         * a <phoebe.parameters.ParameterSet> of the newly-created solver solution.
 
         """
-        if isinstance(detach, str) or isinstance(detach, unicode):
+        if isinstance(detach, str):
             # then we want to temporarily go in to client mode
             raise NotImplementedError("detach currently must be a bool")
             self.as_client(as_client=detach)
