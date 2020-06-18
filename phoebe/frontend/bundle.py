@@ -68,8 +68,8 @@ try:
     """
 
     import requests
-    from urllib2 import urlopen as _urlopen
-    from urllib2 import URLError
+    from urllib.request import urlopen as _urlopen
+    from urllib.error import URLError
 
     import socketio # https://python-socketio.readthedocs.io/en/latest/client.html
 
