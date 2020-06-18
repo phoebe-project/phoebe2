@@ -17,9 +17,7 @@ else:
     _use_phb1 = True
 
 
-if sys.version_info[0] >= 3:
-    from io import IOBase as _IOBase
-
+from io import IOBase as _IOBase
 
 from phoebe import conf
 from phoebe.distortions import roche
@@ -30,10 +28,7 @@ logger = logging.getLogger("IO")
 logger.addHandler(logging.NullHandler())
 
 def _is_file(obj):
-    if sys.version_info[0] >= 3:
-        return isinstance(obj, _IOBase) or obj.__class__.__name__ in ['FileStorage']
-    else:
-        return isinstance(obj, file) or obj.__class__.__name__ in ['FileStorage']
+    return isinstance(obj, _IOBase) or obj.__class__.__name__ in ['FileStorage']
 
 """
 Dictionaries of parameters for conversion between phoebe1 and phoebe 2
@@ -456,7 +451,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
         f = filename
         legacy_file_dir = None
 
-    elif isinstance(filename, str) or isinstance(filename, unicode):
+    elif isinstance(filename, str):
         filename = os.path.expanduser(filename)
         legacy_file_dir = os.path.dirname(filename)
 
@@ -464,7 +459,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
         f = open(filename, 'r')
 
     else:
-        raise TypeError("filename must be string, unicode, or file object, got {}".format(type(filename)))
+        raise TypeError("filename must be string or file object, got {}".format(type(filename)))
 
 # load the phoebe file
 

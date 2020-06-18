@@ -24,6 +24,8 @@ import os
 import difflib
 import time
 import types
+import tempfile
+import subprocess
 from collections import OrderedDict
 from fnmatch import fnmatch
 from copy import deepcopy as _deepcopy
@@ -53,9 +55,6 @@ if os.getenv('PHOEBE_ENABLE_EXTERNAL_JOBS', 'FALSE').upper() == 'TRUE':
         _can_requests = True
 else:
     _can_requests = False
-
-if sys.version_info[0] == 3:
-  unicode = str
 
 # things needed to be imported at top-level for constraints to solve:
 from numpy import sin, cos, tan, arcsin, arccos, arctan, sqrt
@@ -194,7 +193,7 @@ _forbidden_labels += ['t0', 'ra', 'dec', 'epoch', 'distance', 'vgamma', 'hierarc
 _forbidden_labels += ['phoebe_version', 'log_history', 'dict_filter',
                       'dict_set_all', 'run_checks_compute', 'run_checks_solver',
                       'run_checks_solution', 'run_checks_figure',
-                      'auto_add_figure', 'auto_remove_figure']
+                      'auto_add_figure', 'auto_remove_figure', 'web_client', 'web_client_url']
 
 # from component
 _forbidden_labels += ['requiv', 'requiv_max', 'requiv_min', 'teff', 'abun', 'logg',
@@ -331,54 +330,74 @@ def _singular_to_plural_get(k):
 def _plural_to_singular_get(k):
     return _plural_to_singular.get(k, k)
 
+def _return_ps(b, ps):
+    """set the _filter of the ps to be the uniqueids and return"""
+    if isinstance(ps, list):
+        ps = ParameterSet(ps)
+    if ps._bundle is None:
+        ps._bundle = b
+    if not len(ps._filter.keys()):
+        ps._filter = {'uniqueid': ps.uniqueids}
+    return ps
+
 def send_if_client(fctn):
     """Intercept and send to the server if bundle is in client mode."""
     @functools.wraps(fctn)
     def _send_if_client(self, *args, **kwargs):
         fctn_map = {'set_quantity': 'set_value',
                     'set_value': 'set_value',
-                    'set_default_unit': 'set_default_unit'}
+                    'set_default_unit': 'set_default_unit',
+                    'flip_for': 'flip_constraint'}
         b = self._bundle
         if b is not None and hasattr(b, 'is_client') and b.is_client:
             # TODO: self._filter???
             # TODO: args???
+            requestid = _uniqueid(6)
+            self._bundle._waiting_on_server = requestid
+
             method = fctn_map.get(fctn.__name__, 'bundle_method')
-            d = self._filter if hasattr(self, '_filter') \
+            # NOTE: the deepcopy is necessary here so we don't overwrite self._filter
+            d = self._filter.copy() if hasattr(self, '_filter') \
                 else {'uniqueid': self.uniqueid}
             d['bundleid'] = b._bundleid
+            d['requestid'] = requestid
             d['args'] = args
-            d['fctn'] = fctn.__name__
+            if method == 'bundle_method':
+                d['method'] = fctn.__name__
             for k, v in kwargs.items():
                 if hasattr(v, 'to_json'):
                     v = v.to_json()
                 d[k] = v
 
+            if d.get('method', None) in ['run_compute', 'run_solver']:
+                detach = d.pop('detach', False)
+
             logger.info('emitting {} ({}) to server'.format(method, d))
+
             b._socketio.emit(method, d)
 
-            if fctn.__name__ in ['run_compute', 'run_solver']:
-                # then we're expecting a quick response with an added jobparam
-                # let's add that now
-                self._bundle.client_update()
+            while self._bundle._waiting_on_server:
+                # print("waiting on server for method: {}, bundleid: {}, requestid: {}".format(d.get('method', None), self._bundle._bundleid, self._bundle._waiting_on_server))
+                time.sleep(0.2)
+
+            ret_ = self._bundle._server_changes
+            self._bundle._server_changes = None
+
+            if d.get('method', None) in ['run_compute', 'run_solver'] and not detach:
+                # then we need to sit in a poll loop until the job returns as completed
+                # otherwise the user will have to call b.attach_job manually?  Or will the results just come in once done?
+                # should be the single job parameter
+                ret_ += self._bundle.attach_job(uniqueid=ParameterSet([p for p in ret_.to_list() if p._bundle is not None]).get_parameter(qualifier='detached_job', **_skip_filter_checks).uniqueid)
+
+            if isinstance(ret_, ParameterSet) and not len(ret_._filter.keys()):
+                ret_ = _return_ps(self._bundle, ret_)
+
+            return ret_
+
         else:
             return fctn(self, *args, **kwargs)
+
     return _send_if_client
-
-
-def update_if_client(fctn):
-    """Intercept and check updates from server if bundle is in client mode."""
-    @functools.wraps(fctn)
-    def _update_if_client(self, *args, **kwargs):
-        b = self._bundle
-        if b is None or not hasattr(b, 'is_client'):
-            return fctn(self, *args, **kwargs)
-        elif b.is_client and \
-                (b._last_client_update is None or
-                (datetime.now() - b._last_client_update).seconds > 1):
-
-            b.client_update()
-        return fctn(self, *args, **kwargs)
-    return _update_if_client
 
 
 def _uniqueid(n=30):
@@ -391,6 +410,8 @@ def _uniqueid(n=30):
     return ''.join(random.SystemRandom().choice(
                    string.ascii_uppercase + string.ascii_lowercase)
                    for _ in range(n))
+
+_clientid = 'python-'+_uniqueid(5)
 
 def _is_unit(unit):
     return isinstance(unit, u.Unit) or isinstance(unit, u.CompositeUnit) or isinstance(unit, u.IrreducibleUnit)
@@ -446,6 +467,14 @@ def _fnmatch(to_this, expression_or_string):
         return fnmatch(to_this, expression_or_string)
     else:
         return expression_or_string == to_this
+
+class JupyterUI(object):
+    def __init__(self, url):
+        self.url = url
+    def __repr__(self):
+        return self.url
+    def _repr_html_(self):
+        return "<iframe src=\"{}\" style='width:100%;min-height:400px'></iframe>".format(self.url)
 
 class ParameterSetInfo(dict):
     def __init__(self, ps, attribute):
@@ -513,6 +542,9 @@ class ParameterSet(object):
         """
         self._bundle = None
         self._filter = {}
+
+        if isinstance(params, str):
+            params = json.loads(params)
 
         if len(params) and not isinstance(params[0], Parameter):
             # then attempt to load as if json
@@ -1766,65 +1798,255 @@ class ParameterSet(object):
 
         return filename
 
-    def ui(self, client='http://localhost:3000', full_ui=None, **kwargs):
-        """
-        Open an interactive user-interface for the ParameterSet.
+    def _launch_ui(self, web_client, action, filter={}, full_ui=False, blocking=None):
 
-        The bundle must be in client mode in order to open the web-interface.
-        See <phoebe.frontend.bundle.Bundle.as_client> to switch to client mode.
-
-        See also:
-        * <phoebe.frontend.bundle.Bundle.from_server>
-        * <phoebe.frontend.bundle.Bundle.as_client>
-        * <phoebe.frontend.bundle.Bundle.is_client>
-        * <phoebe.frontend.bundle.Bundle.client_update>
-
-        Arguments
-        -----------
-        * `client` (str, optional, default='http://localhost:3000'): URL to find
-            and launch the web-client.
-        * `full_ui` (bool or None, optional, default=None): whether to launch
-            the full navigatable UI (as opposed to just the ParameterSet view).
-            If None, will default to True for a Bundle or False for a ParameterSet.
-        * `**kwargs`: additional kwargs will be sent to
-            <phoebe.parameters.ParameterSet.filter>.
-
-        Returns
-        ----------
-        * `url` (string): the opened URL (will attempt to launch in the system
-            webbrowser)
-        """
-        if not conf.devel:
-            raise NotImplementedError("'ui' not officially supported for this release.  Enable developer mode to test.")
-
-        if self._bundle is None or not self._bundle.is_client:
-            raise ValueError("bundle must be in client mode.  Call bundle.as_client()")
-
-        if len(kwargs):
-            return self.filter(**kwargs).ui(client=client)
-
-        def filteritem(v):
+        def filteritem(k, v):
             if isinstance(v, list):
                 return v
             else:
                 return [v]
 
-        querystr = "&".join(["{}={}".format(k, filteritem(v))
-                             for k, v in self._filter.items()])
-        # print self._filter
-        if full_ui is None:
-            full_ui = len(self._filter.keys()) == 0
+        if len(filter.items()):
+            querystr = "&".join(["{}={}".format(k, filteritem(k, v))
+                                 for k, v in filter.items()])
 
-
-        ### TODO: can we support launching the electron instance if installed?
-        if full_ui:
-            url = "{}/{}/{}?{}".format(client, self._bundle.is_client.strip("http://"), self._bundle._bundleid, querystr)
         else:
-            url = "{}/{}/{}/ps?{}".format(client, self._bundle.is_client.strip("http://"), self._bundle._bundleid, querystr)
+            querystr = ""
 
-        logger.info("opening {} in browser".format(url))
-        webbrowser.open(url)
-        return url
+        querystr += "&advanced=['is_advanced','is_single','is_constraint']"
+
+        was_client = self._bundle.is_client
+
+        # let's handle some defaults.
+        # First determine if we're in jupyter, ipython, or python
+        try:
+            ipython_class = get_ipython().__class__.__name__
+        except NameError:
+            ipython_class = None
+
+        if ipython_class == 'ZMQInteractiveShell':
+            is_jupyter = True
+        else:
+            is_jupyter = False
+
+        if is_jupyter:
+            if self._bundle.is_client:
+                querystr += "&disconnectButton=disconnect"
+            else:
+                querystr += "&disconnectButton=continue"
+
+        # now if full_ui was passed to auto, then we want to default to False
+        # for Jupyter, but to True if no filter otherwise
+        if full_ui == 'auto':
+            if is_jupyter:
+                full_ui = False
+            else:
+                full_ui = len(self._filter.items()) == 0
+
+        # and now disable the passed action from the parent method if full_ui
+        # is (still) true
+        action = action if not full_ui else None
+
+        if web_client is None:
+            web_client = self._bundle.get_value(qualifier='web_client', context='setting', default=False, **_skip_filter_checks)
+        if web_client is True:
+            web_client = self._bundle.get_value(qualifier='web_client_url', context='setting', default='ui.phoebe-project.org', **_skip_filter_checks)
+
+        # TODO: expose options for advanced filters (or include everything by default)
+
+        if web_client or is_jupyter:
+            if not web_client:
+                # then we want to launch the UI inline.  We can't do this from
+                # the installed client directly, BUT since the server is on
+                # localhost, it will be serving the static web-version of the
+                # desktop-client to self._bundle.is_client/ui
+                if not self._bundle.is_client:
+                    blocking = blocking if blocking is not None else True
+                    if blocking:
+                        logger.info("(temporarily) entering client mode")
+                    else:
+                        logger.info("entering client mode for non-blocking UI.  Must manually call b.as_client(False) to exit client mode.")
+                    self._bundle.as_client()
+                else:
+                    blocking = blocking if blocking is not None else False
+
+                web_client = self._bundle.is_client
+                is_static_file = True
+
+            else:
+                is_static_file = False
+                blocking = blocking if blocking is not None else False
+
+                # then we must be in client mode already, if not, we'll raise an error
+                # note that we do allow not in client-mode for the case of jupyter
+                # as we will launch the server on localhost and manage it
+                if not self._bundle.is_client:
+                    # TODO: could allow passing as_client to PS.ui() to launch in one line...
+                    # self._bundle.as_client(as_client=as_client, bundleid=bundleid, wait_for_server=True, reconnection_attempts=3, blocking=False)
+                    raise ValueError("bundle must be in client mode (see b.as_client) before launching a web_client.")
+
+            if web_client is True:
+                web_client = 'http://ui.phoebe-project.org'
+
+            if 'http' not in web_client[:5]:
+                web_client = 'http://'+web_client
+
+            if action:
+                url = "{}/{}/{}/{}?{}".format(web_client, self._bundle.is_client.strip("http://"), self._bundle._bundleid, action, querystr)
+            else:
+                url = "{}/{}/{}?{}".format(web_client, self._bundle.is_client.strip("http://"), self._bundle._bundleid, querystr)
+
+
+            if is_jupyter:
+                jui = JupyterUI(url)
+                if blocking:
+                    from IPython.display import display, HTML
+                    display(HTML(jui._repr_html_()))
+
+                    # first wait to make sure the jupyter client connects
+                    while len(self._bundle._server_clients) < 2:
+                        logger.debug("blocking: waiting for jupyter client to connect", self._bundle._server_clients)
+                        time.sleep(0.1)
+
+                    # now the server is connect to at least the jupyter client and python-client
+                    while len(self._bundle._server_clients) > 1:
+                        logger.debug("blocking: waiting for jupyter client to disconnect", self._bundle._server_clients)
+                        time.sleep(0.5)
+
+                    if not was_client:
+                        logger.info("leaving client mode")
+                        self._bundle.as_client(False)
+                else:
+                    return jui
+            else:
+                # the is_jupyter case will be
+                logger.info("opening {} in browser".format(url))
+                webbrowser.open(url)
+                return url
+
+
+        else:
+            # then we'll attempt to launch the desktop app on this machine
+            cmd = 'phoebe'
+            if self._bundle.is_client:
+                blocking = blocking if blocking is not None else False
+            if not self._bundle.is_client:
+                blocking = blocking if blocking is not None else True
+                if blocking:
+                    logger.info("(temporarily) entering client mode")
+                else:
+                    logger.info("entering client mode for non-blocking UI.  Must manually call b.as_client(False) to exit client mode.")
+                self._bundle.as_client()
+
+            # then we're attaching the UI to an already existing instance on an already running server
+            cmd += ' -s {} -b {}'.format(self._bundle.is_client.strip('http://'), self._bundle._bundleid)
+            cmd += ' --skip-child-server'
+
+            if querystr:
+                cmd += ' -f \"{}\"'.format(querystr.replace(' ', ''))
+
+            if action:
+                cmd += ' -a {}'.format(action)
+
+            # then we want to launch the UI in a separate thread
+            cmd += ' --noWarnOnClose'
+
+            if not blocking:
+                cmd += ' &'
+
+            logger.info("system call: "+cmd)
+            # NOTE: this will block if not blocking
+            os.system(cmd)
+
+            if not was_client and blocking:
+                logger.info("leaving client mode")
+                self._bundle.as_client(False)
+
+
+    def ui(self, web_client=None, full_ui=None, blocking=None, **kwargs):
+        """
+        Open an interactive user-interface for the ParameterSet.
+
+        If the bundle is in client mode (see <phoebe.frontend.bundle.Bundle.is_client>
+        and <phoebe.frontend.bundle.Bundle.as_client>) then the UI will open
+        asynchronously or non-blocking (allowing you to interact from
+        both python and the UI simultaneously).  Otherwise the UI will open
+        synchronously by blocking the thread until the UI is closed and the
+        bundle will continue outside of client mode.  To override this default
+        behavior, see `blocking`. Note that if the bundle is not currently in
+        client-mode but `blocking` is manually set to False, then the bundle
+        will remain in client mode until manually passing `False` to
+        <phoebe.frontend.bundle.Bundle.as_client>
+
+        If the UI is not installed, pass a URL to `web_client`
+        (ie. http://ui.phoebe-project.org) to launch the web-client in the
+        default system browser. Note that this requires the bundle to already be in client mode.
+        Call <phoebe.frontend.bundle.Bundle.as_client> first to use `web_client`.
+
+        In Jupyter notebooks, the UI will be shown in-line with a button to disconnect
+        that instance of the client (if not blocking) or to disconnect and "continue"
+        the notebook execution if blocking.
+
+        To more information or to install the desktop-client, see
+        http://phoebe-project.org/clients
+
+        See also:
+        * <phoebe.frontend.bundle.Bundle.ui_figures>
+        * <phoebe.frontend.bundle.Bundle.from_server>
+        * <phoebe.frontend.bundle.Bundle.as_client>
+        * <phoebe.frontend.bundle.Bundle.is_client>
+
+        Arguments
+        -----------
+        * `web_client` (bool or string, optional, default=False):
+            If not provided or None, this will default to the values in the
+            settings for `web_client` and `web_client_url`.
+            If True, a web-client will be preferred over a desktop-client and
+            will default to using the settings for `web_client_url`.
+            If False, will use the desktop-client instead of a web-client.
+            If a string, the string will be used as the url for the web-client.
+            Note that if using a web-client, the bundle must already be
+            in client mode.  See <phoebe.frontend.bundle.Bundle.is_client>
+            and <phoebe.frontend.bundle.Bundle.as_client>.
+        * `full_ui` (bool, optional, default=None): whether to show the entire
+            bundle or just the filtered ParameterSet.  If not provided, will
+            default to True if acting on the Bundle, or False if acting on
+            a filtered ParameterSet.
+        * `blocking` (bool, optional, default=None): whether the clal to the
+            UI should be blocking (wait for the client to close/disconnect)
+            before continuing the python-thread or not.  If not provided or
+            None, will default to True if not currently in client-mode
+            (see <phoebe.frontend.bundle.Bundle.is_client> and
+            <phoebe.frontend.bundle.Bundle.as_client>) or False otherwise.
+        * `**kwargs`: additional kwargs will be sent to
+            <phoebe.parameters.ParameterSet.filter>.
+
+        Returns
+        ----------
+        * if `web_client`: `url` (string): the opened URL (will attempt to launch in the system
+            webbrowser)
+
+        Raises
+        -----------
+        * ValueError: if the <phoebe.parameters.ParameterSet> is not attached
+            to a parent <phoebe.frontend.bundle.Bundle>.
+        * ValueError: if `web_client` is provided but the <phoebe.frontend.bundle.Bundle>
+            is not in client mode (see <phoebe.frontend.bundle.Bundle.is_client>
+            and <phoebe.frontend.bundle.Bundle.as_client>)
+        """
+        if self._bundle is None:
+            raise ValueError("cannot call ui on a ParameterSet not attached to a Bundle")
+
+
+        if len(kwargs):
+            return self.filter(**kwargs).ui(web_client=web_client, full_ui=full_ui, blocking=blocking)
+
+        if full_ui is None:
+            # default to True for the full bundle, False for a filtered PS
+            full_ui = 'auto'
+
+        action = 'ps'
+        return self._launch_ui(web_client, action, self._filter, full_ui, blocking)
 
     def to_list(self, **kwargs):
         """
@@ -2115,7 +2337,7 @@ class ParameterSet(object):
         """
         return iter(self.to_dict())
 
-    def to_json(self, incl_uniqueid=False, exclude=[], sort_by_context=True):
+    def to_json(self, incl_uniqueid=False, incl_none=False, exclude=[], sort_by_context=True):
         """
         Convert the <phoebe.parameters.ParameterSet> to a json-compatible
         object.
@@ -2134,6 +2356,8 @@ class ParameterSet(object):
         * `incl_uniqueid` (bool, optional, default=False): whether to include
             uniqueids in the file (only needed if its necessary to maintain the
             uniqueids when reloading)
+        * `incl_none` (bool, optional, default=False): whether to include tags
+            whose values are None.
         * `exclude` (list, optional, default=[]): tags to exclude when saving.
 
         Returns
@@ -2143,7 +2367,7 @@ class ParameterSet(object):
         lst = []
         if sort_by_context:
             for context in _contexts:
-                lst += [v.to_json(incl_uniqueid=incl_uniqueid, exclude=exclude)
+                lst += [v.to_json(incl_uniqueid=incl_uniqueid, incl_none=incl_none, exclude=exclude)
                         for v in self.filter(context=context,
                                              check_visible=False,
                                              check_default=False).to_list()]
@@ -2447,7 +2671,7 @@ class ParameterSet(object):
                 params += self.filter(twig=t, check_visible=check_visible, check_default=check_default, check_advanced=check_advanced, check_single=check_single, **kwargs).to_list()
             return _return(params, force_ps)
 
-        if not (twig is None or isinstance(twig, str) or isinstance(twig, unicode)):
+        if not (twig is None or isinstance(twig, str)):
             raise TypeError("first argument (twig) must be of type str or None, got {}".format(type(twig)))
 
         if kwargs.get('component', None) == '_default' or\
@@ -2493,22 +2717,9 @@ class ParameterSet(object):
         # TODO: replace with key,value in kwargs.items()... unless there was
         # some reason that won't work?
         for key in kwargs.keys():
-            # TODO [optimize]: this probably isn't efficient, but I'm getting
-            # sick of running into bugs caused by passing unicodes
-            if isinstance(kwargs[key], unicode):
-                kwargs[key] = str(kwargs[key])
-
             if len(params) and \
                     key in _meta_fields_filter and \
                     kwargs[key] is not None:
-
-                #if kwargs[key] is None:
-                #    params = [pi for pi in params if getattr(pi,key) is None]
-                #else:
-                if isinstance(kwargs[key], unicode):
-                    # unicodes can cause all sorts of confusions with fnmatch,
-                    # so let's just cast now and be done with it
-                    kwargs[key] = str(kwargs[key])
 
                 params = [pi for pi in params if (hasattr(pi,key) and getattr(pi,key) is not None or isinstance(kwargs[key], list) and None in kwargs[key]) and
                     (getattr(pi,key) is kwargs[key] or
@@ -5574,10 +5785,6 @@ class Parameter(object):
             attr = '_{}'.format(attr)
             val = getattr(self, attr)
 
-            if isinstance(val, unicode) and attr not in ['_copy_for']:
-              setattr(self, attr, str(val))
-
-
             #if attr == '_copy_for' and isinstance(self._copy_for, str):
             #    print "***", self._copy_for
             #    self._copy_for = json.loads(self._copy_for)
@@ -5837,7 +6044,7 @@ class Parameter(object):
 
         return filename
 
-    def to_json(self, incl_uniqueid=False, exclude=[]):
+    def to_json(self, incl_uniqueid=False, incl_none=False, exclude=[]):
         """
         Convert the <phoebe.parameters.Parameter> to a json-compatible
         object.
@@ -5852,6 +6059,8 @@ class Parameter(object):
         * `incl_uniqueid` (bool, optional, default=False): whether to include
             uniqueids in the file (only needed if its necessary to maintain the
             uniqueids when reloading)
+        * `incl_none` (bool, optional, default=False): whether to include tags
+            whose values are None.
         * `exclude` (list, optional, default=[]): tags to exclude when saving.
 
         Returns
@@ -5900,7 +6109,7 @@ class Parameter(object):
                 except:
                     raise NotImplementedError("could not parse {} of '{}' to json".format(k, self.uniquetwig))
 
-        return {k: _parse(k, v) for k,v in self.to_dict().items() if (v is not None and k not in ['twig', 'uniquetwig', 'quantity']+exclude and (k!='uniqueid' or incl_uniqueid or self.qualifier=='detached_job'))}
+        return {k: _parse(k, v) for k,v in self.to_dict().items() if ((v is not None or incl_none) and k not in ['twig', 'uniquetwig', 'quantity']+exclude and (k!='uniqueid' or incl_uniqueid or self.qualifier=='detached_job'))}
 
     @property
     def attributes(self):
@@ -6945,8 +7154,7 @@ class Parameter(object):
     def get_value(self, *args, **kwargs):
         """
         This method should be overriden by any subclass of
-        <phoebe.parameters.Parameter>, and should be decorated with the
-        @update_if_client decorator.
+        <phoebe.parameters.Parameter>.
         Please see the individual classes documentation:
 
         * <phoebe.parameters.FloatParameter.get_value>
@@ -7024,7 +7232,6 @@ class StringParameter(Parameter):
         self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for', 'readonly', 'advanced']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
-    @update_if_client
     def get_value(self, **kwargs):
         """
         Get the current value of the <phoebe.parameters.StringParameter>.
@@ -7111,7 +7318,6 @@ class TwigParameter(Parameter):
         """
         return self._bundle.get_parameter(uniqueid=self._value)
 
-    @update_if_client
     def get_value(self, **kwargs):
         """
         Get the current value of the <phoebe.parameters.TwigParameter>.
@@ -7168,7 +7374,7 @@ class TwigParameter(Parameter):
         if self._bundle is None:
             raise ValueError("TwigParameters must be attached from the bundle, and cannot be standalone")
 
-        value = str(value)  # <-- in case unicode
+        value = str(value)
 
         # NOTE: this means that in all saving of bundles, we MUST keep the uniqueid and retain them when re-opening
         value = _twig_to_uniqueid(self._bundle, value, **kwargs)
@@ -7219,7 +7425,6 @@ class ChoiceParameter(Parameter):
         """
         return self._choices
 
-    @update_if_client
     def get_value(self, **kwargs):
         """
         Get the current value of the <phoebe.parameters.ChoiceParameter>.
@@ -7428,7 +7633,6 @@ class SelectParameter(Parameter):
 
         return False
 
-    @update_if_client
     def get_value(self, expand=False, **kwargs):
         """
         Get the current value of the <phoebe.parameters.SelectParameter>.
@@ -7735,7 +7939,6 @@ class BoolParameter(Parameter):
         self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for', 'readonly', 'advanced']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
-    @update_if_client
     def get_value(self, **kwargs):
         """
         Get the current value of the <phoebe.parameters.BoolParameter>.
@@ -7822,7 +8025,7 @@ class UnitParameter(ChoiceParameter):
         if value in ['', 'dimensionless']:
             return 'dimensionless'
 
-        if isinstance(value, str) or isinstance(value, unicode):
+        if isinstance(value, str) :
             try:
                 value = u.Unit(str(value))
             except:
@@ -7832,7 +8035,6 @@ class UnitParameter(ChoiceParameter):
 
         return value
 
-    @update_if_client
     def get_value(self, **kwargs):
         """
         Get the current value of the <phoebe.parameters.UnitParameter>.
@@ -7894,7 +8096,6 @@ class DictParameter(Parameter):
         self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for', 'readonly', 'advanced']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
-    @update_if_client
     def get_value(self, **kwargs):
         """
         Get the current value of the <phoebe.parameters.DictParameter>.
@@ -8057,7 +8258,6 @@ class IntParameter(Parameter):
 
         return value
 
-    @update_if_client
     def get_value(self, **kwargs):
         """
         Get the current value of the <phoebe.parameters.IntParameter>.
@@ -8187,7 +8387,6 @@ class DistributionParameter(Parameter):
 
         return self.get_value().logpdf(param_quantity.value, unit=param_quantity.unit)
 
-    @update_if_client
     def get_value(self, **kwargs):
         """
         Get the current value of the <phoebe.parameters.DistributionParameter>
@@ -8306,8 +8505,8 @@ class FloatParameter(Parameter):
 
         unit = kwargs.get('unit', None)  # will default to default_unit in set_value
 
-        if isinstance(unit, unicode):
-          unit = u.Unit(str(unit))
+        if isinstance(unit, str):
+          unit = u.Unit(unit)
 
 
         timederiv = kwargs.get('timederiv', None)
@@ -8375,8 +8574,8 @@ class FloatParameter(Parameter):
         # TODO: add to docstring documentation about what happens (does the value convert, etc)
         # TODO: check to make sure isinstance(unit, astropy.u.Unit)
         # TODO: check to make sure can convert from current default unit (if exists)
-        if isinstance(unit, unicode) or isinstance(unit, str):
-          unit = u.Unit(str(unit))
+        if isinstance(unit, str):
+          unit = u.Unit(unit)
         elif unit is None:
             unit = u.dimensionless_unscaled
 
@@ -8777,7 +8976,6 @@ class FloatParameter(Parameter):
             self.set_value(value, ignore_readonly=True)
         return value
 
-    #@update_if_client is on the called get_quantity
     def get_value(self, unit=None, t=None,
                   **kwargs):
         """
@@ -8798,7 +8996,6 @@ class FloatParameter(Parameter):
         else:
             return quantity
 
-    @update_if_client
     def get_quantity(self, unit=None, t=None,
                      **kwargs):
         """
@@ -8894,7 +9091,7 @@ class FloatParameter(Parameter):
         # accept tuples (ie 1.2, 'rad') from dictionary access
         if isinstance(value, tuple) and unit is None:
             value, unit = value
-        if isinstance(value, str) or isinstance(value, unicode):
+        if isinstance(value, str):
             if len(value.strip().split(' ')) == 2 and unit is None and self.__class__.__name__ == 'FloatParameter':
                 # support value unit as string
                 valuesplit = value.strip().split(' ')
@@ -9008,7 +9205,7 @@ class FloatParameter(Parameter):
 
         value, unit = self._check_value(value, unit)
 
-        if isinstance(unit, str) or isinstance(unit, unicode):
+        if isinstance(unit, str):
             # print "*** converting string to unit"
             unit = u.Unit(unit)  # should raise error if not a recognized unit
         elif unit is not None and not _is_unit(unit):
@@ -9404,7 +9601,7 @@ class FloatArrayParameter(FloatParameter):
         """
         if isinstance(value, u.Quantity):
             value = value.to(self.default_unit).value
-        elif isinstance(value, str) or isinstance(value, unicode):
+        elif isinstance(value, str):
             value = float(value)
         #else:
             #value = value*self.default_unit
@@ -9534,7 +9731,6 @@ class ArrayParameter(Parameter):
         #~ """
         #~ raise NotImplementedError
 
-    @update_if_client
     def get_value(self, **kwargs):
         """
         Get the current value of the <phoebe.parameters.ArrayParameter>.
@@ -10160,7 +10356,7 @@ class HierarchyParameter(StringParameter):
             items = self._get_by_trace(structure, trace[:-1]+[trace[-1]+1])
             # we want to ignore suborbits
             #return [str(ch.split(':')[-1]) for ch in items if isinstance(ch, unicode)]
-            return [str(ch.split(':')[-1]) for ch in items if isinstance(ch, unicode) and (kind is None or ch.split(':')[0] in kind)]
+            return [str(ch.split(':')[-1]) for ch in items if isinstance(ch, str) and (kind is None or ch.split(':')[0] in kind)]
 
     def get_stars_of_children_of(self, component):
         """
@@ -10745,8 +10941,8 @@ class ConstraintParameter(Parameter):
         * Error: if the new and current units are incompatible.
         """
         # TODO: check to make sure can convert from current default unit (if exists)
-        if isinstance(unit, unicode) or isinstance(unit, str):
-            unit = u.Unit(str(unit))
+        if isinstance(unit, str):
+            unit = u.Unit(unit)
 
         if not _is_unit(unit):
             raise TypeError("unit must be a Unit")
@@ -10779,7 +10975,7 @@ class ConstraintParameter(Parameter):
 
         if self._bundle is None:
             raise ValueError("ConstraintParameters must be attached from the bundle, and cannot be standalone")
-        value = str(value) # <-- in case unicode
+        value = str(value)
         # if the user wants to see the expression, we'll replace all
         # var.safe_label with var.curly_label
         self._value, self._vars = self._parse_expr(value)
@@ -10837,7 +11033,6 @@ class ConstraintParameter(Parameter):
         """
         return self.get_value()
 
-    #@update_if_client  # TODO: this breaks
     def get_value(self):
         """
         Return the expression/value of the
@@ -11182,6 +11377,7 @@ class ConstraintParameter(Parameter):
 
         return value
 
+    @send_if_client
     def flip_for(self, twig=None, expression=None, **kwargs):
         """
         Flip the constraint expression to solve for for any of the parameters
@@ -11511,7 +11707,6 @@ class JobParameter(Parameter):
         # TODO: implement a nice(r) string representation
         return "qualifier: {}\nstatus: {}".format(self.qualifier, self.status)
 
-    #@update_if_client # get_status will make API call if JobParam points to a server
     def get_value(self, **kwargs):
         """
         JobParameter doesn't really have a value, but for the sake of Parameter

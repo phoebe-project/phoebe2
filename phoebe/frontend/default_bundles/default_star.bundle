@@ -1009,7 +1009,6 @@ null
 "+", 
 "s", 
 "*", 
-"x", 
 "v", 
 "^", 
 "<", 
@@ -1122,7 +1121,7 @@ null
 }, 
 {
 "description": "Whether to automatically add figure parameters when a dataset is added with a new dataset type, or a solution is added.", 
-"value": false, 
+"value": true, 
 "context": "setting", 
 "copy_for": false, 
 "Class": "BoolParameter", 
@@ -1130,10 +1129,28 @@ null
 }, 
 {
 "description": "Whether to automatically remove figure parameters when the referenced dataset/solution are removed.", 
-"value": false, 
+"value": true, 
 "context": "setting", 
 "copy_for": false, 
 "Class": "BoolParameter", 
 "qualifier": "auto_remove_figure"
+}, 
+{
+"description": "Whether to default to using the web-client over a locally installed desktop-client when opening the UI from the desktop client.", 
+"value": false, 
+"context": "setting", 
+"copy_for": false, 
+"Class": "BoolParameter", 
+"advanced": true, 
+"qualifier": "web_client"
+}, 
+{
+"description": "Default location of web-client.  Will only be used if web_client is True.", 
+"value": "ui.phoebe-project.org", 
+"context": "setting", 
+"copy_for": false, 
+"Class": "StringParameter", 
+"advanced": true, 
+"qualifier": "web_client_url"
 }
 ]

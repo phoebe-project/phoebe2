@@ -7,13 +7,7 @@ pip install flask-socketio
 pip install gevent-websocket
 
 to launch with MPI enabled:
-PHOEBE_ENABLE_MPI=TRUE PHOEBE_MPI_NP=8 phoebe-server [port]
-
-to set a maximum number of allowed max_computations
-PHOEBE_SERVER_MAX_COMPUTATIONS=100 phoebe-server [port]
-
-to disable any compute-required solvers (optimizers/samplers)
-PHOEBE_SERVER_DISABLE_SOLVERS=True phoebe-server [port]
+PHOEBE_ENABLE_MPI=TRUE PHOEBE_MPI_NP=8 phoebe-server [...]
 """
 
 try:
@@ -25,16 +19,16 @@ except ImportError:
 
 ### NOTE: tested to work with eventlet, not sure about gevent
 
-
 ################################ SERVER/APP SETUP ##############################
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder=None)
+# app.url_map.converters['anything'] = CatchAnything
 CORS(app)
 app._bundles = {}
 app._clients = []
 app._clients_per_bundle = {}
 app._last_access_per_bundle = {}
-app._verbose = True
+app._verbose = False # set with --verbose flag at command line
 app._debug = False  # NOTE: setting this to True will fail to raise error messages in the UI
 app._killable = False
 
@@ -88,18 +82,14 @@ import os
 import sys
 import tempfile
 import traceback
-# if _sys.version_info[0] < 3:
-#     import urllib2 as urllib
-# else:
-#     import urllib
-# import StringIO
-if sys.version_info[0] == 3:
-  unicode = str
-  basestring = str
+import argparse
+
 import inspect
+import subprocess
 from time import sleep
 from collections import OrderedDict
 from datetime import datetime
+from distutils.version import StrictVersion
 
 from phoebe.parameters.unit_choices import unit_choices as _unit_choices
 
@@ -107,17 +97,12 @@ phoebe.devel_on() # currently needed for client mode, remove for actual release
 phoebe.interactive_off()
 phoebe.parameters._is_server = True
 
-_max_computations = os.getenv('PHOEBE_SERVER_MAX_COMPUTATIONS', None)
-if _max_computations is not None:
-    _max_computations = int(_max_computations)
-
-_disable_solvers = os.getenv('PHOEBE_SERVER_DISABLE_SOLVERS', 'False').lower()=='true'
-if _disable_solvers:
-    _allowed_solver_kinds = [s.split('.')[-1] for s in phoebe.list_available_solvers() if s.split('.')[0] not in ['optimizer', 'sampler']]
-else:
-    _allowed_solver_kinds = [s.split('.')[-1] for s in phoebe.list_available_solvers()]
-
 _dir_tmpimages = os.path.join(tempfile.gettempdir(), 'phoebe-server-tmpimages')
+
+try:
+    _ui_path = subprocess.check_output('phoebe -u', shell=True).decode('utf-8')
+except:
+    _ui_path = None
 
 if not os.path.exists(_dir_tmpimages):
     os.makedirs(_dir_tmpimages)
@@ -128,11 +113,12 @@ def bundle_memory_cleanup(stale_limit_seconds=600):
     # out... but the entry is still made here and never cleared
 
     now = datetime.now()
-    for bundleid, last_access in app._last_access_per_bundle.items():
+    # NOTE: cast to list to prevent dictionary changed during iteration error
+    for bundleid, last_access in list(app._last_access_per_bundle.items()):
         stale_for = (now-last_access).total_seconds()
         clients = app._clients_per_bundle.get(bundleid, [])
         active_clients = [c for c in clients if c in app._clients]
-        print("bundle_memory_cleanup: {} stale for {}/{} seconds with {} active clients and {} total clients".format(bundleid, stale_for, stale_limit_seconds, len(active_clients), len(clients)))
+        if app._verbose: print("bundle_memory_cleanup: {} stale for {}/{} seconds with {} active clients and {} total clients".format(bundleid, stale_for, stale_limit_seconds, len(active_clients), len(clients)))
         # we'll delete if any of the following
         # * no active clients and past the stale limit
         # * no clients at all and stale for 30 seconds (in the case of closing where the client sent a deregister signal)
@@ -170,7 +156,7 @@ if not os.path.exists(_dir_tmpimages):
 # The following code that accomplishes this is taken (borrowed) almost entirely
 # from http://flask.pocoo.org/snippets/56/
 from datetime import timedelta
-from flask import make_response, request, current_app
+from flask import make_response, request, current_app, render_template
 from functools import update_wrapper
 
 
@@ -179,9 +165,9 @@ def crossdomain(origin=None, methods=None, headers=None,
                 automatic_options=True):
     if methods is not None:
         methods = ', '.join(sorted(x.upper() for x in methods))
-    if headers is not None and not isinstance(headers, basestring):
+    if headers is not None and not isinstance(headers, str):
         headers = ', '.join(x.upper() for x in headers)
-    if not isinstance(origin, basestring):
+    if not isinstance(origin, str):
         origin = ', '.join(origin)
     if isinstance(max_age, timedelta):
         max_age = max_age.total_seconds()
@@ -239,7 +225,11 @@ def _value_string(param):
     param_type = param.__class__.__name__
 
     if param_type in ['StringParameter', 'ChoiceParameter', 'HierarchyParameter']:
-        return param.get_value()
+        v = param.get_value()
+        if not len(v):
+            return '<empty>'
+        else:
+            return v
     elif param_type in ['ConstraintParameter']:
         return "f({})".format(",".join([p.qualifier for p in param.vars.to_list() if p != param.constrained_parameter]))
     elif param_type in ['SelectParameter', 'SelectTwigParameter']:
@@ -373,6 +363,7 @@ def _param_json_detailed(param):
 
     return p
 
+
 def _sort_tags(group, tags):
     if group=='contexts':
         # try to order contexts in same order as shown in UI.. then fill in with the rest
@@ -404,11 +395,15 @@ def _get_response(data, status_code=200, api=False, **metawargs):
     else:
         return d
 
-@app.route("/info", methods=['GET'])
+@app.route("/info", methods=['GET', 'POST'])
 @crossdomain(origin='*')
 def info():
+    j = request.get_json()
+    clientid = j.get('clientid', None) if j is not None else None
+    client_version = j.get('client_version', None) if j is not None else None
+
     if app._verbose:
-        print("info", phoebe.__version__, app._parent)
+        print("info phoebe_version: {}, parentid: {}, clientid: {}, client_version: {}".format(phoebe.__version__, app._parent, clientid, client_version))
 
     bundle_memory_cleanup()
 
@@ -422,17 +417,24 @@ def info():
     # later versions will show a warning, provide information for updating
     # phoebe-server, but WILL attempt to connect as long as the client's
     # phoebe_min_version is in range.
+
+    client_warning = None
+    if client_version is not None:
+        if StrictVersion(client_version) < StrictVersion('1.0.0'):
+            client_warning = 'client still in development'
+
     return _get_response({'success': True, 'phoebe_version': phoebe.__version__, 'parentid': app._parent,
-                          'client_min_version': '0.1.0', 'client_max_version': '0.1.0',
+                          'client_min_version': '0.1.0',
+                          'client_warning': client_warning,
                           'nclients': len(app._clients), 'clients': app._clients,
                           'nbundles': len(app._bundles.keys()), 'clients_per_bundle': app._clients_per_bundle, 'last_access_per_bundle': app._last_access_per_bundle,
                           'available_kinds': _available_kinds,
-                          'max_computations': _max_computations,
-                          'allowed_solver_kinds': _allowed_solver_kinds
+                          'max_computations': app._maxcomputations if app._maxcomputations > 0 else None,
+                          'allowed_solver_kinds': app._allowed_solver_kinds
                           },
                           api=True)
 
-@app.route('/new_bundle/<string:type>', methods=['GET'])
+@app.route('/new_bundle/<string:type>', methods=['GET', 'POST'])
 @crossdomain(origin='*')
 def new_bundle(type):
     """
@@ -441,6 +443,10 @@ def new_bundle(type):
 
     type: 'binary:detached'
     """
+    j = request.get_json()
+    clientid = j.get('clientid', None) if j is not None else None
+    client_version = j.get('client_version', None) if j is not None else None
+
     if app._verbose:
         print("new_bundle(type={})".format(type))
 
@@ -483,8 +489,15 @@ def new_bundle(type):
 def open_bundle(type):
     """
     """
+    j = request.get_json()
+    if j is None:
+        j = request.form
+    clientid = j.get('clientid', None)
+    client_version = j.get('client_version', None)
+
     if app._verbose:
-        print("open_bundle")
+        # print("open_bundle")
+        print("open_bundle clientid: {}, client_version: {}".format(clientid, client_version))
 
     try:
         data = json.loads(request.data)
@@ -505,13 +518,15 @@ def open_bundle(type):
             if app._verbose: print("opening bundle from json data")
             try:
                 bundle_data = data['json']
-            except:
-                return _get_response({'success': False, 'error': "could not read json data"}, api=True)
+            except Exception as err:
+                if app._verbose: print("failed with error: {}".format(err))
+                return _get_response({'success': False, 'error': "could not read json data ({})".format(err)}, api=True)
                 if app._debug: raise
 
         try:
             b = phoebe.Bundle(bundle_data)
         except Exception as err:
+            if app._verbose: print("failed to load bundle with error: {}".format(err))
             return _get_response({'success': False, 'error': "failed to load bundle with error: "+str(err)}, api=True)
             if app._debug: raise
 
@@ -535,11 +550,15 @@ def open_bundle(type):
 
     return _get_response({'success': True, 'bundleid': bundleid}, api=True)
 
-@app.route('/json_bundle/<string:bundleid>', methods=['GET'])
+@app.route('/json_bundle/<string:bundleid>', methods=['GET', 'POST'])
 @crossdomain(origin='*')
 def json_bundle(bundleid):
     """
     """
+    j = request.get_json()
+    clientid = j.get('clientid', None) if j is not None else None
+    client_version = j.get('client_version', None) if j is not None else None
+
     if app._verbose:
         print("json_bundle(bundleid={})".format(bundleid))
 
@@ -551,11 +570,15 @@ def json_bundle(bundleid):
 
     return _get_response({'success': True, 'bundle': bjson, 'bundleid': bundleid}, bundleid=bundleid, api=True)
 
-@app.route('/save_bundle/<string:bundleid>', methods=['GET'])
+@app.route('/save_bundle/<string:bundleid>', methods=['GET', 'POST'])
 @crossdomain(origin='*')
 def save_bundle(bundleid):
     """
     """
+    j = request.get_json()
+    clientid = j.get('clientid', None) if j is not None else None
+    client_version = j.get('client_version', None) if j is not None else None
+
     if app._verbose:
         print("save_bundle(bundleid={})".format(bundleid))
 
@@ -570,12 +593,16 @@ def save_bundle(bundleid):
 
     return resp
 
-@app.route('/export_compute/<string:bundleid>/<string:compute>', defaults={'model': None}, methods=['GET'])
-@app.route('/export_compute/<string:bundleid>/<string:compute>/<string:model>', methods=['GET'])
+@app.route('/export_compute/<string:bundleid>/<string:compute>', defaults={'model': None}, methods=['GET', 'POST'])
+@app.route('/export_compute/<string:bundleid>/<string:compute>/<string:model>', methods=['GET', 'POST'])
 @crossdomain(origin='*')
 def export_compute(bundleid, compute, model=None):
     """
     """
+    j = request.get_json()
+    clientid = j.get('clientid', None) if j is not None else None
+    client_version = j.get('client_version', None) if j is not None else None
+
     if app._verbose:
         print("export_compute(bundleid={}, compute={})".format(bundleid, compute))
 
@@ -589,16 +616,23 @@ def export_compute(bundleid, compute, model=None):
     ef = tempfile.NamedTemporaryFile(prefix="export_compute", suffix=".py")
 
     script_fname=ef.name
-    b.export_compute(script_fname, out_fname=None, compute=compute, model=model)
+    try:
+        b.export_compute(script_fname, out_fname=None, compute=compute, model=model)
+    except Exception as err:
+        return _get_response({'success': False, 'error': str(err)})
 
     return send_file(ef.name, as_attachment=True, attachment_filename='{}_run_compute_{}.py'.format(bundleid, compute))
 
-@app.route('/export_solver/<string:bundleid>/<string:solver>', defaults={'solution': None}, methods=['GET'])
-@app.route('/export_solver/<string:bundleid>/<string:solver>/<string:solution>', methods=['GET'])
+@app.route('/export_solver/<string:bundleid>/<string:solver>', defaults={'solution': None}, methods=['GET', 'POST'])
+@app.route('/export_solver/<string:bundleid>/<string:solver>/<string:solution>', methods=['GET', 'POST'])
 @crossdomain(origin='*')
 def export_solver(bundleid, solver, solution=None):
     """
     """
+    j = request.get_json()
+    clientid = j.get('clientid', None) if j is not None else None
+    client_version = j.get('client_version', None) if j is not None else None
+
     if app._verbose:
         print("export_solver(bundleid={}, solver={})".format(bundleid, solver))
 
@@ -612,15 +646,22 @@ def export_solver(bundleid, solver, solution=None):
     ef = tempfile.NamedTemporaryFile(prefix="export_solver", suffix=".py")
 
     script_fname=ef.name
-    b.export_solver(script_fname, out_fname=None, solver=solver, solution=solution)
+    try:
+        b.export_solver(script_fname, out_fname=None, solver=solver, solution=solution)
+    except Exception as err:
+        return _get_response({'success': False, 'error': str(err)})
 
     return send_file(ef.name, as_attachment=True, attachment_filename='{}_run_solver_{}.py'.format(bundleid, solver))
 
-@app.route('/export_arrays/<string:bundleid>/<string:params>', methods=['GET'])
+@app.route('/export_arrays/<string:bundleid>/<string:params>', methods=['GET', 'POST'])
 @crossdomain(origin='*')
 def export_params(bundleid, params):
     """
     """
+    j = request.get_json()
+    clientid = j.get('clientid', None) if j is not None else None
+    client_version = j.get('client_version', None) if j is not None else None
+
     if app._verbose:
         print("export_arrays(bundleid={}, params={})".format(bundleid, params))
 
@@ -639,11 +680,15 @@ def export_params(bundleid, params):
 
 
 
-@app.route('/bundle/<string:bundleid>', methods=['GET'])
+@app.route('/bundle/<string:bundleid>', methods=['GET', 'POST'])
 @crossdomain(origin='*')
 def bundle(bundleid):
     """
     """
+    j = request.get_json()
+    clientid = j.get('clientid', None) if j is not None else None
+    client_version = j.get('client_version', None) if j is not None else None
+
     if app._verbose:
         print("bundle(bundleid={})".format(bundleid))
 
@@ -668,11 +713,15 @@ def bundle(bundleid):
 
     return _get_response(info, api=True)
 
-@app.route('/parameter/<string:bundleid>/<string:uniqueid>', methods=['GET'])
+@app.route('/parameter/<string:bundleid>/<string:uniqueid>', methods=['GET', 'POST'])
 @crossdomain(origin='*')
 def parameter(bundleid, uniqueid):
     """
     """
+    j = request.get_json()
+    clientid = j.get('clientid', None) if j is not None else None
+    client_version = j.get('client_version', None) if j is not None else None
+
     if app._verbose:
         print("parameter(bundleid={}, uniqueid={})".format(bundleid, uniqueid))
 
@@ -692,11 +741,15 @@ def parameter(bundleid, uniqueid):
 
     return _get_response({'success': True, 'parameter': data}, api=True)
 
-@app.route('/adjustable_parameters/<string:bundleid>', methods=['GET'])
+@app.route('/adjustable_parameters/<string:bundleid>', methods=['GET', 'POST'])
 @crossdomain(origin='*')
 def adjustable_parameters(bundleid):
     """
     """
+    j = request.get_json()
+    clientid = j.get('clientid', None) if j is not None else None
+    client_version = j.get('client_version', None) if j is not None else None
+
     if app._verbose:
         print("adjustable_parameters(bundleid={})".format(bundleid))
 
@@ -710,11 +763,15 @@ def adjustable_parameters(bundleid):
 
     return _get_response({'success': True, 'adjustable_parameters': adjustable_parameters}, api=True)
 
-@app.route('/run_checks/<string:bundleid>/<string:run_checks_method>/<string:label>', methods=['GET'])
+@app.route('/run_checks/<string:bundleid>/<string:run_checks_method>/<string:label>', methods=['GET', 'POST'])
 @crossdomain(origin='*')
 def run_checks(bundleid, run_checks_method, label):
     """
     """
+    j = request.get_json()
+    clientid = j.get('clientid', None) if j is not None else None
+    client_version = j.get('client_version', None) if j is not None else None
+
     if app._verbose:
         print("run_checks(bundleid={}, run_checks_method={}, label={})".format(bundleid, run_checks_method, label))
 
@@ -730,9 +787,13 @@ def run_checks(bundleid, run_checks_method, label):
 
     return _get_response(info, api=True)
 
-@app.route('/nparray/<string:input>', methods=['GET'])
+@app.route('/nparray/<string:input>', methods=['GET', 'POST'])
 @crossdomain(origin='*')
 def nparray(input):
+    j = request.get_json()
+    clientid = j.get('clientid', None) if j is not None else None
+    client_version = j.get('client_version', None) if j is not None else None
+
     if app._verbose:
         print("nparray(input={}))".format(input))
     # input is a json-string representation of an array or nparray helper dictionary
@@ -769,9 +830,13 @@ def nparray(input):
     return _get_response({'success': True, 'response': data}, api=True)
 
 
-@app.route('/distl/<string:input>/<float:current_face_value>', methods=['GET'])
+@app.route('/distl/<string:input>/<float:current_face_value>', methods=['GET', 'POST'])
 @crossdomain(origin='*')
 def distl_convert(input, current_face_value):
+    j = request.get_json()
+    clientid = j.get('clientid', None) if j is not None else None
+    client_version = j.get('client_version', None) if j is not None else None
+
     if app._verbose:
         print("distl(input={}))".format(input))
     # input is a json-string representation of a distl distribution object
@@ -803,22 +868,34 @@ def distl_convert(input, current_face_value):
 
     return _get_response({'success': True, 'response': data}, api=True)
 
-@app.route("/<string:bundleid>/figure/<string:figure>", methods=['GET'])
+@app.route("/<string:bundleid>/figure/<string:figure>", methods=['GET', 'POST'])
 def serve_figure(bundleid, figure):
+    j = request.get_json()
+    clientid = j.get('clientid', None) if j is not None else None
+    client_version = j.get('client_version', None) if j is not None else None
+
     fname = '{}_{}.png'.format(bundleid, figure)
     if app._verbose:
         print("serve_figure", fname)
     return send_from_directory(_dir_tmpimages, fname)
 
-@app.route("/<string:bundleid>/figure_afig/<string:figure>", methods=['GET'])
+@app.route("/<string:bundleid>/figure_afig/<string:figure>", methods=['GET', 'POST'])
 def serve_figure_afig(bundleid, figure):
+    j = request.get_json()
+    clientid = j.get('clientid', None) if j is not None else None
+    client_version = j.get('client_version', None) if j is not None else None
+
     fname = '{}_{}.afig'.format(bundleid, figure)
     if app._verbose:
         print("serve_figure_afig", fname)
     return send_from_directory(_dir_tmpimages, fname)
 
-@app.route('/<string:bundleid>/distribution_plot/<string:parameter_uniqueid>/<string:distribution>', methods=['GET'])
+@app.route('/<string:bundleid>/distribution_plot/<string:parameter_uniqueid>/<string:distribution>', methods=['GET', 'POST'])
 def serve_distribution_plot(bundleid, parameter_uniqueid, distribution):
+    j = request.get_json()
+    clientid = j.get('clientid', None) if j is not None else None
+    client_version = j.get('client_version', None) if j is not None else None
+
     if app._verbose:
         print("serve_distribution_plot", bundleid, distribution, parameter_uniqueid)
 
@@ -826,7 +903,8 @@ def serve_distribution_plot(bundleid, parameter_uniqueid, distribution):
         err = 'bundle not found with bundleid={}'.format(bundleid)
         if app._verbose:
             print("set_value {} error: {}".format(msg, err))
-        # emit('{}:errors:react'.format(bundleid), {'success': False, 'error': err}, broadcast=False)
+        # emit('{}:errors:react'.format(bundleid), {'success': False, 'requestid': requestid, 'error': err}, broadcast=False)
+        # emit('{}:errors:python'.format(bundleid), {'success': False, 'requestid': requestid, 'error': err}, broadcast=False)
         return
 
     b = app._bundles[bundleid]
@@ -844,13 +922,45 @@ def serve_distribution_plot(bundleid, parameter_uniqueid, distribution):
 
     return send_from_directory(_dir_tmpimages, fname)
 
+@app.route('/static/<path:static_file>', methods=['GET'])
+@app.route('/bootstrap/<path:bootstrap_file>', methods=['GET'])
+@app.route('/fontawesome/<path:fa_file>', methods=['GET'])
+def ui_file(static_file=None, bootstrap_file=None, fa_file=None):
+    if _ui_path is None: return None
+
+    base = os.path.dirname(_ui_path)
+    if static_file:
+        path = os.path.join(base, 'static', static_file)
+    if bootstrap_file:
+        path = os.path.join(base, 'bootstrap', bootstrap_file)
+    if fa_file:
+        path = os.path.join(base, 'fontawesome', fa_file)
+
+    dir = os.path.dirname(path)
+    fname = os.path.basename(path)
+
+    return send_from_directory(dir, fname)
+
+
+# NOTE: this MUST be the last defined route because of the catch-all
+@app.route('/', methods=['GET', 'POST'])
+@app.route('/<path:path>', methods=['GET', 'POST'])
+def ui(path=''):
+    if _ui_path is None:
+        return redirect('http://ui.phoebe-project.org/'+path+'?'+request.query_string)
+
+    base, fname = os.path.dirname(_ui_path), os.path.basename(_ui_path)
+    return send_from_directory(base, fname)
+
+
 
 ############################# WEBSOCKET ROUTES ################################
 
 ########## SOCKET ERRORS
 @socketio.on_error()
 def error_handler(err):
-    print("websocket error:", err)
+    if app._verbose:
+        print("websocket error:", err)
 
     if app._verbose:
         ex_type, ex, tb = sys.exc_info()
@@ -873,19 +983,24 @@ def disconnect():
     if app._verbose:
         print('Client disconnected')
 
+
     # emit('disconnect', {'success': True, 'data': {'clients': app._clients, 'parentid': app._parent}})
 
 
 @socketio.on('register client')
 def register_client(msg):
     clientid = msg.get('clientid', None)
+    client_version = msg.get('client_version', None)
     bundleid = msg.get('bundleid', None)
+    requestid = msg.get('requestid', None)
+
     if bundleid is not None and bundleid not in app._bundles.keys():
         err = 'bundle not found with bundleid={}'.format(bundleid)
         if app._verbose:
             print("register client {} error: {}".format(msg, err))
 
-        emit('{}:errors:react'.format(bundleid), {'success': False, 'error': err}, broadcast=False)
+        emit('{}:errors:react'.format(bundleid), {'success': False, 'requestid': requestid, 'error': err}, broadcast=False)
+        emit('{}:errors:python'.format(bundleid), {'success': False, 'requestid': requestid, 'error': err}, broadcast=False)
         return
 
     if app._verbose:
@@ -900,12 +1015,19 @@ def register_client(msg):
         elif clientid not in app._clients_per_bundle.get(bundleid, []):
             app._clients_per_bundle[bundleid].append(clientid)
 
+        clients = app._clients_per_bundle.get(bundleid, [])
+        connected_clients = [c for c in clients if c in app._clients]
+        emit('{}:registeredclients'.format(bundleid), {'success': True, 'clients': clients, 'connected_clients': connected_clients}, broadcast=True)
+
     bundle_memory_cleanup()
 
 @socketio.on('deregister client')
 def deregister_client(msg):
     clientid = msg.get('clientid', None)
+    client_version = msg.get('client_version', None)
     bundleid = msg.get('bundleid', None)
+    requestid = msg.get('requestid', None)
+
     if app._verbose:
         print("deregister_client(clientid={}, bundleid={})".format(clientid, bundleid))
 
@@ -917,8 +1039,34 @@ def deregister_client(msg):
         # will become stale and eventually deleted by timeout in bundle_memory_cleanup.
         app._clients.remove(clientid)
 
+    clients = app._clients_per_bundle.get(bundleid, [])
+    connected_clients = [c for c in clients if c in app._clients and c!=clientid]
+    emit('{}:registeredclients'.format(bundleid), {'success': True, 'clients': clients, 'connected_clients': connected_clients}, broadcast=True)
+
     # now cleanup from memory any bundle with NO cients
     bundle_memory_cleanup()
+
+@socketio.on('kill')
+def kill(msg):
+    clientid = msg.get('clientid', None)
+    client_version = msg.get('client_version', None)
+    bundleid = msg.get('bundleid', None)
+    requestid = msg.get('requestid', None)
+    secret = msg.get('secret', None)
+
+    if app._secret is None:
+        emit('{}:errors:react', {'success': False, 'error': 'server is not killable as it was not launched with a secret'}, broadcast=False)
+        emit('{}:errors:python', {'success': False, 'error': 'server is not killable as it was not launched with a secret'}, broadcast=False)
+        return
+
+    if app._secret != secret:
+        emit('{}:errors:react', {'success': False, 'error': 'incorrect secret'}, broadcast=False)
+        emit('{}:errors:python', {'success': False, 'error': 'incorrect secret'}, broadcast=False)
+        return
+
+    if app._verbose: print("killing from API call with matching secret")
+    socketio.stop()
+    exit()
 
 ########## BUNDLE METHODS
 def _run_checks(b, bundleid, run_checks_method='run_checks', run_checks_kwargs={}, do_emit=True):
@@ -932,6 +1080,7 @@ def _run_checks(b, bundleid, run_checks_method='run_checks', run_checks_kwargs={
     except Exception as err:
         emit('{}:errors:react'.format(bundleid), {'success': True, 'level': 'warning', 'error': str(err)}, broadcast=False)
         if app._debug: raise
+        return
     # if len(b._failed_constraints):
         # msg = 'Constraints for the following parameters failed to run: {}.  Affected values will not be updated until the constraints can succeed.'.format(', '.join([b.get_parameter(uniqueid=c, check_visible=False).constrained_parameter.uniquetwig for c in b._failed_constraints]))
         # emit('{}:errors:react'.format(bundleid), {'success': True, 'level': 'warning', 'error': msg}, broadcast=False)
@@ -1038,12 +1187,16 @@ def set_value(msg):
         print("set_value: ", msg)
 
     bundleid = msg.pop('bundleid')
+    requestid = msg.pop('requestid', None)
+    clientid = msg.pop('clientid', None)
+    client_version = msg.pop('client_version', None)
 
     if bundleid not in app._bundles.keys():
         err = 'bundle not found with bundleid={}'.format(bundleid)
         if app._verbose:
             print("set_value {} error: {}".format(msg, err))
-        emit('{}:errors:react'.format(bundleid), {'success': False, 'error': err}, broadcast=False)
+        emit('{}:errors:react'.format(bundleid), {'success': False, 'requestid': requestid, 'error': err}, broadcast=False)
+        emit('{}:errors:python'.format(bundleid), {'success': False, 'requestid': requestid, 'error': err}, broadcast=False)
         return
 
 
@@ -1059,13 +1212,14 @@ def set_value(msg):
         is_visible_before = {p.uniqueid: p.is_visible for p in b.to_list(check_visible=False, check_default=False, check_advanced=False)}
 
     try:
-        # TODO: handle getting nparray objects (probably as json strings/unicodes)
+        # TODO: handle getting nparray objects (probably as json strings)
         b.set_value_all(**msg)
         ps_constraints = b.run_delayed_constraints()
     except Exception as err:
         if app._verbose:
             print("set_value {} error: {}".format(msg, str(err)))
-        emit('{}:errors:react'.format(bundleid), {'success': False, 'error': str(err)}, broadcast=False)
+        emit('{}:errors:react'.format(bundleid), {'success': False, 'requestid': requestid, 'error': str(err)}, broadcast=False)
+        emit('{}:errors:python'.format(bundleid), {'success': False, 'requestid': requestid, 'error': str(err)}, broadcast=False)
         if app._debug: raise
         return
 
@@ -1074,7 +1228,8 @@ def set_value(msg):
     except Exception as err:
         if app._verbose:
             print("set_value {} error on filter: {}".format(msg, str(err)))
-        emit('{}:errors:react'.format(bundleid), {'success': False, 'error': str(err)}, broadcast=False)
+        emit('{}:errors:react'.format(bundleid), {'success': False, 'requestid': requestid, 'error': str(err)}, broadcast=False)
+        emit('{}:errors:python'.format(bundleid), {'success': False, 'requestid': requestid, 'error': str(err)}, broadcast=False)
         if app._debug: raise
         return
     else:
@@ -1086,10 +1241,11 @@ def set_value(msg):
             param_list = sorted([_param_json_overview(param) for param in ps_list], key=lambda p: p['qualifier'])
             param_dict = OrderedDict((p.pop('uniqueid'), p) for p in param_list)
 
+            packet = {'success': True, 'requestid': requestid, 'parameters': param_dict}
             if app._verbose:
-                print("set_value success, broadcasting changes:react: {}".format(param_dict))
+                print("set_value success, broadcasting {}:changes:react: {}".format(bundleid, packet))
 
-            emit('{}:changes:react'.format(bundleid), {'success': True, 'parameters': param_dict}, broadcast=True)
+            emit('{}:changes:react'.format(bundleid), packet, broadcast=True)
 
             # flush so the changes goes through before running checks and updating figures
             socketio.sleep(0)
@@ -1099,11 +1255,11 @@ def set_value(msg):
 
         if 'python' in client_types:
             ps_dict = {p.uniqueid: {'value': p.to_json()['value']} for p in ps_list}
-
+            packet = {'success': True, 'requestid': requestid, 'parameters': ps_dict}
             if app._verbose:
-                print("set_value success, broadcasting changes:python: {}".format(ps_dict))
+                print("set_value success, broadcasting {}:changes:python: {}".format(bundleid, packet))
 
-            emit('{}:changes:python'.format(bundleid), {'success': True, 'parameters': ps_dict}, broadcast=True)
+            emit('{}:changes:python'.format(bundleid), packet, broadcast=True)
 
 
 # TODO: now that set_default_unit_all returns a PS, we could use bundle_method
@@ -1114,12 +1270,16 @@ def set_default_unit(msg):
         print("set_default_unit: ", msg)
 
     bundleid = msg.pop('bundleid')
+    requestid = msg.pop('requestid', None)
+    clientid = msg.pop('clientid', None)
+    client_version = msg.pop('client_version', None)
 
     if bundleid not in app._bundles.keys():
         err = 'bundle not found with bundleid={}'.format(bundleid)
         if app._verbose:
             print("set_default_unit {} error: {}".format(msg, err))
-        emit('{}:errors:react'.format(bundleid), {'success': False, 'error': err}, broadcast=False)
+        emit('{}:errors:react'.format(bundleid), {'success': False, 'requestid': requestid, 'error': err}, broadcast=False)
+        emit('{}:errors:python'.format(bundleid), {'success': False, 'requestid': requestid, 'error': err}, broadcast=False)
         return
 
 
@@ -1138,7 +1298,8 @@ def set_default_unit(msg):
     except Exception as err:
         if app._verbose:
             print("set_default_unit {} error: {}".format(msg, str(err)))
-        emit('{}:errors:react'.format(bundleid), {'success': False, 'error': str(err)}, broadcast=False)
+        emit('{}:errors:react'.format(bundleid), {'success': False, 'requestid': requestid, 'error': str(err)}, broadcast=False)
+        emit('{}:errors:python'.format(bundleid), {'success': False, 'requestid': requestid, 'error': str(err)}, broadcast=False)
         if app._debug: raise
         return
 
@@ -1147,7 +1308,8 @@ def set_default_unit(msg):
     except Exception as err:
         if app._verbose:
             print("set_default_unit {} error on filter: {}".format(msg, str(err)))
-        emit('{}:errors:react'.format(bundleid), {'success': False, 'error': str(err)}, broadcast=False)
+        emit('{}:errors:react'.format(bundleid), {'success': False, 'requestid': requestid, 'error': str(err)}, broadcast=False)
+        emit('{}:errors:python'.format(bundleid), {'success': False, 'requestid': requestid, 'error': str(err)}, broadcast=False)
         if app._debug: raise
         return
     else:
@@ -1165,10 +1327,10 @@ def set_default_unit(msg):
         if 'python' in client_types:
             ps_dict = {p.uniqueid: {'default_unit': p.get_default_unit()} for p in ps_list}
 
-            if app._verbose:
-                print("set_default_unit success, broadcasting changes:python: {}".format(ps_dict))
+            # if app._verbose:
+                # print("set_default_unit success, broadcasting changes:python: {}".format(ps_dict))
 
-            emit('{}:changes:python'.format(bundleid), {'success': True, 'parameters': ps_dict}, broadcast=True)
+            emit('{}:changes:python'.format(bundleid), {'success': True, 'requestid': requestid, 'parameters': ps_dict}, broadcast=True)
 
 @socketio.on('bundle_method')
 def bundle_method(msg):
@@ -1176,20 +1338,21 @@ def bundle_method(msg):
         print("bundle_method: ", msg)
 
     bundleid = msg.pop('bundleid', None)
-
-    for k,v in msg.items():
-        if isinstance(v, unicode):
-            msg[k] = str(v)
+    requestid = msg.pop('requestid', None)
+    clientid = msg.pop('clientid', None)
+    client_version = msg.pop('client_version', None)
 
     if bundleid is None:
-        emit('errors', {'success': False, 'error': "must provide bundleid"}, broadcast=False)
+        emit('{}:errors:react', {'success': False, 'requestid': requestid, 'error': "must provide bundleid"}, broadcast=False)
+        emit('{}:errors:python', {'success': False, 'requestid': requestid, 'error': "must provide bundleid"}, broadcast=False)
         return
 
     if bundleid not in app._bundles.keys():
         err = 'bundle not found with bundleid={}'.format(bundleid)
         if app._verbose:
             print("bundle_method {} error: {}".format(msg, err))
-        emit('{}:errors:react'.format(bundleid), {'success': False, 'error': err}, broadcast=False)
+        emit('{}:errors:react'.format(bundleid), {'success': False, 'requestid': requestid, 'error': err}, broadcast=False)
+        emit('{}:errors:python'.format(bundleid), {'success': False, 'requestid': requestid, 'error': err}, broadcast=False)
         return
 
 
@@ -1204,16 +1367,17 @@ def bundle_method(msg):
 
     method = msg.pop('method')
 
-    if _disable_solvers and method == 'run_solver':
+    if app._disable_solvers and method == 'run_solver':
         solver_kind = b.get_solver(solver=msg.get('solver')).kind
-        if solver_kind not in _allowed_solver_kinds:
-            emit('{}:errors:react'.format(bundleid), {'success': False, 'error': 'solver with kind {} is disabled on this server.  Export and run manually instead'.format(solver_kind)}, broadcast=False)
+        if solver_kind not in app._allowed_solver_kinds:
+            emit('{}:errors:react'.format(bundleid), {'success': False, 'requestid': requestid, 'error': 'solver with kind {} is disabled on this server.  Export and run manually instead'.format(solver_kind)}, broadcast=False)
+            emit('{}:errors:python'.format(bundleid), {'success': False, 'requestid': requestid, 'error': 'solver with kind {} is disabled on this server.  Export and run manually instead'.format(solver_kind)}, broadcast=False)
             return
 
     if method in ['run_compute', 'run_solver']:
         # TODO: have this be a environment variable or flag at the top-level?
         # forbid expensive computations on this server
-        msg['max_computations'] = _max_computations
+        msg['max_computations'] = app._maxcomputations if app._maxcomputations > 0 else None
         msg['detach'] = True
     elif method in ['attach_job']:
         msg['wait'] = False
@@ -1232,8 +1396,17 @@ def bundle_method(msg):
     if method.split('_')[0] in ['add', 'run', 'remove', 'rename', 'attach', 'import', 'adopt']:
         msg['return_changes'] = True
 
+    args = msg.pop('args', [])
+
+    if method in ['flip_constraint']:
+        constraint_filter = {k:v for k,v in msg.items() if k!='solve_for'}
+        constraint_filter['context'] = 'constraint'
+        param_constraint = b.get_parameter(args[0], **constraint_filter)
+
+
+
     try:
-        ps = getattr(b, method)(**msg)
+        ps = getattr(b, method)(*args, **msg)
         ps_list = ps.to_list() if hasattr(ps, 'to_list') else [ps] if isinstance(ps, phoebe.parameters.Parameter) else []
     except Exception as err:
         if app._verbose:
@@ -1246,37 +1419,37 @@ def bundle_method(msg):
             # TODO: catch this within PHOEBE instead and return a reasonable status
             pass
         else:
-            emit('{}:errors:react'.format(bundleid), {'success': False, 'error': str(err)}, broadcast=False)
+            emit('{}:errors:react'.format(bundleid), {'success': False, 'requestid': requestid, 'error': str(err)}, broadcast=False)
+            emit('{}:errors:python'.format(bundleid), {'success': False, 'requestid': requestid, 'error': str(err)}, broadcast=False)
 
 
             if method=='attach_job' and ('web' in client_types or 'desktop' in client_types):
                 # then we still need to emit the change the the status of the job parameter so the client stops polling
                 pjo = _param_json_overview(b.get_parameter(uniqueid=msg.get('uniqueid'), check_visible=False, check_default=False))
                 param_dict = {pjo.pop('uniqueid'): pjo}
-                packet = {'success': True, 'parameters': param_dict}
+                packet = {'success': True, 'requestid': requestid, 'parameters': param_dict}
 
                 emit('{}:changes:react'.format(bundleid), packet, broadcast=True)
 
             return
 
+    if method == 'add_constraint':
+        param_constraint = ps.get_parameter()
 
-    if method in ['flip_constraint']:
-        param = b.get_parameter(**{k:v for k,v in msg.items() if k!='solve_for'})
-        ps_list += param.vars.to_list()
+    if method in ['flip_constraint', 'add_constraint']:
+        ps_list += param_constraint.vars.to_list()
+        b.run_delayed_constraints()
 
+
+    # handle any deleted parameters
+    removed_params_list = [param.uniqueid for param in ps_list if param._bundle is None]
 
     if 'web' in client_types or 'desktop' in client_types:
-        # handle any deleted parameters
-        removed_params_list = [param.uniqueid for param in ps_list if param._bundle is None]
-
         # since some params have been removed, we'll skip any that have param._bundle is None
         param_list = sorted([_param_json_overview(param) for param in ps_list if param._bundle is not None], key=lambda p: p['qualifier'])
         param_dict = OrderedDict((p.pop('uniqueid'), p) for p in param_list)
 
-        if app._verbose:
-            print("bundle_method success, broadcasting changes:react: {}".format(param_dict))
-
-        packet = {'success': True, 'parameters': param_dict, 'removed_parameters': removed_params_list}
+        packet = {'success': True, 'requestid': requestid, 'parameters': param_dict, 'removed_parameters': removed_params_list}
 
         if method.split('_')[0] not in []:
             # if we added new parameters, then the tags likely have changed
@@ -1286,7 +1459,7 @@ def bundle_method(msg):
             packet['params_allow_dist'] = {p.uniqueid: p.twig for p in b.filter(context=['component', 'system', 'dataset', 'feature'], check_visible=True).to_list() if p.__class__.__name__ in ['FloatParameter', 'FloatArrayParameter']}
 
 
-        if method.split('_')[0] == 'add':
+        if method.split('_')[0] == 'add' and method not in ['add_constraint']:
             context = method.split('_')[1]
             packet['add_filter'] = {context: getattr(ps.filter(context=context, check_visible=False), context)}
         elif method.split('_')[0] == 'run':
@@ -1308,17 +1481,16 @@ def bundle_method(msg):
         _update_figures(b, bundleid, phoebe.parameters.ParameterSet(ps_list))
 
     if 'python' in client_types:
-        # TODO: this probably isn't sufficient for all methods.  What information
-        # do we need to pass to the python clients for things like remove_*, run_*?
-        ps_dict = {p.uniqueid: {'default_unit': p.get_default_unit()} for p in ps_list}
+        # since some params have been removed, we'll skip any that have param._bundle is None
+        param_list = [param.to_json(incl_uniqueid=True, incl_none=True) for param in ps_list if param._bundle is not None]
+        param_dict = OrderedDict((p.get('uniqueid'), p) for p in param_list)
 
-        if app._verbose:
-            print("bundle_method success, broadcasting changes:python: {}".format(ps_dict))
+        packet = {'success': True, 'requestid': requestid, 'parameters': param_dict, 'removed_parameters': removed_params_list}
 
-        emit('{}:changes:python'.format(bundleid), {'success': True, 'parameters': ps_dict}, broadcast=True)
+        # if app._verbose:
+            # print("bundle_method success, broadcasting changes:python: {}".format(packet))
 
-    # app._bundles[bundleid] = b
-
+        emit('{}:changes:python'.format(bundleid), packet, broadcast=True)
 
 
 @socketio.on('rerun_all_figures')
@@ -1327,6 +1499,9 @@ def rerun_all_figures(msg):
         print("bundle_method: ", msg)
 
     bundleid = msg.pop('bundleid', None)
+    requestid = msg.pop('requestid', None)
+    clientid = msg.pop('clientid', None)
+    client_version = msg.pop('client_version', None)
 
     if bundleid is None:
         emit('errors', {'success': False, 'error': "must provide bundleid"}, broadcast=False)
@@ -1336,7 +1511,8 @@ def rerun_all_figures(msg):
         err = 'bundle not found with bundleid={}'.format(bundleid)
         if app._verbose:
             print("bundle_method {} error: {}".format(msg, err))
-        emit('{}:errors:react'.format(bundleid), {'success': False, 'error': err}, broadcast=False)
+        emit('{}:errors:react'.format(bundleid), {'success': False, 'requestid': requestid, 'error': err}, broadcast=False)
+        emit('{}:errors:python'.format(bundleid), {'success': False, 'requestid': requestid, 'error': err}, broadcast=False)
         return
 
 
@@ -1348,25 +1524,31 @@ def rerun_all_figures(msg):
 
 
 if __name__ == "__main__":
-    #phoebe_server.py port, parent, host
-    if len(sys.argv) >= 2:
-        port = int(float(sys.argv[1]))
-    else:
-        port = 5555
 
-    if len(sys.argv) >= 3:
-        parent = sys.argv[2]
-    else:
-        parent = 'notprovided'
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--host', help='IP of the host to launch the server (default: 127.0.0.1/localhost)', default='127.0.0.1')
+    parser.add_argument('--port', help='port to launch the server (default: 5555)', default=5555, type=int)
+    parser.add_argument('--parent', help='id of the parent client (default: notprovided)', default='notprovided')
+    parser.add_argument('--secret', help='secret key to allow killing the process from an API call (default: None)', default=None)
+    parser.add_argument('--maxcomputations', help='number of maximum timepoints to allow in run_compute calls.  If 0 (default), no limit will be set.', default=0)
+    parser.add_argument('--disablesolvers', help='disable optimizers/samplers (estimators will still be allowed)', action='store_true', default=False)
+    parser.add_argument('--verbose', help='print verbose messages', action='store_true', default=False)
 
-    if len(sys.argv) >=4:
-        host = sys.argv[3]
-    else:
-        host = '127.0.0.1'
+    args = parser.parse_args()
 
-    app._parent = parent
+    app._parent = args.parent
+    app._secret = args.secret
+
+    app._maxcomputations = args.maxcomputations
+    app._disable_solvers = args.disablesolvers
+    if args.disablesolvers:
+        app._allowed_solver_kinds = [s.split('.')[-1] for s in phoebe.list_available_solvers() if s.split('.')[0] not in ['optimizer', 'sampler']]
+    else:
+        app._allowed_solver_kinds = [s.split('.')[-1] for s in phoebe.list_available_solvers()]
+
+    app._verbose = args.verbose
 
     if app._verbose:
-        print("*** SERVER READY at {}:{} ***".format(host, port))
+        print("*** SERVER READY at {}:{} ***".format(args.host, args.port))
 
-    socketio.run(app, host=host, port=port)
+    socketio.run(app, host=args.host, port=args.port)

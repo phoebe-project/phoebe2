@@ -36,16 +36,6 @@ if _os.getcwd().find(_os.path.abspath(_os.path.split(_os.path.split(__file__)[0]
     # with a helpful error message
     raise ImportError('\n\tYou cannot import Phoebe from inside its main source tree.\n')
 
-# Python version checks (in both __init__.py and setup.py)
-if _sys.version_info[0] == 3:
-    if _sys.version_info[1] < 6:
-        raise ImportError("PHOEBE supports python 2.7+ or 3.6+")
-elif _sys.version_info[0] == 2:
-    if _sys.version_info[1] < 7:
-        raise ImportError("PHOEBE supports python 2.7+ or 3.6+")
-else:
-    raise ImportError("PHOEBE supports python 2.7+ or 3.6+")
-
 def _env_variable_string_or_list(key, default):
     value = _os.getenv(key, default)
     if "," in value:
@@ -197,10 +187,8 @@ class MPI(object):
         if self.within_mpirun:
             raise ValueError("detach not available within mpirun")
 
-        if _sys.version_info[0] == 3:
-            python = 'python3'
-        else:
-            python = 'python'
+        # TODO: allow this as an option in the settings?
+        python = 'python3'
 
         if self.enabled:
             return 'mpiexec -np %d %s {}' % (self.nprocs, python)

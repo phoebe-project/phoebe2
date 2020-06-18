@@ -11,6 +11,7 @@ except ImportError:
 import re
 import json
 import atexit
+import time
 from datetime import datetime
 from distutils.version import StrictVersion
 from copy import deepcopy as _deepcopy
@@ -33,7 +34,7 @@ from phoebe.parameters import solver as _solver
 from phoebe.parameters import constraint as _constraint
 from phoebe.parameters import feature as _feature
 from phoebe.parameters import figure as _figure
-from phoebe.parameters.parameters import _uniqueid
+from phoebe.parameters.parameters import _uniqueid, _clientid, _return_ps
 from phoebe.backend import backends, mesh
 from phoebe.backend import universe as _universe
 from phoebe.solverbackends import solverbackends as _solverbackends
@@ -53,30 +54,25 @@ import logging
 logger = logging.getLogger("BUNDLE")
 logger.addHandler(logging.NullHandler())
 
-if sys.version_info[0] == 3:
-  unicode = str
-  from io import IOBase
-elif sys.version_info[0] < 3:
-  input = raw_input
+from io import IOBase
 
 _bundle_cache_dir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'default_bundles'))+'/'
-
-_clientid = 'python-'+_uniqueid(5)
 
 _skip_filter_checks = {'check_default': False, 'check_visible': False}
 
 # Attempt imports for client requirements
 try:
-    import requests
-    if sys.version_info[0] < 3:
-      from urllib2 import urlopen as _urlopen
-      from urllib2 import URLError
-    else:
-      from urllib.request import urlopen as _urlopen
-      from urllib.error import URLError
+    """
+    requirements for client mode:
+    pip install "python-socketio[client]"
+    """
 
-    from socketIO_client import SocketIO, BaseNamespace
-    #  pip install -U socketIO-client
+    import requests
+    from urllib2 import urlopen as _urlopen
+    from urllib2 import URLError
+
+    import socketio # https://python-socketio.readthedocs.io/en/latest/client.html
+
 except ImportError:
     _can_client = False
 else:
@@ -92,9 +88,6 @@ else:
 
 
 def _get_add_func(mod, func, return_none_if_not_found=False):
-    if isinstance(func, unicode):
-        func = str(func)
-
     if isinstance(func, str) and "." in func:
         # allow recursive submodule access
         # example: mod=solver, func='samplers.emcee'
@@ -460,8 +453,11 @@ class Bundle(ParameterSet):
 
         # set to be not a client by default
         self._is_client = False
-        self._last_client_update = None
-        self._lock = False
+        self._client_allow_disconnect = False
+        self._waiting_on_server = False
+        self._server_changes = None
+        self._server_secret = None  # if not None, will attempt to send kill signal atexit and as_client=False
+        self._server_clients = []
 
         self._within_solver = False
 
@@ -576,7 +572,7 @@ class Bundle(ParameterSet):
 
         if io._is_file(filename):
             f = filename
-        elif isinstance(filename, str) or isinstance(filename, unicode):
+        elif isinstance(filename, str):
             filename = os.path.expanduser(filename)
             logger.debug("importing from {}".format(filename))
             f = open(filename, 'r')
@@ -584,7 +580,7 @@ class Bundle(ParameterSet):
             # we'll handle later
             pass
         else:
-            raise TypeError("filename must be string, unicode, or file object, got {}".format(type(filename)))
+            raise TypeError("filename must be string or file object, got {}".format(type(filename)))
 
         if isinstance(filename, list):
             data = filename
@@ -870,7 +866,6 @@ class Bundle(ParameterSet):
         * <phoebe.parameters.ParameterSet.ui>
         * <phoebe.frontend.bundle.Bundle.as_client>
         * <phoebe.frontend.bundle.Bundle.is_client>
-        * <phoebe.frontend.bundle.Bundle.client_update>
 
         Arguments
         ----------
@@ -879,7 +874,8 @@ class Bundle(ParameterSet):
         * `server` (string, optional, default='http://localhost:5555'): the
             host (and port) of the server.
         * `as_client` (bool, optional, default=True):  whether to attach in
-            client mode.  See <phoebe.frontend.bundle.Bundle.as_client>.
+            client mode.  If True, `server` will be passed to
+            <phoebe.frontend.bundle.Bundle.as_client> as `as_client`.
         """
         # TODO: support default cases from server?
 
@@ -896,9 +892,8 @@ class Bundle(ParameterSet):
         b = cls(rjson['data']['bundle'])
 
         if as_client:
-            b.as_client(as_client, server=server,
-                        bundleid=rjson['meta']['bundleid'],
-                        start_if_fail=False)
+            b.as_client(as_client=server,
+                        bundleid=rjson['meta']['bundleid'])
 
             logger.warning("This bundle is in client mode, meaning all computations will be handled by the server at {}.  To disable client mode, call as_client(False) or in the future pass as_client=False to from_server".format(server))
 
@@ -1259,7 +1254,7 @@ class Bundle(ParameterSet):
         #return io.pass_to_legacy(self, filename, compute=compute)
 
 
-    def _test_server(self, server='http://localhost:5555', start_if_fail=True):
+    def _test_server(self, server='http://localhost:5555', wait_for_server=False):
         """
         [NOT IMPLEMENTED]
         """
@@ -1271,10 +1266,11 @@ class Bundle(ParameterSet):
             resp = json.loads(resp.read())
             test_passed = resp['data']['success']
 
-        if not test_passed and \
-                start_if_fail and \
-                'localhost' in re.sub(r'[\/\:]', ' ', server).split():
-            raise NotImplementedError("start_if_fail not yet supported - manually start server")
+        if not test_passed:
+            if wait_for_server:
+                time.sleep(0.5)
+                return self._test_server(server=server, wait_for_server=wait_for_server)
+
             return False
 
         return test_passed
@@ -1284,6 +1280,7 @@ class Bundle(ParameterSet):
         [NOT IMPLEMENTED]
         """
         logger.info("connected to server")
+        self._server_clients = [_clientid]
 
     def _on_socket_disconnect(self, *args):
         """
@@ -1291,6 +1288,15 @@ class Bundle(ParameterSet):
         test
         """
         logger.warning("disconnected from server")
+        if self.is_client and self._client_allow_disconnect:
+            logger.warning("exiting client mode")
+
+            self._socketio.disconnect()
+            self._bundleid = None
+            self._is_client = False
+            self._client_allow_disconnect = False
+
+            self._server_clients = []
 
     def _on_socket_push_updates(self, resp):
         """
@@ -1299,16 +1305,20 @@ class Bundle(ParameterSet):
         # TODO: check to make sure resp['meta']['bundleid']==bundleid ?
         # TODO: handle added parameters
         # TODO: handle removed (isDeleted) parameters
+        logger.debug('_on_socket_push_updates resp={}'.format(resp))
+
+        requestid = resp.pop('requestid', None)
+
+        server_changes = ParameterSet([])
 
         # resp['data'] = {'success': True/False, 'parameters': {uniqueid: {context: 'blah', value: 'blah', ...}}}
-        # print("*** _on_socket_push_updates resp={}".format(resp))
+        added_new_params = False
         for uniqueid, paramdict in resp['parameters'].items():
-            # print("*** _on_socket_push_updates uniquide in uniqueids={}, paramdict={}".format(uniqueid in self.uniqueids, paramdict))
             if uniqueid in self.uniqueids:
                 param = self.get_parameter(uniqueid=uniqueid, check_visible=False, check_default=False, check_advanced=False)
                 for attr, value in paramdict.items():
                     if hasattr(param, "_{}".format(attr)):
-                        logger.info("updates from server: setting {}@{}={}".
+                        logger.debug("updates from server: setting {}@{}={}".
                                     format(attr, param.twig, value))
 
                         # we cannot call param.set_value because that will
@@ -1318,83 +1328,133 @@ class Bundle(ParameterSet):
                             if 'nparray' in value.keys():
                                 value = nparray.from_json(value)
 
-                        if attr == 'value' and hasattr(param, 'default_unit'):
+                        if attr == 'value' and hasattr(param, 'default_unit') and param.__class__.__name__ != "ConstraintParameter":
                             if 'default_unit' in paramdict.keys():
                                 unit = u.Unit(paramdict.get('default_unit'))
                             else:
                                 unit = param.default_unit
+                            if isinstance(unit, str):
+                                unit = u.Unit(unit)
                             value = value * unit
 
                         setattr(param, "_{}".format(attr), value)
-            else:
-                self._attach_param_from_server(paramdict)
 
+                    server_changes += [param]
+            else:
+                server_changes += self._attach_param_from_server(paramdict)
+                added_new_params = True
+
+        if added_new_params:
+            # we skipped processing copy_for to avoid copying before all parameters
+            # were loaded, so we should do that now.
+            self._check_copy_for()
+
+        if len(resp.get('removed_parameters', [])):
+            # print("*** removed_parameters", resp.get('removed_parameters'))
+            server_changes += self.remove_parameters_all(uniqueid=resp.get('removed_parameters'), **_skip_filter_checks)
+
+        if requestid == self._waiting_on_server:
+            self._waiting_on_server = False
+
+        self._server_changes = server_changes
+
+    def _on_socket_push_error(self, resp):
+        # TODO: check to make sure resp['meta']['bundleid']==bundleid ?
+        requestid = resp.pop('requestid', None)
+        if requestid == self._waiting_on_server:
+            self._waiting_on_server = False
+
+        raise ValueError("error from server: {}".format(resp.get('error', 'error message not provided')))
+
+    def _on_socket_push_registeredclients(self, resp):
+        self._server_clients = resp.get('connected_clients', [])
 
     def _attach_param_from_server(self, item):
         """
-        [NOT IMPLEMENTED]
         """
         if isinstance(item, list):
+            ret_ = []
             for itemi in item:
-                self._attach_param_from_server(itemi)
+                ret_ += [self._attach_param_from_server(itemi)]
+            return ret_
         else:
             # then we need to add a new parameter
             d = item
-
-            print("*** _attach_param_from_server d={}".format(d))
-
-            d['Class'] = d.pop('type')
-            for attr, value in d.pop('attributes', {}).items():
-                d[attr] = value
-            for tag, value in d.pop('meta', {}).items():
-                d[tag] = value
-
-            _dump = d.pop('readonly', None)
-            _dump = d.pop('valuestr', None)
-            _dump = d.pop('twig', None)
-            _dump = d.pop('valueunit', None)  # TODO: may need to account for unit?
-
-            # print "*** _attach_param_from_server", d
             param = parameters.parameter_from_json(d, bundle=self)
 
             metawargs = {}
-            self._attach_params([param], **metawargs)
+            self._attach_params([param], check_copy_for=False, **metawargs)
+            return [param]
 
     def _deregister_client(self, bundleid=None):
+        # called at python exit as well as b.as_client(False)
+
         if self._socketio is None:
             return
 
-        logger.info("deregistering {} client from {}".format(_clientid, self.is_client))
-        self._socketio.emit('deregister client', {'clientid': _clientid, 'bundleid': None})
-        if bundleid is not None:
-            self._socketio.emit('deregister client', {'clientid': _clientid, 'bundleid': bundleid})
+        if self._server_secret is not None:
+            logger.warning("attempting to kill child server process at {}".format(self.is_client))
+            self._socketio.emit('kill', {'clientid': _clientid, 'secret': self._server_secret})
+            self._server_secret = None
+        else:
+            logger.info("deregistering {} client from {}".format(_clientid, self.is_client))
+            self._socketio.emit('deregister client', {'clientid': _clientid, 'bundleid': None})
+            if bundleid is not None:
+                self._socketio.emit('deregister client', {'clientid': _clientid, 'bundleid': bundleid})
+
+
         self._socketio.disconnect()
         self._socketio = None
 
-    def as_client(self, as_client=True, server='http://localhost:5555',
-                  bundleid=None, start_if_fail=True):
+    def as_client(self, as_client='http://localhost:5555',
+                  bundleid=None, wait_for_server=False, reconnection_attempts=None,
+                  blocking=False):
         """
-        Enter (or exit) client mode.
+        Enter (or exit) client mode.  Client mode allows a server (either running
+        locally on localhost or on an external machine) to host the bundle
+        and handle all computations.  Any changes to parameters, etc, are then
+        transmitted to each of the attached clients so that they remain in
+        sync.
+
+        PHOEBE will first try a connection with `as_client`.  If an instance of
+        PHOEBE server is not found, `as_client` includes 'localhost', and
+        the port is open, then the server will be launched automatically as a
+        child process of this thread (it will attempt to be killed when
+        calling `as_client(as_client=False)` or when closing python) - but
+        is not always successful and the thread may need to be killed manually.
 
         See also:
         * <phoebe.frontend.bundle.Bundle.from_server>
         * <phoebe.parameters.ParameterSet.ui>
+        * <phoebe.frontend.bundle.Bundle.ui_figures>
         * <phoebe.frontend.bundle.Bundle.is_client>
-        * <phoebe.frontend.bundle.Bundle.client_update>
 
         Arguments
         -----------
-        * `as_client` (bool, optional, default=True): whether to enter (True)
-            or exit (False) client mode.
-        * `server` (string, optional, default='http://localhost:5555'): the URL
-            location (including port, if necessary) to find the phoebe-server.
+        * `as_client` (bool or string, optional, default='localhost:5555'):
+            If a string: will attach to the server at the provided URL.  If
+            the server does not exist but is at localhost, one will attempt
+            to be launched as a child process and will be closed when exiting
+            or leaving client-mode.  If True, will default to the above
+            with 'localhost:5555'.  If False, will disconnect from the existing
+            connection and exit client mode.
         * `bundleid` (string, optional, default=None): if provided and the
             bundleid is available from the given server, that bundle will be
             downloaded and attached.  If provided but bundleid is not available
             from the server, the current bundle will be uploaded and assigned
             the given bundleid.  If not provided, the current bundle will be
             uploaded and assigned a random bundleid.
-        * `start_if_fail` (bool, optional, default=True): NOT CURRENTLY IMPLEMENTED
+        * `wait_for_server` (bool, optional, default=False): whether to wait
+            for the server to be started externally rather than attempt to
+            launch a child-process or raise an error.
+        * `reconnection_attempts` (int or None, optional, default=None): number
+            of reconnection attempts to allow before disonnnecting automatically.
+        * `blocking` (bool, optional, default=False): whether to enter client-mode
+            synchronously (will not return until the connection is closed) at
+            which point the bundle will no longer be in client mode.
+            This is used internally by <phoebe.parameters.ParameterSet.ui>,
+            but should be overridden with caution.
+
 
         Raises
         ---------
@@ -1402,24 +1462,41 @@ class Bundle(ParameterSet):
         * ValueError: if the server at `server` is not running or reachable.
         * ValueError: if the server returns an error.
         """
-        if not conf.devel:
-            raise NotImplementedError("'as_client' not officially supported for this release.  Enable developer mode to test.")
-
         if as_client:
             if not _can_client:
                 raise ImportError("dependencies to support client mode not met - see docs")
 
-            server_running = self._test_server(server=server,
-                                               start_if_fail=start_if_fail)
-            if not server_running:
-                raise ValueError("server {} is not running".format(server))
+            if as_client is True:
+                server = 'localhost:5555'
+            else:
+                server = as_client
 
-            server_split = server.split('://')[-1].split(':')
-            host = ':'.join(server_split[:-1]) if len(server_split) > 1 else server_split[0]
-            port = int(float(server_split[-1])) if len(server_split) > 1 else None
-            self._socketio = SocketIO(host, port, BaseNamespace)
+            if 'http' not in server[:5]:
+                server = 'http://'+server
+
+            server_running = self._test_server(server=server,
+                                               wait_for_server=wait_for_server)
+            if not server_running:
+                if 'localhost' not in server:
+                    raise ValueError("server {} is not running and does not include 'localhost' so will not be launched automatically".format(server))
+
+                try:
+                    port = int(server.split(':')[-1])
+                except:
+                    raise ValueError("could not detect port from server='{}' when attempting to launch.  server should have the format 'localhost:5500'")
+
+                self._server_secret = _uniqueid(6)
+                cmd = 'phoebe-server --port {} --parent {} --secret {} &'.format(port, _clientid, self._server_secret)
+                logger.info("system command: {}".format(cmd))
+                os.system(cmd)
+
+                server_running = self._test_server(server=server,
+                                                   wait_for_server=True)
+
+            self._socketio = socketio.Client(reconnection_delay=0.1, reconnection_attempts=0 if reconnection_attempts is None else reconnection_attempts)
             self._socketio.on('connect', self._on_socket_connect)
             self._socketio.on('disconnect', self._on_socket_disconnect)
+            self._socketio.connect(server)
 
             if bundleid is not None:
                 rj = requests.get("{}/info".format(server)).json()
@@ -1431,7 +1508,7 @@ class Bundle(ParameterSet):
                 upload = True
 
             if upload:
-                upload_url = "{}/open_bundle".format(server)
+                upload_url = "{}/open_bundle/load:phoebe2".format(server)
                 logger.info("uploading bundle to server {}".format(upload_url))
                 data = json.dumps({'json': self.to_json(incl_uniqueid=True), 'bundleid': bundleid})
                 rj = requests.post(upload_url, data=data, timeout=5).json()
@@ -1443,6 +1520,8 @@ class Bundle(ParameterSet):
             self._socketio.emit('register client', {'clientid': _clientid, 'bundleid': bundleid})
 
             self._socketio.on('{}:changes:python'.format(bundleid), self._on_socket_push_updates)
+            self._socketio.on('{}:errors:python'.format(bundleid), self._on_socket_push_error)
+            self._socketio.on('{}:registeredclients'.format(bundleid), self._on_socket_push_registeredclients)
 
             self._bundleid = bundleid
 
@@ -1450,8 +1529,12 @@ class Bundle(ParameterSet):
 
             atexit.register(self._deregister_client)
 
-            logger.info("connected as client {} to server at {}:{}".
-                        format(_clientid, host, port))
+            logger.info("connected as client {} to server at {}".
+                        format(_clientid, server))
+
+            if blocking:
+                self._socketio.wait()
+                self.as_client(as_client=False)
 
         else:
             logger.warning("This bundle is now permanently detached from the instance on the server and will not receive future updates.  To start a client in sync with the version on the server or other clients currently subscribed, you must instantiate a new bundle with Bundle.from_server.")
@@ -1461,45 +1544,23 @@ class Bundle(ParameterSet):
 
             self._bundleid = None
             self._is_client = False
+            self._server_clients = []
 
     @property
     def is_client(self):
         """
+        Whether the <phoebe.frontend.bundle.Bundle> is currently in client-mode.
+
         See also:
         * <phoebe.frontend.bundle.Bundle.from_server>
         * <phoebe.parameters.ParameterSet.ui>
         * <phoebe.frontend.bundle.Bundle.as_client>
-        * <phoebe.frontend.bundle.Bundle.client_update>
 
         Returns
         ---------
         * False if the bundle is not in client mode, otherwise the URL of the server.
         """
         return self._is_client
-
-    def client_update(self):
-        """
-        Check for updates from the server and update the client.  In general,
-        it should not be necessary to call this manually.
-
-        See also:
-        * <phoebe.frontend.bundle.Bundle.from_server>
-        * <phoebe.parameters.ParameterSet.ui>
-        * <phoebe.frontend.bundle.Bundle.as_client>
-        * <phoebe.frontend.bundle.Bundle.is_client>
-
-        """
-        if not conf.devel:
-            raise NotImplementedError("'client_update' not officially supported for this release.  Enable developer mode to test.")
-
-        if not self.is_client:
-            raise ValueError("Bundle is not in client mode, cannot update")
-
-        logger.info("updating client...")
-        # wait briefly to pickup any missed messages, which should then fire
-        # the corresponding callbacks and update the bundle
-        self._socketio.wait(seconds=0.1)
-        self._last_client_update = datetime.now()
 
     def __repr__(self):
         # filter to handle any visibility checks, etc
@@ -1691,6 +1752,7 @@ class Bundle(ParameterSet):
         else:
             return ps  # TODO: reverse the order?
 
+    @send_if_client
     def remove_history(self, i=None):
         """
         Remove a history item from the bundle by index.
@@ -1721,7 +1783,7 @@ class Bundle(ParameterSet):
             return_ = self.remove_parameter(uniqueid=param.uniqueid)
 
         # let's not add_history for this one...
-        return return_
+        return _return_ps(self, return_)
 
     @property
     def history_enabled(self):
@@ -2447,10 +2509,7 @@ class Bundle(ParameterSet):
 
             repr_ = func(*func_args)
 
-            if sys.version_info[0] == 3:
-              kind = func.__name__
-            else:
-              kind = func.__name__
+            kind = func.__name__
 
         hier_param = HierarchyParameter(value=repr_,
                                         description='Hierarchy representation')
@@ -3648,8 +3707,7 @@ class Bundle(ParameterSet):
                 dataset_ps = self.get_dataset(dataset=dataset, check_visible=False)
 
                 ld_mode = dataset_ps.get_value(qualifier='ld_mode', component=component, **_skip_filter_checks)
-                # cast to string to ensure not a unicode since we're passing to libphoebe
-                ld_func = str(dataset_ps.get_value(qualifier='ld_func', component=component, **_skip_filter_checks))
+                ld_func = dataset_ps.get_value(qualifier='ld_func', component=component, **_skip_filter_checks)
                 ld_coeffs_source = dataset_ps.get_value(qualifier='ld_coeffs_source', component=component, **_skip_filter_checks)
                 ld_coeffs = dataset_ps.get_value(qualifier='ld_coeffs', component=component, **_skip_filter_checks)
                 pb = dataset_ps.get_value(qualifier='passband', **kwargs)
@@ -4635,7 +4693,7 @@ class Bundle(ParameterSet):
 
         return {r: {'url': citation_urls.get(r, None), 'uses': v} for r,v in recs.items()}
 
-
+    @send_if_client
     def add_feature(self, kind, component=None, dataset=None,
                     return_changes= False, **kwargs):
         """
@@ -4766,8 +4824,8 @@ class Bundle(ParameterSet):
         ret_ps = self.filter(feature=kwargs['feature'], **_skip_filter_checks)
 
         if kwargs.get('overwrite', False) and return_changes:
-            return ret_ps + overwrite_ps
-        return ret_ps
+            ret_ps += overwrite_ps
+        return _return_ps(self, ret_ps)
 
     def get_feature(self, feature=None, **kwargs):
         """
@@ -4791,6 +4849,7 @@ class Bundle(ParameterSet):
         kwargs['context'] = 'feature'
         return self.filter(**kwargs)
 
+    @send_if_client
     def remove_feature(self, feature=None, return_changes=False, **kwargs):
         """
         Remove a 'feature' from the bundle.
@@ -5085,11 +5144,7 @@ class Bundle(ParameterSet):
 
         func = _get_add_func(_component, kind)
 
-        if sys.version_info[0] == 3:
-          fname = func.__name__
-        else:
-          fname = func.__name__
-
+        fname = func.__name__
 
         if kwargs.get('component', False) is None:
             # then we want to apply the default below, so let's pop for now
@@ -5160,8 +5215,8 @@ class Bundle(ParameterSet):
             ret_changes += overwrite_ps
 
         if return_changes:
-            return ret_ps + ret_changes
-        return ret_ps
+            ret_ps += ret_changes
+        return _return_ps(self, ret_ps)
 
     def get_component(self, component=None, **kwargs):
         """
@@ -5185,6 +5240,7 @@ class Bundle(ParameterSet):
         kwargs['context'] = 'component'
         return self.filter(**kwargs)
 
+    @send_if_client
     def remove_component(self, component, return_changes=False, **kwargs):
         """
         Remove a 'component' from the bundle.
@@ -5216,8 +5272,8 @@ class Bundle(ParameterSet):
             ret_changes += self._handle_component_selectparams(return_changes=return_changes)
 
         if return_changes:
-            return ret_ps + ret_changes
-        return ret_ps
+            ret_ps += ret_changes
+        return _return_ps(self, ret_ps)
 
     @send_if_client
     def rename_component(self, old_component, new_component, return_changes=False):
@@ -5259,7 +5315,6 @@ class Bundle(ParameterSet):
         ret_params += [self.hierarchy]
 
         return ParameterSet(ret_params)
-
 
     def add_orbit(self, component=None, **kwargs):
         """
@@ -5682,11 +5737,6 @@ class Bundle(ParameterSet):
                                               **{'context': 'dataset',
                                                  'kind': func.__name__}))
 
-        if not isinstance(kwargs['dataset'], str):
-            # if dataset is a unicode, that conflicts with copy-for
-            # TODO: this really should be replaced with a more elegant handling
-            # of unicode within parameters.ParameterSet._check_copy_for
-            kwargs['dataset'] = str(kwargs['dataset'])
 
         if kwargs.pop('check_label', True):
             self._check_label(kwargs['dataset'], allow_overwrite=kwargs.get('overwrite', False))
@@ -5800,7 +5850,7 @@ class Bundle(ParameterSet):
 
 
 
-        if self.get_value(qualifier='auto_add_figure', context='setting') and kind not in self.filter(context='figure', check_visible=False, check_default=False).exclude(figure=[None], check_visible=False, check_default=False).kinds:
+        if self.get_value(qualifier='auto_add_figure', context='setting', auto_add_figure=kwargs.get('auto_add_figure', None), **_skip_filter_checks) and kind not in self.filter(context='figure', check_visible=False, check_default=False).exclude(figure=[None], check_visible=False, check_default=False).kinds:
             # then we don't have a figure for this kind yet
             logger.info("calling add_figure(kind='dataset.{}') since auto_add_figure@setting=True".format(kind))
             new_fig_params = self.add_figure(kind='dataset.{}'.format(kind))
@@ -6004,8 +6054,8 @@ class Bundle(ParameterSet):
         ret_changes += self._handle_fitparameters_selecttwigparams(return_changes=return_changes)
 
         if return_changes:
-            return ret_ps + ret_changes
-        return ret_ps
+            ret_ps += ret_changes
+        return _return_ps(self, ret_ps)
 
     def get_dataset(self, dataset=None, **kwargs):
         """
@@ -6035,6 +6085,7 @@ class Bundle(ParameterSet):
             kwargs['kind'] = kwargs['kind'].lower()
         return self.filter(**kwargs)
 
+    @send_if_client
     def remove_dataset(self, dataset=None, return_changes=False, **kwargs):
         """
         Remove a 'dataset' from the Bundle.
@@ -6117,8 +6168,8 @@ class Bundle(ParameterSet):
                           undo_kwargs={})
 
         if return_changes:
-            return ret_ps + ret_changes
-        return ret_ps
+            ret_ps += ret_changes
+        return _return_ps(self, ret_ps)
 
     def remove_datasets_all(self, return_changes=False):
         """
@@ -6181,8 +6232,8 @@ class Bundle(ParameterSet):
                 ret_changes += [param]
 
         if return_changes:
-            return ret_ps + ret_changes
-        return ret_ps
+            ret_ps += ret_changes
+        return _return_ps(self, ret_ps)
 
 
     def enable_dataset(self, dataset=None, **kwargs):
@@ -6271,17 +6322,7 @@ class Bundle(ParameterSet):
 
         return self.get_dataset(dataset=dataset)
 
-    def add_parameter(self):
-        """
-        [NOT IMPLEMENTED]
-
-        Add a new parameter to the bundle
-
-        :raises NotImplementedError: because it isn't
-        """
-        # TODO: don't forget add_history
-        raise NotImplementedError
-
+    @send_if_client
     def add_constraint(self, *args, **kwargs):
         """
         Add a <phoebe.parameters.ConstraintParameter> to the
@@ -6485,6 +6526,7 @@ class Bundle(ParameterSet):
         kwargs['context'] = 'constraint'
         return self.get(**kwargs)
 
+    @send_if_client
     def remove_constraint(self, twig=None, return_changes=False, **kwargs):
         """
         Remove a 'constraint' from the bundle.
@@ -6551,7 +6593,7 @@ class Bundle(ParameterSet):
 
         return removed_param
 
-
+    @send_if_client
     def flip_constraint(self, twig=None, solve_for=None, **kwargs):
         """
         Flip an existing constraint to solve for a different parameter.
@@ -6928,7 +6970,7 @@ class Bundle(ParameterSet):
         if kwargs.get('overwrite_individual', False) and return_changes:
             ret_ps += overwrite_ps
 
-        return ret_ps
+        return _return_ps(self, ret_ps)
 
 
     @send_if_client
@@ -7136,8 +7178,8 @@ class Bundle(ParameterSet):
                           undo_kwargs={'distribution': kwargs['distribution']})
 
         if return_changes:
-            return ret_ps + ret_changes
-        return ret_ps
+            ret_ps += ret_changes
+        return _return_ps(self, ret_ps)
 
     def get_distribution(self, distribution=None, **kwargs):
         """
@@ -7212,9 +7254,10 @@ class Bundle(ParameterSet):
         ret_changes += self._handle_computesamplefrom_selectparams(return_changes=return_changes)
 
         if return_changes:
-            return ret_ps + ret_changes
-        return ret_ps
+            ret_ps += ret_changes
+        return _return_ps(self, ret_ps)
 
+    @send_if_client
     def remove_distribution(self, distribution, return_changes=False, **kwargs):
         """
         Remove a distribution from the bundle.
@@ -7248,8 +7291,8 @@ class Bundle(ParameterSet):
             ret_changes += self._handle_computesamplefrom_selectparams(return_changes=return_changes)
 
         if return_changes:
-            return ret_ps + ret_changes
-        return ret_ps
+            ret_ps += ret_changes
+        return _return_ps(self, ret_ps)
 
     def _distribution_collection_defaults(self, twig=None, **kwargs):
         filter_kwargs = {k:v for k,v in kwargs.items() if k in parameters._meta_fields_filter}
@@ -7756,9 +7799,9 @@ class Bundle(ParameterSet):
             changed_params += self.run_delayed_constraints()
             if user_interactive_constraints:
                 conf.interactive_constraints_on()
-            return ParameterSet(changed_params)
+            return _return_ps(self, ParameterSet(changed_params))
         else:
-            return ret
+            return _return_ps(self, ret)
 
     def plot_distribution_collection(self, twig=None,
                                     set_labels=True,
@@ -7975,11 +8018,7 @@ class Bundle(ParameterSet):
 
         func = _get_add_func(_figure, kind)
 
-        if sys.version_info[0] == 3:
-          fname = func.__name__
-        else:
-          fname = func.__name__
-
+        fname = func.__name__
 
         if kwargs.get('figure', False) is None:
             # then we want to apply the default below, so let's pop for now
@@ -8061,8 +8100,8 @@ class Bundle(ParameterSet):
             ret_ps += overwrite_ps
 
         if return_changes:
-            return ret_ps + ret_changes
-        return ret_ps
+            ret_ps += ret_changes
+        return _return_ps(self, ret_ps)
 
     def get_figure(self, figure=None, **kwargs):
         """
@@ -8097,8 +8136,9 @@ class Bundle(ParameterSet):
         elif len(ret_ps.figures) > 1:
             raise ValueError("more than one figure matched: {}".format(kwargs))
 
-        return ret_ps
+        return _return_ps(self, ret_ps)
 
+    @send_if_client
     def remove_figure(self, figure, return_changes=False, **kwargs):
         """
         Remove a 'figure' from the bundle.
@@ -8130,8 +8170,8 @@ class Bundle(ParameterSet):
             ret_changes += self._handle_figure_selectparams(return_changes=return_changes)
 
         if return_changes:
-            return ret_ps + ret_changes
-        return ret_ps
+            ret_ps += ret_changes
+        return _return_ps(self, ret_ps)
 
     @send_if_client
     def rename_figure(self, old_figure, new_figure,
@@ -8181,6 +8221,7 @@ class Bundle(ParameterSet):
         and is less clumsy if plotting from the python frontend.
 
         See also:
+        * <phoebe.frontend.bundle.Bundle.ui_figures>
         * <phoebe.frontend.bundle.Bundle.add_figure>
         * <phoebe.frontend.bundle.Bundle.get_figure>
         * <phoebe.frontend.bundle.Bundle.remove_figure>
@@ -8446,6 +8487,54 @@ class Bundle(ParameterSet):
         kwargs.setdefault('tight_layout', True)
         logger.info("calling plot(**{})".format(kwargs))
         return self.plot(**kwargs)
+
+    def ui_figures(self, web_client=None, blocking=None):
+        """
+        Open an interactive user-interface for all figures in the Bundle.
+
+        See <phoebe.parameters.ParameterSet.ui> for more details on the
+        behavior of `blocking`, `web_client`, and Jupyter notebook support.
+
+        See also:
+        * <phoebe.frontend.bundle.Bundle.run_figure>
+        * <phoebe.parameters.ParameterSet.ui>
+        * <phoebe.frontend.bundle.Bundle.as_client>
+        * <phoebe.frontend.bundle.Bundle.is_client>
+
+        Arguments
+        -----------
+        * `web_client` (bool or string, optional, default=False):
+            If not provided or None, this will default to the values in the
+            settings for `web_client` and `web_client_url`.
+            If True, a web-client will be preferred over a desktop-client and
+            will default to using the settings for `web_client_url`.
+            If False, will use the desktop-client instead of a web-client.
+            If a string, the string will be used as the url for the web-client.
+            Note that if using a web-client, the bundle must already be
+            in client mode.  See <phoebe.frontend.bundle.Bundle.is_client>
+            and <phoebe.frontend.bundle.Bundle.as_client>.
+        * `blocking` (bool, optional, default=None): whether the clal to the
+            UI should be blocking (wait for the client to close/disconnect)
+            before continuing the python-thread or not.  If not provided or
+            None, will default to True if not currently in client-mode
+            (see <phoebe.frontend.bundle.Bundle.is_client> and
+            <phoebe.frontend.bundle.Bundle.as_client>) or False otherwise.
+
+        Returns
+        ----------
+        * `url` (string): the opened URL (will attempt to launch in the system
+            webbrowser)
+
+        Raises
+        -----------
+        * ValueError: if the <phoebe.parameters.ParameterSet> is not attached
+            to a parent <phoebe.frontend.bundle.Bundle>.
+        * ValueError: if `web_client` is provided but the <phoebe.frontend.bundle.Bundle>
+            is not in client mode (see <phoebe.frontend.bundle.Bundle.is_client>
+            and <phoebe.frontend.bundle.Bundle.as_client>)
+        """
+
+        return self._launch_ui(web_client, 'figures', blocking=blocking)
 
 
     def compute_ld_coeffs(self, compute=None, set_value=False, **kwargs):
@@ -9285,8 +9374,8 @@ class Bundle(ParameterSet):
             ret_ps += overwrite_ps
 
         if return_changes:
-            return ret_ps + ret_changes
-        return ret_ps
+            ret_ps += ret_changes
+        return _return_ps(self, ret_ps)
 
     def get_compute(self, compute=None, **kwargs):
         """
@@ -9311,6 +9400,7 @@ class Bundle(ParameterSet):
         kwargs['context'] = 'compute'
         return self.filter(**kwargs)
 
+    @send_if_client
     def remove_compute(self, compute, return_changes=False, **kwargs):
         """
         Remove a 'compute' from the bundle.
@@ -9340,8 +9430,8 @@ class Bundle(ParameterSet):
             ret_changes += self._handle_compute_selectparams(return_changes=return_changes)
 
         if return_changes:
-            return ret_ps + ret_changes
-        return ret_ps
+            ret_ps += ret_changes
+        return _return_ps(self, ret_ps)
 
     def remove_computes_all(self, return_changes=False):
         """
@@ -9447,9 +9537,6 @@ class Bundle(ParameterSet):
 
         # handle the ability to send multiple compute options/backends - here
         # we'll just always send a list of compute options
-        if isinstance(compute, unicode):
-            compute = str(compute)
-
         if isinstance(compute, str):
             computes = [compute]
         else:
@@ -9532,7 +9619,7 @@ class Bundle(ParameterSet):
         f.write("b = phoebe.open(bdict, import_from_older={})\n".format(import_from_older))
         # TODO: make sure this works with multiple computes
         compute_kwargs = list(kwargs.items())+[('compute', compute), ('model', str(model)), ('dataset', dataset), ('do_create_fig_params', do_create_fig_params)]
-        compute_kwargs_string = ','.join(["{}={}".format(k,"\'{}\'".format(str(v)) if (isinstance(v, str) or isinstance(v, unicode)) else v) for k,v in compute_kwargs])
+        compute_kwargs_string = ','.join(["{}={}".format(k,"\'{}\'".format(str(v)) if isinstance(v, str) else v) for k,v in compute_kwargs])
         # as the return from run_compute just does a filter on model=model,
         # model_ps here should include any created figure parameters
 
@@ -9734,13 +9821,15 @@ class Bundle(ParameterSet):
         * ValueError: if any given dataset is enabled in more than one set of
             compute options sent to run_compute.
         """
-        if isinstance(detach, str) or isinstance(detach, unicode):
+        # NOTE: if we're already in client mode, we'll never get here in the client
+        # there detach is handled slightly differently (see parameters._send_if_client)
+        if isinstance(detach, str):
             # then we want to temporarily go in to client mode
             raise NotImplementedError("detach currently must be a bool")
-            self.as_client(server=detach)
-            self.run_compute(compute=compute, model=model, times=times, **kwargs)
-            self.as_client(False)
-            return self.get_model(model=model)
+            self.as_client(as_client=detach)
+            ret_ = self.run_compute(compute=compute, model=model, dataset=dataset, times=times, return_changes=return_changes, **kwargs)
+            self.as_client(as_client=False)
+            return _return_ps(self, ret_)
 
         if isinstance(times, float) or isinstance(times, int):
             times = [times]
@@ -10179,8 +10268,8 @@ class Bundle(ParameterSet):
             ret_ps += overwrite_ps
 
         if return_changes:
-            return ret_ps + ret_changes
-        return ret_ps
+            ret_ps += ret_changes
+        return _return_ps(self, ret_ps)
 
     def get_model(self, model=None, **kwargs):
         """
@@ -10286,9 +10375,10 @@ class Bundle(ParameterSet):
                                                 do_create_fig_params=False)
 
         if return_changes:
-            return ret_ps + ret_changes
-        return ret_ps
+            ret_ps += ret_changes
+        return _return_ps(self, ret_ps)
 
+    @send_if_client
     def remove_model(self, model, return_changes=False, **kwargs):
         """
         Remove a 'model' from the bundle.
@@ -10325,8 +10415,8 @@ class Bundle(ParameterSet):
                                                 **kwargs)
 
         if return_changes:
-            return ret_ps + ret_changes
-        return ret_ps
+            ret_ps += ret_changes
+        return _return_ps(self, ret_ps)
 
     def remove_models_all(self, return_changes=False):
         """
@@ -10381,9 +10471,10 @@ class Bundle(ParameterSet):
         ret_changes += self._handle_model_selectparams(return_changes=return_changes)
 
         if return_changes:
-            return ret_ps + ret_changes
-        return ret_ps
+            ret_ps += ret_changes
+        return _return_ps(self, ret_ps)
 
+    @send_if_client
     def attach_job(self, twig=None, wait=True, sleep=5, cleanup=True,
                    return_changes=False, **kwargs):
         """
@@ -10575,8 +10666,8 @@ class Bundle(ParameterSet):
             # TODO: else raise warning?
 
         if return_changes:
-            return ret_ps + ret_changes
-        return ret_ps
+            ret_ps += ret_changes
+        return _return_ps(self, ret_ps)
 
     def get_solver(self, solver=None, **kwargs):
         """
@@ -10600,6 +10691,7 @@ class Bundle(ParameterSet):
         kwargs['context'] = 'solver'
         return self.filter(**kwargs)
 
+    @send_if_client
     def remove_solver(self, solver, return_changes=False, **kwargs):
         """
         Remove a 'solver' from the bundle.
@@ -10638,8 +10730,8 @@ class Bundle(ParameterSet):
             ret_changes += self._handle_solver_selectparams(return_changes=return_changes)
 
         if return_changes:
-            return ret_ps + ret_changes
-        return ret_ps
+            ret_ps += ret_changes
+        return _return_ps(self, ret_ps)
 
     def remove_solvers_all(self, return_changes=False):
         """
@@ -10692,8 +10784,8 @@ class Bundle(ParameterSet):
         ret_changes += self._handle_solver_selectparams(return_changes=return_changes)
 
         if return_changes:
-            return ret_ps + ret_changes
-        return ret_ps
+            ret_ps += ret_changes
+        return _return_ps(self, ret_ps)
 
 
     def _prepare_solver(self, solver, solution, **kwargs):
@@ -10754,7 +10846,7 @@ class Bundle(ParameterSet):
         f.write("bdict = json.loads(\"\"\"{}\"\"\", object_pairs_hook=phoebe.utils.parse_json)\n".format(json.dumps(b.exclude(context=exclude_contexts, **_skip_filter_checks).exclude(solution=exclude_solutions, **_skip_filter_checks).to_json(incl_uniqueid=True, exclude=['description', 'advanced', 'readonly', 'copy_for']))))
         f.write("b = phoebe.open(bdict, import_from_older={})\n".format(import_from_older))
         solver_kwargs = list(kwargs.items())+[('solver', solver), ('solution', str(solution))]
-        solver_kwargs_string = ','.join(["{}={}".format(k,"\'{}\'".format(str(v)) if (isinstance(v, str) or isinstance(v, unicode)) else v) for k,v in solver_kwargs])
+        solver_kwargs_string = ','.join(["{}={}".format(k,"\'{}\'".format(str(v)) if isinstance(v, str) else v) for k,v in solver_kwargs])
 
         custom_lnprobability_callable = kwargs.get('custom_lnprobability_callable', None)
         if custom_lnprobability_callable is not None:
@@ -10965,12 +11057,12 @@ class Bundle(ParameterSet):
         * a <phoebe.parameters.ParameterSet> of the newly-created solver solution.
 
         """
-        if isinstance(detach, str) or isinstance(detach, unicode):
+        if isinstance(detach, str):
             # then we want to temporarily go in to client mode
             raise NotImplementedError("detach currently must be a bool")
-            self.as_client(server=detach)
+            self.as_client(as_client=detach)
             self.run_solver(solver=solver, solution=solution, **kwargs)
-            self.as_client(False)
+            self.as_client(as_client=False)
             return self.get_solution(solution=solution)
 
         solver, solution, compute, solver_ps = self._prepare_solver(solver, solution, **kwargs)
@@ -11119,8 +11211,8 @@ class Bundle(ParameterSet):
 
 
         if return_changes:
-            return ret_ps + ret_changes
-        return ret_ps
+            ret_ps += ret_changes
+        return _return_ps(self, ret_ps)
 
     def _get_adopt_inds_uniqueids(self, solution_ps, **kwargs):
 
@@ -11333,8 +11425,8 @@ class Bundle(ParameterSet):
             ret_changes += self.remove_solution(solution=solution)
 
         if return_changes:
-            return ret_ps + ret_changes
-        return ret_ps
+            ret_ps += ret_changes
+        return _return_ps(self, ret_ps)
 
     def get_solution(self, solution=None, **kwargs):
         """
@@ -11464,10 +11556,10 @@ class Bundle(ParameterSet):
         ret_changes += self._run_solver_changes(ret_ps, return_changes=return_changes)
 
         if return_changes:
-            return ret_ps + ret_changes
-        return ret_ps
+            ret_ps += ret_changes
+        return _return_ps(self, ret_ps)
 
-
+    @send_if_client
     def remove_solution(self, solution, return_changes=False, **kwargs):
         """
         Remove a 'solution' from the bundle.
@@ -11498,8 +11590,8 @@ class Bundle(ParameterSet):
                                                during_overwrite=kwargs.get('during_overwrite', False))
 
         if return_changes:
-            return ret_ps + ret_changes
-        return ret_ps
+            ret_ps += ret_changes
+        return _return_ps(self, ret_ps)
 
     def remove_solutions_all(self, return_changes=False, **kwargs):
         """
@@ -11550,4 +11642,4 @@ class Bundle(ParameterSet):
 
         ret_ps = self.filter(solution=new_solution)
 
-        return ret_ps
+        return _return_ps(self, ret_ps)

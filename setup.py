@@ -1,3 +1,8 @@
+"""
+Environment variables while manually building/installing:
+
+PHOEBE_SKIP_SCRIPTS=TRUE: will not install phoebe-server and phoebe-autofig executables (removing the following dependencies: flask, flask-cors, flask-socketio, gevent-websocket)
+"""
 import sys
 
 try:
@@ -21,12 +26,12 @@ import re
 # Python version checks (in both __init__.py and setup.py)
 if sys.version_info[0] == 3:
     if sys.version_info[1] < 6:
-        raise ImportError("PHOEBE supports python 2.7+ or 3.6+")
+        raise ImportError("PHOEBE supports python 3.6+")
 elif sys.version_info[0] == 2:
     if sys.version_info[1] < 7:
-        raise ImportError("PHOEBE supports python 2.7+ or 3.6+")
+        raise ImportError("PHOEBE 2.3+ requires python 3.6+")
 else:
-    raise ImportError("PHOEBE supports python 2.7+ or 3.6+")
+    raise ImportError("PHOEBE supports python 3.6+")
 
 #
 # Auxiliary functions
@@ -339,15 +344,30 @@ setup (name = 'phoebe',
        author = 'PHOEBE development team',
        author_email = 'phoebe-devel@lists.sourceforge.net',
        url = 'http://github.com/phoebe-project/phoebe2',
+       classifiers=[
+            'Development Status :: 5 - Production/Stable',
+            'Intended Audience :: Science/Research',
+            'Topic :: Software Development :: Build Tools',
+            "Natural Language :: English",
+            "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+            "Topic :: Scientific/Engineering",
+            "Topic :: Software Development :: Libraries :: Python Modules",
+            'Programming Language :: Python :: 3',
+            'Programming Language :: Python :: 3.6',
+            'Programming Language :: Python :: 3.7',
+            'Programming Language :: Python :: 3.8',
+            'Programming Language :: Python :: 3 :: Only',
+        ],
+       python_requires='>=3.6, <4',
        download_url = 'https://github.com/phoebe-project/phoebe2/tarball/2.2.2',
        packages = ['phoebe', 'phoebe.parameters', 'phoebe.parameters.solver', 'phoebe.parameters.figure', 'phoebe.frontend', 'phoebe.constraints', 'phoebe.dynamics', 'phoebe.distortions', 'phoebe.algorithms', 'phoebe.atmospheres', 'phoebe.backend', 'phoebe.solverbackends', 'phoebe.solverbackends.ebai', 'phoebe.utils', 'phoebe.helpers', 'phoebe.pool', 'phoebe.dependencies', 'phoebe.dependencies.autofig', 'phoebe.dependencies.nparray', 'phoebe.dependencies.distl', 'phoebe.dependencies.unitsiau2015'],
-       install_requires=['numpy>=1.10','scipy>=1.7','astropy>=1.0,<3.0' if sys.version_info[0] < 3 else 'astropy>=1.0', 'pytest'],
+       install_requires=['numpy>=1.12','scipy>=1.2','astropy>=1.0', 'pytest', 'python-socketio[client]']+['flask', 'flask-cors', 'flask-socketio', 'gevent-websocket'],
        package_data={'phoebe.atmospheres':['tables/wd/*', 'tables/passbands/*'],
                      'phoebe.frontend':['default_bundles/*.bundle'],
                      'phoebe.solverbackends.ebai': ['*.data', '*.weights']
                     },
        ext_modules = ext_modules,
-       scripts=['client-server/phoebe-server'] if _env_variable_bool('PHOEBE_DEVEL', False) else None,
+       scripts=None if  _env_variable_bool('PHOEBE_SKIP_SCRIPTS', False) else ['client-server/phoebe-server', 'client-server/phoebe-autofig'],
        cmdclass = {
          'build_ext': build_check,
          'check_imports': import_check,
