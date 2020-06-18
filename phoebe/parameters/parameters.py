@@ -3479,46 +3479,6 @@ class ParameterSet(object):
 
         return ps
 
-    def get_adjust(self, twig=None, **kwargs):
-        """
-        [NOT IMPLEMENTED]
-
-        raises NotImplementedError: because it isn't
-        """
-        raise NotImplementedError
-
-    def set_adjust(self):
-        """
-        [NOT IMPLEMENTED]
-
-        raises NotImplementedError: because it isn't
-        """
-        raise NotImplementedError
-
-    def set_adjust_all(self):
-        """
-        [NOT IMPLEMENTED]
-
-        raises NotImplementedError: because it isn't
-        """
-        raise NotImplementedError
-
-    def get_enabled(self, twig=None, **kwargs):
-        """
-        [NOT IMPLEMENTED]
-
-        raises NotImplementedError: because it isn't
-        """
-        raise NotImplementedError
-
-    def set_enabled(self):
-        """
-        [NOT IMPLEMENTED]
-
-        raises NotImplementedError: because it isn't
-        """
-        raise NotImplementedError
-
     def get_description(self, twig=None, **kwargs):
         """
         Get the description of a <phoebe.parameters.Parameter> in the
