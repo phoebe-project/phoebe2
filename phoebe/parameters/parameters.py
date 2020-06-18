@@ -193,7 +193,7 @@ _forbidden_labels += ['t0', 'ra', 'dec', 'epoch', 'distance', 'vgamma', 'hierarc
 _forbidden_labels += ['phoebe_version', 'log_history', 'dict_filter',
                       'dict_set_all', 'run_checks_compute', 'run_checks_solver',
                       'run_checks_solution', 'run_checks_figure',
-                      'auto_add_figure', 'auto_remove_figure']
+                      'auto_add_figure', 'auto_remove_figure', 'web_client', 'web_client_url']
 
 # from component
 _forbidden_labels += ['requiv', 'requiv_max', 'requiv_min', 'teff', 'abun', 'logg',
