@@ -1,3 +1,8 @@
+"""
+Environment variables while manually building/installing:
+
+PHOEBE_SKIP_SCRIPTS=TRUE: will not install phoebe-server and phoebe-autofig executables (removing the following dependencies: flask, flask-cors, flask-socketio, gevent-websocket)
+"""
 import sys
 
 try:
@@ -356,13 +361,13 @@ setup (name = 'phoebe',
        python_requires='>=3.6, <4',
        download_url = 'https://github.com/phoebe-project/phoebe2/tarball/2.2.2',
        packages = ['phoebe', 'phoebe.parameters', 'phoebe.parameters.solver', 'phoebe.parameters.figure', 'phoebe.frontend', 'phoebe.constraints', 'phoebe.dynamics', 'phoebe.distortions', 'phoebe.algorithms', 'phoebe.atmospheres', 'phoebe.backend', 'phoebe.solverbackends', 'phoebe.solverbackends.ebai', 'phoebe.utils', 'phoebe.helpers', 'phoebe.pool', 'phoebe.dependencies', 'phoebe.dependencies.autofig', 'phoebe.dependencies.nparray', 'phoebe.dependencies.distl', 'phoebe.dependencies.unitsiau2015'],
-       install_requires=['numpy>=1.10','scipy>=1.7','astropy>=1.0', 'pytest'],
+       install_requires=['numpy>=1.10','scipy>=1.7','astropy>=1.0', 'pytest', 'python-socketio[client]']+['flask', 'flask-cors', 'flask-socketio', 'gevent-websocket'],
        package_data={'phoebe.atmospheres':['tables/wd/*', 'tables/passbands/*'],
                      'phoebe.frontend':['default_bundles/*.bundle'],
                      'phoebe.solverbackends.ebai': ['*.data', '*.weights']
                     },
        ext_modules = ext_modules,
-       scripts=['client-server/phoebe-server', 'client-server/phoebe-autofig'] if _env_variable_bool('PHOEBE_DEVEL', False) else None,
+       scripts=None if  _env_variable_bool('PHOEBE_SKIP_SCRIPTS', False) else ['client-server/phoebe-server', 'client-server/phoebe-autofig'],
        cmdclass = {
          'build_ext': build_check,
          'check_imports': import_check,
