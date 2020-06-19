@@ -1274,7 +1274,7 @@ def teffratio(b, orbit=None, solve_for=None, **kwargs):
     comp2_ps = b.get_component(component=comp2, **_skip_filter_checks)
 
     teffratio_def = FloatParameter(qualifier='teffratio', value=1.0, default_unit=u.dimensionless_unscaled, limits=[0, None], description='ratio between effective temperatures of children stars')
-    teffratio, created = b.get_or_create('teffratio', teffratio_def, component=orbit, context='component')
+    teffratio, created = b.get_or_create('teffratio', teffratio_def, kind='orbit', component=orbit, context='component')
 
     teff1 = comp1_ps.get_parameter(qualifier='teff', **_skip_filter_checks)
     teff2 = comp2_ps.get_parameter(qualifier='teff', **_skip_filter_checks)
@@ -1350,10 +1350,10 @@ def requivratio(b, orbit=None, solve_for=None, **kwargs):
     sma = orbit_ps.get_parameter(qualifier='sma', **_skip_filter_checks)
 
     requivratio_def = FloatParameter(qualifier='requivratio', value=1.0, default_unit=u.dimensionless_unscaled, limits=[0, None], description='ratio between equivalent radii of children stars')
-    requivratio, requivratio_created = b.get_or_create('requivratio', requivratio_def, component=orbit, context='component')
+    requivratio, requivratio_created = b.get_or_create('requivratio', requivratio_def, kind='orbit', component=orbit, context='component')
 
     requivsumfrac_def = FloatParameter(qualifier='requivsumfrac', value=1.0, default_unit=u.dimensionless_unscaled, limits=[0, None], description='sum of fractional equivalent radii of children stars')
-    requivsumfrac, requivsumfrac_created = b.get_or_create('requivsumfrac', requivsumfrac_def, component=orbit, context='component')
+    requivsumfrac, requivsumfrac_created = b.get_or_create('requivsumfrac', requivsumfrac_def, kind='orbit', component=orbit, context='component')
 
     requivsumfrac_constrained = kwargs.get('requivsumfrac_constrained', len(requivsumfrac.constrained_by) > 0)
 
@@ -1453,10 +1453,10 @@ def requivsumfrac(b, orbit=None, solve_for=None, **kwargs):
     sma = orbit_ps.get_parameter(qualifier='sma', **_skip_filter_checks)
 
     requivratio_def = FloatParameter(qualifier='requivratio', value=1.0, default_unit=u.dimensionless_unscaled, limits=[0, None], description='ratio between equivalent radii of children stars')
-    requivratio, requivratio_created = b.get_or_create('requivratio', requivratio_def, component=orbit, context='component')
+    requivratio, requivratio_created = b.get_or_create('requivratio', requivratio_def, kind='orbit', component=orbit, context='component')
 
     requivsumfrac_def = FloatParameter(qualifier='requivsumfrac', value=1.0, default_unit=u.dimensionless_unscaled, limits=[0, None], description='sum of fractional equivalent radii of children stars')
-    requivsumfrac, requivsumfrac_created = b.get_or_create('requivsumfrac', requivsumfrac_def, component=orbit, context='component')
+    requivsumfrac, requivsumfrac_created = b.get_or_create('requivsumfrac', requivsumfrac_def, kind='orbit', component=orbit, context='component')
 
     requivratio_constrained = kwargs.get('requivratio_constrained', len(requivratio.constrained_by) > 0)
 
