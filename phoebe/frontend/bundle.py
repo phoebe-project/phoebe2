@@ -8705,9 +8705,11 @@ class Bundle(ParameterSet):
 
         # make sure we pass system checks
         if not kwargs.get('skip_checks', False):
-            report = self.run_checks_compute(compute=compute, allow_skip_constraints=False,
+            report = self.run_checks_compute(compute=compute_ps.compute,
+                                             allow_skip_constraints=False,
                                              raise_logger_warning=True, raise_error=True,
                                              run_checks_system=True,
+                                             pblum_method=pblum_method, # already popped from kwargs
                                              **kwargs)
 
         # determine datasets which need intensities computed and check to make
