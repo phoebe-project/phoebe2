@@ -9839,6 +9839,17 @@ class Bundle(ParameterSet):
 
                         flux_param.set_value(qualifier='fluxes', value=syn_fluxes, ignore_readonly=True)
 
+                        # scale_factor is currently the factor between the native backend fluxes
+                        # and those scaled to the dataset.  For backends to natively give absolute
+                        # fluxes, this can then be applied to luminosities.  But for those that
+                        # do not give absolute fluxes, we need to estimate that as well (in other
+                        # words estimate the scaling factor between absolute and the backend as well)
+                        if computeparams.kind in ['ellc', 'jktebop']:
+                            logger.info("estimating absolute flux for compute='{}', dataset='{}' to apply to flux_scale".format(computeparams.compute, flux_param.dataset))
+                            system, pblums_abs, pblums_scale, pblums_rel, pbfluxes = self.compute_pblums(compute=computeparams.compute, dataset=flux_param.dataset, pblum_abs=True, ret_structured_dicts=True, skip_checks=True, **kwargs)
+                            pbflux_abs_est = np.sum(np.asarray(list(pblums_abs.get(flux_param.dataset).values()))/(4*np.pi))
+                            scale_factor /= pbflux_abs_est
+
                         ml_addl_params += [FloatParameter(qualifier='flux_scale', dataset=dataset, value=scale_factor, readonly=True, default_unit=u.dimensionless_unscaled, description='scaling applied to fluxes (intensities/luminosities) due to dataset-scaling')]
 
                         for mesh_param in ml_params.filter(kind='mesh', **_skip_filter_checks).to_list():
