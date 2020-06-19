@@ -484,7 +484,6 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
         semi_detached = False
         contact_binary = False
         eb = phb.Bundle.default_binary()
-    eb.disable_history()
 #    comid = []
 #    if add_compute_phoebe == True:
     #    comid.append('phoebe01')

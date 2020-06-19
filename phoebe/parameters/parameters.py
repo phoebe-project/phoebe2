@@ -139,11 +139,11 @@ logger.addHandler(logging.NullHandler())
 
 _skip_filter_checks = {'check_default': False, 'check_visible': False}
 
-_parameter_class_that_require_bundle = ['HistoryParameter', 'TwigParameter',
+_parameter_class_that_require_bundle = ['TwigParameter',
                                         'ConstraintParameter', 'DistributionParameter',
                                         'JobParameter']
 
-_meta_fields_twig = ['time', 'qualifier', 'history', 'feature', 'component',
+_meta_fields_twig = ['time', 'qualifier', 'feature', 'component',
                      'dataset', 'constraint', 'distribution', 'compute', 'model',
                      'solver', 'solution', 'figure', 'kind',
                      'context']
@@ -151,7 +151,7 @@ _meta_fields_twig = ['time', 'qualifier', 'history', 'feature', 'component',
 _meta_fields_all = _meta_fields_twig + ['twig', 'uniquetwig', 'uniqueid']
 _meta_fields_filter = _meta_fields_all + ['constraint_func', 'value']
 
-_contexts = ['history', 'system', 'component', 'feature',
+_contexts = ['system', 'component', 'feature',
              'dataset', 'constraint', 'distribution', 'compute', 'model',
              'solver', 'solution', 'figure', 'setting']
 
@@ -190,7 +190,7 @@ _forbidden_labels += ['t0', 'ra', 'dec', 'epoch', 'distance', 'vgamma', 'hierarc
                      'Rv', 'Av', 'ebv', 'extinction']
 
 # from setting:
-_forbidden_labels += ['phoebe_version', 'log_history', 'dict_filter',
+_forbidden_labels += ['phoebe_version', 'dict_filter',
                       'dict_set_all', 'run_checks_compute', 'run_checks_solver',
                       'run_checks_solution', 'run_checks_figure',
                       'auto_add_figure', 'auto_remove_figure', 'web_client', 'web_client_url']
@@ -559,7 +559,6 @@ class ParameterSet(object):
 
         self._qualifier = None
         self._time = None
-        self._history = None
         self._component = None
         self._dataset = None
         self._figure = None
@@ -786,7 +785,7 @@ class ParameterSet(object):
         """
         ret = {}
         for typ in _meta_fields_twig:
-            if typ in ['uniqueid', 'history', 'twig', 'uniquetwig']:
+            if typ in ['uniqueid', 'twig', 'uniquetwig']:
                 continue
 
             k = '{}s'.format(typ)
@@ -913,61 +912,6 @@ class ParameterSet(object):
             in this <phoebe.parameters.ParameterSet>
         """
         return self._options_for_tag('time')
-
-    @property
-    def history(self):
-        """Return the value for history if shared by ALL Parameters.
-
-        If the value is not shared by ALL, then None will be returned.  To see
-        all the qualifiers of all parameters, see <phoebe.parameters.ParameterSet.histories>
-        or <phoebe.parameters.ParameterSet.historys>.
-
-        To see the value of a single <phoebe.parameters.Parameter> object, see
-        <phoebe.parameters.Parameter.history>.
-
-        Returns
-        --------
-        (string or None) the value if shared by ALL <phoebe.parameters.Parameter>
-            objects in the <phoebe.parmaters.ParameterSet>, otherwise None
-        """
-        return self._history
-
-    @property
-    def histories(self):
-        """Return a list of all the histories of the Parameters.
-
-        See also:
-        * <phoebe.parameters.ParameterSet.tags>
-
-        For the singular version, see:
-        * <phoebe.parameters.ParameterSet.history>
-
-        Returns
-        --------
-        * (list) a list of all histories for each <phoebe.parameters.Parameter>
-            in this <phoebe.parameters.ParameterSet>
-        """
-        return self._options_for_tag('history')
-
-    @property
-    def historys(self):
-        """Return a list of all the histories of the Parameters.
-
-        Shortcut to <phoebe.parameters.ParameterSet.histories>
-
-        See also:
-        * <phoebe.parameters.ParameterSet.tags>
-
-        For the singular version, see:
-        * <phoebe.parameters.ParameterSet.history>
-
-        Returns
-        --------
-        * (list) a list of all twigs for each <phoebe.parameters.Parameter>
-            in this <phoebe.parameters.ParameterSet>
-        """
-        return self.histories
-
 
     @property
     def feature(self):
@@ -1401,7 +1345,7 @@ class ParameterSet(object):
             else:
                 setattr(self, '_'+field, None)
 
-    def _uniquetwig(self, param_or_twig, force_levels=['qualifier'], exclude_levels=[]):
+    def _uniquetags(self, param_or_twig, force_levels=['qualifier'], exclude_levels=[]):
         """
         get the least unique twig for the parameter given by twig that
         will return this single result for THIS PS
@@ -1451,7 +1395,7 @@ class ParameterSet(object):
         if len(ps_for_this_search) != 1:
             # TODO: after fixing regex in twig (t0type vs t0)
             # change this to raise Error instead of return
-            return for_this_param.twig
+            return {k:v for k,v in for_this_param.tags.items() if len(k)}
 
         # now we go in the other direction and try to remove each to make sure
         # the count goes up
@@ -1473,6 +1417,24 @@ class ParameterSet(object):
         context = for_this_param.context
         if hasattr(for_this_param, context):
             metawargs[context] = getattr(for_this_param, context)
+
+        return {k:v for k,v in metawargs.items() if v is not None}
+
+    def _uniquetwig(self, param_or_twig, force_levels=['qualifier'], exclude_levels=[]):
+        """
+        get the least unique twig for the parameter given by twig that
+        will return this single result for THIS PS
+
+        :parameter str twig: a twig that will return a single Parameter from
+                THIS PS
+        :parameter list force_levels: (optional) a list of "levels"
+            (eg. context) that should be included whether or not they are
+            necessary.  'context' will be appended unless `incl_context` is disabled.
+        :return: the unique twig
+        :rtype: str
+        """
+        metawargs = self._uniquetags(param_or_twig, force_levels=force_levels, exclude_levels=exclude_levels)
+
 
         return "@".join([metawargs[k]
                          for k in _meta_fields_twig
@@ -5677,7 +5639,6 @@ class Parameter(object):
         * `uniqueid` (string, optional): uniqueid for the parameter (suggested to leave blank
             and a random string will be generated)
         * `time` (string/float, optional): value for the time tag
-        * `history` (string, optional): label for the history tag
         * `feature` (string, optional): label for the feature tag
         * `component` (string, optional): label for the component tag
         * `dataset` (string, optional): label for the dataset tag
@@ -5714,7 +5675,6 @@ class Parameter(object):
         self.set_uniqueid(uniqueid)
         self._qualifier = qualifier
         self._time = kwargs.get('time', None)
-        self._history = kwargs.get('history', None)
         self._feature = kwargs.get('feature', None)
         self._component = kwargs.get('component', None)
         self._dataset = kwargs.get('dataset', None)
@@ -6151,7 +6111,64 @@ class Parameter(object):
         ----------
         * (dict) a dictionary of all singular tag attributes.
         """
-        return self.get_meta(ignore=['uniqueid', 'history', 'twig', 'uniquetwig'])
+        return self.get_meta(ignore=['uniqueid', 'twig', 'uniquetwig'])
+
+    @property
+    def uniquetags(self):
+        """
+        Determine the minimal required filter tags which will point
+        to this single <phoebe.parameters.Parameter> in the parent
+        <phoebe.frontend.bundle.Bundle>.
+
+        See <phoebe.parameters.Parameter.get_uniquetwig>
+        for the ability to pass a <phoebe.parameters.ParameterSet>.
+
+        See also:
+        * <phoebe.parameters.Parameter.tags>
+        * <phoebe.parameters.Parameter.uniquetwig>
+
+        Returns
+        --------
+        * (dict) dictionary of tags
+        """
+        return self.get_uniquetags()
+
+
+    def get_uniquetags(self, ps=None, force_levels=['qualifier'], exclude_levels=[]):
+        """
+        Determine the minimal required filter tags which will point
+        to this single <phoebe.parameters.Parameter> in a given parent
+        <phoebe.parameters.ParameterSet>.
+
+        See also:
+        * <phoebe.parameters.Parameter.tags>
+        * <phoebe.parameters.Parameter.uniquetwig>
+
+        Arguments
+        ----------
+        * `ps` (<phoebe.parameters.ParameterSet>, optional): ParameterSet
+            in which the returned uniquetwig will point to this Parameter.
+            If not provided or None this will default to the parent
+            <phoebe.frontend.bundle.Bundle>, if available.
+        * `force_levels` (list, optional, default=['qualifier']): levels to
+            always include in the returned twig.  In addition, the attribute
+            corresponding to the context of the parameter as well as the
+            context itself will ALWAYS be included (unless in `exclude_levels`).
+        * `exclude_levels` (bool, optional, default=True): levels to exclude
+            from the twig (takes precedence over `force_levels`)
+
+        Returns
+        --------
+        * (dict) dictionary of tags
+        """
+
+        if ps is None:
+            ps = self._bundle
+
+        if ps is None:
+            return self.tags
+
+        return ps._uniquetags(self, force_levels=force_levels, exclude_levels=exclude_levels)
 
     @property
     def readonly(self):
@@ -6199,21 +6216,6 @@ class Parameter(object):
         # need to force formatting because of the different way numpy.float64 is
         # handled before numpy 1.14.  See https://github.com/phoebe-project/phoebe2/issues/247
         return '{:09f}'.format(float(self._time)) if self._time is not None else None
-
-    @property
-    def history(self):
-        """
-        Return the history of this <phoebe.parameters.Parameter>.
-
-        See also:
-        * <phoebe.parameters.ParameterSet.history>
-        * <phoebe.parameters.ParameterSet.historys>
-
-        Returns
-        -------
-        * (str) the history tag of this Parameter.
-        """
-        return self._history
 
     @property
     def feature(self):
@@ -6727,7 +6729,6 @@ class Parameter(object):
         * <phoebe.parameters.ChoiceParameter.get_value>
         * <phoebe.parameters.SelectParameter.get_value>
         * <phoebe.parameters.ConstraintParameter.get_value>
-        * <phoebe.parameters.HistoryParameter.get_value>
 
         Returns
         ---------
@@ -6735,22 +6736,6 @@ class Parameter(object):
         """
 
         return self.get_value()
-
-
-    def _add_history(self, redo_func, redo_kwargs, undo_func, undo_kwargs):
-        """
-        """
-        if self._bundle is None or not self._bundle.history_enabled:
-            return
-        if 'value' in undo_kwargs.keys() and undo_kwargs['value'] is None:
-            return
-
-            logger.debug("creating history entry for {}".format(redo_func))
-        #~ print "*** param._add_history", redo_func, redo_kwargs, undo_func, undo_kwargs
-        self._bundle._add_history(redo_func, redo_kwargs, undo_func, undo_kwargs)
-
-    # TODO (done?): access to value, adjust, unit, prior, posterior, etc in dictionary (when applicable)
-    # TODO (done?): ability to set value, adjust, unit, prior, posterior through dictionary access (but not meta-fields)
 
     def get_parent_ps(self):
         """
@@ -7125,7 +7110,6 @@ class Parameter(object):
         * <phoebe.parameters.ChoiceParameter.get_value>
         * <phoebe.parameters.SelectParameter.get_value>
         * <phoebe.parameters.ConstraintParameter.get_value>
-        * <phoebe.parameters.HistoryParameter.get_value>
 
         If subclassing, this method needs to:
         * cast to the correct type/units, handling defaults
@@ -7155,7 +7139,6 @@ class Parameter(object):
         * <phoebe.parameters.ChoiceParameter.set_value>
         * <phoebe.parameters.SelectParameter.set_value>
         * <phoebe.parameters.ConstraintParameter.set_value>
-        * <phoebe.parameters.HistoryParameter.set_value>
 
         If subclassing, this method needs to:
         * check the inputs for the correct format/agreement/cast_type
@@ -7243,8 +7226,6 @@ class StringParameter(Parameter):
             raise ValueError("could not cast value to string")
         else:
             self._value = value
-
-            self._add_history(redo_func='set_value', redo_kwargs={'value': value, 'uniqueid': self.uniqueid}, undo_func='set_value', undo_kwargs={'value': _orig_value, 'uniqueid': self.uniqueid})
 
 class TwigParameter(Parameter):
     # TODO: change to RefParameter?
@@ -7339,8 +7320,6 @@ class TwigParameter(Parameter):
         # NOTE: this means that in all saving of bundles, we MUST keep the uniqueid and retain them when re-opening
         value = _twig_to_uniqueid(self._bundle, value, **kwargs)
         self._value = value
-
-        self._add_history(redo_func='set_value', redo_kwargs={'value': value, 'uniqueid': self.uniqueid}, undo_func='set_value', undo_kwargs={'value': _orig_value, 'uniqueid': self.uniqueid})
 
 
 class ChoiceParameter(Parameter):
@@ -7481,7 +7460,6 @@ class ChoiceParameter(Parameter):
         if run_checks and self._bundle:
             report = self._bundle.run_checks(allow_skip_constraints=True, raise_logger_warning=True)
 
-        self._add_history(redo_func='set_value', redo_kwargs={'value': value, 'uniqueid': self.uniqueid}, undo_func='set_value', undo_kwargs={'value': _orig_value, 'uniqueid': self.uniqueid})
 
     def handle_choice_rename(self, **rename):
         """
@@ -7727,7 +7705,6 @@ class SelectParameter(Parameter):
         if run_checks and self._bundle:
             report = self._bundle.run_checks(allow_skip_constraints=True, raise_logger_warning=True)
 
-        self._add_history(redo_func='set_value', redo_kwargs={'value': value, 'uniqueid': self.uniqueid}, undo_func='set_value', undo_kwargs={'value': _orig_value, 'uniqueid': self.uniqueid})
 
     def handle_choice_rename(self, remove_not_valid=False, **rename):
         """
@@ -7957,9 +7934,6 @@ class BoolParameter(Parameter):
         else:
             self._value = value
 
-            if self.context not in ['setting', 'history']:
-                self._add_history(redo_func='set_value', redo_kwargs={'value': value, 'uniqueid': self.uniqueid}, undo_func='set_value', undo_kwargs={'value': _orig_value, 'uniqueid': self.uniqueid})
-
 class UnitParameter(ChoiceParameter):
     def __init__(self, *args, **kwargs):
         """
@@ -8040,9 +8014,6 @@ class UnitParameter(ChoiceParameter):
 
         self._value = value
 
-        self._add_history(redo_func='set_value', redo_kwargs={'value': value, 'uniqueid': self.uniqueid}, undo_func='set_value', undo_kwargs={'value': _orig_value, 'uniqueid': self.uniqueid})
-
-
 
 class DictParameter(Parameter):
     def __init__(self, *args, **kwargs):
@@ -8107,8 +8078,6 @@ class DictParameter(Parameter):
             raise ValueError("could not cast value to dictionary")
         else:
             self._value = value
-
-            self._add_history(redo_func='set_value', redo_kwargs={'value': value, 'uniqueid': self.uniqueid}, undo_func='set_value', undo_kwargs={'value': _orig_value, 'uniqueid': self.uniqueid})
 
 
 class IntParameter(Parameter):
@@ -8274,8 +8243,6 @@ class IntParameter(Parameter):
 
         self._value = value
 
-        self._add_history(redo_func='set_value', redo_kwargs={'value': value, 'uniqueid': self.uniqueid}, undo_func='set_value', undo_kwargs={'value': _orig_value, 'uniqueid': self.uniqueid})
-
 
 class DistributionParameter(Parameter):
     def __init__(self, bundle, value, **kwargs):
@@ -8415,7 +8382,6 @@ class DistributionParameter(Parameter):
 
         self._value = value
 
-        self._add_history(redo_func='set_value', redo_kwargs={'value': value, 'uniqueid': self.uniqueid}, undo_func='set_value', undo_kwargs={'value': _orig_value, 'uniqueid': self.uniqueid})
 
     def set_property(self, **kwargs):
         """
@@ -9238,7 +9204,6 @@ class FloatParameter(Parameter):
         if run_checks and self._bundle:
             report = self._bundle.run_checks(allow_skip_constraints=True, raise_logger_warning=True)
 
-        self._add_history(redo_func='set_quantity', redo_kwargs={'value': value, 'uniqueid': self.uniqueid}, undo_func='set_value', undo_kwargs={'value': _orig_quantity, 'uniqueid': self.uniqueid})
 
 class FloatArrayParameter(FloatParameter):
     def __init__(self, *args, **kwargs):
@@ -9741,9 +9706,6 @@ class ArrayParameter(Parameter):
         _orig_value = _deepcopy(self._value)
         self._value = np.array(value)
 
-        if self.context not in ['setting', 'history']:
-            self._add_history(redo_func='set_value', redo_kwargs={'value': value, 'uniqueid': self.uniqueid}, undo_func='set_value', undo_kwargs={'value': _orig_value, 'uniqueid': self.uniqueid})
-
 
 class HierarchyParameter(StringParameter):
     def __init__(self, value, **kwargs):
@@ -9804,8 +9766,6 @@ class HierarchyParameter(StringParameter):
             raise ValueError("cannot cast to string")
         else:
             self._value = value
-
-            self._add_history(redo_func='set_value', redo_kwargs={'value': value, 'uniqueid': self.uniqueid}, undo_func='set_value', undo_kwargs={'value': _orig_value, 'uniqueid': self.uniqueid})
 
         if update_cache:
             self._update_cache()
@@ -10944,9 +10904,6 @@ class ConstraintParameter(Parameter):
         self._addl_var_params = None
         #~ print "***", self.uniquetwig, self.uniqueid
 
-        if not kwargs.get('skip_history', False):
-            self._add_history(redo_func='set_value', redo_kwargs={'value': value, 'uniqueid': self.uniqueid}, undo_func='set_value', undo_kwargs={'value': _orig_value, 'uniqueid': self.uniqueid})
-
     def _update_bookkeeping(self):
         # do bookkeeping on parameters
         self._remove_bookkeeping()
@@ -11422,7 +11379,7 @@ class ConstraintParameter(Parameter):
         self._kind = newly_constrained_param.kind
 
         # self._value, self._vars = self._parse_expr(rhs)
-        # self.set_value(rhs, skip_history=True)
+        # self.set_value(rhs)
 
         if len(addl_vars):
             # then the vars may have changed (esinw,ecosw, for example)
@@ -11445,7 +11402,7 @@ class ConstraintParameter(Parameter):
         self._value = str(expression)
 
 
-        #self.set_value(str(expression), skip_history=True)
+        #self.set_value(str(expression))
         # reset the default_unit so that set_default_unit doesn't complain
         # about incompatible units
         self._default_unit = None
@@ -11455,178 +11412,6 @@ class ConstraintParameter(Parameter):
 
         if self._bundle is not None and not kwargs.get('from_flip_bundle_constraint', False):
             self._bundle._handle_fitparameters_selecttwigparams(return_changes=False)
-
-        self._add_history(redo_func='flip_constraint', redo_kwargs={'expression': expression, 'uniqueid': newly_constrained_param.uniqueid}, undo_func='flip_constraint', undo_kwargs={'expression': _orig_expression, 'uniqueid': currently_constrained_param.uniqueid})
-
-
-class HistoryParameter(Parameter):
-    def __init__(self, bundle, redo_func, redo_kwargs, undo_func, undo_kwargs, **kwargs):
-        """
-        see <phoebe.parameters.Parameter.__init__>
-
-        This Parameter should never be created manually, but instead handled
-        by the <phoebe.frontend.bundle.Bundle>.
-
-        Arguments
-        -----------
-        * `bundle`
-        * `redo_func`
-        * `redo_kwargs`
-        * `undo_func`
-        * `undo_kwargs`
-        """
-        dump = kwargs.pop('qualifier', None)
-        kwargs['context'] = 'history'
-        super(HistoryParameter, self).__init__(qualifier='history', **kwargs)
-
-        # usually its the bundle's job to attach param._bundle after the
-        # creation of a parameter.  But in this case, having access to the
-        # bundle is necessary in order to check if function names are valid
-        # methods of the bundle
-        self._bundle = bundle
-
-        # if a function itself is passed instead of the string name, convert
-        if hasattr(redo_func, '__call__'):
-            redo_func = redo_func.__name__
-        if hasattr(undo_func, '__call__'):
-            undo_func = undo_func.__name__
-
-        # check to make sure the funcs are valid methods of the bundle
-        if not hasattr(self._bundle, redo_func):
-            raise ValueError("bundle does not have '{}' method".format(redo_func))
-        if not hasattr(self._bundle, undo_func):
-            raise ValueError("bundle does not have '{}' method".format(undo_func))
-
-        self._redo_func = redo_func
-        self._redo_kwargs = redo_kwargs
-        self._undo_func = undo_func
-        self._undo_kwargs = undo_kwargs
-
-        self._affected_params = []
-
-
-        # TODO: how can we hold other parameters affect (ie. if the user calls set_value('incl', 80) and there is a constraint on asini that changes a... how do we log that here)
-
-        self._dict_fields_other = ['redo_func', 'redo_kwargs', 'undo_func', 'undo_kwargs', 'readonly', 'advanced']
-        self._dict_fields = _meta_fields_all + self._dict_fields_other
-
-    def __repr__(self):
-        """
-        """
-        return "<HistoryParameter: {} | keys: {}>".format(self.history, ', '.join(self._dict_fields_other))
-
-    def __str__(self):
-        """
-        """
-        # TODO: fill in str representation
-        return "{}\nredo: {}\nundo: {}".format(self.history, self.redo_str, self.undo_str)
-
-    def to_string_short(self):
-        """
-        An abbreviated string representation of the <phoebe.parameters.HistoryParameter>.
-
-        See also:
-        * <phoebe.parameters.Parameter.to_string>
-
-        Returns
-        ----------
-        * (string)
-        """
-        # this is what will be printed when in a PS (ie bundle.get_history())
-        return "redo: {}, undo: {}".format(self.redo_str, self.undo_str)
-
-    @property
-    def undo_str(self):
-        """
-        """
-        undo_kwargs = self.undo_kwargs
-        if undo_kwargs is not None:
-            return "{}({})".format(self.undo_func, ", ".join("{}={}".format(k,v) for k,v in undo_kwargs.items()))
-        else:
-            return "no longer undoable"
-
-    @property
-    def redo_str(self):
-        """
-        """
-        redo_kwargs = self.redo_kwargs
-        if redo_kwargs is not None:
-            return "{}({})".format(self.redo_func, ", ".join("{}={}".format(k,v) for k,v in redo_kwargs.items()))
-        else:
-            return "no longer redoable"
-
-    @property
-    def redo_func(self):
-        """
-        """
-        return self._redo_func
-
-    @property
-    def redo_kwargs(self):
-        """
-        """
-        _redo_kwargs = _deepcopy(self._redo_kwargs)
-        if 'uniqueid' in _redo_kwargs.keys():
-            uniqueid = _redo_kwargs.pop('uniqueid')
-            try:
-                _redo_kwargs['twig'] = self._bundle.get_parameter(uniqueid=uniqueid).uniquetwig
-            except ValueError:
-                # then the uniqueid is no longer available and we can no longer undo this item
-                return None
-        return _redo_kwargs
-
-    @property
-    def undo_func(self):
-        """
-        """
-        return self._undo_func
-
-    @property
-    def undo_kwargs(self):
-        """
-        """
-        _undo_kwargs = _deepcopy(self._undo_kwargs)
-        if 'uniqueid' in _undo_kwargs.keys():
-            uniqueid = _undo_kwargs.pop('uniqueid')
-            try:
-                _undo_kwargs['twig'] = self._bundle.get_parameter(uniqueid=uniqueid).uniquetwig
-            except ValueError:
-                # then the uniqeuid is no longer available and we can no longer undo this item
-                return None
-        return _undo_kwargs
-
-    @property
-    def affected_params(self):
-        """
-        """
-        return self.get_affected_params
-
-    def get_affected_params(self, return_twigs=False):
-        """
-        """
-        raise NotImplementedError
-        if return_twigs:
-            return [self._bundle.get_parameter(uniqueid=uniqueid).uniquetwig]
-        else:
-            return [self._bundle.get_parameter(uniqueid=uniqueid)]
-
-    def redo(self):
-        """
-        """
-        if self.redo_kwargs is None:
-            # TODO: logger message explaining no longer redoable
-            return
-        # TODO: logger message
-        return getattr(self._bundle, self._redo_func)(**self._redo_kwargs)
-
-    def undo(self):
-        """
-        """
-        if self.undo_kwargs is None:
-            # TODO: logger message explaining no longer undoable
-            return
-        # TODO: logger message
-        return getattr(self._bundle, self._undo_func)(**self._undo_kwargs)
 
 
 class JobParameter(Parameter):
@@ -11998,7 +11783,6 @@ class JobParameter(Parameter):
             if 'progress' not in self._value:
                 self._value = 'loaded'
 
-            # TODO: add history?
             if self.context == 'model':
                 # TODO: check logic for do_create_fig_params
                 ret_changes += self._bundle._run_compute_changes(ret_ps, return_changes=return_changes, do_create_fig_params=True)

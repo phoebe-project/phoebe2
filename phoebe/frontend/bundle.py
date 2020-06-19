@@ -615,6 +615,8 @@ class Bundle(ParameterSet):
         if phoebe_version_import < StrictVersion("2.3.0"):
             warning = "importing from an older version ({}) of PHOEBE which did not support sample_from, etc... all compute options will be migrated to include all new options.  Additionally, extinction parameters will be moved from the dataset to system context.  This may take some time.  Please check all values.".format(phoebe_version_import)
 
+            b.remove_parameters_all(qualifier='log_history', **_skip_filter_checks)
+
             for compute in b.filter(context='compute').computes:
                 logger.info("attempting to update compute='{}' to new version requirements".format(compute))
                 ps_compute = b.filter(context='compute', compute=compute)
@@ -1185,7 +1187,7 @@ class Bundle(ParameterSet):
 
         return b
 
-    def save(self, filename, clear_history=True, compact=False, incl_uniqueid=True):
+    def save(self, filename, compact=False, incl_uniqueid=True):
         """
         Save the bundle to a JSON-formatted ASCII file.
 
@@ -1196,8 +1198,6 @@ class Bundle(ParameterSet):
         Arguments
         ------------
         * `filename` (string): relative or full path to the file
-        * `clear_history` (bool, optional, default=True): whether to clear
-            history log items before saving.
         * `compact` (bool, optional, default=False): whether to use compact
             file-formatting (may be quicker to save/load, but not as easily readable)
 
@@ -1205,11 +1205,6 @@ class Bundle(ParameterSet):
         -------------
         * the filename (string)
         """
-        if clear_history:
-            # TODO: let's not actually clear history,
-            # but rather skip the context when saving
-            self.remove_history()
-
         if not incl_uniqueid:
             logger.warning("saving without uniqueids could cause issues with solutions, use with caution")
         # TODO: add option for clear_models, clear_solution
@@ -1672,201 +1667,6 @@ class Bundle(ParameterSet):
             kwargs['twig'] = twig
         kwargs['context'] = 'setting'
         return self.filter_or_get(**kwargs)
-
-    def _add_history(self, redo_func, redo_kwargs, undo_func, undo_kwargs,
-                     **kwargs):
-        """
-        Add a new log (undo/redoable) to this history context.
-
-        Arguments
-        -----------
-        * `redo_func` (str): function to redo the action, must be a
-            method of <phoebe.frontend.bundle.Bundle>
-        * `redo_kwargs` (dict):  kwargs to pass to the redo_func.  Each
-            item must be serializable (float or str, not objects)
-        * `undo_func` (str): function to undo the action, must be a
-            method of <phoebe.frontend.bundle.Bundle>
-        * `undo_kwargs` (dict): kwargs to pass to the undo_func.  Each
-            item must be serializable (float or str, not objects)
-        * `history` (string, optional): label of the history parameter
-
-        Raises
-        -------
-        * ValueError: if the label for this history item is forbidden or
-            already exists
-        """
-        if not self.history_enabled:
-            return
-
-        param = HistoryParameter(self, redo_func, redo_kwargs,
-                                 undo_func, undo_kwargs)
-
-        metawargs = {'context': 'history',
-                     'history': kwargs.get('history', self._default_label('hist', **{'context': 'history'}))}
-
-        self._check_label(metawargs['history'])
-
-        self._attach_params([param], **metawargs)
-
-    @property
-    def history(self):
-        """
-        Property as a shortcut to <phoebe.frontend.bundle.Bundle.get_history>
-
-        You can toggle whether history is recorded using:
-        * <phoebe.frontend.bundle.Bundle.enable_history>
-        * <phoebe.frontend.bundle.Bundle.disable_history>
-        """
-
-        return self.get_history()
-
-    def get_history(self, i=None):
-        """
-        Get a history item by index.
-
-        You can toggle whether history is recorded using:
-        * <phoebe.frontend.bundle.Bundle.enable_history>
-        * <phoebe.frontend.bundle.Bundle.disable_history>
-
-        Arguments
-        ----------
-        * `i` (integer, optional, default=None): integer for indexing (can be
-            positive or negative).  If i is None or not provided, the entire list
-            of history items will be returned
-
-        Returns
-        ----------
-        * <phoebe.parameters.Parameter> if `i` is an int, or
-            <phoebe.parameters.ParameterSet> if `i` is None (or not provided).
-
-        Raises
-        -------
-        * ValueError: if no history items have been recorded.
-        """
-        ps = self.filter(context='history')
-        # if not len(ps):
-        #    raise ValueError("no history recorded")
-
-        if i is not None:
-            return ps.to_list()[i]
-        else:
-            return ps  # TODO: reverse the order?
-
-    @send_if_client
-    def remove_history(self, i=None):
-        """
-        Remove a history item from the bundle by index.
-
-        You can toggle whether history is recorded using:
-        * <phoebe.frontend.bundle.Bundle.enable_history>
-        * <phoebe.frontend.bundle.Bundle.disable_history>
-
-
-        Arguments
-        ----------
-        * `i` (integer, optional, default=None): integer for indexing (can be
-            positive or negative).  If i is None or not provided, the entire list
-            of history items will be removed.
-
-        Returns
-        -----------
-        * ParameterSet of removed parameters
-
-        Raises
-        -------
-        * ValueError: if no history items have been recorded.
-        """
-        if i is None:
-            return_ = self.remove_parameters_all(context='history')
-        else:
-            param = self.get_history(i=i)
-            return_ = self.remove_parameter(uniqueid=param.uniqueid)
-
-        # let's not add_history for this one...
-        return _return_ps(self, return_)
-
-    @property
-    def history_enabled(self):
-        """
-        Property as a shortcut to `b.get_setting('log_history).get_value()``.
-
-        You can toggle whether history is recorded using:
-        * <phoebe.frontend.bundle.Bundle.enable_history>
-        * <phoebe.frontend.bundle.Bundle.disable_history>
-
-        Returns
-        ------
-        * (bool) whether logging of history items (undo/redo) is enabled.
-        """
-        return self.get_setting(qualifier='log_history').get_value()\
-            if len(self.get_setting())\
-            else False
-
-    def enable_history(self):
-        """
-        Enable logging history items (undo/redo).
-
-        You can check wither history is enabled using
-        <phoebe.frontend.bundle.Bundle.history_enabled>.
-
-        Shortcut to `b.get_setting('log_history').set_value(True)`
-        """
-        self.get_setting(qualifier='log_history').set_value(True)
-
-    def disable_history(self):
-        """
-        Disable logging history items (undo/redo)
-
-        You can check wither history is enabled using
-        <phoebe.frontend.bundle.Bundle.history_enabled>.
-
-        Shortcut to `b.get_setting('log_history').set_value(False)`
-        """
-        self.get_setting(qualifier='log_history').set_value(False)
-
-    def undo(self, i=-1):
-        """
-        Undo an item in the history logs
-
-        Arguments
-        ----------
-        * `i` (integer, optional, default=-1): integer for indexing (can be
-            positive or negative).
-
-        Raises
-        ----------
-        * ValueError: if no history items have been recorded
-        """
-
-        _history_enabled = self.history_enabled
-        param = self.get_history(i)
-        self.disable_history()
-        param.undo()
-        # TODO: do we really want to remove this?  then what's the point of redo?
-        self.remove_parameter(uniqueid=param.uniqueid)
-        if _history_enabled:
-            self.enable_history()
-
-    def redo(self, i=-1):
-        """
-        Redo an item in the history logs
-
-        Arguments
-        ----------
-        * `i` (integer, optional, default=-1): integer for indexing (can be
-            positive or negative).
-
-        Raises
-        ----------
-        * ValueError: if no history items have been recorded
-        """
-        _history_enabled = self.history_enabled
-        param = self.get_history(i)
-        self.disable_history()
-        param.redo()
-        self.remove_parameter(uniqueid=param.uniqueid)
-        if _history_enabled:
-            self.enable_history()
 
     def _update_atm_choices(self):
         # affected_params = []
@@ -2859,10 +2659,6 @@ class Bundle(ParameterSet):
                            k not in ['uniqueid', 'uniquetwig', 'twig',
                                      'Class', 'context', 'qualifier',
                                      'description']}
-        self._add_history(redo_func='set_hierarchy',
-                          redo_kwargs=redo_kwargs,
-                          undo_func='set_hierarchy',
-                          undo_kwargs=undo_kwargs)
 
         return
 
@@ -4811,13 +4607,6 @@ class Bundle(ParameterSet):
         # attach params called _check_copy_for, but only on it's own parameterset
         self._check_copy_for()
 
-        redo_kwargs = _deepcopy(kwargs)
-        redo_kwargs['func'] = func.__name__
-        self._add_history(redo_func='add_feature',
-                          redo_kwargs=redo_kwargs,
-                          undo_func='remove_feature',
-                          undo_kwargs={'feature': kwargs['feature']})
-
         for constraint in constraints:
             self.add_constraint(*constraint)
 
@@ -4888,11 +4677,6 @@ class Bundle(ParameterSet):
         kwargs.setdefault('context', ['feature', 'compute'])
 
         removed_ps = self.remove_parameters_all(**kwargs)
-
-        self._add_history(redo_func='remove_feature',
-                          redo_kwargs=kwargs,
-                          undo_func=None,
-                          undo_kwargs={})
 
         return removed_ps
 
@@ -4969,11 +4753,6 @@ class Bundle(ParameterSet):
         kwargs['qualifier'] = 'enabled'
         self.set_value_all(value=True, **kwargs)
 
-        self._add_history(redo_func='enable_feature',
-                          redo_kwargs={'feature': feature},
-                          undo_func='disable_feature',
-                          undo_kwargs={'feature': feature})
-
         return self.get_feature(feature=feature)
 
 
@@ -5007,11 +4786,6 @@ class Bundle(ParameterSet):
         kwargs['feature'] = feature
         kwargs['qualifier'] = 'enabled'
         self.set_value_all(value=False, **kwargs)
-
-        self._add_history(redo_func='disable_feature',
-                          redo_kwargs={'feature': feature},
-                          undo_func='enable_feature',
-                          undo_kwargs={'feature': feature})
 
         return self.get_feature(feature=feature)
 
@@ -5174,13 +4948,6 @@ class Bundle(ParameterSet):
         self._attach_params(params, **metawargs)
         # attach params called _check_copy_for, but only on it's own parameterset
         self._check_copy_for()
-
-        redo_kwargs = _deepcopy(kwargs)
-        redo_kwargs['func'] = fname
-        self._add_history(redo_func='add_component',
-                          redo_kwargs=redo_kwargs,
-                          undo_func='remove_component',
-                          undo_kwargs={'component': kwargs['component']})
 
         for constraint in constraints:
             self.add_constraint(*constraint)
@@ -6028,14 +5795,6 @@ class Bundle(ParameterSet):
             conf._interactive_checks = True
             self.run_checks(raise_logger_warning=True)
 
-        redo_kwargs = _deepcopy({k:_to_safe_value(v) for k,v in kwargs.items()})
-        redo_kwargs['func'] = func.__name__
-        self._add_history(redo_func='add_dataset',
-                          redo_kwargs=redo_kwargs,
-                          undo_func='remove_dataset',
-                          undo_kwargs={'dataset': kwargs['dataset']})
-
-
         ret_ps = self.filter(dataset=kwargs['dataset'], **_skip_filter_checks)
 
         # since we've already processed (so that we can get the new qualifiers),
@@ -6160,12 +5919,6 @@ class Bundle(ParameterSet):
                     logger.info("calling remove_figure(figure='{}') since auto_remove_figure@setting=True".format(param.figure))
                     ret_changes += self.remove_figure(figure=param.figure, return_changes=return_changes).to_list()
 
-        # TODO: check to make sure that trying to undo this
-        # will raise an error saying this is not undo-able
-        self._add_history(redo_func='remove_dataset',
-                          redo_kwargs={'dataset': dataset},
-                          undo_func=None,
-                          undo_kwargs={})
 
         if return_changes:
             ret_ps += ret_changes
@@ -6272,11 +6025,6 @@ class Bundle(ParameterSet):
         kwargs['qualifier'] = 'enabled'
         self.set_value_all(value=True, **kwargs)
 
-        self._add_history(redo_func='enable_dataset',
-                          redo_kwargs={'dataset': dataset},
-                          undo_func='disable_dataset',
-                          undo_kwargs={'dataset': dataset})
-
         return self.get_dataset(dataset=dataset)
 
     def disable_dataset(self, dataset=None, **kwargs):
@@ -6314,11 +6062,6 @@ class Bundle(ParameterSet):
         kwargs['dataset'] = dataset
         kwargs['qualifier'] = 'enabled'
         self.set_value_all(value=False, **kwargs)
-
-        self._add_history(redo_func='disable_dataset',
-                          redo_kwargs={'dataset': dataset},
-                          undo_func='enable_dataset',
-                          undo_kwargs={'dataset': dataset})
 
         return self.get_dataset(dataset=dataset)
 
@@ -6484,13 +6227,6 @@ class Bundle(ParameterSet):
         constraint_param._update_bookkeeping()
         self._attach_params(params, **metawargs)
 
-        redo_kwargs['func'] = func.__name__
-
-        self._add_history(redo_func='add_constraint',
-                          redo_kwargs=redo_kwargs,
-                          undo_func='remove_constraint',
-                          undo_kwargs={'uniqueid': constraint_param.uniqueid})
-
         # we should run it now to make sure everything is in-sync
         if conf.interactive_constraints:
             self.run_constraint(uniqueid=constraint_param.uniqueid, skip_kwargs_checks=True)
@@ -6586,10 +6322,6 @@ class Bundle(ParameterSet):
                        if v is not None and
                        k not in ['uniqueid', 'uniquetwig', 'twig',
                                  'Class', 'context']}
-        self._add_history(redo_func='remove_constraint',
-                          redo_kwargs=redo_kwargs,
-                          undo_func='add_constraint',
-                          undo_kwargs=undo_kwargs)
 
         return removed_param
 
@@ -6674,12 +6406,6 @@ class Bundle(ParameterSet):
                 message_prefix = "Constraint '{}' raised the following error while flipping to solve for '{}'.  Consider flipping the constraint back or changing the value of one of {} until the constraint succeeds.  Original error: ".format(param.twig, solve_for, [p.twig for p in param.vars.to_list()])
 
                 logger.error(message_prefix + str(e))
-
-
-        self._add_history(redo_func='flip_constraint',
-                          redo_kwargs=redo_kwargs,
-                          undo_func='flip_constraint',
-                          undo_kwargs=undo_kwargs)
 
         return param
 
@@ -7170,12 +6896,6 @@ class Bundle(ParameterSet):
         ret_changes = []
         ret_changes += self._handle_distribution_selectparams(return_changes=return_changes)
         ret_changes += self._handle_computesamplefrom_selectparams(return_changes=return_changes)
-
-        redo_kwargs = _deepcopy(kwargs)
-        self._add_history(redo_func='add_distribution',
-                          redo_kwargs=redo_kwargs,
-                          undo_func='remove_distribution',
-                          undo_kwargs={'distribution': kwargs['distribution']})
 
         if return_changes:
             ret_ps += ret_changes
@@ -8054,12 +7774,6 @@ class Bundle(ParameterSet):
         self._attach_params(params, **metawargs)
         # attach params called _check_copy_for, but only on it's own parameterset
         # self._check_copy_for()
-
-        redo_kwargs = _deepcopy(kwargs)
-        self._add_history(redo_func='add_figure',
-                          redo_kwargs=redo_kwargs,
-                          undo_func='remove_figure',
-                          undo_kwargs={'figure': kwargs['figure']})
 
         # for constraint in constraints:
             # self.add_constraint(*constraint)
@@ -9347,14 +9061,6 @@ class Bundle(ParameterSet):
             for envelope in self.hierarchy.get_envelopes():
                 self.set_value(qualifier='ntriangles', compute=kwargs['compute'], component=envelope, value=3000, check_visible=False)
 
-        redo_kwargs = _deepcopy(kwargs)
-        redo_kwargs['func'] = func.__name__
-        self._add_history(redo_func='add_compute',
-                          redo_kwargs=redo_kwargs,
-                          undo_func='remove_compute',
-                          undo_kwargs={'compute': kwargs['compute']})
-
-
         ret_ps = self.get_compute(check_visible=False, check_default=False, **metawargs)
 
         # since we've already processed (so that we can get the new qualifiers),
@@ -9607,7 +9313,7 @@ class Bundle(ParameterSet):
         f.write("import phoebe; import json\n")
         if log_level is not None:
             f.write("phoebe.logger('{}')\n".format(log_level))
-        # TODO: can we skip the history context?  And maybe even other models
+        # TODO: can we skip other models
         # or datasets (except times and only for run_compute but not run_solver)
         exclude_contexts = ['model', 'figure', 'constraint', 'solver']
         sample_from = self.get_value(qualifier='sample_from', compute=compute, sample_from=kwargs.get('sample_from', None), default=[], expand=True)
@@ -10242,16 +9948,6 @@ class Bundle(ParameterSet):
                             # update the model to include the GP contribution
                             model_ps.set_value(qualifier=yqualifier, value=model_y_dstimes+gp_y, dataset=ds, component=ds_comp, ignore_readonly=True, **_skip_filter_checks)
 
-
-            redo_kwargs = _deepcopy(kwargs)
-            redo_kwargs['compute'] = computes if len(computes)>1 else computes[0]
-            redo_kwargs['model'] = model
-
-            self._add_history(redo_func='run_compute',
-                              redo_kwargs=redo_kwargs,
-                              undo_func='remove_model',
-                              undo_kwargs={'model': model})
-
         except Exception as err:
             restore_conf()
             raise
@@ -10630,14 +10326,6 @@ class Bundle(ParameterSet):
         logger.info("adding {} '{}' solver to bundle".format(metawargs['kind'], metawargs['solver']))
         self._attach_params(params, **metawargs)
 
-        redo_kwargs = _deepcopy(kwargs)
-        redo_kwargs['func'] = func.__name__
-        self._add_history(redo_func='add_solver',
-                          redo_kwargs=redo_kwargs,
-                          undo_func='remove_solver',
-                          undo_kwargs={'solver': kwargs['solver']})
-
-
         # TODO: OPTIMIZE only trigger those necessary based on the solver-backend
         ret_changes = []
         ret_changes += self._handle_distribution_selectparams(return_changes=return_changes)
@@ -10832,7 +10520,7 @@ class Bundle(ParameterSet):
         f.write("import phoebe; import json\n")
         if log_level is not None:
             f.write("phoebe.logger('{}')\n".format(log_level))
-        # TODO: can we skip the history context?  And maybe even other models
+        # TODO: can we skip other models
         # or datasets (except times and only for run_compute but not run_solver)
         exclude_contexts = ['model', 'figure']
         continue_from = self.get_value(qualifier='continue_from', solver=solver, continue_from=kwargs.get('continue_from', None), default='')

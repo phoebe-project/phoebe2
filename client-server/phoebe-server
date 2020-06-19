@@ -28,6 +28,8 @@ app._bundles = {}
 app._clients = []
 app._clients_per_bundle = {}
 app._last_access_per_bundle = {}
+app._log_per_bundle = {}
+
 app._verbose = False # set with --verbose flag at command line
 app._debug = False  # NOTE: setting this to True will fail to raise error messages in the UI
 app._killable = False
@@ -73,6 +75,7 @@ import matplotlib.pyplot as plt
 plt.switch_backend('Agg')
 
 import phoebe
+from phoebe import u,c
 from phoebe.dependencies import distl
 import numpy as np
 import json
@@ -107,6 +110,112 @@ except:
 if not os.path.exists(_dir_tmpimages):
     os.makedirs(_dir_tmpimages)
 
+
+class LogItem(object):
+    def __init__(self, parent='b', redo_func=None, redo_args=[], redo_kwargs={},
+                 undo_func=None, undo_args=[], undo_kwargs={},
+                 timestamp=None, clientid=None):
+
+        self.parent = parent
+        self.redo_func = redo_func
+        self.redo_args = redo_args
+        self.redo_kwargs = redo_kwargs
+        self.undo_func = undo_func
+        self.undo_kwargs = undo_kwargs
+        self.undo_args = undo_args
+        self.undo_kwargs = undo_kwargs
+
+        if timestamp is None:
+            timestamp = datetime.now()
+        self.timestamp = timestamp
+
+        self.clientid = clientid
+
+    def _get_str(self, parent, func, args, kwargs):
+        def _kwarg_str(k, v):
+            if isinstance(v, str):
+                return "\'{}\'".format(v)
+            if isinstance(v, u.Quantity):
+                if hasattr(u, v.unit.to_string()):
+                    return "{}*u.{}".format(v.value, v.unit.to_string())
+                else:
+                    return "({}, \'{}\')".format(v.value, v.unit.to_string())
+            return v
+
+        if not func:
+            return ""
+
+        if len(args):
+            args_str = ", ".join(_kwarg_str(None, v) for v in args) + ", "
+        else:
+            args_str = ""
+
+        kwargs_str = ", ".join("{}={}".format(k, _kwarg_str(k,v)) for k,v in kwargs.items() if k not in ['return_changes'])
+
+        if parent:
+            parent_str = "{}.".format(parent)
+        else:
+            parent_str = {}
+
+        return "{}{}({}{})".format(parent_str, func, args_str, kwargs_str)
+
+    @property
+    def undo_description(self):
+        if self.undo_func is None:
+            return None # nothing to undo
+        else:
+            return "undo {} with {}".format(self.redo_str, self.undo_str)
+
+    @property
+    def undo_str(self):
+        return self._get_str(self.parent, self.undo_func, self.undo_args, self.undo_kwargs)
+
+    @property
+    def redo_str(self):
+        return self._get_str(self.parent, self.redo_func, self.redo_args, self.redo_kwargs)
+
+
+class Log(object):
+    def __init__(self, **kwargs):
+        self._logitems = []
+        if kwargs:
+            self.add_logitem(**kwargs)
+
+    def add_logitem(self, parent='b', redo_func=None, redo_args=[], redo_kwargs={},
+                    undo_func=None, undo_args=[], undo_kwargs={},
+                    timestamp=None, clientid=None):
+
+        self._logitems.append(LogItem(parent, redo_func, redo_args, redo_kwargs,
+                                      undo_func, undo_args, undo_kwargs,
+                                      timestamp, clientid))
+
+
+    def get_last_undo(self):
+        for i,logitem in reversed(list(enumerate(self._logitems))):
+            if logitem.undo_func is not None:
+                return i, logitem
+        return None, None
+
+    def get_last_undo_ind_description(self):
+        ind, logitem = self.get_last_undo()
+        if logitem is None:
+            return None, None
+        return ind, logitem.undo_description
+
+    def get_export_script(self, since=None):
+        if since is not None:
+            logitems = [li for li in self._logitems if li.timestamp >= since]
+            script = ""
+        else:
+            logitems = self._logitems
+            script = "import phoebe\nfrom phoebe import u,c\n\n"
+
+        for logitem in logitems:
+            script += logitem.redo_str + "\n"
+
+        return script
+
+
 def bundle_memory_cleanup(stale_limit_seconds=600):
     # TODO: its possible to get an entry in _clients_per_bundle that isn't
     # available here.  The error message is raised in the UI and redirects
@@ -132,6 +241,8 @@ def bundle_memory_cleanup(stale_limit_seconds=600):
                 del app._clients_per_bundle[bundleid]
             if bundleid in app._last_access_per_bundle.keys():
                 del app._last_access_per_bundle[bundleid]
+            if bundleid in app._log_per_bundle.keys():
+                del app._log_per_bundle[bundleid]
 
 _available_kinds = {'component': phoebe.list_available_components(),
                     'feature': phoebe.list_available_features(),
@@ -461,6 +572,9 @@ def new_bundle(type):
             b.set_value(qualifier='auto_remove_figure', context='setting', value=True)
             bundleid = _new_bundleid()
             app._bundles[bundleid] = b
+            app._log_per_bundle[bundleid] = Log(parent='phoebe',
+                                                redo_func=constructor,
+                                                redo_kwargs=kwargs)
             return _get_response({'success': True, 'bundleid': bundleid}, api=True)
 
     if type == 'single':
@@ -547,6 +661,7 @@ def open_bundle(type):
     bundleid = _new_bundleid(bundleid)
     app._bundles[bundleid] = b
     app._last_access_per_bundle[bundleid] = datetime.now()
+    app._log_per_bundle[bundleid] = Log()
 
     return _get_response({'success': True, 'bundleid': bundleid}, api=True)
 
@@ -592,6 +707,41 @@ def save_bundle(bundleid):
     resp.headers.set('Content-Disposition', 'attachment', filename='{}.bundle'.format(bundleid))
 
     return resp
+
+@app.route('/export_script/<string:bundleid>', methods=['GET', 'POST'])
+@crossdomain(origin='*')
+def export_script(bundleid):
+    j = request.get_json()
+    clientid = j.get('clientid', None) if j is not None else None
+    client_version = j.get('client_version', None) if j is not None else None
+
+    if app._verbose:
+        print("export_script(bundleid={})".format(bundleid))
+
+    if bundleid not in app._bundles.keys():
+        return _get_response({'success': False, 'error': 'bundle not found with bundleid={}'.format(bundleid)}, api=True)
+    if bundleid not in app._log_per_bundle.keys():
+        return _get_response({'success': False, 'error': 'log not found for bundle with bundleid]{}'.format(bundleid)}, api=True)
+
+    b = app._bundles.get(bundleid)
+    app._last_access_per_bundle[bundleid] = datetime.now()
+    log = app._log_per_bundle.get(bundleid)
+
+    ef = tempfile.NamedTemporaryFile(prefix="export_script", suffix=".py")
+
+    try:
+        f = open(ef.name, 'w')
+        f.write(log.get_export_script())
+    except Exception as err:
+        f.close()
+        if app._debug: raise
+        return _get_response({'success': False, 'error': str(err)})
+
+    else:
+        f.close()
+
+    return send_file(ef.name, as_attachment=True, attachment_filename='{}.py'.format(bundleid))
+
 
 @app.route('/export_compute/<string:bundleid>/<string:compute>', defaults={'model': None}, methods=['GET', 'POST'])
 @app.route('/export_compute/<string:bundleid>/<string:compute>/<string:model>', methods=['GET', 'POST'])
@@ -1179,6 +1329,57 @@ def _update_figures(b, bundleid, affected_ps=None):
         print("_update_figures: emitting figures_updated {}".format(figure_update_times))
     emit('{}:figures_updated:react'.format(bundleid), {'figure_update_times': figure_update_times}, broadcast=True)
 
+@socketio.on('undo')
+def undo(msg):
+    if app._verbose:
+        print("undo: ", msg)
+
+    # NOTE: these are intentionally get instead of pop
+    bundleid = msg.get('bundleid')
+    requestid = msg.get('requestid', None)
+    clientid = msg.get('clientid', None)
+    client_version = msg.get('client_version', None)
+
+    if bundleid not in app._bundles.keys():
+        err = 'bundle not found with bundleid={}'.format(bundleid)
+        if app._verbose:
+            print("set_value {} error: {}".format(msg, err))
+        emit('{}:errors:react'.format(bundleid), {'success': False, 'requestid': requestid, 'error': err}, broadcast=False)
+        emit('{}:errors:python'.format(bundleid), {'success': False, 'requestid': requestid, 'error': err}, broadcast=False)
+        return
+
+    undoIndex = msg.pop('undoIndex', -1)
+
+    log = app._log_per_bundle[bundleid]
+    logitem = log._logitems[undoIndex]
+
+    if logitem.undo_func is None:
+        err = 'logitem not undoable'
+        if app._verbose:
+            print("undo {} error: {}".format(msg, err))
+        emit('{}:errors:react'.format(bundleid), {'success': False, 'requestid': requestid, 'error': err}, broadcast=False)
+        emit('{}:errors:python'.format(bundleid), {'success': False, 'requestid': requestid, 'error': err}, broadcast=False)
+        return
+
+    for k,v in logitem.undo_kwargs.items():
+        msg[k] = v
+
+    if logitem.undo_func in ['set_value', 'set_value_all', 'set_quantity', 'set_quantity_all']:
+        set_value(msg)
+
+    elif logitem.undo_func in ['set_default_unit', 'set_default_unit_all']:
+        set_default_unit_all(msg)
+
+    else:
+        msg['method'] = logitem.undo_func
+        msg['args'] = logitem.undo_args
+        bundle_method(msg)
+
+    # remove the "redo" and original "undo" from the log
+    app._log_per_bundle[bundleid]._logitems = app._log_per_bundle[bundleid]._logitems[:-2]
+    undo_ind, undo_description = app._log_per_bundle[bundleid].get_last_undo_ind_description()
+    emit('{}:undo:react'.format(bundleid), {'requestid': requestid, 'undo_description': undo_description, 'undo_ind': undo_ind})
+
 
 
 @socketio.on('set_value')
@@ -1212,6 +1413,32 @@ def set_value(msg):
         is_visible_before = {p.uniqueid: p.is_visible for p in b.to_list(check_visible=False, check_default=False, check_advanced=False)}
 
     try:
+        ps_filter = b.filter(**{k:v for k,v in msg.items() if k not in ['value']})
+    except Exception as err:
+        if app._verbose:
+            print("set_value {} error on filter: {}".format(msg, str(err)))
+        emit('{}:errors:react'.format(bundleid), {'success': False, 'requestid': requestid, 'error': str(err)}, broadcast=False)
+        emit('{}:errors:python'.format(bundleid), {'success': False, 'requestid': requestid, 'error': str(err)}, broadcast=False)
+        if app._debug: raise
+        return
+
+    if len(ps_filter.to_list()) == 1:
+        param = ps_filter.get_parameter()
+        redo_func = 'set_value'
+        redo_kwargs = param.uniquetags
+        undo_func = 'set_value'
+        undo_kwargs = redo_kwargs.copy()
+        undo_kwargs['value'] = param.get_value()
+        if hasattr(param, 'get_quantity') and ('unit' in msg.keys() or isinstance(msg.get('value'), u.Quantity) or isinstance(msg.get('value'), tuple)):
+            undo_kwargs['unit'] = param.get_default_unit()
+    else:
+        redo_func = 'set_value_all'
+        # TODO: something similar to uniquetags
+        redo_kwargs = {k:v for k,v in ps_filter.meta.items() if v is not None}
+        undo_func = None
+        undo_kwargs = {}
+
+    try:
         # TODO: handle getting nparray objects (probably as json strings)
         b.set_value_all(**msg)
         ps_constraints = b.run_delayed_constraints()
@@ -1223,43 +1450,50 @@ def set_value(msg):
         if app._debug: raise
         return
 
-    try:
-        ps_list = ps_constraints + b.filter(**{k:v for k,v in msg.items() if k not in ['value']}).to_list()
-    except Exception as err:
+    redo_kwargs['value'] = msg.get('value')
+    if 'unit' in msg.keys():
+        redo_kwargs['unit'] = msg.get('unit')
+
+    app._log_per_bundle[bundleid].add_logitem(parent='b',
+                                              redo_func=redo_func,
+                                              redo_kwargs=redo_kwargs,
+                                              undo_func=undo_func,
+                                              undo_kwargs=undo_kwargs,
+                                              clientid=clientid)
+
+
+
+    ps_list = ps_constraints + ps_filter.to_list()
+
+    if 'web' in client_types or 'desktop' in client_types:
+
+        # we need to also include parameters in which the visibility has changed
+        ps_list += [p for p in b.to_list(check_visible=False, check_default=False, check_advanced=False) if p.is_visible!=is_visible_before.get(p.uniqueid, None)]
+
+        param_list = sorted([_param_json_overview(param) for param in ps_list], key=lambda p: p['qualifier'])
+        param_dict = OrderedDict((p.pop('uniqueid'), p) for p in param_list)
+
+        packet = {'success': True, 'requestid': requestid, 'parameters': param_dict}
         if app._verbose:
-            print("set_value {} error on filter: {}".format(msg, str(err)))
-        emit('{}:errors:react'.format(bundleid), {'success': False, 'requestid': requestid, 'error': str(err)}, broadcast=False)
-        emit('{}:errors:python'.format(bundleid), {'success': False, 'requestid': requestid, 'error': str(err)}, broadcast=False)
-        if app._debug: raise
-        return
-    else:
-        if 'web' in client_types or 'desktop' in client_types:
+            print("set_value success, broadcasting {}:changes:react: {}".format(bundleid, packet))
 
-            # we need to also include parameters in which the visibility has changed
-            ps_list += [p for p in b.to_list(check_visible=False, check_default=False, check_advanced=False) if p.is_visible!=is_visible_before.get(p.uniqueid, None)]
+        emit('{}:changes:react'.format(bundleid), packet, broadcast=True)
+        undo_ind, undo_description = app._log_per_bundle[bundleid].get_last_undo_ind_description()
+        emit('{}:undo:react'.format(bundleid), {'requestid': requestid, 'undo_description': undo_description, 'undo_ind': undo_ind})
 
-            param_list = sorted([_param_json_overview(param) for param in ps_list], key=lambda p: p['qualifier'])
-            param_dict = OrderedDict((p.pop('uniqueid'), p) for p in param_list)
+        # flush so the changes goes through before running checks and updating figures
+        socketio.sleep(0)
 
-            packet = {'success': True, 'requestid': requestid, 'parameters': param_dict}
-            if app._verbose:
-                print("set_value success, broadcasting {}:changes:react: {}".format(bundleid, packet))
+        _run_checks(b, bundleid)
+        _update_figures(b, bundleid, phoebe.parameters.ParameterSet(ps_list))
 
-            emit('{}:changes:react'.format(bundleid), packet, broadcast=True)
+    if 'python' in client_types:
+        ps_dict = {p.uniqueid: {'value': p.to_json()['value']} for p in ps_list}
+        packet = {'success': True, 'requestid': requestid, 'parameters': ps_dict}
+        if app._verbose:
+            print("set_value success, broadcasting {}:changes:python: {}".format(bundleid, packet))
 
-            # flush so the changes goes through before running checks and updating figures
-            socketio.sleep(0)
-
-            _run_checks(b, bundleid)
-            _update_figures(b, bundleid, phoebe.parameters.ParameterSet(ps_list))
-
-        if 'python' in client_types:
-            ps_dict = {p.uniqueid: {'value': p.to_json()['value']} for p in ps_list}
-            packet = {'success': True, 'requestid': requestid, 'parameters': ps_dict}
-            if app._verbose:
-                print("set_value success, broadcasting {}:changes:python: {}".format(bundleid, packet))
-
-            emit('{}:changes:python'.format(bundleid), packet, broadcast=True)
+        emit('{}:changes:python'.format(bundleid), packet, broadcast=True)
 
 
 # TODO: now that set_default_unit_all returns a PS, we could use bundle_method
@@ -1304,7 +1538,8 @@ def set_default_unit(msg):
         return
 
     try:
-        ps_list = b.filter(**{k:v for k,v in msg.items() if k not in ['unit']}).to_list()
+        ps_filter = b.filter(**{k:v for k,v in msg.items() if k not in ['unit']})
+        ps_list = ps_filter.to_list()
     except Exception as err:
         if app._verbose:
             print("set_default_unit {} error on filter: {}".format(msg, str(err)))
@@ -1313,6 +1548,22 @@ def set_default_unit(msg):
         if app._debug: raise
         return
     else:
+        if len(ps_filter.to_list()) == 1:
+            redo_func = 'set_default_unit'
+            redo_kwargs = ps_filter.get_parameter().uniquetags
+        else:
+            redo_func = 'set_default_unit_all'
+            # TODO: something similar to uniquetags
+            redo_kwargs = {k:v for k,v in ps_filter.meta.items() if v is not None}
+
+        redo_kwargs['unit'] = msg.get('unit')
+
+        app._log_per_bundle[bundleid].add_logitem(parent='b',
+                                                  redo_func=redo_func,
+                                                  redo_kwargs=redo_kwargs,
+                                                  clientid=clientid)
+
+
         if 'web' in client_types or 'desktop' in client_types:
             param_list = sorted([_param_json_overview(param) for param in ps_list], key=lambda p: p['qualifier'])
             param_dict = OrderedDict((p.pop('uniqueid'), p) for p in param_list)
@@ -1321,6 +1572,8 @@ def set_default_unit(msg):
                 print("set_default_unit success, broadcasting changes:react: {}".format(param_dict))
 
             emit('{}:changes:react'.format(bundleid), {'success': True, 'parameters': param_dict}, broadcast=True)
+            undo_ind, undo_description = app._log_per_bundle[bundleid].get_last_undo_ind_description()
+            emit('{}:undo:react'.format(bundleid), {'requestid': requestid, 'undo_description': undo_description, 'undo_ind': undo_ind})
 
             _update_figures(b, bundleid, phoebe.parameters.ParameterSet(ps_list))
 
@@ -1401,9 +1654,14 @@ def bundle_method(msg):
     if method in ['flip_constraint']:
         constraint_filter = {k:v for k,v in msg.items() if k!='solve_for'}
         constraint_filter['context'] = 'constraint'
-        param_constraint = b.get_parameter(args[0], **constraint_filter)
+        param_constraint = b.get_parameter(*args, **constraint_filter)
 
-
+    # we have to do this before running the method or flip_constraint can make changes
+    redo_kwargs = msg.copy()
+    if 'uniqueid' in redo_kwargs.keys():
+        filter_param = b.get_parameter(uniqueid=redo_kwargs.pop('uniqueid'), check_visible=False, check_default=False)
+        for k,v in filter_param.uniquetags.items():
+            redo_kwargs[k] = v
 
     try:
         ps = getattr(b, method)(*args, **msg)
@@ -1432,6 +1690,21 @@ def bundle_method(msg):
                 emit('{}:changes:react'.format(bundleid), packet, broadcast=True)
 
             return
+
+    if method.split('_')[0] == 'add':
+        undo_func = 'remove_{}'.format(method.split('_')[1])
+        undo_kwargs = {method.split('_')[1]: getattr(ps, method.split('_')[1])}
+    else:
+        undo_func = None
+        undo_kwargs = {}
+
+    app._log_per_bundle[bundleid].add_logitem(parent='b',
+                                              redo_func=method,
+                                              redo_args=args,
+                                              redo_kwargs=redo_kwargs,
+                                              undo_func=undo_func,
+                                              undo_kwargs=undo_kwargs,
+                                              clientid=clientid)
 
     if method == 'add_constraint':
         param_constraint = ps.get_parameter()
@@ -1475,6 +1748,9 @@ def bundle_method(msg):
             packet['add_filter'] = {'uniqueid': "|".join(ps.uniqueids)}
 
         emit('{}:changes:react'.format(bundleid), packet, broadcast=True)
+        undo_ind, undo_description = app._log_per_bundle[bundleid].get_last_undo_ind_description()
+        emit('{}:undo:react'.format(bundleid), {'requestid': requestid, 'undo_description': undo_description, 'undo_ind': undo_ind})
+
         # flush so the changes goes through before running checks and updating figures
         socketio.sleep(0)
         _run_checks(b, bundleid)
@@ -1533,6 +1809,7 @@ if __name__ == "__main__":
     parser.add_argument('--maxcomputations', help='number of maximum timepoints to allow in run_compute calls.  If 0 (default), no limit will be set.', default=0)
     parser.add_argument('--disablesolvers', help='disable optimizers/samplers (estimators will still be allowed)', action='store_true', default=False)
     parser.add_argument('--verbose', help='print verbose messages', action='store_true', default=False)
+    parser.add_argument('--debug', help='debug mode - raise errors directly', action='store_true', default=False)
 
     args = parser.parse_args()
 
@@ -1547,6 +1824,7 @@ if __name__ == "__main__":
         app._allowed_solver_kinds = [s.split('.')[-1] for s in phoebe.list_available_solvers()]
 
     app._verbose = args.verbose
+    app._debug = args.debug
 
     if app._verbose:
         print("*** SERVER READY at {}:{} ***".format(args.host, args.port))
