@@ -707,7 +707,6 @@ class SampleOverModel(object):
                              'to_univariates': to_univariates,
                              'to_uniforms': to_uniforms}
 
-            # print("*** N={}, sample_kwargs={}".format(sample_num, sample_kwargs))
             sample_dict = b.sample_distribution_collection(N=sample_num,
                                                 keys='uniqueid',
                                                 **sample_kwargs)

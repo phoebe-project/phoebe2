@@ -7521,7 +7521,8 @@ class Bundle(ParameterSet):
                 conf.interactive_constraints_on()
             return _return_ps(self, ParameterSet(changed_params))
         else:
-            return _return_ps(self, ret)
+            # ret is a dictionary
+            return ret
 
     def plot_distribution_collection(self, twig=None,
                                     set_labels=True,
