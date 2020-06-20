@@ -397,6 +397,7 @@ def _param_json_overview(param):
          'len': len(param.get_value()) if param.__class__.__name__ in ['SelectParameter', 'FloatArrayParameter', 'ArrayParameter'] else None,
          'unitstr': param.default_unit.to_string() if hasattr(param, 'default_unit') else '',
          'readonly': param.readonly or (hasattr(param, 'is_constraint') and param.is_constraint is not None),
+         'description': param.description,
          }
 
     advanced_filter = []
