@@ -77,6 +77,7 @@ plt.switch_backend('Agg')
 import phoebe
 from phoebe import u,c
 from phoebe.dependencies import distl
+from phoebe.parameters.constraint import _validsolvefor
 import numpy as np
 import json
 import random
@@ -430,6 +431,7 @@ def _param_json_detailed(param):
         p['related_to'] = {p.uniqueid: p.twig for p in param.vars.to_list()}
         p['constraint'] = {}
         p['constrains'] = {p.uniqueid: p.twig for p in [param.constrained_parameter]}
+        p['validsolvefor'] = [p.uniquetwig for p in param.vars.filter(twig=_validsolvefor.get(param.constraint_func, '*')).to_list()]
     elif param.__class__.__name__ == 'DistributionParameter':
         p['referenced_parameter'] = {p.uniqueid: p.twig for p in [param.get_referenced_parameter()]}
     else:
