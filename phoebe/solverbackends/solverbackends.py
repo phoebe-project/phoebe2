@@ -1027,22 +1027,32 @@ class EbaiBackend(BaseSolverBackend):
         times, phases, fluxes, sigmas = _get_combined_lc(b, lc_datasets, lc_combine, phase_component=orbit, mask=True, normalize=True, phase_sorted=True)
 
         # TODO: cleanup this logic a bit
-        ecl_positions = lc_geometry.estimate_eclipse_positions_widths(phases, fluxes)['ecl_positions']
-        # assume primary is close to zero?
-        pshift = ecl_positions[np.argmin(abs(np.array(ecl_positions)))]
-        fit_result = lc_geometry.fit_lc(phases-pshift, fluxes, sigmas)
-        best_fit = fit_result['best_fit']
-        ebai_phases = np.linspace(-0.5,0.5,201)
-        ebai_fluxes = getattr(lc_geometry, 'const' if best_fit=='C' else best_fit.lower())(ebai_phases, *fit_result['fits'][best_fit][0])
-        fluxes /= ebai_fluxes.max()
-        ebai_fluxes /= ebai_fluxes.max()
+        lc_geom_dict = lc_geometry.estimate_eclipse_positions_widths(phases, fluxes)
+        if np.max(lc_geom_dict.get('ecl_widths', [])) > 0.25:
+            logger.warning("ebai: eclipse width over 0.25 detected.  Returning all nans")
+            t0_supconj = np.nan
+            teffratio = np.nan
+            requivsumfrac = np.nan
+            esinw = np.nan
+            ecosw = np.nan
+            sini = np.nan
+        else:
+            ecl_positions = lc_geom_dict.get('ecl_positions')
+            # assume primary is close to zero?
+            pshift = ecl_positions[np.argmin(abs(np.array(ecl_positions)))]
+            fit_result = lc_geometry.fit_lc(phases-pshift, fluxes, sigmas)
+            best_fit = fit_result['best_fit']
+            ebai_phases = np.linspace(-0.5,0.5,201)
+            ebai_fluxes = getattr(lc_geometry, 'const' if best_fit=='C' else best_fit.lower())(ebai_phases, *fit_result['fits'][best_fit][0])
+            fluxes /= ebai_fluxes.max()
+            ebai_fluxes /= ebai_fluxes.max()
 
-        # update to t0_supconj based on pshift
-        t0_supconj_param = orbit_ps.get_parameter(qualifier='t0_supconj', **_skip_filter_checks)
-        t0_supconj = t0_supconj_param.get_value(unit=u.d) + (pshift * orbit_ps.get_value(qualifier='period', unit=u.d, **_skip_filter_checks))
+            # update to t0_supconj based on pshift
+            t0_supconj_param = orbit_ps.get_parameter(qualifier='t0_supconj', **_skip_filter_checks)
+            t0_supconj = t0_supconj_param.get_value(unit=u.d) + (pshift * orbit_ps.get_value(qualifier='period', unit=u.d, **_skip_filter_checks))
 
-        # run ebai on polyfit sampled fluxes
-        teffratio, requivsumfrac, esinw, ecosw, sini = ebai_forward(ebai_fluxes)
+            # run ebai on polyfit sampled fluxes
+            teffratio, requivsumfrac, esinw, ecosw, sini = ebai_forward(ebai_fluxes)
 
         teffratio_param = orbit_ps.get_parameter(qualifier='teffratio', **_skip_filter_checks)
         requivsumfrac_param = orbit_ps.get_parameter(qualifier='requivsumfrac', **_skip_filter_checks)

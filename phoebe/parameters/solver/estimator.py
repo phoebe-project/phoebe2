@@ -349,6 +349,10 @@ def ebai(**kwargs):
     resulting in proposed values for `teffratio`, `requivsumfrac`, `esinw`,
     `ecosw`, and `incl` for the corresponding `orbit`.
 
+    Note that the current network only supports detached systems and will return
+    all nans and a logger warning if either eclipse from the 2 gaussian model has
+    a width greater than 0.25 (in phase-space).
+
     Generally, this will be used as an input to the kind argument in
     <phoebe.frontend.bundle.Bundle.add_solver>.  If attaching through
     <phoebe.frontend.bundle.Bundle.add_solver>, all `**kwargs` will be
