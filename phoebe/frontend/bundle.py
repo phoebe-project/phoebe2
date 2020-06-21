@@ -9910,6 +9910,8 @@ class Bundle(ParameterSet):
                         if not _use_celerite:
                             raise ImportError("gaussian processes require celerite to be installed")
 
+                        # NOTE: only those exposed in feature.gaussian_process
+                        # will be available to the user (we don't allow jitter, for example)
                         gp_kernel_classes = {'matern32': _celerite.terms.Matern32Term,
                                               'sho': _celerite.terms.SHOTerm,
                                               'jitter': _celerite.terms.JitterTerm}

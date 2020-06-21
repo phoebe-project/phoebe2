@@ -138,6 +138,9 @@ def _bsolver(b, solver, compute, distributions, wrap_central_values={}):
             raise NotImplementedError("solver_times='{}' not implemented".format(solver_times))
 
         if new_compute_times is not None:
+            if ds_ps.get_parameter(qualifier='compute_times', **_skip_filter_checks).is_constraint is not None:
+                # this is in the deepcopied bundle, so we can overwrite compute_times directly
+                bexcl.flip_constraint(qualifier='compute_times', dataset=ds_ps.dataset, solve_for='compute_phases')
             ds_ps.set_value_all(qualifier='compute_times', value=new_compute_times, **_skip_filter_checks)
 
     return bexcl
