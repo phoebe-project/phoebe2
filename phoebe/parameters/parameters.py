@@ -4459,6 +4459,7 @@ class ParameterSet(object):
             kwargs['labels'] = [_corner_label(param) for param in param_list]
 
             if kwargs.get('style') == 'failed':
+                kwargs.setdefault('draw_sigmas', False)
                 kwargs['failed_samples'] = ps.get_value(qualifier='failed_samples', default={}, **_skip_filter_checks)
 
             return (kwargs,)
@@ -4637,6 +4638,7 @@ class ParameterSet(object):
                 kwargs['dc'], _ = ps._bundle.get_distribution_collection(solution=ps.solution, **{k:v for k,v in kwargs.items() if k in ['distributions_convert', 'distributions_bins', 'parameters']})
 
                 if style=='failed':
+                    kwargs.setdefault('draw_sigmas', False)
                     kwargs['failed_samples'] = {k: np.asarray(v)[:,adopt_inds] for k,v in ps.get_value(qualifier='failed_samples', **_skip_filter_checks).items()}
 
                 return_ += [kwargs]
@@ -4683,6 +4685,7 @@ class ParameterSet(object):
                                                                             **{k:v for k,v in kwargs.items() if k in ['burnin', 'thin', 'lnprob_cutoff', 'distributions_convert', 'distributions_bins', 'parameters', 'adopt_parameters']})
 
                     if style=='failed':
+                        kwargs.setdefault('draw_sigmas', False)
                         kwargs['failed_samples'] = {k: np.asarray(v)[:,adopt_inds] for k,v in ps.get_value(qualifier='failed_samples', **_skip_filter_checks).items()}
 
                     return_ += [kwargs]
@@ -5334,7 +5337,7 @@ class ParameterSet(object):
                         # TODO: could we just return multiple figure instances?
                         raise ValueError("corner plots not supported with other axes.  Adjust the filter to include only a single distribution (including from compute or solver contexts), or to exclude all distributions.")
 
-                    mplfig = plot_kwargs['dc'].plot(show=show)
+                    mplfig = plot_kwargs['dc'].plot(show=show, **plot_kwargs)
 
                     if 'failed_samples' in plot_kwargs.keys():
                         mplfig = _plot_failed_samples(mplfig, plot_kwargs.get('failed_samples', {}))

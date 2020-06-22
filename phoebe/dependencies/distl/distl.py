@@ -1,12 +1,14 @@
 import numpy as _np
 from scipy import __version__ as _scipy_version
 from scipy import stats as _stats
+from scipy.stats import norm as _norm
 from scipy import interpolate as _interpolate
 from scipy import integrate as _integrate
 import json as _json
 import sys as _sys
 from collections import OrderedDict
 from distutils.version import StrictVersion
+from IPython.display import Math
 
 from . import stats_custom as _stats_custom
 
@@ -184,6 +186,28 @@ def from_file(filename):
 
 ############################# HELPER FUNCTIONS #################################
 
+class Latex(object):
+    def __init__(self, s, stex):
+        self._s = s
+        self._stex = stex
+
+    def __repr__(self):
+        return self._s
+
+    def __str__(self):
+        return self._s
+
+    def _repr_latex_(self):
+        return self._stex
+
+    @property
+    def as_latex(self):
+        return self._stex
+
+    @property
+    def as_string(self):
+        return self._s
+
 def get_random_seed():
     """
     Return a random seed which can be passed to <BaseDistribution.sample>.
@@ -230,6 +254,20 @@ def _all_in_types(objects, types):
 
 def _any_in_types(objects, types):
     return _np.any([_np.any([isinstance(o, t) for t in types]) for o in objects])
+
+def _format_uncertainties(labels, units, qs_per_dim):
+    stex = r"\begin{align} "
+    s = ""
+
+    for label, unit, qs in zip(labels, units, qs_per_dim):
+        # we'll round to 1 significant digits in whichever uncertainty direction has the best precision
+        ndigits = int(_np.ceil(_np.max(-1*_np.log10([qs[2]-qs[1], qs[1]-qs[0]]))))
+
+        stex += "\mathrm{{ {} }} &= {} {}{}~ ^{{ +{} }}_{{ -{} }} \\\\ ".format(label, _np.round(qs[1], ndigits), "" if unit is None or unit.physical_type in ['dimensionless', 'angle'] else "~", unit._repr_latex_().replace('$', '') if unit is not None else '', _np.round(qs[2]-qs[1], ndigits), _np.round(qs[1]-qs[0], ndigits))
+        s += "{} = {} {} +{} -{}\n".format(label, _np.round(qs[1], ndigits), unit.to_string() if unit is not None else "", _np.round(qs[2]-qs[1], ndigits), _np.round(qs[1]-qs[0], ndigits))
+
+    stex += "\end{align}"
+    return Latex(s, stex)
 
 ################## VALIDATORS ###################
 
@@ -2351,6 +2389,57 @@ class BaseUnivariateDistribution(BaseDistribution):
         # this causes all sorts of issues as it casts the interpolators to arrays
         # return self._return_with_units(self.wrap(self.dist_constructor_object.rvs(size=size), wrap_at=wrap_at), unit=unit, as_quantity=as_quantity)
 
+    def sample_quantiles(self, quantiles=(0.16, 0.84), samples=None):
+        """
+        Return the values at provided quantiles from the samples via np.percentile.
+
+        See also:
+        * <<class>.sample_uncertainties_formatted>
+
+        Arguments
+        -----------
+        * `quantiles` (tuple, optional, default=(0.16, 0.84)): quantiles
+            to expose.
+        * `samples` (array-type, optional, default=None): samples to use.  If
+            not provided, <<class>.sample> will be called with `size=1e6`.
+
+        Returns
+        ------------
+        * (list)
+        """
+        if samples is None:
+            samples = self.sample(size=int(1e6), cache_sample=False) #, unit=unit, wrap_at=wrap_at)
+
+        return _np.percentile(samples_dim, percentiles)
+
+    def sample_uncertainties_formatted(self, sigma=1, samples=None):
+        """
+        Expose (asymmetric) uncertainties for the distribution(s) at a given
+        value of `sigma`.
+
+        This first determines the appropriate `quantiles` to pass to
+        <<class>.sample_quantiles> using scipy.state.norm.cdf([`-sigma`, `0`, `sigma`])
+        and then formats those into a Latex friendly representation.
+
+        See also:
+        * <<class>.sample_quantiles>
+
+        Arguments
+        -----------
+        * `sigma` (int, optional, default=1): number of standard deviations to
+            expose.
+        * `samples` (array-type, optional, default=None): samples to use.  If
+            not provided, <<class>.sample> will be called with `size=1e6`.
+
+        Returns
+        ---------
+        * <Latex> object with <Latex.as_latex> and <Latex.as_string> properties.
+        """
+        quantiles = _norm.cdf([-sigma, 0, sigma])
+        qs_per_dim = self.sample_quantiles(quantiles, samples=samples)
+
+        return _format_uncertainties(self.labels, self.units, qs_per_dim)
+
 
     ### CONVERSION TO OTHER DISTRIBUTION TYPES
     def to_delta(self, loc='median'):
@@ -2775,7 +2864,93 @@ class BaseMultivariateDistribution(BaseDistribution):
 
         return l
 
+    def sample_quantiles(self, quantiles=(0.16, 0.84), dimension=None, samples=None):
+        """
+        Return the values at provided quantiles from the samples via np.percentile.
+
+        See also:
+        * <<class>.sample_uncertainties_formatted>
+
+        Arguments
+        -----------
+        * `quantiles` (tuple, optional, default=(0.16, 0.84)): quantiles
+            to expose.
+        * `samples` (array-type, optional, default=None): samples to use.  If
+            not provided, <<class>.sample> will be called with `size=1e6`.
+        """
+        if samples is None:
+            samples = self.sample(size=int(1e6), dimension=dimension, cache_sample=False) #, unit=unit, wrap_at=wrap_at)
+
+
+        if dimension is not None:
+            raise NotImplementedError()
+            return self.slice(dimension).sample_quantiles(quantiles=quantiles, samples=samples)
+
+        return [_np.percentile(samples_dim, percentiles) for samples_dim in samples.T]
+        # return [corner.quantile(samples_dim, quantiles) for samples_dim in samples.T]
+
+    def sample_uncertainties_formatted(self, sigma=1, dimension=None, samples=None):
+        """
+        Expose (asymmetric) uncertainties for the distribution(s) at a given
+        value of `sigma`.
+
+        This first determines the appropriate `quantiles` to pass to
+        <<class>.sample_quantiles> using scipy.state.norm.cdf([`-sigma`, `0`, `sigma`])
+        and then formats those into a Latex friendly representation.
+
+        See also:
+        * <<class>.sample_quantiles>
+
+        Arguments
+        -----------
+        * `sigma` (int, optional, default=1): number of standard deviations to
+            expose.
+        * `samples` (array-type, optional, default=None): samples to use.  If
+            not provided, <<class>.sample> will be called with `size=1e6`.
+
+        Returns
+        ---------
+        * <Latex> object with <Latex.as_latex> and <Latex.as_string> properties.
+        """
+        if dimension is not None:
+            raise NotImplementedError()
+            return self.slice(dimension).sample_uncertainties_formatted(sigma=sigma, samples=samples)
+
+        quantiles = _norm.cdf([-sigma, 0, sigma])
+        qs_per_dim = self.sample_quantiles(quantiles, samples=samples)
+
+        return _format_uncertainties(self.labels, self.units, qs_per_dim)
+
     def plot_sample(self, **kwargs):
+        """
+
+        Arguments
+        ---------
+        * `dimension`
+        * `label`
+        * `unit`
+        * `wrap_at`
+        * `xlabel`
+        * `samples`
+        * `draw_sigmas` (tuple, None, or bool, optional, default=None): if True,
+            will default to (1,2,3).  If False, `quantiles` and `levels` will
+            not be plotted.  If None, `quantiles` and `levels` will be passed
+            directly to [corner.corner](https://corner.readthedocs.io/en/latest/api.html#corner.corner).
+            If provided as a list or tuple, then `quantiles` will be set to the
+            appropriate quantile for the first sigma in the passed list and
+            `levels` will be set to the appropriate 2-D volume levels for each
+            item in the list (see `levels` below).
+        * `quantiles` (tuple or None, optional, default=(0.16, 0.84)): passed
+            to [corner.corner](https://corner.readthedocs.io/en/latest/api.html#corner.corner):
+            "A list of fractional quantiles to show on the 1-D histograms as
+            vertical dashed lines."  Ignored if `draw_sigmas` is not None.
+        * `levels` (tuple or None, optional, default=(1-np.exp(-0.5))): passed
+            to [corner.corner](https://corner.readthedocs.io/en/latest/api.html#corner.corner)
+            see [corner: a note about sigmas](https://corner.readthedocs.io/en/latest/pages/sigmas.html).
+            Ignored if `draw_sigmas` is not None.
+
+        * `**kwargs`: additional kwargs are passed to [corner.corner](https://corner.readthedocs.io/en/latest/api.html#corner.corner)
+        """
         dimension = kwargs.pop('dimension', None)
 
         if dimension is not None:
@@ -2799,7 +2974,24 @@ class BaseMultivariateDistribution(BaseDistribution):
                 raise ImportError("corner must be installed to plot multivariate distributions.  Either install corner or pass a value to dimension to plot a 1D distribution.")
 
 
-            return corner.corner(self.sample(size=int(1e5), cache_sample=False), labels=[self._xlabel(dim) for dim in range(self.ndimensions)], **kwargs)
+            draw_sigmas = kwargs.pop('draw_sigmas', None)
+            if draw_sigmas:
+                if draw_sigmas is True:
+                    draw_sigmas = [1, 2, 3]
+                if not (isinstance(draw_sigmas, list) or isinstance(draw_sigmas, tuple)):
+                    raise TypeError("draw_sigmas must be of type list")
+
+                kwargs['quantiles'] = (_norm.cdf(-draw_sigmas[0]), _norm.cdf(draw_sigmas[0]))
+                kwargs['levels'] = [1-_np.exp(-s**2 / 2.) for s in draw_sigmas]
+            elif draw_sigmas is None:
+                kwargs.setdefault('quantiles', (_norm.cdf(-1), _norm.cdf(1)))
+                kwargs.setdefault('levels', [1-_np.exp(-s**2 / 2.) for s in (1,2,3)])
+
+            return corner.corner(self.sample(size=int(1e5), cache_sample=False),
+                                 labels=[self._xlabel(dim) for dim in range(self.ndimensions)],
+                                 quantiles=kwargs.pop('quantiles', None),
+                                 levels=kwargs.pop('levels', None),
+                                 **kwargs)
 
     def plot(self, **kwargs):
         """
@@ -3159,6 +3351,12 @@ class DistributionCollection(BaseDistlObject):
         return [d.label for d in self.dists]
 
     @property
+    def units(self):
+        """
+        """
+        return [d.unit for d in self.dists]
+
+    @property
     def dists_unpacked(self):
         """
         """
@@ -3184,6 +3382,10 @@ class DistributionCollection(BaseDistlObject):
         """
         """
         return [d.label for d in self.dists_unpacked]
+
+    @property
+    def units_unpacked(self):
+        return [d.unit for d in self.dists_unpacked]
 
     @property
     def cached_sample(self):
@@ -3513,7 +3715,85 @@ class DistributionCollection(BaseDistlObject):
         models = _np.array([func(x, *sample_args[i], **func_kwargs) for i in range(N)])
         return models
 
+    def sample_quantiles(self, quantiles=(0.16, 0.84), samples=None):
+        """
+        Return the values at provided quantiles from the samples via np.percentile.
+
+        See also:
+        * <<class>.sample_uncertainties_formatted>
+
+        Arguments
+        -----------
+        * `quantiles` (tuple, optional, default=(0.16, 0.84)): quantiles
+            to expose.
+        * `samples` (array-type, optional, default=None): samples to use.  If
+            not provided, <<class>.sample> will be called with `size=1e6`.
+
+        Returns
+        ------------
+        * (list)
+        """
+        if samples is None:
+            samples = self.sample(size=int(1e6), cache_sample=False) #, unit=unit, wrap_at=wrap_at)
+
+        return [_np.percentile(samples_dim, percentiles) for samples_dim in samples.T]
+        # return [corner.quantile(samples_dim, quantiles) for samples_dim in samples.T]
+
+    def sample_uncertainties_formatted(self, sigma=1, samples=None):
+        """
+        Expose (asymmetric) uncertainties for the distribution(s) at a given
+        value of `sigma`.
+
+        This first determines the appropriate `quantiles` to pass to
+        <<class>.sample_quantiles> using scipy.state.norm.cdf([`-sigma`, `0`, `sigma`])
+        and then formats those into a Latex friendly representation.
+
+        See also:
+        * <<class>.sample_quantiles>
+
+        Arguments
+        -----------
+        * `sigma` (int, optional, default=1): number of standard deviations to
+            expose.
+        * `samples` (array-type, optional, default=None): samples to use.  If
+            not provided, <<class>.sample> will be called with `size=1e6`.
+
+        Returns
+        ---------
+        * <Latex> object with <Latex.as_latex> and <Latex.as_string> properties.
+        """
+        quantiles = _norm.cdf([-sigma, 0, sigma])
+        qs_per_dim = self.sample_quantiles(quantiles, samples=samples)
+
+        return _format_uncertainties(self.labels, self.units, qs_per_dim)
+
     def plot_sample(self, **kwargs):
+        """
+
+        Arguments
+        ------------
+        * `labels`
+        * `range`
+        * `draw_sigmas` (tuple, None, or bool, optional, default=None): if True,
+            will default to (1,2,3).  If False, `quantiles` and `levels` will
+            not be plotted.  If None, `quantiles` and `levels` will be passed
+            directly to [corner.corner](https://corner.readthedocs.io/en/latest/api.html#corner.corner).
+            If provided as a list or tuple, then `quantiles` will be set to the
+            appropriate quantile for the first sigma in the passed list and
+            `levels` will be set to the appropriate 2-D volume levels for each
+            item in the list (see `levels` below).
+        * `quantiles` (tuple or None, optional, default=(0.16, 0.84)): passed
+            to [corner.corner](https://corner.readthedocs.io/en/latest/api.html#corner.corner):
+            "A list of fractional quantiles to show on the 1-D histograms as
+            vertical dashed lines."  Ignored if `draw_sigmas` is not None.
+        * `levels` (tuple or None, optional, default=(1-np.exp(-0.5))): passed
+            to [corner.corner](https://corner.readthedocs.io/en/latest/api.html#corner.corner)
+            see [corner: a note about sigmas](https://corner.readthedocs.io/en/latest/pages/sigmas.html).
+            Ignored if `draw_sigmas` is not None.
+        * `**kwargs`: additional kwargs are passed to [corner.corner](https://corner.readthedocs.io/en/latest/api.html#corner.corner)
+
+
+        """
         # then we need to do a corner plot
         if not _has_corner:
             raise ImportError("corner must be installed to plot multivariate distributions.  Either install corner or pass a value to dimension to plot a 1D distribution.")
@@ -3524,7 +3804,25 @@ class DistributionCollection(BaseDistlObject):
             else:
                 return 1.0
 
-        return corner.corner(self.sample(size=int(1e5), cache_sample=False), labels=kwargs.pop('labels', [dist._xlabel() for dist in self.dists]), range=kwargs.pop('range', [_range(dist) for dist in self.dists]), **kwargs)
+        draw_sigmas = kwargs.pop('draw_sigmas', None)
+        if draw_sigmas:
+            if draw_sigmas is True:
+                draw_sigmas = [1, 2, 3]
+            if not (isinstance(draw_sigmas, list) or isinstance(draw_sigmas, tuple)):
+                raise TypeError("draw_sigmas must be of type list")
+
+            kwargs['quantiles'] = (_norm.cdf(-draw_sigmas[0]), _norm.cdf(draw_sigmas[0]))
+            kwargs['levels'] = [1-_np.exp(-s**2 / 2.) for s in draw_sigmas]
+        elif draw_sigmas is None:
+            kwargs.setdefault('quantiles', (_norm.cdf(-1), _norm.cdf(1)))
+            kwargs.setdefault('levels', [1-_np.exp(-s**2 / 2.) for s in (1,2,3)])
+
+        return corner.corner(self.sample(size=int(1e5), cache_sample=False),
+                             labels=kwargs.pop('labels', [dist._xlabel() for dist in self.dists]),
+                             range=kwargs.pop('range', [_range(dist) for dist in self.dists]),
+                             quantiles=kwargs.pop('quantiles', None),
+                             levels=kwargs.pop('levels', None),
+                             **kwargs)
 
     def plot(self, **kwargs):
         """
