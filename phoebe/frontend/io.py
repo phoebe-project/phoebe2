@@ -1093,7 +1093,8 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
         spotpt = spotpars[spotin]
         source =  np.int(spotpt[:,1][list(spotpt[:,0]).index('phoebe_spots_source['+str(x)+']')])
         spotpt = np.delete(spotpt, list(spotpt[:,0]).index('phoebe_spots_source['+str(x)+']'), axis=0)
-
+        enabled = np.int(spotpt[:,1][list(spotpt[:,0]).index('phoebe_spots_active_switch['+str(x)+']')])
+        spotpt = np.delete(spotpt, list(spotpt[:,0]).index('phoebe_spots_active_switch['+str(x)+']'), axis=0)
 
         if source == 1:
             component = 'primary'
@@ -1107,8 +1108,13 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
 #   create spot
 
         spot = eb.add_feature('spot', component=component)
+
         #TODO check this tomorrow
         dataid = spot.features[0]
+       
+        #enable or disable spot
+        val = _bool1to2[enabled]
+        eb.set_value_all(qualifier='enabled', value=val, feature=dataid)
 #   add spot parameters
 
         for k in range(len(spotpt)):
