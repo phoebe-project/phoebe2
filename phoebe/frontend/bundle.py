@@ -11077,6 +11077,8 @@ class Bundle(ParameterSet):
         if solver_kind is None:
             raise ValueError("could not find solution='{}'".format(solution))
 
+        if not (adopt_distributions is None or isinstance(adopt_distributions, bool)):
+            raise TypeError("adopt_distributions must be None or bool.  To set the label of the resulting distribution, use distribution instead.")
         adopt_distributions = solution_ps.get_value(qualifier='adopt_distributions', adopt_distributions=adopt_distributions, **_skip_filter_checks)
         adopt_values = solution_ps.get_value(qualifier='adopt_values', adopt_values=adopt_values, **_skip_filter_checks)
 
