@@ -3554,7 +3554,7 @@ class ParameterSet(object):
         mask_enabled = dataset_ps.get_value(qualifier='mask_enabled', default=False, mask_enabled=mask_enabled, **_skip_filter_checks)
         if mask_enabled:
             mask_phases = dataset_ps.get_value(qualifier='mask_phases', mask_phases=mask_phases, **_skip_filter_checks)
-            mask_t0 = dataset_ps.get_value(qualifier='phases_t0', **_skip_filter_checks)
+            mask_t0 = dataset_ps.get_value(qualifier='phases_t0', unit=u.d, **_skip_filter_checks)
             if len(mask_phases):
                 phases = self._bundle.to_phase(times, t0=mask_t0)
 
@@ -3590,7 +3590,8 @@ class ParameterSet(object):
                 return residuals
 
     def calculate_chi2(self, model=None, dataset=None, component=None,
-                       consider_gaussian_process=True):
+                       consider_gaussian_process=True,
+                       mask_enabled=None, mask_phases=None):
         """
         Compute the chi2 between a model and the observed values in the dataset(s).
 
@@ -3634,6 +3635,12 @@ class ParameterSet(object):
             the chi2
         * `consider_gaussian_process` (bool, optional, defult=True): whether
             to consider a system with gaussian process(es) as time-dependent
+        * `mask_enabled` (bool, optional, default=None): whether to enable
+            masking on the dataset(s).  If None or not provided, will default to
+            the values set in the dataset(s).
+        * `mask_phases` (list of tuples, optional, default=None): phase masks
+            to apply if `mask_enabled = True`.  If None or not provided, will
+            default to the values set in the dataset(s).
 
         Returns
         -----------
@@ -3660,9 +3667,24 @@ class ParameterSet(object):
                 residuals, model_interp = self.calculate_residuals(model=model, dataset=ds, component=ds_comp,
                                                                    return_interp_model=True,
                                                                    consider_gaussian_process=consider_gaussian_process,
+                                                                   mask_enabled=mask_enabled, mask_phases=mask_phases,
                                                                    as_quantity=True)
                 ds_ps = self._bundle.get_dataset(dataset=ds, **_skip_filter_checks)
                 sigmas = ds_ps.get_value(qualifier='sigmas', component=ds_comp, unit=residuals.unit, **_skip_filter_checks)
+
+                mask_enabled = ds_ps.get_value(qualifier='mask_enabled', default=False, mask_enabled=mask_enabled, **_skip_filter_checks)
+                if mask_enabled:
+                    mask_phases = ds_ps.get_value(qualifier='mask_phases', mask_phases=mask_phases, **_skip_filter_checks)
+                    mask_t0 = ds_ps.get_value(qualifier='phases_t0', unit=u.d, **_skip_filter_checks)
+                    if len(mask_phases):
+                        times = ds_ps.get_value(qualifier='times', component=ds_comp, unit=u.d, **_skip_filter_checks)
+                        phases = self._bundle.to_phase(times, t0=mask_t0)
+
+                        inds = phase_mask_inds(phases, mask_phases)
+
+                        sigmas = sigmas[inds]
+
+
                 sigmas_lnf = ds_ps.get_value(qualifier='sigmas_lnf', component=ds_comp, default=-np.inf, **_skip_filter_checks)
 
                 if len(sigmas):

@@ -81,6 +81,8 @@ def _bsolver(b, solver, compute, distributions, wrap_central_values={}):
 
     # handle solver_times
     for param in bexcl.filter(qualifier='solver_times', **_skip_filter_checks).to_list():
+        # TODO: skip if this dataset is disabled for compute?
+
         solver_times = param.get_value()
         ds_ps = bexcl.get_dataset(dataset=param.dataset, **_skip_filter_checks)
         mask_enabled = ds_ps.get_value(qualifier='mask_enabled', default=False)
@@ -98,6 +100,7 @@ def _bsolver(b, solver, compute, distributions, wrap_central_values={}):
             compute_phases = bexcl.to_phases(compute_times, t0=mask_t0)
             masked_compute_times = compute_times[phase_mask_inds(compute_phases, mask_phases)]
 
+            # concatenate for the case of datasets (like RVs) with times in multiple components
             times = np.unique(np.concatenate([time_param.get_value() for time_param in bexcl.filter(qualifier='times', dataset=param.dataset, **_skip_filter_checks).to_list()]))
             phases = bexcl.to_phases(times, t0=mask_t0)
             masked_times = times[phase_mask_inds(phases, mask_phases)]
@@ -107,7 +110,7 @@ def _bsolver(b, solver, compute, distributions, wrap_central_values={}):
                 if mask_enabled and len(mask_phases):
                     new_compute_times = masked_times
                 else:
-                    new_compute_times = []
+                    new_compute_times = [] # set to empty list which will force run_compute to use dataset-times
             else:
                 logger.debug("solver_times=auto: using compute_times")
                 if mask_enabled and len(mask_phases):
@@ -123,7 +126,7 @@ def _bsolver(b, solver, compute, distributions, wrap_central_values={}):
                 phases = bexcl.to_phases(times, t0=mask_t0)
                 new_compute_times = times[phase_mask_inds(phases, mask_phases)]
             else:
-                new_compute_times = []
+                new_compute_times = [] # set to empty list which will force run_compute to use dataset-times
 
         elif solver_times == 'compute_times':
             logger.debug("solver_times=compute_times")
