@@ -8,7 +8,6 @@ import json as _json
 import sys as _sys
 from collections import OrderedDict
 from distutils.version import StrictVersion
-from IPython.display import Math
 
 from . import stats_custom as _stats_custom
 
