@@ -34,6 +34,7 @@ except ImportError:
         _use_phb1 = True
 else:
     _use_phb1 = True
+    _phb1_config = False
 
 try:
     import ellc
@@ -1437,17 +1438,18 @@ class LegacyBackend(BaseBackendByDataset):
         # make phoebe 1 file
         # tmp_filename = temp_name = next(tempfile._get_candidate_names())
         computeparams = b.get_compute(compute, force_ps=True)
-
-        phb1.init()
-        try:
-            if hasattr(phb1, 'auto_configure'):
-                # then phb1 is phoebe_legacy
-                phb1.auto_configure()
-            else:
-                # then phb1 is phoebeBackend
-                phb1.configure()
-        except SystemError:
-            raise SystemError("PHOEBE config failed: try creating PHOEBE config file through GUI")
+        if _phb1_config == False:
+            phb1.init()
+            try:
+                if hasattr(phb1, 'auto_configure'):
+                    # then phb1 is phoebe_legacy
+                    phb1.auto_configure()
+                else:
+                    # then phb1 is phoebeBackend
+                    phb1.configure()
+            except SystemError:
+                raise SystemError("PHOEBE config failed: try creating PHOEBE config file through GUI")
+            _phb1_config == True
 
         # phb1.open(tmp_filename)
         # grab parameters and import into legacy
