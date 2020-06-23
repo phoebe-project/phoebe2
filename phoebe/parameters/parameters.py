@@ -4481,14 +4481,14 @@ class ParameterSet(object):
             kwargs['labels'] = [_corner_label(param) for param in param_list]
 
             if kwargs.get('style') == 'failed':
-                kwargs.setdefault('draw_sigmas', False)
+                kwargs.setdefault('plot_uncertainties', False)
                 kwargs['failed_samples'] = ps.get_value(qualifier='failed_samples', default={}, **_skip_filter_checks)
 
             return (kwargs,)
         elif ps.context == 'distribution':
             kwargs['plot_package'] = 'distl'
             kwargs.setdefault('distribution', ps.distribution)
-            kwargs['dc'], _ = self._bundle.get_distribution_collection(context='distribution', **{k:v for k,v in kwargs.items() if k in ['distribution', 'combine', 'include_constrained', 'to_univariates', 'to_uniforms', 'parameters']})
+            kwargs['dc'], _ = self._bundle.get_distribution_collection(context='distribution', **{k:v for k,v in kwargs.items() if k in ['distribution', 'combine', 'include_constrained', 'to_univariates', 'to_uniforms', 'parameters', 'plot_uncertainties']})
             return (kwargs,)
         elif ps.context == 'solver':
             kwargs['plot_package'] = 'distl'
@@ -4660,7 +4660,7 @@ class ParameterSet(object):
                 kwargs['dc'], _ = ps._bundle.get_distribution_collection(solution=ps.solution, **{k:v for k,v in kwargs.items() if k in ['distributions_convert', 'distributions_bins', 'parameters']})
 
                 if style=='failed':
-                    kwargs.setdefault('draw_sigmas', False)
+                    kwargs.setdefault('plot_uncertainties', False)
                     kwargs['failed_samples'] = {k: np.asarray(v)[:,adopt_inds] for k,v in ps.get_value(qualifier='failed_samples', **_skip_filter_checks).items()}
 
                 return_ += [kwargs]
@@ -4707,7 +4707,7 @@ class ParameterSet(object):
                                                                             **{k:v for k,v in kwargs.items() if k in ['burnin', 'thin', 'lnprob_cutoff', 'distributions_convert', 'distributions_bins', 'parameters', 'adopt_parameters']})
 
                     if style=='failed':
-                        kwargs.setdefault('draw_sigmas', False)
+                        kwargs.setdefault('plot_uncertainties', False)
                         kwargs['failed_samples'] = {k: np.asarray(v)[:,adopt_inds] for k,v in ps.get_value(qualifier='failed_samples', **_skip_filter_checks).items()}
 
                     return_ += [kwargs]

@@ -186,7 +186,7 @@ def from_file(filename):
 ############################# HELPER FUNCTIONS #################################
 
 class Latex(object):
-    def __init__(self, s, stex):
+    def __init__(self, s="", stex=r""):
         self._s = s
         self._stex = stex
 
@@ -197,11 +197,25 @@ class Latex(object):
         return self._s
 
     def _repr_latex_(self):
-        return self._stex
+        return self.as_latex
+
+    @classmethod
+    def from_list(cls, list):
+        return cls(" ".join([l._s for l in list]), " ".join([l._stex for l in list]))
+
+    def __add__(self, other):
+        if not isinstance(other, Latex):
+            raise TypeError("can only add two Latex objects")
+
+        return Latex(self._s+other._s, self._stex+other._stex)
 
     @property
     def as_latex(self):
-        return self._stex
+        return r"\begin{align} "+self._stex+" \end{align}"
+
+    @property
+    def as_latex_list(self):
+        return [r"${}$".format(li.replace("&=", "=")) for li in self._stex.split("\\\\") if len(li.replace(" ", ""))]
 
     @property
     def as_string(self):
@@ -254,8 +268,8 @@ def _all_in_types(objects, types):
 def _any_in_types(objects, types):
     return _np.any([_np.any([isinstance(o, t) for t in types]) for o in objects])
 
-def _format_uncertainties(labels, units, qs_per_dim):
-    stex = r"\begin{align} "
+def _format_uncertainties_asymmetric(labels, units, qs_per_dim):
+    stex = r""
     s = ""
 
     for label, unit, qs in zip(labels, units, qs_per_dim):
@@ -263,9 +277,24 @@ def _format_uncertainties(labels, units, qs_per_dim):
         ndigits = int(_np.ceil(_np.max(-1*_np.log10([qs[2]-qs[1], qs[1]-qs[0]]))))
 
         stex += "\mathrm{{ {} }} &= {} {}{}~ ^{{ +{} }}_{{ -{} }} \\\\ ".format(label, _np.round(qs[1], ndigits), "" if unit is None or unit.physical_type in ['dimensionless', 'angle'] else "~", unit._repr_latex_().replace('$', '') if unit is not None else '', _np.round(qs[2]-qs[1], ndigits), _np.round(qs[1]-qs[0], ndigits))
-        s += "{} = {} {} +{} -{}\n".format(label, _np.round(qs[1], ndigits), unit.to_string() if unit is not None else "", _np.round(qs[2]-qs[1], ndigits), _np.round(qs[1]-qs[0], ndigits))
+        s += "{} = {}{} +{} -{}\n".format(label, _np.round(qs[1], ndigits), " "+unit.to_string() if unit is not None else "", _np.round(qs[2]-qs[1], ndigits), _np.round(qs[1]-qs[0], ndigits))
 
-    stex += "\end{align}"
+    return Latex(s, stex)
+
+def _format_uncertainties_symmetric(labels, units, values_per_dim, sigmas_per_dim):
+    stex = r""
+    s = ""
+
+    for label, unit, value, sigma in zip(labels, units, values_per_dim, sigmas_per_dim):
+        # we'll round to 1 significant digits in whichever uncertainty direction has the best precision
+        if sigma == 0:
+            ndigits = int(-1*_np.log10(value))
+        else:
+            ndigits = int(_np.ceil(-1*_np.log10(sigma)))
+
+        stex += "\mathrm{{ {} }} &= {} {}{}~ \pm {{ {} }} \\\\ ".format(label, _np.round(value, ndigits), "" if unit is None or unit.physical_type in ['dimensionless', 'angle'] else "~", unit._repr_latex_().replace('$', '') if unit is not None else '', _np.round(sigma, ndigits))
+        s += "{} = {}{} +/- {}\n".format(label, _np.round(value, ndigits), " "+unit.to_string() if unit is not None else "", _np.round(sigma, ndigits))
+
     return Latex(s, stex)
 
 ################## VALIDATORS ###################
@@ -1090,6 +1119,7 @@ class BaseDistribution(BaseDistlObject):
              plot_pdf=True, plot_pdf_kwargs={'color': 'red'},
              plot_cdf=False, plot_cdf_kwargs={'color': 'green'},
              plot_gaussian=False, plot_gaussian_kwargs={'color': 'blue'},
+             plot_uncertainties=True, plot_uncertainties_kwargs={'color': 'black', 'linestyle': 'dashed'},
              label=None, xlabel=None, show=False, **kwargs):
         """
         Plot both the analytic distribution function as well as a sampled
@@ -1140,6 +1170,13 @@ class BaseDistribution(BaseDistlObject):
             distributions that have <<class>.to_gaussian> methods.
         * `plot_gaussian_kwargs` (dict, optional, default={'color': 'blue'}):
             keyword arguments to send to <<class>.plot_gaussian>.
+        * `plot_uncertainties` (bool or int, optional, default=True): whether
+            to plot uncertainties (as vertical lines) and include the representation
+            of the uncertainties in the plot title.  If an integer, will
+            plot at that `sigma`.  If True, will default to `sigma=1`.  See
+            <<class>.uncertainties>.
+        * `plot_uncertainties_kwargs` (dict, optional, default={'color': 'black', 'linestyle': 'dashed'}):
+            keyword arguments to send to <<class>.plot_uncertainties>.
         * `label` (string, optional, default=None): override the label on the
             x-axis.  If not provided or None, will use <<class>.label>.  Will
             only be used if `show=True`.  Unit will automatically be appended.
@@ -1160,7 +1197,8 @@ class BaseDistribution(BaseDistlObject):
         * tuple: the return values from <<class>.plot_sample> (or None if
             `plot_sample=False`), <<class>.plot_pdf> (or None if `plot_pdf=False`),
             <<class>.plot_cdf> (or None if `plot_cdf=False`),
-            and <Gaussian.plot_pdf> (or None if `plot_gaussian=False`).
+            <Gaussian.plot_pdf> (or None if `plot_gaussian=False`), and
+            <<class>.plot_uncertainties> (or None if `plot_uncertainties=False`).
 
         Raises
         --------
@@ -1232,13 +1270,16 @@ class BaseDistribution(BaseDistlObject):
         else:
             ret_cdf = None
 
+        if plot_uncertainties:
+            ret_uncertainties = self.plot_uncertainties(sigma=plot_uncertainties, **plot_uncertainties_kwargs)
+
         _plt.xlabel(self._xlabel(unit, label=label))
         _plt.ylabel('density')
 
         if show:
             _plt.show()
 
-        return (ret_sample, ret_pdf, ret_cdf, ret_gauss)
+        return (ret_sample, ret_pdf, ret_cdf, ret_gauss, ret_uncertainties)
 
 
     def plot_sample(self, size=100000, unit=None,
@@ -1583,6 +1624,26 @@ class BaseDistribution(BaseDistlObject):
 
         return ret
 
+    def plot_uncertainties(self, sigma=1, show=False, **kwargs):
+        """
+        """
+        if not _has_mpl:
+            raise ImportError("matplotlib required for plotting")
+
+        uncertainties = self.uncertainties(sigma=sigma)
+        label = self.uncertainties(sigma=sigma, tex=True)
+
+        ret = []
+        ret += [_plt.axvline(uncertainties[0], **kwargs)]
+        ret += [_plt.axvline(uncertainties[2], **kwargs)]
+
+        _plt.title(label.as_latex_list[0])
+
+        if show:
+            _plt.show()
+
+        return ret
+
 
 
 class BaseUnivariateDistribution(BaseDistribution):
@@ -1921,7 +1982,7 @@ class BaseUnivariateDistribution(BaseDistribution):
 
         Returns
         ---------
-        * (float or array) ppf values of the same type/shape as `x`
+        * (float or array) ppf values of the same type/shape as `q`
         """
         try:
             ppf = self.dist_constructor_object.ppf(q)
@@ -2333,6 +2394,36 @@ class BaseUnivariateDistribution(BaseDistribution):
         # we call np.asarray so that wrapping and units works on an array object instead of a tuple
         return self._return_with_units(self.wrap(_np.asarray(interval), wrap_at=wrap_at), unit=unit, as_quantity=as_quantity)
 
+    def uncertainties(self, sigma=1, tex=False):
+        """
+        Expose (asymmetric) uncertainties for the distribution(s) at a given
+        value of `sigma`.
+
+        This first determines the appropriate quantiles to pass to
+        <<class>.ppf> using scipy.state.norm.cdf([`-sigma`, `0`, `sigma`])
+        and then formats those into a Latex friendly representation if `tex` is True.
+
+        Arguments
+        -----------
+        * `sigma` (int, optional, default=1): number of standard deviations to
+            expose.
+        * `tex` (bool, optional, default=False): return as a formatted latex
+            string.
+
+        Returns
+        ---------
+        * if not `tex`: a list of triplets where each triplet is lower, median, upper
+        * if `tex`: <Latex> object with <Latex.as_latex> and <Latex.as_string> properties.
+
+        """
+        quantiles = _norm.cdf([-sigma, 0, sigma])
+        qs = self.ppf(quantiles)
+
+        if tex:
+            return _format_uncertainties_asymmetric([self.label], [self.unit], [qs])
+        else:
+            return qs
+
     ### SAMPLING
 
     def sample(self, size=None, unit=None, as_quantity=False, wrap_at=None, seed=None, cache_sample=True):
@@ -2387,57 +2478,6 @@ class BaseUnivariateDistribution(BaseDistribution):
 
         # this causes all sorts of issues as it casts the interpolators to arrays
         # return self._return_with_units(self.wrap(self.dist_constructor_object.rvs(size=size), wrap_at=wrap_at), unit=unit, as_quantity=as_quantity)
-
-    def sample_quantiles(self, quantiles=(0.16, 0.84), samples=None):
-        """
-        Return the values at provided quantiles from the samples via np.percentile.
-
-        See also:
-        * <<class>.sample_uncertainties_formatted>
-
-        Arguments
-        -----------
-        * `quantiles` (tuple, optional, default=(0.16, 0.84)): quantiles
-            to expose.
-        * `samples` (array-type, optional, default=None): samples to use.  If
-            not provided, <<class>.sample> will be called with `size=1e6`.
-
-        Returns
-        ------------
-        * (list)
-        """
-        if samples is None:
-            samples = self.sample(size=int(1e6), cache_sample=False) #, unit=unit, wrap_at=wrap_at)
-
-        return _np.percentile(samples_dim, percentiles)
-
-    def sample_uncertainties_formatted(self, sigma=1, samples=None):
-        """
-        Expose (asymmetric) uncertainties for the distribution(s) at a given
-        value of `sigma`.
-
-        This first determines the appropriate `quantiles` to pass to
-        <<class>.sample_quantiles> using scipy.state.norm.cdf([`-sigma`, `0`, `sigma`])
-        and then formats those into a Latex friendly representation.
-
-        See also:
-        * <<class>.sample_quantiles>
-
-        Arguments
-        -----------
-        * `sigma` (int, optional, default=1): number of standard deviations to
-            expose.
-        * `samples` (array-type, optional, default=None): samples to use.  If
-            not provided, <<class>.sample> will be called with `size=1e6`.
-
-        Returns
-        ---------
-        * <Latex> object with <Latex.as_latex> and <Latex.as_string> properties.
-        """
-        quantiles = _norm.cdf([-sigma, 0, sigma])
-        qs_per_dim = self.sample_quantiles(quantiles, samples=samples)
-
-        return _format_uncertainties(self.labels, self.units, qs_per_dim)
 
 
     ### CONVERSION TO OTHER DISTRIBUTION TYPES
@@ -2811,6 +2851,84 @@ class BaseMultivariateDistribution(BaseDistribution):
         return super(BaseMultivariateDistribution, self).logcdf(x)
 
 
+    def ppf(self, q, samples=None):
+        """
+        Expose the percent point function (ppf; iverse of cdf - percentiles) at
+        values of `q` from a set of `samples`.  If `samples` is not provided
+        or None, <<class>.sample> will be called first with `size=1e6`.
+
+        See also:
+        * <<class>.sample>
+
+        Arguments
+        ----------
+        * `q` (float or array): percentiles at which to expose the ppf
+        * `samples` (array or None, optional, default=None): samples to use
+            to determine the ppf.  If not provided, <<class>.sample> will be
+            called with `size=1e6`.
+
+        Returns
+        ---------
+        * (float or array) ppf values of the same type/shape as `q`
+
+        """
+        if samples is None:
+            samples = self.sample(size=int(1e6), cache_sample=False) #, unit=unit, wrap_at=wrap_at)
+
+        if isinstance(q, list):
+            q = _np.asarray(q)
+
+        percentiles = q * 100
+        return [_np.percentile(samples_dim, percentiles) for samples_dim in samples.T]
+
+    def uncertainties(self, sigma=1, tex=False, dimension=None, samples=None):
+        """
+        Expose (asymmetric) uncertainties for the distribution(s) at a given
+        value of `sigma`.
+
+        This first determines the appropriate quantiles to pass to
+        <<class>.ppf> using scipy.state.norm.cdf([`-sigma`, `0`, `sigma`])
+        and then formats those into a Latex friendly representation if  `tex` is True.
+
+        Arguments
+        -----------
+        * `sigma` (int, optional, default=1): number of standard deviations to
+            expose.
+        * `tex` (bool, optional, default=False): return as a formatted latex
+            string.
+        * `dimension` (int or string, optional, default=None): the label or index
+            of the dimension to use.
+        * `samples` (array-type, optional, default=None): passed to <<class>.ppf>
+            for cases where `samples` are used to determine the ppf (ignored for
+            <MVGaussian>, <MVSamples>)
+
+        Returns
+        ---------
+        * if not `tex`: a list of triplets where each triplet is lower, median, upper
+        * if `tex`: <Latex> object with <Latex.as_latex> and <Latex.as_string> properties.
+
+        """
+        quantiles = _norm.cdf([-sigma, 0, sigma])
+        if self.__class__.__name__ in ['MVGaussian', 'MVSamples']:
+            qs_per_dim = self.ppf(quantiles)
+        else:
+            qs_per_dim = self.ppf(quantiles, samples=samples)
+
+        if dimension is not None:
+            dimension = self._get_dimension_index(dimension)
+
+            qs_per_dim = [qs_per_dim[dimension]]
+            labels = [self.labels[dimension] if self.labels is not None else None]
+            units = [self.units[dimension] if self.units is not None else None]
+
+        else:
+            labels = self.labels
+            units = self.units
+
+        if tex:
+            return _format_uncertainties_asymmetric(labels, units, qs_per_dim)
+        else:
+            return qs_per_dim
 
     def sample(self, size=None, dimension=None, seed=None, cache_sample=True):
         """
@@ -2863,63 +2981,6 @@ class BaseMultivariateDistribution(BaseDistribution):
 
         return l
 
-    def sample_quantiles(self, quantiles=(0.16, 0.84), dimension=None, samples=None):
-        """
-        Return the values at provided quantiles from the samples via np.percentile.
-
-        See also:
-        * <<class>.sample_uncertainties_formatted>
-
-        Arguments
-        -----------
-        * `quantiles` (tuple, optional, default=(0.16, 0.84)): quantiles
-            to expose.
-        * `samples` (array-type, optional, default=None): samples to use.  If
-            not provided, <<class>.sample> will be called with `size=1e6`.
-        """
-        if samples is None:
-            samples = self.sample(size=int(1e6), dimension=dimension, cache_sample=False) #, unit=unit, wrap_at=wrap_at)
-
-
-        if dimension is not None:
-            raise NotImplementedError()
-            return self.slice(dimension).sample_quantiles(quantiles=quantiles, samples=samples)
-
-        return [_np.percentile(samples_dim, percentiles) for samples_dim in samples.T]
-        # return [corner.quantile(samples_dim, quantiles) for samples_dim in samples.T]
-
-    def sample_uncertainties_formatted(self, sigma=1, dimension=None, samples=None):
-        """
-        Expose (asymmetric) uncertainties for the distribution(s) at a given
-        value of `sigma`.
-
-        This first determines the appropriate `quantiles` to pass to
-        <<class>.sample_quantiles> using scipy.state.norm.cdf([`-sigma`, `0`, `sigma`])
-        and then formats those into a Latex friendly representation.
-
-        See also:
-        * <<class>.sample_quantiles>
-
-        Arguments
-        -----------
-        * `sigma` (int, optional, default=1): number of standard deviations to
-            expose.
-        * `samples` (array-type, optional, default=None): samples to use.  If
-            not provided, <<class>.sample> will be called with `size=1e6`.
-
-        Returns
-        ---------
-        * <Latex> object with <Latex.as_latex> and <Latex.as_string> properties.
-        """
-        if dimension is not None:
-            raise NotImplementedError()
-            return self.slice(dimension).sample_uncertainties_formatted(sigma=sigma, samples=samples)
-
-        quantiles = _norm.cdf([-sigma, 0, sigma])
-        qs_per_dim = self.sample_quantiles(quantiles, samples=samples)
-
-        return _format_uncertainties(self.labels, self.units, qs_per_dim)
-
     def plot_sample(self, **kwargs):
         """
 
@@ -2931,23 +2992,13 @@ class BaseMultivariateDistribution(BaseDistribution):
         * `wrap_at`
         * `xlabel`
         * `samples`
-        * `draw_sigmas` (tuple, None, or bool, optional, default=None): if True,
-            will default to (1,2,3).  If False, `quantiles` and `levels` will
-            not be plotted.  If None, `quantiles` and `levels` will be passed
-            directly to [corner.corner](https://corner.readthedocs.io/en/latest/api.html#corner.corner).
-            If provided as a list or tuple, then `quantiles` will be set to the
-            appropriate quantile for the first sigma in the passed list and
-            `levels` will be set to the appropriate 2-D volume levels for each
-            item in the list (see `levels` below).
-        * `quantiles` (tuple or None, optional, default=(0.16, 0.84)): passed
-            to [corner.corner](https://corner.readthedocs.io/en/latest/api.html#corner.corner):
-            "A list of fractional quantiles to show on the 1-D histograms as
-            vertical dashed lines."  Ignored if `draw_sigmas` is not None.
-        * `levels` (tuple or None, optional, default=(1-np.exp(-0.5))): passed
-            to [corner.corner](https://corner.readthedocs.io/en/latest/api.html#corner.corner)
-            see [corner: a note about sigmas](https://corner.readthedocs.io/en/latest/pages/sigmas.html).
-            Ignored if `draw_sigmas` is not None.
-
+        * `plot_uncertainties` (tuple or bool, optional, default=True): if True,
+            will default to (1,2,3).
+            If provided as a list or tuple, then `quantiles` shown in the 1D
+            histograms will be set to the appropriate quantile for the first
+            sigma in the passed list/tuple and will be used for the uncertainties
+            in the axes titles. `levels` will be set to the appropriate 2-D volume levels for each
+            item in the list and used as contours. See <<class>.uncertainties>.
         * `**kwargs`: additional kwargs are passed to [corner.corner](https://corner.readthedocs.io/en/latest/api.html#corner.corner)
         """
         dimension = kwargs.pop('dimension', None)
@@ -2966,6 +3017,7 @@ class BaseMultivariateDistribution(BaseDistribution):
             samples = kwargs.pop('samples', None)
             if samples is None:
                 samples = self.sample(size=int(1e5), dimension=dimension, cache_sample=False) #, unit=unit, wrap_at=wrap_at)
+
             return super(BaseMultivariateDistribution, self).plot_sample(samples=samples, label=label, unit=unit, wrap_at=wrap_at, xlabel=xlabel, **kwargs)
         else:
             # then we need to do a corner plot
@@ -2973,24 +3025,38 @@ class BaseMultivariateDistribution(BaseDistribution):
                 raise ImportError("corner must be installed to plot multivariate distributions.  Either install corner or pass a value to dimension to plot a 1D distribution.")
 
 
-            draw_sigmas = kwargs.pop('draw_sigmas', None)
-            if draw_sigmas:
-                if draw_sigmas is True:
-                    draw_sigmas = [1, 2, 3]
-                if not (isinstance(draw_sigmas, list) or isinstance(draw_sigmas, tuple)):
-                    raise TypeError("draw_sigmas must be of type list")
+            plot_uncertainties = kwargs.pop('plot_uncertainties', True)
+            if plot_uncertainties:
+                if plot_uncertainties is True:
+                    plot_uncertainties = [1, 2, 3]
+                if not (isinstance(plot_uncertainties, list) or isinstance(plot_uncertainties, tuple)):
+                    raise TypeError("plot_uncertainties must be of type list")
 
-                kwargs['quantiles'] = (_norm.cdf(-draw_sigmas[0]), _norm.cdf(draw_sigmas[0]))
-                kwargs['levels'] = [1-_np.exp(-s**2 / 2.) for s in draw_sigmas]
-            elif draw_sigmas is None:
+                kwargs['quantiles'] = (_norm.cdf(-plot_uncertainties[0]), _norm.cdf(plot_uncertainties[0]))
+                kwargs['levels'] = [1-_np.exp(-s**2 / 2.) for s in plot_uncertainties]
+            elif plot_uncertainties is None:
                 kwargs.setdefault('quantiles', (_norm.cdf(-1), _norm.cdf(1)))
                 kwargs.setdefault('levels', [1-_np.exp(-s**2 / 2.) for s in (1,2,3)])
 
-            return corner.corner(self.sample(size=int(1e5), cache_sample=False),
+            fig = corner.corner(self.sample(size=int(1e5), cache_sample=False),
                                  labels=[self._xlabel(dim) for dim in range(self.ndimensions)],
                                  quantiles=kwargs.pop('quantiles', None),
                                  levels=kwargs.pop('levels', None),
                                  **kwargs)
+
+
+            if plot_uncertainties:
+                uncertainties_latex = self.uncertainties(plot_uncertainties[0], tex=True)  # samples=samples
+                uncertainties_latex_per_dim = uncertainties_latex.as_latex_list
+
+                mplaxes = fig.axes
+                for axi, ax in enumerate(mplaxes):
+                    axix = int(axi % _np.sqrt(len(mplaxes)))
+                    axiy = int(axi / _np.sqrt(len(mplaxes)))
+                    if axix == axiy:
+                        ax.set_title(uncertainties_latex_per_dim[axix])
+
+            return fig
 
     def plot(self, **kwargs):
         """
@@ -3226,7 +3292,20 @@ class BaseMultivariateSliceDistribution(BaseUnivariateDistribution):
     ### OVERRIDE SCIPY.STATS FROM UNIVARIATE
 
     def ppf(self, q):
+        """
+        Not supported for multivariate slices.  Translate to a univariate via
+        <<class>.to_univariate> first.
+        """
         raise NotImplementedError("ppf not supported for multivariate slices ({}).  Translate to a univariate via to_univariate() first.".format(self.__class__.__name__))
+
+
+    def uncertainties(self, sigma=1, tex=False):
+        """
+        Expose the uncertainties by calling <<class>.multivariate> and then
+        passing <<class>.dimension>, `sigma` and `tex` to the respective
+        `uncertainties` function.
+        """
+        return self.multivariate.uncertainties(dimension=self.dimension, sigma=sigma, tex=tex)
 
     ### SAMPLING & PLOTTING
 
@@ -3623,6 +3702,82 @@ class DistributionCollection(BaseDistlObject):
         """
         return self._method_on_values('logcdf', 'sum', values, as_univariates)
 
+
+    # def ppf(self, q, samples=None):
+    #     """
+    #     Expose the percent point function (ppf; iverse of cdf - percentiles) at
+    #     values of `q` from a set of `samples`.  If `samples` is not provided
+    #     or None, <<class>.sample> will be called first with `size=1e6`.
+    #
+    #     See also:
+    #     * <<class>.sample>
+    #
+    #     Arguments
+    #     ----------
+    #     * `q` (float or array): percentiles at which to expose the ppf
+    #     * `samples` (array or None, optional, default=None): samples to use
+    #         to determine the ppf.  If not provided, <<class>.sample> will be
+    #         called with `size=1e6`.
+    #
+    #     Returns
+    #     ---------
+    #     * (float or array) ppf values of the same type/shape as `q`
+    #
+    #     """
+    #     if samples is None:
+    #         samples = self.sample(size=int(1e6), cache_sample=False) #, unit=unit, wrap_at=wrap_at)
+    #
+    #     return [_np.percentile(samples_dim, percentiles) for samples_dim in samples.T]
+    #     # for MVSamples/Samples allow weights by calling:
+    #     # return [corner.quantile(samples_dim, quantiles) for samples_dim in samples.T]
+
+    def uncertainties(self, sigma=1, tex=False):
+        """
+        Expose (asymmetric or symmetric) uncertainties for the distribution(s) at a given
+        value of `sigma`.
+
+        This just loops over the individual <DistributionCollection.dists>
+        and calls uncertainties on each.  See:
+
+        * <Composite.uncertainties>
+        * <Delta.uncertainties>
+        * <Function.uncertainties>
+        * <Gaussian.uncertainties>
+        * <Samples.uncertainties>
+        * <Histogram.uncertainties>
+        * <MVGaussian.uncertainties>
+        * <MVHistogram.uncertainties>
+        * <MVSamples.uncertainties>
+
+        Arguments
+        -----------
+        * `sigma` (int, optional, default=1): number of standard deviations to
+            expose.
+        * `tex` (bool, optional, default=False): return as a formatted latex
+            string.
+
+        Returns
+        ---------
+        * if not `tex`: a list of triplets where each triplet is lower, median, upper
+        * if `tex`: <Latex> object with <Latex.as_latex> and <Latex.as_string> properties.
+
+        """
+
+        ret_ = [dist.uncertainties(sigma=sigma, tex=tex) for dist in self.dists]
+
+        if tex:
+            return Latex.from_list(ret_)
+        else:
+            return ret_
+
+        # quantiles = _norm.cdf([-sigma, 0, sigma])
+        # qs_per_dim = self.ppf(quantiles, samples=samples)
+        #
+        # if tex:
+        #     return _format_uncertainties_asymmetric(self.labels, self.units, qs_per_dim)
+        # else:
+        #     return qs_per_dim
+
     def sample(self, *args, **kwargs):
         """
         Sample from multiple distributions with random seeds automatically determined,
@@ -3714,58 +3869,6 @@ class DistributionCollection(BaseDistlObject):
         models = _np.array([func(x, *sample_args[i], **func_kwargs) for i in range(N)])
         return models
 
-    def sample_quantiles(self, quantiles=(0.16, 0.84), samples=None):
-        """
-        Return the values at provided quantiles from the samples via np.percentile.
-
-        See also:
-        * <<class>.sample_uncertainties_formatted>
-
-        Arguments
-        -----------
-        * `quantiles` (tuple, optional, default=(0.16, 0.84)): quantiles
-            to expose.
-        * `samples` (array-type, optional, default=None): samples to use.  If
-            not provided, <<class>.sample> will be called with `size=1e6`.
-
-        Returns
-        ------------
-        * (list)
-        """
-        if samples is None:
-            samples = self.sample(size=int(1e6), cache_sample=False) #, unit=unit, wrap_at=wrap_at)
-
-        return [_np.percentile(samples_dim, percentiles) for samples_dim in samples.T]
-        # return [corner.quantile(samples_dim, quantiles) for samples_dim in samples.T]
-
-    def sample_uncertainties_formatted(self, sigma=1, samples=None):
-        """
-        Expose (asymmetric) uncertainties for the distribution(s) at a given
-        value of `sigma`.
-
-        This first determines the appropriate `quantiles` to pass to
-        <<class>.sample_quantiles> using scipy.state.norm.cdf([`-sigma`, `0`, `sigma`])
-        and then formats those into a Latex friendly representation.
-
-        See also:
-        * <<class>.sample_quantiles>
-
-        Arguments
-        -----------
-        * `sigma` (int, optional, default=1): number of standard deviations to
-            expose.
-        * `samples` (array-type, optional, default=None): samples to use.  If
-            not provided, <<class>.sample> will be called with `size=1e6`.
-
-        Returns
-        ---------
-        * <Latex> object with <Latex.as_latex> and <Latex.as_string> properties.
-        """
-        quantiles = _norm.cdf([-sigma, 0, sigma])
-        qs_per_dim = self.sample_quantiles(quantiles, samples=samples)
-
-        return _format_uncertainties(self.labels, self.units, qs_per_dim)
-
     def plot_sample(self, **kwargs):
         """
 
@@ -3773,22 +3876,13 @@ class DistributionCollection(BaseDistlObject):
         ------------
         * `labels`
         * `range`
-        * `draw_sigmas` (tuple, None, or bool, optional, default=None): if True,
-            will default to (1,2,3).  If False, `quantiles` and `levels` will
-            not be plotted.  If None, `quantiles` and `levels` will be passed
-            directly to [corner.corner](https://corner.readthedocs.io/en/latest/api.html#corner.corner).
-            If provided as a list or tuple, then `quantiles` will be set to the
-            appropriate quantile for the first sigma in the passed list and
-            `levels` will be set to the appropriate 2-D volume levels for each
-            item in the list (see `levels` below).
-        * `quantiles` (tuple or None, optional, default=(0.16, 0.84)): passed
-            to [corner.corner](https://corner.readthedocs.io/en/latest/api.html#corner.corner):
-            "A list of fractional quantiles to show on the 1-D histograms as
-            vertical dashed lines."  Ignored if `draw_sigmas` is not None.
-        * `levels` (tuple or None, optional, default=(1-np.exp(-0.5))): passed
-            to [corner.corner](https://corner.readthedocs.io/en/latest/api.html#corner.corner)
-            see [corner: a note about sigmas](https://corner.readthedocs.io/en/latest/pages/sigmas.html).
-            Ignored if `draw_sigmas` is not None.
+        * `plot_uncertainties` (tuple or bool, optional, default=True): if True,
+            will default to (1,2,3).
+            If provided as a list or tuple, then `quantiles` shown in the 1D
+            histograms will be set to the appropriate quantile for the first
+            sigma in the passed list/tuple and will be used for the uncertainties
+            in the axes titles. `levels` will be set to the appropriate 2-D volume levels for each
+            item in the list and used as contours. See <<class>.uncertainties>.
         * `**kwargs`: additional kwargs are passed to [corner.corner](https://corner.readthedocs.io/en/latest/api.html#corner.corner)
 
 
@@ -3803,25 +3897,41 @@ class DistributionCollection(BaseDistlObject):
             else:
                 return 1.0
 
-        draw_sigmas = kwargs.pop('draw_sigmas', None)
-        if draw_sigmas:
-            if draw_sigmas is True:
-                draw_sigmas = [1, 2, 3]
-            if not (isinstance(draw_sigmas, list) or isinstance(draw_sigmas, tuple)):
-                raise TypeError("draw_sigmas must be of type list")
+        plot_uncertainties = kwargs.pop('plot_uncertainties', True)
+        if plot_uncertainties:
+            if plot_uncertainties is True:
+                plot_uncertainties = [1, 2, 3]
+            if not (isinstance(plot_uncertainties, list) or isinstance(plot_uncertainties, tuple)):
+                raise TypeError("plot_uncertainties must be of type list")
 
-            kwargs['quantiles'] = (_norm.cdf(-draw_sigmas[0]), _norm.cdf(draw_sigmas[0]))
-            kwargs['levels'] = [1-_np.exp(-s**2 / 2.) for s in draw_sigmas]
-        elif draw_sigmas is None:
+            kwargs['quantiles'] = (_norm.cdf(-plot_uncertainties[0]), _norm.cdf(plot_uncertainties[0]))
+            kwargs['levels'] = [1-_np.exp(-s**2 / 2.) for s in plot_uncertainties]
+        elif plot_uncertainties is None:
             kwargs.setdefault('quantiles', (_norm.cdf(-1), _norm.cdf(1)))
             kwargs.setdefault('levels', [1-_np.exp(-s**2 / 2.) for s in (1,2,3)])
 
-        return corner.corner(self.sample(size=int(1e5), cache_sample=False),
+        titles_sigma = kwargs.pop('titles_sigma', False)
+
+        fig = corner.corner(self.sample(size=int(1e5), cache_sample=False),
                              labels=kwargs.pop('labels', [dist._xlabel() for dist in self.dists]),
                              range=kwargs.pop('range', [_range(dist) for dist in self.dists]),
                              quantiles=kwargs.pop('quantiles', None),
                              levels=kwargs.pop('levels', None),
                              **kwargs)
+
+        if plot_uncertainties:
+            uncertainties_latex = self.uncertainties(plot_uncertainties[0], tex=True)  # samples=samples
+            uncertainties_latex_per_dim = uncertainties_latex.as_latex_list
+
+            mplaxes = fig.axes
+            for axi, ax in enumerate(mplaxes):
+                axix = int(axi % _np.sqrt(len(mplaxes)))
+                axiy = int(axi / _np.sqrt(len(mplaxes)))
+                if axix == axiy:
+                    ax.set_title(uncertainties_latex_per_dim[axix])
+
+        return fig
+
 
     def plot(self, **kwargs):
         """
@@ -5123,6 +5233,8 @@ class Samples(BaseUnivariateDistribution):
         ---------
         * (float or array) ppf values of the same type/shape as `x`
         """
+        # TODO: use the following instead if corner is available:
+        # corner.quantile(self.samples, qs, self.weights)
 
         sorted = self.samples.argsort()
         samples_sorted = self.samples[sorted]
@@ -5459,6 +5571,30 @@ class Delta(BaseUnivariateDistribution):
     def __float__(self):
         return self.loc
 
+
+    def uncertainties(self, sigma=1, tex=False):
+        """
+        Expose (zero by default) uncertainties for the distribution(s) at a given
+        value of `sigma`.
+
+        Arguments
+        -----------
+        * `sigma` (int, optional, default=1): number of standard deviations to
+            expose - will still give zero uncertainty!
+        * `tex` (bool, optional, default=False): return as a formatted latex
+            string.
+
+        Returns
+        ---------
+        * if not `tex`: a list of triplets where each triplet is lower, median, upper
+        * if `tex`: <Latex> object with <Latex.as_latex> and <Latex.as_string> properties.
+
+        """
+        if tex:
+            return _format_uncertainties_symmetric([self.label], [self.unit], [self.loc], [0])
+        else:
+            return [self.loc, self.loc, self.loc]
+
     def to_uniform(self):
         """
         Convert the <Delta> distribution to a <Uniform> distribution in which
@@ -5605,6 +5741,31 @@ class Gaussian(BaseUnivariateDistribution):
 
     def __float__(self):
         return self.loc
+
+
+    def uncertainties(self, sigma=1, tex=False):
+        """
+        Expose (symmetric) uncertainties for the distribution(s) at a given
+        value of `sigma` directly from <Gaussian.loc> and <Gaussian.scale>.
+
+        Arguments
+        -----------
+        * `sigma` (int, optional, default=1): number of standard deviations to
+            expose.
+        * `tex` (bool, optional, default=False): return as a formatted latex
+            string.
+
+        Returns
+        ---------
+        * if not `tex`: a list of triplets where each triplet is lower, median, upper
+        * if `tex`: <Latex> object with <Latex.as_latex> and <Latex.as_string> properties.
+
+        """
+        if tex:
+            return _format_uncertainties_symmetric([self.label], [self.unit], [self.loc], [self.scale*sigma])
+        else:
+            return [self.loc-self.scale*sigma, self.loc, self.loc+self.scale*sigma]
+
 
     def to_uniform(self, sigma=1.0):
         """
@@ -5765,6 +5926,33 @@ class Uniform(BaseUnivariateDistribution):
     def __sub__(self, other):
         return self.__add__(-1*other)
 
+
+    def uncertainties(self, sigma=1, tex=False):
+        """
+        Expose (symmetric) uncertainties for the distribution(s) at a given
+        value of `sigma`.
+
+        Arguments
+        -----------
+        * `sigma` (int, optional, default=1): number of standard deviations to
+            expose.
+        * `tex` (bool, optional, default=False): return as a formatted latex
+            string.
+
+        Returns
+        ---------
+        * if not `tex`: a list of triplets where each triplet is lower, median, upper
+        * if `tex`: <Latex> object with <Latex.as_latex> and <Latex.as_string> properties.
+
+        """
+        quantiles = _norm.cdf([-sigma, 0, sigma])
+        qs = self.ppf(quantiles)
+
+        if tex:
+            return _format_uncertainties_symmetric([self.label], [self.label_latex], [self.unit], [qs[1]], [(qs[2]-qs[0])/2.])
+        else:
+            return qs
+
     def to_gaussian(self, sigma=1.0):
         """
         Convert the <Uniform> distribution to a <Gaussian> distribution by
@@ -5871,6 +6059,44 @@ class MVGaussian(BaseMultivariateDistribution):
         * int
         """
         return len(self.mean)
+
+
+    def uncertainties(self, sigma=1, tex=False, dimension=None):
+        """
+        Expose (symmetric) uncertainties for the distribution(s) at a given
+        value of `sigma` directly from <MVGaussian.mean> and <MVGaussian.cov>.
+
+        Arguments
+        -----------
+        * `sigma` (int, optional, default=1): number of standard deviations to
+            expose.
+        * `tex` (bool, optional, default=False): return as a formatted latex
+            string.
+        * `dimension` (int or string, optional, default=None): the label or index
+            of the dimension to use.
+
+        Returns
+        ---------
+        * if not `tex`: a list of triplets where each triplet is lower, median, upper
+        * if `tex`: <Latex> object with <Latex.as_latex> and <Latex.as_string> properties.
+
+        """
+
+        if dimension is None:
+            dimensions = range(self.ndimensions)
+        else:
+            dimensions = [self._get_dimension_index(dimension)]
+
+        if tex:
+            labels = [self.labels[d] if self.labels is not None else None for d in dimensions]
+            units = [self.units[d] if self.units is not None else None for d in dimensions]
+            means = [self.mean[d] for d in dimensions]
+            diagonal = self.cov.diagonal()
+            diagonals = [diagonal[d]*sigma for d in dimensions]
+            return _format_uncertainties_symmetric(labels, units, means, diagonals)
+        else:
+            return [[self.mean[i]-self.cov[i][i]*sigma, self.mean[i], self.mean[i]+self.cov[i][i]*sigma] for i in dimensions]
+
 
     def slice(self, dimension):
         """
@@ -6764,9 +6990,27 @@ class MVSamples(BaseMultivariateDistribution):
     def logcdf(self, *args, **kwargs):
         raise NotImplementedError()
 
-    def ppf(self, *args, **kwargs):
-        # TODO: manual implementation: sum all weights, random value over that range, pick item from list
-        raise NotImplementedError()
+    def ppf(self, q):
+        """
+        Expose the percent point function (ppf; iverse of cdf - percentiles) at
+        values of `q` directly from <MVSamples.samples> and <MVSamples.weights>
+        using [corner.quantile](https://corner.readthedocs.io/en/latest/api.html#corner.quantile).
+
+        See also:
+
+        * <<class>.pdf>
+        * <<class>.cdf>
+        * <<class>.sample>
+
+        Arguments
+        ----------
+        * `q` (float or array): percentiles at which to expose the ppf
+
+        Returns
+        ---------
+        * (float or array) ppf values of the same type/shape as `q`
+        """
+        return _np.asarray([corner.quantile(samples, q, self.weights) for samples in self.samples.T])
 
     def interval(self, *args, **kwargs):
         # TODO: manual implementation
@@ -7041,10 +7285,9 @@ class MVSamplesSlice(BaseMultivariateSliceDistribution):
 
     def ppf(self, q, unit=None, as_quantity=False, wrap_at=None):
         """
-        See <Samples.pff>
+        See <Samples.ppf>
         """
         return Samples(samples=self.samples, weights=self.weights, bw_method=self.bw_method, unit=self.unit).ppf(q, unit=unit, as_quantity=as_quantity, wrap_at=wrap_at)
-
 
     def interval(self, alpha, unit=None, as_quantity=False, wrap_at=None):
         """

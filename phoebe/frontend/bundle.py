@@ -7589,18 +7589,24 @@ class Bundle(ParameterSet):
         ----------
         * matplotlib figure object
         """
-
+        plot_kwargs = {}
+        for k in list(kwargs.keys()):
+            if k in ['plot_uncertainties']:
+                plot_kwargs[k] = kwargs.pop(k)
         dc, _ = self.get_distribution_collection(twig=twig, set_labels=set_labels, keys='uniqueid', parameters=parameters, **kwargs)
         return dc.plot(show=show)
 
     def uncertainties_from_distribution_collection(self, twig=None,
                                                    parameters=None,
-                                                   sigma=1,
+                                                   sigma=1, tex=False,
                                                     **kwargs):
 
         """
         Get (asymmetric) uncertainties for all parameters in a distribution collection
         by first sampling the underlying distribution object(s) 1 million times.
+
+        See [distl.DistributionCollection.uncertainties](https://distl.readthedocs.io/en/latest/api/DistributionCollection.uncertainties/)
+        for more details.
 
         See also:
         * <phoebe.frontend.bundle.Bundle.get_distribution_collection>
@@ -7615,8 +7621,8 @@ class Bundle(ParameterSet):
             a ParameterSet of distribution parameters, or a solution ParameterSet
             that supports multivariate distributions (eg. sampler.emcee or sampler.dynesty).
         * `sigma` (int, optional, default=1): which sigma level to expose.
-            The respective quantiles (using scipy.stats.norm.cdf) of the 1
-            million samples will then be used to format asymmetric uncertainties.
+        * `tex` (bool, optional, default=False): whether to expose a latex
+            formatted string instead of triplets.
         * `combine`: (str, optional) how to combine multiple distributions for the same parameter.
             first: ignore duplicate entries and take the first entry.
             and: combine duplicate entries via AND logic, dropping covariances.
@@ -7653,7 +7659,7 @@ class Bundle(ParameterSet):
         ----------
         * (distl.Latex object): with methods as_string and as_latex
         """
-        return self.get_distribution_collection(twig=twig, parameters=parameters, set_labels=kwargs.pop('set_labels', True), **kwargs)[0].sample_uncertainties_formatted(sigma=sigma)
+        return self.get_distribution_collection(twig=twig, parameters=parameters, set_labels=kwargs.pop('set_labels', True), **kwargs)[0].uncertainties(sigma=sigma, tex=tex)
 
     def calculate_lnp(self, twig=None,
                       **kwargs):

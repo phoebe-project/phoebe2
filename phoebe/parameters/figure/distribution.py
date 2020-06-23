@@ -15,4 +15,6 @@ def distribution_collection(b, **kwargs):
     params += [IntParameter(visible_if='distribution_set:manual,to_uniforms:True', qualifier='to_uniforms_sigma', value=kwargs.get('to_uniforms_sigma', 1), description='Sigma to adopt for non-uniform distributions')]
     params += [BoolParameter(visible_if='distribution_set:manual,to_uniforms:False', qualifier='to_univariates', value=kwargs.get('to_univariates', False), description='Whether to convert any multivariate distribution to univaritates before adding to the collection')]
 
+    params += [IntParameter(qualifier='titles_sigma', value=kwargs.get('titles_sigma', 1), limits=[0, None], description='Sigma to adopt for uncertainties in axes titles (or 0 to disable).')]
+
     return ParameterSet(params)
