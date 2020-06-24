@@ -291,7 +291,7 @@ def _format_uncertainties_asymmetric(labels, labels_latex, units, qs_per_dim):
         unitstr = " "+unit.to_string() if unit is not None else ""
         unittex_spacer = "" if unit is None or unit.physical_type in ['dimensionless', 'angle'] else "~"
         unittex = unittex_spacer + unit._repr_latex_().replace('$', '') if unit is not None else ''
-        stex += "\mathrm{{ {} }} &= {} {}^{{ +{} }}_{{ -{} }} {} \\\\ ".format(label_latex.replace("$", ""), _np.round(qs[1], ndigits), unittex if unit.physical_type in ['angle'] else "", _np.round(qs[2]-qs[1], ndigits), _np.round(qs[1]-qs[0], ndigits), unittex)
+        stex += "\mathrm{{ {} }} &= {}^{{ +{} }}_{{ -{} }} {} \\\\ ".format(label_latex.replace("$", ""), _np.round(qs[1], ndigits), _np.round(qs[2]-qs[1], ndigits), _np.round(qs[1]-qs[0], ndigits), unittex)
         s += "{} = {} +{} -{} {}\n".format(label, _np.round(qs[1], ndigits), _np.round(qs[2]-qs[1], ndigits), _np.round(qs[1]-qs[0], ndigits), unitstr)
 
     return Latex(s, stex)
@@ -322,7 +322,7 @@ def _format_uncertainties_symmetric(labels, labels_latex, units, values_per_dim,
         unitstr = " "+unit.to_string() if unit is not None else ""
         unittex_spacer = "" if unit is None or unit.physical_type in ['dimensionless', 'angle'] else "~"
         unittex = unittex_spacer + unit._repr_latex_().replace('$', '') if unit is not None else ''
-        stex += "\mathrm{{ {} }} &= {} {}\pm{{ {} }} {} \\\\ ".format(label_latex.replace("$", ""), _np.round(value, ndigits), unittex if unit.physical_type in ['angle'] else "", _np.round(sigma, ndigits), unittex)
+        stex += "\mathrm{{ {} }} &= {}\pm{{ {} }} {} \\\\ ".format(label_latex.replace("$", ""), _np.round(value, ndigits), _np.round(sigma, ndigits), unittex)
         s += "{} = {} +/- {} {}\n".format(label, _np.round(value, ndigits), _np.round(sigma, ndigits), unitstr)
 
     return Latex(s, stex)
@@ -1669,7 +1669,7 @@ class BaseDistribution(BaseDistlObject):
         ret += [_plt.axvline(uncertainties[0], **kwargs)]
         ret += [_plt.axvline(uncertainties[2], **kwargs)]
 
-        _plt.title(label.as_latex_list[0])
+        _plt.title(r"$"+label.as_latex_list[0].split("=")[1])
 
         if show:
             _plt.show()
@@ -3136,7 +3136,7 @@ class BaseMultivariateDistribution(BaseDistribution):
                     axix = int(axi % _np.sqrt(len(mplaxes)))
                     axiy = int(axi / _np.sqrt(len(mplaxes)))
                     if axix == axiy:
-                        ax.set_title(uncertainties_latex_per_dim[axix])
+                        ax.set_title("$"+uncertainties_latex_per_dim[axix].split("=")[1])
 
             return fig
 
@@ -4054,7 +4054,7 @@ class DistributionCollection(BaseDistlObject):
                 axix = int(axi % _np.sqrt(len(mplaxes)))
                 axiy = int(axi / _np.sqrt(len(mplaxes)))
                 if axix == axiy:
-                    ax.set_title(uncertainties_latex_per_dim[axix])
+                    ax.set_title("$"+uncertainties_latex_per_dim[axix].split("=")[1])
 
         return fig
 
