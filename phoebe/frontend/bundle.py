@@ -7291,7 +7291,7 @@ class Bundle(ParameterSet):
                         param = self.get_parameter(uniqueid=fitted_uniqueid, **_skip_filter_checks)
                         ret_keys += [getattr(param, keys)]
                         if kwargs.get('return_dc', True):
-                            ret_dists += [_distl.delta(fitted_value, unit=fitted_unit, label=_corner_twig(param))]
+                            ret_dists += [_distl.delta(fitted_value, unit=fitted_unit, label=_corner_twig(param, use_tex=False), label_latex=_corner_twig(param, use_tex=True))]
 
                     # skip all converting?
                     continue
@@ -7300,11 +7300,13 @@ class Bundle(ParameterSet):
                 distributions_convert = solution_ps.get_value(qualifier='distributions_convert', distributions_convert=kwargs.get('distributions_convert', None), **_skip_filter_checks)
                 distributions_bins = solution_ps.get_value(qualifier='distributions_bins', distributions_bins=kwargs.get('distributions_bins', None), **_skip_filter_checks)
 
-                labels = [_corner_twig(self.get_parameter(uniqueid=uniqueid, **_skip_filter_checks)) for uniqueid in adopt_uniqueids]
+                labels = [_corner_twig(self.get_parameter(uniqueid=uniqueid, **_skip_filter_checks), use_tex=False) for uniqueid in adopt_uniqueids]
+                labels_latex = [_corner_twig(self.get_parameter(uniqueid=uniqueid, **_skip_filter_checks), use_tex=True) for uniqueid in adopt_uniqueids]
                 dist_samples = _distl.mvsamples(samples,
                                                 weights=weights,
                                                 units=[u.Unit(unit) for unit in fitted_units[adopt_inds]],
                                                 labels=labels,
+                                                labels_latex=labels_latex,
                                                 wrap_ats=None)
 
                 if distributions_convert == 'mvsamples':
@@ -7368,7 +7370,7 @@ class Bundle(ParameterSet):
 
                     if set_labels:
                         uid_dist_dict[uid].label =  "@".join([getattr(ref_param, k) for k in ['qualifier', 'component', 'dataset'] if getattr(ref_param, k) is not None])
-                        uid_dist_dict[uid].label_latex =  ref_param.latextwig if ref_param._latexfmt is not None else None
+                        uid_dist_dict[uid].label_latex =  ref_param.latextwig.replace("$", "") if ref_param._latexfmt is not None else None
 
             else:
                 raise NotImplementedError("could not parse filter for distribution {}".format(dist_filter))

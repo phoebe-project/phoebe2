@@ -498,7 +498,7 @@ def ecosw(b, orbit, solve_for=None, **kwargs):
     ecosw_def = FloatParameter(qualifier='ecosw', latexfmt=r'e_\mathrm{{ {component} }} \cos \omega_0', value=0.0, default_unit=u.dimensionless_unscaled, limits=(-1.0,1.0), description='Eccentricity times cos of argument of periastron')
     ecosw, created = b.get_or_create('ecosw', ecosw_def, **metawargs)
 
-    esinw_def = FloatParameter(qualifier='esinw', latexfmt=r'e_\mathrm{{ {component} }} \sin \omega 0', value=0.0, default_unit=u.dimensionless_unscaled, limits=(-1.0,1.0), description='Eccentricity times sin of argument of periastron')
+    esinw_def = FloatParameter(qualifier='esinw', latexfmt=r'e_\mathrm{{ {component} }} \sin \omega_0', value=0.0, default_unit=u.dimensionless_unscaled, limits=(-1.0,1.0), description='Eccentricity times sin of argument of periastron')
     esinw, esinw_created = b.get_or_create('esinw', esinw_def, **metawargs)
 
     esinw_constrained = kwargs.get('esinw_constrained', len(esinw.constrained_by) > 0)

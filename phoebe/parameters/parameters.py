@@ -6581,7 +6581,7 @@ class Parameter(object):
                 if d.get('feature', None) is not None:
                     d['feature'] = latex_reprs.get(d.get('feature'), d.get('feature'))
 
-            return self._latexfmt.format(**d)
+            return r'$'+self._latexfmt.format(**d)+'$'
         else:
             return self.uniquetwig
 
@@ -8939,7 +8939,7 @@ class FloatParameter(Parameter):
         if dist.label is None:
             dist.label = '{}@{}'.format(self.qualifier, getattr(self, self.context))
             if self._latexfmt is not None:
-                dist.label_latex = self.latextwig
+                dist.label_latex = self.latextwig.replace("$", "")
 
         return dist
 
@@ -11222,7 +11222,7 @@ class ConstraintParameter(Parameter):
                             return _single_value(dist)
                         else:
                             # will we need to force distribution_uniqueids to be included in the json?
-                            return "distl_from_json('{}')".format(_single_value(dist).to_json())
+                            return "distl_from_json('{}')".format(_single_value(dist).to_json(exclude=['label_latex', 'labels_latex', 'label', 'labels']))
 
                 if var.get_parameter() != self.constrained_parameter:
                     return _single_value(var.get_quantity(t=t), string_safe_arrays)
