@@ -1455,7 +1455,7 @@ def requivsumfrac(b, orbit=None, solve_for=None, **kwargs):
     requivratio_def = FloatParameter(qualifier='requivratio', value=1.0, default_unit=u.dimensionless_unscaled, limits=[0, None], description='ratio between equivalent radii of children stars')
     requivratio, requivratio_created = b.get_or_create('requivratio', requivratio_def, kind='orbit', component=orbit, context='component')
 
-    requivsumfrac_def = FloatParameter(qualifier='requivsumfrac', value=1.0, default_unit=u.dimensionless_unscaled, limits=[0, None], description='sum of fractional equivalent radii of children stars')
+    requivsumfrac_def = FloatParameter(qualifier='requivsumfrac', latexfmt=r'(R_\mathrm{{ equiv, {children0} }} + R_\mathrm{{ equiv, {children1} }}) / a_\mathrm{{ {component} }}', value=1.0, default_unit=u.dimensionless_unscaled, limits=[0, None], description='sum of fractional equivalent radii of children stars')
     requivsumfrac, requivsumfrac_created = b.get_or_create('requivsumfrac', requivsumfrac_def, kind='orbit', component=orbit, context='component')
 
     requivratio_constrained = kwargs.get('requivratio_constrained', len(requivratio.constrained_by) > 0)
