@@ -1141,7 +1141,7 @@ class EmceeBackend(BaseSolverBackend):
         # solution_params += [_parameters.ArrayParameter(qualifier='accepteds', value=[], description='whether each iteration was an accepted move with shape (niters)')]
         solution_params += [_parameters.ArrayParameter(qualifier='acceptance_fractions', value=[], readonly=True, description='fraction of proposed steps that were accepted with shape (nwalkers)')]
 
-        solution_params += [_parameters.IntParameter(qualifier='autocorr_time', value=0, readonly=True, description='measured autocorrelation time')]
+        solution_params += [_parameters.ArrayParameter(qualifier='autocorr_times', value=[], readonly=True, description='measured autocorrelation time with shape (len(fitted_twigs))')]
         solution_params += [_parameters.IntParameter(qualifier='burnin', value=0, limits=(0,1e6), description='burnin to use when adopting/plotting the solution')]
         solution_params += [_parameters.IntParameter(qualifier='thin', value=1, limits=(1,1e6), description='thin to use when adopting/plotting the solution')]
         solution_params += [_parameters.FloatParameter(qualifier='lnprob_cutoff', value=-np.inf, default_unit=u.dimensionless_unscaled, description='lower limit cuttoff on lnproabilities to use when adopting/plotting the solution')]
@@ -1168,6 +1168,7 @@ class EmceeBackend(BaseSolverBackend):
                      {'qualifier': 'samples', 'value': samples},
                      {'qualifier': 'lnprobabilities', 'value': lnprobabilities},
                      {'qualifier': 'acceptance_fractions', 'value': acceptance_fractions},
+                     {'qualifier': 'autocorr_times', 'value': autocorr_times},
                      {'qualifier': 'burnin', 'value': burnin},
                      {'qualifier': 'thin', 'value': thin},
                      {'qualifier': 'progress', 'value': progress}]
@@ -1375,10 +1376,10 @@ class EmceeBackend(BaseSolverBackend):
                     lnprobabilities = sampler.backend.get_log_prob()
                     # accepteds = sampler.backend.accepted
                     acceptance_fractions = sampler.backend.accepted / float(sampler.iteration)
-                    autocorr_time = sampler.backend.get_autocorr_time(quiet=True)
-                    if np.any(~np.isnan(autocorr_time)):
-                        burnin = int(burnin_factor * np.nanmax(autocorr_time))
-                        thin = int(thin_factor * np.nanmin(autocorr_time))
+                    autocorr_times = sampler.backend.get_autocorr_time(quiet=True)
+                    if np.any(~np.isnan(autocorr_times)):
+                        burnin = int(burnin_factor * np.nanmax(autocorr_times))
+                        thin = int(thin_factor * np.nanmin(autocorr_times))
                         if thin==0:
                             thin = 1
                     else:
