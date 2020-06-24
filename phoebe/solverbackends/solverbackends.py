@@ -253,7 +253,7 @@ def _sample_ppf(ppf_values, distributions_list):
 
     return x
 
-def _get_combined_lc(b, datasets, combine, phase_component=None, mask=True, normalize=True, phase_sorted=False):
+def _get_combined_lc(b, datasets, combine, phase_component=None, mask=True, normalize=True, phase_sorted=False, warn_mask=False):
     times = np.array([])
     fluxes = np.array([])
     sigmas = np.array([])
@@ -291,7 +291,8 @@ def _get_combined_lc(b, datasets, combine, phase_component=None, mask=True, norm
         if mask and mask_enabled:
             mask_phases = lc_ps.get_value(qualifier='mask_phases', **_skip_filter_checks)
             if len(mask_phases):
-                logger.warning("applying mask_phases (may not be desired for finding eclipse edges - set mask_enabled=False to disable)")
+                if warn_mask:
+                    logger.warning("applying mask_phases (may not be desired for finding eclipse edges - set mask_enabled=False to disable)")
                 mask_t0 = lc_ps.get_value(qualifier='phases_t0', **_skip_filter_checks)
                 # TODO:
                 phases_for_mask = b.to_phase(ds_times, component=None, t0=mask_t0)
@@ -583,7 +584,7 @@ class Lc_GeometryBackend(BaseSolverBackend):
         lc_combine = kwargs.get('lc_combine')
         orbit = kwargs.get('orbit')
 
-        times, phases, fluxes, sigmas = _get_combined_lc(b, lc_datasets, lc_combine, phase_component=orbit, mask=True, normalize=True, phase_sorted=True)
+        times, phases, fluxes, sigmas = _get_combined_lc(b, lc_datasets, lc_combine, phase_component=orbit, mask=True, normalize=True, phase_sorted=True, warn_mask=True)
 
         orbit_ps = b.get_component(component=orbit, **_skip_filter_checks)
         ecc_param = orbit_ps.get_parameter(qualifier='ecc', **_skip_filter_checks)
