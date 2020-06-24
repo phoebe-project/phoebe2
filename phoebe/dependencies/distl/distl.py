@@ -276,6 +276,18 @@ def _format_uncertainties_asymmetric(labels, labels_latex, units, qs_per_dim):
         # we'll round to 1 significant digits in whichever uncertainty direction has the best precision
         ndigits = int(_np.ceil(_np.max(-1*_np.log10([qs[2]-qs[1], qs[1]-qs[0]]))))
 
+        if isinstance(unit, str):
+            unit = _units.Unit(unit)
+
+        if label_latex is None:
+            label_latex = label
+
+        if label_latex is None:
+            label_latex = ''
+
+        if label is None:
+            label = ''
+
         stex += "\mathrm{{ {} }} &= {} {}{}~ ^{{ +{} }}_{{ -{} }} \\\\ ".format(label_latex.replace("$", ""), _np.round(qs[1], ndigits), "" if unit is None or unit.physical_type in ['dimensionless', 'angle'] else "~", unit._repr_latex_().replace('$', '') if unit is not None else '', _np.round(qs[2]-qs[1], ndigits), _np.round(qs[1]-qs[0], ndigits))
         s += "{} = {}{} +{} -{}\n".format(label, _np.round(qs[1], ndigits), " "+unit.to_string() if unit is not None else "", _np.round(qs[2]-qs[1], ndigits), _np.round(qs[1]-qs[0], ndigits))
 
@@ -291,6 +303,18 @@ def _format_uncertainties_symmetric(labels, labels_latex, units, values_per_dim,
             ndigits = int(-1*_np.log10(value))
         else:
             ndigits = int(_np.ceil(-1*_np.log10(sigma)))
+
+        if isinstance(unit, str):
+            unit = _units.Unit(unit)
+
+        if label_latex is None:
+            label_latex = label
+
+        if label_latex is None:
+            label_latex = ''
+
+        if label is None:
+            label = ''
 
         stex += "\mathrm{{ {} }} &= {} {}{}~ \pm {{ {} }} \\\\ ".format(label_latex.replace("$", ""), _np.round(value, ndigits), "" if unit is None or unit.physical_type in ['dimensionless', 'angle'] else "~", unit._repr_latex_().replace('$', '') if unit is not None else '', _np.round(sigma, ndigits))
         s += "{} = {}{} +/- {}\n".format(label, _np.round(value, ndigits), " "+unit.to_string() if unit is not None else "", _np.round(sigma, ndigits))
@@ -2971,9 +2995,9 @@ class BaseMultivariateDistribution(BaseDistribution):
             units = [self.units[dimension] if self.units is not None else None]
 
         else:
-            labels = self.labels
-            labels_latex = self.labels_latex
-            units = self.units
+            labels = self.labels if self.labels is not None else [None]*len(qs_per_dim)
+            labels_latex = self.labels_latex if self.labels_latex is not None else [None]*len(qs_per_dim)
+            units = self.units if self.units is not None else [None]*len(qs_per_dim)
 
         if tex:
             return _format_uncertainties_asymmetric(labels, labels_latex, units, qs_per_dim)
@@ -3383,7 +3407,11 @@ class BaseMultivariateSliceDistribution(BaseUnivariateDistribution):
         passing <<class>.dimension>, `sigma` and `tex` to the respective
         `uncertainties` function.
         """
-        return self.multivariate.uncertainties(dimension=self.dimension, sigma=sigma, tex=tex)
+        ret_ = self.multivariate.uncertainties(dimension=self.dimension, sigma=sigma, tex=tex)
+        if tex:
+            return ret_
+        else:
+            return ret_[0]
 
     ### SAMPLING & PLOTTING
 
