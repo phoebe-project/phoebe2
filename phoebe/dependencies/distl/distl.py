@@ -288,8 +288,11 @@ def _format_uncertainties_asymmetric(labels, labels_latex, units, qs_per_dim):
         if label is None:
             label = ''
 
-        stex += "\mathrm{{ {} }} &= {} {}{}~ ^{{ +{} }}_{{ -{} }} \\\\ ".format(label_latex.replace("$", ""), _np.round(qs[1], ndigits), "" if unit is None or unit.physical_type in ['dimensionless', 'angle'] else "~", unit._repr_latex_().replace('$', '') if unit is not None else '', _np.round(qs[2]-qs[1], ndigits), _np.round(qs[1]-qs[0], ndigits))
-        s += "{} = {}{} +{} -{}\n".format(label, _np.round(qs[1], ndigits), " "+unit.to_string() if unit is not None else "", _np.round(qs[2]-qs[1], ndigits), _np.round(qs[1]-qs[0], ndigits))
+        unitstr = " "+unit.to_string() if unit is not None else ""
+        unittex_spacer = "" if unit is None or unit.physical_type in ['dimensionless', 'angle'] else "~"
+        unittex = unittex_spacer + unit._repr_latex_().replace('$', '') if unit is not None else ''
+        stex += "\mathrm{{ {} }} &= {} {}^{{ +{} }}_{{ -{} }} {} \\\\ ".format(label_latex.replace("$", ""), _np.round(qs[1], ndigits), unittex if unit.physical_type in ['angle'] else "", _np.round(qs[2]-qs[1], ndigits), _np.round(qs[1]-qs[0], ndigits), unittex)
+        s += "{} = {} +{} -{} {}\n".format(label, _np.round(qs[1], ndigits), _np.round(qs[2]-qs[1], ndigits), _np.round(qs[1]-qs[0], ndigits), unitstr)
 
     return Latex(s, stex)
 
@@ -316,8 +319,11 @@ def _format_uncertainties_symmetric(labels, labels_latex, units, values_per_dim,
         if label is None:
             label = ''
 
-        stex += "\mathrm{{ {} }} &= {} {}{}~ \pm {{ {} }} \\\\ ".format(label_latex.replace("$", ""), _np.round(value, ndigits), "" if unit is None or unit.physical_type in ['dimensionless', 'angle'] else "~", unit._repr_latex_().replace('$', '') if unit is not None else '', _np.round(sigma, ndigits))
-        s += "{} = {}{} +/- {}\n".format(label, _np.round(value, ndigits), " "+unit.to_string() if unit is not None else "", _np.round(sigma, ndigits))
+        unitstr = " "+unit.to_string() if unit is not None else ""
+        unittex_spacer = "" if unit is None or unit.physical_type in ['dimensionless', 'angle'] else "~"
+        unittex = unittex_spacer + unit._repr_latex_().replace('$', '') if unit is not None else ''
+        stex += "\mathrm{{ {} }} &= {} {}\pm{{ {} }} {} \\\\ ".format(label_latex.replace("$", ""), _np.round(value, ndigits), unittex if unit.physical_type in ['angle'] else "", _np.round(sigma, ndigits), unittex)
+        s += "{} = {} +/- {} {}\n".format(label, _np.round(value, ndigits), _np.round(sigma, ndigits), unitstr)
 
     return Latex(s, stex)
 
