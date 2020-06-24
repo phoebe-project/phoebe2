@@ -127,6 +127,7 @@ null
 null
 ],
 "copy_for": false,
+"latexfmt": "R_{{ \\mathrm{{ equiv }}, \\mathrm{{ {component} }} }}",
 "Class": "FloatParameter"
 },
 {
@@ -142,6 +143,7 @@ null
 null
 ],
 "copy_for": false,
+"latexfmt": "R_{{ \\mathrm{{ equiv }}, \\mathrm{{ max }}, \\mathrm{{ {component} }} }}",
 "Class": "FloatParameter"
 },
 {
@@ -158,6 +160,7 @@ null
 ],
 "visible_if": "hierarchy.is_contact_binary:True",
 "copy_for": false,
+"latexfmt": "R_{{ \\mathrm{{ equiv }}, \\mathrm{{ min }}, \\mathrm{{ {component} }} }}",
 "Class": "FloatParameter"
 },
 {
@@ -173,6 +176,7 @@ null
 null
 ],
 "copy_for": false,
+"latexfmt": "T_{{ \\mathrm{{ eff }}, \\mathrm{{ {component} }} }}",
 "Class": "FloatParameter"
 },
 {
@@ -204,6 +208,7 @@ null,
 null
 ],
 "copy_for": false,
+"latexfmt": "\\mathrm{log}g_\\mathrm{{ {component} }}",
 "Class": "FloatParameter"
 },
 {
@@ -220,6 +225,7 @@ null
 ],
 "visible_if": "hierarchy.is_binary:True",
 "copy_for": false,
+"latexfmt": "F_\\mathrm{{ {component} }}",
 "Class": "FloatParameter"
 },
 {
@@ -236,6 +242,7 @@ null
 ],
 "copy_for": false,
 "advanced": true,
+"latexfmt": "P_\\mathrm{{ {component} }}",
 "Class": "FloatParameter"
 },
 {
@@ -252,6 +259,7 @@ null
 ],
 "copy_for": false,
 "advanced": true,
+"latexfmt": "f_\\mathrm{{ {component} }}",
 "Class": "FloatParameter"
 },
 {
@@ -303,6 +311,7 @@ null
 "visible_if": "hierarchy.is_contact_binary:False",
 "copy_for": false,
 "advanced": true,
+"latexfmt": "i_\\mathrm{{ {component} }}",
 "Class": "FloatParameter"
 },
 {
@@ -447,6 +456,7 @@ null,
 null
 ],
 "copy_for": false,
+"latexfmt": "M_\\mathrm{{ {component} }}",
 "Class": "FloatParameter"
 },
 {
@@ -462,6 +472,7 @@ null
 null
 ],
 "copy_for": false,
+"latexfmt": "R_{{ \\mathrm{{ equiv }}, \\mathrm{{ {component} }} }}",
 "Class": "FloatParameter"
 },
 {
@@ -477,6 +488,7 @@ null
 null
 ],
 "copy_for": false,
+"latexfmt": "R_{{ \\mathrm{{ equiv }}, \\mathrm{{ max }}, \\mathrm{{ {component} }} }}",
 "Class": "FloatParameter"
 },
 {
@@ -493,6 +505,7 @@ null
 ],
 "visible_if": "hierarchy.is_contact_binary:True",
 "copy_for": false,
+"latexfmt": "R_{{ \\mathrm{{ equiv }}, \\mathrm{{ min }}, \\mathrm{{ {component} }} }}",
 "Class": "FloatParameter"
 },
 {
@@ -508,6 +521,7 @@ null
 null
 ],
 "copy_for": false,
+"latexfmt": "T_{{ \\mathrm{{ eff }}, \\mathrm{{ {component} }} }}",
 "Class": "FloatParameter"
 },
 {
@@ -539,6 +553,7 @@ null,
 null
 ],
 "copy_for": false,
+"latexfmt": "\\mathrm{log}g_\\mathrm{{ {component} }}",
 "Class": "FloatParameter"
 },
 {
@@ -555,6 +570,7 @@ null
 ],
 "visible_if": "hierarchy.is_binary:True",
 "copy_for": false,
+"latexfmt": "F_\\mathrm{{ {component} }}",
 "Class": "FloatParameter"
 },
 {
@@ -571,6 +587,7 @@ null
 ],
 "copy_for": false,
 "advanced": true,
+"latexfmt": "P_\\mathrm{{ {component} }}",
 "Class": "FloatParameter"
 },
 {
@@ -587,6 +604,7 @@ null
 ],
 "copy_for": false,
 "advanced": true,
+"latexfmt": "f_\\mathrm{{ {component} }}",
 "Class": "FloatParameter"
 },
 {
@@ -638,6 +656,7 @@ null
 "visible_if": "hierarchy.is_contact_binary:False",
 "copy_for": false,
 "advanced": true,
+"latexfmt": "i_\\mathrm{{ {component} }}",
 "Class": "FloatParameter"
 },
 {
@@ -782,6 +801,7 @@ null,
 null
 ],
 "copy_for": false,
+"latexfmt": "M_\\mathrm{{ {component} }}",
 "Class": "FloatParameter"
 },
 {
@@ -797,6 +817,7 @@ null
 null
 ],
 "copy_for": false,
+"latexfmt": "P_\\mathrm{{ {component} }}",
 "Class": "FloatParameter"
 },
 {
@@ -813,6 +834,7 @@ null
 ],
 "copy_for": false,
 "advanced": true,
+"latexfmt": "f_\\mathrm{{ {component} }}",
 "Class": "FloatParameter"
 },
 {
@@ -829,6 +851,7 @@ null
 ],
 "copy_for": false,
 "advanced": true,
+"latexfmt": "\\dot{{P}}_\\mathrm{{ {component} }}",
 "Class": "FloatParameter"
 },
 {
@@ -844,6 +867,7 @@ null,
 null
 ],
 "copy_for": false,
+"latexfmt": "\\omega_{{0, \\mathrm{{ {component} }} }}",
 "Class": "FloatParameter"
 },
 {
@@ -860,6 +884,7 @@ null
 ],
 "copy_for": false,
 "advanced": true,
+"latexfmt": "\\dot{\\omega}_{{0, \\mathrm{{ {component} }}}}",
 "Class": "FloatParameter"
 },
 {
@@ -875,6 +900,7 @@ null
 0.999999
 ],
 "copy_for": false,
+"latexfmt": "e_\\mathrm{{ {component} }}",
 "Class": "FloatParameter"
 },
 {
@@ -890,6 +916,7 @@ null,
 null
 ],
 "copy_for": false,
+"latexfmt": "t_{{0, \\mathrm{{ perpass }}, \\mathrm{{ {component} }}",
 "Class": "FloatParameter"
 },
 {
@@ -905,6 +932,7 @@ null,
 null
 ],
 "copy_for": false,
+"latexfmt": "t_{{0, \\mathrm{{ supconj }}, \\mathrm{{ {component} }}",
 "Class": "FloatParameter"
 },
 {
@@ -920,6 +948,7 @@ null,
 null
 ],
 "copy_for": false,
+"latexfmt": "t_{{0, _\\mathrm{{ ref }}, \\mathrm{{ {component} }}",
 "Class": "FloatParameter"
 },
 {
@@ -951,6 +980,7 @@ null
 180.0
 ],
 "copy_for": false,
+"latexfmt": "i_\\mathrm{{ {component} }}",
 "Class": "FloatParameter"
 },
 {
@@ -966,6 +996,7 @@ null
 null
 ],
 "copy_for": false,
+"latexfmt": "q_\\mathrm{{ {component} }}",
 "Class": "FloatParameter"
 },
 {
@@ -981,6 +1012,7 @@ null
 null
 ],
 "copy_for": false,
+"latexfmt": "a_\\mathrm{{ {component} }}",
 "Class": "FloatParameter"
 },
 {
@@ -996,6 +1028,7 @@ null,
 null
 ],
 "copy_for": false,
+"latexfmt": "\\Omega_\\mathrm{{ {component} }}",
 "Class": "FloatParameter"
 },
 {
@@ -1011,6 +1044,7 @@ null,
 null
 ],
 "copy_for": false,
+"latexfmt": "a_\\mathrm{{ {component} }} \\sin i_\\mathrm{{ {component} }}",
 "Class": "FloatParameter"
 },
 {
@@ -1026,6 +1060,7 @@ null
 1.0
 ],
 "copy_for": false,
+"latexfmt": "e_\\mathrm{{ {component} }} \\cos \\omega_0",
 "Class": "FloatParameter"
 },
 {
@@ -1041,6 +1076,7 @@ null
 1.0
 ],
 "copy_for": false,
+"latexfmt": "e_\\mathrm{{ {component} }} \\sin \\omega 0",
 "Class": "FloatParameter"
 },
 {
@@ -1071,6 +1107,7 @@ null
 1.0
 ],
 "copy_for": false,
+"latexfmt": "\\mathrm{FF}_\\mathrm{{ {component}} }}",
 "Class": "FloatParameter"
 },
 {
@@ -1086,6 +1123,7 @@ null
 null
 ],
 "copy_for": false,
+"latexfmt": "\\Omega_\\mathrm{{ {component}} }}",
 "Class": "FloatParameter"
 },
 {
@@ -1101,6 +1139,7 @@ null
 null
 ],
 "copy_for": false,
+"latexfmt": "\\Omega_\\mathrm{{ min,  {component}} }}",
 "Class": "FloatParameter"
 },
 {
@@ -1116,6 +1155,7 @@ null
 null
 ],
 "copy_for": false,
+"latexfmt": "\\Omega_\\mathrm{{ max, {component}} }}",
 "Class": "FloatParameter"
 },
 {
@@ -1132,6 +1172,7 @@ null
 ],
 "copy_for": false,
 "advanced": true,
+"latexfmt": "a_\\mathrm{{ {component} }}",
 "Class": "FloatParameter"
 },
 {
@@ -1148,6 +1189,7 @@ null
 ],
 "copy_for": false,
 "advanced": true,
+"latexfmt": "a_\\mathrm{{ {component} }} \\sin i_\\mathrm{{ {parent} }}",
 "Class": "FloatParameter"
 },
 {
@@ -1164,6 +1206,7 @@ null
 ],
 "copy_for": false,
 "advanced": true,
+"latexfmt": "a_\\mathrm{{ {component} }}",
 "Class": "FloatParameter"
 },
 {
@@ -1180,6 +1223,7 @@ null
 ],
 "copy_for": false,
 "advanced": true,
+"latexfmt": "a_\\mathrm{{ {component} }} \\sin i_\\mathrm{{ {parent} }}",
 "Class": "FloatParameter"
 },
 {
@@ -2035,8 +2079,8 @@ null
 "choices": [
 "phoenix",
 "extern_atmx",
-"extern_planckint",
 "ck2004",
+"extern_planckint",
 "blackbody"
 ],
 "value": "ck2004",
@@ -2271,8 +2315,8 @@ null
 "choices": [
 "phoenix",
 "extern_atmx",
-"extern_planckint",
 "ck2004",
+"extern_planckint",
 "blackbody"
 ],
 "value": "ck2004",
@@ -2289,8 +2333,8 @@ null
 "choices": [
 "phoenix",
 "extern_atmx",
-"extern_planckint",
 "ck2004",
+"extern_planckint",
 "blackbody"
 ],
 "value": "ck2004",
@@ -2322,6 +2366,16 @@ null
 "visible_if": "default_time_source:manual",
 "copy_for": false,
 "Class": "FloatParameter"
+},
+{
+"qualifier": "latex_repr",
+"component": "primary",
+"kind": "star",
+"context": "figure",
+"description": "Representation to use in place of the component label when rendering latex representations of parameters.  If blank, will use the labels directly.",
+"value": "",
+"copy_for": false,
+"Class": "StringParameter"
 },
 {
 "qualifier": "color",
@@ -2389,6 +2443,16 @@ null
 "Class": "ChoiceParameter"
 },
 {
+"qualifier": "latex_repr",
+"component": "secondary",
+"kind": "star",
+"context": "figure",
+"description": "Representation to use in place of the component label when rendering latex representations of parameters.  If blank, will use the labels directly.",
+"value": "",
+"copy_for": false,
+"Class": "StringParameter"
+},
+{
 "qualifier": "color",
 "component": "secondary",
 "kind": "star",
@@ -2452,6 +2516,26 @@ null
 "value": "dashed",
 "copy_for": false,
 "Class": "ChoiceParameter"
+},
+{
+"qualifier": "latex_repr",
+"component": "binary",
+"kind": "orbit",
+"context": "figure",
+"description": "Representation to use in place of the component label when rendering latex representations of parameters.  If blank, will use the labels directly.",
+"value": "",
+"copy_for": false,
+"Class": "StringParameter"
+},
+{
+"qualifier": "latex_repr",
+"component": "contact_envelope",
+"kind": "envelope",
+"context": "figure",
+"description": "Representation to use in place of the component label when rendering latex representations of parameters.  If blank, will use the labels directly.",
+"value": "",
+"copy_for": false,
+"Class": "StringParameter"
 },
 {
 "qualifier": "phoebe_version",

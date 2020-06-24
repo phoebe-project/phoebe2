@@ -127,6 +127,7 @@ null
 null
 ],
 "copy_for": false,
+"latexfmt": "R_{{ \\mathrm{{ equiv }}, \\mathrm{{ {component} }} }}",
 "Class": "FloatParameter"
 },
 {
@@ -142,6 +143,7 @@ null
 null
 ],
 "copy_for": false,
+"latexfmt": "R_{{ \\mathrm{{ equiv }}, \\mathrm{{ max }}, \\mathrm{{ {component} }} }}",
 "Class": "FloatParameter"
 },
 {
@@ -158,6 +160,7 @@ null
 ],
 "visible_if": "hierarchy.is_contact_binary:True",
 "copy_for": false,
+"latexfmt": "R_{{ \\mathrm{{ equiv }}, \\mathrm{{ min }}, \\mathrm{{ {component} }} }}",
 "Class": "FloatParameter"
 },
 {
@@ -173,6 +176,7 @@ null
 null
 ],
 "copy_for": false,
+"latexfmt": "T_{{ \\mathrm{{ eff }}, \\mathrm{{ {component} }} }}",
 "Class": "FloatParameter"
 },
 {
@@ -204,6 +208,7 @@ null,
 null
 ],
 "copy_for": false,
+"latexfmt": "\\mathrm{log}g_\\mathrm{{ {component} }}",
 "Class": "FloatParameter"
 },
 {
@@ -220,6 +225,7 @@ null
 ],
 "visible_if": "hierarchy.is_binary:True",
 "copy_for": false,
+"latexfmt": "F_\\mathrm{{ {component} }}",
 "Class": "FloatParameter"
 },
 {
@@ -236,6 +242,7 @@ null
 ],
 "copy_for": false,
 "advanced": true,
+"latexfmt": "P_\\mathrm{{ {component} }}",
 "Class": "FloatParameter"
 },
 {
@@ -252,6 +259,7 @@ null
 ],
 "copy_for": false,
 "advanced": true,
+"latexfmt": "f_\\mathrm{{ {component} }}",
 "Class": "FloatParameter"
 },
 {
@@ -303,6 +311,7 @@ null
 "visible_if": "hierarchy.is_contact_binary:False",
 "copy_for": false,
 "advanced": true,
+"latexfmt": "i_\\mathrm{{ {component} }}",
 "Class": "FloatParameter"
 },
 {
@@ -447,6 +456,7 @@ null,
 null
 ],
 "copy_for": false,
+"latexfmt": "M_\\mathrm{{ {component} }}",
 "Class": "FloatParameter"
 },
 {
@@ -786,8 +796,8 @@ null
 "choices": [
 "phoenix",
 "extern_atmx",
-"extern_planckint",
 "ck2004",
+"extern_planckint",
 "blackbody"
 ],
 "value": "ck2004",
@@ -942,8 +952,8 @@ null
 "choices": [
 "phoenix",
 "extern_atmx",
-"extern_planckint",
 "ck2004",
+"extern_planckint",
 "blackbody"
 ],
 "value": "ck2004",
@@ -975,6 +985,16 @@ null
 "visible_if": "default_time_source:manual",
 "copy_for": false,
 "Class": "FloatParameter"
+},
+{
+"qualifier": "latex_repr",
+"component": "starA",
+"kind": "star",
+"context": "figure",
+"description": "Representation to use in place of the component label when rendering latex representations of parameters.  If blank, will use the labels directly.",
+"value": "",
+"copy_for": false,
+"Class": "StringParameter"
 },
 {
 "qualifier": "color",

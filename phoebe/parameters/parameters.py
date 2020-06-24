@@ -170,7 +170,7 @@ _forbidden_labels += ['True', 'False', 'true', 'false', 'None', 'none', 'null']
 # forbid all "methods"
 _forbidden_labels += ['value', 'adjust', 'default_unit',
                       'quantity',
-                      'unit', 'timederiv', 'visible_if', 'description', 'result', 'advanced', 'readonly']
+                      'unit', 'timederiv', 'visible_if', 'description', 'result', 'advanced', 'readonly', 'latexfmt']
 
 # forbid some random things
 _forbidden_labels += ['protomesh', 'pbmesh']
@@ -306,6 +306,7 @@ _forbidden_labels += ['datasets', 'models', 'components', 'contexts',
                       'ecmap_source', 'ecmap',
                       'default_time_source', 'default_time', 'time_source', 'time',
                       'uncover', 'highlight', 'draw_sidebars',
+                      'latex_repr',
                       'legend']
 
 # ? and * used for wildcards in twigs
@@ -3971,7 +3972,9 @@ class ParameterSet(object):
                     logger.warning("assuming you meant '{}error' instead of '{}errors'".format(d,d))
                     kwargs['{}error'.format(d)] = kwargs.pop('{}errors'.format(d))
 
-        def _corner_twig(param):
+        def _corner_twig(param, use_tex=True):
+            if use_tex and param._latexfmt is not None:
+                return param.latextwig
             if param.context == 'system':
                 return param.qualifier
             else:
@@ -5714,6 +5717,8 @@ class Parameter(object):
         self._kind = kwargs.get('kind', None)
         self._context = kwargs.get('context', None)
 
+        self._latexfmt = kwargs.get('latexfmt', None)
+
         # set whether new 'copies' of this parameter need to be created when
         # new objects (body components, not orbits) or datasets are added to
         # the bundle.
@@ -5721,7 +5726,7 @@ class Parameter(object):
 
         self._visible_if = kwargs.get('visible_if', None)
 
-        self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for', 'readonly', 'advanced']
+        self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for', 'readonly', 'advanced', 'latexfmt']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
         # loading from json can result in unicodes instead of strings - this then
@@ -6531,6 +6536,56 @@ class Parameter(object):
         return "@".join([getattr(self, k) for k in _meta_fields_twig if getattr(self, k) is not None])
 
     @property
+    def latexfmt(self):
+        """
+        """
+        return self._latexfmt
+
+    @property
+    def latextwig(self):
+        """
+        The latex representation of the parameter name/tags.  Will default to
+        <phoebe.parameters.uniquetwig> if a latex representation does not exist.
+
+        See also:
+        * <phoebe.parameters.Parameter.qualifier>
+        * <phoebe.parameters.Parameter.uniquetwig>
+        """
+        if self._latexfmt is not None:
+            d = self.meta
+            if d.get('component', None) is not None:
+                parent = self._bundle.hierarchy.get_parent_of(d.get('component'))
+                children = self._bundle.hierarchy.get_children_of(d.get('component'))
+
+                latex_reprs = {}
+                for p in self._bundle.filter(qualifier='latex_repr', context='figure', **_skip_filter_checks).to_list():
+                    if not len(p.get_value()):
+                        continue
+                    if p.component is not None:
+                        latex_reprs[p.component] = p.get_value()
+                    elif p.dataset is not None:
+                        latex_reprs[p.dataset] = p.get_value()
+                    elif p.feature is not None:
+                        latex_reprs[p.feature] = p.get_value()
+
+                if d.get('component', None) is not None:
+                    d['component'] = latex_reprs.get(d.get('component'), d.get('component'))
+                    if parent is not None:
+                        d['parent'] = latex_reprs.get(parent, parent)
+                    for i,child in enumerate(children):
+                        d['children{}'.format(i)] = latex_reprs.get(child, child)
+
+                if d.get('dataset', None) is not None:
+                    d['dataset'] = latex_reprs.get(d.get('dataset'), d.get('dataset'))
+
+                if d.get('feature', None) is not None:
+                    d['feature'] = latex_reprs.get(d.get('feature'), d.get('feature'))
+
+            return self._latexfmt.format(**d)
+        else:
+            return self.uniquetwig
+
+    @property
     def visible_if(self):
         """
         Return the `visible_if` expression for this <phoebe.parameters.Parameter>.
@@ -7197,7 +7252,7 @@ class StringParameter(Parameter):
 
         self.set_value(kwargs.get('value', ''), ignore_readonly=True)
 
-        self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for', 'readonly', 'advanced']
+        self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for', 'readonly', 'advanced', 'latexfmt']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     def get_value(self, **kwargs):
@@ -7271,7 +7326,7 @@ class TwigParameter(Parameter):
 
         self.set_value(kwargs.get('value', ''), ignore_readonly=True)
 
-        self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for', 'readonly', 'advanced']
+        self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for', 'readonly', 'advanced', 'latexfmt']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     def get_parameter(self):
@@ -7361,7 +7416,7 @@ class ChoiceParameter(Parameter):
 
         self.set_value(kwargs.get('value', ''), ignore_readonly=True, allow_not_in_choices=True)
 
-        self._dict_fields_other = ['description', 'choices', 'value', 'visible_if', 'copy_for', 'readonly', 'advanced']
+        self._dict_fields_other = ['description', 'choices', 'value', 'visible_if', 'copy_for', 'readonly', 'advanced', 'latexfmt']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     @property
@@ -7530,7 +7585,7 @@ class SelectParameter(Parameter):
 
         self.set_value(kwargs.get('value', []), ignore_readonly=True)
 
-        self._dict_fields_other = ['description', 'choices', 'value', 'visible_if', 'readonly', 'copy_for']
+        self._dict_fields_other = ['description', 'choices', 'value', 'visible_if', 'readonly', 'copy_for', 'latexfmt']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     @property
@@ -7898,7 +7953,7 @@ class BoolParameter(Parameter):
 
         self.set_value(kwargs.get('value', True), ignore_readonly=True)
 
-        self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for', 'readonly', 'advanced']
+        self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for', 'readonly', 'advanced', 'latexfmt']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     def get_value(self, **kwargs):
@@ -7970,7 +8025,7 @@ class UnitParameter(ChoiceParameter):
         value = self._check_type(value)
         self._value = value
 
-        self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for', 'readonly', 'advanced']
+        self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for', 'readonly', 'advanced', 'latexfmt']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     def _check_type(self, value):
@@ -8049,7 +8104,7 @@ class DictParameter(Parameter):
 
         self.set_value(kwargs.get('value', {}), ignore_readonly=True)
 
-        self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for', 'readonly', 'advanced']
+        self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for', 'readonly', 'advanced', 'latexfmt']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     def get_value(self, **kwargs):
@@ -8117,7 +8172,7 @@ class IntParameter(Parameter):
 
         self.set_value(kwargs.get('value', 1), ignore_readonly=True)
 
-        self._dict_fields_other = ['description', 'value', 'limits', 'visible_if', 'copy_for', 'readonly', 'advanced']
+        self._dict_fields_other = ['description', 'value', 'limits', 'visible_if', 'copy_for', 'readonly', 'advanced', 'latexfmt']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     @property
@@ -8288,7 +8343,7 @@ class DistributionParameter(Parameter):
 
         self.set_value(value, ignore_readonly=True)
 
-        self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for', 'readonly', 'advanced']
+        self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for', 'readonly', 'advanced', 'latexfmt']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     def get_referenced_parameter(self):
@@ -8465,7 +8520,7 @@ class FloatParameter(Parameter):
 
         self.set_value(kwargs.get('value', ''), unit, ignore_readonly=True)
 
-        self._dict_fields_other = ['description', 'value', 'quantity', 'default_unit', 'limits', 'visible_if', 'copy_for', 'readonly', 'advanced'] # TODO: add adjust?  or is that a different subclass?
+        self._dict_fields_other = ['description', 'value', 'quantity', 'default_unit', 'limits', 'visible_if', 'copy_for', 'readonly', 'advanced', 'latexfmt'] # TODO: add adjust?  or is that a different subclass?
         if conf.devel:
             # NOTE: this check will take place when CREATING the parameter,
             # so toggling devel after won't affect whether timederiv is included
@@ -8884,6 +8939,8 @@ class FloatParameter(Parameter):
 
         if dist.label is None:
             dist.label = '{}@{}'.format(self.qualifier, getattr(self, self.context))
+            if self._latexfmt is not None:
+                dist.label_latex = self.latextwig
 
         return dist
 
@@ -9247,7 +9304,7 @@ class FloatArrayParameter(FloatParameter):
 
         # NOTE: default_unit and value handled in FloatParameter.__init__()
 
-        self._dict_fields_other = ['description', 'value', 'default_unit', 'visible_if', 'required_shape', 'copy_for', 'readonly', 'advanced']
+        self._dict_fields_other = ['description', 'value', 'default_unit', 'visible_if', 'required_shape', 'copy_for', 'readonly', 'advanced', 'latexfmt']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     def __repr__(self):
@@ -9658,7 +9715,7 @@ class ArrayParameter(Parameter):
 
         self.set_value(kwargs.get('value', []), ignore_readonly=True)
 
-        self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for', 'readonly', 'advanced']
+        self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for', 'readonly', 'advanced', 'latexfmt']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     def append(self, value):
@@ -10621,7 +10678,7 @@ class ConstraintParameter(Parameter):
         self._in_solar_units = kwargs.get('in_solar_units', False)
         self.set_value(value, ignore_readonly=True)
         self.set_default_unit(default_unit)
-        self._dict_fields_other = ['description', 'value', 'default_unit', 'constraint_func', 'constraint_kwargs', 'constraint_addl_vars', 'in_solar_units', 'readonly', 'advanced']
+        self._dict_fields_other = ['description', 'value', 'default_unit', 'constraint_func', 'constraint_kwargs', 'constraint_addl_vars', 'in_solar_units', 'readonly', 'advanced', 'latexfmt']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     @property
@@ -11468,7 +11525,7 @@ class JobParameter(Parameter):
 
         # TODO: add a description?
 
-        self._dict_fields_other = ['description', 'value', 'server_status', 'location', 'status_method', 'retrieve_method', 'uniqueid', 'readonly', 'advanced']
+        self._dict_fields_other = ['description', 'value', 'server_status', 'location', 'status_method', 'retrieve_method', 'uniqueid', 'readonly', 'advanced', 'latexfmt']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     def __str__(self):

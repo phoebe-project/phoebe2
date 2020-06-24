@@ -231,17 +231,22 @@ def _new_bundle(**kwargs):
 
     return params
 
-def _add_component(b, **kwargs):
+def _add_component(b, kind, **kwargs):
     params = []
 
-    params += [ChoiceParameter(qualifier='color', value=b._mplcolorcyclers.get('component').get(kwargs.get('color', None)), choices=_mplcolors, description='Color to use for figures in which color_source is set to component')]
-    params += [ChoiceParameter(qualifier='marker', value=b._mplmarkercyclers.get('component').get(kwargs.get('marker', None)), choices=['None']+_mplmarkers, description='Marker (datasets only, not models) to use for figures in which marker_source is set to component')]
-    params += [ChoiceParameter(qualifier='linestyle', value=b._mpllinestylecyclers.get('component').get(kwargs.get('linestyle', None)), choices=['None']+_mpllinestyles, description='Linestyle to use for figures in which linestyle_source is set to component')]
+    params += [StringParameter(qualifier='latex_repr', value='', description='Representation to use in place of the component label when rendering latex representations of parameters.  If blank, will use the labels directly.')]
+
+    if kind in ['star']:
+        params += [ChoiceParameter(qualifier='color', value=b._mplcolorcyclers.get('component').get(kwargs.get('color', None)), choices=_mplcolors, description='Color to use for figures in which color_source is set to component')]
+        params += [ChoiceParameter(qualifier='marker', value=b._mplmarkercyclers.get('component').get(kwargs.get('marker', None)), choices=['None']+_mplmarkers, description='Marker (datasets only, not models) to use for figures in which marker_source is set to component')]
+        params += [ChoiceParameter(qualifier='linestyle', value=b._mpllinestylecyclers.get('component').get(kwargs.get('linestyle', None)), choices=['None']+_mpllinestyles, description='Linestyle to use for figures in which linestyle_source is set to component')]
 
     return ParameterSet(params)
 
 def _add_dataset(b, **kwargs):
     params = []
+
+    params += [StringParameter(qualifier='latex_repr', value='', description='Representation to use in place of the dataset label when rendering latex representations of parameters.  If blank, will use the labels directly.')]
 
     params += [ChoiceParameter(qualifier='color', value=b._mplcolorcyclers.get('dataset').get(kwargs.get('color', None)), choices=_mplcolors, description='Color to use for figures in which color_source is set to dataset')]
     params += [ChoiceParameter(qualifier='marker', value=b._mplmarkercyclers.get('dataset').get(kwargs.get('marker', None)), choices=['None']+_mplmarkers, description='Marker (datasets only, not models) to use for figures in which marker_source is set to dataset')]

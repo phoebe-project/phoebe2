@@ -331,9 +331,9 @@ def asini(b, orbit, solve_for=None):
     metawargs.pop('qualifier')
 
     # Now we'll define the parameters in case they don't exist and need to be created
-    sma_def = FloatParameter(qualifier='sma', value=8.0, default_unit=u.solRad, description='Semi major axis')
-    incl_def = FloatParameter(qualifier='incl', value=90.0, default_unit=u.deg, description='Orbital inclination angle')
-    asini_def = FloatParameter(qualifier='asini', value=8.0, default_unit=u.solRad, description='Projected semi major axis')
+    sma_def = FloatParameter(qualifier='sma', latexfmt=r'a_\mathrm{{ {component} }}', value=8.0, default_unit=u.solRad, description='Semi major axis')
+    incl_def = FloatParameter(qualifier='incl', latexfmt=r'a_\mathrm{{ {component} }}', value=90.0, default_unit=u.deg, description='Orbital inclination angle')
+    asini_def = FloatParameter(qualifier='asini', latexfmt=r'a_\mathrm{{ {component} }} \sin i_\mathrm{{ {component} }}', value=8.0, default_unit=u.solRad, description='Projected semi major axis')
 
     # And now call get_or_create on the bundle
     sma, created = b.get_or_create('sma', sma_def, **metawargs)
@@ -399,10 +399,10 @@ def esinw(b, orbit, solve_for=None, **kwargs):
     metawargs = orbit_ps.meta
     metawargs.pop('qualifier')
 
-    esinw_def = FloatParameter(qualifier='esinw', value=0.0, default_unit=u.dimensionless_unscaled, limits=(-1.0,1.0), description='Eccentricity times sin of argument of periastron')
+    esinw_def = FloatParameter(qualifier='esinw', latexfmt=r'e_\mathrm{{ {component} }} \sin \omega_0', value=0.0, default_unit=u.dimensionless_unscaled, limits=(-1.0,1.0), description='Eccentricity times sin of argument of periastron')
     esinw, created = b.get_or_create('esinw', esinw_def, **metawargs)
 
-    ecosw_def = FloatParameter(qualifier='ecosw', value=0.0, default_unit=u.dimensionless_unscaled, limits=(-1.0,1.0), description='Eccentricity times cos of argument of periastron')
+    ecosw_def = FloatParameter(qualifier='ecosw', latexfmt=r'e_\mathrm{{ {component} }} \cos \omega_0', value=0.0, default_unit=u.dimensionless_unscaled, limits=(-1.0,1.0), description='Eccentricity times cos of argument of periastron')
     ecosw, ecosw_created = b.get_or_create('ecosw', ecosw_def, **metawargs)
 
     ecosw_constrained = kwargs.get('ecosw_constrained', len(ecosw.constrained_by) > 0)
@@ -495,10 +495,10 @@ def ecosw(b, orbit, solve_for=None, **kwargs):
     metawargs = orbit_ps.meta
     metawargs.pop('qualifier')
 
-    ecosw_def = FloatParameter(qualifier='ecosw', value=0.0, default_unit=u.dimensionless_unscaled, limits=(-1.0,1.0), description='Eccentricity times cos of argument of periastron')
+    ecosw_def = FloatParameter(qualifier='ecosw', latexfmt=r'e_\mathrm{{ {component} }} \cos \omega_0', value=0.0, default_unit=u.dimensionless_unscaled, limits=(-1.0,1.0), description='Eccentricity times cos of argument of periastron')
     ecosw, created = b.get_or_create('ecosw', ecosw_def, **metawargs)
 
-    esinw_def = FloatParameter(qualifier='esinw', value=0.0, default_unit=u.dimensionless_unscaled, limits=(-1.0,1.0), description='Eccentricity times sin of argument of periastron')
+    esinw_def = FloatParameter(qualifier='esinw', latexfmt=r'e_\mathrm{{ {component} }} \sin \omega 0', value=0.0, default_unit=u.dimensionless_unscaled, limits=(-1.0,1.0), description='Eccentricity times sin of argument of periastron')
     esinw, esinw_created = b.get_or_create('esinw', esinw_def, **metawargs)
 
     esinw_constrained = kwargs.get('esinw_constrained', len(esinw.constrained_by) > 0)
@@ -1097,7 +1097,7 @@ def logg(b, component, solve_for=None, **kwargs):
 
     metawargs = comp_ps.meta
     metawargs.pop('qualifier')
-    logg_def = FloatParameter(qualifier='logg', value=1.0, default_unit=u.dimensionless_unscaled, description='logg at requiv')
+    logg_def = FloatParameter(qualifier='logg', latexfmt=r'\mathrm{log}g_\mathrm{{ {component} }}', value=1.0, default_unit=u.dimensionless_unscaled, description='logg at requiv')
     logg, created = b.get_or_create('logg', logg_def, **metawargs)
 
     G = c.G
@@ -1273,7 +1273,7 @@ def teffratio(b, orbit=None, solve_for=None, **kwargs):
     comp1_ps = b.get_component(component=comp1, **_skip_filter_checks)
     comp2_ps = b.get_component(component=comp2, **_skip_filter_checks)
 
-    teffratio_def = FloatParameter(qualifier='teffratio', value=1.0, default_unit=u.dimensionless_unscaled, limits=[0, None], description='ratio between effective temperatures of children stars')
+    teffratio_def = FloatParameter(qualifier='teffratio',  latexfmt=r'T_\mathrm{{ eff, {children1} }} / T_\mathrm{{ eff, {children0} }}', value=1.0, default_unit=u.dimensionless_unscaled, limits=[0, None], description='ratio between effective temperatures of children stars')
     teffratio, created = b.get_or_create('teffratio', teffratio_def, kind='orbit', component=orbit, context='component')
 
     teff1 = comp1_ps.get_parameter(qualifier='teff', **_skip_filter_checks)
@@ -1349,10 +1349,10 @@ def requivratio(b, orbit=None, solve_for=None, **kwargs):
 
     sma = orbit_ps.get_parameter(qualifier='sma', **_skip_filter_checks)
 
-    requivratio_def = FloatParameter(qualifier='requivratio', value=1.0, default_unit=u.dimensionless_unscaled, limits=[0, None], description='ratio between equivalent radii of children stars')
+    requivratio_def = FloatParameter(qualifier='requivratio', latexfmt=r'R_\mathrm{{ equiv, {children1} }} / R_\mathrm{{ equiv, {children0} }}', value=1.0, default_unit=u.dimensionless_unscaled, limits=[0, None], description='ratio between equivalent radii of children stars')
     requivratio, requivratio_created = b.get_or_create('requivratio', requivratio_def, kind='orbit', component=orbit, context='component')
 
-    requivsumfrac_def = FloatParameter(qualifier='requivsumfrac', value=1.0, default_unit=u.dimensionless_unscaled, limits=[0, None], description='sum of fractional equivalent radii of children stars')
+    requivsumfrac_def = FloatParameter(qualifier='requivsumfrac', latexfmt=r'(R_\mathrm{{ equiv, {children0} }} + R_\mathrm{{ equiv, {children1} }}) / a_\mathrm{{ {component} }}', value=1.0, default_unit=u.dimensionless_unscaled, limits=[0, None], description='sum of fractional equivalent radii of children stars')
     requivsumfrac, requivsumfrac_created = b.get_or_create('requivsumfrac', requivsumfrac_def, kind='orbit', component=orbit, context='component')
 
     requivsumfrac_constrained = kwargs.get('requivsumfrac_constrained', len(requivsumfrac.constrained_by) > 0)
@@ -1727,7 +1727,7 @@ def comp_sma(b, component, solve_for=None, **kwargs):
 
     metawargs = component_ps.meta
     metawargs.pop('qualifier')
-    compsma_def = FloatParameter(qualifier='sma', value=4.0, default_unit=u.solRad, advanced=True, description='Semi major axis of the component in the orbit')
+    compsma_def = FloatParameter(qualifier='sma', latexfmt=r'a_\mathrm{{ {component} }}', value=4.0, default_unit=u.solRad, advanced=True, description='Semi major axis of the component in the orbit')
     compsma, created = b.get_or_create('sma', compsma_def, **metawargs)
 
     sma = parentorbit_ps.get_parameter(qualifier='sma', **_skip_filter_checks)
@@ -1805,7 +1805,7 @@ def comp_asini(b, component, solve_for=None, **kwargs):
 
     metawargs = component_ps.meta
     metawargs.pop('qualifier')
-    compasini_def = FloatParameter(qualifier='asini', value=4.0, default_unit=u.solRad, advanced=True, description='Projected semi major axis of the component in the orbit')
+    compasini_def = FloatParameter(qualifier='asini', latexfmt=r'a_\mathrm{{ {component} }} \sin i_\mathrm{{ {parent} }}',  value=4.0, default_unit=u.solRad, advanced=True, description='Projected semi major axis of the component in the orbit')
     compasini, created = b.get_or_create('asini', compasini_def, **metawargs)
 
     sma = parentorbit_ps.get_parameter(qualifier='sma', **_skip_filter_checks)

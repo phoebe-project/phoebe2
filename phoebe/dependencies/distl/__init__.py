@@ -13,7 +13,7 @@ else:
 
 name = 'distl'
 
-def delta(value=0.0, unit=None, label=None, wrap_at=None):
+def delta(value=0.0, unit=None, label=None, label_latex=None, wrap_at=None):
     """
     Create a <Delta> distribution.
 
@@ -22,8 +22,10 @@ def delta(value=0.0, unit=None, label=None, wrap_at=None):
     * `value` (float or int, default=0.0): the value at which the delta function is True.
     * `unit` (astropy.units object, optional): the units of the provided values.
     * `label` (string, optional): a label for the distribution.  This is used
-        for the x-label while plotting the distribution, as well as a shorthand
-        notation when creating a <Composite> distribution.
+        for the x-label while plotting the distribution if `label_latex` is not provided,
+        as well as a shorthand notation when creating a <Composite> distribution.
+    * `label_latex` (string, optional): a latex label for the distribution.  This is used
+        for the x-label while plotting.
     * `wrap_at` (float or False or None, optional, default=None): value to wrap all
         sampled values.  If None, will default to 0-2pi if `unit` is angular
         (0-360 for degrees), or 0-1 if `unit` is cycles.  If False, will not wrap.
@@ -33,10 +35,10 @@ def delta(value=0.0, unit=None, label=None, wrap_at=None):
     --------
     * a <Delta> object
     """
-    return _distl.Delta(value, unit=unit, label=label, wrap_at=wrap_at)
+    return _distl.Delta(value, unit=unit, label=label, label_latex=label_latex, wrap_at=wrap_at)
 
 
-def uniform(low=0.0, high=1.0, unit=None, label=None, wrap_at=None):
+def uniform(low=0.0, high=1.0, unit=None, label=None, label_latex=None, wrap_at=None):
     """
     Create a <Uniform> distribution.
 
@@ -48,8 +50,10 @@ def uniform(low=0.0, high=1.0, unit=None, label=None, wrap_at=None):
         is provided as angular (rad, deg, cycles).
     * `unit` (astropy.units object, optional): the units of the provided values.
     * `label` (string, optional): a label for the distribution.  This is used
-        for the x-label while plotting the distribution, as well as a shorthand
-        notation when creating a <Composite> distribution.
+        for the x-label while plotting the distribution if `label_latex` is not provided,
+        as well as a shorthand notation when creating a <Composite> distribution.
+    * `label_latex` (string, optional): a latex label for the distribution.  This is used
+        for the x-label while plotting.
     * `wrap_at` (float or False or None, optional, default=None): value to wrap all
         sampled values.  If None, will default to 0-2pi if `unit` is angular
         (0-360 for degrees), or 0-1 if `unit` is cycles.  If False, will not wrap.
@@ -59,16 +63,16 @@ def uniform(low=0.0, high=1.0, unit=None, label=None, wrap_at=None):
     --------
     * a <Uniform> object
     """
-    return _distl.Uniform(low, high, unit=unit, label=label, wrap_at=wrap_at)
+    return _distl.Uniform(low, high, unit=unit, label=label, label_latex=label_latex, wrap_at=wrap_at)
 
-def boxcar(low=0.0, high=1.0, unit=None, label=None, wrap_at=None):
+def boxcar(low=0.0, high=1.0, unit=None, label=None, label_latex=None, wrap_at=None):
     """
     Shortcut to <distl.uniform>.
     """
-    return _distl.Uniform(low, high, unit=unit, label=label, wrap_at=wrap_at)
+    return _distl.Uniform(low, high, unit=unit, label=label, label_latex=label_latex, wrap_at=wrap_at)
 
 
-def gaussian(loc=0.0, scale=1.0, unit=None, label=None, wrap_at=None):
+def gaussian(loc=0.0, scale=1.0, unit=None, label=None, label_latex=None, wrap_at=None):
     """
     Create a <Gaussian> distribution.
 
@@ -78,8 +82,10 @@ def gaussian(loc=0.0, scale=1.0, unit=None, label=None, wrap_at=None):
     * `scale` (float or int, default=1.0): the scale (sigma) of the gaussian distribution.
     * `unit` (astropy.units object, optional): the units of the provided values.
     * `label` (string, optional): a label for the distribution.  This is used
-        for the x-label while plotting the distribution, as well as a shorthand
-        notation when creating a <Composite> distribution.
+        for the x-label while plotting the distribution if `label_latex` is not provided,
+        as well as a shorthand notation when creating a <Composite> distribution.
+    * `label_latex` (string, optional): a latex label for the distribution.  This is used
+        for the x-label while plotting.
     * `wrap_at` (float or False or None, optional, default=None): value to wrap all
         sampled values.  If None, will default to 0-2pi if `unit` is angular
         (0-360 for degrees), or 0-1 if `unit` is cycles.  If False, will not wrap.
@@ -89,15 +95,15 @@ def gaussian(loc=0.0, scale=1.0, unit=None, label=None, wrap_at=None):
     --------
     * a <Gaussian> object
     """
-    return _distl.Gaussian(loc, scale, unit=unit, label=label, wrap_at=wrap_at)
+    return _distl.Gaussian(loc, scale, unit=unit, label=label, label_latex=label_latex, wrap_at=wrap_at)
 
-def normal(loc=0.0, scale=1.0, unit=None, label=None, wrap_at=None):
+def normal(loc=0.0, scale=1.0, unit=None, label=None, label_latex=None, wrap_at=None):
     """
     Shortcut to <distl.gaussian>.
     """
-    return _distl.Gaussian(loc, scale, unit=unit, label=label, wrap_at=wrap_at)
+    return _distl.Gaussian(loc, scale, unit=unit, label=label, label_latex=label_latex, wrap_at=wrap_at)
 
-def histogram_from_bins(bins, density, unit=None, label=None, wrap_at=None):
+def histogram_from_bins(bins, density, unit=None, label=None, label_latex=None, wrap_at=None):
     """
     Create a <Histogram> distribution from binned data.
 
@@ -113,8 +119,10 @@ def histogram_from_bins(bins, density, unit=None, label=None, wrap_at=None):
         less entry than `bins`.
     * `unit` (astropy.units object, optional): the units of the provided values.
     * `label` (string, optional): a label for the distribution.  This is used
-        for the x-label while plotting the distribution, as well as a shorthand
-        notation when creating a <Composite> distribution.
+        for the x-label while plotting the distribution if `label_latex` is not provided,
+        as well as a shorthand notation when creating a <Composite> distribution.
+    * `label_latex` (string, optional): a latex label for the distribution.  This is used
+        for the x-label while plotting.
     * `wrap_at` (float or False or None, optional, default=None): value to wrap all
         sampled values.  If None, will default to 0-2pi if `unit` is angular
         (0-360 for degrees), or 0-1 if `unit` is cycles.  If False, will not wrap.
@@ -124,9 +132,9 @@ def histogram_from_bins(bins, density, unit=None, label=None, wrap_at=None):
     --------
     * a <Histogram> object
     """
-    return _distl.Histogram(bins, density, unit=unit, label=label, wrap_at=wrap_at)
+    return _distl.Histogram(bins, density, unit=unit, label=label, label_latex=label_latex, wrap_at=wrap_at)
 
-def histogram_from_data(data, bins=10, range=None, weights=None, unit=None, label=None, wrap_at=None):
+def histogram_from_data(data, bins=10, range=None, weights=None, unit=None, label=None, label_latex=None, wrap_at=None):
     """
     Create a <Histogram> distribution from data.
 
@@ -139,8 +147,10 @@ def histogram_from_data(data, bins=10, range=None, weights=None, unit=None, labe
     * `data` (np.array object): 1D array of values.
     * `unit` (astropy.units object, optional): the units of the provided values.
     * `label` (string, optional): a label for the distribution.  This is used
-        for the x-label while plotting the distribution, as well as a shorthand
-        notation when creating a <Composite> distribution.
+        for the x-label while plotting the distribution if `label_latex` is not provided,
+        as well as a shorthand notation when creating a <Composite> distribution.
+    * `label_latex` (string, optional): a latex label for the distribution.  This is used
+        for the x-label while plotting.
     * `wrap_at` (float or False or None, optional, default=None): value to wrap all
         sampled values.  If None, will default to 0-2pi if `unit` is angular
         (0-360 for degrees), or 0-1 if `unit` is cycles.  If False, will not wrap.
@@ -152,70 +162,72 @@ def histogram_from_data(data, bins=10, range=None, weights=None, unit=None, labe
     """
 
     return _distl.Histogram.from_data(data, bins=bins, range=range,
-                                        weights=weights, unit=unit, label=label,
+                                        weights=weights, unit=unit,
+                                        label=label, label_latex=label_latex,
                                         wrap_at=wrap_at)
 
-def samples(samples, weights=None, bw_method=None, unit=None, label=None, wrap_at=None):
+def samples(samples, weights=None, bw_method=None, unit=None, label=None, label_latex=None, wrap_at=None):
     """
     Create a <Samples> distribution.
     """
     return _distl.Samples(samples, weights, bw_method,
-                         unit=unit, label=label, wrap_at=wrap_at)
+                         unit=unit, label=label, label_latex=label_latex,
+                         wrap_at=wrap_at)
 
 
-def function(func, args=[], kwargs={}, vectorized=True, hist_samples=None, unit=None, label=None, wrap_at=None):
+def function(func, args=[], kwargs={}, vectorized=True, hist_samples=None, unit=None, label=None, label_latex=None, wrap_at=None):
     """
     Create a <Function> distribution.
     """
     return _distl.Function(func, args, kwargs, vectorized, hist_samples,
-                           unit=unit, label=label, wrap_at=wrap_at)
+                           unit=unit, label=label, label_latex=label_latex, wrap_at=wrap_at)
 
 
 #### MULTIVARIATE DISTRIBUTJIONS ####
 
 def mvgaussian(mean, cov, allow_singular=False,
-               units=None, labels=None, wrap_ats=None):
+               units=None, labels=None, labels_latex=None, wrap_ats=None):
     """
     Create a <MVGaussian> distribution.
 
     """
     return _distl.MVGaussian(mean, cov, allow_singular=allow_singular,
-                             units=units, labels=labels, wrap_ats=wrap_ats)
+                             units=units, labels=labels, labels_latex=labels_latex, wrap_ats=wrap_ats)
 
 def mvhistogram_from_data(data, bins=10, range=None, weights=None,
-                          units=None, labels=None, wrap_ats=None):
+                          units=None, labels=None, labels_latex=None, wrap_ats=None):
     """
     """
     return _distl.MVHistogram.from_data(data, bins=bins, range=range, weights=weights,
-                                        units=units, labels=labels, wrap_ats=wrap_ats)
+                                        units=units, labels=labels, labels_latex=labels_latex, wrap_ats=wrap_ats)
 
 
 def mvsamples(samples, weights=None, bw_method=None,
-              units=None, labels=None, wrap_ats=None):
+              units=None, labels=None, labels_latex=None, wrap_ats=None):
     """
     Create a <MVSamples> distribution.
     """
-    return _distl.MVSamples(samples, weights, bw_method, units=units, labels=labels, wrap_ats=wrap_ats)
+    return _distl.MVSamples(samples, weights, bw_method, units=units, labels=labels, labels_latex=labels_latex, wrap_ats=wrap_ats)
 
 #### GENERATORS ####
 def gaussian_around(scale,
-                    unit=None, label=None, wrap_at=None):
+                    unit=None, label=None, label_latex=None, wrap_at=None):
     """
     Create a <Gaussian_Around> distribution.
     """
 
-    return _distl.Gaussian_Around(scale, unit, label, wrap_at)
+    return _distl.Gaussian_Around(scale, unit, label, label_latex, wrap_at)
 
 def uniform_around(width,
-                   unit=None, label=None, wrap_at=None):
+                   unit=None, label=None, label_latex=None, wrap_at=None):
     """
     Create a <Uniform_Around> distribution.
     """
 
-    return _distl.Uniform_Around(width, unit, label, wrap_at)
+    return _distl.Uniform_Around(width, unit, label, label_latex, wrap_at)
 
-def delta_around(unit=None, label=None, wrap_at=None):
+def delta_around(unit=None, label=None, label_latex=None, wrap_at=None):
     """
     Create a <Delta_Around> distribution.
     """
-    return _distl.Delta_Around(unit, label, wrap_at)
+    return _distl.Delta_Around(unit, label, label_latex, wrap_at)

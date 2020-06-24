@@ -107,7 +107,9 @@ def _get_add_func(mod, func, return_none_if_not_found=False):
                          .format(mod, func))
 
 
-def _corner_twig(param):
+def _corner_twig(param, use_tex=True):
+    if use_tex and param._latexfmt is not None:
+        return param.latextwig
     if param.context == 'system':
         return param.qualifier
     else:
@@ -4953,13 +4955,12 @@ class Bundle(ParameterSet):
             self.add_constraint(*constraint)
 
         # Figure options for this dataset
-        if kind in ['star']:
-            fig_params = _figure._add_component(self, **kwargs)
+        fig_params = _figure._add_component(self, kind=kind, **kwargs)
 
-            fig_metawargs = {'context': 'figure',
-                             'kind': kind,
-                             'component': kwargs['component']}
-            self._attach_params(fig_params, **fig_metawargs)
+        fig_metawargs = {'context': 'figure',
+                         'kind': kind,
+                         'component': kwargs['component']}
+        self._attach_params(fig_params, **fig_metawargs)
 
 
         # TODO: include figure params in returned PS?
@@ -7367,6 +7368,7 @@ class Bundle(ParameterSet):
 
                     if set_labels:
                         uid_dist_dict[uid].label =  "@".join([getattr(ref_param, k) for k in ['qualifier', 'component', 'dataset'] if getattr(ref_param, k) is not None])
+                        uid_dist_dict[uid].label_latex =  ref_param.latextwig if ref_param._latexfmt is not None else None
 
             else:
                 raise NotImplementedError("could not parse filter for distribution {}".format(dist_filter))
@@ -7594,7 +7596,7 @@ class Bundle(ParameterSet):
             if k in ['plot_uncertainties']:
                 plot_kwargs[k] = kwargs.pop(k)
         dc, _ = self.get_distribution_collection(twig=twig, set_labels=set_labels, keys='uniqueid', parameters=parameters, **kwargs)
-        return dc.plot(show=show)
+        return dc.plot(show=show, **plot_kwargs)
 
     def uncertainties_from_distribution_collection(self, twig=None,
                                                    parameters=None,
@@ -9396,7 +9398,7 @@ class Bundle(ParameterSet):
         exclude_solutions = [sol for sol in self.solutions if sol not in sample_from]
         # we need to include uniqueids if needing to apply the solution during sample_from
         incl_uniqueid = len(exclude_solutions) != len(self.solutions)
-        f.write("bdict = json.loads(\"\"\"{}\"\"\", object_pairs_hook=phoebe.utils.parse_json)\n".format(json.dumps(self.exclude(context=exclude_contexts, **_skip_filter_checks).exclude(distribution=exclude_distributions, **_skip_filter_checks).exclude(solution=exclude_solutions, **_skip_filter_checks).to_json(incl_uniqueid=incl_uniqueid, exclude=['description', 'advanced', 'readonly', 'copy_for']))))
+        f.write("bdict = json.loads(\"\"\"{}\"\"\", object_pairs_hook=phoebe.utils.parse_json)\n".format(json.dumps(self.exclude(context=exclude_contexts, **_skip_filter_checks).exclude(distribution=exclude_distributions, **_skip_filter_checks).exclude(solution=exclude_solutions, **_skip_filter_checks).to_json(incl_uniqueid=incl_uniqueid, exclude=['description', 'advanced', 'readonly', 'copy_for', 'latexfmt']))))
         f.write("b = phoebe.open(bdict, import_from_older={})\n".format(import_from_older))
         # TODO: make sure this works with multiple computes
         compute_kwargs = list(kwargs.items())+[('compute', compute), ('model', str(model)), ('dataset', dataset), ('do_create_fig_params', do_create_fig_params)]
@@ -10619,7 +10621,7 @@ class Bundle(ParameterSet):
         else:
             b = self
 
-        f.write("bdict = json.loads(\"\"\"{}\"\"\", object_pairs_hook=phoebe.utils.parse_json)\n".format(json.dumps(b.exclude(context=exclude_contexts, **_skip_filter_checks).exclude(solution=exclude_solutions, **_skip_filter_checks).to_json(incl_uniqueid=True, exclude=['description', 'advanced', 'readonly', 'copy_for']))))
+        f.write("bdict = json.loads(\"\"\"{}\"\"\", object_pairs_hook=phoebe.utils.parse_json)\n".format(json.dumps(b.exclude(context=exclude_contexts, **_skip_filter_checks).exclude(solution=exclude_solutions, **_skip_filter_checks).to_json(incl_uniqueid=True, exclude=['description', 'advanced', 'readonly', 'copy_for', 'latexfmt']))))
         f.write("b = phoebe.open(bdict, import_from_older={})\n".format(import_from_older))
         solver_kwargs = list(kwargs.items())+[('solver', solver), ('solution', str(solution))]
         solver_kwargs_string = ','.join(["{}={}".format(k,"\'{}\'".format(str(v)) if isinstance(v, str) else v) for k,v in solver_kwargs])

@@ -207,7 +207,7 @@ def lc(syn=False, as_ps=True, is_lc=True, **kwargs):
         params += [ChoiceParameter(qualifier='solver_times', value=kwargs.get('solver_times', 'auto'), choices=['auto', 'compute_times', 'times'], description='times to use within run_solver.  All options will properly account for masking from mask_times.  auto: use compute_times if provided and shorter than times, otherwise use times.  compute_times: use compute_times if provided.  times: use times array.')]
 
         params += [FloatArrayParameter(qualifier='sigmas', value=_empty_array(kwargs, 'sigmas'), required_shape=[None], default_unit=u.W/u.m**2, description='Observed uncertainty on flux')]
-        params += [FloatParameter(qualifier='sigmas_lnf', visible_if='sigmas:<notempty>', value=kwargs.get('sigmas_lnf', -np.inf), default_unit=u.dimensionless_unscaled, limits=(None, None), description='Natural log of the fractional amount to sigmas are underestimate (when calculating chi2/lnlikelihood)')]
+        params += [FloatParameter(qualifier='sigmas_lnf', latexfmt=r'\sigma_\mathrm{{ lnf, {dataset} }}', visible_if='sigmas:<notempty>', value=kwargs.get('sigmas_lnf', -np.inf), default_unit=u.dimensionless_unscaled, limits=(None, None), description='Natural log of the fractional amount to sigmas are underestimate (when calculating chi2/lnlikelihood)')]
 
         params += [ChoiceParameter(qualifier='pblum_mode', value=kwargs.get('pblum_mode', 'component-coupled'),
                                    choices=['decoupled', 'component-coupled', 'dataset-coupled', 'dataset-scaled', 'absolute'],
@@ -215,7 +215,7 @@ def lc(syn=False, as_ps=True, is_lc=True, **kwargs):
 
         # pblum_mode = 'component-coupled' or 'decoupled'
         params += [ChoiceParameter(visible_if='pblum_mode:component-coupled', qualifier='pblum_component', value=kwargs.get('pblum_component', ''), choices=kwargs.get('starrefs', ['']), advanced=True, description='Which component\'s pblum will be provided')]
-        params += [FloatParameter(qualifier='pblum', visible_if='[component]pblum_mode:decoupled||[component]pblum_mode:component-coupled,[component]pblum_component:<component>', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=kwargs.get('pblum', 4*np.pi), default_unit=u.W, description='Passband luminosity (defined at t0)')]
+        params += [FloatParameter(qualifier='pblum', latexfmt=r'L_\mathrm{{ pb, {dataset} }}', visible_if='[component]pblum_mode:decoupled||[component]pblum_mode:component-coupled,[component]pblum_component:<component>', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=kwargs.get('pblum', 4*np.pi), default_unit=u.W, description='Passband luminosity (defined at t0)')]
 
         # pblum_mode = 'dataset-coupled'
         params += [ChoiceParameter(visible_if='pblum_mode:dataset-coupled', qualifier='pblum_dataset', value=kwargs.get('pblum_dataset', ''), choices=['']+kwargs.get('lcrefs', []), description='Dataset with which to couple luminosities based on color')]
@@ -224,8 +224,8 @@ def lc(syn=False, as_ps=True, is_lc=True, **kwargs):
         params += [FloatParameter(visible_if='false', qualifier='pbflux', value=kwargs.get('pbflux', 1.0), default_unit=u.W/u.m**2, description='Total inrinsic (excluding features and irradiation) passband flux (at t0, including l3 if pblum_mode=\'flux\')')]
 
         params += [ChoiceParameter(qualifier='l3_mode', value=kwargs.get('l3_mode', 'flux'), choices=['flux', 'fraction'], description='Whether third light is given in units of flux or as a fraction of total light')]
-        params += [FloatParameter(visible_if='l3_mode:flux', qualifier='l3', value=kwargs.get('l3', 0.), limits=[0, None], default_unit=u.W/u.m**2, description='Third light in flux units')]
-        params += [FloatParameter(visible_if='l3_mode:fraction', qualifier='l3_frac', value=kwargs.get('l3_frac', 0.), limits=[0, 1], default_unit=u.dimensionless_unscaled, description='Third light as a fraction of total flux (both system and third light)')]
+        params += [FloatParameter(visible_if='l3_mode:flux', qualifier='l3', latexfmt=r'l_\mathrm{{ 3, {dataset} }}', value=kwargs.get('l3', 0.), limits=[0, None], default_unit=u.W/u.m**2, description='Third light in flux units')]
+        params += [FloatParameter(visible_if='l3_mode:fraction', qualifier='l3_frac', latexfmt=r'l_\mathrm{{ 3, frac, {dataset} }}', value=kwargs.get('l3_frac', 0.), limits=[0, 1], default_unit=u.dimensionless_unscaled, description='Third light as a fraction of total flux (both system and third light)')]
 
         params += [FloatParameter(qualifier='exptime', value=kwargs.get('exptime', 0.0), default_unit=u.s, description='Exposure time (time is defined as mid-exposure)')]
 
@@ -306,7 +306,7 @@ def rv(syn=False, as_ps=True, **kwargs):
 
     if not syn:
         params += [FloatArrayParameter(qualifier='sigmas', visible_if='times:<notempty>', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=_empty_array(kwargs, 'sigmas'), required_shape=None, default_unit=u.km/u.s, description='Observed uncertainty on rv')]
-        params += [FloatParameter(qualifier='sigmas_lnf', visible_if='sigmas:<notempty>', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=kwargs.get('sigmas_lnf', -np.inf), default_unit=u.dimensionless_unscaled, limits=(None,None), description='Natural log of the fractional amount to sigmas are underestimate (when calculating chi2/lnlikelihood)')]
+        params += [FloatParameter(qualifier='sigmas_lnf', latexfmt=r'\sigma_\mathrm{{ lnf, {dataset} }}', visible_if='sigmas:<notempty>', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=kwargs.get('sigmas_lnf', -np.inf), default_unit=u.dimensionless_unscaled, limits=(None,None), description='Natural log of the fractional amount to sigmas are underestimate (when calculating chi2/lnlikelihood)')]
 
         params += [FloatParameter(qualifier='rv_offset', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=kwargs.get('rv_offset', 0.0), default_unit=u.km/u.s, description='Per-component offset to add to synthetic RVs (i.e. for hot stars)')]
 
@@ -434,7 +434,7 @@ def lp(syn=False, as_ps=True, **kwargs):
 
         if not syn:
             params += [FloatArrayParameter(qualifier='sigmas', visible_if='[time]wavelengths:<notempty>', copy_for={'kind': ['star', 'orbit'], 'component': '*'}, component='_default', time=time, value=_empty_array(kwargs, 'sigmas'), required_shape=[None], default_unit=u.W/(u.m**2*u.nm), description='Observed uncertainty on flux_densities')]
-            params += [FloatParameter(qualifier='sigmas_lnf', visible_if='[time]sigmas:<notempty>', copy_for={'kind': ['star', 'orbit'], 'component': '*'}, component='_default', time=time, value=kwargs.get('sigmas_lnf', -np.inf), default_unit=u.dimensionless_unscaled, limits=(None, None), description='Natural log of the fractional amount to sigmas are underestimate (when calculating chi2/lnlikelihood)')]
+            params += [FloatParameter(qualifier='sigmas_lnf',  latexfmt=r'\sigma_\mathrm{{ lnf, {dataset} }}', visible_if='[time]sigmas:<notempty>', copy_for={'kind': ['star', 'orbit'], 'component': '*'}, component='_default', time=time, value=kwargs.get('sigmas_lnf', -np.inf), default_unit=u.dimensionless_unscaled, limits=(None, None), description='Natural log of the fractional amount to sigmas are underestimate (when calculating chi2/lnlikelihood)')]
 
     if not syn:
         params += [FloatArrayParameter(qualifier='compute_times', value=kwargs.get('compute_times', []), required_shape=[None], default_unit=u.d, description='Times to use during run_compute.  If empty, will use times of individual entries.  Note that interpolation is not currently supported for lp datasets.')]
