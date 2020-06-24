@@ -537,9 +537,22 @@ def info():
         if StrictVersion(client_version) < StrictVersion('1.0.0'):
             client_warning = 'client still in development'
 
+
+    info = app._includeinfo
+    if app._maxcomputations or app._disable_solvers:
+        msgs = []
+        if app._maxcomputations:
+            msgs += ['limits run_compute jobs to {} time points'.format(app._maxcomputations)]
+        if app._disable_solvers:
+            msgs += ['does not allow running optimizers/samplers']
+        if len(info):
+            info += "  "
+        info += 'This server '+ ' and '.join(msgs)+'.'
+
     return _get_response({'success': True, 'phoebe_version': phoebe.__version__, 'parentid': app._parent,
                           'client_min_version': '0.1.0',
                           'client_warning': client_warning,
+                          'info': info,
                           'nclients': len(app._clients), 'clients': app._clients,
                           'nbundles': len(app._bundles.keys()), 'clients_per_bundle': app._clients_per_bundle, 'last_access_per_bundle': app._last_access_per_bundle,
                           'available_kinds': _available_kinds,
@@ -1816,6 +1829,7 @@ if __name__ == "__main__":
     parser.add_argument('--secret', help='secret key to allow killing the process from an API call (default: None)', default=None)
     parser.add_argument('--maxcomputations', help='number of maximum timepoints to allow in run_compute calls.  If 0 (default), no limit will be set.', default=0)
     parser.add_argument('--disablesolvers', help='disable optimizers/samplers (estimators will still be allowed)', action='store_true', default=False)
+    parser.add_argument('--includeinfo', help='include string in the expose information to the client (maxcomputations and disable solvers included by default)', default='')
     parser.add_argument('--verbose', help='print verbose messages', action='store_true', default=False)
     parser.add_argument('--debug', help='debug mode - raise errors directly', action='store_true', default=False)
 
@@ -1824,8 +1838,10 @@ if __name__ == "__main__":
     app._parent = args.parent
     app._secret = args.secret
 
-    app._maxcomputations = args.maxcomputations
+    app._maxcomputations = int(float(args.maxcomputations))
     app._disable_solvers = args.disablesolvers
+    app._includeinfo = args.includeinfo
+
     if args.disablesolvers:
         app._allowed_solver_kinds = [s.split('.')[-1] for s in phoebe.list_available_solvers() if s.split('.')[0] not in ['optimizer', 'sampler']]
     else:
