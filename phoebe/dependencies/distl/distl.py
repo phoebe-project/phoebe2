@@ -1296,6 +1296,8 @@ class BaseDistribution(BaseDistlObject):
 
         if plot_uncertainties:
             ret_uncertainties = self.plot_uncertainties(sigma=plot_uncertainties, **plot_uncertainties_kwargs)
+        else:
+            ret_uncertainties = None
 
         _plt.xlabel(self._xlabel(unit, label=label))
         _plt.ylabel('density')
@@ -4236,6 +4238,12 @@ class Composite(BaseUnivariateDistribution):
                 if dists[0].unit is None:
                     # trig always gives unitless
                     self.unit = _units.dimensionless_unscaled
+                elif math in ['sin', 'cos', 'tan', 'log', 'log10']:
+                    self.unit = _units.dimensionless_unscaled
+                elif math in ['arcsin', 'arccos', 'arctan']:
+                    self.unit = _units.rad
+                else:
+                    raise NotImplementedError("units for math={} not implemented".format(math))
             elif _np.all([d.unit is not None for d in dists]):
                 if math in ['__add__', '__sub__', '__and__', '__or__']:
                     # all units must match
@@ -4244,9 +4252,7 @@ class Composite(BaseUnivariateDistribution):
                     else:
                         # TODO: if they're convertible, we should handle the scaling automatically?
                         raise ValueError("units do not match for {} operator".format(math))
-                elif math in ['sin', 'cos', 'tan']:
-                    self.unit = _units.dimensionless_unscaled
-                elif math in ['arcsin', 'arccos', 'arctan', 'arctan2']:
+                elif math in ['arctan2']:
                     self.unit = _units.rad
                 elif hasattr(dists[0].unit, math):
                     self.unit = recursive_math(math, [d.unit for d in dists])
