@@ -706,6 +706,11 @@ def save_bundle(bundleid):
 
     resp = _get_bundle_json(bundleid, do_jsonify=True)
 
+    app._log_per_bundle[bundleid].add_logitem(parent='b',
+                                              redo_func='save',
+                                              redo_kwargs={'filename': '{}.bundle'.format(bundleid)},
+                                              clientid=clientid)
+
     resp.headers.set('Content-Type', 'text/json')
     resp.headers.set('Content-Disposition', 'attachment', filename='{}.bundle'.format(bundleid))
 
