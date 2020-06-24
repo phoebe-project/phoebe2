@@ -4244,7 +4244,11 @@ class Composite(BaseUnivariateDistribution):
                     self.unit = _units.rad
                 else:
                     raise NotImplementedError("units for math={} not implemented".format(math))
-            elif _np.all([d.unit is not None for d in dists]):
+            elif _np.all([d.unit is not None or (isinstance(d, Delta) and math=='__mul__') for d in dists]):
+                for d in dists:
+                    if d.unit is None:
+                        d.unit = _units.dimensionless_unscaled
+
                 if math in ['__add__', '__sub__', '__and__', '__or__']:
                     # all units must match
                     if _np.all([d.unit==dists[0].unit for d in dists]):
