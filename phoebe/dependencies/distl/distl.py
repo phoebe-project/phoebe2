@@ -2575,7 +2575,9 @@ class BaseUnivariateDistribution(BaseDistribution):
             raise TypeError("loc must be a float or one of 'median', 'mean', 'sample'")
 
         return Delta(loc=loc,
-                     unit=self.unit, label=self.label, wrap_at=self.wrap_at)
+                     unit=self.unit,
+                     label=self.label, label_latex=self._label_latex,
+                     wrap_at=self.wrap_at)
 
     def to_histogram(self, N=100000, bins=10, range=None, wrap_at=None):
         """
@@ -2602,7 +2604,9 @@ class BaseUnivariateDistribution(BaseDistribution):
         """
         return Histogram.from_data(self.sample(size=N, wrap_at=False, cache_sample=False),
                                    bins=bins, range=range,
-                                   unit=self.unit, label=self.label, wrap_at=wrap_at if wrap_at is not None else self.wrap_at)
+                                   unit=self.unit,
+                                   label=self.label, label_latex=self._label_latex,
+                                   wrap_at=wrap_at if wrap_at is not None else self.wrap_at)
 
     def to_samples(self, N=100000, wrap_at=None):
         """
@@ -2624,7 +2628,9 @@ class BaseUnivariateDistribution(BaseDistribution):
         * a <Histogram> object
         """
         return Samples(self.sample(size=N, wrap_at=False, cache_sample=False),
-                       unit=self.unit, label=self.label, wrap_at=wrap_at if wrap_at is not None else self.wrap_at)
+                       unit=self.unit,
+                       label=self.label, label_latex=self._label_latex,
+                       wrap_at=wrap_at if wrap_at is not None else self.wrap_at)
 
 
 class BaseMultivariateDistribution(BaseDistribution):
@@ -5202,7 +5208,9 @@ class Histogram(BaseUnivariateDistribution):
         * a <Gaussian> object
         """
         dco = self.dist_constructor_object
-        return Gaussian(dco.median(), dco.std(), label=self.label, unit=self.unit, wrap_at=self.wrap_at)
+        return Gaussian(dco.median(), dco.std(),
+                        label=self.label, label_latex=self._label_latex,
+                        unit=self.unit, wrap_at=self.wrap_at)
 
     def to_uniform(self, sigma=1.0):
         """
@@ -5344,7 +5352,9 @@ class Samples(BaseUnivariateDistribution):
         range = (self.samples.min(), self.samples.max())
         hist, bin_edges = _np.histogram(self.samples, weights=self.weights, bins=bins, range=range, density=True)
 
-        return Histogram(bin_edges, hist, label=self.label, unit=self.unit, wrap_at=wrap_at if wrap_at is not None else self.wrap_at)
+        return Histogram(bin_edges, hist,
+                         label=self.label, label_latex=self._label_latex,
+                         unit=self.unit, wrap_at=wrap_at if wrap_at is not None else self.wrap_at)
 
     def to_gaussian(self):
         """
@@ -5355,7 +5365,9 @@ class Samples(BaseUnivariateDistribution):
         --------
         * a <Gaussian> object
         """
-        return Gaussian(self.median(), self.std(), label=self.label, unit=self.unit, wrap_at=self.wrap_at)
+        return Gaussian(self.median(), self.std(),
+                        label=self.label, label_latex=self._label_latex,
+                        unit=self.unit, wrap_at=self.wrap_at)
 
     def to_uniform(self, sigma=1.0):
         """
@@ -5791,7 +5803,9 @@ class Delta(BaseUnivariateDistribution):
         """
         low = self.loc
         high = self.loc
-        return Uniform(low, high, label=self.label, unit=self.unit, wrap_at=self.wrap_at)
+        return Uniform(low, high,
+                       label=self.label, label_latex=self._label_latex,
+                       unit=self.unit, wrap_at=self.wrap_at)
 
     def to_gaussian(self):
         """
@@ -5807,7 +5821,9 @@ class Delta(BaseUnivariateDistribution):
         --------
         * a <Gaussian> object
         """
-        return Gaussian(self.loc, 0.0, label=self.label, unit=self.unit, wrap_at=self.wrap_at)
+        return Gaussian(self.loc, 0.0,
+                        label=self.label, label_latex=self._label_latex,
+                        unit=self.unit, wrap_at=self.wrap_at)
 
 
 class Gaussian(BaseUnivariateDistribution):
@@ -5972,7 +5988,9 @@ class Gaussian(BaseUnivariateDistribution):
         """
         low = self.loc - self.scale * sigma
         high = self.loc + self.scale * sigma
-        return Uniform(low, high, label=self.label, unit=self.unit, wrap_at=self.wrap_at)
+        return Uniform(low, high,
+                       label=self.label, label_latex=self._label_latex,
+                       unit=self.unit, wrap_at=self.wrap_at)
 
 
 class Uniform(BaseUnivariateDistribution):
@@ -6160,7 +6178,9 @@ class Uniform(BaseUnivariateDistribution):
         """
         loc = self.median()
         scale = (self.high - self.low) / (2.0 * sigma)
-        return Gaussian(loc, scale, unit=self.unit, label=self.label, wrap_at=self.wrap_at)
+        return Gaussian(loc, scale, unit=self.unit,
+                        label=self.label, label_latex=self._label_latex,
+                        wrap_at=self.wrap_at)
 
 ######################### MULTIVARIATE DISTRIBUTIONS ###########################
 
@@ -6374,7 +6394,9 @@ class MVGaussian(BaseMultivariateDistribution):
         # TODO: if sample is updated to take wrap_at/wrap_ats... pass wrap_at=False here
         return MVHistogram.from_data(self.sample(size=int(N), cache_sample=False),
                                      bins=bins, range=range,
-                                     units=self.units, labels=self.labels, wrap_ats=self.wrap_ats)
+                                     units=self.units,
+                                     labels=self.labels, labels_latex=self._labels_latex,
+                                     wrap_ats=self.wrap_ats)
 
     def to_mvsamples(self, N=1e6):
         """
@@ -6396,7 +6418,9 @@ class MVGaussian(BaseMultivariateDistribution):
         """
         # TODO: if sample is updated to take wrap_at/wrap_ats... pass wrap_at=False here
         return MVSamples(self.sample(size=int(N), cache_sample=False),
-                         units=self.units, labels=self.labels, wrap_ats=self.wrap_ats)
+                         units=self.units,
+                         labels=self.labels, labels_latex=self._labels_latex,
+                         wrap_ats=self.wrap_ats)
 
     def to_univariate(self, dimension):
         """
@@ -6422,6 +6446,7 @@ class MVGaussian(BaseMultivariateDistribution):
         return Gaussian(loc=self.mean[dimension], scale=_np.sqrt(self.cov[dimension, dimension]),
                          unit=self.units[dimension] if self.units is not None else None,
                          label=self.labels[dimension] if self.labels is not None else None,
+                         label_latex=self._labels_latex[dimension] if self._labels_latex is not None else None,
                          wrap_at=self.wrap_ats[dimension] if self.wrap_ats is not None else None)
 
     def to_histogram(self, dimension, N=100000, bins=10, range=None, wrap_at=None):
@@ -6873,7 +6898,9 @@ class MVHistogram(BaseMultivariateDistribution):
         """
         # TODO: if sample is updated to take wrap_at/wrap_ats... pass wrap_at=False here
         return MVSamples(self.sample(size=int(N), cache_sample=False),
-                         units=self.units, labels=self.labels, wrap_ats=self.wrap_ats)
+                         units=self.units,
+                         labels=self.labels, labels_latex=self._labels_latex,
+                         wrap_ats=self.wrap_ats)
 
     def to_mvgaussian(self, N=1e5, allow_singular=False):
         """
@@ -6897,7 +6924,9 @@ class MVHistogram(BaseMultivariateDistribution):
         """
         mean, cov = self.calculate_means_covariances(N)
         return MVGaussian(mean, cov, allow_singular=allow_singular,
-                          units=self.units, labels=self.labels, wrap_ats=self.wrap_ats)
+                          units=self.units,
+                          labels=self.labels, labels_latex=self._labels_latex,
+                          wrap_ats=self.wrap_ats)
 
     def to_univariate(self, dimension):
         """
@@ -6927,6 +6956,7 @@ class MVHistogram(BaseMultivariateDistribution):
         return Histogram(bins=bins_flat, density=density_flat,
                          unit=self.units[dimension] if self.units is not None else None,
                          label=self.labels[dimension] if self.labels is not None else None,
+                         label_latex=self._labels_latex[dimension] if self._labels_latex is not None else None,
                          wrap_at=self.wrap_ats[dimension] if self.wrap_ats is not None else None)
 
     def to_samples(self, dimension, N=100000, wrap_at=None):
@@ -7370,6 +7400,7 @@ class MVSamples(BaseMultivariateDistribution):
                        bw_method=self.bw_method,
                        unit=self.units[dimension] if self.units is not None else None,
                        label=self.labels[dimension] if self.labels is not None else None,
+                       label_latex=self._labels_latex[dimension] if self._labels_latex is not None else None,
                        wrap_at=self._wrap_ats[dimension] if self.wrap_ats is not None else None)
 
 
@@ -7394,7 +7425,9 @@ class MVSamples(BaseMultivariateDistribution):
         """
         mean, cov = self.calculate_means_covariances()
         return MVGaussian(mean, cov, allow_singular=allow_singular,
-                          units=self.units, labels=self.labels, wrap_ats=self.wrap_ats)
+                          units=self.units,
+                          labels=self.labels, labels_latex=self._labels_latex,
+                          wrap_ats=self.wrap_ats)
 
     def to_mvhistogram(self, N=1e6, bins=15, range=None):
         """
@@ -7419,7 +7452,9 @@ class MVSamples(BaseMultivariateDistribution):
         # TODO: if sample is updated to take wrap_at/wrap_ats... pass wrap_at=False here
         return MVHistogram.from_data(self.sample(size=int(N), cache_sample=False),
                                      bins=bins, range=range,
-                                     units=self.units, labels=self.labels, wrap_ats=self.wrap_ats)
+                                     units=self.units,
+                                     labels=self.labels, labels_latex=self._labels_latex,
+                                     wrap_ats=self.wrap_ats)
 
     def to_histogram(self, dimension):
         """
