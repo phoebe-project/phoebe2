@@ -1776,8 +1776,6 @@ class ParameterSet(object):
         else:
             querystr = ""
 
-        querystr += "&advanced=['is_advanced','is_single','is_constraint']"
-
         was_client = self._bundle.is_client
 
         # let's handle some defaults.
@@ -1806,6 +1804,11 @@ class ParameterSet(object):
             else:
                 full_ui = len(self._filter.items()) == 0
 
+        if len(self._filter.items()) or not full_ui:
+            # then we want to make sure we're not filtering out things that should be in the filter
+            # but if we're launching the full_ui UNFILTERED, then default to as if it were opened
+            querystr += "&advanced=['is_advanced','is_single','is_constraint']"
+
         # and now disable the passed action from the parent method if full_ui
         # is (still) true
         action = action if not full_ui else None
@@ -1817,7 +1820,7 @@ class ParameterSet(object):
 
         # TODO: expose options for advanced filters (or include everything by default)
 
-        if web_client or is_jupyter:
+        if web_client or (is_jupyter and not full_ui):
             if not web_client:
                 # then we want to launch the UI inline.  We can't do this from
                 # the installed client directly, BUT since the server is on
@@ -1974,7 +1977,8 @@ class ParameterSet(object):
         * `full_ui` (bool, optional, default=None): whether to show the entire
             bundle or just the filtered ParameterSet.  If not provided, will
             default to True if acting on the Bundle, or False if acting on
-            a filtered ParameterSet.
+            a filtered ParameterSet.  If in Jupyter, will default to False
+            always, and override to True will launch the full client (not in-line)
         * `blocking` (bool, optional, default=None): whether the clal to the
             UI should be blocking (wait for the client to close/disconnect)
             before continuing the python-thread or not.  If not provided or
