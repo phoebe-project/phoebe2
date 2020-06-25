@@ -7584,6 +7584,13 @@ class Bundle(ParameterSet):
             constraints).  An error may be raised if any matching parameters
             are not included in the original DistributionCollection or available
             through propagated constraints.
+        * `plot_uncertainties` (bool or list, optional, default=True): whether
+            to plot uncertainties (as contours on 2D plots, vertical lines
+            on histograms, and in the axes titles).  If True, defaults to `[1,2,3]`.
+            The first value in the list is used for the histogram and title,
+            with the full list being passed to the 2D contours.  So to plot
+            1-, 2-, and 3-sigma uncertainties in the contours but quote 3-sigma
+            uncertainties in the title and histograms, pass `[3,1,2]`.
         * `show` (boolean, optional, default=False): whether to call show on the
             resulting figure object
         * `**kwargs`: all additional keyword arguments are passed directly to
