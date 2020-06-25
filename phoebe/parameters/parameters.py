@@ -1907,6 +1907,7 @@ class ParameterSet(object):
             # then we're attaching the UI to an already existing instance on an already running server
             cmd += ' -s {} -b {}'.format(self._bundle.is_client.strip('http://'), self._bundle._bundleid)
             cmd += ' --skip-child-server'
+            cmd += ' --disable-bundle-change'
 
             if querystr:
                 cmd += ' -f \"{}\"'.format(querystr.replace(' ', ''))
