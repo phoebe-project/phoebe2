@@ -1,5 +1,9 @@
 #!/usr/bin/python
 
+# NOTE: when installed via setup.py, the shebang above /should/ update to the
+# instance of Python used for the installation:
+# https://docs.python.org/3/distutils/setupscript.html#installing-scripts
+
 """
 pip install flask
 pip install flask-cors
