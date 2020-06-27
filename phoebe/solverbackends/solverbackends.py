@@ -599,7 +599,7 @@ class Lc_GeometryBackend(BaseSolverBackend):
         eclipse_dict = lc_geometry.compute_eclipse_params(phases, fluxes, sigmas, fit_result=fit_result, diagnose=diagnose)
 
         edges = eclipse_dict.get('eclipse_edges')
-        mask_phases = [(edges[0], edges[1]), (edges[2], edges[3])]
+        mask_phases = [(edges[0]-eclipse_dict.get('primary_width')*0.3, edges[1]+eclipse_dict.get('primary_width')*0.3), (edges[2]-eclipse_dict.get('secondary_width')*0.3, edges[3]+eclipse_dict.get('secondary_width')*0.3)]
 
         # TODO: update to use widths as well (or alternate based on ecc?)
         ecc, per0 = lc_geometry.ecc_w_from_geometry(eclipse_dict.get('secondary_position') - eclipse_dict.get('primary_position'), eclipse_dict.get('primary_width'), eclipse_dict.get('secondary_width'))
