@@ -20,8 +20,8 @@ def smooth_rv(rvdata):
     if rvdata is None:
         return None
 
-    win_len = int(len(rvdata))/5
-    win_len = int(win_len + 1) if win_len%2 == 0 else int(win_len)
+    win_len = int(len(rvdata)/5)
+    win_len = int(win_len + 1) if int(win_len)%2 == 0 else int(win_len)
     win_len = 5 if win_len <= 3 else win_len
     poly_ord = 3
     rv_smooth = savgol_filter(rvdata[:,1], window_length=win_len, polyorder=poly_ord)
