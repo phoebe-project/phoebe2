@@ -48,6 +48,7 @@ else:
     _use_astropy_timeseries = True
 
 from scipy import optimize
+from scipy.stats import binned_statistic
 
 import logging
 logger = logging.getLogger("SOLVER")
@@ -253,7 +254,7 @@ def _sample_ppf(ppf_values, distributions_list):
 
     return x
 
-def _get_combined_lc(b, datasets, combine, phase_component=None, mask=True, normalize=True, phase_sorted=False, warn_mask=False):
+def _get_combined_lc(b, datasets, combine, phase_component=None, mask=True, normalize=True, phase_sorted=False, phase_bin=False, warn_mask=False):
     times = np.array([])
     fluxes = np.array([])
     sigmas = np.array([])
@@ -310,7 +311,19 @@ def _get_combined_lc(b, datasets, combine, phase_component=None, mask=True, norm
 
     phases = b.to_phase(times, component=phase_component, t0='t0_supconj')
 
-    if phase_sorted:
+    if phase_bin and phase_bin < len(times):
+        logger.warning("binning input observations (len: {}) with {} bins (ignores sigmas)".format(len(times), phase_bin))
+        fluxes_binned, phase_edges, binnumber = binned_statistic(phases, fluxes, statistic='median', bins=phase_bin)
+        # NOTE: input sigmas are ignored
+        sigmas_binned, phase_edges, binnumber = binned_statistic(phases, fluxes, statistic='std', bins=phase_bin)
+        phases_binned = (phase_edges[1:] + phase_edges[:-1]) / 2.
+
+        # NOTE: times array won't be the same size! (but we want the original
+        # times array for t0_near_times in lc_geometry)
+        return times, phases_binned, fluxes_binned, sigmas_binned
+
+    elif phase_sorted:
+        # binning would phase-sort anyways
         s = phases.argsort()
         times = times[s]
         phases = phases[s]
@@ -319,7 +332,7 @@ def _get_combined_lc(b, datasets, combine, phase_component=None, mask=True, norm
 
     return times, phases, fluxes, sigmas
 
-def _get_combined_rv(b, datasets, components, phase_component=None, mask=True, normalize=False, mirror_secondary=False, phase_sorted=False):
+def _get_combined_rv(b, datasets, components, phase_component=None, mask=True, normalize=False, mirror_secondary=False, phase_sorted=False, phase_bin=False):
     times = np.array([])
     rvs = np.array([])
     sigmas = np.array([])
@@ -378,12 +391,27 @@ def _get_combined_rv(b, datasets, components, phase_component=None, mask=True, n
 
     phases = b.to_phase(times, component=phase_component, t0='t0_supconj')
 
-    if phase_sorted:
+
+
+    if phase_bin and phase_bin < len(times):
+        logger.warning("binning input observations (len: {}) with {} bins (ignores sigmas)".format(len(times), phase_bin))
+        rvs_binned, phase_edges, binnumber = binned_statistic(phases, rvs, statistic='median', bins=phase_bin)
+        # NOTE: input sigmas are ignored
+        sigmas_binned, phase_edges, binnumber = binned_statistic(phases, rvs, statistic='std', bins=phase_bin)
+        phases_binned = (phase_edges[1:] + phase_edges[:-1]) / 2.
+
+        # NOTE: times array won't be the same size! (but we want the original
+        # times array for t0_near_times in lc_geometry)
+        return times, phases_binned, rvs_binned, sigmas_binned
+
+    elif phase_sorted:
+        # binning would phase-sort anyways
         s = phases.argsort()
         times = times[s]
         phases = phases[s]
         rvs = rvs[s]
         sigmas = sigmas[s]
+
 
     return times, phases, rvs, sigmas
 
@@ -547,9 +575,9 @@ class Lc_GeometryBackend(BaseSolverBackend):
         solution_params = []
 
         solution_params += [_parameters.StringParameter(qualifier='orbit', value='', readonly=True, description='orbit used for phasing the input light curve(s)')]
-        solution_params += [_parameters.FloatArrayParameter(qualifier='input_phases', value=[], readonly=True, default_unit=u.dimensionless_unscaled, description='input phases used for geometry estimate')]
-        solution_params += [_parameters.FloatArrayParameter(qualifier='input_fluxes', value=[], readonly=True, default_unit=u.dimensionless_unscaled, description='input fluxes (normalized per-dataset) used for geometry estimate')]
-        solution_params += [_parameters.FloatArrayParameter(qualifier='input_sigmas', value=[], readonly=True, default_unit=u.dimensionless_unscaled, description='input sigmas used for geometry estimate')]
+        solution_params += [_parameters.FloatArrayParameter(qualifier='input_phases', value=[], readonly=True, default_unit=u.dimensionless_unscaled, description='input phases (after binning, if applicable) used for geometry estimate')]
+        solution_params += [_parameters.FloatArrayParameter(qualifier='input_fluxes', value=[], readonly=True, default_unit=u.dimensionless_unscaled, description='input fluxes (normalized per-dataset, after binning, if applicable) used for geometry estimate')]
+        solution_params += [_parameters.FloatArrayParameter(qualifier='input_sigmas', value=[], readonly=True, default_unit=u.dimensionless_unscaled, description='input sigmas (after binning, if applicable) used for geometry estimate')]
 
         if kwargs.get('expose_model', True):
             solution_params += [_parameters.FloatArrayParameter(qualifier='analytic_phases', value=[], readonly=True, default_unit=u.dimensionless_unscaled, description='phases for analystic_fluxes')]
@@ -583,8 +611,11 @@ class Lc_GeometryBackend(BaseSolverBackend):
         lc_datasets = kwargs.get('lc_datasets') # NOTE: already expanded
         lc_combine = kwargs.get('lc_combine')
         orbit = kwargs.get('orbit')
+        phase_bin = kwargs.get('phase_bin', False)
+        if phase_bin:
+            phase_bin = kwargs.get('phase_nbins')
 
-        times, phases, fluxes, sigmas = _get_combined_lc(b, lc_datasets, lc_combine, phase_component=orbit, mask=True, normalize=True, phase_sorted=True, warn_mask=True)
+        times, phases, fluxes, sigmas = _get_combined_lc(b, lc_datasets, lc_combine, phase_component=orbit, mask=True, normalize=True, phase_sorted=True, phase_bin=phase_bin, warn_mask=True)
 
         orbit_ps = b.get_component(component=orbit, **_skip_filter_checks)
         ecc_param = orbit_ps.get_parameter(qualifier='ecc', **_skip_filter_checks)
@@ -682,9 +713,9 @@ class Rv_GeometryBackend(BaseSolverBackend):
         orbit = kwargs.get('orbit')
         starrefs = b.hierarchy.get_children_of(orbit)
         for starref in starrefs:
-            solution_params += [_parameters.FloatArrayParameter(qualifier='input_phases', component=starref, value=[], readonly=True, default_unit=u.dimensionless_unscaled, description='input phases for geometry estimate')]
-            solution_params += [_parameters.FloatArrayParameter(qualifier='input_rvs', component=starref, value=[], readonly=True, default_unit=u.km/u.s, description='input RVs used for geometry estimate')]
-            solution_params += [_parameters.FloatArrayParameter(qualifier='input_sigmas', component=starref, value=[], readonly=True, default_unit=u.km/u.s, description='input sigmas used for geometry estimate')]
+            solution_params += [_parameters.FloatArrayParameter(qualifier='input_phases', component=starref, value=[], readonly=True, default_unit=u.dimensionless_unscaled, description='input phases (after binning, if applicable) for geometry estimate')]
+            solution_params += [_parameters.FloatArrayParameter(qualifier='input_rvs', component=starref, value=[], readonly=True, default_unit=u.km/u.s, description='input RVs (after binning, if applicable) used for geometry estimate')]
+            solution_params += [_parameters.FloatArrayParameter(qualifier='input_sigmas', component=starref, value=[], readonly=True, default_unit=u.km/u.s, description='input sigmas (after binning, if applicable) used for geometry estimate')]
 
             if kwargs.get('expose_model', True):
                 solution_params += [_parameters.FloatArrayParameter(qualifier='analytic_rvs', component=starref, value=[], readonly=True, default_unit=u.km/u.s, description='analytic RVs determined by geometry estimate')]
@@ -710,8 +741,12 @@ class Rv_GeometryBackend(BaseSolverBackend):
         orbit = kwargs.get('orbit')
         starrefs = b.hierarchy.get_children_of(orbit)
 
+        phase_bin = kwargs.get('phase_bin', False)
+        if phase_bin:
+            phase_bin = kwargs.get('phase_nbins')
+
         for i,starref in enumerate(starrefs):
-            times, phases, rvs, sigmas = _get_combined_rv(b, kwargs.get('rv_datasets'), components=[starref], phase_component=kwargs.get('orbit'), mask=True, normalize=False, mirror_secondary=False, phase_sorted=False)
+            times, phases, rvs, sigmas = _get_combined_rv(b, kwargs.get('rv_datasets'), components=[starref], phase_component=kwargs.get('orbit'), mask=True, normalize=False, mirror_secondary=False, phase_sorted=False, phase_bin=phase_bin)
 
             s = np.argsort(phases)
             if i==0:
@@ -1000,9 +1035,9 @@ class EbaiBackend(BaseSolverBackend):
         solution_params = []
 
         solution_params += [_parameters.StringParameter(qualifier='orbit', value='', readonly=True, description='orbit used for phasing the input light curve(s)')]
-        solution_params += [_parameters.FloatArrayParameter(qualifier='input_phases', value=[], readonly=True, default_unit=u.dimensionless_unscaled, description='input phases used for determining ebai_phases/ebai_fluxes')]
-        solution_params += [_parameters.FloatArrayParameter(qualifier='input_fluxes', value=[], readonly=True, default_unit=u.dimensionless_unscaled, description='input fluxes used for determining ebai_phases/ebai_fluxes')]
-        solution_params += [_parameters.FloatArrayParameter(qualifier='input_sigmas', value=[], readonly=True, default_unit=u.dimensionless_unscaled, description='input sigmas used for determining ebai_phases/ebai_fluxes')]
+        solution_params += [_parameters.FloatArrayParameter(qualifier='input_phases', value=[], readonly=True, default_unit=u.dimensionless_unscaled, description='input phases (after binning, if applicable) used for determining ebai_phases/ebai_fluxes')]
+        solution_params += [_parameters.FloatArrayParameter(qualifier='input_fluxes', value=[], readonly=True, default_unit=u.dimensionless_unscaled, description='input fluxes (after binning, if applicable) used for determining ebai_phases/ebai_fluxes')]
+        solution_params += [_parameters.FloatArrayParameter(qualifier='input_sigmas', value=[], readonly=True, default_unit=u.dimensionless_unscaled, description='input sigmas (after binning, if applicable) used for determining ebai_phases/ebai_fluxes')]
 
         solution_params += [_parameters.FloatArrayParameter(qualifier='ebai_phases', value=[], readonly=True, default_unit=u.dimensionless_unscaled, description='input phases to ebai')]
         solution_params += [_parameters.FloatArrayParameter(qualifier='ebai_fluxes', value=[], readonly=True, default_unit=u.dimensionless_unscaled, description='input fluxes to ebai')]
@@ -1028,7 +1063,11 @@ class EbaiBackend(BaseSolverBackend):
 
         orbit_ps = b.get_component(component=orbit, **_skip_filter_checks)
 
-        times, phases, fluxes, sigmas = _get_combined_lc(b, lc_datasets, lc_combine, phase_component=orbit, mask=True, normalize=True, phase_sorted=True)
+        phase_bin = kwargs.get('phase_bin', False)
+        if phase_bin:
+            phase_bin = kwargs.get('phase_nbins')
+
+        times, phases, fluxes, sigmas = _get_combined_lc(b, lc_datasets, lc_combine, phase_component=orbit, mask=True, normalize=True, phase_sorted=True, phase_bin=phase_bin)
 
         # TODO: cleanup this logic a bit
         lc_geom_dict = lc_geometry.estimate_eclipse_positions_widths(phases, fluxes)
@@ -1071,7 +1110,7 @@ class EbaiBackend(BaseSolverBackend):
         fitted_units = [u.d.to_string(), u.dimensionless_unscaled.to_string(), u.dimensionless_unscaled.to_string(), u.dimensionless_unscaled.to_string(), u.dimensionless_unscaled.to_string(), u.rad.to_string()]
 
         return [[{'qualifier': 'orbit', 'value': orbit},
-                 {'qualifier': 'input_phases', 'value': b.to_phase(times, component=orbit, t0=t0_supconj)},
+                 {'qualifier': 'input_phases', 'value': ((phases-pshift+0.5) % 1) - 0.5},
                  {'qualifier': 'input_fluxes', 'value': fluxes},
                  {'qualifier': 'input_sigmas', 'value': sigmas},
                  {'qualifier': 'ebai_phases', 'value': ebai_phases},
