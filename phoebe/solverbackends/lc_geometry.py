@@ -234,10 +234,10 @@ def refine_eclipse_widths(phases, fluxes, sigmas, pos1, pos2, width1, width2):
 
     # to refine the region around the eclipses, we're taking half of the number of eclipse points
     # left and right from the current edge position
-    mask1_left = (phases > pos1-width1) & (phases < pos1-0.1*width1)
-    mask1_right = (phases > pos1+0.1*width1) & (phases < pos1+width1)
-    mask2_left = (phases > pos2-width2) & (phases < pos2-0.1*width1)
-    mask2_right = (phases > pos2+0.1*width1) & (phases < pos2+width2)
+    mask1_left = (phases > pos1-width1) & (phases < pos1-0.05*width1)
+    mask1_right = (phases > pos1+0.3*width1) & (phases < pos1+width1)
+    mask2_left = (phases > pos2-width2) & (phases < pos2-0.05*width1)
+    mask2_right = (phases > pos2+0.3*width1) & (phases < pos2+width2)
 
     eclipse_breaks = np.zeros(4)
 
@@ -302,29 +302,31 @@ def compute_eclipse_params(phases, fluxes, sigmas, fit_result=None, diagnose=Fal
         width2 = np.nan
         depth2 = np.nan
 
-    phases_w, fluxes_w, sigmas_w = extend_phasefolded_lc(phases, fluxes, sigmas)
-    if not np.isnan(width1) and not np.isnan(width2) and not np.isnan(pos1) and not np.isnan(pos2):
-        if np.abs(pos1-pos2) < width1 or np.abs(pos1-pos2) < width2:
-            # in case of higly ellipsoidal systems, the eclipse positions aren't detected well
-            # and need to be refined
-            logger.warning('Poor two-Gaussian fit. Results potentially unreliable!')
-            pos1 = phases_w[(phases_w > -0.25) & (phases_w < 0.25)][np.argmin(fluxes_w[(phases_w > -0.25) & (phases_w < 0.25)])]
-            pos2 = phases_w[(phases_w > 0.25) & (phases_w < 0.75)][np.argmin(fluxes_w[(phases_w > 0.25) & (phases_w < 0.75)])]
-            width1 = 0.5
-            width2 = 0.5
+    eclipse_edges = [pos1 - 0.5*width1, pos1+0.5*width1, pos2-0.5*width2, pos2+0.5*width2]
+    # print('No eclipse refinement')
+    # if not np.isnan(width1) and not np.isnan(width2) and not np.isnan(pos1) and not np.isnan(pos2):
+    #     if np.abs(pos1-pos2) < width1 or np.abs(pos1-pos2) < width2:
+    #         # in case of higly ellipsoidal systems, the eclipse positions aren't detected well
+    #         # and need to be refined
+    #         logger.warning('Poor two-Gaussian fit. Results potentially unreliable!')
+    #         pos1 = phases_w[(phases_w > -0.25) & (phases_w < 0.25)][np.argmin(fluxes_w[(phases_w > -0.25) & (phases_w < 0.25)])]
+    #         pos2 = phases_w[(phases_w > 0.25) & (phases_w < 0.75)][np.argmin(fluxes_w[(phases_w > 0.25) & (phases_w < 0.75)])]
+    #         width1 = 0.5
+    #         width2 = 0.5
 
-        eclipse_edges = refine_eclipse_widths(phases_w, fluxes_w, sigmas_w, pos1, pos2, width1, width2)
-        width1, width2 = eclipse_edges[1]-eclipse_edges[0], eclipse_edges[3]-eclipse_edges[2]
-    else:
-        eclipse_edges = [np.nan, np.nan, np.nan, np.nan]
+    #     eclipse_edges = refine_eclipse_widths(phases_w, fluxes_w, sigmas_w, pos1, pos2, width1, width2)
+    #     width1, width2 = eclipse_edges[1]-eclipse_edges[0], eclipse_edges[3]-eclipse_edges[2]
+    # else:
+    #     eclipse_edges = [np.nan, np.nan, np.nan, np.nan]
 
 
     if diagnose:
+        phases_w, fluxes_w, sigmas_w = extend_phasefolded_lc(phases, fluxes, sigmas)
         twogfuncs = {'C': const, 'CE': ce, 'CG': cg, 'CGE': cge, 'CG12': cg12, 'CG12E1': cg12e1, 'CG12E2': cg12e2}
         [ecl1_l, ecl1_r, ecl2_l, ecl2_r] = eclipse_edges
 
         import matplotlib.pyplot as plt
-
+        best_fit = 'CG12E1'
         fig = plt.figure(figsize=(10,8))
         ax = fig.add_subplot(111)
         ax.plot(phases_w, fluxes_w, 'k.')
