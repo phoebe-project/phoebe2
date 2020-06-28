@@ -25,7 +25,7 @@ def smooth_rv(rvdata):
     win_len = 5 if win_len <= 3 else win_len
     poly_ord = 3
     rv_smooth = savgol_filter(rvdata[:,1], window_length=win_len, polyorder=poly_ord)
-
+ 
     return np.array([rvdata[:,0], rv_smooth, rvdata[:,2]]).T
 
 
