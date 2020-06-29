@@ -8943,7 +8943,10 @@ class FloatParameter(Parameter):
                 dist.value = self.get_value()
 
         if dist.label is None:
-            dist.label = '{}@{}'.format(self.qualifier, getattr(self, self.context))
+            if hasattr(self, self.context):
+                dist.label = '{}@{}'.format(self.qualifier, getattr(self, self.context))
+            else:
+                dist.label = '{}@{}'.format(self.qualifier, self.context)
             if self._latexfmt is not None:
                 dist.label_latex = self.latextwig.replace("$", "")
 

@@ -10,6 +10,7 @@ null,
 null
 ],
 "copy_for": false,
+"latexfmt": "t_0",
 "Class": "FloatParameter"
 },
 {
@@ -24,6 +25,7 @@ null
 ],
 "copy_for": false,
 "advanced": true,
+"latexfmt": "\\alpha",
 "Class": "FloatParameter"
 },
 {
@@ -38,6 +40,7 @@ null
 ],
 "copy_for": false,
 "advanced": true,
+"latexfmt": "\\delta",
 "Class": "FloatParameter"
 },
 {
@@ -51,6 +54,7 @@ null,
 null
 ],
 "copy_for": false,
+"latexfmt": "d",
 "Class": "FloatParameter"
 },
 {
@@ -64,6 +68,7 @@ null,
 null
 ],
 "copy_for": false,
+"latexfmt": "v_\\gamma",
 "Class": "FloatParameter"
 },
 {
@@ -77,6 +82,7 @@ null,
 null
 ],
 "copy_for": false,
+"latexfmt": "E(B-V)",
 "Class": "FloatParameter"
 },
 {
@@ -90,6 +96,7 @@ null,
 null
 ],
 "copy_for": false,
+"latexfmt": "A_v",
 "Class": "FloatParameter"
 },
 {
@@ -103,6 +110,7 @@ null,
 null
 ],
 "copy_for": false,
+"latexfmt": "R_v",
 "Class": "FloatParameter"
 },
 {
@@ -416,8 +424,8 @@ null
 "description": "Source for bolometric limb darkening coefficients (used only for irradiation; 'auto' to interpolate from the applicable table according to the 'atm' parameter, or the name of a specific atmosphere table)",
 "choices": [
 "auto",
-"phoenix",
-"ck2004"
+"ck2004",
+"phoenix"
 ],
 "value": "auto",
 "visible_if": "ld_mode_bol:lookup",
@@ -761,8 +769,8 @@ null
 "description": "Source for bolometric limb darkening coefficients (used only for irradiation; 'auto' to interpolate from the applicable table according to the 'atm' parameter, or the name of a specific atmosphere table)",
 "choices": [
 "auto",
-"phoenix",
-"ck2004"
+"ck2004",
+"phoenix"
 ],
 "value": "auto",
 "visible_if": "ld_mode_bol:lookup",
@@ -1076,7 +1084,7 @@ null
 1.0
 ],
 "copy_for": false,
-"latexfmt": "e_\\mathrm{{ {component} }} \\sin \\omega 0",
+"latexfmt": "e_\\mathrm{{ {component} }} \\sin \\omega_0",
 "Class": "FloatParameter"
 },
 {
@@ -1886,11 +1894,11 @@ null
 "context": "compute",
 "description": "Atmosphere table",
 "choices": [
-"phoenix",
-"extern_atmx",
-"ck2004",
+"blackbody",
 "extern_planckint",
-"blackbody"
+"extern_atmx",
+"phoenix",
+"ck2004"
 ],
 "value": "ck2004",
 "copy_for": {
@@ -2091,11 +2099,11 @@ null
 "context": "compute",
 "description": "Atmosphere table",
 "choices": [
-"phoenix",
-"extern_atmx",
-"ck2004",
+"blackbody",
 "extern_planckint",
-"blackbody"
+"extern_atmx",
+"phoenix",
+"ck2004"
 ],
 "value": "ck2004",
 "copy_for": false,
@@ -2109,11 +2117,11 @@ null
 "context": "compute",
 "description": "Atmosphere table",
 "choices": [
-"phoenix",
-"extern_atmx",
-"ck2004",
+"blackbody",
 "extern_planckint",
-"blackbody"
+"extern_atmx",
+"phoenix",
+"ck2004"
 ],
 "value": "ck2004",
 "copy_for": false,
