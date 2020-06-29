@@ -1677,7 +1677,7 @@ def mass(b, component, solve_for=None, **kwargs):
     #
     # return lhs, rhs, [esinw, ecosw, ecc, per0], {'orbit': orbit}
 
-_validsolvefor['comp_sma'] = ['sma@star', 'incl@orbit']
+_validsolvefor['comp_sma'] = ['sma@orbit', 'incl@orbit']
 def comp_sma(b, component, solve_for=None, **kwargs):
     """
     Create a constraint for the star's semi-major axes WITHIN its
