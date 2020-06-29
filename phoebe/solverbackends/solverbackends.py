@@ -318,9 +318,11 @@ def _get_combined_lc(b, datasets, combine, phase_component=None, mask=True, norm
         sigmas_binned, phase_edges, binnumber = binned_statistic(phases, fluxes, statistic='std', bins=phase_bin)
         phases_binned = (phase_edges[1:] + phase_edges[:-1]) / 2.
 
+        nans_inds = np.isnan(fluxes_binned)
+
         # NOTE: times array won't be the same size! (but we want the original
         # times array for t0_near_times in lc_geometry)
-        return times, phases_binned, fluxes_binned, sigmas_binned
+        return times, phases_binned[~nans_inds], fluxes_binned[~nans_inds], sigmas_binned[~nans_inds]
 
     elif phase_sorted:
         # binning would phase-sort anyways
@@ -400,9 +402,12 @@ def _get_combined_rv(b, datasets, components, phase_component=None, mask=True, n
         sigmas_binned, phase_edges, binnumber = binned_statistic(phases, rvs, statistic='std', bins=phase_bin)
         phases_binned = (phase_edges[1:] + phase_edges[:-1]) / 2.
 
+
+        nans_inds = np.isnan(rvs_binned)
+
         # NOTE: times array won't be the same size! (but we want the original
         # times array for t0_near_times in lc_geometry)
-        return times, phases_binned, rvs_binned, sigmas_binned
+        return times, phases_binned[~nans_inds], rv_binned[~nans_inds], sigmas_binned[~nans_inds]
 
     elif phase_sorted:
         # binning would phase-sort anyways
