@@ -4167,7 +4167,7 @@ class Bundle(ParameterSet):
                 # NOTE: samplers won't have fitted_values so this will default to the empty list
                 fitted_values = solution_ps.get_value(qualifier='fitted_values', default=[], **_skip_filter_checks)
                 # NOTE: the following list-comprehension is necessary because fitted_values may not be an array of floats/nans
-                if len(fitted_values) and np.any([np.isnan(v) for v in fitted_values[adopt_inds]]):
+                if len(fitted_values) and np.any([not isinstance(v,list) and np.isnan(v) for v in fitted_values[adopt_inds]]):
                     report.add_item(self,
                                     "at least one parameter in adopt_parameters includes nan in fitted_values",
                                     [solution_ps.get_parameter(qualifier='adopt_parameters', **_skip_filter_checks),

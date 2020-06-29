@@ -316,11 +316,19 @@ def _get_combined_lc(b, datasets, combine, phase_component=None, mask=True, norm
         fluxes_binned, phase_edges, binnumber = binned_statistic(phases, fluxes, statistic='median', bins=phase_bin)
         # NOTE: input sigmas are ignored
         sigmas_binned, phase_edges, binnumber = binned_statistic(phases, fluxes, statistic='std', bins=phase_bin)
+        counts_binned, phase_edges, binnumber = binned_statistic(phases, fluxes, statistic='count', bins=phase_bin)
+        counts_single_inds = np.where(counts_binned==0)[0]
+        for i in np.where(counts_binned==0)[0]:
+            # need to replace the sigma entry with the original observational sigma
+            sigmas_binned[i] = sigmas[np.argmin(abs(phases-phase_edges[i]))]
+
         phases_binned = (phase_edges[1:] + phase_edges[:-1]) / 2.
+
+        nans_inds = np.isnan(fluxes_binned)
 
         # NOTE: times array won't be the same size! (but we want the original
         # times array for t0_near_times in lc_geometry)
-        return times, phases_binned, fluxes_binned, sigmas_binned
+        return times, phases_binned[~nans_inds], fluxes_binned[~nans_inds], sigmas_binned[~nans_inds]
 
     elif phase_sorted:
         # binning would phase-sort anyways
@@ -398,11 +406,20 @@ def _get_combined_rv(b, datasets, components, phase_component=None, mask=True, n
         rvs_binned, phase_edges, binnumber = binned_statistic(phases, rvs, statistic='median', bins=phase_bin)
         # NOTE: input sigmas are ignored
         sigmas_binned, phase_edges, binnumber = binned_statistic(phases, rvs, statistic='std', bins=phase_bin)
+        counts_binned, phase_edges, binnumber = binned_statistic(phases, fluxes, statistic='count', bins=phase_bin)
+        counts_single_inds = np.where(counts_binned==0)[0]
+        for i in np.where(counts_binned==0)[0]:
+            # need to replace the sigma entry with the original observational sigma
+            sigmas_binned[i] = sigmas[np.argmin(abs(phases-phase_edges[i]))]
+
         phases_binned = (phase_edges[1:] + phase_edges[:-1]) / 2.
+
+
+        nans_inds = np.isnan(rvs_binned)
 
         # NOTE: times array won't be the same size! (but we want the original
         # times array for t0_near_times in lc_geometry)
-        return times, phases_binned, rvs_binned, sigmas_binned
+        return times, phases_binned[~nans_inds], rv_binned[~nans_inds], sigmas_binned[~nans_inds]
 
     elif phase_sorted:
         # binning would phase-sort anyways
@@ -814,10 +831,10 @@ class Rv_GeometryBackend(BaseSolverBackend):
         fitted_twigs = [p.twig for p in fitted_params]
 
         return_ = [
-                     {'qualifier': 'input_phases', 'component': starrefs[0], 'value': b.to_phase(rv1data[:,0], component=orbit, t0='t0_supconj') if rv1data is not None else []},
+                     {'qualifier': 'input_phases', 'component': starrefs[0], 'value': rv1data[:,0] if rv1data is not None else []},
                      {'qualifier': 'input_rvs', 'component': starrefs[0], 'value': rv1data[:,1] if rv1data is not None else []},
                      {'qualifier': 'input_sigmas', 'component': starrefs[0], 'value': rv1data[:,2] if rv1data is not None else []},
-                     {'qualifier': 'input_phases', 'component': starrefs[1], 'value': b.to_phase(rv2data[:,0], component=orbit, t0='t0_supconj') if rv2data is not None else []},
+                     {'qualifier': 'input_phases', 'component': starrefs[1], 'value': rv2data[:,0] if rv2data is not None else []},
                      {'qualifier': 'input_rvs', 'component': starrefs[1], 'value': rv2data[:,1] if rv2data is not None else []},
                      {'qualifier': 'input_sigmas', 'component': starrefs[1], 'value': rv2data[:,2] if rv2data is not None else []},
                      {'qualifier': 'orbit', 'value': orbit},
@@ -832,11 +849,11 @@ class Rv_GeometryBackend(BaseSolverBackend):
             analytic_phases = np.linspace(-0.5, 0.5, 201)
             ph_supconj = b.to_phase(est_dict['t0_supconj'])
             if rv1data is not None:
-                analytic_rv1 = rv_geometry.rv_model(analytic_phases, period, est_dict['per0'], est_dict['ecc'], est_dict['asini'], est_dict['vgamma'], est_dict['ph_supconj'], component=1)
+                analytic_rv1 = rv_geometry.rv_model(analytic_phases, 1., est_dict['per0'], est_dict['ecc'], est_dict['asini'], est_dict['vgamma'], est_dict['ph_supconj'], component=1)
             else:
                 analytic_rv1 = []
             if rv2data is not None:
-                analytic_rv2 = rv_geometry.rv_model(analytic_phases, period, est_dict['per0'], est_dict['ecc'], est_dict['asini'], est_dict['vgamma'], est_dict['ph_supconj'], component=2)
+                analytic_rv2 = rv_geometry.rv_model(analytic_phases, 1., est_dict['per0'], est_dict['ecc'], est_dict['asini'], est_dict['vgamma'], est_dict['ph_supconj'], component=2)
             else:
                 analytic_rv2 = []
 

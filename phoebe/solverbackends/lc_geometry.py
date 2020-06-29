@@ -171,7 +171,8 @@ def fit_twoGaussian_models(phases, fluxes, sigmas=None):
     for key in twogfuncs.keys():
         try:
             fits[key] = curve_fit(twogfuncs[key], phases, fluxes, p0=init_params[key], sigma=sigmas, bounds=bounds[key])
-        except:
+        except Exception as err:
+            logger.warning("2G model {} failed with error: {}".format(key, err))
             fits[key] = np.array([np.nan*np.ones(len(init_params[key]))])
 
     return fits
@@ -326,7 +327,6 @@ def compute_eclipse_params(phases, fluxes, sigmas, fit_result=None, diagnose=Fal
         [ecl1_l, ecl1_r, ecl2_l, ecl2_r] = eclipse_edges
 
         import matplotlib.pyplot as plt
-        best_fit = 'CG12E1'
         fig = plt.figure(figsize=(10,8))
         ax = fig.add_subplot(111)
         ax.plot(phases_w, fluxes_w, 'k.')
