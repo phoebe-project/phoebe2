@@ -316,6 +316,12 @@ def _get_combined_lc(b, datasets, combine, phase_component=None, mask=True, norm
         fluxes_binned, phase_edges, binnumber = binned_statistic(phases, fluxes, statistic='median', bins=phase_bin)
         # NOTE: input sigmas are ignored
         sigmas_binned, phase_edges, binnumber = binned_statistic(phases, fluxes, statistic='std', bins=phase_bin)
+        counts_binned, phase_edges, binnumber = binned_statistic(phases, fluxes, statistic='count', bins=phase_bin)
+        counts_single_inds = np.where(counts_binned==0)[0]
+        for i in np.where(counts_binned==0)[0]:
+            # need to replace the sigma entry with the original observational sigma
+            sigmas_binned[i] = sigmas[np.argmin(abs(phases-phase_edges[i]))]
+
         phases_binned = (phase_edges[1:] + phase_edges[:-1]) / 2.
 
         nans_inds = np.isnan(fluxes_binned)
@@ -400,6 +406,12 @@ def _get_combined_rv(b, datasets, components, phase_component=None, mask=True, n
         rvs_binned, phase_edges, binnumber = binned_statistic(phases, rvs, statistic='median', bins=phase_bin)
         # NOTE: input sigmas are ignored
         sigmas_binned, phase_edges, binnumber = binned_statistic(phases, rvs, statistic='std', bins=phase_bin)
+        counts_binned, phase_edges, binnumber = binned_statistic(phases, fluxes, statistic='count', bins=phase_bin)
+        counts_single_inds = np.where(counts_binned==0)[0]
+        for i in np.where(counts_binned==0)[0]:
+            # need to replace the sigma entry with the original observational sigma
+            sigmas_binned[i] = sigmas[np.argmin(abs(phases-phase_edges[i]))]
+
         phases_binned = (phase_edges[1:] + phase_edges[:-1]) / 2.
 
 
