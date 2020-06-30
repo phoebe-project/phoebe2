@@ -186,7 +186,7 @@ _forbidden_labels += ['phoebe', 'legacy', 'jktebop', 'photodynam', 'ellc']
 
 # we also want to forbid any possible qualifiers
 # from system:
-_forbidden_labels += ['t0', 'ra', 'dec', 'epoch', 'distance', 'vgamma', 'hierarchy',
+_forbidden_labels += ['t0', 'ra', 'dec', 'epoch', 'distance', 'parallax', 'vgamma', 'hierarchy',
                      'Rv', 'Av', 'ebv', 'extinction']
 
 # from setting:

@@ -6195,7 +6195,16 @@ class Bundle(ParameterSet):
 
         # although we could pass solve_for IF the parameter already exists,
         # we'll just manually flip after to ensure it already does
-        solve_for = kwargs.pop('solve_for', None)
+        if 'solve_for' in kwargs.keys():
+            try:
+                kwargs['solve_for'] = self.get_parameter(kwargs['solve_for'], context=['component', 'dataset', 'model', 'system'], **_skip_filter_checks)
+            except:
+                solve_for = kwargs.pop('solve_for', None)
+            else:
+                solve_for = None
+        else:
+            solve_for = None
+
 
         lhs, rhs, addl_vars, constraint_kwargs = func(self, *func_args, **{k:v for k,v in kwargs.items() if k not in ['constraint']})
         # NOTE that any component parameters required have already been
