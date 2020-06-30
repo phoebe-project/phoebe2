@@ -6082,6 +6082,10 @@ class Bundle(ParameterSet):
         For a list of optional built-in constraints, see <phoebe.parameters.constraint>
         including:
         * <phoebe.parameters.constraint.semidetached>
+        * <phoebe.parameters.constraint.requivratio>
+        * <phoebe.parameters.constraint.requivsumfrac>
+        * <phoebe.parameters.constraint.teffratio>
+        * <phoebe.parameters.constraint.parallax>
 
         The following are automatically included for all orbits, during
         <phoebe.frontend.bundle.Bundle.add_component> for a
