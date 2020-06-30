@@ -6193,9 +6193,9 @@ class Bundle(ParameterSet):
             func = _get_add_func(_constraint, args[0])
             func_args = args[1:]
 
-        if 'solve_for' in kwargs.keys():
-            # solve_for is a twig, we need to pass the parameter
-            kwargs['solve_for'] = self.get_parameter(kwargs['solve_for'], context=['component', 'dataset', 'model'], check_visible=False)
+        # although we could pass solve_for IF the parameter already exists,
+        # we'll just manually flip after to ensure it already does
+        solve_for = kwargs.pop('solve_for', None)
 
         lhs, rhs, addl_vars, constraint_kwargs = func(self, *func_args, **{k:v for k,v in kwargs.items() if k not in ['constraint']})
         # NOTE that any component parameters required have already been
@@ -6231,6 +6231,9 @@ class Bundle(ParameterSet):
         params = ParameterSet([constraint_param])
         constraint_param._update_bookkeeping()
         self._attach_params(params, **metawargs)
+
+        if solve_for is not None:
+            self.flip_constraint(uniqueid=constraint_param.uniqueid, solve_for=solve_for)
 
         # we should run it now to make sure everything is in-sync
         if conf.interactive_constraints:
