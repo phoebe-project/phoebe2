@@ -11372,6 +11372,12 @@ class ConstraintParameter(Parameter):
 
         if self.default_unit is not None:
             if isinstance(value, distl.BaseDistlObject):
+                if value.unit is None:
+                    if self.in_solar_units:
+                        value.unit = distl._distl._physical_types_to_solar.get(self.default_unit.physical_type)
+                    else:
+                        value.unit = distl._distl._physical_types_to_si.get(self.default_unit.physical_type)
+
                 value = value.to(self.default_unit)
             else:
                 if self.in_solar_units:
