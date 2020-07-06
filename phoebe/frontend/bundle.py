@@ -3649,7 +3649,7 @@ class Bundle(ParameterSet):
 
             gps = self.filter(kind='gaussian_process', context='feature', **_skip_filter_checks).features
             compute_enabled_gps = self.filter(qualifier='enabled', feature=gps, value=True, **_skip_filter_checks).features
-            compute_enabled_datasets = self.filter(qualifier='enabled', dataset=self.datasets, value=True, **_skip_filter_checks)
+            compute_enabled_datasets = self.filter(qualifier='enabled', dataset=self.datasets, value=True, **_skip_filter_checks).datasets
 
             # per-compute hierarchy checks
             if len(self.hierarchy.get_envelopes()):
@@ -4614,8 +4614,15 @@ class Bundle(ParameterSet):
 
         ret_ps = self.filter(feature=kwargs['feature'], **_skip_filter_checks)
 
+        ret_changes = []
+        ret_changes += self._handle_fitparameters_selecttwigparams(return_changes=return_changes)
+
         if kwargs.get('overwrite', False) and return_changes:
             ret_ps += overwrite_ps
+
+        if return_changes:
+            ret_ps += ret_changes
+
         return _return_ps(self, ret_ps)
 
     def get_feature(self, feature=None, **kwargs):
@@ -4678,9 +4685,14 @@ class Bundle(ParameterSet):
         # parameters, etc
         kwargs.setdefault('context', ['feature', 'compute'])
 
-        removed_ps = self.remove_parameters_all(**kwargs)
+        ret_ps = self.remove_parameters_all(**kwargs)
 
-        return removed_ps
+        ret_changes = []
+        ret_changes += self._handle_fitparameters_selecttwigparams(return_changes=return_changes)
+        if return_changes:
+            ret_ps += ret_changes
+
+        return ret_ps
 
     def remove_features_all(self, return_changes=False):
         """
@@ -4721,7 +4733,14 @@ class Bundle(ParameterSet):
         # TODO: raise error if old_feature not found?
         self._rename_label('feature', old_feature, new_feature, overwrite)
 
-        return self.filter(feature=new_feature)
+        ret_ps = self.filter(feature=new_feature)
+
+        ret_changes = []
+        ret_changes += self._handle_fitparameters_selecttwigparams(return_changes=return_changes)
+        if return_changes:
+            ret_ps += ret_changes
+
+        return ret_ps
 
 
     def enable_feature(self, feature=None, **kwargs):
@@ -9901,7 +9920,7 @@ class Bundle(ParameterSet):
                             ds_sigmass = np.append(ds_sigmass, sigma_est*np.ones(len(ds_fluxes)))
 
                         ml_ds = ml_params.filter(dataset=dataset, **_skip_filter_checks)
-                        model_fluxes_interp = ml_ds.get_parameter(qualifier='fluxes', dataset=dataset, **_skip_filter_checks).interp_value(times=ds_times, parent_ps=ml_ds, bundle=self)
+                        model_fluxes_interp = ml_ds.get_parameter(qualifier='fluxes', dataset=dataset, **_skip_filter_checks).interp_value(times=ds_times, parent_ps=ml_ds, bundle=self, consider_gaussian_process=False)
                         model_fluxess_interp = np.append(model_fluxess_interp, model_fluxes_interp)
 
                     scale_factor_approx = np.median(ds_fluxess / model_fluxess_interp)

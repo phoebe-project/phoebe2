@@ -218,7 +218,7 @@ def _lnprobability(sampled_values, b, params_uniqueids, compute,
 
     # print("*** _lnprobability returning from rank: {}".format(mpi.myrank))
     if custom_lnprobability_callable is None:
-        lnprob = lnpriors + b.calculate_lnlikelihood(model=solution)
+        lnprob = lnpriors + b.calculate_lnlikelihood(model=solution, consider_gaussian_process=False)
     else:
         lnprob = custom_lnprobability_callable(b, model=solution, lnpriors=lnpriors, priors=priors, priors_combine=priors_combine)
 

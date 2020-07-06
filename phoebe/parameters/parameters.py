@@ -3640,7 +3640,7 @@ class ParameterSet(object):
             comparison.  Required only if more than one component exist in the
             dataset (for RVs, for example) and not all should be included in
             the chi2
-        * `consider_gaussian_process` (bool, optional, defult=True): whether
+        * `consider_gaussian_process` (bool, optional, default=True): whether
             to consider a system with gaussian process(es) as time-dependent
         * `mask_enabled` (bool, optional, default=None): whether to enable
             masking on the dataset(s).  If None or not provided, will default to
@@ -3705,7 +3705,7 @@ class ParameterSet(object):
 
         return chi2
 
-    def calculate_lnlikelihood(self, model=None, dataset=None, component=None):
+    def calculate_lnlikelihood(self, model=None, dataset=None, component=None, consider_gaussian_process=True):
         """
         Compute the log-likelihood between a model and the observed values in the dataset(s).
 
@@ -3731,6 +3731,8 @@ class ParameterSet(object):
             comparison.  Required only if more than one component exist in the
             dataset (for RVs, for example) and not all should be included in
             the chi2
+        * `consider_gaussian_process` (bool, optional, default=True): whether
+            to consider a system with gaussian process(es) as time-dependent
 
         Returns
         -----------
@@ -3741,7 +3743,7 @@ class ParameterSet(object):
         * NotImplementedError: if the dataset kind is not supported for residuals.
         """
 
-        return -0.5 * self.calculate_chi2(model, dataset, component)
+        return -0.5 * self.calculate_chi2(model, dataset, component, consider_gaussian_process=consider_gaussian_process)
 
     def _unpack_plotting_kwargs(self, animate=False, **kwargs):
 
@@ -9455,7 +9457,7 @@ class FloatArrayParameter(FloatParameter):
         bundle = kwargs.pop('bundle', self._bundle)
 
         if len(kwargs.keys()) > 1:
-            raise KeyError("interp_value only takes a single qualifier-value pair")
+            raise KeyError("interp_value only takes a single qualifier-value pair, got other kwargs: {}".format(list(kwargs.keys())))
 
         qualifier, qualifier_interp_value = list(kwargs.items())[0]
 
