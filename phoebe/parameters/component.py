@@ -74,14 +74,14 @@ def orbit(component, **kwargs):
     params += [FloatParameter(qualifier='freq', latexfmt=r'f_\mathrm{{ {component} }}', value=kwargs.get('freq', 2*np.pi/3.0), default_unit=u.rad/u.d, advanced=True, description='Orbital frequency')]
     params += [FloatParameter(qualifier='dpdt', latexfmt=r'\dot{{P}}_\mathrm{{ {component} }}',  value=kwargs.get('dpdt', 0.0), default_unit=u.s/u.yr, advanced=True, description='Time derivative of orbital period')]
     params += [FloatParameter(qualifier='per0', latexfmt=r'\omega_{{0, \mathrm{{ {component} }} }}', timederiv='dperdt', value=kwargs.get('per0', 0.0), default_unit=u.deg, description='Argument of periastron')]
-    params += [FloatParameter(qualifier='dperdt', latexfmt=r'\dot{\omega}_{{0, \mathrm{{ {component} }}}}', value=kwargs.get('dperdt', 0.0), default_unit=u.deg/u.yr, advanced=True, description='Periastron change')]
+    params += [FloatParameter(qualifier='dperdt', latexfmt=r'\dot{{\omega}}_{{0, \mathrm{{ {component} }}}}', value=kwargs.get('dperdt', 0.0), default_unit=u.deg/u.yr, advanced=True, description='Periastron change')]
     params += [FloatParameter(qualifier='ecc', latexfmt=r'e_\mathrm{{ {component} }}', timederiv='deccdt', value=kwargs.get('ecc', 0.0), default_unit=u.dimensionless_unscaled, limits=(0.0,0.999999), description='Eccentricity')]
     # if conf.devel:
         # NOTE: if adding this back in, will need to update the t0_* constraints in builtin.py and re-enable in parameters.HierarchyParameter.is_time_dependent
         # params += [FloatParameter(qualifier='deccdt', value=kwargs.get('deccdt', 0.0), default_unit=u.dimensionless_unscaled/u.d, advanced=True, description='Eccentricity change')]
-    params += [FloatParameter(qualifier='t0_perpass', latexfmt=r't_{{0, \mathrm{{ perpass }}, \mathrm{{ {component} }}', value=kwargs.get('t0_perpass', 0.0), default_unit=u.d, description='Zeropoint date at periastron passage of the primary component')]  # TODO: d vs JD
-    params += [FloatParameter(qualifier='t0_supconj', latexfmt=r't_{{0, \mathrm{{ supconj }}, \mathrm{{ {component} }}', value=kwargs.get('t0_supconj', 0.0), default_unit=u.d, description='Zeropoint date at superior conjunction of the primary component')]  # TODO: d vs JD
-    params += [FloatParameter(qualifier='t0_ref', latexfmt=r't_{{0, _\mathrm{{ ref }}, \mathrm{{ {component} }}', value=kwargs.get('t0_ref', 0.0), default_unit=u.d, description='Zeropoint date at reference point for the primary component')]
+    params += [FloatParameter(qualifier='t0_perpass', latexfmt=r't_{{0, \mathrm{{ perpass }}, \mathrm{{ {component} }} }}', value=kwargs.get('t0_perpass', 0.0), default_unit=u.d, description='Zeropoint date at periastron passage of the primary component')]  # TODO: d vs JD
+    params += [FloatParameter(qualifier='t0_supconj', latexfmt=r't_{{0, \mathrm{{ supconj }}, \mathrm{{ {component} }} }}', value=kwargs.get('t0_supconj', 0.0), default_unit=u.d, description='Zeropoint date at superior conjunction of the primary component')]  # TODO: d vs JD
+    params += [FloatParameter(qualifier='t0_ref', latexfmt=r't_{{0, _\mathrm{{ ref }}, \mathrm{{ {component} }} }}', value=kwargs.get('t0_ref', 0.0), default_unit=u.d, description='Zeropoint date at reference point for the primary component')]
     params += [FloatParameter(qualifier='mean_anom', value=kwargs.get('mean_anom', 0.0), default_unit=u.deg, advanced=True, description='Mean anomaly at t0@system')]
     #params += [FloatParameter(qualifier='ph_perpass', value=kwargs.get('ph_perpass', 0.0), default_unit=u.cycle, description='Phase at periastron passage')]
     #params += [FloatParameter(qualifier='ph_supconj', value=kwargs.get('ph_supconj', 0.0), default_unit=u.cycle, description='Phase at superior conjunction')]
@@ -184,7 +184,7 @@ def star(component, **kwargs):
     params += [FloatParameter(qualifier='teff', latexfmt=r'T_{{ \mathrm{{ eff }}, \mathrm{{ {component} }} }}', value=kwargs.get('teff', 6000.), default_unit=u.K, limits=(300.0,None), description='Mean effective temperature')]
     params += [FloatParameter(qualifier='abun', visible_if='hierarchy.is_contact_binary:False', value=kwargs.get('abun', 0.), default_unit=u.dimensionless_unscaled, description='Abundance/Metallicity')]   # TODO: correct units??? check if log or not? (logabun = 0)
 
-    params += [FloatParameter(qualifier='logg', latexfmt=r'\mathrm{log}g_\mathrm{{ {component} }}', value=1.0, default_unit=u.dimensionless_unscaled, description='logg at requiv')]
+    params += [FloatParameter(qualifier='logg', latexfmt=r'\mathrm{{log}}g_\mathrm{{ {component} }}', value=1.0, default_unit=u.dimensionless_unscaled, description='logg at requiv')]
 
     params += [FloatParameter(qualifier='syncpar',  latexfmt=r'F_\mathrm{{ {component} }}', visible_if='hierarchy.is_binary:True', value=kwargs.get('syncpar', 1.0), default_unit=u.dimensionless_unscaled, limits=(0.0,None), description='Synchronicity parameter')]
     params += [FloatParameter(qualifier='period',  latexfmt=r'P_\mathrm{{ {component} }}', value=kwargs.get('period', 1.0), default_unit=u.d, limits=(1e-6,None), advanced=True, description='Rotation period')]
@@ -289,7 +289,7 @@ def envelope(component, **kwargs):
     # params += [FloatParameter(qualifier='frac_lost_bol', value=kwargs.get('frac_lost_bol', 1.0), default_unit=u.dimensionless_unscaled, limits=(0.0, 1.0), description='ratio of incident bolometric light that is lost/ignored')]
 
 
-    params += [FloatParameter(qualifier='fillout_factor', latexfmt=r'\mathrm{FF}_\mathrm{{ {component}} }}', value=kwargs.get('fillout_factor', 0.5), default_unit=u.dimensionless_unscaled, limits=(0.0,1.0), description='Fillout-factor of the envelope')]
+    params += [FloatParameter(qualifier='fillout_factor', latexfmt=r'\mathrm{{FF}}_\mathrm{{ {component}} }}', value=kwargs.get('fillout_factor', 0.5), default_unit=u.dimensionless_unscaled, limits=(0.0,1.0), description='Fillout-factor of the envelope')]
     params += [FloatParameter(qualifier='pot', latexfmt=r'\Omega_\mathrm{{ {component}} }}', value=kwargs.get('pot', 3.5), default_unit=u.dimensionless_unscaled, limits=(0.0,None), description='Potential of the envelope (from the primary component\'s reference)')]
     params += [FloatParameter(qualifier='pot_min', latexfmt=r'\Omega_\mathrm{{ min,  {component}} }}', value=kwargs.get('pot_min', 3.5), default_unit=u.dimensionless_unscaled, limits=(0.0,None), description='Critical (minimum) value of the potential to remain a contact')]
     params += [FloatParameter(qualifier='pot_max', latexfmt=r'\Omega_\mathrm{{ max, {component}} }}', value=kwargs.get('pot_max', 3.5), default_unit=u.dimensionless_unscaled, limits=(0.0,None), description='Critical (maximum) value of the potential to remain a contact')]
