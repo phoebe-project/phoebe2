@@ -6035,7 +6035,7 @@ class Parameter(object):
                     else:
                         v = self._value.to_dict()
                 elif isinstance(self._value, distl.BaseDistlObject):
-                    v = self._value.to_dict()
+                    v = self._value.to_dict(exclude=exclude)
                 elif isinstance(v, dict):
                     v = {dk: _parse(k, dv) for dk,dv in v.items()}
 
