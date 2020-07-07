@@ -2307,6 +2307,13 @@ class EllcBackend(BaseBackendByDataset):
         if not _use_ellc:
             raise ImportError("could not import ellc")
 
+        if not (hasattr(ellc, 'lc') and hasattr(ellc, 'rv')):
+            try:
+                from ellc import lc as _ellc_lc
+                from ellc import rv as _ellc_rv
+            except Exception as e:
+                raise ImportError("ellc failed to load required lc and/or rv functions with error: {}".format(e))
+
         hier = b.get_hierarchy()
 
         starrefs  = hier.get_stars()
