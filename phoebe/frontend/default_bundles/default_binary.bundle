@@ -10,6 +10,7 @@ null,
 null
 ],
 "copy_for": false,
+"latexfmt": "t_0",
 "Class": "FloatParameter"
 },
 {
@@ -24,6 +25,7 @@ null
 ],
 "copy_for": false,
 "advanced": true,
+"latexfmt": "\\alpha",
 "Class": "FloatParameter"
 },
 {
@@ -38,6 +40,7 @@ null
 ],
 "copy_for": false,
 "advanced": true,
+"latexfmt": "\\delta",
 "Class": "FloatParameter"
 },
 {
@@ -51,6 +54,7 @@ null,
 null
 ],
 "copy_for": false,
+"latexfmt": "d",
 "Class": "FloatParameter"
 },
 {
@@ -64,6 +68,7 @@ null,
 null
 ],
 "copy_for": false,
+"latexfmt": "v_\\gamma",
 "Class": "FloatParameter"
 },
 {
@@ -77,6 +82,7 @@ null,
 null
 ],
 "copy_for": false,
+"latexfmt": "E(B-V)",
 "Class": "FloatParameter"
 },
 {
@@ -90,6 +96,7 @@ null,
 null
 ],
 "copy_for": false,
+"latexfmt": "A_v",
 "Class": "FloatParameter"
 },
 {
@@ -103,6 +110,7 @@ null,
 null
 ],
 "copy_for": false,
+"latexfmt": "R_v",
 "Class": "FloatParameter"
 },
 {
@@ -208,7 +216,7 @@ null,
 null
 ],
 "copy_for": false,
-"latexfmt": "\\mathrm{log}g_\\mathrm{{ {component} }}",
+"latexfmt": "\\mathrm{{log}}g_\\mathrm{{ {component} }}",
 "Class": "FloatParameter"
 },
 {
@@ -553,7 +561,7 @@ null,
 null
 ],
 "copy_for": false,
-"latexfmt": "\\mathrm{log}g_\\mathrm{{ {component} }}",
+"latexfmt": "\\mathrm{{log}}g_\\mathrm{{ {component} }}",
 "Class": "FloatParameter"
 },
 {
@@ -884,7 +892,7 @@ null
 ],
 "copy_for": false,
 "advanced": true,
-"latexfmt": "\\dot{\\omega}_{{0, \\mathrm{{ {component} }}}}",
+"latexfmt": "\\dot{{\\omega}}_{{0, \\mathrm{{ {component} }}}}",
 "Class": "FloatParameter"
 },
 {
@@ -916,7 +924,7 @@ null,
 null
 ],
 "copy_for": false,
-"latexfmt": "t_{{0, \\mathrm{{ perpass }}, \\mathrm{{ {component} }}",
+"latexfmt": "t_{{0, \\mathrm{{ perpass }}, \\mathrm{{ {component} }} }}",
 "Class": "FloatParameter"
 },
 {
@@ -932,7 +940,7 @@ null,
 null
 ],
 "copy_for": false,
-"latexfmt": "t_{{0, \\mathrm{{ supconj }}, \\mathrm{{ {component} }}",
+"latexfmt": "t_{{0, \\mathrm{{ supconj }}, \\mathrm{{ {component} }} }}",
 "Class": "FloatParameter"
 },
 {
@@ -948,7 +956,7 @@ null,
 null
 ],
 "copy_for": false,
-"latexfmt": "t_{{0, _\\mathrm{{ ref }}, \\mathrm{{ {component} }}",
+"latexfmt": "t_{{0, _\\mathrm{{ ref }}, \\mathrm{{ {component} }} }}",
 "Class": "FloatParameter"
 },
 {
@@ -1076,7 +1084,7 @@ null
 1.0
 ],
 "copy_for": false,
-"latexfmt": "e_\\mathrm{{ {component} }} \\sin \\omega 0",
+"latexfmt": "e_\\mathrm{{ {component} }} \\sin \\omega_0",
 "Class": "FloatParameter"
 },
 {
@@ -1887,8 +1895,8 @@ null
 "description": "Atmosphere table",
 "choices": [
 "phoenix",
-"extern_atmx",
 "ck2004",
+"extern_atmx",
 "extern_planckint",
 "blackbody"
 ],
@@ -2092,8 +2100,8 @@ null
 "description": "Atmosphere table",
 "choices": [
 "phoenix",
-"extern_atmx",
 "ck2004",
+"extern_atmx",
 "extern_planckint",
 "blackbody"
 ],
@@ -2110,8 +2118,8 @@ null
 "description": "Atmosphere table",
 "choices": [
 "phoenix",
-"extern_atmx",
 "ck2004",
+"extern_atmx",
 "extern_planckint",
 "blackbody"
 ],

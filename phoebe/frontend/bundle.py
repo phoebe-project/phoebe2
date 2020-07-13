@@ -3649,7 +3649,7 @@ class Bundle(ParameterSet):
 
             gps = self.filter(kind='gaussian_process', context='feature', **_skip_filter_checks).features
             compute_enabled_gps = self.filter(qualifier='enabled', feature=gps, value=True, **_skip_filter_checks).features
-            compute_enabled_datasets = self.filter(qualifier='enabled', dataset=self.datasets, value=True, **_skip_filter_checks)
+            compute_enabled_datasets = self.filter(qualifier='enabled', dataset=self.datasets, value=True, **_skip_filter_checks).datasets
 
             # per-compute hierarchy checks
             if len(self.hierarchy.get_envelopes()):
@@ -4614,8 +4614,15 @@ class Bundle(ParameterSet):
 
         ret_ps = self.filter(feature=kwargs['feature'], **_skip_filter_checks)
 
+        ret_changes = []
+        ret_changes += self._handle_fitparameters_selecttwigparams(return_changes=return_changes)
+
         if kwargs.get('overwrite', False) and return_changes:
             ret_ps += overwrite_ps
+
+        if return_changes:
+            ret_ps += ret_changes
+
         return _return_ps(self, ret_ps)
 
     def get_feature(self, feature=None, **kwargs):
@@ -4678,9 +4685,14 @@ class Bundle(ParameterSet):
         # parameters, etc
         kwargs.setdefault('context', ['feature', 'compute'])
 
-        removed_ps = self.remove_parameters_all(**kwargs)
+        ret_ps = self.remove_parameters_all(**kwargs)
 
-        return removed_ps
+        ret_changes = []
+        ret_changes += self._handle_fitparameters_selecttwigparams(return_changes=return_changes)
+        if return_changes:
+            ret_ps += ret_changes
+
+        return ret_ps
 
     def remove_features_all(self, return_changes=False):
         """
@@ -4721,7 +4733,14 @@ class Bundle(ParameterSet):
         # TODO: raise error if old_feature not found?
         self._rename_label('feature', old_feature, new_feature, overwrite)
 
-        return self.filter(feature=new_feature)
+        ret_ps = self.filter(feature=new_feature)
+
+        ret_changes = []
+        ret_changes += self._handle_fitparameters_selecttwigparams(return_changes=return_changes)
+        if return_changes:
+            ret_ps += ret_changes
+
+        return ret_ps
 
 
     def enable_feature(self, feature=None, **kwargs):
@@ -6082,6 +6101,10 @@ class Bundle(ParameterSet):
         For a list of optional built-in constraints, see <phoebe.parameters.constraint>
         including:
         * <phoebe.parameters.constraint.semidetached>
+        * <phoebe.parameters.constraint.requivratio>
+        * <phoebe.parameters.constraint.requivsumfrac>
+        * <phoebe.parameters.constraint.teffratio>
+        * <phoebe.parameters.constraint.parallax>
 
         The following are automatically included for all orbits, during
         <phoebe.frontend.bundle.Bundle.add_component> for a
@@ -6189,9 +6212,18 @@ class Bundle(ParameterSet):
             func = _get_add_func(_constraint, args[0])
             func_args = args[1:]
 
+        # although we could pass solve_for IF the parameter already exists,
+        # we'll just manually flip after to ensure it already does
         if 'solve_for' in kwargs.keys():
-            # solve_for is a twig, we need to pass the parameter
-            kwargs['solve_for'] = self.get_parameter(kwargs['solve_for'], context=['component', 'dataset', 'model'], check_visible=False)
+            try:
+                kwargs['solve_for'] = self.get_parameter(kwargs['solve_for'], context=['component', 'dataset', 'model', 'system'], **_skip_filter_checks)
+            except:
+                solve_for = kwargs.pop('solve_for', None)
+            else:
+                solve_for = None
+        else:
+            solve_for = None
+
 
         lhs, rhs, addl_vars, constraint_kwargs = func(self, *func_args, **{k:v for k,v in kwargs.items() if k not in ['constraint']})
         # NOTE that any component parameters required have already been
@@ -6227,6 +6259,9 @@ class Bundle(ParameterSet):
         params = ParameterSet([constraint_param])
         constraint_param._update_bookkeeping()
         self._attach_params(params, **metawargs)
+
+        if solve_for is not None:
+            self.flip_constraint(uniqueid=constraint_param.uniqueid, solve_for=solve_for)
 
         # we should run it now to make sure everything is in-sync
         if conf.interactive_constraints:
@@ -9407,7 +9442,7 @@ class Bundle(ParameterSet):
         exclude_solutions = [sol for sol in self.solutions if sol not in sample_from]
         # we need to include uniqueids if needing to apply the solution during sample_from
         incl_uniqueid = len(exclude_solutions) != len(self.solutions)
-        f.write("bdict = json.loads(\"\"\"{}\"\"\", object_pairs_hook=phoebe.utils.parse_json)\n".format(json.dumps(self.exclude(context=exclude_contexts, **_skip_filter_checks).exclude(distribution=exclude_distributions, **_skip_filter_checks).exclude(solution=exclude_solutions, **_skip_filter_checks).to_json(incl_uniqueid=incl_uniqueid, exclude=['description', 'advanced', 'readonly', 'copy_for', 'latexfmt']))))
+        f.write("bdict = json.loads(\"\"\"{}\"\"\", object_pairs_hook=phoebe.utils.parse_json)\n".format(json.dumps(self.exclude(context=exclude_contexts, **_skip_filter_checks).exclude(distribution=exclude_distributions, **_skip_filter_checks).exclude(solution=exclude_solutions, **_skip_filter_checks).to_json(incl_uniqueid=incl_uniqueid, exclude=['description', 'advanced', 'readonly', 'copy_for', 'latexfmt', 'label_latex']))))
         f.write("b = phoebe.open(bdict, import_from_older={})\n".format(import_from_older))
         # TODO: make sure this works with multiple computes
         compute_kwargs = list(kwargs.items())+[('compute', compute), ('model', str(model)), ('dataset', dataset), ('do_create_fig_params', do_create_fig_params)]
@@ -9885,7 +9920,7 @@ class Bundle(ParameterSet):
                             ds_sigmass = np.append(ds_sigmass, sigma_est*np.ones(len(ds_fluxes)))
 
                         ml_ds = ml_params.filter(dataset=dataset, **_skip_filter_checks)
-                        model_fluxes_interp = ml_ds.get_parameter(qualifier='fluxes', dataset=dataset, **_skip_filter_checks).interp_value(times=ds_times, parent_ps=ml_ds, bundle=self)
+                        model_fluxes_interp = ml_ds.get_parameter(qualifier='fluxes', dataset=dataset, **_skip_filter_checks).interp_value(times=ds_times, parent_ps=ml_ds, bundle=self, consider_gaussian_process=False)
                         model_fluxess_interp = np.append(model_fluxess_interp, model_fluxes_interp)
 
                     scale_factor_approx = np.median(ds_fluxess / model_fluxess_interp)
@@ -10630,7 +10665,7 @@ class Bundle(ParameterSet):
         else:
             b = self
 
-        f.write("bdict = json.loads(\"\"\"{}\"\"\", object_pairs_hook=phoebe.utils.parse_json)\n".format(json.dumps(b.exclude(context=exclude_contexts, **_skip_filter_checks).exclude(solution=exclude_solutions, **_skip_filter_checks).to_json(incl_uniqueid=True, exclude=['description', 'advanced', 'readonly', 'copy_for', 'latexfmt']))))
+        f.write("bdict = json.loads(\"\"\"{}\"\"\", object_pairs_hook=phoebe.utils.parse_json)\n".format(json.dumps(b.exclude(context=exclude_contexts, **_skip_filter_checks).exclude(solution=exclude_solutions, **_skip_filter_checks).to_json(incl_uniqueid=True, exclude=['description', 'advanced', 'readonly', 'copy_for', 'latexfmt', 'label_latex']))))
         f.write("b = phoebe.open(bdict, import_from_older={})\n".format(import_from_older))
         solver_kwargs = list(kwargs.items())+[('solver', solver), ('solution', str(solution))]
         solver_kwargs_string = ','.join(["{}={}".format(k,"\'{}\'".format(str(v)) if isinstance(v, str) else v) for k,v in solver_kwargs])

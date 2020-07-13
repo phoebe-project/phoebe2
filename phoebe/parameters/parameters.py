@@ -186,7 +186,7 @@ _forbidden_labels += ['phoebe', 'legacy', 'jktebop', 'photodynam', 'ellc']
 
 # we also want to forbid any possible qualifiers
 # from system:
-_forbidden_labels += ['t0', 'ra', 'dec', 'epoch', 'distance', 'vgamma', 'hierarchy',
+_forbidden_labels += ['t0', 'ra', 'dec', 'epoch', 'distance', 'parallax', 'vgamma', 'hierarchy',
                      'Rv', 'Av', 'ebv', 'extinction']
 
 # from setting:
@@ -3640,7 +3640,7 @@ class ParameterSet(object):
             comparison.  Required only if more than one component exist in the
             dataset (for RVs, for example) and not all should be included in
             the chi2
-        * `consider_gaussian_process` (bool, optional, defult=True): whether
+        * `consider_gaussian_process` (bool, optional, default=True): whether
             to consider a system with gaussian process(es) as time-dependent
         * `mask_enabled` (bool, optional, default=None): whether to enable
             masking on the dataset(s).  If None or not provided, will default to
@@ -3705,7 +3705,7 @@ class ParameterSet(object):
 
         return chi2
 
-    def calculate_lnlikelihood(self, model=None, dataset=None, component=None):
+    def calculate_lnlikelihood(self, model=None, dataset=None, component=None, consider_gaussian_process=True):
         """
         Compute the log-likelihood between a model and the observed values in the dataset(s).
 
@@ -3731,6 +3731,8 @@ class ParameterSet(object):
             comparison.  Required only if more than one component exist in the
             dataset (for RVs, for example) and not all should be included in
             the chi2
+        * `consider_gaussian_process` (bool, optional, default=True): whether
+            to consider a system with gaussian process(es) as time-dependent
 
         Returns
         -----------
@@ -3741,7 +3743,7 @@ class ParameterSet(object):
         * NotImplementedError: if the dataset kind is not supported for residuals.
         """
 
-        return -0.5 * self.calculate_chi2(model, dataset, component)
+        return -0.5 * self.calculate_chi2(model, dataset, component, consider_gaussian_process=consider_gaussian_process)
 
     def _unpack_plotting_kwargs(self, animate=False, **kwargs):
 
@@ -6033,7 +6035,7 @@ class Parameter(object):
                     else:
                         v = self._value.to_dict()
                 elif isinstance(self._value, distl.BaseDistlObject):
-                    v = self._value.to_dict()
+                    v = self._value.to_dict(exclude=exclude)
                 elif isinstance(v, dict):
                     v = {dk: _parse(k, dv) for dk,dv in v.items()}
 
@@ -8943,7 +8945,10 @@ class FloatParameter(Parameter):
                 dist.value = self.get_value()
 
         if dist.label is None:
-            dist.label = '{}@{}'.format(self.qualifier, getattr(self, self.context))
+            if hasattr(self, self.context):
+                dist.label = '{}@{}'.format(self.qualifier, getattr(self, self.context))
+            else:
+                dist.label = '{}@{}'.format(self.qualifier, self.context)
             if self._latexfmt is not None:
                 dist.label_latex = self.latextwig.replace("$", "")
 
@@ -9452,7 +9457,7 @@ class FloatArrayParameter(FloatParameter):
         bundle = kwargs.pop('bundle', self._bundle)
 
         if len(kwargs.keys()) > 1:
-            raise KeyError("interp_value only takes a single qualifier-value pair")
+            raise KeyError("interp_value only takes a single qualifier-value pair, got other kwargs: {}".format(list(kwargs.keys())))
 
         qualifier, qualifier_interp_value = list(kwargs.items())[0]
 
@@ -11369,6 +11374,12 @@ class ConstraintParameter(Parameter):
 
         if self.default_unit is not None:
             if isinstance(value, distl.BaseDistlObject):
+                if value.unit is None:
+                    if self.in_solar_units:
+                        value.unit = distl._distl._physical_types_to_solar.get(self.default_unit.physical_type)
+                    else:
+                        value.unit = distl._distl._physical_types_to_si.get(self.default_unit.physical_type)
+
                 value = value.to(self.default_unit)
             else:
                 if self.in_solar_units:
