@@ -137,6 +137,16 @@ _physical_types_to_solar = {'length': 'solRad',
                             'angular speed': 'rad/d',
                             'dimensionless': ''}
 
+_physical_types_to_si = {'length': 'm',
+                            'mass': 'kg',
+                            'temperature': 'K',
+                            'power': 'W',
+                            'time': 's',
+                            'speed': 'm/s',
+                            'angle': 'rad',
+                            'angular speed': 'rad/s',
+                            'dimensionless': ''}
+
 def _get_physical_type(object):
 
     if hasattr(object, 'physical_type'):

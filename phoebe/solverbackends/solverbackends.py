@@ -481,7 +481,7 @@ class BaseSolverBackend(object):
         solver_ps = b.get_solver(solver=solver, **_skip_filter_checks)
         for param in solver_ps.to_list():
             # we need to make sure SelectParameters are expanded correctly if sent through kwargs
-            kwargs[param.qualifier] = param.get_value(expand=True, **{param.qualifier: kwargs.get(param.qualifier, None)})
+            kwargs[param.qualifier] = param.get_value(expand=True, unit='solar', **{param.qualifier: kwargs.get(param.qualifier, None)})
 
         packet, solution_ps = self._get_packet_and_solution(b, solver, **kwargs)
 
@@ -903,12 +903,11 @@ class _PeriodogramBaseBackend(BaseSolverBackend):
 
         sample_mode = kwargs.get('sample_mode')
 
-        # TODO: options for duration to autopower/power (not sure what it does from the astropy docs)
         if algorithm == 'bls':
             model = _BoxLeastSquares(times, y, dy=sigmas)
-            # TODO: expose duration to solver options
             # https://docs.astropy.org/en/stable/api/astropy.timeseries.BoxLeastSquares.html#astropy.timeseries.BoxLeastSquares.autoperiod
             # https://docs.astropy.org/en/stable/api/astropy.timeseries.BoxLeastSquares.html#astropy.timeseries.BoxLeastSquares.period
+            # NOTE: duration will be in days (solar units)
             power_kwargs = {'duration': kwargs.get('duration'), 'objective': kwargs.get('objective')}
             autopower_kwargs = _deepcopy(power_kwargs)
             autopower_kwargs['minimum_n_transit'] = kwargs.get('minimum_n_cycles')
