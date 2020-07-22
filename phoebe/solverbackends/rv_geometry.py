@@ -3,7 +3,7 @@ from astropy import units as u
 from scipy.optimize import newton, minimize, least_squares
 from scipy.interpolate import interp1d
 from scipy.signal import savgol_filter
-from scipy.version import version
+from scipy.version import version as _scipy_version
 from phoebe.constraints.builtin import t0_supconj_to_perpass
 from copy import deepcopy
 from distutils.version import LooseVersion
@@ -113,8 +113,8 @@ def ecc_anomaly(x, phases, ph0, ecc):
 def rv_model(phases, P, per0, ecc, asini, vgamma, ph_supconj, component=1):
 
     ph0 = t0_supconj_to_perpass(ph_supconj, 1., ecc, per0, 0., 0., 0.)
-    # Check version of scipy   
-    if LooseVersion(version) <= LooseVersion("1.2.1"):
+    # Check version of scipy
+    if LooseVersion(_scipy_version) <= LooseVersion("1.2.1"):
         Es = newton(ecc_anomaly, deepcopy(phases), args=(phases, ph0*np.ones_like(phases), ecc*np.ones_like(phases)))
     else:
         Es = newton(ecc_anomaly, phases, args=(phases, ph0*np.ones_like(phases), ecc*np.ones_like(phases)))
