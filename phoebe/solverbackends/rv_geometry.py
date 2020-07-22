@@ -113,11 +113,10 @@ def ecc_anomaly(x, phases, ph0, ecc):
 def rv_model(phases, P, per0, ecc, asini, vgamma, ph_supconj, component=1):
 
     ph0 = t0_supconj_to_perpass(ph_supconj, 1., ecc, per0, 0., 0., 0.)
-    # Check version of scipy
-    if LooseVersion(_scipy_version) <= LooseVersion("1.2.1"):
-        Es = newton(ecc_anomaly, deepcopy(phases), args=(phases, ph0*np.ones_like(phases), ecc*np.ones_like(phases)))
-    else:
-        Es = newton(ecc_anomaly, phases, args=(phases, ph0*np.ones_like(phases), ecc*np.ones_like(phases)))
+    # deepcopy is needed for scipy < 1.2.2 because of this bug: https://github.com/scipy/scipy/issues/9964
+    Es = newton(ecc_anomaly,
+                deepcopy(phases) if LooseVersion(_scipy_version) < LooseVersion("1.2.2") else phases,
+                args=(phases, ph0*np.ones_like(phases), ecc*np.ones_like(phases)))
 
     thetas = 2*np.arctan(((1+ecc)/(1-ecc))**0.5*np.tan(Es/2))
     P_s = ((P*u.d).to(u.s)).value
