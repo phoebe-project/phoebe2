@@ -24,6 +24,9 @@ from phoebe import pool as _pool
 
 #global variable to prevent phb1 configuration from happening
 #multiple times
+global _phb1_config
+_phb1_config = False
+
 try:
     import phoebe_legacy as phb1
 except ImportError:
@@ -35,6 +38,7 @@ except ImportError:
         _use_phb1 = True
 else:
     _use_phb1 = True
+
 
 
 try:
@@ -1435,20 +1439,29 @@ class LegacyBackend(BaseBackendByDataset):
         """
         """
         logger.debug("rank:{}/{} LegacyBackend._worker_setup: creating temporary phoebe file".format(mpi.myrank, mpi.nprocs))
-
-        phb1.init()
-        try:
-            if hasattr(phb1, 'auto_configure'):
-                # then phb1 is phoebe_legacy
-                phb1.auto_configure()
-            else:
-                # then phb1 is phoebeBackend
-                phb1.configure()
-        except SystemError:
-            raise SystemError("PHOEBE config failed: try creating PHOEBE config file through GUI")
+        global _phb1_config
+        # make phoebe 1 file
+        # tmp_filename = temp_name = next(tempfile._get_candidate_names())
+        computeparams = b.get_compute(compute, force_ps=True)
+ #       print('_phb1_config', _phb1_config)
+        if _phb1_config == False:
+            phb1.init()
+            try:
+                if hasattr(phb1, 'auto_configure'):
+                    # then phb1 is phoebe_legacy
+                    phb1.auto_configure()
+                    _phb1_config = True
+                else:
+                    # then phb1 is phoebeBackend
+                    phb1.configure()
+                    _phb1_config = True
+            except SystemError:
+                raise SystemError("PHOEBE config failed: try creating PHOEBE config file through GUI")
+          
 
         computeparams = b.get_compute(compute, force_ps=True)
         legacy_dict = io.pass_to_legacy(b, compute=compute, disable_l3=True, **kwargs)
+
         io.import_to_legacy(legacy_dict)
 
         # build lookup tables between the dataset labels and the indices needed
