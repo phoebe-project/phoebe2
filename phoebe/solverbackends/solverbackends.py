@@ -1375,6 +1375,12 @@ class EmceeBackend(BaseSolverBackend):
                 backend.log_prob = continued_lnprobabilities
                 backend.initialized = True
                 backend.random_state = None
+                if not hasattr(backend, 'blobs'):
+                    # some versions of emcee seem to have a bug where it tries
+                    # to access backend.blobs but that does not exist.  Since
+                    # we don't use blobs, we'll get around that by faking it to
+                    # be None
+                    backend.blobs = None
                 esargs['backend'] = backend
 
             params_twigs = [b.get_parameter(uniqueid=uniqueid, **_skip_filter_checks).twig for uniqueid in params_uniqueids]
