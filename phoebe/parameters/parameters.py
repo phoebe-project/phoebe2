@@ -9501,6 +9501,9 @@ class FloatArrayParameter(FloatParameter):
             if '-sigma' in sample_mode:
                 logger.warning("using median for interpolation for sample_mode='{}'".format(sample_mode))
                 self_value = self_value[1]
+            elif sample_mode == 'all' and self_value.shape[0] == 1:
+                # then sample_num = 1, possibly from an optimizer solution
+                self_value = self_value[0]
             else:
                 raise NotImplementedError("iterpolation not supported for sample_mode='{}'".format(sample_mode))
 
