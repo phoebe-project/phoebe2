@@ -9093,10 +9093,6 @@ class FloatParameter(Parameter):
 
         # TODO: check to see if this is still necessary
         if isinstance(unit, str):
-
-                                    v = np.float64(u.to_solar(quantity).value)
-                                else:
-                                    v = np.float64(quantity.si.value)
             if unit == 'solar':
                 unit = u._physical_types_to_solar.get(u._get_physical_type(self.default_unit))
             elif unit in ['si', 'SI']:
