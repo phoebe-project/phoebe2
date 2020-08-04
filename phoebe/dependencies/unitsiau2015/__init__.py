@@ -184,6 +184,9 @@ def to_solar(object):
 
 u.can_convert_to_solar = can_convert_to_solar
 u.to_solar = to_solar
+u._get_physical_type = _get_physical_type
+u._physical_types_to_si  = _physical_types_to_si
+u._physical_types_to_solar = _physical_types_to_solar
 
 
 
