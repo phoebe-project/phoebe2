@@ -1093,22 +1093,28 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
         spotpt = spotpars[spotin]
         source =  np.int(spotpt[:,1][list(spotpt[:,0]).index('phoebe_spots_source['+str(x)+']')])
         spotpt = np.delete(spotpt, list(spotpt[:,0]).index('phoebe_spots_source['+str(x)+']'), axis=0)
-
+        enabled = np.int(spotpt[:,1][list(spotpt[:,0]).index('phoebe_spots_active_switch['+str(x)+']')])
+        spotpt = np.delete(spotpt, list(spotpt[:,0]).index('phoebe_spots_active_switch['+str(x)+']'), axis=0)
 
         if source == 1:
             component = 'primary'
         elif source == 2:
             component = 'secondary'
-        elif source == 0:
-            component = 'secondary'
+ #       elif source == 0:
+ #           component = 'secondary'
         else:
             raise ValueError("spot component not specified and cannot be added")
 
 #   create spot
 
         spot = eb.add_feature('spot', component=component)
+
         #TODO check this tomorrow
         dataid = spot.features[0]
+       
+        #enable or disable spot
+        val = _bool1to2[enabled]
+        eb.set_value_all(qualifier='enabled', value=val, feature=dataid)
 #   add spot parameters
 
         for k in range(len(spotpt)):
@@ -1342,12 +1348,27 @@ def ret_parname(param, comp_int=None, dtype=None, dnum=None, ptype=None, index=N
             dset = ''
     # determine the determinant of the parameter based on parameter type
         # print "check", param, ptype, dtype
-        if ptype == 'float':
-            det = '.VAL'
 
-        elif ptype == 'boolean' and dtype=='':
-            # print "inside", param, ptype, dtype
-            det = '_switch'
+        if ptype == 'float':
+
+            if dtype=='spots_':
+                det = ''
+            else:
+                det = '.VAL'
+
+  #      elif ptype == 'boolean' and dtype=='':
+  #          print("inside", param, ptype, dtype)
+  #          det = '_switch'
+        
+        elif ptype == 'boolean':
+            if dtype=='': 
+                det='_switch'  
+
+            elif dtype=='spots_':
+                det = '_switch'+dset
+                dset = ''
+            else:
+                det=''
         else:
             det = ''
 
@@ -1449,7 +1470,7 @@ def pass_to_legacy(eb, compute=None, **kwargs):
     lcs = eb.get_dataset(kind='lc').datasets
     rvs = eb.get_dataset(kind='rv').datasets
     # only spots have an enabled parameter in legacy compute options
-    spots = eb.filter(qualifier='enabled', compute=compute, value=True).features
+    spots = eb.filter(qualifier='enabled', compute=compute).features
 
     #create dictionary to store parameters
     legacy_dict = {}
@@ -1830,11 +1851,21 @@ def pass_to_legacy(eb, compute=None, **kwargs):
 #    parvals.append('"Degrees"')
 #    types.append('choice')
     for y in range(len(spots)):
-
+        #specify component
+        source = eb.get_feature(spots[y]).component
+        if source == 'primary':
+            source_val=1
+        if source == 'secondary':
+            source_val=2
+        pname = 'phoebe_spots_source['+str(y+1)+']'
+        val = source_val
+        legacy_dict[pname] = val
+        #get qualifiers
         quals = eb.filter(feature=spots[y], context='feature')
-
+        quals = quals + eb.filter(feature=spots[y], context='compute', compute=compute)
 
         for param in quals.to_list():
+
             if param.component == primary:
                 comp_int = 1
             elif param.component == secondary:
@@ -1851,10 +1882,10 @@ def pass_to_legacy(eb, compute=None, **kwargs):
             if param != None:
 
                 val, ptype = par_value(param)
-
                 pname = ret_parname(param.qualifier, comp_int=None, dtype='spots', dnum = y+1, ptype=ptype)
-                for y in range(len(pname)):
-                    legacy_dict[pname[y]] = val[y]
+
+                for z in range(len(pname)):
+                    legacy_dict[pname[z]] = val[z]
             #    parnames.extend(pname)
             #    parvals.extend(val)
 
