@@ -3036,7 +3036,9 @@ class ParameterSet(object):
         * `twig` (string, optional, default=None): twig to be used to access
             the Parameter.  See <phoebe.parameters.ParameterSet.get_parameter>.
         * `unit` (string or unit, optional, default=None): unit to convert the
-            quantity.  If not provided or None, will use the default unit.  See
+            quantity.  If not provided or None, will use the default unit.
+            'SI' or 'solar' are also allowed values which will then be determined
+            based on the physical type of the default unit.  See
             <phoebe.parameters.ParameterSet.get_default_unit>.
         * `default` (quantity, optional, default=None): value to return if
             no results are returned by <phoebe.parameters.ParameterSet.get_parameter>
@@ -3122,7 +3124,9 @@ class ParameterSet(object):
         * `twig` (string, optional, default=None): twig to be used to access
             the Parameter.  See <phoebe.parameters.ParameterSet.get_parameter>.
         * `unit` (string or unit, optional, default=None): unit to convert the
-            value.  If not provided or None, will use the default unit.  See
+            value.  If not provided or None, will use the default unit.
+            'SI' or 'solar' are also allowed values which will then be determined
+            based on the physical type of the default unit. See
             <phoebe.parameters.ParameterSet.get_default_unit>. `unit` will
             be ignored for Parameters that do not store quantities.
         * `draw_from` (string, optional, default=None): distribution-tag to
@@ -9089,9 +9093,14 @@ class FloatParameter(Parameter):
 
         # TODO: check to see if this is still necessary
         if isinstance(unit, str):
-            # we need to do this to make sure we get PHOEBE's version of
-            # the unit instead of astropy's
-            unit = u.Unit(unit)
+            if unit == 'solar':
+                unit = u._physical_types_to_solar.get(u._get_physical_type(self.default_unit))
+            elif unit in ['si', 'SI']:
+                unit = u._physical_types_to_si.get(u._get_physical_type(self.default_unit))
+            else:
+                # we need to do this to make sure we get PHOEBE's version of
+                # the unit instead of astropy's
+                unit = u.Unit(unit)
 
         # TODO: catch astropy units and convert to PHOEBE's?
 
