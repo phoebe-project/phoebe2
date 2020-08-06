@@ -2891,7 +2891,9 @@ class Bundle(ParameterSet):
         return report
 
 
-    def run_checks_system(self, raise_logger_warning=False, raise_error=False, **kwargs):
+    def run_checks_system(self, raise_logger_warning=False, raise_error=False,
+                          compute=None, solver=None, solution=None, figure=None,
+                          **kwargs):
         """
         Check to see whether the system is expected to be computable.
 
@@ -3229,7 +3231,8 @@ class Bundle(ParameterSet):
 
         return report
 
-    def run_checks_compute(self, compute=None, raise_logger_warning=False, raise_error=False, run_checks_system=True, **kwargs):
+    def run_checks_compute(self, compute=None, solver=None, solution=None, figure=None,
+                         raise_logger_warning=False, raise_error=False, run_checks_system=True, **kwargs):
         """
         Check to see whether the system is expected to be computable.
 
@@ -3881,7 +3884,8 @@ class Bundle(ParameterSet):
 
         return report
 
-    def run_checks_solver(self, solver=None, raise_logger_warning=False, raise_error=False, **kwargs):
+    def run_checks_solver(self, solver=None, compute=None, solution=None, figure=None,
+                          raise_logger_warning=False, raise_error=False, **kwargs):
         """
         Check to for any expected errors/warnings to <phoebe.frontend.bundle.Bundle.run_solver>.
 
@@ -4128,7 +4132,8 @@ class Bundle(ParameterSet):
 
         return report
 
-    def run_checks_solution(self, solution=None, raise_logger_warning=False, raise_error=False, **kwargs):
+    def run_checks_solution(self, solution=None, compute=None, solver=None, figure=None,
+                            raise_logger_warning=False, raise_error=False, **kwargs):
         """
         Check to for any expected errors/warnings to <phoebe.frontend.bundle.Bundle.adopt_solution>.
 
@@ -4251,7 +4256,8 @@ class Bundle(ParameterSet):
         return report
 
 
-    def run_checks_figure(self, figure=None, raise_logger_warning=False, raise_error=False, **kwargs):
+    def run_checks_figure(self, figure=None, compute=None, solver=None, solution=None,
+                          raise_logger_warning=False, raise_error=False, **kwargs):
         """
         Check to see whether the system is expected to be computable.
 
