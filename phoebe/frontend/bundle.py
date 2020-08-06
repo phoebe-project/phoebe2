@@ -4022,20 +4022,10 @@ class Bundle(ParameterSet):
                                         True, 'run_solver')
 
 
-                fit_parameters_ephemeris = adjustable_parameters.filter(twig=fit_parameters, qualifier=['period', 'per0', 't0*'], context='component', component=self.hierarchy.get_top(), **_skip_filter_checks)
-                if len(fit_parameters_ephemeris):
-                    offending_datasets = []
-                    for dataset in lc_datasets + rv_datasets:
-                        if len(self.get_value(qualifier='mask_phases', dataset=dataset, context='dataset', **_skip_filter_checks)):
-                            offending_datasets.append(dataset)
+                fit_ps = adjustable_parameters.filter(twig=fit_parameters, **_skip_filter_checks)
 
-                    if len(offending_datasets):
-                        report.add_item(self,
-                                        "fit_parameters contains a parameter ({}) that affects phasing which could cause issues with mask_phases".format(fit_parameters_ephemeris.qualifiers),
-                                        self.filter(qualifier='mask_phases', dataset=offending_datasets, context='dataset', **_skip_filter_checks).to_list() + [solver_ps.get_parameter(qualifier='fit_parameters', **_skip_filter_checks)] + addl_parameters,
-                                        False, 'run_solver')
 
-            if 'init_from' in solver_ps.qualifiers:
+            elif 'init_from' in solver_ps.qualifiers:
                 _, init_from_uniqueids = self.get_distribution_collection(kwargs.get('init_from', 'init_from@{}'.format(solver)), keys='uniqueid', return_dc=False)
 
                 if not len(init_from_uniqueids):
@@ -4045,18 +4035,10 @@ class Bundle(ParameterSet):
                                     ]+addl_parameters,
                                     True, 'run_solver')
 
-                fit_parameters_ephemeris = adjustable_parameters.filter(uniqueid=init_from_uniqueids, qualifier=['period', 'per0', 't0*'], context='component', component=self.hierarchy.get_top(), **_skip_filter_checks)
-                if len(fit_parameters_ephemeris):
-                    offending_datasets = []
-                    for dataset in lc_datasets + rv_datasets:
-                        if len(self.get_value(qualifier='mask_phases', dataset=dataset, context='dataset', **_skip_filter_checks)):
-                            offending_datasets.append(dataset)
+                fit_ps = adjustable_parameters.filter(uniqueid=init_from_uniqueids, **_skip_filter_checks)
 
-                    if len(offending_datasets):
-                        report.add_item(self,
-                                        "fit_parameters contains a parameter ({}) that affects phasing which could cause issues with mask_phases".format(fit_parameters_ephemeris.qualifiers),
-                                        self.filter(qualifier='mask_phases', dataset=offending_datasets, context='dataset', **_skip_filter_checks).to_list() + [solver_ps.get_parameter(qualifier='init_from', **_skip_filter_checks)] + addl_parameters,
-                                        False, 'run_solver')
+            else:
+                fit_ps = None
 
 
             if solver_kind in ['emcee']:
@@ -4127,6 +4109,36 @@ class Bundle(ParameterSet):
                 else:
                     raise ValueError("{} could not be found in distributions or solutions".format(dist_or_solution))
 
+
+            ## warning if fitting a parameter that affects phasing but mask_phases is enabled
+            if fit_ps is not None:
+                fit_parameters_ephemeris = fit_ps.filter(qualifier=['period', 'per0', 't0*'], context='component', component=self.hierarchy.get_top(), **_skip_filter_checks)
+                if len(fit_parameters_ephemeris):
+                    offending_datasets = []
+                    for dataset in lc_datasets + rv_datasets:
+                        if len(self.get_value(qualifier='mask_phases', dataset=dataset, context='dataset', **_skip_filter_checks)):
+                            offending_datasets.append(dataset)
+
+                    if len(offending_datasets):
+                        report.add_item(self,
+                                        "fit_parameters contains a parameter ({}) that affects phasing which could cause issues with mask_phases".format(fit_parameters_ephemeris.qualifiers),
+                                        self.filter(qualifier='mask_phases', dataset=offending_datasets, context='dataset', **_skip_filter_checks).to_list()
+                                        +[solver_ps.get_parameter(qualifier=['fit_parameters', 'init_from'], **_skip_filter_checks)]
+                                        +addl_parameters,
+                                        False, 'run_solver')
+
+            ## warning if abusing stefan-boltzmann
+            if fit_ps is not None and 'compute' in solver_ps.qualifiers:
+                if self.get_value(qualifier='pblum_method', compute=compute, context='compute', default='none', **_skip_filter_checks) == 'stefan-boltzmann':
+                    fit_parameters_pblum_sb = fit_ps.filter(qualifier='pblum', dataset=lc_datasets+rv_datasets, **_skip_filter_checks)
+
+                    if len(fit_parameters_pblum_sb):
+                        report.add_item(self,
+                                        "pblum_method=stefan-boltzmann is an approximation, fitting for pblum may not be reliable.  Consider removing from {} or setting pblum_method='phoebe' (more expensive).".format('fit_parameters' if 'fit_parameters' in solver_ps.qualifiers else 'init_from'),
+                                        self.filter(qualifier='pblum_method', compute=compute, value='stefan-boltzmann', **_skip_filter_checks)
+                                        +[solver_ps.get_parameter(qualifier=['fit_parameters', 'init_from'], **_skip_filter_checks)]
+                                        +addl_parameters,
+                                        False, 'run_solver')
 
         self._run_checks_warning_error(report, raise_logger_warning, raise_error)
 
