@@ -3996,6 +3996,8 @@ class Bundle(ParameterSet):
             else:
                 rv_datasets = self.filter(kind='rv', context='dataset', **_skip_filter_checks).datasets
 
+            adjustable_parameters = self.get_adjustable_parameters(exclude_constrained=False)
+
             if 'fit_parameters' in solver_ps.qualifiers:
                 fit_parameters = solver_ps.get_value(qualifier='fit_parameters', fit_parameters=kwargs.get('fit_parameters', None), expand=True, **_skip_filter_checks)
                 if not len(fit_parameters):
@@ -4005,7 +4007,6 @@ class Bundle(ParameterSet):
                                     ]+addl_parameters,
                                     True, 'run_solver')
 
-                adjustable_parameters = self.get_adjustable_parameters(exclude_constrained=False)
                 for twig in fit_parameters:
                     fit_parameter = adjustable_parameters.get_parameter(twig=twig, **_skip_filter_checks)
                     if len(fit_parameter.constrained_by):
@@ -4067,6 +4068,16 @@ class Bundle(ParameterSet):
                                      solver_ps.get_parameter(qualifier='init_from', **_skip_filter_checks)
                                     ]+addl_parameters,
                                     True, 'run_solver')
+
+            if solver_kind in ['emcee', 'dynesty']:
+                offending_parameters = self.filter(qualifier='pblum_mode', dataset=lc_datasets+rv_datasets, value='dataset-scaled', **_skip_filter_checks)
+                if len(offending_parameters.to_list()):
+                    report.add_item(self,
+                                    "sampling with dataset-scaled can cause unintended issues.  Consider using component-coupled and marginalizing over pblum",
+                                    offending_parameters.to_list()+
+                                    [solver_ps.get_parameter(qualifier='priors' if solver in ['dynesty'] else 'init_from', **_skip_filter_checks)]+
+                                    addl_parameters,
+                                    False, 'run_solver')
 
 
 
