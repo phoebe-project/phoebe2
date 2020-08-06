@@ -1352,15 +1352,20 @@ def requivratio(b, orbit=None, solve_for=None, **kwargs):
     requivratio_def = FloatParameter(qualifier='requivratio', latexfmt=r'R_\mathrm{{ equiv, {children1} }} / R_\mathrm{{ equiv, {children0} }}', value=1.0, default_unit=u.dimensionless_unscaled, limits=[0, None], description='ratio between equivalent radii of children stars')
     requivratio, requivratio_created = b.get_or_create('requivratio', requivratio_def, kind='orbit', component=orbit, context='component')
 
-    requivsumfrac_def = FloatParameter(qualifier='requivsumfrac', latexfmt=r'(R_\mathrm{{ equiv, {children0} }} + R_\mathrm{{ equiv, {children1} }}) / a_\mathrm{{ {component} }}', value=1.0, default_unit=u.dimensionless_unscaled, limits=[0, None], description='sum of fractional equivalent radii of children stars')
-    requivsumfrac, requivsumfrac_created = b.get_or_create('requivsumfrac', requivsumfrac_def, kind='orbit', component=orbit, context='component')
-
-    requivsumfrac_constrained = kwargs.get('requivsumfrac_constrained', len(requivsumfrac.constrained_by) > 0)
+    requivsumfrac_exists = 'requivsumfrac' in orbit_ps.qualifiers
+    if requivsumfrac_exists:
+        requivsumfrac = orbit_ps.get_parameter(qualifier='requivsumfrac', **_skip_filter_checks)
+        requivsumfrac_constrained = kwargs.get('requivsumfrac_constrained', len(requivsumfrac.constrained_by) > 0)
+        params = [requivratio, requivsumfrac, requiv1, requiv2, sma]
+    else:
+        requivsumfrac = None
+        requivsumfrac_constrained = True
+        params = [requivratio, requiv1, requiv2, sma]
 
     if solve_for in [requivratio, None]:
         lhs = requivratio
         rhs = requiv2/requiv1
-        if not requivsumfrac_created and not requivsumfrac_constrained:
+        if not requivsumfrac_constrained:
             if requiv1.is_constraint:
                 requiv1.is_constraint.constraint_kwargs['requivratio_constrained'] = True
                 requiv1.is_constraint.flip_for('requiv@{}'.format(requiv1.component), force=True)
@@ -1394,8 +1399,7 @@ def requivratio(b, orbit=None, solve_for=None, **kwargs):
     else:
         raise NotImplementedError
 
-
-    return lhs, rhs, [requivratio, requivsumfrac, requiv1, requiv2, sma], {'orbit': orbit}
+    return lhs, rhs, params, {'orbit': orbit}
 
 _validsolvefor['requivsumfrac'] = ['requivsumfrac', 'sma', 'requiv@hier.children_of(orbit)[0]', 'requiv@hier.children_of(orbit)[1]']
 def requivsumfrac(b, orbit=None, solve_for=None, **kwargs):
@@ -1452,18 +1456,24 @@ def requivsumfrac(b, orbit=None, solve_for=None, **kwargs):
     requiv2 = comp2_ps.get_parameter(qualifier='requiv', **_skip_filter_checks)
     sma = orbit_ps.get_parameter(qualifier='sma', **_skip_filter_checks)
 
-    requivratio_def = FloatParameter(qualifier='requivratio', value=1.0, default_unit=u.dimensionless_unscaled, limits=[0, None], description='ratio between equivalent radii of children stars')
-    requivratio, requivratio_created = b.get_or_create('requivratio', requivratio_def, kind='orbit', component=orbit, context='component')
-
     requivsumfrac_def = FloatParameter(qualifier='requivsumfrac', latexfmt=r'(R_\mathrm{{ equiv, {children0} }} + R_\mathrm{{ equiv, {children1} }}) / a_\mathrm{{ {component} }}', value=1.0, default_unit=u.dimensionless_unscaled, limits=[0, None], description='sum of fractional equivalent radii of children stars')
     requivsumfrac, requivsumfrac_created = b.get_or_create('requivsumfrac', requivsumfrac_def, kind='orbit', component=orbit, context='component')
 
-    requivratio_constrained = kwargs.get('requivratio_constrained', len(requivratio.constrained_by) > 0)
+    requivratio_exists = 'requivratio' in orbit_ps.qualifiers
+    if requivratio_exists:
+        requivratio = orbit_ps.get_parameter(qualifier='requivratio', **_skip_filter_checks)
+        requivratio_constrained = kwargs.get('requivratio_constrained', len(requivratio.constrained_by) > 0)
+        params = [requivratio, requivsumfrac, requiv1, requiv2, sma]
+    else:
+        requivratio = None
+        requivratio_constrained = True
+        params = [requivsumfrac, requiv1, requiv2, sma]
+
 
     if solve_for in [requivsumfrac, None]:
         lhs = requivsumfrac
         rhs = (requiv1 + requiv2)/sma
-        if not requivratio_created and not requivratio_constrained:
+        if requivratio_exists and not requivratio_constrained:
             if requiv1.is_constraint:
                 requiv1.is_constraint.constraint_kwargs['requivsumfrac_constrained'] = True
                 requiv1.is_constraint.flip_for('requiv@{}'.format(requiv1.component), force=True)
@@ -1503,7 +1513,7 @@ def requivsumfrac(b, orbit=None, solve_for=None, **kwargs):
         raise NotImplementedError
 
 
-    return lhs, rhs, [requivratio, requivsumfrac, requiv1, requiv2, sma], {'orbit': orbit}
+    return lhs, rhs, params, {'orbit': orbit}
 
 #}
 #{ Orbit-component constraints
