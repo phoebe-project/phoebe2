@@ -3961,12 +3961,13 @@ class Bundle(ParameterSet):
         for solver in solvers:
             solver_ps = self.get_solver(solver=solver)
             solver_kind = solver_ps.kind
-            if 'compute' in solver_ps.qualifiers and kwargs.get('run_checks_compute', True):
+            if 'compute' in solver_ps.qualifiers:
                 # NOTE: we can't pass compute as a kwarg to get_value or it will be used as a filter instead... which means technically we can't be sure compute is in self.computes
                 compute = kwargs.get('compute', solver_ps.get_value(qualifier='compute', **_skip_filter_checks))
-                if compute not in self.computes:
-                    raise ValueError("compute='{}' not in computes".format(compute))
-                report = self.run_checks_compute(compute=compute, raise_logger_warning=False, raise_error=False, report=report, addl_parameters=[solver_ps.get_parameter(qualifier='compute', **_skip_filter_checks)])
+                if kwargs.get('run_checks_compute', True):
+                    if compute not in self.computes:
+                        raise ValueError("compute='{}' not in computes".format(compute))
+                    report = self.run_checks_compute(compute=compute, raise_logger_warning=False, raise_error=False, report=report, addl_parameters=[solver_ps.get_parameter(qualifier='compute', **_skip_filter_checks)])
 
 
             if 'lc_datasets' in solver_ps.qualifiers:
@@ -3977,6 +3978,10 @@ class Bundle(ParameterSet):
                                     [solver_ps.get_parameter(qualifier='lc_datasets', **_skip_filter_checks)
                                     ]+addl_parameters,
                                     True, 'run_solver')
+            elif 'compute' in solver_ps.qualifiers:
+                lc_datasets = self.filter(dataset=self.filter(qualifier='enabled', value=True, compute=compute, context='compute', **_skip_filter_checks).datasets, kind='lc', context='dataset', **_skip_filter_checks).datasets
+            else:
+                lc_datasets = self.filter(kind='lc', context='dataset', **_skip_filter_checks).datasets
 
             if 'rv_datasets' in solver_ps.qualifiers:
                 rv_datasets = solver_ps.get_value(qualifier='rv_datasets', rv_datasets=kwargs.get('rv_datasets', None), expand=True, **_skip_filter_checks)
@@ -3986,6 +3991,10 @@ class Bundle(ParameterSet):
                                     [solver_ps.get_parameter(qualifier='rv_datasets', **_skip_filter_checks)
                                     ]+addl_parameters,
                                     True, 'run_solver')
+            elif 'compute' in solver_ps.qualifiers:
+                rv_datasets = self.filter(dataset=self.filter(qualifier='enabled', value=True, compute=compute, context='compute', **_skip_filter_checks).datasets, kind='rv', context='dataset', **_skip_filter_checks).datasets
+            else:
+                rv_datasets = self.filter(kind='rv', context='dataset', **_skip_filter_checks).datasets
 
             if 'fit_parameters' in solver_ps.qualifiers:
                 fit_parameters = solver_ps.get_value(qualifier='fit_parameters', fit_parameters=kwargs.get('fit_parameters', None), expand=True, **_skip_filter_checks)
@@ -4007,6 +4016,20 @@ class Bundle(ParameterSet):
                                         ]+addl_parameters,
                                         True, 'run_solver')
 
+
+                fit_parameters_ephemeris = adjustable_parameters.filter(twig=fit_parameters, qualifier=['period', 'per0', 't0*'], context='component', component=self.hierarchy.get_top(), **_skip_filter_checks)
+                if len(fit_parameters_ephemeris):
+                    offending_datasets = []
+                    for dataset in lc_datasets + rv_datasets:
+                        if len(self.get_value(qualifier='mask_phases', dataset=dataset, context='dataset', **_skip_filter_checks)):
+                            offending_datasets.append(dataset)
+
+                    if len(offending_datasets):
+                        report.add_item(self,
+                                        "fit_parameters contains a parameter ({}) that affects phasing which could cause issues with mask_phases".format(fit_parameters_ephemeris.qualifiers),
+                                        self.filter(qualifier='mask_phases', dataset=offending_datasets, context='dataset', **_skip_filter_checks).to_list() + [solver_ps.get_parameter(qualifier='fit_parameters', **_skip_filter_checks)] + addl_parameters,
+                                        False, 'run_solver')
+
             if 'init_from' in solver_ps.qualifiers:
                 _, init_from_uniqueids = self.get_distribution_collection(kwargs.get('init_from', 'init_from@{}'.format(solver)), keys='uniqueid', return_dc=False)
 
@@ -4016,6 +4039,19 @@ class Bundle(ParameterSet):
                                     [solver_ps.get_parameter(qualifier='init_from', **_skip_filter_checks)
                                     ]+addl_parameters,
                                     True, 'run_solver')
+
+                fit_parameters_ephemeris = adjustable_parameters.filter(uniqueid=init_from_uniqueids, qualifier=['period', 'per0', 't0*'], context='component', component=self.hierarchy.get_top(), **_skip_filter_checks)
+                if len(fit_parameters_ephemeris):
+                    offending_datasets = []
+                    for dataset in lc_datasets + rv_datasets:
+                        if len(self.get_value(qualifier='mask_phases', dataset=dataset, context='dataset', **_skip_filter_checks)):
+                            offending_datasets.append(dataset)
+
+                    if len(offending_datasets):
+                        report.add_item(self,
+                                        "fit_parameters contains a parameter ({}) that affects phasing which could cause issues with mask_phases".format(fit_parameters_ephemeris.qualifiers),
+                                        self.filter(qualifier='mask_phases', dataset=offending_datasets, context='dataset', **_skip_filter_checks).to_list() + [solver_ps.get_parameter(qualifier='init_from', **_skip_filter_checks)] + addl_parameters,
+                                        False, 'run_solver')
 
 
             if solver_kind in ['emcee']:
