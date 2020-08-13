@@ -1457,7 +1457,7 @@ class LegacyBackend(BaseBackendByDataset):
                     _phb1_config = True
             except SystemError:
                 raise SystemError("PHOEBE config failed: try creating PHOEBE config file through GUI")
-          
+
 
         computeparams = b.get_compute(compute, force_ps=True)
         legacy_dict = io.pass_to_legacy(b, compute=compute, disable_l3=True, **kwargs)
@@ -2387,7 +2387,8 @@ class EllcBackend(BaseBackendByDataset):
         rotfac_1 = comp_ps.get_value(qualifier='syncpar', component=starrefs[0], **_skip_filter_checks)
         rotfac_2 = comp_ps.get_value(qualifier='syncpar', component=starrefs[1], **_skip_filter_checks)
 
-        spots = b.filter(qualifier='enabled', compute=compute, value=True, **_skip_filter_checks).features
+        enabled_features = b.filter(qualifier='enabled', compute=compute, value=True, **_skip_filter_checks).features
+        spots = b.filter(feature=enabled_features, kind='spot', **_skip_filter_checks).features
         if len(spots):
             # from ELLC docs:
             # spots_1 : (4, n_spots_1) array_like
