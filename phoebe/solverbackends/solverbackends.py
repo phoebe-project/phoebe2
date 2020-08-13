@@ -1166,9 +1166,9 @@ class EmceeBackend(BaseSolverBackend):
 
         # require sigmas for all enabled datasets
         datasets = b.filter(compute=compute, qualifier='enabled', value=True).datasets
-        for sigma_param in b.filter(qualifier='sigmas', dataset=datasets, check_visible=True, check_default=True).to_list():
+        for sigma_param in b.filter(qualifier='sigmas', dataset=datasets, context='dataset', check_visible=True, check_default=True).to_list():
             if not len(sigma_param.get_value()):
-                times = b.get_value(qualifier='times', dataset=sigma_param.dataset, component=sigma_param.component, **_skip_filter_checks)
+                times = b.get_value(qualifier='times', dataset=sigma_param.dataset, component=sigma_param.component, context='dataset', **_skip_filter_checks)
                 if len(times):
                     raise ValueError("emcee requires sigmas for all datasets where times exist (not found for {})".format(sigma_param.twig))
 
