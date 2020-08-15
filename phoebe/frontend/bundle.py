@@ -6166,6 +6166,7 @@ class Bundle(ParameterSet):
         For a list of optional built-in constraints, see <phoebe.parameters.constraint>
         including:
         * <phoebe.parameters.constraint.semidetached>
+        * <phoebe.parameters.constraint.requivfrac>
         * <phoebe.parameters.constraint.requivratio>
         * <phoebe.parameters.constraint.requivsumfrac>
         * <phoebe.parameters.constraint.teffratio>

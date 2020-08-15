@@ -1845,6 +1845,74 @@ def comp_asini(b, component, solve_for=None, **kwargs):
 
     return lhs, rhs, [], {'component': component}
 
+_validsolvefor['requivfrac'] = ['requivfrac@star', 'requiv@star', 'sma@orbit']
+def requivfrac(b, component, solve_for=None, **kwargs):
+    """
+    Create a constraint for the star's fractional equivalent radius.
+
+    This is usually passed as an argument to
+     <phoebe.frontend.bundle.Bundle.add_constraint> as
+     `b.add_constraint('requivfrac', component='primary')`, where `component` is
+     one of <phoebe.parameters.HierarchyParameter.get_stars>.
+
+    If 'requivfrac' does not exist in the component, it will be created
+
+    Arguments
+    -----------
+    * `b` (<phoebe.frontend.bundle.Bundle>): the Bundle
+    * `component` (string): the label of the orbit or component in which this
+        constraint should be built.
+    * `solve_for` (<phoebe.parameters.Parameter>, optional, default=None): if
+        'requivfrac@star' should not be the derived/constrained parameter, provide which
+        other parameter should be derived (ie 'requiv@star' 'sma@orbit').
+
+    Returns
+    ----------
+    * (<phoebe.parameters.Parameter>, <phoebe.parameters.ConstraintParameter>, list):
+        lhs (Parameter), rhs (ConstraintParameter), addl_params (list of additional
+        parameters that may be included in the constraint), kwargs (dict of
+        keyword arguments that were passed to this function).
+
+    Raises
+    --------
+    * NotImplementedError: if the value of `solve_for` is not implemented.
+    """
+    hier = b.get_hierarchy()
+    if not len(hier.get_value()):
+        # TODO: change to custom error type to catch in bundle.add_component
+        # TODO: check whether the problem is 0 hierarchies or more than 1
+        raise NotImplementedError("constraint for comp_sma requires hierarchy")
+
+    component_ps = _get_system_ps(b, component)
+
+    parentorbit = hier.get_parent_of(component)
+    parentorbit_ps = _get_system_ps(b, parentorbit)
+
+    metawargs = component_ps.meta
+    metawargs.pop('qualifier')
+    requivfrac_def = FloatParameter(qualifier='requivfrac', latexfmt=r'R_\mathrm{{ {component} }} / a_\mathrm{{ {parent} }}', value=1.0, default_unit=u.solRad, advanced=True, description='Fractional equivalent radius')
+    requivfrac, created = b.get_or_create('requivfrac', requivfrac_def, **metawargs)
+
+    requiv = component_ps.get_parameter(qualifier='requiv', **_skip_filter_checks)
+    sma = parentorbit_ps.get_parameter(qualifier='sma', **_skip_filter_checks)
+
+    if solve_for in [None, requivfrac]:
+        lhs = requivfrac
+        rhs = requiv / sma
+
+    elif solve_for == requiv:
+        lhs = requiv
+        rhs = requivfrac * sma
+
+    elif solve_for == sma:
+        lhs = sma
+        rhs = requiv / requivfrac
+
+    else:
+        raise NotImplementedError
+
+    return lhs, rhs, [], {'component': component}
+
 _validsolvefor['requiv_detached_max'] = ['requiv_max']
 def requiv_detached_max(b, component, solve_for=None, **kwargs):
     """
