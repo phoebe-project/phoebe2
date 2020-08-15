@@ -3963,7 +3963,7 @@ class Bundle(ParameterSet):
 
 
         for solver in solvers:
-            solver_ps = self.get_solver(solver=solver)
+            solver_ps = self.get_solver(solver=solver, **_skip_filter_checks)
             solver_kind = solver_ps.kind
             if 'compute' in solver_ps.qualifiers:
                 # NOTE: we can't pass compute as a kwarg to get_value or it will be used as a filter instead... which means technically we can't be sure compute is in self.computes
