@@ -2,6 +2,7 @@ import numpy as np
 #from numpy import sin, cos, tan, arcsin, arccos, arctan, sqrt
 
 from phoebe.parameters.parameters import ParameterSet, ConstraintParameter, FloatParameter
+from phoebe.constraints.expression import ConstraintVar
 from phoebe import u, c
 
 import logging
@@ -1357,6 +1358,10 @@ def requivratio(b, orbit=None, solve_for=None, **kwargs):
         requivsumfrac = orbit_ps.get_parameter(qualifier='requivsumfrac', **_skip_filter_checks)
         requivsumfrac_constrained = kwargs.get('requivsumfrac_constrained', len(requivsumfrac.constrained_by) > 0)
         params = [requivratio, requivsumfrac, requiv1, requiv2, sma]
+
+        if requivsumfrac.is_constraint is not None and requivratio not in requivsumfrac.is_constraint.addl_vars:
+            requivsumfrac.is_constraint._addl_vars.append(ConstraintVar(b, requivratio.twig))
+
     else:
         requivsumfrac = None
         requivsumfrac_constrained = True
@@ -1464,6 +1469,9 @@ def requivsumfrac(b, orbit=None, solve_for=None, **kwargs):
         requivratio = orbit_ps.get_parameter(qualifier='requivratio', **_skip_filter_checks)
         requivratio_constrained = kwargs.get('requivratio_constrained', len(requivratio.constrained_by) > 0)
         params = [requivratio, requivsumfrac, requiv1, requiv2, sma]
+
+        if requivratio.is_constraint is not None and requivsumfrac not in requivratio.is_constraint.addl_vars:
+            requivratio.is_constraint._addl_vars.append(ConstraintVar(b, requivsumfrac.twig))
     else:
         requivratio = None
         requivratio_constrained = True
