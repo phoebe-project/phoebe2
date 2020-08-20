@@ -40,6 +40,13 @@ else:
     _use_dynesty = True
 
 try:
+    from tqdm import tqdm as _tqdm
+except ImportError:
+    _has_tqdm = False
+else:
+    _has_tqdm = True
+
+try:
     from astropy.timeseries import BoxLeastSquares as _BoxLeastSquares
     from astropy.timeseries import LombScargle as _LombScargle
 except ImportError:
@@ -1830,13 +1837,31 @@ class _ScipyOptimizeBaseBackend(BaseSolverBackend):
 
         options = {k:v for k,v in kwargs.items() if k in self.valid_options}
 
+        def _progressbar(xi):
+            global _minimize_iter
+            _minimize_iter += 1
+            global _minimize_pbar
+            _minimize_pbar.update(_minimize_iter)
+
         logger.debug("calling scipy.optimize.minimize(_lnprobability_negative, p0, method='{}', args=(b, {}, {}, {}, {}, {}), options={})".format(self.method, params_uniqueids, compute, priors, kwargs.get('solution', None), compute_kwargs, options))
         # TODO: would it be cheaper to pass the whole bundle (or just make one copy originally so we restore original values) than copying for each iteration?
         args = (_bsolver(b, solver, compute, priors), params_uniqueids, compute, priors, priors_combine, kwargs.get('solution', None), compute_kwargs, kwargs.pop('custom_lnprobability_callable', None))
+
+        # set _within solver to prevent run_compute progressbars
+        b._within_solver = True
+
+        if _has_tqdm:
+            global _minimize_iter
+            _minimize_iter = 0
+            global _minimize_pbar
+            _minimize_pbar = _tqdm(total=options.get('maxiter'))
+
         res = optimize.minimize(_lnprobability_negative, p0,
                                 method=self.method,
                                 args=args,
-                                options=options)
+                                options=options,
+                                callback=_progressbar if _has_tqdm else None)
+        b._within_solver = False
 
         return_ = [{'qualifier': 'message', 'value': res.message},
                 {'qualifier': 'nfev', 'value': res.nfev},
