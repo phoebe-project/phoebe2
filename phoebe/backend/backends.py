@@ -93,7 +93,7 @@ def _needs_mesh(b, dataset, kind, component, compute):
     # if kind == 'lc' and compute_kind=='phoebe' and b.get_value(qualifier='lc_method', compute=compute, dataset=dataset, context='compute')=='analytical':
     #     return False
 
-    if kind == 'rv' and (compute_kind == 'legacy' or b.get_value(qualifier='rv_method', compute=compute, component=component, dataset=dataset, context='compute')=='dynamical'):
+    if kind == 'rv' and (compute_kind == 'legacy' or b.get_value(qualifier='rv_method', compute=compute, component=component, dataset=dataset, context='compute', **_skip_filter_checks)=='dynamical'):
         return False
 
     return True
@@ -1547,7 +1547,8 @@ class LegacyBackend(BaseBackendByDataset):
             # per-component switches.
             rv_method = computeparams.get_value(qualifier ='rv_method',
                                                 component=info['component'],
-                                                dataset=info['dataset'])
+                                                dataset=info['dataset'],
+                                                **_skip_filter_checks)
 
             phb1.setpar(proximity_par, rv_method=='flux-weighted')
 
