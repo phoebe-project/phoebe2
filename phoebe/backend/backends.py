@@ -2354,6 +2354,7 @@ class EllcBackend(BaseBackendByDataset):
         logger.debug("rank:{}/{} EllcBackend._worker_setup".format(mpi.myrank, mpi.nprocs))
 
         computeparams = b.get_compute(compute, force_ps=True, **_skip_filter_checks)
+        t0_system = b.get_value(qualifier='t0', context='system', unit=u.d, **_skip_filter_checks)
 
         hier = b.get_hierarchy()
 
@@ -2388,11 +2389,14 @@ class EllcBackend(BaseBackendByDataset):
         incl = comp_ps.get_value(qualifier='incl', component=orbitref, unit=u.deg, **_skip_filter_checks)
         didt = 0.0
         # didt = b.get_value(qualifier='dincldt', component=orbitref, context='component', unit=u.deg/u.d) * period
+        # incl += didt * (t_zero - t0_system)
 
         ecc = comp_ps.get_value(qualifier='ecc', component=orbitref, **_skip_filter_checks)
         w = comp_ps.get_value(qualifier='per0', component=orbitref, unit=u.rad, **_skip_filter_checks)
 
         domdt = comp_ps.get_value(qualifier='dperdt', component=orbitref, unit=u.deg/u.d, **_skip_filter_checks) * period
+        # need to correct w (per0) to be at t_zero instead of t0@system as defined in PHOEBE
+        w += domdt * (t_zero - t0_system)
 
         gdc_1 = comp_ps.get_value(qualifier='gravb_bol', component=starrefs[0], **_skip_filter_checks)
         gdc_2 = comp_ps.get_value(qualifier='gravb_bol', component=starrefs[1], **_skip_filter_checks)
@@ -2408,6 +2412,8 @@ class EllcBackend(BaseBackendByDataset):
             # Parameters of the spots on star 1. For each spot the parameters, in order,
             # are longitude, latitude, size and brightness factor. All three angles are
             # in degrees.
+
+            # TODO: do we need to correct these from t0_system to t_zero (if rotfac!=1)?
 
             spots_1 = []
             spots_2 = []

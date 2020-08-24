@@ -3861,6 +3861,13 @@ class Bundle(ParameterSet):
                                         addl_parameters,
                                         True, 'run_compute')
 
+                dpdt_non_zero = [p for p in self.filter(qualifier='dpdt', context='component', **_skip_filter_checks).to_list() if p.get_value() != 0]
+                if len(dpdt_non_zero):
+                    report.add_item(self,
+                                    "ellc does not support orbital period time-derivative",
+                                    dpdt_non_zero+addl_parameters,
+                                    False, 'run_compute')
+
             # jktebop-specific checks
             if compute_kind == 'jktebop':
                 requiv_max_limit = self.get_value(qualifier='requiv_max_limit', compute=compute, context='compute', requiv_max_limit=kwargs.get('requiv_max_limit', None), **_skip_filter_checks)
@@ -3876,6 +3883,20 @@ class Bundle(ParameterSet):
                                         self.filter(qualifier=['sma'], component=self.hierarchy.get_parent_of(component), context='component', **_skip_filter_checks).to_list()+
                                         addl_parameters,
                                         True, 'run_compute')
+
+                dperdt_non_zero = [p for p in self.filter(qualifier='dperdt', context='component', **_skip_filter_checks).to_list() if p.get_value() != 0]
+                if len(dperdt_non_zero):
+                    report.add_item(self,
+                                    "jktebop does not support apsidal motion",
+                                    dperdt_non_zero+addl_parameters,
+                                    False, 'run_compute')
+
+                dpdt_non_zero = [p for p in self.filter(qualifier='dpdt', context='component', **_skip_filter_checks).to_list() if p.get_value() != 0]
+                if len(dpdt_non_zero):
+                    report.add_item(self,
+                                    "jktebop does not support orbital period time-derivative",
+                                    dpdt_non_zero+addl_parameters,
+                                    False, 'run_compute')
 
         # dependency checks
         if not _use_celerite and len(self.filter(context='feature', kind='gaussian_process').features):
