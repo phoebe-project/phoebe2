@@ -2394,7 +2394,7 @@ class EllcBackend(BaseBackendByDataset):
         ecc = comp_ps.get_value(qualifier='ecc', component=orbitref, **_skip_filter_checks)
         w = comp_ps.get_value(qualifier='per0', component=orbitref, unit=u.rad, **_skip_filter_checks)
 
-        domdt = comp_ps.get_value(qualifier='dperdt', component=orbitref, unit=u.deg/u.d, **_skip_filter_checks) * period
+        domdt = comp_ps.get_value(qualifier='dperdt', component=orbitref, unit=u.rad/u.d, **_skip_filter_checks) * period
         # need to correct w (per0) to be at t_zero instead of t0@system as defined in PHOEBE
         w += domdt * (t_zero - t0_system)
 
