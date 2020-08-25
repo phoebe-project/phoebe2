@@ -1164,7 +1164,7 @@ class EmceeBackend(BaseSolverBackend):
         if not _use_emcee:
             raise ImportError("could not import emcee")
 
-        if LooseVersion(emcee.__version__) < LooseVersion("3.0.0"):
+        if LooseVersion(emcee.__version__).vstring < LooseVersion("3.0.0").vstring:
             raise ImportError("emcee backend requires emcee 3.0+, {} found".format(emcee.__version__))
 
         solver_ps = b.get_solver(solver=solver, **_skip_filter_checks)
