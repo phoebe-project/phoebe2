@@ -4194,6 +4194,7 @@ class ParameterSet(object):
                         return {}
 
                     if '-sigma' in self._bundle.get_value(qualifier='sample_mode', model=ps.model, context='model', default='none', **_skip_filter_checks):
+                        # NOTE: this probably needs to be interpolated
                         kwargs[direction] = ps.get_quantity(qualifier=['fluxes', 'rvs'], model=ps.model, dataset=ps.dataset, component=ps.component, context='model', **_skip_filter_checks)
                         kwargs[direction] -= kwargs[direction][1]
                         kwargs.setdefault('{}label'.format(direction), '{} residuals'.format({'lc': 'flux', 'rv': 'rv'}.get(ps.kind, '')))
@@ -4212,7 +4213,15 @@ class ParameterSet(object):
                     if '-sigma' in self._bundle.get_value(qualifier='sample_mode', model=ps.model, context='model', default='none', **_skip_filter_checks):
                         # TODO: if we ever use this for anything else, then we'll need to make it a list instead and append new items
                         # kwargs['additional_calls'] = {'y': 'residuals_spread', 'ps': ps, **{k:v for k,v in kwargs.items() if k in ['x']}} # not python2 safe :-(
-                        kwargs['additional_calls'] = {'y': 'residuals_spread', 'ps': ps, 'x': kwargs.get('x')}
+
+                        if kwargs.get('xqualifier', 'times') in ['time', 'times']:
+                            sample_x = self._bundle.get_quantity(qualifier='times', model=ps.model, component=ps.component, dataset=ps.dataset, context='model', **_skip_filter_checks)
+                        elif kwargs.get('xqualifier', 'times') in ['phase', 'phases']:
+                            sample_times = self._bundle.get_value(qualifier='times', model=ps.model, component=ps.component, dataset=ps.dataset, context='model', unit=u.d, **_skip_filter_checks)
+                            sample_x = self._bundle.to_phase(sample_times) * u.dimensionless_unscaled
+                        else:
+                            raise NotImplementedError("cannot plot residuals from the sampled model with x='{}'".format(kwargs.get('xqualifier')))
+                        kwargs['additional_calls'] = {'y': 'residuals_spread', 'ps': ps, 'x': sample_x}
 
                     # we're currently within the MODEL context
                     # NOTE: calculate_residuals will already handle masking
