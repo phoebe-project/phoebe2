@@ -1164,8 +1164,12 @@ class EmceeBackend(BaseSolverBackend):
         if not _use_emcee:
             raise ImportError("could not import emcee")
 
-        if LooseVersion(emcee.__version__) < LooseVersion("3.0.0"):
-            raise ImportError("emcee backend requires emcee 3.0+, {} found".format(emcee.__version__))
+        try:
+            if LooseVersion(emcee.__version__) < LooseVersion("3.0.0"):
+                raise ImportError("emcee backend requires emcee 3.0+, {} found".format(emcee.__version__))
+        except ValueError:
+            # see https://github.com/phoebe-project/phoebe2/issues/378
+            raise ImportError("emcee backend requires a stable release of emcee 3.0+, {} found".format(emcee.__version__))
 
         solver_ps = b.get_solver(solver=solver, **_skip_filter_checks)
         if not len(solver_ps.get_value(qualifier='init_from', init_from=kwargs.get('init_from', None), **_skip_filter_checks)) and solver_ps.get_value(qualifier='continue_from', continue_from=kwargs.get('continue_from', None), **_skip_filter_checks)=='None':
