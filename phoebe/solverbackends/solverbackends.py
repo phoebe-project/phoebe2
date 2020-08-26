@@ -1798,9 +1798,9 @@ class _ScipyOptimizeBaseBackend(BaseSolverBackend):
         solution_params += [_parameters.ArrayParameter(qualifier='initial_values', value=[], readonly=True, description='initial values before running the minimizer (in current default units of each parameter)')]
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_values', value=[], readonly=True, description='final values returned by the minimizer (in current default units of each parameter)')]
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_units', value=[], advanced=True, readonly=True, description='units of the fitted_values')]
-        if kwargs.get('expose_lnlikelihoods', False):
-            solution_params += [_parameters.FloatParameter(qualifier='initial_lnlikelihood', value=0.0, readonly=True, default_unit=u.dimensionless_unscaled, description='lnlikelihood of the initial_values')]
-            solution_params += [_parameters.FloatParameter(qualifier='fitted_lnlikelihood', value=0.0, readonly=True, default_unit=u.dimensionless_unscaled, description='lnlikelihood of the fitted_values')]
+        if kwargs.get('expose_lnprobabilities', False):
+            solution_params += [_parameters.FloatParameter(qualifier='initial_lnprobability', value=0.0, readonly=True, default_unit=u.dimensionless_unscaled, description='lnprobability of the initial_values')]
+            solution_params += [_parameters.FloatParameter(qualifier='fitted_lnprobability', value=0.0, readonly=True, default_unit=u.dimensionless_unscaled, description='lnprobability of the fitted_values')]
 
         return kwargs, _parameters.ParameterSet(solution_params)
 
@@ -1880,12 +1880,12 @@ class _ScipyOptimizeBaseBackend(BaseSolverBackend):
 
 
 
-        if kwargs.get('expose_lnlikelihoods', False):
-            initial_lnlikelihood = _lnprobability(p0, *args)
-            final_likelihood = _lnprobability(res.x, *args)
+        if kwargs.get('expose_lnprobabilities', False):
+            initial_lnprobability = _lnprobability(p0, *args)
+            fitted_lnprobability = _lnprobability(res.x, *args)
 
-            return_ += [{'qualifier': 'initial_lnlikelihood', 'value': initial_lnlikelihood},
-                         {'qualifier': 'fitted_lnlikelihood', 'value': final_likelihood}]
+            return_ += [{'qualifier': 'initial_lnprobability', 'value': initial_lnprobability},
+                         {'qualifier': 'fitted_lnprobability', 'value': fitted_lnprobability}]
 
 
 
@@ -1953,9 +1953,9 @@ class Differential_EvolutionBackend(BaseSolverBackend):
         solution_params += [_parameters.ArrayParameter(qualifier='bounds', value=kwargs.get('bounds', []), readonly=True, description='bound limits adopted and used internally.')]
 
 
-        if kwargs.get('expose_lnlikelihoods', False):
-            solution_params += [_parameters.FloatParameter(qualifier='initial_lnlikelihood', value=0.0, readonly=True, default_unit=u.dimensionless_unscaled, description='lnlikelihood of the initial_values')]
-            solution_params += [_parameters.FloatParameter(qualifier='fitted_lnlikelihood', value=0.0, readonly=True, default_unit=u.dimensionless_unscaled, description='lnlikelihood of the fitted_values')]
+        if kwargs.get('expose_lnprobabilities', False):
+            solution_params += [_parameters.FloatParameter(qualifier='initial_lnprobability', value=0.0, readonly=True, default_unit=u.dimensionless_unscaled, description='lnprobability of the initial_values')]
+            solution_params += [_parameters.FloatParameter(qualifier='fitted_lnprobability', value=0.0, readonly=True, default_unit=u.dimensionless_unscaled, description='lnprobability of the fitted_values')]
 
         return kwargs, _parameters.ParameterSet(solution_params)
 
@@ -2057,12 +2057,12 @@ class Differential_EvolutionBackend(BaseSolverBackend):
                        {'qualifier': 'adopt_parameters', 'value': params_twigs, 'choices': params_twigs},
                        {'qualifier': 'bounds', 'value': bounds}]
 
-            if kwargs.get('expose_lnlikelihoods', False):
-                initial_lnlikelihood = _lnprobability(False, *args)
-                final_likelihood = _lnprobability(res.x, *args)
+            if kwargs.get('expose_lnprobabilities', False):
+                initial_lnprobability = _lnprobability(False, *args)
+                fitted_lnprobability = _lnprobability(res.x, *args)
 
-                return_ += [{'qualifier': 'initial_lnlikelihood', 'value': initial_lnlikelihood},
-                            {'qualifier': 'fitted_lnlikelihood', 'value': final_likelihood}]
+                return_ += [{'qualifier': 'initial_lnprobability', 'value': initial_lnprobability},
+                            {'qualifier': 'fitted_lnprobability', 'value': fitted_lnprobability}]
 
 
 
