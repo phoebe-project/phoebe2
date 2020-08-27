@@ -3681,6 +3681,7 @@ class Bundle(ParameterSet):
             # check if any parameter is in sample_from but is constrained
             # NOTE: similar logic exists for init_from in run_checks_solver
 
+            # distribution checks
             sample_from = self.get_value(qualifier='sample_from', compute=compute, context='compute', sample_from=kwargs.get('sample_from', None), default=[], expand=True, **_skip_filter_checks)
             for dist_or_solution in sample_from:
                 if dist_or_solution in self.distributions:
@@ -3731,7 +3732,6 @@ class Bundle(ParameterSet):
                     raise ValueError("{} could not be found in distributions or solutions".format(dist_or_solution))
 
             # check for time-dependency issues with GPs
-
             if len(compute_enabled_gps):
                 # then if we're using compute_times/phases, compute_times must cover the range of the dataset times
                 for dataset in compute_enabled_datasets:
@@ -3758,6 +3758,28 @@ class Bundle(ParameterSet):
                                                  self.get_parameter(qualifier='compute_phases', dataset=dataset, context='dataset', **_skip_filter_checks),
                                                  time_param]+self.filter(qualifier='enabled', feature=compute_enabled_gps, **_skip_filter_checks).to_list()+addl_parameters,
                                                  False, 'run_compute')
+
+
+                    ds_ps = self.get_dataset(dataset=dataset, **_skip_filter_checks)
+                    xqualifier = {'lp': 'wavelength'}.get(ds_ps.kind, 'times')
+                    yqualifier = {'lp': 'flux_densities', 'rv': 'rvs', 'lc': 'fluxes'}.get(ds_ps.kind)
+                    # we'll loop over components (for RVs or LPs, for example)
+                    if ds_ps.kind in ['lc']:
+                        ds_comps = [None]
+                    else:
+                        ds_comps = ds_ps.filter(qualifier=xqualifier, check_visible=True).components
+                    for ds_comp in ds_comps:
+                        ds_x = ds_ps.get_value(qualifier=xqualifier, component=ds_comp, **_skip_filter_checks)
+                        ds_y = ds_ps.get_value(qualifier=yqualifier, component=ds_comp, **_skip_filter_checks)
+                        ds_sigmas = ds_ps.get_value(qualifier='sigmas', component=ds_comp, **_skip_filter_checks)
+                        if len(ds_sigmas) != len(ds_x) or len(ds_y) != len(ds_x) or not len(ds_x):
+                            report.add_item(self,
+                                            "gaussian process requires observational data and sigmas",
+                                            ds_ps.filter(qualifier=[xqualifier, yqualifier, 'sigmas'], component=ds_comp, **_skip_filter_checks).to_list()+
+                                            self.filter(qualifier='enabled', feature=compute_enabled_gps, compute=compute, **_skip_filter_checks).to_list()+
+                                            addl_parameters,
+                                            True, 'run_compute')
+
 
             # 2.2 disables support for boosting.  The boosting parameter in 2.2 only has 'none' as an option, but
             # importing a bundle from old releases may still have 'linear' as an option, so we'll check here
