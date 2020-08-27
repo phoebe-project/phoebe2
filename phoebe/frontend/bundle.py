@@ -10719,6 +10719,17 @@ class Bundle(ParameterSet):
 
         self._check_label(solution, allow_overwrite=kwargs.get('overwrite', solution=='latest'))
 
+        # handle case where compute is not provided
+        if solver is None:
+            solvers = self.get_solver(check_default=False, check_visible=False, **kwargs).solvers
+            if len(solvers)==0:
+                raise ValueError("no solvers attached.  Call add_solver first")
+            if len(solvers)==1:
+                solver = solvers[0]
+            elif len(solvers)>1:
+                raise ValueError("must provide label of solver options since more than one are attached.  The following were found: {}".format(self.solvers))
+
+
         solver_ps = self.get_solver(solver=solver, kind=kwargs.get('kind'), **_skip_filter_checks)
         if solver_ps is None:
             raise ValueError("could not find solver with solver={} kwargs={}".format(solver, kwargs))
