@@ -771,7 +771,7 @@ class SampleOverModel(object):
 
             for param in ret_ps.to_list():
                 param._bundle = None
-                if param.qualifier in ['fluxes', 'rvs']:
+                if param.qualifier in ['fluxes', 'fluxes_nogps', 'gps', 'rvs']:
                     all_values = np.array([p.get_value() for p in all_models_ps.filter(qualifier=param.qualifier, dataset=param.dataset, component=param.component, **_skip_filter_checks).to_list()])
                     if sample_mode == 'all':
                         param.set_value(all_values, ignore_readonly=True)
