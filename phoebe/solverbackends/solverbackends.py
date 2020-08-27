@@ -1422,7 +1422,7 @@ class EmceeBackend(BaseSolverBackend):
 
             sargs = {}
             sargs['iterations'] = niters
-            sargs['progress'] = True
+            sargs['progress'] = kwargs.get('progressbar', False)
             sargs['skip_initial_state_check'] = False
 
 
@@ -1854,7 +1854,7 @@ class _ScipyOptimizeBaseBackend(BaseSolverBackend):
         # set _within solver to prevent run_compute progressbars
         b._within_solver = True
 
-        if _has_tqdm:
+        if _has_tqdm and kwargs.get('progressbar', False):
             global _minimize_iter
             _minimize_iter = 0
             global _minimize_pbar
@@ -1864,7 +1864,7 @@ class _ScipyOptimizeBaseBackend(BaseSolverBackend):
                                 method=self.method,
                                 args=args,
                                 options=options,
-                                callback=_progressbar if _has_tqdm else None)
+                                callback=_progressbar if _has_tqdm and kwargs.get('progressbar', False) else None)
         b._within_solver = False
 
         return_ = [{'qualifier': 'message', 'value': res.message},

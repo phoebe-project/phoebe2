@@ -562,7 +562,7 @@ class BaseBackendByTime(BaseBackend):
             infolists = np.array_split(infolists, mpi.nprocs)[mpi.myrank]
 
         packetlists = [] # entry per-time
-        for i, time, infolist in _progressbar(zip(inds, times, infolists), total=len(times), show_progressbar=not b._within_solver):
+        for i, time, infolist in _progressbar(zip(inds, times, infolists), total=len(times), show_progressbar=not b._within_solver and kwargs.get('progressbar', False)):
             if kwargs.get('out_fname', False) and os.path.isfile(kwargs.get('out_fname')+'.kill'):
                 logger.warning("received kill signal, exiting sampler loop")
                 break
@@ -607,7 +607,7 @@ class BaseBackendByDataset(BaseBackend):
             infolist = np.array_split(infolist, mpi.nprocs)[mpi.myrank]
 
         packetlists = [] # entry per-dataset
-        for info in _progressbar(infolist, total=len(infolist), show_progressbar=not b._within_solver):
+        for info in _progressbar(infolist, total=len(infolist), show_progressbar=not b._within_solver and kwargs.get('progressbar', False)):
             if kwargs.get('out_fname', False) and os.path.isfile(kwargs.get('out_fname')+'.kill'):
                 logger.warning("received kill signal, exiting sampler loop")
                 break

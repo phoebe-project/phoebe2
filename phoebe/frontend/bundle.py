@@ -9463,7 +9463,7 @@ class Bundle(ParameterSet):
 
         # we'll wait to here to run kwargs and system checks so that
         # add_compute is already called if necessary
-        allowed_kwargs = ['skip_checks', 'jobid', 'overwrite', 'max_computations', 'in_export_script', 'out_fname', 'solution']
+        allowed_kwargs = ['skip_checks', 'jobid', 'overwrite', 'max_computations', 'in_export_script', 'out_fname', 'solution', 'progressbar']
         if conf.devel:
             allowed_kwargs += ['mesh_init_phi']
         self._kwargs_checks(kwargs, allowed_kwargs, ps=computes_ps)
@@ -9702,6 +9702,10 @@ class Bundle(ParameterSet):
         * `max_computations` (int, optional, default=None): maximum
             number of computations to allow.  If more are detected, an error
             will be raised before the backend begins computations.
+        * `progressbar` (bool, optional): whether to show a progressbar.  If not
+            provided or none, will default to <phoebe.progressbars_on> or
+            <phoebe.progressbars_off>.  Progressbars require `tqdm` to be installed
+            (will silently ignore if not installed).
         * `**kwargs`:: any values in the compute options to temporarily
             override for this single compute run (parameter values will revert
             after run_compute is finished)
@@ -9737,6 +9741,8 @@ class Bundle(ParameterSet):
         # any necessary errors
         model, computes, datasets, do_create_fig_params, changed_params, overwrite_ps, kwargs = self._prepare_compute(compute, model, dataset, **kwargs)
         _ = kwargs.pop('do_create_fig_params', None)
+
+        kwargs.setdefault('progressbar', conf.progressbars)
 
         # now if we're supposed to detach we'll just prepare the job for submission
         # either in another subprocess or through some queuing system
@@ -10709,6 +10715,13 @@ class Bundle(ParameterSet):
         else:
             compute = kwargs.pop('compute', None)
 
+        # we'll wait to here to run kwargs and system checks so that
+        # add_compute is already called if necessary
+        allowed_kwargs = ['skip_checks', 'jobid', 'overwrite', 'max_computations', 'in_export_script', 'out_fname', 'solution', 'progressbar']
+        if conf.devel:
+            allowed_kwargs += ['mesh_init_phi']
+        self._kwargs_checks(kwargs, allowed_kwargs, ps=solver_ps.copy()+compute_ps)
+
         if not kwargs.get('skip_checks', False):
             report = self.run_checks_solver(solver=solver, run_checks_compute=True,
                                             allow_skip_constraints=False,
@@ -10942,6 +10955,10 @@ class Bundle(ParameterSet):
             optimizers that minimize, the negative returned values will be minimized.
             NOTE: if defined in an interactive session, passing `custom_lnlikelihood_callable`
             may throw an error if `detach=True`.
+        * `progressbar` (bool, optional): whether to show a progressbar.  If not
+            provided or none, will default to <phoebe.progressbars_on> or
+            <phoebe.progressbars_off>.  Progressbars require `tqdm` to be installed
+            (will silently ignore if not installed).
         * `**kwargs`: any values in the solver or compute options to temporarily
             override for this single solver run (parameter values will revert
             after run_solver is finished)
@@ -10958,6 +10975,8 @@ class Bundle(ParameterSet):
             self.run_solver(solver=solver, solution=solution, **kwargs)
             self.as_client(as_client=False)
             return self.get_solution(solution=solution)
+
+        kwargs.setdefault('progressbar', conf.progressbars)
 
         solver, solution, compute, solver_ps = self._prepare_solver(solver, solution, **kwargs)
 
