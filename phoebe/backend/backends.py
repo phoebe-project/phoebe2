@@ -2096,16 +2096,8 @@ class JktebopBackend(BaseBackendByDataset):
         else:
             raise NotImplementedError("irrad_method '{}' not supported".format(irrad_method))
 
-        # NOTE: pblum_mode does not exist to RVs, so will default to absolute
-        pblum_mode = b.get_value(qualifier='pblum_mode', dataset=info['dataset'], context='dataset', default='absolute', **_skip_filter_checks)
-        if pblum_mode == 'decoupled':
-            logger.debug("using pblum ratio for sbratio (pblum_mode='decoupled')")
-            pblums = kwargs.get('pblums').get(dataset)
-            sbratio = pblums.get(starrefs[1])/pblums.get(starrefs[0])
-        else:
-            logger.debug("using (T2/T1)^4 for sbratio (pblum_mode='{}')".format(pblum_mode))
-            sbratio = (b.get_value(qualifier='teff', component=starrefs[1], context='component', unit=u.K, **_skip_filter_checks)/b.get_value(qualifier='teff', component=starrefs[0], context='component', unit=u.K, **_skip_filter_checks))**4
-
+        pblums = kwargs.get('pblums').get(info['dataset'])
+        sbratio = (pblums.get(starrefs[1])/b.get_value(qualifier='requiv', component=starrefs[1], context='component', unit=u.solRad)**2)/(pblums.get(starrefs[0])/b.get_value(qualifier='requiv', component=starrefs[0], context='component', unit=u.solRad)**2)
 
         # let's make sure we'll be able to make the translation later
         if ldfuncA not in _jktebop_ld_func.keys() or ldfuncB not in _jktebop_ld_func.keys():
@@ -2544,16 +2536,8 @@ class EllcBackend(BaseBackendByDataset):
         ld_2 = _ellc_ld_func.get(ds_ps.get_value(qualifier='ld_func', component=starrefs[1], **_skip_filter_checks))
         ldc_2 = ds_ps.get_value(qualifier='ld_coeffs', component=starrefs[1], **_skip_filter_checks)
 
-        # NOTE: pblum_mode doesn't exist for RVs, so will default to 'absolute'
-        pblum_mode = b.get_value(qualifier='pblum_mode', dataset=info['dataset'], context='dataset', default='absolute', **_skip_filter_checks)
-        if pblum_mode == 'decoupled':
-            logger.debug("using pblum ratio for sbratio (pblum_mode='decoupled')")
-            pblums = kwargs.get('pblums').get(info['dataset'])
-            sbratio = pblums.get(starrefs[1])/pblums.get(starrefs[0])
-        else:
-            logger.debug("using (T2/T1)^4 for sbratio (pblum_mode='{}')".format(pblum_mode))
-            sbratio = (b.get_value(qualifier='teff', component=starrefs[1], context='component', unit=u.K, **_skip_filter_checks)/b.get_value(qualifier='teff', component=starrefs[0], context='component', unit=u.K, **_skip_filter_checks))**4
-
+        pblums = kwargs.get('pblums').get(info['dataset'])
+        sbratio = (pblums.get(starrefs[1])/b.get_value(qualifier='requiv', component=starrefs[1], context='component', unit=u.solRad)**2)/(pblums.get(starrefs[0])/b.get_value(qualifier='requiv', component=starrefs[0], context='component', unit=u.solRad)**2)
 
         if info['kind'] == 'lc':
             # third light handled by run_compute
