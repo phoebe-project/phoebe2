@@ -904,7 +904,8 @@ class Bundle(ParameterSet):
         return b
 
     @classmethod
-    def from_legacy(cls, filename, add_compute_legacy=True, add_compute_phoebe=True):
+    def from_legacy(cls, filename, add_compute_legacy=True, add_compute_phoebe=True,
+                   ignore_errors=False, passband_map={}):
         """
         For convenience, this function is available at the top-level as
         <phoebe.from_legacy> as well as <phoebe.frontend.bundle.Bundle.from_legacy>.
@@ -934,14 +935,19 @@ class Bundle(ParameterSet):
         * `add_compute_phoebe` (bool, optional, default=True): whether to add
             a set of compute options for the phoebe backend.  See also
             <phoebe.frontend.bundle.Bundle.add_compute> and
-            <phoebe.parameters.compute.phoebe> to add manually after
+            <phoebe.parameters.compute.phoebe> to add manually after.
+        * `ignore_errors` (bool, optional, default=False): whether to ignore any
+            import errors and include instead as a warning in the logger.
+        * `passband_map` (dict, optional, default={}): dictionary to map passbands
+            from the value in the legacy file to the corresponding value  in PHOEBE.
 
         Returns
         ---------
         * an instantiated <phoebe.frontend.bundle.Bundle> object.
         """
         logger.warning("importing from legacy is experimental until official 1.0 release")
-        return io.load_legacy(filename, add_compute_legacy, add_compute_phoebe)
+        return io.load_legacy(filename, add_compute_legacy, add_compute_phoebe,
+                              ignore_errors=ignore_errors, passband_map=passband_map)
 
     @classmethod
     def default_star(cls, starA='starA', force_build=False):
