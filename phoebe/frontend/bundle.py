@@ -619,6 +619,19 @@ class Bundle(ParameterSet):
 
             b.remove_parameters_all(qualifier='log_history', **_skip_filter_checks)
 
+            # new settings parameters were added for run_checks_*
+            logger.warning("updating all parameters in setting context")
+            existing_values_settings = {p.qualifier: p.get_value() for p in b.filter(context='setting').to_list()}
+            b.remove_parameters_all(context='setting', **_skip_filter_checks)
+            b._attach_params(_setting.settings(**existing_values_settings), context='setting')
+
+            # update logg constraints (now in solar units due to bug with MPI handling converting solMass to SI)
+            for logg_constraint in b.filter(qualifier='logg', context='constraint', **_skip_filter_checks).to_list():
+                component = logg_constraint.component
+                logger.warning("re-creating logg constraint for component='{}' to be in solar instead of SI units".format(component))
+                b.remove_constraint(uniqueid=logg_constraint.uniqueid)
+                b.add_constraint('logg', component=component)
+
             for compute in b.filter(context='compute').computes:
                 logger.info("attempting to update compute='{}' to new version requirements".format(compute))
                 ps_compute = b.filter(context='compute', compute=compute)
@@ -647,7 +660,7 @@ class Bundle(ParameterSet):
             b.remove_parameters_all(constraint_func='extinction', context='constraint', **_skip_filter_checks)
 
             for constraint in constraints:
-                # there were no constraints before
+                # there were no constraints before in the system context
                 b.add_constraint(*constraint)
 
             # call set_hierarchy to force asini@component constraints (comp_asini) to be built

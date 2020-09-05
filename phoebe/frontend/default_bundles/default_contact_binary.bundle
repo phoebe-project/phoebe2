@@ -209,7 +209,7 @@ null
 "kind": "star",
 "context": "component",
 "description": "logg at requiv",
-"value": 4.089736158131635,
+"value": 4.089736163094955,
 "default_unit": "",
 "limits": [
 null,
@@ -424,8 +424,8 @@ null
 "description": "Source for bolometric limb darkening coefficients (used only for irradiation; 'auto' to interpolate from the applicable table according to the 'atm' parameter, or the name of a specific atmosphere table)",
 "choices": [
 "auto",
-"phoenix",
-"ck2004"
+"ck2004",
+"phoenix"
 ],
 "value": "auto",
 "visible_if": "ld_mode_bol:lookup",
@@ -554,7 +554,7 @@ null
 "kind": "star",
 "context": "component",
 "description": "logg at requiv",
-"value": 4.089736158131636,
+"value": 4.089736163094955,
 "default_unit": "",
 "limits": [
 null,
@@ -769,8 +769,8 @@ null
 "description": "Source for bolometric limb darkening coefficients (used only for irradiation; 'auto' to interpolate from the applicable table according to the 'atm' parameter, or the name of a specific atmosphere table)",
 "choices": [
 "auto",
-"phoenix",
-"ck2004"
+"ck2004",
+"phoenix"
 ],
 "value": "auto",
 "visible_if": "ld_mode_bol:lookup",
@@ -1269,14 +1269,14 @@ null
 "kind": "star",
 "context": "constraint",
 "description": "expression that determines the constraint",
-"value": "log10((({mass@primary@component} / ({requiv@primary@component} ** 2.000000)) * 0.000000000066742999999999993790) * 100.000000)",
+"value": "log10((({mass@primary@component} / ({requiv@primary@component} ** 2.000000)) * 2942.206218) * 9.319541)",
 "default_unit": "",
 "constraint_func": "logg",
 "constraint_kwargs": {
 "component": "primary"
 },
 "constraint_addl_vars": [],
-"in_solar_units": false,
+"in_solar_units": true,
 "Class": "ConstraintParameter"
 },
 {
@@ -1317,14 +1317,14 @@ null
 "kind": "star",
 "context": "constraint",
 "description": "expression that determines the constraint",
-"value": "log10((({mass@secondary@component} / ({requiv@secondary@component} ** 2.000000)) * 0.000000000066742999999999993790) * 100.000000)",
+"value": "log10((({mass@secondary@component} / ({requiv@secondary@component} ** 2.000000)) * 2942.206218) * 9.319541)",
 "default_unit": "",
 "constraint_func": "logg",
 "constraint_kwargs": {
 "component": "secondary"
 },
 "constraint_addl_vars": [],
-"in_solar_units": false,
+"in_solar_units": true,
 "Class": "ConstraintParameter"
 },
 {
@@ -2085,11 +2085,11 @@ null
 "context": "compute",
 "description": "Atmosphere table",
 "choices": [
+"extern_planckint",
+"blackbody",
 "phoenix",
 "ck2004",
-"extern_atmx",
-"extern_planckint",
-"blackbody"
+"extern_atmx"
 ],
 "value": "ck2004",
 "copy_for": {
@@ -2321,11 +2321,11 @@ null
 "context": "compute",
 "description": "Atmosphere table",
 "choices": [
+"extern_planckint",
+"blackbody",
 "phoenix",
 "ck2004",
-"extern_atmx",
-"extern_planckint",
-"blackbody"
+"extern_atmx"
 ],
 "value": "ck2004",
 "copy_for": false,
@@ -2339,11 +2339,11 @@ null
 "context": "compute",
 "description": "Atmosphere table",
 "choices": [
+"extern_planckint",
+"blackbody",
 "phoenix",
 "ck2004",
-"extern_atmx",
-"extern_planckint",
-"blackbody"
+"extern_atmx"
 ],
 "value": "ck2004",
 "copy_for": false,
