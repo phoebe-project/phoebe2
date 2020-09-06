@@ -10766,6 +10766,7 @@ class Bundle(ParameterSet):
 
         else:
             compute = kwargs.pop('compute', None)
+            compute_ps = self.get_compute(compute=compute)
 
         # we'll wait to here to run kwargs and system checks so that
         # add_compute is already called if necessary
