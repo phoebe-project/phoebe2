@@ -707,7 +707,7 @@ class SampleOverModel(object):
 
         if is_master:
             compute_ps = b.get_compute(compute=compute, **_skip_filter_checks)
-            compute_kwargs = {k:v for k,v in kwargs.items() if k in compute_ps.qualifiers and 'sample' not in k}
+            compute_kwargs = {k:v for k,v in kwargs.items() if k in compute_ps.qualifiers+['progressbar', 'skip_checks', 'times'] and 'sample' not in k}
 
             # sample_from = compute_ps.get_value(qualifier='sample_from', sample_from=kwargs.get('sample_from', None), expand=True, **_skip_filter_checks)
             # sample_from_combine = compute_ps.get_value(qualifier='sample_from_combine', sample_from_combine=kwargs.get('sample_from_combine', None), **_skip_filter_checks)
