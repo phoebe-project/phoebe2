@@ -3532,17 +3532,29 @@ class ParameterSet(object):
             `component`) do not result in a single parameter for comparison.
         * NotImplementedError: if the dataset kind is not supported for residuals.
         """
+        if dataset is not None and not isinstance(dataset, str):
+            raise TypeError("model must be of type string or None")
+
         if not len(self.filter(context='dataset', **_skip_filter_checks).datasets):
             dataset_ps = self._bundle.get_dataset(dataset=dataset, **_skip_filter_checks)
         else:
             dataset_ps = self.filter(dataset=dataset, context='dataset', **_skip_filter_checks)
 
+        if dataset is not None and dataset not in dataset_ps.datasets:
+            raise ValueError("dataset '{}' not found".format(dataset))
+
         dataset_kind = dataset_ps.kind
+
+        if model is not None and not isinstance(model, str):
+            raise TypeError("model must be of type string or None")
 
         if not len(self.filter(context='model', **_skip_filter_checks).models):
             model_ps = self._bundle.filter(model=model, context='model', dataset=dataset, component=component, **_skip_filter_checks)
         else:
             model_ps = self.filter(model=model, context='model', dataset=dataset, component=component, **_skip_filter_checks)
+
+        if model is not None and model not in model_ps.models:
+            raise ValueError("model '{}' not found".format(model))
 
         if dataset_kind == 'lc':
             qualifier = 'fluxes'
@@ -3552,6 +3564,7 @@ class ParameterSet(object):
             # TODO: lp compared for a given time interpolating in wavelength?
             # NOTE: add to documentation if adding support for other datasets
             raise NotImplementedError("calculate_residuals not implemented for dataset with kind='{}' (model={}, dataset={}, component={})".format(dataset_kind, model, dataset, component))
+
 
         dataset_param = dataset_ps.get_parameter(qualifier, component=component, **_skip_filter_checks)
         model_param = model_ps.get_parameter(qualifier, **_skip_filter_checks)
@@ -3664,10 +3677,17 @@ class ParameterSet(object):
 
         chi2 = 0
 
+        if model is not None and not isinstance(model, str):
+            raise TypeError("model must be of type string or None")
+
         if not len(self.filter(context='model', **_skip_filter_checks).models):
             model_ps = self._bundle.filter(model=model, context='model', dataset=dataset, component=component, **_skip_filter_checks)
         else:
             model_ps = self.filter(model=model, context='model', dataset=dataset, component=component, **_skip_filter_checks)
+
+        if model is not None and model not in model_ps.models:
+            raise ValueError("model '{}' not found".format(model))
+
 
         for ds in model_ps.datasets:
             ds_comps = model_ps.filter(dataset=ds, **_skip_filter_checks).components
