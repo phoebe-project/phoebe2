@@ -4762,13 +4762,13 @@ class ParameterSet(object):
                     kwargs.setdefault('marker', 'None')
                     kwargs.setdefault('linestyle', 'solid')
 
-                    lnprobabilities, samples = _helpers.process_mcmc_chains(lnprobabilities, samples, burnin, thin, -np.inf, adopt_inds, flatten=False)
+                    lnprobabilities_proc, samples_proc = _helpers.process_mcmc_chains(lnprobabilities, samples, burnin, thin, -np.inf, adopt_inds, flatten=False)
 
                     # we'll be editing items in the array, so we need to make a deepcopy first
-                    lnprobabilities = _deepcopy(lnprobabilities)
-                    lnprobabilities[lnprobabilities < lnprob_cutoff] = np.nan
+                    lnprobabilities_proc = _deepcopy(lnprobabilities_proc)
+                    lnprobabilities_proc[lnprobabilities_proc < lnprob_cutoff] = np.nan
 
-                    for lnp in lnprobabilities.T:
+                    for lnp in lnprobabilities_proc.T:
                         if not np.any(np.isfinite(lnp)):
                             continue
 
@@ -4795,7 +4795,7 @@ class ParameterSet(object):
                     fitted_units = self._bundle.get_value(qualifier='fitted_units', context='solution', solution=ps.solution, **_skip_filter_checks)
                     fitted_ps = self._bundle.filter(uniqueid=list(adopt_uniqueids), **_skip_filter_checks)
 
-                    lnprobabilities, samples = _helpers.process_mcmc_chains(lnprobabilities, samples, burnin, thin, lnprob_cutoff, adopt_inds, flatten=False)
+                    lnprobabilities_proc, samples_proc = _helpers.process_mcmc_chains(lnprobabilities, samples, burnin, thin, lnprob_cutoff, adopt_inds, flatten=False)
 
                     # samples [niters, nwalkers, parameter]
                     ys = kwargs.get('y', fitted_ps.filter(uniquied=list(adopt_uniqueids), **_skip_filter_checks).twigs)
@@ -4806,11 +4806,11 @@ class ParameterSet(object):
                     for yparam in yparams.to_list():
                         parameter_ind = list(adopt_uniqueids).index(yparam.uniqueid)
 
-                        for walker_ind in range(samples.shape[1]):
+                        for walker_ind in range(samples_proc.shape[1]):
                             kwargs = _deepcopy(kwargs)
 
                             # this needs to be the unflattened version
-                            samples_y = samples[:, walker_ind, parameter_ind]
+                            samples_y = samples_proc[:, walker_ind, parameter_ind]
 
                             kwargs['x'] = np.arange(len(samples_y), dtype=float)*thin+burnin
                             kwargs['xlabel'] = 'iteration (burnin={}, thin={}, lnprob_cutoff={})'.format(burnin, thin, lnprob_cutoff)
