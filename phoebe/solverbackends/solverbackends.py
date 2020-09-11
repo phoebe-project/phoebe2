@@ -15,6 +15,7 @@ from phoebe import conf, mpi
 from phoebe.backend.backends import _simplify_error_message
 from phoebe.utils import phase_mask_inds
 from phoebe.dependencies import nparray
+from phoebe.helpers import get_emcee_object as _get_emcee_object
 from phoebe import pool as _pool
 
 from distutils.version import LooseVersion, StrictVersion
@@ -1199,6 +1200,8 @@ class EmceeBackend(BaseSolverBackend):
         solution_params += [_parameters.IntParameter(visible_if='distributions_convert:mvhistogram|histogram', qualifier='distributions_bins', value=20, limits=(5,1000), description='number of bins to use for the distribution when calling adopt_solution, get_distribution_collection, or plot.')]
         solution_params += [_parameters.BoolParameter(qualifier='adopt_values', value=True, description='whether to update the parameter face-values (of the means of all parameters in adopt_parameters) when calling adopt_solution.')]
 
+        solution_params += [_parameters.IntParameter(qualifier='niters', value=0, readonly=True, description='Completed number of iterations')]
+        solution_params += [_parameters.IntParameter(qualifier='nwalkers', value=0, readonly=True, description='Number of walkers in samples')]
 
         solution_params += [_parameters.ArrayParameter(qualifier='samples', value=[], readonly=True, description='MCMC samples with shape (niters, nwalkers, len(fitted_twigs))')]
         if kwargs.get('expose_failed', True):
@@ -1208,7 +1211,7 @@ class EmceeBackend(BaseSolverBackend):
         # solution_params += [_parameters.ArrayParameter(qualifier='accepteds', value=[], description='whether each iteration was an accepted move with shape (niters)')]
         solution_params += [_parameters.ArrayParameter(qualifier='acceptance_fractions', value=[], readonly=True, description='fraction of proposed steps that were accepted with shape (nwalkers)')]
 
-        solution_params += [_parameters.ArrayParameter(qualifier='autocorr_times', value=[], readonly=True, description='measured autocorrelation time with shape (len(fitted_twigs))')]
+        solution_params += [_parameters.ArrayParameter(qualifier='autocorr_times', value=[], readonly=True, description='measured autocorrelation time with shape (len(fitted_twigs)) before applying burnin/thin.  To access with a custom burnin/thin, see phoebe.helpers.get_emcee_object_from_solution')]
         solution_params += [_parameters.IntParameter(qualifier='burnin', value=0, limits=(0,1e6), description='burnin to use when adopting/plotting the solution')]
         solution_params += [_parameters.IntParameter(qualifier='thin', value=1, limits=(1,1e6), description='thin to use when adopting/plotting the solution')]
         solution_params += [_parameters.FloatParameter(qualifier='lnprob_cutoff', value=-np.inf, default_unit=u.dimensionless_unscaled, description='lower limit cuttoff on lnproabilities to use when adopting/plotting the solution')]
@@ -1232,6 +1235,8 @@ class EmceeBackend(BaseSolverBackend):
                      {'qualifier': 'fitted_twigs', 'value': params_twigs},
                      {'qualifier': 'fitted_units', 'value': params_units},
                      {'qualifier': 'adopt_parameters', 'value': params_twigs, 'choices': params_twigs},
+                     {'qualifier': 'niters', 'value': samples.shape[0]},
+                     {'qualifier': 'nwalkers', 'value': samples.shape[1]},
                      {'qualifier': 'samples', 'value': samples},
                      {'qualifier': 'lnprobabilities', 'value': lnprobabilities},
                      {'qualifier': 'acceptance_fractions', 'value': acceptance_fractions},
@@ -1367,31 +1372,16 @@ class EmceeBackend(BaseSolverBackend):
                 # continued_acceptance_fractions [iterations, walkers]
                 continued_lnprobabilities = continue_from_ps.get_value(qualifier='lnprobabilities', **_skip_filter_checks)
                 # continued_lnprobabilities [iterations, walkers]
+
+                # fake a backend object from the previous solution so that emcee
+                # can continue from where it left off and still compute
+                # autocorrelation times, etc.
+                esargs['backend'] = _get_emcee_object(continued_samples, continued_lnprobabilities, continued_acceptance_fractions)
                 p0 = continued_samples[-1].T
                 # p0 [parameter, walkers]
                 nwalkers = int(p0.shape[-1])
 
                 start_iteration = continued_lnprobabilities.shape[0]
-
-                # fake a backend object from the previous solution so that emcee
-                # can continue from where it left off and still compute
-                # autocorrelation times, etc.
-                backend = emcee.backends.Backend()
-                backend.nwalkers = int(nwalkers)
-                backend.ndim = int(len(params_uniqueids))
-                backend.iteration = start_iteration
-                backend.accepted = np.asarray(continued_acceptance_fractions * start_iteration, dtype='int')
-                backend.chain = continued_samples
-                backend.log_prob = continued_lnprobabilities
-                backend.initialized = True
-                backend.random_state = None
-                if not hasattr(backend, 'blobs'):
-                    # some versions of emcee seem to have a bug where it tries
-                    # to access backend.blobs but that does not exist.  Since
-                    # we don't use blobs, we'll get around that by faking it to
-                    # be None
-                    backend.blobs = None
-                esargs['backend'] = backend
 
             params_twigs = [b.get_parameter(uniqueid=uniqueid, **_skip_filter_checks).twig for uniqueid in params_uniqueids]
 

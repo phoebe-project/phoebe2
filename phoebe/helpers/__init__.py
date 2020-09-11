@@ -8,6 +8,13 @@ except ImportError:
 else:
     _use_dynesty = True
 
+try:
+    import emcee
+except ImportError:
+    _use_emcee = False
+else:
+    _use_emcee = True
+
 _skip_filter_checks = {'check_default': False, 'check_visible': False}
 
 def process_mcmc_chains_from_solution(b, solution, burnin=None, thin=None, lnprob_cutoff=None, adopt_parameters=None, flatten=True):
@@ -17,6 +24,7 @@ def process_mcmc_chains_from_solution(b, solution, burnin=None, thin=None, lnpro
 
     See also:
     * <phoebe.helpers.process_mcmc_chains>
+    * <phoebe.parameters.solver.sampler.emcee>
 
     Arguments
     ---------------
@@ -145,12 +153,83 @@ def process_mcmc_chains(lnprobabilities, samples, burnin=0, thin=1, lnprob_cutof
 
     return lnprobabilities, samples
 
+def get_emcee_object_from_solution(b, solution, adopt_parameters=None):
+    """
+    Expose the `EnsembleSampler` object in `emcee` from the solution <phoebe.parameters.ParameterSet>.
+
+    See also:
+    * <phoebe.helpers.get_emcee_object>
+    * <phoebe.parameters.solver.sampler.emcee>
+
+    Arguments
+    ------------
+    * `b` (<phoebe.frontend.bundle.Bundle>): the Bundle
+    * `solution` (string): solution label with `kind=='dynesty'`
+    * `adopt_parameters` (list, optional, default=None): If not None, will
+        override the value of `adopt_parameters` in the solution.
+
+    Returns
+    -----------
+    * [emcee.EnsembleSampler](https://emcee.readthedocs.io/en/stable/user/sampler/#emcee.EnsembleSampler) object
+    """
+    solution_ps = b.get_solution(solution=solution, **_skip_filter_checks)
+    if solution_ps.kind != 'emcee':
+        raise ValueError("solution_ps must have kind 'emcee'")
+
+    adopt_inds, adopt_uniqueids = b._get_adopt_inds_uniqueids(solution_ps, adopt_parameters=adopt_parameters)
+
+    samples = solution_ps.get_value(qualifier='samples', **_skip_filter_checks) # shape: (niters, nwalkers, nparams)
+    lnprobabilites = solution_ps.get_value(qualifier='lnprobabilities', **_skip_filter_checks) # shape: (niters, nwalkers)
+    acceptance_fractions = solution_ps.get_value(qualifier='acceptance_fractions', **_skip_filter_checks) # shape: (nwalkers)
+
+    return get_emcee_object(samples[:,:,adopt_inds], lnprobabilites, acceptance_fractions)
+
+def get_emcee_object(samples, lnprobabilities, acceptance_fractions):
+    """
+    Expose the `EnsembleSampler` object in `emcee`.
+
+    See also:
+    * <phoebe.helpers.get_emcee_object_from_solution>
+
+    Arguments
+    ------------
+    * `samples` (array): samples with shape (niters, nwalkers, nparams)
+    * `lnprobabilities` (array): log-probablities with shape (niters, nwalkers)
+    * `acceptance_fractions` (array): acceptance fractions with shape (nwalkers)
+
+    Returns
+    -----------
+    * [emcee.EnsembleSampler](https://emcee.readthedocs.io/en/stable/user/sampler/#emcee.EnsembleSampler) object
+    """
+    if not _use_emcee:
+        raise ImportError("emcee is not installed")
+
+    backend = emcee.backends.Backend()
+    backend.nwalkers = samples.shape[1]
+    backend.ndim = samples.shape[2]
+    backend.iteration = samples.shape[0]
+    backend.accepted = acceptance_fractions
+    backend.chain = samples
+    backend.log_prob = lnprobabilities
+    backend.initialized = True
+    backend.random_state = None
+    if not hasattr(backend, 'blobs'):
+        # some versions of emcee seem to have a bug where it tries
+        # to access backend.blobs but that does not exist.  Since
+        # we don't use blobs, we'll get around that by faking it to
+        # be None
+        backend.blobs = None
+
+    return backend
+
+
 def get_dynesty_object_from_solution(b, solution, adopt_parameters=None):
     """
     Expose the `results` object in `dynesty` from the solution <phoebe.parameters.ParameterSet>.
 
     See also:
     * <phoebe.helpers.get_dynesty_object>
+    * <phoebe.parameters.solver.sampler.dynesty>
 
     Arguments
     ------------
