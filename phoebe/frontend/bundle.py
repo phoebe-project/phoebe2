@@ -11354,7 +11354,29 @@ class Bundle(ParameterSet):
             fitted_values = solution_ps.get_value(qualifier='fitted_values', **_skip_filter_checks)
 
             if solver_kind in ['lc_periodogram', 'rv_periodogram']:
+                # only the period should be in fitted_values... if that changes,
+                # we'll need more complex logic here
                 fitted_values = fitted_values * solution_ps.get_value(qualifier='period_factor', period_factor=kwargs.get('period_factor', None), **_skip_filter_checks)
+
+            if solver_kind in ['lc_geometry']:
+
+                adopt_qualifiers = [self.get_parameter(uniqueid=uniqueid, **_skip_filter_checks).qualifier for uniqueid in adopt_uniqueids]
+                if 'mask_phases' in adopt_qualifiers and 't0_supconj' in adopt_qualifiers:
+                    # then we need to shift mask phases by the phase-shift introduced by the change in t0_supconj
+                    logger.info("shifting mask_phases by phase-shift caused by change in t0_supconj")
+
+                    # we'll be making changes in memory and don't want to affect the parameter itself
+                    fitted_values = _deepcopy(fitted_values)
+
+                    mask_phases_ind = adopt_qualifiers.index('mask_phases')
+                    t0_supconj_ind = adopt_qualifiers.index('t0_supconj')
+
+                    t0_supconj_old = self.get_value(uniqueid=adopt_uniqueids[t0_supconj_ind], unit=u.d, **_skip_filter_checks)
+                    t0_supconj_new = fitted_values[t0_supconj_ind]
+
+                    phase_shift = self.to_phase(t0_supconj_new) - self.to_phase(t0_supconj_old)
+
+                    fitted_values[mask_phases_ind] = [ph-phase_shift for ph in [ecl_ph for ecl_ph in fitted_values[mask_phases_ind]]]
 
             for uniqueid, value, unit in zip(adopt_uniqueids, fitted_values[adopt_inds], fitted_units[adopt_inds]):
                 if adopt_distributions:
