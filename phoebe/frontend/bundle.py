@@ -2105,7 +2105,7 @@ class Bundle(ParameterSet):
 
         # TODO: should we also check to make sure p.component in [None]+self.hierarchy.get_components()?  If so, we'll need to call this method in set_hierarchy as well.
 
-        choices = self.get_adjustable_parameters(exclude_constrained=False).twigs
+        choices = self.get_adjustable_parameters(exclude_constrained=False, check_visible=False).twigs
         for param in params:
             choices_changed = False
             if return_changes and choices != param._choices:
@@ -2683,7 +2683,7 @@ class Bundle(ParameterSet):
 
         return
 
-    def get_adjustable_parameters(self, exclude_constrained=True):
+    def get_adjustable_parameters(self, exclude_constrained=True, check_visible=True):
         """
         Return a <phoebe.parameters.ParameterSet> of parameters that are
         current adjustable (ie. by a solver).
@@ -2695,6 +2695,9 @@ class Bundle(ParameterSet):
             that are directly adjustable, but `False` if looking for parameters
             that can have priors placed on them or that could be adjusted if the
             appropriate constraint(s) were flipped.
+        * `check_visible` (bool, optional, default=True): whether to check the
+            visibility of the parameters (and therefore exclude parameters that
+            are not visible).
 
         Returns
         ---------
@@ -2704,7 +2707,7 @@ class Bundle(ParameterSet):
 
         # parameters that can be fitted are only in the component or dataset context,
         # must be float parameters and must not be constrained (and must be visible)
-        ps = self.filter(context=['component', 'dataset', 'system', 'feature'], check_visible=True, check_default=True)
+        ps = self.filter(context=['component', 'dataset', 'system', 'feature'], check_visible=check_visible, check_default=True)
         return ParameterSet([p for p in ps.to_list() if p.__class__.__name__=='FloatParameter' and (not exclude_constrained or not len(p.constrained_by))])
 
 
@@ -4047,7 +4050,7 @@ class Bundle(ParameterSet):
             else:
                 rv_datasets = self.filter(kind='rv', context='dataset', **_skip_filter_checks).datasets
 
-            adjustable_parameters = self.get_adjustable_parameters(exclude_constrained=False)
+            adjustable_parameters = self.get_adjustable_parameters(exclude_constrained=False, check_visible=False)
 
             if 'fit_parameters' in solver_ps.qualifiers:
                 fit_parameters = solver_ps.get_value(qualifier='fit_parameters', fit_parameters=kwargs.get('fit_parameters', None), expand=True, **_skip_filter_checks)
@@ -4067,6 +4070,14 @@ class Bundle(ParameterSet):
                                          fit_parameter.is_constraint
                                         ]+addl_parameters,
                                         True, 'run_solver')
+
+                    if not fit_parameter.is_visible:
+                        report.add_item(self,
+                                        "fit_parameters contains the invisible parameter '{}'".format(twig),
+                                        [solver_ps.get_parameter(qualifier='fit_parameters', **_skip_filter_checks)]
+                                        +fit_parameter.visible_if_parameters.filter(check_visible=True).to_list()
+                                        +addl_parameters,
+                                         True, 'run_solver')
 
 
                 fit_ps = adjustable_parameters.filter(twig=fit_parameters, **_skip_filter_checks)
