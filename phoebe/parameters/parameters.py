@@ -6633,12 +6633,63 @@ class Parameter(object):
 
         See also:
         * <phoebe.parameters.Parameter.is_visible>
+        * <phoebe.parameters.Parameter.visible_if_parameters>
 
         Returns
         --------
         * (str): the `visible_if` expression for this Parameter
         """
         return self._visible_if
+
+    @property
+    def visible_if_parameters(self):
+        """
+        Return the parameters affecting the visibility of this <phoebe.parameters.Parameter>.
+
+        See also:
+        * <phoebe.parameters.Parameter.visible_if>
+        * <phoebe.parameters.Parameters.is_visible>
+
+        Returns
+        ----------
+        * <phoebe.parameters.ParameterSet>
+        """
+        parameter_uids = []
+
+        for visible_if in self.visible_if.replace(',','||').split('||'):
+            if visible_if.lower() == 'false':
+                continue
+
+            # otherwise we need to find the parameter we're referencing and check its value
+            if visible_if[0]=='[':
+                remove_metawargs, visible_if = visible_if[1:].split(']')
+                remove_metawargs = remove_metawargs.split(',')
+            else:
+                remove_metawargs = []
+
+            qualifier, value = visible_if.split(':')
+
+            if 'hierarchy.' in qualifier:
+                # TODO: set specific syntax (hierarchy.get_meshables:2)
+                # then this needs to do some logic on the hierarchy
+                parameter_uids += [self._bundle.hierarchy.uniqueid]
+
+            else:
+                # the parameter needs to have all the same meta data except qualifier
+                # TODO: switch this to use self.get_parent_ps ?
+                metawargs = {k:v for k,v in self.get_meta(ignore=['twig', 'uniquetwig', 'uniqueid']+remove_metawargs).items() if v is not None}
+                metawargs['qualifier'] = qualifier
+
+                # this call is quite expensive and bloats every get_parameter(check_visible=True)
+                param = self._bundle.get_parameter(check_visible=False,
+                                                   check_default=False,
+                                                   check_advanced=False,
+                                                   check_single=False,
+                                                   **metawargs)
+
+                parameter_uids += [param.uniqueid]
+
+        return self._bundle.filter(uniqueid=parameter_uids, **_skip_filter_checks)
 
     @property
     def is_visible(self, visible_if=None):
@@ -6652,6 +6703,7 @@ class Parameter(object):
 
         See also:
         * <phoebe.parameters.Parameter.visible_if>
+        * <phoebe.parameters.Parameter.visible_if_parameters>
 
         Returns
         --------
