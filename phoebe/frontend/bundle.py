@@ -4134,7 +4134,7 @@ class Bundle(ParameterSet):
                             # we'll raise an error if a delta distribution (i.e. probably not from a sampler)
                             # but only a warning for other distributions
 
-                            msg = "{} is constrained, so will be ignored by init_from='{}'.  Flip constraint to include in sampling.".format(ref_param.twig, dist_or_solution)
+                            msg = "{} is constrained, so cannot be included in init_from='{}'.  Flip constraint to include in sampling, or remove '{}' from init_from.".format(ref_param.twig, dist_or_solution, dist_or_solution)
 
                             report.add_item(self,
                                             msg,
@@ -4143,7 +4143,15 @@ class Bundle(ParameterSet):
                                             ref_param.is_constraint,
                                             self.get_parameter(qualifier='init_from', solver=solver, context='solver', **_skip_filter_checks)
                                             ]+addl_parameters,
-                                            False, 'run_solver')
+                                            True, 'run_solver')
+
+                        if not ref_param.is_visible:
+                            report.add_item(self,
+                                            "{} is not a visible parameter, so cannot be included in init_from='{}'.".format(ref_param.twig, dist_or_solution),
+                                            [solver_ps.get_parameter(qualifier='init_from', **_skip_filter_checks)]
+                                            +ref_param.visible_if_parameters.filter(check_visible=True).to_list()
+                                            +addl_parameters,
+                                             True, 'run_solver')
 
                 elif dist_or_solution in self.solutions:
                     solution_ps = self.get_solution(solution=dist_or_solution, **_skip_filter_checks)
@@ -4155,7 +4163,7 @@ class Bundle(ParameterSet):
                             # we'll raise an error if not a sampler (i.e. if values would be adopted by default)
                             # but only a warning for samplers (i.e. distributions would be adopted by default)
 
-                            msg = "{} is constrained, so the distribution be ignored by init_from='{}'.  Flip constraint to include in sampling, or remove '{}' from init_from.".format(param.twig, dist_or_solution, dist_solution)
+                            msg = "{} is constrained, so cannot be included in init_from='{}'.  Flip constraint to include in sampling, or remove '{}' from init_from.".format(param.twig, dist_or_solution, dist_solution)
 
                             report.add_item(self,
                                             msg,
@@ -4163,7 +4171,16 @@ class Bundle(ParameterSet):
                                              param.is_constraint,
                                              self.get_parameter(qualifier='init_from', solver=solver, context='solver', **_skip_filter_checks)
                                              ]+addl_parameters,
-                                             False, 'run_solver')
+                                             True, 'run_solver')
+
+                        if not ref_param.is_visible:
+                            report.add_item(self,
+                                            "{} is not a visible parameter, so cannot be included in init_from='{}'.".format(ref_param.twig, dist_or_solution),
+                                            [solver_ps.get_parameter(qualifier='init_from', **_skip_filter_checks)]
+                                            +ref_param.visible_if_parameters.filter(check_visible=True).to_list()
+                                            +addl_parameters,
+                                             True, 'run_solver')
+
                 else:
                     raise ValueError("{} could not be found in distributions or solutions".format(dist_or_solution))
 
