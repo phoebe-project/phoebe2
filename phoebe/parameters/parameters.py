@@ -10711,6 +10711,9 @@ class HierarchyParameter(StringParameter):
         * a gaussian_process feature is attached to any dataset, unless
             `consider_gaussian_process` is False.
 
+        To access the HierarchyParameter from the Bundle, see
+         <phoebe.frontend.bundle.Bundle.get_hierarchy>.
+
         Arguments
         ---------
         * `consider_gaussian_process` (bool, optional, defult=True): whether

@@ -4,6 +4,12 @@ import sys
 
 import numpy as np
 
+_skip_filter_checks = {'check_default': False, 'check_visible': False}
+
+import logging
+logger = logging.getLogger("UTILS")
+logger.addHandler(logging.NullHandler())
+
 def _bytes(s):
     return bytes(s, 'utf-8')
 
@@ -199,3 +205,47 @@ def phase_mask_inds(phases, mask_phases):
         inds = np.logical_or(*masks)
 
     return inds
+
+
+def _get_masked_times(b, dataset, mask_phases, mask_t0, return_times_phases=False):
+    # concatenate for the case of datasets (like RVs) with times in multiple components
+    times = np.unique(np.concatenate([time_param.get_value() for time_param in b.filter(qualifier='times', dataset=dataset, **_skip_filter_checks).to_list()]))
+    phases = b.to_phases(times, t0=mask_t0)
+    masked_times = times[phase_mask_inds(phases, mask_phases)]
+    if return_times_phases:
+        return masked_times, times, phases
+    return masked_times
+
+def _get_masked_compute_times(b, dataset, mask_phases, mask_t0, is_time_dependent, times=None, phases=None):
+    # for compute_times/phases we can't just mask because we need to make
+    # sure we "surround" each of the observation datapoints
+    if times is None:
+        times = np.unique(np.concatenate([time_param.get_value() for time_param in b.filter(qualifier='times', dataset=dataset, unit='d', **_skip_filter_checks).to_list()]))
+    if phases is None:
+        phases = b.to_phases(times, t0=mask_t0)
+
+    compute_times = b.get_value(qualifier='compute_times', dataset=dataset, context='dataset', unit='d', **_skip_filter_checks)
+
+    if mask_phases is None:
+        return compute_times
+
+    compute_phases = b.to_phases(compute_times, t0=mask_t0)
+
+    indices = []
+
+    def _phase_diff(ph1, ph2):
+        # need to account for phase-wrapping when finding the nearest two points
+        return min([abs(ph1-ph2), abs(ph1+1-ph2), abs(ph1-1-ph2)])
+
+    if is_time_dependent:
+        times_masked = times[phase_mask_inds(phases, mask_phases)]
+
+        for tm in times_masked:
+            indices += list(abs(compute_times-tm).argsort()[:2])
+    else:
+        phases_masked = phases[phase_mask_inds(phases, mask_phases)]
+
+        for phm in phases_masked:
+            indices += list(np.array([_phase_diff(cph, phm) for cph in compute_phases]).argsort()[:2])
+
+    return compute_times[list(set(indices))]

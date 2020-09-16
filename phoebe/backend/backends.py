@@ -171,7 +171,8 @@ def _extract_from_bundle(b, compute, dataset=None, times=None,
     the backend returns the filled synthetics.
 
     :parameter b: the :class:`phoebe.frontend.bundle.Bundle`
-    :return: times (list of floats), infos (list of lists of dictionaries),
+    :return: times (list of floats or dictionary of lists of floats),
+        infos (list of lists of dictionaries),
         new_syns (ParameterSet containing all new parameters)
     :raises NotImplementedError: if for some reason there is a problem getting
         a unique match to a dataset (shouldn't ever happen unless
@@ -221,7 +222,9 @@ def _extract_from_bundle(b, compute, dataset=None, times=None,
             dataset_components = b.hierarchy.get_stars()
 
         for component in dataset_components:
-            if provided_times:
+            if isinstance(provided_times, dict) and dataset in provided_times.keys():
+                this_times = provided_times.get(dataset)
+            elif provided_times is not None and not isinstance(provided_times, dict):
                 this_times = provided_times
             elif dataset_kind == 'mesh' and include_mesh:
                 this_times = _expand_mesh_times(b, dataset_ps, component)
