@@ -10011,14 +10011,21 @@ class Bundle(ParameterSet):
                 # we now need to handle any computations of ld_coeffs, pblums, l3s, etc
                 # TODO: skip lookups for phoebe, skip non-supported ld_func for photodynam, etc
                 # TODO: have this return a dictionary like pblums/l3s that we can pass on to the backend?
-                logger.info("run_compute: computing necessary ld_coeffs, pblums, l3s")
-                self.compute_ld_coeffs(compute=compute, skip_checks=True, set_value=True, **{k:v for k,v in kwargs.items() if k in computeparams.qualifiers})
-                # NOTE that if pblum_method != 'phoebe', then system will be None
-                # otherwise the system will be create which we can pass on to the backend
-                # the phoebe backend can then skip initializing the system at least on the master proc
-                # (workers will need to recreate the mesh)
-                system, pblums_abs, pblums_scale, pblums_rel, pbfluxes = self.compute_pblums(compute=compute, ret_structured_dicts=True, skip_checks=True, **{k:v for k,v in kwargs.items() if k in computeparams.qualifiers})
-                l3s = self.compute_l3s(compute=compute, use_pbfluxes=pbfluxes, ret_structured_dicts=True, skip_checks=True, skip_compute_ld_coeffs=True, **{k:v for k,v in kwargs.items() if k in computeparams.qualifiers})
+                ds_kinds_enabled = self.filter(dataset=computeparams.filter(qualifier='enabled', value=True, **_skip_filter_checks).datasets, context='dataset', **_skip_filter_checks).kinds
+                if 'lc' in ds_kinds_enabled or 'rv' in ds_kinds_enabled or 'lp' in ds_kinds_enabled:
+                    logger.info("run_compute: computing necessary ld_coeffs, pblums, l3s")
+                    self.compute_ld_coeffs(compute=compute, skip_checks=True, set_value=True, **{k:v for k,v in kwargs.items() if k in computeparams.qualifiers})
+                    # NOTE that if pblum_method != 'phoebe', then system will be None
+                    # otherwise the system will be create which we can pass on to the backend
+                    # the phoebe backend can then skip initializing the system at least on the master proc
+                    # (workers will need to recreate the mesh)
+                    system, pblums_abs, pblums_scale, pblums_rel, pbfluxes = self.compute_pblums(compute=compute, ret_structured_dicts=True, skip_checks=True, **{k:v for k,v in kwargs.items() if k in computeparams.qualifiers})
+                    l3s = self.compute_l3s(compute=compute, use_pbfluxes=pbfluxes, ret_structured_dicts=True, skip_checks=True, skip_compute_ld_coeffs=True, **{k:v for k,v in kwargs.items() if k in computeparams.qualifiers})
+                else:
+                    system = None
+                    pblums_scale = {}
+                    pblums_rel = {}
+                    l3s = {}
 
                 logger.info("run_compute: calling {} backend to create '{}' model".format(computeparams.kind, model))
                 if mpi.within_mpirun:
@@ -11045,7 +11052,7 @@ class Bundle(ParameterSet):
         times.
 
         Overview of logic:
-        * if `solver_times='times' but not `mask_enabled`: returns the dataset-times
+        * if `solver_times='times'` but not `mask_enabled`: returns the dataset-times
             (concatenating over components as necessary).
         * if `solver_times='times'` and `mask_enabled`: returns the masked
             dataset-times (concatenating over components as necessary), according
