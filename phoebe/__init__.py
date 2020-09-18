@@ -761,7 +761,7 @@ def strip_docstring_refs(matchobj):
 
 def add_nparray_docstring(obj):
 
-    docsprefix = """This is an included dependency from [nparray 1.1.0](https://nparray.readthedocs.io/en/1.1.0/).\n\n===============================================================\n\n"""
+    docsprefix = """This is an included dependency from [nparray 1.2.0](https://nparray.readthedocs.io/en/1.2.0/).\n\n===============================================================\n\n"""
 
     docstring = docsprefix + "\n".join([l.lstrip() for l in obj.__doc__.split("\n")])
     docstring = re.sub(r"(?P<name>\<[0-9a-zA-Z_\.]*\>)", strip_docstring_refs, docstring)
