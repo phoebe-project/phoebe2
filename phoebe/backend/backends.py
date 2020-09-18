@@ -2378,7 +2378,6 @@ class EllcBackend(BaseBackendByDataset):
         period = comp_ps.get_value(qualifier='period', component=orbitref, unit=u.d, **_skip_filter_checks)
         q = comp_ps.get_value(qualifier='q', component=orbitref, **_skip_filter_checks)
 
-        # TODO: there seems to be a convention flip between primary and secondary star in ellc... maybe we can just address via t_zero?
         t_zero = comp_ps.get_value(qualifier='t0_supconj', component=orbitref, unit=u.d, **_skip_filter_checks)
 
         incl = comp_ps.get_value(qualifier='incl', component=orbitref, unit=u.deg, **_skip_filter_checks)
@@ -2389,9 +2388,10 @@ class EllcBackend(BaseBackendByDataset):
         ecc = comp_ps.get_value(qualifier='ecc', component=orbitref, **_skip_filter_checks)
         w = comp_ps.get_value(qualifier='per0', component=orbitref, unit=u.rad, **_skip_filter_checks)
 
-        domdt = comp_ps.get_value(qualifier='dperdt', component=orbitref, unit=u.rad/u.d, **_skip_filter_checks) * period
-        # need to correct w (per0) to be at t_zero instead of t0@system as defined in PHOEBE
-        w += domdt * (t_zero - t0_system)
+        # NOTE: domdt is supposed to be in deg/anomalistic period (not a mistake)
+        domdt = comp_ps.get_value(qualifier='dperdt', component=orbitref, unit=u.deg/u.d, **_skip_filter_checks) * period
+        # need to correct w (per0) to be at t_zero (t0_supconj) instead of t0@system as defined in PHOEBE
+        w += domdt * period * (t0_system - t_zero)
 
         gdc_1 = comp_ps.get_value(qualifier='gravb_bol', component=starrefs[0], **_skip_filter_checks)
         gdc_2 = comp_ps.get_value(qualifier='gravb_bol', component=starrefs[1], **_skip_filter_checks)
