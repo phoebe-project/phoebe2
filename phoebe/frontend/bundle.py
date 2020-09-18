@@ -42,7 +42,7 @@ from phoebe.distortions import roche
 from phoebe.frontend import io
 from phoebe.atmospheres.passbands import list_installed_passbands, list_online_passbands, get_passband, update_passband, _timestamp_to_dt
 from phoebe.dependencies import distl as _distl
-from phoebe.utils import _bytes, parse_json
+from phoebe.utils import _bytes, parse_json, _get_masked_times, _get_masked_compute_times
 from phoebe import helpers as _helpers
 import libphoebe
 
@@ -619,6 +619,19 @@ class Bundle(ParameterSet):
 
             b.remove_parameters_all(qualifier='log_history', **_skip_filter_checks)
 
+            # new settings parameters were added for run_checks_*
+            logger.warning("updating all parameters in setting context")
+            existing_values_settings = {p.qualifier: p.get_value() for p in b.filter(context='setting').to_list()}
+            b.remove_parameters_all(context='setting', **_skip_filter_checks)
+            b._attach_params(_setting.settings(**existing_values_settings), context='setting')
+
+            # update logg constraints (now in solar units due to bug with MPI handling converting solMass to SI)
+            for logg_constraint in b.filter(qualifier='logg', context='constraint', **_skip_filter_checks).to_list():
+                component = logg_constraint.component
+                logger.warning("re-creating logg constraint for component='{}' to be in solar instead of SI units".format(component))
+                b.remove_constraint(uniqueid=logg_constraint.uniqueid)
+                b.add_constraint('logg', component=component)
+
             for compute in b.filter(context='compute').computes:
                 logger.info("attempting to update compute='{}' to new version requirements".format(compute))
                 ps_compute = b.filter(context='compute', compute=compute)
@@ -647,7 +660,7 @@ class Bundle(ParameterSet):
             b.remove_parameters_all(constraint_func='extinction', context='constraint', **_skip_filter_checks)
 
             for constraint in constraints:
-                # there were no constraints before
+                # there were no constraints before in the system context
                 b.add_constraint(*constraint)
 
             # call set_hierarchy to force asini@component constraints (comp_asini) to be built
@@ -904,7 +917,8 @@ class Bundle(ParameterSet):
         return b
 
     @classmethod
-    def from_legacy(cls, filename, add_compute_legacy=True, add_compute_phoebe=True):
+    def from_legacy(cls, filename, add_compute_legacy=True, add_compute_phoebe=True,
+                   ignore_errors=False, passband_map={}):
         """
         For convenience, this function is available at the top-level as
         <phoebe.from_legacy> as well as <phoebe.frontend.bundle.Bundle.from_legacy>.
@@ -934,14 +948,19 @@ class Bundle(ParameterSet):
         * `add_compute_phoebe` (bool, optional, default=True): whether to add
             a set of compute options for the phoebe backend.  See also
             <phoebe.frontend.bundle.Bundle.add_compute> and
-            <phoebe.parameters.compute.phoebe> to add manually after
+            <phoebe.parameters.compute.phoebe> to add manually after.
+        * `ignore_errors` (bool, optional, default=False): whether to ignore any
+            import errors and include instead as a warning in the logger.
+        * `passband_map` (dict, optional, default={}): dictionary to map passbands
+            from the value in the legacy file to the corresponding value  in PHOEBE.
 
         Returns
         ---------
         * an instantiated <phoebe.frontend.bundle.Bundle> object.
         """
         logger.warning("importing from legacy is experimental until official 1.0 release")
-        return io.load_legacy(filename, add_compute_legacy, add_compute_phoebe)
+        return io.load_legacy(filename, add_compute_legacy, add_compute_phoebe,
+                              ignore_errors=ignore_errors, passband_map=passband_map)
 
     @classmethod
     def default_star(cls, starA='starA', force_build=False):
@@ -2086,7 +2105,7 @@ class Bundle(ParameterSet):
 
         # TODO: should we also check to make sure p.component in [None]+self.hierarchy.get_components()?  If so, we'll need to call this method in set_hierarchy as well.
 
-        choices = self.get_adjustable_parameters(exclude_constrained=False).twigs
+        choices = self.get_adjustable_parameters(exclude_constrained=False, check_visible=False).twigs
         for param in params:
             choices_changed = False
             if return_changes and choices != param._choices:
@@ -2664,7 +2683,7 @@ class Bundle(ParameterSet):
 
         return
 
-    def get_adjustable_parameters(self, exclude_constrained=True):
+    def get_adjustable_parameters(self, exclude_constrained=True, check_visible=True):
         """
         Return a <phoebe.parameters.ParameterSet> of parameters that are
         current adjustable (ie. by a solver).
@@ -2676,6 +2695,9 @@ class Bundle(ParameterSet):
             that are directly adjustable, but `False` if looking for parameters
             that can have priors placed on them or that could be adjusted if the
             appropriate constraint(s) were flipped.
+        * `check_visible` (bool, optional, default=True): whether to check the
+            visibility of the parameters (and therefore exclude parameters that
+            are not visible).
 
         Returns
         ---------
@@ -2685,7 +2707,7 @@ class Bundle(ParameterSet):
 
         # parameters that can be fitted are only in the component or dataset context,
         # must be float parameters and must not be constrained (and must be visible)
-        ps = self.filter(context=['component', 'dataset', 'system', 'feature'], check_visible=True, check_default=True)
+        ps = self.filter(context=['component', 'dataset', 'system', 'feature'], check_visible=check_visible, check_default=True)
         return ParameterSet([p for p in ps.to_list() if p.__class__.__name__=='FloatParameter' and (not exclude_constrained or not len(p.constrained_by))])
 
 
@@ -3681,6 +3703,7 @@ class Bundle(ParameterSet):
             # check if any parameter is in sample_from but is constrained
             # NOTE: similar logic exists for init_from in run_checks_solver
 
+            # distribution checks
             sample_from = self.get_value(qualifier='sample_from', compute=compute, context='compute', sample_from=kwargs.get('sample_from', None), default=[], expand=True, **_skip_filter_checks)
             for dist_or_solution in sample_from:
                 if dist_or_solution in self.distributions:
@@ -3731,7 +3754,6 @@ class Bundle(ParameterSet):
                     raise ValueError("{} could not be found in distributions or solutions".format(dist_or_solution))
 
             # check for time-dependency issues with GPs
-
             if len(compute_enabled_gps):
                 # then if we're using compute_times/phases, compute_times must cover the range of the dataset times
                 for dataset in compute_enabled_datasets:
@@ -3758,6 +3780,28 @@ class Bundle(ParameterSet):
                                                  self.get_parameter(qualifier='compute_phases', dataset=dataset, context='dataset', **_skip_filter_checks),
                                                  time_param]+self.filter(qualifier='enabled', feature=compute_enabled_gps, **_skip_filter_checks).to_list()+addl_parameters,
                                                  False, 'run_compute')
+
+
+                    ds_ps = self.get_dataset(dataset=dataset, **_skip_filter_checks)
+                    xqualifier = {'lp': 'wavelength'}.get(ds_ps.kind, 'times')
+                    yqualifier = {'lp': 'flux_densities', 'rv': 'rvs', 'lc': 'fluxes'}.get(ds_ps.kind)
+                    # we'll loop over components (for RVs or LPs, for example)
+                    if ds_ps.kind in ['lc']:
+                        ds_comps = [None]
+                    else:
+                        ds_comps = ds_ps.filter(qualifier=xqualifier, check_visible=True).components
+                    for ds_comp in ds_comps:
+                        ds_x = ds_ps.get_value(qualifier=xqualifier, component=ds_comp, **_skip_filter_checks)
+                        ds_y = ds_ps.get_value(qualifier=yqualifier, component=ds_comp, **_skip_filter_checks)
+                        ds_sigmas = ds_ps.get_value(qualifier='sigmas', component=ds_comp, **_skip_filter_checks)
+                        if len(ds_sigmas) != len(ds_x) or len(ds_y) != len(ds_x) or not len(ds_x):
+                            report.add_item(self,
+                                            "gaussian process requires observational data and sigmas",
+                                            ds_ps.filter(qualifier=[xqualifier, yqualifier, 'sigmas'], component=ds_comp, **_skip_filter_checks).to_list()+
+                                            self.filter(qualifier='enabled', feature=compute_enabled_gps, compute=compute, **_skip_filter_checks).to_list()+
+                                            addl_parameters,
+                                            True, 'run_compute')
+
 
             # 2.2 disables support for boosting.  The boosting parameter in 2.2 only has 'none' as an option, but
             # importing a bundle from old releases may still have 'linear' as an option, so we'll check here
@@ -3998,8 +4042,37 @@ class Bundle(ParameterSet):
                 if kwargs.get('run_checks_compute', True):
                     if compute not in self.computes:
                         raise ValueError("compute='{}' not in computes".format(compute))
+                    # TODO: do we need to append (only if report was sent as a kwarg)
                     report = self.run_checks_compute(compute=compute, raise_logger_warning=False, raise_error=False, report=report, addl_parameters=[solver_ps.get_parameter(qualifier='compute', **_skip_filter_checks)])
 
+                # test to make sure solver_times will cover the full dataset for time-dependent systems
+                if self.hierarchy.is_time_dependent(consider_gaussian_process=True):
+                    for dataset in self.filter(qualifier='enabled', compute=compute, context='compute', value=True, **_skip_filter_checks).datasets:
+                        solver_times = self.get_value(qualifier='solver_times', dataset=dataset, context='dataset', **_skip_filter_checks)
+                        if solver_times == 'times':
+                            continue
+
+                        for param in self.filter(qualifier='times', dataset=dataset, context='dataset', **_skip_filter_checks).to_list():
+                            component = param.component
+                            compute_times = self.get_value(qualifier='compute_times', dataset=param.dataset, context='dataset', **_skip_filter_checks)
+                            times = self.get_value(qualifier='times', dataset=param.dataset, component=param.component, context='dataset', **_skip_filter_checks)
+
+                            if len(times) and len(compute_times) and (min(times) < min(compute_times) or max(times) > max(compute_times)):
+
+                                params = [self.get_parameter(qualifier='solver_times', dataset=dataset, context='dataset', **_skip_filter_checks),
+                                          self.get_parameter(qualifier='times', dataset=dataset, component=component, context='dataset', **_skip_filter_checks),
+                                          self.get_parameter(qualifier='compute_times', dataset=dataset, context='dataset', **_skip_filter_checks)]
+
+                                msg = "'compute_times@{}' must cover full range of 'times@{}', for time-dependent systems with solver_times@{}='{}'.".format(dataset, dataset, dataset, solver_times)
+                                if len(self.get_parameter(qualifier='compute_phases', dataset=dataset, context='dataset', **_skip_filter_checks).constrains):
+                                    msg += " Consider flipping the 'compute_phases' constraint and providing 'compute_times' instead."
+                                    params += [self.get_parameter(qualifier='compute_phases', dataset=dataset, context='dataset', **_skip_filter_checks),
+                                               self.get_constraint(qualifier='compute_times', dataset=dataset, **_skip_filter_checks)]
+
+                                report.add_item(self,
+                                                msg,
+                                                params,
+                                                True, ['run_solver'])
 
             if 'lc_datasets' in solver_ps.qualifiers:
                 lc_datasets = solver_ps.get_value(qualifier='lc_datasets', lc_datasets=kwargs.get('lc_datasets', None), expand=True, **_skip_filter_checks)
@@ -4027,7 +4100,7 @@ class Bundle(ParameterSet):
             else:
                 rv_datasets = self.filter(kind='rv', context='dataset', **_skip_filter_checks).datasets
 
-            adjustable_parameters = self.get_adjustable_parameters(exclude_constrained=False)
+            adjustable_parameters = self.get_adjustable_parameters(exclude_constrained=False, check_visible=False)
 
             if 'fit_parameters' in solver_ps.qualifiers:
                 fit_parameters = solver_ps.get_value(qualifier='fit_parameters', fit_parameters=kwargs.get('fit_parameters', None), expand=True, **_skip_filter_checks)
@@ -4047,6 +4120,14 @@ class Bundle(ParameterSet):
                                          fit_parameter.is_constraint
                                         ]+addl_parameters,
                                         True, 'run_solver')
+
+                    if not fit_parameter.is_visible:
+                        report.add_item(self,
+                                        "fit_parameters contains the invisible parameter '{}'".format(twig),
+                                        [solver_ps.get_parameter(qualifier='fit_parameters', **_skip_filter_checks)]
+                                        +fit_parameter.visible_if_parameters.filter(check_visible=True).to_list()
+                                        +addl_parameters,
+                                         True, 'run_solver')
 
 
                 fit_ps = adjustable_parameters.filter(twig=fit_parameters, **_skip_filter_checks)
@@ -4103,7 +4184,7 @@ class Bundle(ParameterSet):
                             # we'll raise an error if a delta distribution (i.e. probably not from a sampler)
                             # but only a warning for other distributions
 
-                            msg = "{} is constrained, so will be ignored by init_from='{}'.  Flip constraint to include in sampling.".format(ref_param.twig, dist_or_solution)
+                            msg = "{} is constrained, so cannot be included in init_from='{}'.  Flip constraint to include in sampling, or remove '{}' from init_from.".format(ref_param.twig, dist_or_solution, dist_or_solution)
 
                             report.add_item(self,
                                             msg,
@@ -4112,7 +4193,15 @@ class Bundle(ParameterSet):
                                             ref_param.is_constraint,
                                             self.get_parameter(qualifier='init_from', solver=solver, context='solver', **_skip_filter_checks)
                                             ]+addl_parameters,
-                                            False, 'run_solver')
+                                            True, 'run_solver')
+
+                        if not ref_param.is_visible:
+                            report.add_item(self,
+                                            "{} is not a visible parameter, so cannot be included in init_from='{}'.".format(ref_param.twig, dist_or_solution),
+                                            [solver_ps.get_parameter(qualifier='init_from', **_skip_filter_checks)]
+                                            +ref_param.visible_if_parameters.filter(check_visible=True).to_list()
+                                            +addl_parameters,
+                                             True, 'run_solver')
 
                 elif dist_or_solution in self.solutions:
                     solution_ps = self.get_solution(solution=dist_or_solution, **_skip_filter_checks)
@@ -4124,7 +4213,7 @@ class Bundle(ParameterSet):
                             # we'll raise an error if not a sampler (i.e. if values would be adopted by default)
                             # but only a warning for samplers (i.e. distributions would be adopted by default)
 
-                            msg = "{} is constrained, so the distribution be ignored by init_from='{}'.  Flip constraint to include in sampling, or remove '{}' from init_from.".format(param.twig, dist_or_solution, dist_solution)
+                            msg = "{} is constrained, so cannot be included in init_from='{}'.  Flip constraint to include in sampling, or remove '{}' from init_from.".format(param.twig, dist_or_solution, dist_solution)
 
                             report.add_item(self,
                                             msg,
@@ -4132,7 +4221,16 @@ class Bundle(ParameterSet):
                                              param.is_constraint,
                                              self.get_parameter(qualifier='init_from', solver=solver, context='solver', **_skip_filter_checks)
                                              ]+addl_parameters,
-                                             False, 'run_solver')
+                                             True, 'run_solver')
+
+                        if not ref_param.is_visible:
+                            report.add_item(self,
+                                            "{} is not a visible parameter, so cannot be included in init_from='{}'.".format(ref_param.twig, dist_or_solution),
+                                            [solver_ps.get_parameter(qualifier='init_from', **_skip_filter_checks)]
+                                            +ref_param.visible_if_parameters.filter(check_visible=True).to_list()
+                                            +addl_parameters,
+                                             True, 'run_solver')
+
                 else:
                     raise ValueError("{} could not be found in distributions or solutions".format(dist_or_solution))
 
@@ -9484,7 +9582,7 @@ class Bundle(ParameterSet):
 
         # we'll wait to here to run kwargs and system checks so that
         # add_compute is already called if necessary
-        allowed_kwargs = ['skip_checks', 'jobid', 'overwrite', 'max_computations', 'in_export_script', 'out_fname', 'solution']
+        allowed_kwargs = ['skip_checks', 'jobid', 'overwrite', 'max_computations', 'in_export_script', 'out_fname', 'solution', 'progressbar']
         if conf.devel:
             allowed_kwargs += ['mesh_init_phi']
         self._kwargs_checks(kwargs, allowed_kwargs, ps=computes_ps)
@@ -9654,7 +9752,7 @@ class Bundle(ParameterSet):
         return ret_changes
 
     @send_if_client
-    def run_compute(self, compute=None, model=None,
+    def run_compute(self, compute=None, model=None, solver=None,
                     detach=False,
                     dataset=None, times=None,
                     return_changes=False, **kwargs):
@@ -9693,6 +9791,11 @@ class Bundle(ParameterSet):
             of `overwrite` (see below).   See also
             <phoebe.frontend.bundle.Bundle.rename_model> to rename a model after
             creation.
+        * `solver` (string, optional): name of the solver options to use to
+            extract compute options and use `solver_times`
+            (see <phoebe.frontend.bundle.Bundle.parse_solver_times>) unless
+            `times` is also passed.  `compute` must be None (not passed) or an
+            error will be raised.
         * `detach` (bool, optional, default=False, EXPERIMENTAL):
             whether to detach from the computation run,
             or wait for computations to complete.  If detach is True, see
@@ -9723,6 +9826,10 @@ class Bundle(ParameterSet):
         * `max_computations` (int, optional, default=None): maximum
             number of computations to allow.  If more are detected, an error
             will be raised before the backend begins computations.
+        * `progressbar` (bool, optional): whether to show a progressbar.  If not
+            provided or none, will default to <phoebe.progressbars_on> or
+            <phoebe.progressbars_off>.  Progressbars require `tqdm` to be installed
+            (will silently ignore if not installed).
         * `**kwargs`:: any values in the compute options to temporarily
             override for this single compute run (parameter values will revert
             after run_compute is finished)
@@ -9747,17 +9854,45 @@ class Bundle(ParameterSet):
             # then we want to temporarily go in to client mode
             raise NotImplementedError("detach currently must be a bool")
             self.as_client(as_client=detach)
-            ret_ = self.run_compute(compute=compute, model=model, dataset=dataset, times=times, return_changes=return_changes, **kwargs)
+            ret_ = self.run_compute(compute=compute, model=model, solver=solver, dataset=dataset, times=times, return_changes=return_changes, **kwargs)
             self.as_client(as_client=False)
             return _return_ps(self, ret_)
 
+        if solver is not None and compute is not None:
+            raise ValueError("cannot provide both solver and compute")
+
+        if solver is not None:
+            if not kwargs.get('skip_checks', False):
+                report = self.run_checks_solver(solver=solver, run_checks_compute=False,
+                                                allow_skip_constraints=False,
+                                                raise_logger_warning=True, raise_error=True)
+
+            solver_ps = self.get_solver(solver=solver)
+            if 'compute' not in solver_ps.qualifiers:
+                raise ValueError("solver='{}' does not contain compute parameter, pass compute instead of solver".format(solver))
+            compute = solver_ps.get_value(qualifier='compute')
+            if times is None:
+                # then override with the parsed solver times (this will be a dictionary
+                # with datasets as keys and arrays of times as values)
+                times = self.parse_solver_times(return_as_dict=True, set_compute_times=False)
+
         if isinstance(times, float) or isinstance(times, int):
             times = [times]
+
+        if isinstance(times, dict):
+            # make sure keys are datasets
+            for k,v in times.items():
+                if k not in self.datasets:
+                    raise ValueError("keys in times dictionary must be valid datasets")
+                if isinstance(v, float) or isinstance(v, int):
+                    times[k] = [v]
 
         # NOTE: _prepare_compute calls run_checks_compute and will handle raising
         # any necessary errors
         model, computes, datasets, do_create_fig_params, changed_params, overwrite_ps, kwargs = self._prepare_compute(compute, model, dataset, **kwargs)
         _ = kwargs.pop('do_create_fig_params', None)
+
+        kwargs.setdefault('progressbar', conf.progressbars)
 
         # now if we're supposed to detach we'll just prepare the job for submission
         # either in another subprocess or through some queuing system
@@ -9897,14 +10032,21 @@ class Bundle(ParameterSet):
                 # we now need to handle any computations of ld_coeffs, pblums, l3s, etc
                 # TODO: skip lookups for phoebe, skip non-supported ld_func for photodynam, etc
                 # TODO: have this return a dictionary like pblums/l3s that we can pass on to the backend?
-                logger.info("run_compute: computing necessary ld_coeffs, pblums, l3s")
-                self.compute_ld_coeffs(compute=compute, skip_checks=True, set_value=True, **{k:v for k,v in kwargs.items() if k in computeparams.qualifiers})
-                # NOTE that if pblum_method != 'phoebe', then system will be None
-                # otherwise the system will be create which we can pass on to the backend
-                # the phoebe backend can then skip initializing the system at least on the master proc
-                # (workers will need to recreate the mesh)
-                system, pblums_abs, pblums_scale, pblums_rel, pbfluxes = self.compute_pblums(compute=compute, ret_structured_dicts=True, skip_checks=True, **{k:v for k,v in kwargs.items() if k in computeparams.qualifiers})
-                l3s = self.compute_l3s(compute=compute, use_pbfluxes=pbfluxes, ret_structured_dicts=True, skip_checks=True, skip_compute_ld_coeffs=True, **{k:v for k,v in kwargs.items() if k in computeparams.qualifiers})
+                ds_kinds_enabled = self.filter(dataset=computeparams.filter(qualifier='enabled', value=True, **_skip_filter_checks).datasets, context='dataset', **_skip_filter_checks).kinds
+                if 'lc' in ds_kinds_enabled or 'rv' in ds_kinds_enabled or 'lp' in ds_kinds_enabled:
+                    logger.info("run_compute: computing necessary ld_coeffs, pblums, l3s")
+                    self.compute_ld_coeffs(compute=compute, skip_checks=True, set_value=True, **{k:v for k,v in kwargs.items() if k in computeparams.qualifiers})
+                    # NOTE that if pblum_method != 'phoebe', then system will be None
+                    # otherwise the system will be create which we can pass on to the backend
+                    # the phoebe backend can then skip initializing the system at least on the master proc
+                    # (workers will need to recreate the mesh)
+                    system, pblums_abs, pblums_scale, pblums_rel, pbfluxes = self.compute_pblums(compute=compute, ret_structured_dicts=True, skip_checks=True, **{k:v for k,v in kwargs.items() if k in computeparams.qualifiers})
+                    l3s = self.compute_l3s(compute=compute, use_pbfluxes=pbfluxes, ret_structured_dicts=True, skip_checks=True, skip_compute_ld_coeffs=True, **{k:v for k,v in kwargs.items() if k in computeparams.qualifiers})
+                else:
+                    system = None
+                    pblums_scale = {}
+                    pblums_rel = {}
+                    l3s = {}
 
                 logger.info("run_compute: calling {} backend to create '{}' model".format(computeparams.kind, model))
                 if mpi.within_mpirun:
@@ -10712,6 +10854,17 @@ class Bundle(ParameterSet):
 
         self._check_label(solution, allow_overwrite=kwargs.get('overwrite', solution=='latest'))
 
+        # handle case where solver is not provided
+        if solver is None:
+            solvers = self.get_solver(check_default=False, check_visible=False, **kwargs).solvers
+            if len(solvers)==0:
+                raise ValueError("no solvers attached.  Call add_solver first")
+            if len(solvers)==1:
+                solver = solvers[0]
+            elif len(solvers)>1:
+                raise ValueError("must provide label of solver options since more than one are attached.  The following were found: {}".format(self.solvers))
+
+
         solver_ps = self.get_solver(solver=solver, kind=kwargs.get('kind'), **_skip_filter_checks)
         if solver_ps is None:
             raise ValueError("could not find solver with solver={} kwargs={}".format(solver, kwargs))
@@ -10729,6 +10882,14 @@ class Bundle(ParameterSet):
 
         else:
             compute = kwargs.pop('compute', None)
+            compute_ps = self.get_compute(compute=compute)
+
+        # we'll wait to here to run kwargs and system checks so that
+        # add_compute is already called if necessary
+        allowed_kwargs = ['skip_checks', 'jobid', 'overwrite', 'max_computations', 'in_export_script', 'out_fname', 'solution', 'progressbar']
+        if conf.devel:
+            allowed_kwargs += ['mesh_init_phi']
+        self._kwargs_checks(kwargs, allowed_kwargs, ps=solver_ps.copy()+compute_ps)
 
         if not kwargs.get('skip_checks', False):
             report = self.run_checks_solver(solver=solver, run_checks_compute=True,
@@ -10895,6 +11056,168 @@ class Bundle(ParameterSet):
 
         return ret_changes
 
+
+
+    def parse_solver_times(self, return_as_dict=True, set_compute_times=False):
+        """
+        Parse what times will be used within <phoebe.frontend.bundle.Bundle.run_solver>
+        (for any optimizer or sampler that requires a forward-model)
+        or when passing `solver` to <phoebe.frontend.bundle.Bundle.run_compute>,
+        based on the value of `solver_times`, `times`, `compute_times`, `mask_enabled`,
+        `mask_phases`, and <phoebe.parameters.HierarchyParameter.is_time_dependent>.
+
+        Note: this is not necessary to call manually as it will be called and
+        handled automatically within <phoebe.frontend.bundle.Bundle.run_solver>
+        or <phoebe.frontend.bundle.Bundle.run_compute>.  This method only exposes
+        the same logic to diagnose the influence of these options on the computed
+        times.
+
+        Overview of logic:
+        * if `solver_times='times'` but not `mask_enabled`: returns the dataset-times
+            (concatenating over components as necessary).
+        * if `solver_times='times'` and `mask_enabled`: returns the masked
+            dataset-times (concatenating over components as necessary), according
+            to `mask_phases`.
+        * if `solver_times='compute_times'` but not `mask_enabled`: returns
+            the `compute_times`
+        * if `solver_times='compute_times'` and `mask_enabled` but not time-dependent:
+            returns the values in `compute_phases` (converted to times) such that
+            each entry in the masked dataset-times (concatenating over components
+            as necessary) is surrounded by the nearest entries in `compute_phases`.
+        * if `solver_times='compute_times'` and `mask_enabled` and time-dependent:
+            returns the values in `compute_times` such that each entry in the
+            masked dataset-times is surrounded by the nearest entries in `compute_times`.
+        * if `solver_times='auto'`: determines the arrays for the corresponding
+            situations for both `solver_times='times'` and `'compute_times'` and
+            returns whichever is the shorter array.
+
+        Note that this logic is currently independent per-dataset, with no consideration
+        of time-savings by generating synthetic models at the same times across
+        different datasets.
+
+        See also:
+        * <phoebe.frontend.bundle.Bundle.run_solver>
+        * <phoebe.frontend.bundle.Bundle.run_compute>
+        * <phoebe.parameters.HierarchyParameter.is_time_dependent>
+
+        Arguments
+        -------------
+        * `return_as_dict` (bool, optional, default=True): whether to return
+            the parsed times as they will be applied as a dictionary of
+            dataset-list pairs.
+        * `set_compute_times` (bool, optional, default=False): whether to set
+            the values of the corresponding `compute_times` (and `compute_phases`)
+            parameters within the Bundle.  Whenever using the dataset times,
+            this will set the `compute_times` to an empty list rather than
+            copying the array (whereas `return_as_dict` exposes the underlying array).
+
+        Returns
+        ------------
+        * (dict) of dataset-list pairs, if `return_as_dict` otherwise `None`
+
+        """
+        compute_times_per_ds = {}
+
+        is_time_dependent = self.hierarchy.is_time_dependent()
+
+        # TODO: change this to have times = {dataset: new_compute_times} which will be passed to all run_compute calls
+        # so that this is also callable from the frontend for the user or by passing solver to run_compute
+
+        # handle solver_times
+        for param in self.filter(qualifier='solver_times', **_skip_filter_checks).to_list():
+            # TODO: skip if this dataset is disabled for compute?
+            # TODO: any change in logic for time-dependent systems?
+
+            solver_times = param.get_value()
+            ds_ps = self.get_dataset(dataset=param.dataset, **_skip_filter_checks)
+            mask_enabled = ds_ps.get_value(qualifier='mask_enabled', default=False, **_skip_filter_checks)
+            if mask_enabled:
+                mask_phases = ds_ps.get_value(qualifier='mask_phases', **_skip_filter_checks)
+                mask_t0 = ds_ps.get_value(qualifier='phases_t0', **_skip_filter_checks)
+            else:
+                mask_phases = None
+                mask_t0 = 't0_supconj'
+
+            new_compute_times = None
+
+            if solver_times == 'auto':
+                masked_times, times, phases = _get_masked_times(self, param.dataset, mask_phases, mask_t0, return_times_phases=True)
+                masked_compute_times = _get_masked_compute_times(self, param.dataset, mask_phases, mask_t0,
+                                                                 is_time_dependent=is_time_dependent,
+                                                                 times=times, phases=phases)
+
+                if len(masked_times) < len(masked_compute_times):
+                    if mask_enabled and len(mask_phases):
+                        logger.info("solver_times=auto (dataset={}): using masked times (len: {}) instead of compute_times (len: {})".format(param.dataset, len(masked_times), len(masked_compute_times)))
+                        new_compute_times = masked_times
+                    else:
+                        logger.info("solver_times=auto (dataset={}): using dataset times (len: {}) instead of compute_times (len: {})".format(param.dataset, len(masked_times), len(masked_compute_times)))
+                        new_compute_times = [] # set to empty list which will force run_compute to use dataset-times
+                else:
+                    if mask_enabled and len(mask_phases):
+                        if is_time_dependent:
+                            logger.info("solver_times=auto (dataset={}): using filtered compute_times (len: {}) surrounding masked times instead of times (len: {})".format(param.dataset, len(masked_compute_times), len(masked_times)))
+                        else:
+                            logger.info("solver_times=auto (dataset={}): using filtered compute_phases (len: {}) surrounding masked phases instead of times (len: {})".format(param.dataset, len(masked_compute_times), len(masked_times)))
+                        new_compute_times = masked_compute_times
+                    else:
+                        logger.info("solver_times=auto (dataset={}): using user-provided compute_times (len: {}) instead of times (len: {})".format(param.dataset, len(masked_compute_times), len(times)))
+                        new_compute_times = None  # leave at user-set compute_times
+
+
+            elif solver_times == 'times':
+                if mask_enabled and len(mask_phases):
+                    logger.info("solver_times=times (dataset={}): using masked dataset times".format(param.dataset))
+                    masked_times = _get_masked_times(self, param.dataset, mask_phases, mask_t0, return_times_phases=False)
+                    new_compute_times = masked_times
+                else:
+                    logger.info("solver_times=times (dataset={}): using dataset times".format(param.dataset))
+                    masked_times = None # if return_as_dict then we'll have to re-access dataset times
+                    new_compute_times = [] # set to empty list which will force run_compute to use dataset-times
+
+            elif solver_times == 'compute_times':
+                if mask_enabled and len(mask_phases):
+                    if is_time_dependent:
+                        logger.info("solver_times=compute_times (dataset={}): using filtered compute_times surrounding masked times".format(param.dataset))
+                    else:
+                        logger.info("solver_times=compute_times (dataset={}): using filtered compute_phases surrounding masked phases".format(param.dataset))
+                    masked_compute_times =  _get_masked_compute_times(self, param.dataset, mask_phases, mask_t0,
+                                                                   is_time_dependent=is_time_dependent)
+                    new_compute_times = masked_compute_times
+                else:
+                    logger.info("solver_times=compute_times (dataset={}): using user-provided compute_times".format(param.dataset))
+                    masked_compute_times = None # if return_as_dict then we'll have to re-access compute_times
+                    new_compute_times = None  # leave at user-set compute_times
+            else:
+                raise NotImplementedError("solver_times='{}' not implemented".format(solver_times))
+
+            if return_as_dict:
+                if new_compute_times == []:
+                    if masked_times is None:
+                        compute_times_per_ds[param.dataset] = _get_masked_times(self, param.dataset, [], 0.0, return_times_phases=False)
+                    else:
+                        compute_times_per_ds[param.dataset] = masked_times
+                elif new_compute_times is None:
+                    if masked_compute_times is None:
+                        compute_times_per_ds[param.dataset] = ds_ps.get_value(qualifier='compute_times', unit=u.d, **_skip_filter_checks)
+                    else:
+                        compute_times_per_ds[param.dataset] = masked_compute_times
+                else:
+                    compute_times_per_ds[param.dataset] = new_compute_times
+
+            if set_compute_times and new_compute_times is not None:
+                if ds_ps.get_parameter(qualifier='compute_times', **_skip_filter_checks).is_constraint is not None:
+                    # this is in the deepcopied bundle, so we can overwrite compute_times directly
+                    self.flip_constraint(qualifier='compute_times', dataset=ds_ps.dataset, solve_for='compute_phases')
+                logger.info("solver_times={} (dataset={}): setting compute_times".format(solver_times, param.dataset))
+                ds_ps.set_value_all(qualifier='compute_times', value=new_compute_times, **_skip_filter_checks)
+
+        if return_as_dict:
+            return compute_times_per_ds
+        else:
+            return
+
+
     @send_if_client
     def run_solver(self, solver=None, solution=None, detach=False, return_changes=False, **kwargs):
         """
@@ -10922,6 +11245,7 @@ class Bundle(ParameterSet):
         * <phoebe.frontend.bundle.Bundle.get_solver>
         * <phoebe.frontend.bundle.Bundle.get_solution>
         * <phoebe.frontend.bundle.Bundle.adopt_solution>
+        * <phoebe.frontend.bundle.Bundle.parse_solver_times>
         * <phoebe.mpi_on>
         * <phoebe.mpi_off>
 
@@ -10963,6 +11287,10 @@ class Bundle(ParameterSet):
             optimizers that minimize, the negative returned values will be minimized.
             NOTE: if defined in an interactive session, passing `custom_lnlikelihood_callable`
             may throw an error if `detach=True`.
+        * `progressbar` (bool, optional): whether to show a progressbar.  If not
+            provided or none, will default to <phoebe.progressbars_on> or
+            <phoebe.progressbars_off>.  Progressbars require `tqdm` to be installed
+            (will silently ignore if not installed).
         * `**kwargs`: any values in the solver or compute options to temporarily
             override for this single solver run (parameter values will revert
             after run_solver is finished)
@@ -10979,6 +11307,8 @@ class Bundle(ParameterSet):
             self.run_solver(solver=solver, solution=solution, **kwargs)
             self.as_client(as_client=False)
             return self.get_solution(solution=solution)
+
+        kwargs.setdefault('progressbar', conf.progressbars)
 
         solver, solution, compute, solver_ps = self._prepare_solver(solver, solution, **kwargs)
 
@@ -11303,7 +11633,29 @@ class Bundle(ParameterSet):
             fitted_values = solution_ps.get_value(qualifier='fitted_values', **_skip_filter_checks)
 
             if solver_kind in ['lc_periodogram', 'rv_periodogram']:
+                # only the period should be in fitted_values... if that changes,
+                # we'll need more complex logic here
                 fitted_values = fitted_values * solution_ps.get_value(qualifier='period_factor', period_factor=kwargs.get('period_factor', None), **_skip_filter_checks)
+
+            if solver_kind in ['lc_geometry']:
+
+                adopt_qualifiers = [self.get_parameter(uniqueid=uniqueid, **_skip_filter_checks).qualifier for uniqueid in adopt_uniqueids]
+                if 'mask_phases' in adopt_qualifiers and 't0_supconj' in adopt_qualifiers:
+                    # then we need to shift mask phases by the phase-shift introduced by the change in t0_supconj
+                    logger.info("shifting mask_phases by phase-shift caused by change in t0_supconj")
+
+                    # we'll be making changes in memory and don't want to affect the parameter itself
+                    fitted_values = _deepcopy(fitted_values)
+
+                    mask_phases_ind = adopt_qualifiers.index('mask_phases')
+                    t0_supconj_ind = adopt_qualifiers.index('t0_supconj')
+
+                    t0_supconj_old = self.get_value(uniqueid=adopt_uniqueids[t0_supconj_ind], unit=u.d, **_skip_filter_checks)
+                    t0_supconj_new = fitted_values[t0_supconj_ind]
+
+                    phase_shift = self.to_phase(t0_supconj_new) - self.to_phase(t0_supconj_old)
+
+                    fitted_values[mask_phases_ind] = [ph-phase_shift for ph in [ecl_ph for ecl_ph in fitted_values[mask_phases_ind]]]
 
             for uniqueid, value, unit in zip(adopt_uniqueids, fitted_values[adopt_inds], fitted_units[adopt_inds]):
                 if adopt_distributions:

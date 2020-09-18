@@ -24,6 +24,8 @@ def emcee(**kwargs):
 
     See also:
     * <phoebe.frontend.bundle.Bundle.references>
+    * <phoebe.helpers.get_emcee_object_from_solution>
+    * <phoebe.helpers.process_mcmc_chains_from_solution>
 
     Generally, this will be used as an input to the kind argument in
     <phoebe.frontend.bundle.Bundle.add_solver>.  If attaching through
@@ -154,6 +156,7 @@ def dynesty(**kwargs):
 
     See also:
     * <phoebe.frontend.bundle.Bundle.references>
+    * <phoebe.helpers.get_dynesty_object_from_solution>
 
     Generally, this will be used as an input to the kind argument in
     <phoebe.frontend.bundle.Bundle.add_solver>.  If attaching through

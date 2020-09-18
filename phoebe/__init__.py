@@ -239,6 +239,8 @@ class Settings(object):
 
         self._update_passband_ignore_version = _env_variable_bool('PHOEBE_UPDATE_PASSBAND_IGNORE_VERSION', False)
 
+        self._progressbars = True
+
         # And we'll require explicitly setting developer mode on
         self._devel = _env_variable_bool('PHOEBE_DEVEL', False)
 
@@ -318,6 +320,16 @@ class Settings(object):
 
     def update_passband_ignore_version_on(self):
         self._update_passband_ignore_version = False
+
+    def progressbars_on(self):
+        self._progressbars = True
+
+    def progressbars_off(self):
+        self._progressbars = False
+
+    @property
+    def progressbars(self):
+        return self._progressbars
 
 conf = Settings()
 
@@ -716,6 +728,26 @@ def mpi_off():
     * <phoebe.mpi_on>
     """
     mpi.off()
+
+def progressbars_on():
+    """
+    Enable progressbars. Progressbars require `tqdm` to be installed
+    (will silently ignore if not installed).
+
+    See also:
+    * <phoebe.progressbars_off>
+    """
+    conf.progressbars_on()
+
+def progressbars_off():
+    """
+    Disable progressbars. Progressbars require `tqdm` to be installed
+    (will silently ignore if not installed).
+
+    See also:
+    * <phoebe.progressbars_on>
+    """
+    conf.progressbars_off()
 
 # let's use magic to shutdown the workers when the user-script is complete
 atexit.register(mpi.shutdown_workers)

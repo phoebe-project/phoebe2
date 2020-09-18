@@ -20,6 +20,7 @@ else:
 from io import IOBase as _IOBase
 
 from phoebe import conf
+from phoebe import list_passbands as _list_passbands
 from phoebe.distortions import roche
 # from phoebe.constraints.builtin import t0_ref_to_supconj
 
@@ -441,7 +442,8 @@ filename - a .phoebe file (from phoebe 1)
 
 """
 
-def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
+def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True,
+                ignore_errors=False, passband_map={}):
     conf_interactive_checks_state = conf.interactive_checks
     conf_interactive_constraints_state = conf.interactive_constraints
     conf.interactive_off(suppress_warning=True)
@@ -915,7 +917,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
 
     #get available passbands
 
-        choices = lc_dataset.get_parameter('passband').choices
+        choices = _list_passbands()
 
     #create parameter dictionary
 
@@ -952,8 +954,16 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
         # as long as the parameter exists add it
             if len(d) > 0:
 
-                if d['qualifier'] == 'passband' and d['value'] not in choices:
-                    d['value'] = 'Johnson:V'
+                if d['qualifier'] == 'passband':
+                    _default_passband_map = {'TESS:default': 'TESS:T', 'Tycho:BT': 'Tycho:B', 'Tycho:VT': 'Tycho:V'}
+                    d['value'] = passband_map.get(d['value'], _default_passband_map.get(d['value'], d['value']))
+
+                    if d['value'] not in choices:
+                        if ignore_errors:
+                            logger.warning("no match for passband='{}', defaulting to 'Johnson:V'".format(d['value']))
+                            d['value'] = 'Johnson:V'
+                        else:
+                            raise ValueError("no match for passband='{}'.  Pass ignore_errors to default to 'Johnson:V' (and ignore any future errors) with a warning in the logger.  Or pass passband_map as a dictionary.".format(d['value']))
 
                 if d['qualifier'] == 'l3_mode':
                     choice_dict = {'Flux':'flux', 'Total light':'fraction'}
@@ -1111,7 +1121,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
 
         #TODO check this tomorrow
         dataid = spot.features[0]
-       
+
         #enable or disable spot
         val = _bool1to2[enabled]
         eb.set_value_all(qualifier='enabled', value=val, feature=dataid)
@@ -1359,10 +1369,10 @@ def ret_parname(param, comp_int=None, dtype=None, dnum=None, ptype=None, index=N
   #      elif ptype == 'boolean' and dtype=='':
   #          print("inside", param, ptype, dtype)
   #          det = '_switch'
-        
+
         elif ptype == 'boolean':
-            if dtype=='': 
-                det='_switch'  
+            if dtype=='':
+                det='_switch'
 
             elif dtype=='spots_':
                 det = '_switch'+dset

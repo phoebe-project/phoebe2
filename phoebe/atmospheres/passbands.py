@@ -3327,8 +3327,8 @@ def download_passband(passband, content=None, local=True, gzipped=None):
     logger.info("downloading from {} and installing to {}...".format(url, passband_fname_local))
     try:
         urlretrieve(url, passband_fname_local)
-    except IOError:
-        raise IOError("unable to download {} passband - check connection".format(passband))
+    except IOError as e:
+        raise IOError("unable to download {} passband - check connection.  Original error: {}".format(passband, e))
     else:
         _init_passband(passband_fname_local)
 

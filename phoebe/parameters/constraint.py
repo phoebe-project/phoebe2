@@ -9,7 +9,7 @@ import logging
 logger = logging.getLogger("CONSTRAINT")
 logger.addHandler(logging.NullHandler())
 
-list_of_constraints_requiring_si = ['logg']
+list_of_constraints_requiring_si = []
 
 _skip_filter_checks = {'check_default': False, 'check_visible': False}
 
@@ -1062,6 +1062,9 @@ def logg(b, component, solve_for=None, **kwargs):
     """
     Create a constraint for logg at requiv for a star.
 
+    Note that the constant includes G in solar units and then a conversion
+    factor from solar to cgs.
+
     This constraint is automatically included for all
     <phoebe.parameters.component.star> during
     <phoebe.frontend.bundle.Bundle.add_component>.
@@ -1101,17 +1104,20 @@ def logg(b, component, solve_for=None, **kwargs):
     logg_def = FloatParameter(qualifier='logg', latexfmt=r'\mathrm{log}g_\mathrm{{ {component} }}', value=1.0, default_unit=u.dimensionless_unscaled, description='logg at requiv')
     logg, created = b.get_or_create('logg', logg_def, **metawargs)
 
-    G = c.G
+    # logg needs to be in cgs, but we'll handle all quantities in solar
+    G = c.G.to('solRad3/(solMass d2)').value
+    solar_to_cgs = (1*u.solRad/u.d**2).to(u.cm/u.s**2).value
+
 
     if solve_for in [logg, None]:
         lhs = logg
-        rhs = log10(mass / requiv**2 * G * 100)
+        rhs = log10(mass / requiv**2 * G * solar_to_cgs)
     elif solve_for in [requiv]:
         lhs = requiv
-        rhs = sqrt((mass*G * 100)/10**logg)
+        rhs = sqrt((mass*G * solar_to_cgs)/10**logg)
     elif solve_for in [mass]:
         lhs = mass
-        rhs = requiv**2 * 10**logg / ( G * 100)
+        rhs = requiv**2 * 10**logg / ( G * solar_to_cgs)
     else:
         raise NotImplementedError
 

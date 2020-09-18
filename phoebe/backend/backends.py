@@ -171,7 +171,8 @@ def _extract_from_bundle(b, compute, dataset=None, times=None,
     the backend returns the filled synthetics.
 
     :parameter b: the :class:`phoebe.frontend.bundle.Bundle`
-    :return: times (list of floats), infos (list of lists of dictionaries),
+    :return: times (list of floats or dictionary of lists of floats),
+        infos (list of lists of dictionaries),
         new_syns (ParameterSet containing all new parameters)
     :raises NotImplementedError: if for some reason there is a problem getting
         a unique match to a dataset (shouldn't ever happen unless
@@ -221,7 +222,9 @@ def _extract_from_bundle(b, compute, dataset=None, times=None,
             dataset_components = b.hierarchy.get_stars()
 
         for component in dataset_components:
-            if provided_times:
+            if isinstance(provided_times, dict) and dataset in provided_times.keys():
+                this_times = provided_times.get(dataset)
+            elif provided_times is not None and not isinstance(provided_times, dict):
                 this_times = provided_times
             elif dataset_kind == 'mesh' and include_mesh:
                 this_times = _expand_mesh_times(b, dataset_ps, component)
@@ -562,7 +565,7 @@ class BaseBackendByTime(BaseBackend):
             infolists = np.array_split(infolists, mpi.nprocs)[mpi.myrank]
 
         packetlists = [] # entry per-time
-        for i, time, infolist in _progressbar(zip(inds, times, infolists), total=len(times), show_progressbar=not b._within_solver):
+        for i, time, infolist in _progressbar(zip(inds, times, infolists), total=len(times), show_progressbar=not b._within_solver and kwargs.get('progressbar', False)):
             if kwargs.get('out_fname', False) and os.path.isfile(kwargs.get('out_fname')+'.kill'):
                 logger.warning("received kill signal, exiting sampler loop")
                 break
@@ -607,7 +610,7 @@ class BaseBackendByDataset(BaseBackend):
             infolist = np.array_split(infolist, mpi.nprocs)[mpi.myrank]
 
         packetlists = [] # entry per-dataset
-        for info in _progressbar(infolist, total=len(infolist), show_progressbar=not b._within_solver):
+        for info in _progressbar(infolist, total=len(infolist), show_progressbar=not b._within_solver and kwargs.get('progressbar', False)):
             if kwargs.get('out_fname', False) and os.path.isfile(kwargs.get('out_fname')+'.kill'):
                 logger.warning("received kill signal, exiting sampler loop")
                 break
@@ -707,7 +710,7 @@ class SampleOverModel(object):
 
         if is_master:
             compute_ps = b.get_compute(compute=compute, **_skip_filter_checks)
-            compute_kwargs = {k:v for k,v in kwargs.items() if k in compute_ps.qualifiers and 'sample' not in k}
+            compute_kwargs = {k:v for k,v in kwargs.items() if k in compute_ps.qualifiers+['progressbar', 'skip_checks', 'times'] and 'sample' not in k}
 
             # sample_from = compute_ps.get_value(qualifier='sample_from', sample_from=kwargs.get('sample_from', None), expand=True, **_skip_filter_checks)
             # sample_from_combine = compute_ps.get_value(qualifier='sample_from_combine', sample_from_combine=kwargs.get('sample_from_combine', None), **_skip_filter_checks)
@@ -771,7 +774,7 @@ class SampleOverModel(object):
 
             for param in ret_ps.to_list():
                 param._bundle = None
-                if param.qualifier in ['fluxes', 'rvs']:
+                if param.qualifier in ['fluxes', 'fluxes_nogps', 'gps', 'rvs']:
                     all_values = np.array([p.get_value() for p in all_models_ps.filter(qualifier=param.qualifier, dataset=param.dataset, component=param.component, **_skip_filter_checks).to_list()])
                     if sample_mode == 'all':
                         param.set_value(all_values, ignore_readonly=True)
@@ -2096,16 +2099,8 @@ class JktebopBackend(BaseBackendByDataset):
         else:
             raise NotImplementedError("irrad_method '{}' not supported".format(irrad_method))
 
-        # NOTE: pblum_mode does not exist to RVs, so will default to absolute
-        pblum_mode = b.get_value(qualifier='pblum_mode', dataset=info['dataset'], context='dataset', default='absolute', **_skip_filter_checks)
-        if pblum_mode == 'decoupled':
-            logger.debug("using pblum ratio for sbratio (pblum_mode='decoupled')")
-            pblums = kwargs.get('pblums').get(dataset)
-            sbratio = pblums.get(starrefs[1])/pblums.get(starrefs[0])
-        else:
-            logger.debug("using (T2/T1)^4 for sbratio (pblum_mode='{}')".format(pblum_mode))
-            sbratio = (b.get_value(qualifier='teff', component=starrefs[1], context='component', unit=u.K, **_skip_filter_checks)/b.get_value(qualifier='teff', component=starrefs[0], context='component', unit=u.K, **_skip_filter_checks))**4
-
+        pblums = kwargs.get('pblums').get(info['dataset'])
+        sbratio = (pblums.get(starrefs[1])/b.get_value(qualifier='requiv', component=starrefs[1], context='component', unit=u.solRad)**2)/(pblums.get(starrefs[0])/b.get_value(qualifier='requiv', component=starrefs[0], context='component', unit=u.solRad)**2)
 
         # let's make sure we'll be able to make the translation later
         if ldfuncA not in _jktebop_ld_func.keys() or ldfuncB not in _jktebop_ld_func.keys():
@@ -2550,16 +2545,8 @@ class EllcBackend(BaseBackendByDataset):
         ld_2 = _ellc_ld_func.get(ds_ps.get_value(qualifier='ld_func', component=starrefs[1], **_skip_filter_checks))
         ldc_2 = ds_ps.get_value(qualifier='ld_coeffs', component=starrefs[1], **_skip_filter_checks)
 
-        # NOTE: pblum_mode doesn't exist for RVs, so will default to 'absolute'
-        pblum_mode = b.get_value(qualifier='pblum_mode', dataset=info['dataset'], context='dataset', default='absolute', **_skip_filter_checks)
-        if pblum_mode == 'decoupled':
-            logger.debug("using pblum ratio for sbratio (pblum_mode='decoupled')")
-            pblums = kwargs.get('pblums').get(info['dataset'])
-            sbratio = pblums.get(starrefs[1])/pblums.get(starrefs[0])
-        else:
-            logger.debug("using (T2/T1)^4 for sbratio (pblum_mode='{}')".format(pblum_mode))
-            sbratio = (b.get_value(qualifier='teff', component=starrefs[1], context='component', unit=u.K, **_skip_filter_checks)/b.get_value(qualifier='teff', component=starrefs[0], context='component', unit=u.K, **_skip_filter_checks))**4
-
+        pblums = kwargs.get('pblums').get(info['dataset'])
+        sbratio = (pblums.get(starrefs[1])/b.get_value(qualifier='requiv', component=starrefs[1], context='component', unit=u.solRad)**2)/(pblums.get(starrefs[0])/b.get_value(qualifier='requiv', component=starrefs[0], context='component', unit=u.solRad)**2)
 
         if info['kind'] == 'lc':
             # third light handled by run_compute

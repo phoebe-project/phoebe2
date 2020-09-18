@@ -15,6 +15,7 @@ from phoebe import conf, mpi
 from phoebe.backend.backends import _simplify_error_message
 from phoebe.utils import phase_mask_inds
 from phoebe.dependencies import nparray
+from phoebe.helpers import get_emcee_object as _get_emcee_object
 from phoebe import pool as _pool
 
 from distutils.version import LooseVersion, StrictVersion
@@ -86,73 +87,7 @@ def _bsolver(b, solver, compute, distributions, wrap_central_values={}):
         # TODO: what to do if continue_from was used but constraint has since been flipped?
         bexcl.set_value(uniqueid=uniqueid, value=value, **_skip_filter_checks)
 
-
-    # handle solver_times
-    for param in bexcl.filter(qualifier='solver_times', **_skip_filter_checks).to_list():
-        # TODO: skip if this dataset is disabled for compute?
-
-        solver_times = param.get_value()
-        ds_ps = bexcl.get_dataset(dataset=param.dataset, **_skip_filter_checks)
-        mask_enabled = ds_ps.get_value(qualifier='mask_enabled', default=False)
-        if mask_enabled:
-            mask_phases = ds_ps.get_value(qualifier='mask_phases', **_skip_filter_checks)
-            mask_t0 = ds_ps.get_value(qualifier='phases_t0', **_skip_filter_checks)
-        else:
-            mask_phases = None
-            mask_t0 = 't0_supconj'
-
-        new_compute_times = None
-
-        if solver_times == 'auto':
-            compute_times = bexcl.get_value(qualifier='compute_times', dataset=param.dataset, context='dataset', **_skip_filter_checks)
-            compute_phases = bexcl.to_phases(compute_times, t0=mask_t0)
-            masked_compute_times = compute_times[phase_mask_inds(compute_phases, mask_phases)]
-
-            # concatenate for the case of datasets (like RVs) with times in multiple components
-            times = np.unique(np.concatenate([time_param.get_value() for time_param in bexcl.filter(qualifier='times', dataset=param.dataset, **_skip_filter_checks).to_list()]))
-            phases = bexcl.to_phases(times, t0=mask_t0)
-            masked_times = times[phase_mask_inds(phases, mask_phases)]
-
-            if len(masked_times) < len(masked_compute_times):
-                logger.debug("solver_times=auto: using times instead of compute_times")
-                if mask_enabled and len(mask_phases):
-                    new_compute_times = masked_times
-                else:
-                    new_compute_times = [] # set to empty list which will force run_compute to use dataset-times
-            else:
-                logger.debug("solver_times=auto: using compute_times")
-                if mask_enabled and len(mask_phases):
-                    new_compute_times = masked_compute_times
-                else:
-                    new_compute_times = None  # leave at user-set compute_times
-
-
-        elif solver_times == 'times':
-            logger.debug("solver_times=times: resetting compute_times in copied bundle")
-            if mask_enabled and len(mask_phases):
-                times = np.unique(np.concatenate([time_param.get_value() for time_param in bexcl.filter(qualifier='times', dataset=param.dataset, **_skip_filter_checks).to_list()]))
-                phases = bexcl.to_phases(times, t0=mask_t0)
-                new_compute_times = times[phase_mask_inds(phases, mask_phases)]
-            else:
-                new_compute_times = [] # set to empty list which will force run_compute to use dataset-times
-
-        elif solver_times == 'compute_times':
-            logger.debug("solver_times=compute_times")
-            if mask_enabled and len(mask_phases):
-                compute_times = bexcl.get_value(qualifier='compute_times', dataset=param.dataset, context='dataset', **_skip_filter_checks)
-                compute_phases = bexcl.to_phases(compute_times, t0=mask_t0)
-                new_compute_times = compute_times[phase_mask_inds(compute_phases, mask_phases)]
-
-            else:
-                new_compute_times = None  # leave at user-set compute_times
-        else:
-            raise NotImplementedError("solver_times='{}' not implemented".format(solver_times))
-
-        if new_compute_times is not None:
-            if ds_ps.get_parameter(qualifier='compute_times', **_skip_filter_checks).is_constraint is not None:
-                # this is in the deepcopied bundle, so we can overwrite compute_times directly
-                bexcl.flip_constraint(qualifier='compute_times', dataset=ds_ps.dataset, solve_for='compute_phases')
-            ds_ps.set_value_all(qualifier='compute_times', value=new_compute_times, **_skip_filter_checks)
+    bexcl.parse_solver_times(return_as_dict=False, set_compute_times=True)
 
     return bexcl
 
@@ -1164,8 +1099,12 @@ class EmceeBackend(BaseSolverBackend):
         if not _use_emcee:
             raise ImportError("could not import emcee")
 
-        if LooseVersion(emcee.__version__) < LooseVersion("3.0.0"):
-            raise ImportError("emcee backend requires emcee 3.0+, {} found".format(emcee.__version__))
+        try:
+            if LooseVersion(emcee.__version__) < LooseVersion("3.0.0"):
+                raise ImportError("emcee backend requires emcee 3.0+, {} found".format(emcee.__version__))
+        except ValueError:
+            # see https://github.com/phoebe-project/phoebe2/issues/378
+            raise ImportError("emcee backend requires a stable release of emcee 3.0+, {} found".format(emcee.__version__))
 
         solver_ps = b.get_solver(solver=solver, **_skip_filter_checks)
         if not len(solver_ps.get_value(qualifier='init_from', init_from=kwargs.get('init_from', None), **_skip_filter_checks)) and solver_ps.get_value(qualifier='continue_from', continue_from=kwargs.get('continue_from', None), **_skip_filter_checks)=='None':
@@ -1195,6 +1134,8 @@ class EmceeBackend(BaseSolverBackend):
         solution_params += [_parameters.IntParameter(visible_if='distributions_convert:mvhistogram|histogram', qualifier='distributions_bins', value=20, limits=(5,1000), description='number of bins to use for the distribution when calling adopt_solution, get_distribution_collection, or plot.')]
         solution_params += [_parameters.BoolParameter(qualifier='adopt_values', value=True, description='whether to update the parameter face-values (of the means of all parameters in adopt_parameters) when calling adopt_solution.')]
 
+        solution_params += [_parameters.IntParameter(qualifier='niters', value=0, readonly=True, description='Completed number of iterations')]
+        solution_params += [_parameters.IntParameter(qualifier='nwalkers', value=0, readonly=True, description='Number of walkers in samples')]
 
         solution_params += [_parameters.ArrayParameter(qualifier='samples', value=[], readonly=True, description='MCMC samples with shape (niters, nwalkers, len(fitted_twigs))')]
         if kwargs.get('expose_failed', True):
@@ -1204,7 +1145,7 @@ class EmceeBackend(BaseSolverBackend):
         # solution_params += [_parameters.ArrayParameter(qualifier='accepteds', value=[], description='whether each iteration was an accepted move with shape (niters)')]
         solution_params += [_parameters.ArrayParameter(qualifier='acceptance_fractions', value=[], readonly=True, description='fraction of proposed steps that were accepted with shape (nwalkers)')]
 
-        solution_params += [_parameters.ArrayParameter(qualifier='autocorr_times', value=[], readonly=True, description='measured autocorrelation time with shape (len(fitted_twigs))')]
+        solution_params += [_parameters.ArrayParameter(qualifier='autocorr_times', value=[], readonly=True, description='measured autocorrelation time with shape (len(fitted_twigs)) before applying burnin/thin.  To access with a custom burnin/thin, see phoebe.helpers.get_emcee_object_from_solution')]
         solution_params += [_parameters.IntParameter(qualifier='burnin', value=0, limits=(0,1e6), description='burnin to use when adopting/plotting the solution')]
         solution_params += [_parameters.IntParameter(qualifier='thin', value=1, limits=(1,1e6), description='thin to use when adopting/plotting the solution')]
         solution_params += [_parameters.FloatParameter(qualifier='lnprob_cutoff', value=-np.inf, default_unit=u.dimensionless_unscaled, description='lower limit cuttoff on lnproabilities to use when adopting/plotting the solution')]
@@ -1228,6 +1169,8 @@ class EmceeBackend(BaseSolverBackend):
                      {'qualifier': 'fitted_twigs', 'value': params_twigs},
                      {'qualifier': 'fitted_units', 'value': params_units},
                      {'qualifier': 'adopt_parameters', 'value': params_twigs, 'choices': params_twigs},
+                     {'qualifier': 'niters', 'value': samples.shape[0]},
+                     {'qualifier': 'nwalkers', 'value': samples.shape[1]},
                      {'qualifier': 'samples', 'value': samples},
                      {'qualifier': 'lnprobabilities', 'value': lnprobabilities},
                      {'qualifier': 'acceptance_fractions', 'value': acceptance_fractions},
@@ -1363,31 +1306,16 @@ class EmceeBackend(BaseSolverBackend):
                 # continued_acceptance_fractions [iterations, walkers]
                 continued_lnprobabilities = continue_from_ps.get_value(qualifier='lnprobabilities', **_skip_filter_checks)
                 # continued_lnprobabilities [iterations, walkers]
+
+                # fake a backend object from the previous solution so that emcee
+                # can continue from where it left off and still compute
+                # autocorrelation times, etc.
+                esargs['backend'] = _get_emcee_object(continued_samples, continued_lnprobabilities, continued_acceptance_fractions)
                 p0 = continued_samples[-1].T
                 # p0 [parameter, walkers]
                 nwalkers = int(p0.shape[-1])
 
                 start_iteration = continued_lnprobabilities.shape[0]
-
-                # fake a backend object from the previous solution so that emcee
-                # can continue from where it left off and still compute
-                # autocorrelation times, etc.
-                backend = emcee.backends.Backend()
-                backend.nwalkers = int(nwalkers)
-                backend.ndim = int(len(params_uniqueids))
-                backend.iteration = start_iteration
-                backend.accepted = np.asarray(continued_acceptance_fractions * start_iteration, dtype='int')
-                backend.chain = continued_samples
-                backend.log_prob = continued_lnprobabilities
-                backend.initialized = True
-                backend.random_state = None
-                if not hasattr(backend, 'blobs'):
-                    # some versions of emcee seem to have a bug where it tries
-                    # to access backend.blobs but that does not exist.  Since
-                    # we don't use blobs, we'll get around that by faking it to
-                    # be None
-                    backend.blobs = None
-                esargs['backend'] = backend
 
             params_twigs = [b.get_parameter(uniqueid=uniqueid, **_skip_filter_checks).twig for uniqueid in params_uniqueids]
 
@@ -1418,7 +1346,7 @@ class EmceeBackend(BaseSolverBackend):
 
             sargs = {}
             sargs['iterations'] = niters
-            sargs['progress'] = True
+            sargs['progress'] = kwargs.get('progressbar', False)
             sargs['skip_initial_state_check'] = False
 
 
@@ -1794,9 +1722,9 @@ class _ScipyOptimizeBaseBackend(BaseSolverBackend):
         solution_params += [_parameters.ArrayParameter(qualifier='initial_values', value=[], readonly=True, description='initial values before running the minimizer (in current default units of each parameter)')]
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_values', value=[], readonly=True, description='final values returned by the minimizer (in current default units of each parameter)')]
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_units', value=[], advanced=True, readonly=True, description='units of the fitted_values')]
-        if kwargs.get('expose_lnlikelihoods', False):
-            solution_params += [_parameters.FloatParameter(qualifier='initial_lnlikelihood', value=0.0, readonly=True, default_unit=u.dimensionless_unscaled, description='lnlikelihood of the initial_values')]
-            solution_params += [_parameters.FloatParameter(qualifier='fitted_lnlikelihood', value=0.0, readonly=True, default_unit=u.dimensionless_unscaled, description='lnlikelihood of the fitted_values')]
+        if kwargs.get('expose_lnprobabilities', False):
+            solution_params += [_parameters.FloatParameter(qualifier='initial_lnprobability', value=0.0, readonly=True, default_unit=u.dimensionless_unscaled, description='lnprobability of the initial_values')]
+            solution_params += [_parameters.FloatParameter(qualifier='fitted_lnprobability', value=0.0, readonly=True, default_unit=u.dimensionless_unscaled, description='lnprobability of the fitted_values')]
 
         return kwargs, _parameters.ParameterSet(solution_params)
 
@@ -1850,7 +1778,7 @@ class _ScipyOptimizeBaseBackend(BaseSolverBackend):
         # set _within solver to prevent run_compute progressbars
         b._within_solver = True
 
-        if _has_tqdm:
+        if _has_tqdm and kwargs.get('progressbar', False):
             global _minimize_iter
             _minimize_iter = 0
             global _minimize_pbar
@@ -1860,7 +1788,7 @@ class _ScipyOptimizeBaseBackend(BaseSolverBackend):
                                 method=self.method,
                                 args=args,
                                 options=options,
-                                callback=_progressbar if _has_tqdm else None)
+                                callback=_progressbar if _has_tqdm and kwargs.get('progressbar', False) else None)
         b._within_solver = False
 
         return_ = [{'qualifier': 'message', 'value': res.message},
@@ -1876,12 +1804,12 @@ class _ScipyOptimizeBaseBackend(BaseSolverBackend):
 
 
 
-        if kwargs.get('expose_lnlikelihoods', False):
-            initial_lnlikelihood = _lnprobability(p0, *args)
-            final_likelihood = _lnprobability(res.x, *args)
+        if kwargs.get('expose_lnprobabilities', False):
+            initial_lnprobability = _lnprobability(p0, *args)
+            fitted_lnprobability = _lnprobability(res.x, *args)
 
-            return_ += [{'qualifier': 'initial_lnlikelihood', 'value': initial_lnlikelihood},
-                         {'qualifier': 'fitted_lnlikelihood', 'value': final_likelihood}]
+            return_ += [{'qualifier': 'initial_lnprobability', 'value': initial_lnprobability},
+                         {'qualifier': 'fitted_lnprobability', 'value': fitted_lnprobability}]
 
 
 
@@ -1949,9 +1877,9 @@ class Differential_EvolutionBackend(BaseSolverBackend):
         solution_params += [_parameters.ArrayParameter(qualifier='bounds', value=kwargs.get('bounds', []), readonly=True, description='bound limits adopted and used internally.')]
 
 
-        if kwargs.get('expose_lnlikelihoods', False):
-            solution_params += [_parameters.FloatParameter(qualifier='initial_lnlikelihood', value=0.0, readonly=True, default_unit=u.dimensionless_unscaled, description='lnlikelihood of the initial_values')]
-            solution_params += [_parameters.FloatParameter(qualifier='fitted_lnlikelihood', value=0.0, readonly=True, default_unit=u.dimensionless_unscaled, description='lnlikelihood of the fitted_values')]
+        if kwargs.get('expose_lnprobabilities', False):
+            solution_params += [_parameters.FloatParameter(qualifier='initial_lnprobability', value=0.0, readonly=True, default_unit=u.dimensionless_unscaled, description='lnprobability of the initial_values')]
+            solution_params += [_parameters.FloatParameter(qualifier='fitted_lnprobability', value=0.0, readonly=True, default_unit=u.dimensionless_unscaled, description='lnprobability of the fitted_values')]
 
         return kwargs, _parameters.ParameterSet(solution_params)
 
@@ -2053,12 +1981,12 @@ class Differential_EvolutionBackend(BaseSolverBackend):
                        {'qualifier': 'adopt_parameters', 'value': params_twigs, 'choices': params_twigs},
                        {'qualifier': 'bounds', 'value': bounds}]
 
-            if kwargs.get('expose_lnlikelihoods', False):
-                initial_lnlikelihood = _lnprobability(False, *args)
-                final_likelihood = _lnprobability(res.x, *args)
+            if kwargs.get('expose_lnprobabilities', False):
+                initial_lnprobability = _lnprobability(False, *args)
+                fitted_lnprobability = _lnprobability(res.x, *args)
 
-                return_ += [{'qualifier': 'initial_lnlikelihood', 'value': initial_lnlikelihood},
-                            {'qualifier': 'fitted_lnlikelihood', 'value': final_likelihood}]
+                return_ += [{'qualifier': 'initial_lnprobability', 'value': initial_lnprobability},
+                            {'qualifier': 'fitted_lnprobability', 'value': fitted_lnprobability}]
 
 
 

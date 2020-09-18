@@ -257,7 +257,7 @@ _forbidden_labels += ['nwalkers', 'niters', 'priors', 'init_from',
                       'algorithm', 'duration', 'minimum_n_cycles', 'frequency_factor',
                       'samples_per_peak', 'nyquist_factor',
                       't0_near_times', 'sample_periods', 'sample_frequencies', 'objective',
-                      'expose_lnlikelihoods', 'fit_parameters', 'initial_values',
+                      'expose_lnlikelihoods', 'expose_lnprobabilities', 'fit_parameters', 'initial_values',
                       'expose_model', 'gtol', 'norm', 'xtol', 'ftol',
                       'priors_combine', 'maxiter', 'maxfev', 'adaptive',
                       'xatol', 'fatol', 'bounds', 'bounds_combine', 'bounds_sigma',
@@ -3532,17 +3532,29 @@ class ParameterSet(object):
             `component`) do not result in a single parameter for comparison.
         * NotImplementedError: if the dataset kind is not supported for residuals.
         """
+        if dataset is not None and not isinstance(dataset, str):
+            raise TypeError("model must be of type string or None")
+
         if not len(self.filter(context='dataset', **_skip_filter_checks).datasets):
             dataset_ps = self._bundle.get_dataset(dataset=dataset, **_skip_filter_checks)
         else:
             dataset_ps = self.filter(dataset=dataset, context='dataset', **_skip_filter_checks)
 
+        if dataset is not None and dataset not in dataset_ps.datasets:
+            raise ValueError("dataset '{}' not found".format(dataset))
+
         dataset_kind = dataset_ps.kind
+
+        if model is not None and not isinstance(model, str):
+            raise TypeError("model must be of type string or None")
 
         if not len(self.filter(context='model', **_skip_filter_checks).models):
             model_ps = self._bundle.filter(model=model, context='model', dataset=dataset, component=component, **_skip_filter_checks)
         else:
             model_ps = self.filter(model=model, context='model', dataset=dataset, component=component, **_skip_filter_checks)
+
+        if model is not None and model not in model_ps.models:
+            raise ValueError("model '{}' not found".format(model))
 
         if dataset_kind == 'lc':
             qualifier = 'fluxes'
@@ -3552,6 +3564,7 @@ class ParameterSet(object):
             # TODO: lp compared for a given time interpolating in wavelength?
             # NOTE: add to documentation if adding support for other datasets
             raise NotImplementedError("calculate_residuals not implemented for dataset with kind='{}' (model={}, dataset={}, component={})".format(dataset_kind, model, dataset, component))
+
 
         dataset_param = dataset_ps.get_parameter(qualifier, component=component, **_skip_filter_checks)
         model_param = model_ps.get_parameter(qualifier, **_skip_filter_checks)
@@ -3664,10 +3677,17 @@ class ParameterSet(object):
 
         chi2 = 0
 
+        if model is not None and not isinstance(model, str):
+            raise TypeError("model must be of type string or None")
+
         if not len(self.filter(context='model', **_skip_filter_checks).models):
             model_ps = self._bundle.filter(model=model, context='model', dataset=dataset, component=component, **_skip_filter_checks)
         else:
             model_ps = self.filter(model=model, context='model', dataset=dataset, component=component, **_skip_filter_checks)
+
+        if model is not None and model not in model_ps.models:
+            raise ValueError("model '{}' not found".format(model))
+
 
         for ds in model_ps.datasets:
             ds_comps = model_ps.filter(dataset=ds, **_skip_filter_checks).components
@@ -3886,8 +3906,9 @@ class ParameterSet(object):
                 return_ += this_return
             return _handle_additional_calls(ps, return_)
 
-        if len(ps.models) > 1:
-            for model in ps.models:
+        if len(ps.models) > 1: # and ps.context=='model'
+            # we'll filter by filter_kwargs again in case it wasn't filtered above for being in default_contexts
+            for model in ps.filter(model=filter_kwargs.get('model', None)).models:
                 # TODO: change linestyle for models instead of color?
                 this_return = ps.filter(check_visible=False, model=model)._unpack_plotting_kwargs(animate=animate, **kwargs)
                 return_ += this_return
@@ -4194,6 +4215,7 @@ class ParameterSet(object):
                         return {}
 
                     if '-sigma' in self._bundle.get_value(qualifier='sample_mode', model=ps.model, context='model', default='none', **_skip_filter_checks):
+                        # NOTE: this probably needs to be interpolated
                         kwargs[direction] = ps.get_quantity(qualifier=['fluxes', 'rvs'], model=ps.model, dataset=ps.dataset, component=ps.component, context='model', **_skip_filter_checks)
                         kwargs[direction] -= kwargs[direction][1]
                         kwargs.setdefault('{}label'.format(direction), '{} residuals'.format({'lc': 'flux', 'rv': 'rv'}.get(ps.kind, '')))
@@ -4212,7 +4234,15 @@ class ParameterSet(object):
                     if '-sigma' in self._bundle.get_value(qualifier='sample_mode', model=ps.model, context='model', default='none', **_skip_filter_checks):
                         # TODO: if we ever use this for anything else, then we'll need to make it a list instead and append new items
                         # kwargs['additional_calls'] = {'y': 'residuals_spread', 'ps': ps, **{k:v for k,v in kwargs.items() if k in ['x']}} # not python2 safe :-(
-                        kwargs['additional_calls'] = {'y': 'residuals_spread', 'ps': ps, 'x': kwargs.get('x')}
+
+                        if kwargs.get('xqualifier', 'times') in ['time', 'times']:
+                            sample_x = self._bundle.get_quantity(qualifier='times', model=ps.model, component=ps.component, dataset=ps.dataset, context='model', **_skip_filter_checks)
+                        elif kwargs.get('xqualifier', 'times') in ['phase', 'phases']:
+                            sample_times = self._bundle.get_value(qualifier='times', model=ps.model, component=ps.component, dataset=ps.dataset, context='model', unit=u.d, **_skip_filter_checks)
+                            sample_x = self._bundle.to_phase(sample_times) * u.dimensionless_unscaled
+                        else:
+                            raise NotImplementedError("cannot plot residuals from the sampled model with x='{}'".format(kwargs.get('xqualifier')))
+                        kwargs['additional_calls'] = {'y': 'residuals_spread', 'ps': ps, 'x': sample_x}
 
                     # we're currently within the MODEL context
                     # NOTE: calculate_residuals will already handle masking
@@ -4733,13 +4763,13 @@ class ParameterSet(object):
                     kwargs.setdefault('marker', 'None')
                     kwargs.setdefault('linestyle', 'solid')
 
-                    lnprobabilities, samples = _helpers.process_mcmc_chains(lnprobabilities, samples, burnin, thin, -np.inf, adopt_inds, flatten=False)
+                    lnprobabilities_proc, samples_proc = _helpers.process_mcmc_chains(lnprobabilities, samples, burnin, thin, -np.inf, adopt_inds, flatten=False)
 
                     # we'll be editing items in the array, so we need to make a deepcopy first
-                    lnprobabilities = _deepcopy(lnprobabilities)
-                    lnprobabilities[lnprobabilities < lnprob_cutoff] = np.nan
+                    lnprobabilities_proc = _deepcopy(lnprobabilities_proc)
+                    lnprobabilities_proc[lnprobabilities_proc < lnprob_cutoff] = np.nan
 
-                    for lnp in lnprobabilities.T:
+                    for lnp in lnprobabilities_proc.T:
                         if not np.any(np.isfinite(lnp)):
                             continue
 
@@ -4766,7 +4796,7 @@ class ParameterSet(object):
                     fitted_units = self._bundle.get_value(qualifier='fitted_units', context='solution', solution=ps.solution, **_skip_filter_checks)
                     fitted_ps = self._bundle.filter(uniqueid=list(adopt_uniqueids), **_skip_filter_checks)
 
-                    lnprobabilities, samples = _helpers.process_mcmc_chains(lnprobabilities, samples, burnin, thin, lnprob_cutoff, adopt_inds, flatten=False)
+                    lnprobabilities_proc, samples_proc = _helpers.process_mcmc_chains(lnprobabilities, samples, burnin, thin, lnprob_cutoff, adopt_inds, flatten=False)
 
                     # samples [niters, nwalkers, parameter]
                     ys = kwargs.get('y', fitted_ps.filter(uniquied=list(adopt_uniqueids), **_skip_filter_checks).twigs)
@@ -4777,11 +4807,11 @@ class ParameterSet(object):
                     for yparam in yparams.to_list():
                         parameter_ind = list(adopt_uniqueids).index(yparam.uniqueid)
 
-                        for walker_ind in range(samples.shape[1]):
+                        for walker_ind in range(samples_proc.shape[1]):
                             kwargs = _deepcopy(kwargs)
 
                             # this needs to be the unflattened version
-                            samples_y = samples[:, walker_ind, parameter_ind]
+                            samples_y = samples_proc[:, walker_ind, parameter_ind]
 
                             kwargs['x'] = np.arange(len(samples_y), dtype=float)*thin+burnin
                             kwargs['xlabel'] = 'iteration (burnin={}, thin={}, lnprob_cutoff={})'.format(burnin, thin, lnprob_cutoff)
@@ -6604,12 +6634,63 @@ class Parameter(object):
 
         See also:
         * <phoebe.parameters.Parameter.is_visible>
+        * <phoebe.parameters.Parameter.visible_if_parameters>
 
         Returns
         --------
         * (str): the `visible_if` expression for this Parameter
         """
         return self._visible_if
+
+    @property
+    def visible_if_parameters(self):
+        """
+        Return the parameters affecting the visibility of this <phoebe.parameters.Parameter>.
+
+        See also:
+        * <phoebe.parameters.Parameter.visible_if>
+        * <phoebe.parameters.Parameters.is_visible>
+
+        Returns
+        ----------
+        * <phoebe.parameters.ParameterSet>
+        """
+        parameter_uids = []
+
+        for visible_if in self.visible_if.replace(',','||').split('||'):
+            if visible_if.lower() == 'false':
+                continue
+
+            # otherwise we need to find the parameter we're referencing and check its value
+            if visible_if[0]=='[':
+                remove_metawargs, visible_if = visible_if[1:].split(']')
+                remove_metawargs = remove_metawargs.split(',')
+            else:
+                remove_metawargs = []
+
+            qualifier, value = visible_if.split(':')
+
+            if 'hierarchy.' in qualifier:
+                # TODO: set specific syntax (hierarchy.get_meshables:2)
+                # then this needs to do some logic on the hierarchy
+                parameter_uids += [self._bundle.hierarchy.uniqueid]
+
+            else:
+                # the parameter needs to have all the same meta data except qualifier
+                # TODO: switch this to use self.get_parent_ps ?
+                metawargs = {k:v for k,v in self.get_meta(ignore=['twig', 'uniquetwig', 'uniqueid']+remove_metawargs).items() if v is not None}
+                metawargs['qualifier'] = qualifier
+
+                # this call is quite expensive and bloats every get_parameter(check_visible=True)
+                param = self._bundle.get_parameter(check_visible=False,
+                                                   check_default=False,
+                                                   check_advanced=False,
+                                                   check_single=False,
+                                                   **metawargs)
+
+                parameter_uids += [param.uniqueid]
+
+        return self._bundle.filter(uniqueid=parameter_uids, **_skip_filter_checks)
 
     @property
     def is_visible(self, visible_if=None):
@@ -6623,6 +6704,7 @@ class Parameter(object):
 
         See also:
         * <phoebe.parameters.Parameter.visible_if>
+        * <phoebe.parameters.Parameter.visible_if_parameters>
 
         Returns
         --------
@@ -10629,6 +10711,9 @@ class HierarchyParameter(StringParameter):
             non-unity value for `syncpar`).
         * a gaussian_process feature is attached to any dataset, unless
             `consider_gaussian_process` is False.
+
+        To access the HierarchyParameter from the Bundle, see
+         <phoebe.frontend.bundle.Bundle.get_hierarchy>.
 
         Arguments
         ---------
