@@ -3906,8 +3906,9 @@ class ParameterSet(object):
                 return_ += this_return
             return _handle_additional_calls(ps, return_)
 
-        if len(ps.models) > 1:
-            for model in ps.models:
+        if len(ps.models) > 1: # and ps.context=='model'
+            # we'll filter by filter_kwargs again in case it wasn't filtered above for being in default_contexts
+            for model in ps.filter(model=filter_kwargs.get('model', None)).models:
                 # TODO: change linestyle for models instead of color?
                 this_return = ps.filter(check_visible=False, model=model)._unpack_plotting_kwargs(animate=animate, **kwargs)
                 return_ += this_return
