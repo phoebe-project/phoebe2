@@ -2962,6 +2962,7 @@ class Bundle(ParameterSet):
 
         hier_stars = hier.get_stars()
         hier_meshables = hier.get_meshables()
+        hier_orbits = hier.get_orbits()
 
         for component in hier_stars:
             kind = hier.get_kind_of(component) # shouldn't this always be 'star'?
@@ -3244,6 +3245,17 @@ class Bundle(ParameterSet):
                                 [self.get_parameter(qualifier='teff', component=component, context='component', **_skip_filter_checks),
                                  self.get_parameter(qualifier='irrad_frac_refl_bol', component=component, context='component', **_skip_filter_checks)],
                                 False, ['system', 'run_compute'])
+
+        # warning if any t0_supconj is more than 10 cycles from t0@system if time dependent
+        if hier.is_time_dependent():
+            t0_system = self.get_value(qualifier='t0', context='system', unit=u.d, **_skip_filter_checks)
+            for param in self.filter(qualifier='t0_supconj', component=hier_orbits, context='component', **_skip_filter_checks).to_list():
+                norbital_cycles = abs(param.get_value(unit=u.d) - t0_system)  / self.get_value(qualifier='period', component=param.component, context='component', unit=u.d, **_skip_filter_checks)
+                if norbital_cycles > 10:
+                    report.add_item(self,
+                                    "{}@{} is ~{} orbital cycles from t0@system, which could cause precision issues for time-dependent systems".format(param.qualifier, param.component, int(norbital_cycles)),
+                                    [param, self.get_parameter(qualifier='t0', context='system', **_skip_filter_checks)],
+                                    False, ['system', 'run_compute'])
 
         # TODO: add other checks
         # - make sure all ETV components are legal
