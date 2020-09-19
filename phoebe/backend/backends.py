@@ -2390,8 +2390,13 @@ class EllcBackend(BaseBackendByDataset):
 
         # NOTE: domdt is supposed to be in deg/anomalistic period (not a mistake)
         domdt = comp_ps.get_value(qualifier='dperdt', component=orbitref, unit=u.deg/u.d, **_skip_filter_checks) * period
+
         # need to correct w (per0) to be at t_zero (t0_supconj) instead of t0@system as defined in PHOEBE
-        w += domdt * period * (t0_system - t_zero)
+        domdt_rad = comp_ps.get_value(qualifier='dperdt', component=orbitref, unit=u.rad/u.d, **_skip_filter_checks)
+        w += domdt_rad * (t_zero - t0_system)
+
+        f_c = np.sqrt(ecc) * np.cos(w)
+        f_s = np.sqrt(ecc) * np.sin(w)
 
         gdc_1 = comp_ps.get_value(qualifier='gravb_bol', component=starrefs[0], **_skip_filter_checks)
         gdc_2 = comp_ps.get_value(qualifier='gravb_bol', component=starrefs[1], **_skip_filter_checks)
@@ -2453,9 +2458,6 @@ class EllcBackend(BaseBackendByDataset):
             heat_2 = None
         else:
             raise NotImplementedError("irrad_method='{}' not supported".format(irrad_method))
-
-        f_c = np.sqrt(ecc) * np.cos(w)
-        f_s = np.sqrt(ecc) * np.sin(w)
 
         # lambda_1/2 : {None, float},  optional
          # Sky-projected angle between orbital and rotation axes, star 1/2 [degrees]
