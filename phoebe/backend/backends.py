@@ -2369,7 +2369,7 @@ class EllcBackend(BaseBackendByDataset):
 
         exact_grav = computeparams.get_value(qualifier='exact_grav', exact_grav=kwargs.get('grav', None), **_skip_filter_checks)
 
-        comp_ps = b.filter(context='component')
+        comp_ps = b.filter(context='component', **_skip_filter_checks)
 
         a = comp_ps.get_value(qualifier='sma', component=orbitref, unit=u.solRad, **_skip_filter_checks)
         radius_1 = comp_ps.get_value(qualifier='requiv', component=starrefs[0], unit=u.solRad, **_skip_filter_checks) / a
@@ -2447,8 +2447,8 @@ class EllcBackend(BaseBackendByDataset):
         #     A_g/2, where A_g is the geometric albedo.
         irrad_method = computeparams.get_value(qualifier='irrad_method', irrad_method=kwargs.get('irrad_method', None), **_skip_filter_checks)
         if irrad_method == 'lambert':
-            heat_1 = b.get_value(qualifier='irrad_frac_refl_bol', component=starrefs[0], context='component') / 2.
-            heat_2 = b.get_value(qualifier='irrad_frac_refl_bol', component=starrefs[1], context='component') / 2.
+            heat_1 = b.get_value(qualifier='irrad_frac_refl_bol', component=starrefs[0], context='component', **_skip_filter_checks) / 2.
+            heat_2 = b.get_value(qualifier='irrad_frac_refl_bol', component=starrefs[1], context='component', **_skip_filter_checks) / 2.
             # let's save ourselves, and also allow for flux-weighted RVs
             if heat_1 == 0 and heat_2 == 0:
                 heat_1 = None
@@ -2548,7 +2548,7 @@ class EllcBackend(BaseBackendByDataset):
         ldc_2 = ds_ps.get_value(qualifier='ld_coeffs', component=starrefs[1], **_skip_filter_checks)
 
         pblums = kwargs.get('pblums').get(info['dataset'])
-        sbratio = (pblums.get(starrefs[1])/b.get_value(qualifier='requiv', component=starrefs[1], context='component', unit=u.solRad)**2)/(pblums.get(starrefs[0])/b.get_value(qualifier='requiv', component=starrefs[0], context='component', unit=u.solRad)**2)
+        sbratio = (pblums.get(starrefs[1])/b.get_value(qualifier='requiv', component=starrefs[1], context='component', unit=u.solRad, **_skip_filter_checks)**2)/(pblums.get(starrefs[0])/b.get_value(qualifier='requiv', component=starrefs[0], context='component', unit=u.solRad, **_skip_filter_checks)**2)
 
         if info['kind'] == 'lc':
             # third light handled by run_compute
