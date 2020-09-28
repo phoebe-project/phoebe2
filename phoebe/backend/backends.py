@@ -2375,7 +2375,7 @@ class EllcBackend(BaseBackendByDataset):
         radius_1 = comp_ps.get_value(qualifier='requiv', component=starrefs[0], unit=u.solRad, **_skip_filter_checks) / a
         radius_2 = comp_ps.get_value(qualifier='requiv', component=starrefs[1], unit=u.solRad, **_skip_filter_checks) / a
 
-        period = comp_ps.get_value(qualifier='period', component=orbitref, unit=u.d, **_skip_filter_checks)
+        period_anom = comp_ps.get_value(qualifier='period_anom', component=orbitref, unit=u.d, **_skip_filter_checks)
         q = comp_ps.get_value(qualifier='q', component=orbitref, **_skip_filter_checks)
 
         t_zero = comp_ps.get_value(qualifier='t0_supconj', component=orbitref, unit=u.d, **_skip_filter_checks)
@@ -2388,12 +2388,20 @@ class EllcBackend(BaseBackendByDataset):
         ecc = comp_ps.get_value(qualifier='ecc', component=orbitref, **_skip_filter_checks)
         w = comp_ps.get_value(qualifier='per0', component=orbitref, unit=u.rad, **_skip_filter_checks)
 
-        # NOTE: domdt is supposed to be in deg/anomalistic period (not a mistake)
-        domdt = comp_ps.get_value(qualifier='dperdt', component=orbitref, unit=u.deg/u.d, **_skip_filter_checks) * period
-
         # need to correct w (per0) to be at t_zero (t0_supconj) instead of t0@system as defined in PHOEBE
+        logger.debug("per0(t0@system): {}".format(w))
         domdt_rad = comp_ps.get_value(qualifier='dperdt', component=orbitref, unit=u.rad/u.d, **_skip_filter_checks)
         w += domdt_rad * (t_zero - t0_system)
+        logger.debug("per0(t0_supconj): {}".format(w))
+
+        # NOTE: domdt is listed in ellc as deg/anomalistic period, but as deg/sidereal period in the fortran source (which agrees with comparisons)
+        # NOTE: this does NOT need to be iterative, because the original dperdt is in deg/d and independent of period
+        logger.debug("dperdt (rad/d): ", domdt_rad)
+        period_sid = comp_ps.get_value(qualifier='period', component=orbitref, unit=u.d, **_skip_filter_checks)
+        # NOTE: period_sidereal does not need to be corrected from t0@system -> t0_supconj because ellc does not support dpdt
+        logger.debug("period_sidereal(t0@system,t0_ref,dpdt=0): ", period_sid)
+        domdt = comp_ps.get_value(qualifier='dperdt', component=orbitref, unit=u.deg/u.d, **_skip_filter_checks) * period_sid
+        logger.debug("dperdt (deg/d * period_sidereal): ", domdt)
 
         f_c = np.sqrt(ecc) * np.cos(w)
         f_s = np.sqrt(ecc) * np.sin(w)
@@ -2474,7 +2482,7 @@ class EllcBackend(BaseBackendByDataset):
                     radius_1=radius_1, radius_2=radius_2,
                     incl=incl,
                     t_zero=t_zero,
-                    period=period,
+                    period_anom=period_anom,
                     q=q,
                     a=a,
                     f_c=f_c, f_s=f_s,
@@ -2510,7 +2518,7 @@ class EllcBackend(BaseBackendByDataset):
         incl = kwargs.get('incl')
 
         t_zero = kwargs.get('t_zero')
-        period = kwargs.get('period')
+        period_anom = kwargs.get('period_anom')
         a = kwargs.get('a')
         q = kwargs.get('q')
 
@@ -2568,7 +2576,7 @@ class EllcBackend(BaseBackendByDataset):
                              incl=incl,
                              light_3=light_3,
                              t_zero=t_zero,
-                             period=period,
+                             period=period_anom,
                              a=a,
                              q=q,
                              f_c=f_c, f_s=f_s,

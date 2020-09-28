@@ -5414,7 +5414,7 @@ class Bundle(ParameterSet):
         kwargs.setdefault('kind', 'envelope')
         return self.remove_component(component, **kwargs)
 
-    def get_ephemeris(self, component=None, t0='t0_supconj', **kwargs):
+    def get_ephemeris(self, component=None, period='period', t0='t0_supconj', **kwargs):
         """
         Get the ephemeris of a component (star or orbit).
 
@@ -5426,7 +5426,10 @@ class Bundle(ParameterSet):
         * `component` (str, optional): name of the component.  If not given,
             component will default to the top-most level of the current
             hierarchy.  See <phoebe.parameters.HierarchyParameter.get_top>.
-        * `t0` (str, optional, default='t0_supconj'): qualifier of the parameter
+        * `period` (str or float, optional, default='period'): qualifier of the parameter
+            to be used for t0.  For orbits, can either be 'period' or 'period_sidereal'.
+            For stars, must be 'period'.
+        * `t0` (str or float, optional, default='t0_supconj'): qualifier of the parameter
             to be used for t0.  Must be 't0' for 't0@system' or a valid qualifier
             (eg. 't0_supconj', 't0_perpass', 't0_ref' for binary orbits.)
             For single stars, `t0` will be used if a float or integer, otherwise
@@ -5454,27 +5457,33 @@ class Bundle(ParameterSet):
 
         ret = {}
 
-        ps = self.filter(component=component, context='component')
+        ps = self.filter(component=component, context='component', **_skip_filter_checks)
+
+        if isinstance(period, str):
+            ret['period'] = ps.get_value(qualifier=period, unit=u.d, **_skip_filter_checks)
+        elif isinstance(period, float) or isinstance(period, int):
+            ret['period'] = period
+        else:
+            raise ValueError("period must be a string (qualifier) or float")
 
         if ps.kind in ['orbit']:
-            ret['period'] = ps.get_value(qualifier='period', unit=u.d)
+            # TODO: ability to pass period to grab period_sidereal instead?
             if isinstance(t0, str):
                 if t0 == 't0':
-                    ret['t0'] = self.get_value(qualifier='t0', context='system', unit=u.d)
+                    ret['t0'] = self.get_value(qualifier='t0', context='system', unit=u.d, **_skip_filter_checks)
                 else:
-                    ret['t0'] = ps.get_value(qualifier=t0, unit=u.d)
+                    ret['t0'] = ps.get_value(qualifier=t0, unit=u.d, **_skip_filter_checks)
             elif isinstance(t0, float) or isinstance(t0, int):
                 ret['t0'] = t0
             else:
                 raise ValueError("t0 must be string (qualifier) or float")
             ret['dpdt'] = ps.get_value(qualifier='dpdt', unit=u.d/u.d)
+
         elif ps.kind in ['star']:
-            # TODO: consider renaming period to prot
-            ret['period'] = ps.get_value(qualifier='period', unit=u.d)
             if isinstance(t0, float) or isinstance(t0, int):
                 ret['t0'] = t0
             else:
-                ret['t0'] = self.get_value('t0', context='system', unit=u.d)
+                ret['t0'] = self.get_value('t0', context='system', unit=u.d, **_skip_filter_checks)
         else:
             raise NotImplementedError
 
@@ -5483,11 +5492,21 @@ class Bundle(ParameterSet):
 
         return ret
 
-    def to_phase(self, time, component=None, t0='t0_supconj', **kwargs):
+    def to_phase(self, time, component=None, period='period', t0='t0_supconj', **kwargs):
         """
         Get the phase(s) of a time(s) for a given ephemeris.
 
-        See also: <phoebe.frontend.bundle.Bundle.get_ephemeris>.
+        The definition of time-to-phase used here is:
+        ```
+        if dpdt != 0:
+            phase = np.mod(1./dpdt * np.log(period + dpdt*(time-t0)), 1.0)
+        else:
+            phase = np.mod((time-t0)/period, 1.0)
+        ```
+
+        See also:
+        * <phoebe.frontend.bundle.Bundle.to_time>
+        * <phoebe.frontend.bundle.Bundle.get_ephemeris>.
 
         Arguments
         -----------
@@ -5496,8 +5515,12 @@ class Bundle(ParameterSet):
         * `component` (str, optional): component for which to get the ephemeris.
             If not given, component will default to the top-most level of the
             current hierarchy.  See <phoebe.parameters.HierarchyParameter.get_top>.
-        * `t0` (str, optional, default='t0_supconj'): qualifier of the parameter
-            to be used for t0
+        * `period` (str or float, optional, default='period'): qualifier of the parameter
+            to be used for t0.  For orbits, can either be 'period' or 'period_sidereal'.
+            For stars, must be 'period'.
+        * `t0` (str or float, optional, default='t0_supconj'): qualifier of the parameter
+            to be used for t0 ('t0_supconj', 't0_perpass', 't0_ref'), passed
+            to <phoebe.frontend.bundle.Bundle.get_ephemeris>.
         * `**kwargs`: any value passed through kwargs will override the
             ephemeris retrieved by component (ie period, t0, dpdt).
             Note: be careful about units - input values will not be converted.
@@ -5515,7 +5538,7 @@ class Bundle(ParameterSet):
         if kwargs.get('shift', False):
             raise ValueError("support for phshift was removed as of 2.1.  Please pass t0 instead.")
 
-        ephem = self.get_ephemeris(component=component, t0=t0, **kwargs)
+        ephem = self.get_ephemeris(component=component, period=period, t0=t0, **kwargs)
 
         if isinstance(time, list):
             time = np.array(time)
@@ -5531,6 +5554,7 @@ class Bundle(ParameterSet):
 
         # if changing this, also see parameters.constraint.time_ephem
         # and phoebe.constraints.builtin.times_to_phases
+        # and update docstring above
         if dpdt != 0:
             phase = np.mod(1./dpdt * np.log(period + dpdt*(time-t0)), 1.0)
         else:
@@ -5551,11 +5575,21 @@ class Bundle(ParameterSet):
         """
         return self.to_phase(*args, **kwargs)
 
-    def to_time(self, phase, component=None, t0='t0_supconj', **kwargs):
+    def to_time(self, phase, component=None, period='period', t0='t0_supconj', **kwargs):
         """
         Get the time(s) of a phase(s) for a given ephemeris.
 
-        See also: <phoebe.frontend.bundle.Bundle.get_ephemeris>.
+        The definition of phase-to-time used here is:
+        ```
+        if dpdt != 0:
+            time = t0 + 1./dpdt*(np.exp(dpdt*(phase))-period)
+        else:
+            time = t0 + (phase)*period
+        ```
+
+        See also:
+        * <phoebe.frontend.bundle.Bundle.to_phase>
+        * <phoebe.frontend.bundle.Bundle.get_ephemeris>.
 
         Arguments
         -----------
@@ -5564,8 +5598,12 @@ class Bundle(ParameterSet):
         * `component` (str, optional): component for which to get the ephemeris.
             If not given, component will default to the top-most level of the
             current hierarchy.  See <phoebe.parameters.HierarchyParameter.get_top>.
-        * `t0` (str, optional, default='t0_supconj'): qualifier of the parameter
-            to be used for t0
+        * `period` (str or float, optional, default='period'): qualifier of the parameter
+            to be used for t0.  For orbits, can either be 'period' or 'period_sidereal'.
+            For stars, must be 'period'.
+        * `t0` (str or float, optional, default='t0_supconj'): qualifier of the parameter
+            to be used for t0 ('t0_supconj', 't0_perpass', 't0_ref'), passed
+            to <phoebe.frontend.bundle.Bundle.get_ephemeris>.
         * `**kwargs`: any value passed through kwargs will override the
             ephemeris retrieved by component (ie period, t0, dpdt).
             Note: be careful about units - input values will not be converted.
@@ -5583,7 +5621,7 @@ class Bundle(ParameterSet):
         if kwargs.get('shift', False):
             raise ValueError("support for phshift was removed as of 2.1.  Please pass t0 instead.")
 
-        ephem = self.get_ephemeris(component=component, t0=t0, **kwargs)
+        ephem = self.get_ephemeris(component=component, period=period, t0=t0, **kwargs)
 
         if isinstance(phase, list):
             phase = np.array(phase)
@@ -5594,7 +5632,9 @@ class Bundle(ParameterSet):
 
         # if changing this, also see parameters.constraint.time_ephem
         # and phoebe.constraints.builtin.phases_to_times
+        # and update docstring above
         if dpdt != 0:
+            # TODO: not sure this is correct!!!
             time = t0 + 1./dpdt*(np.exp(dpdt*(phase))-period)
         else:
             time = t0 + (phase)*period
@@ -10044,7 +10084,9 @@ class Bundle(ParameterSet):
                 # we now need to handle any computations of ld_coeffs, pblums, l3s, etc
                 # TODO: skip lookups for phoebe, skip non-supported ld_func for photodynam, etc
                 # TODO: have this return a dictionary like pblums/l3s that we can pass on to the backend?
-                ds_kinds_enabled = self.filter(dataset=computeparams.filter(qualifier='enabled', value=True, **_skip_filter_checks).datasets, context='dataset', **_skip_filter_checks).kinds
+
+                # we need to check both for enabled but also passed via dataset kwarg
+                ds_kinds_enabled = self.filter(dataset=computeparams.filter(qualifier='enabled', value=True, **_skip_filter_checks).filter(dataset=dataset).datasets, context='dataset', **_skip_filter_checks).kinds
                 if 'lc' in ds_kinds_enabled or 'rv' in ds_kinds_enabled or 'lp' in ds_kinds_enabled:
                     logger.info("run_compute: computing necessary ld_coeffs, pblums, l3s")
                     self.compute_ld_coeffs(compute=compute, skip_checks=True, set_value=True, **{k:v for k,v in kwargs.items() if k in computeparams.qualifiers})

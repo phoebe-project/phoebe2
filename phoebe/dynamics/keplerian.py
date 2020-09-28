@@ -75,12 +75,13 @@ def dynamics_from_bundle(b, times, compute=None, return_euler=False, **kwargs):
 
         #print "***", component, ancestororbits
 
-        periods.append([s.get_value(qualifier='period', unit=u.d, component=orbit, **_skip_filter_checks) for orbit in ancestororbits])
+        periods.append([s.get_value(qualifier='period_anom', unit=u.d, component=orbit, **_skip_filter_checks) for orbit in ancestororbits])
         eccs.append([s.get_value(qualifier='ecc', component=orbit, **_skip_filter_checks) for orbit in ancestororbits])
         t0_perpasses.append([s.get_value(qualifier='t0_perpass', unit=u.d, component=orbit, **_skip_filter_checks) for orbit in ancestororbits])
         per0s.append([s.get_value(qualifier='per0', unit=u.rad, component=orbit, **_skip_filter_checks) for orbit in ancestororbits])
         long_ans.append([s.get_value(qualifier='long_an', unit=u.rad, component=orbit, **_skip_filter_checks) for orbit in ancestororbits])
         incls.append([s.get_value(qualifier='incl', unit=u.rad, component=orbit, **_skip_filter_checks) for orbit in ancestororbits])
+        # TODO: do we need to convert from anomalistic to sidereal?
         dpdts.append([s.get_value(qualifier='dpdt', unit=u.d/u.d, component=orbit, **_skip_filter_checks) for orbit in ancestororbits])
         if conf.devel:
             try:
@@ -141,7 +142,7 @@ def dynamics(times, periods, eccs, smas, t0_perpasses, per0s, long_ans, incls,
     Args:
         times: (iterable) times at which to compute positions and
             velocities for each star
-        periods: (iterable) period of the parent orbit for each star
+        periods: (iterable) anomalistic period of the parent orbit for each star
             [days]
         eccs: (iterable) eccentricity of the parent orbit for each star
         smas: (iterable) semi-major axis of the parent orbit for each

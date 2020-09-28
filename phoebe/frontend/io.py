@@ -46,7 +46,7 @@ _1to2par = {'ld_model':'ld_func',
 #            'model': 'morphology',
             'filter': 'passband',
             'hjd0':'t0_ref',
-            'period': 'period',
+            'period': 'period',  # sidereal
             'dpdt': 'dpdt',
             'sma':'sma',
             'rm': 'q',
@@ -97,7 +97,7 @@ _units1 = {'incl': 'deg',
            'vga':'km/s',
            'teff': 'K',
            'perr0': 'rad',
-           'dperdt': 'rad/d',
+           'dperdt': 'rad/d', # could be deg/d depending on config setting in legacy
            'flux':'W/m2',
            'sigmalc': 'W/m2',
            'sigmarv': 'km/s',
@@ -662,9 +662,6 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True,
                 d['kind'] = None
 
                 d['context'] = 'component'
-        if pnew == 'period':
-            eb.flip_constraint(constraint_func='period_sidereal', solve_for='period')
-            # we'll flip back at the end after setting everything that is needed for the constraint
 
     # change t0_ref and set hjd0
         if pnew == 'hjd0':
@@ -1183,7 +1180,6 @@ d - dictionary with parameter, context, dataset etc.
 
 """
 
-
 def par_value(param, index=None, **kwargs):
 # build a dictionary
 
@@ -1226,7 +1222,28 @@ def par_value(param, index=None, **kwargs):
             s = np.array([0,0,1]).astype(float) # aligned case, we would already have thrown an error if misaligned
 
             val = roche.requiv_to_pot(val, sma, q, F, delta, s, component=comp_no)
-        elif param.qualifier == 'period_sidereal':
+        elif param.qualifier == 'period':
+            # find period_sidereal(t0_ref) (currently is period_sidereal(t0@system))
+            b = param._bundle
+            logger.debug("period_sidereal(t0@system): ", val)
+            dpdt = b.get_value(qualifier='dpdt', component=param.component, context='component', unit='d/d', **_skip_filter_checks)
+            t0_system = b.get_value(qualifier='t0', context='system', unit='d')
+            # NOTE: t0_ref already accounts for BOTH dpdt and dperdt
+            t0_ref = b.get_value(qualifier='t0_ref', component=param.component, context='component', unit='d', **_skip_filter_checks)
+            val += dpdt * (t0_ref - t0_system)
+            logger.debug("period_sidereal(t0_ref, dpdt={} d/d): {}".format(dpdt, val))
+
+        elif param.qualifier == 'per0':
+            # find per0(t0_ref) (currently is per0(t0@system))
+            b = param._bundle
+            dperdt = b.get_value(qualifier='dperdt', component=param.component, context='component', unit='rad/d', **_skip_filter_checks)
+            t0_system = b.get_value(qualifier='t0', context='system', unit='d', **_skip_filter_checks)
+            t0_ref = b.get_value(qualifier='t0_ref', component=param.component, context='component', unit='d', **_skip_filter_checks)
+            logger.debug("per0(t0@system): {}".format(val))
+            val += dperdt * (t0_ref - t0_system)
+            val = val % (2*np.pi)
+            logger.debug("per0(t0_ref, dperdt={} rad/d): {}".format(dperdt, val))
+
         val = [val]
 
     elif isinstance(param, phb.parameters.ChoiceParameter):
