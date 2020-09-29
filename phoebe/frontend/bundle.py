@@ -6370,6 +6370,7 @@ class Bundle(ParameterSet):
         * <phoebe.parameters.constraint.requivfrac>
         * <phoebe.parameters.constraint.requivratio>
         * <phoebe.parameters.constraint.requivsumfrac>
+        * <phoebe.parameters.constraint.impact_param>
         * <phoebe.parameters.constraint.teffratio>
         * <phoebe.parameters.constraint.parallax>
 
