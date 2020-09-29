@@ -2840,3 +2840,91 @@ def requiv_to_pot(b, component, solve_for=None, **kwargs):
         raise NotImplementedError
 
     return lhs, rhs, [], {'component': component}
+
+
+
+_validsolvefor['impactfactor'] = ['incl', 'requivsumfrac']
+def impactfactor(b, orbit=None, solve_for=None, **kwargs):
+    """
+    Create a constraint for the impact factor of the light curve.
+
+    This constraint is automatically included for all orbits, during
+    <phoebe.frontend.bundle.Bundle.add_component> for a
+    <phoebe.parameters.component.orbit>.
+
+    This is usually passed as an argument to
+     <phoebe.frontend.bundle.Bundle.add_constraint> as
+     `b.add_constraint('impactfactor', orbit='binary')`, where `orbit` is one of
+     <phoebe.parameters.HierarchyParameter.get_orbits>.
+
+    If any of the required parameters ('impactfactor', 'requivsumfrac', 'esinw', 'ecosw') do not
+    exist in the orbit, they will be created.
+
+    Arguments
+    -----------
+    * `b` (<phoebe.frontend.bundle.Bundle>): the Bundle
+    * `orbit` (string): the label of the orbit in which this constraint should
+        be built.
+    * `solve_for` (<phoebe.parameters.Parameter>, optional, default=None): if
+        'impactfactor' should not be the derived/constrained parameter, provide which
+        other parameter should be derived (ie 'incl' or 'esinw' or 'ecosw')
+
+    Returns
+    ----------
+    * (<phoebe.parameters.Parameter>, <phoebe.parameters.ConstraintParameter>, list):
+        lhs (Parameter), rhs (ConstraintParameter), addl_params (list of additional
+        parameters that may be included in the constraint), kwargs (dict of
+        keyword arguments that were passed to this function).
+
+    Raises
+    --------
+    * NotImplementedError: if the value of `solve_for` is not implemented.
+    """
+
+    hier = b.hierarchy
+
+    if orbit is None:
+        orbits = hier.get_orbits()
+        if len(orbits)==1:
+            orbit = orbits[0]
+        else:
+            raise ValueError("must provide orbit since more than one orbit present in the hierarchy")
+
+
+    orbit_ps = _get_system_ps(b, orbit)
+
+    # We want to get the parameters in THIS orbit, but calling through
+    # the bundle in case we need to create it.
+    # To do that, we need to know the search parameters to get items from this PS.
+    metawargs = orbit_ps.meta
+    metawargs.pop('qualifier')
+
+    # Now we'll define the parameters in case they don't exist and need to be created
+    impactfactor_def = FloatParameter(qualifier='impactfactor', latexfmt=r'x_\mathrm{im}', value=0., default_unit=u.dimensionless_unscaled, limits=[-2, 2], description='Impact factor of the light curve')
+    requivsumfrac_def = FloatParameter(qualifier='requivsumfrac', latexfmt=r'(R_\mathrm{{ equiv, {children0} }} + R_\mathrm{{ equiv, {children1} }}) / a_\mathrm{{ {component} }}', value=1.0, default_unit=u.dimensionless_unscaled, limits=[0, None], description='sum of fractional equivalent radii of children stars')
+    incl_def = FloatParameter(qualifier='incl', latexfmt=r'i_\mathrm{{ {component} }}', value=90.0, default_unit=u.deg, description='Orbital inclination angle')
+    esinw_def = FloatParameter(qualifier='esinw', latexfmt=r'e_\mathrm{{ {component} }} \sin \omega_0', value=0.0, default_unit=u.dimensionless_unscaled, limits=(-1.0,1.0), description='Eccentricity times sin of argument of periastron')
+    ecosw_def = FloatParameter(qualifier='ecosw', latexfmt=r'e_\mathrm{{ {component} }} \cos \omega_0', value=0.0, default_unit=u.dimensionless_unscaled, limits=(-1.0,1.0), description='Eccentricity times cos of argument of periastron')
+
+
+    # And now call get_or_create on the bundle
+    impactfactor, impactfactor_created = b.get_or_create('impactfactor', impactfactor_def, **metawargs)
+    requivsumfrac, requivsumfrac_created = b.get_or_create('requivsumfrac', requivsumfrac_def, **metawargs)
+    incl, incl_created = b.get_or_create('incl', incl_def, **metawargs)
+    esinw, esinw_created = b.get_or_create('esinw', esinw_def, **metawargs)
+    ecosw, ecosw_created = b.get_or_create('ecosw', ecosw_def, **metawargs)
+
+
+    if solve_for in [None, impactfactor]:
+        lhs = impactfactor
+        rhs = cos(incl)/requivsumfrac * (1-esinw**2-ecosw**2)/(1+esinw)
+
+    elif solve_for == incl:
+        lhs = incl
+        rhs = arccos(impactfactor*requivsumfrac*(1+esinw)/(1-esinw**2-ecosw**2))
+
+    else:
+        raise NotImplementedError
+
+    #- return lhs, rhs, args_as_pss
+    return lhs, rhs, [], {'orbit': orbit}
