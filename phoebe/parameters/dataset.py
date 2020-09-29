@@ -95,6 +95,10 @@ def lc(syn=False, as_ps=True, is_lc=True, **kwargs):
         the model.  Only applicable if `syn` is False and `is_lc` is True.
     * `compute_phases` (array/quantity, optional): phases at which to compute
         the model.  Only applicable if `syn` is False and `is_lc` is True.
+    * `phases_period` (string, optional, default='period'): period to use
+        when converting between `compute_phases` and `compute_times` as well as
+        when applying `mask_phases`.  Only applicable if `syn` is False. and `is_lc` is True.
+        Not applicable for single stars (in which case period is always used).
     * `phases_t0` (string, optional, default='t0_supconj'): t0 to use
         when converting between `compute_phases` and `compute_times` as well as
         when applying `mask_phases`.  Only
@@ -198,6 +202,7 @@ def lc(syn=False, as_ps=True, is_lc=True, **kwargs):
     if is_lc and not syn:
         params += [FloatArrayParameter(qualifier='compute_times', value=kwargs.get('compute_times', []), required_shape=[None], default_unit=u.d, description='Times to use during run_compute.  If empty, will use times parameter')]
         params += [FloatArrayParameter(qualifier='compute_phases', component=kwargs.get('component_top', None), required_shape=[None], value=kwargs.get('compute_phases', []), default_unit=u.dimensionless_unscaled, description='Phases associated with compute_times.')]
+        params += [ChoiceParameter(qualifier='phases_period', visible_if='[dataset][context][kind]dperdt:!0.0,hierarchy.is_meshable:False', component=kwargs.get('component_top', None), value=kwargs.get('phases_period', 'period'), choices=['period', 'period_anom'], advanced=True, description='period to use when converting between compute_times and compute_phases as well as when applying mask_phases')]
         params += [ChoiceParameter(qualifier='phases_t0', visible_if='hierarchy.is_meshable:False', component=kwargs.get('component_top', None), value=kwargs.get('phases_t0', 't0_supconj'), choices=['t0_supconj', 't0_perpass', 't0_ref'], advanced=True, description='t0 to use when converting between compute_times and compute_phases as well as when applying mask_phases')]
         constraints += [(constraint.compute_phases, kwargs.get('component_top', None), kwargs.get('dataset', None))]
 
@@ -258,6 +263,10 @@ def rv(syn=False, as_ps=True, **kwargs):
         the model.  Only applicable if `syn` is False.
     * `compute_phases` (array/quantity, optional): phases at which to compute
         the model.  Only applicable if `syn` is False.
+    * `phases_period` (string, optional, default='period'): period to use
+        when converting between `compute_phases` and `compute_times` as well as
+        when applying `mask_phases`.  Only applicable if `syn` is False.  Not applicable for
+        single stars (in which case period is always used).
     * `phases_t0` (string, optional, default='t0_supconj'): t0 to use
         when converting between `compute_phases` and `compute_times` as well as
         when applying `mask_phases`.  Only applicable if `syn` is False.  Not applicable for
@@ -312,6 +321,7 @@ def rv(syn=False, as_ps=True, **kwargs):
 
         params += [FloatArrayParameter(qualifier='compute_times', value=kwargs.get('compute_times', []), required_shape=[None], default_unit=u.d, description='Times to use during run_compute.  If empty, will use times parameter')]
         params += [FloatArrayParameter(qualifier='compute_phases', component=kwargs.get('component_top', None), value=kwargs.get('compute_phases', []), required_shape=[None], default_unit=u.dimensionless_unscaled, description='Phases associated with compute_times.')]
+        params += [ChoiceParameter(qualifier='phases_period', visible_if='[dataset][context][kind]dperdt:!0.0,hierarchy.is_meshable:False', component=kwargs.get('component_top', None), value=kwargs.get('phases_period', 'period'), choices=['period', 'period_anom'], advanced=True, description='period to use when converting between compute_times and compute_phases as well as when applying mask_phases')]
         params += [ChoiceParameter(qualifier='phases_t0', visible_if='hierarchy.is_meshable:False', component=kwargs.get('component_top', None), value=kwargs.get('phases_t0', 't0_supconj'), choices=['t0_supconj', 't0_perpass', 't0_ref'], advanced=True, description='t0 to use when converting between compute_times and compute_phases as well as when applying mask_phases')]
         constraints += [(constraint.compute_phases, kwargs.get('component_top', None), kwargs.get('dataset', None))]
 
@@ -368,6 +378,10 @@ def lp(syn=False, as_ps=True, **kwargs):
         supported).  Only applicable if `syn` is False.
     * `compute_phases` (array/quantity, optional): phases at which to compute
         the model.  Only applicable if `syn` is False.
+    * `phases_period` (string, optional, default='period'): period to use
+        when converting between `compute_phases` and `compute_times` as well as
+        when applying `mask_phases`.  Only applicable if `syn` is False.  Not applicable for
+        single stars (in which case period is always used).
     * `phases_t0` (string, optional, default='t0_supconj'): t0 to use
         when converting between `compute_phases` and `compute_times`.  Only
         applicable if `syn` is False.  Not applicable for
@@ -439,6 +453,7 @@ def lp(syn=False, as_ps=True, **kwargs):
     if not syn:
         params += [FloatArrayParameter(qualifier='compute_times', value=kwargs.get('compute_times', []), required_shape=[None], default_unit=u.d, description='Times to use during run_compute.  If empty, will use times of individual entries.  Note that interpolation is not currently supported for lp datasets.')]
         params += [FloatArrayParameter(qualifier='compute_phases', component=kwargs.get('component_top', None), value=kwargs.get('compute_phases', []), required_shape=[None], default_unit=u.dimensionless_unscaled, description='Phases associated with compute_times.')]
+        params += [ChoiceParameter(qualifier='phases_period', visible_if='[dataset][context][kind]dperdt:!0.0,hierarchy.is_meshable:False', component=kwargs.get('component_top', None), value=kwargs.get('phases_period', 'period'), choices=['period', 'period_anom'], advanced=True, description='period to use when converting between compute_times and compute_phases as well as when applying mask_phases')]
         params += [ChoiceParameter(qualifier='phases_t0', visible_if='hierarchy.is_meshable:False', component=kwargs.get('component_top', None), value=kwargs.get('phases_t0', 't0_supconj'), choices=['t0_supconj', 't0_perpass', 't0_ref'], advanced=True, description='t0 to use when converting between compute_times and compute_phases as well as when applying mask_phases')]
         constraints += [(constraint.compute_phases, kwargs.get('component_top', None), kwargs.get('dataset', None))]
 
@@ -481,6 +496,10 @@ def orb(syn=False, as_ps=True, **kwargs):
         the model.  Only applicable if `syn` is False.
     * `compute_phases` (array/quantity, optional): phases at which to compute
         the model.  Only applicable if `syn` is False.
+    * `phases_period` (string, optional, default='period'): period to use
+        when converting between `compute_phases` and `compute_times` as well as
+        when applying `mask_phases`.  Only applicable if `syn` is False.  Not applicable for
+        single stars (in which case period is always used).
     * `phases_t0` (string, optional, default='t0_supconj'): t0 to use
         when converting between `compute_phases` and `compute_times`.  Only
         applicable if `syn` is False.  Not applicable for
@@ -510,6 +529,7 @@ def orb(syn=False, as_ps=True, **kwargs):
     if not syn:
         params += [FloatArrayParameter(qualifier='compute_times', value=kwargs.get('compute_times', []), required_shape=[None], default_unit=u.d, description='Times to use during run_compute.  If empty, will use times parameter')]
         params += [FloatArrayParameter(qualifier='compute_phases', component=kwargs.get('component_top', None), value=kwargs.get('compute_phases', []), required_shape=[None], default_unit=u.dimensionless_unscaled, description='Phases associated with compute_times.')]
+        params += [ChoiceParameter(qualifier='phases_period', visible_if='[dataset][context][kind]dperdt:!0.0,hierarchy.is_meshable:False', component=kwargs.get('component_top', None), value=kwargs.get('phases_period', 'period'), choices=['period', 'period_anom'], advanced=True, description='period to use when converting between compute_times and compute_phases as well as when applying mask_phases')]
         params += [ChoiceParameter(qualifier='phases_t0', visible_if='hierarchy.is_meshable:False', component=kwargs.get('component_top', None), value=kwargs.get('phases_t0', 't0_supconj'), choices=['t0_supconj', 't0_perpass', 't0_ref'], advanced=True, description='t0 to use when converting between compute_times and compute_phases as well as when applying mask_phases')]
         constraints += [(constraint.compute_phases, kwargs.get('component_top', None), kwargs.get('dataset', None))]
 
@@ -541,6 +561,10 @@ def mesh(syn=False, as_ps=True, **kwargs):
         the model.  Only applicable if `syn` is False.
     * `compute_phases` (array/quantity, optional): phases at which to compute
         the model.  Only applicable if `syn` is False.
+    * `phases_period` (string, optional, default='period'): period to use
+        when converting between `compute_phases` and `compute_times` as well as
+        when applying `mask_phases`.  Only applicable if `syn` is False.  Not applicable for
+        single stars (in which case period is always used).
     * `phases_t0` (string, optional, default='t0_supconj'): t0 to use
         when converting between `compute_phases` and `compute_times`.  Only
         applicable if `syn` is False.  Not applicable for
@@ -587,6 +611,7 @@ def mesh(syn=False, as_ps=True, **kwargs):
 
         params += [FloatArrayParameter(qualifier='compute_times', value=compute_times, required_shape=[None], default_unit=u.d, description='Times to use during run_compute.')]
         params += [FloatArrayParameter(qualifier='compute_phases', component=kwargs.get('component_top', None), value=kwargs.get('compute_phases', []), required_shape=[None], default_unit=u.dimensionless_unscaled, description='Phases associated with compute_times.')]
+        params += [ChoiceParameter(qualifier='phases_period', visible_if='[dataset][context][kind]dperdt:!0.0,hierarchy.is_meshable:False', component=kwargs.get('component_top', None), value=kwargs.get('phases_period', 'period'), choices=['period', 'period_anom'], advanced=True, description='period to use when converting between compute_times and compute_phases as well as when applying mask_phases')]
         params += [ChoiceParameter(qualifier='phases_t0', visible_if='hierarchy.is_meshable:False', component=kwargs.get('component_top', None), value=kwargs.get('phases_t0', 't0_supconj'), choices=['t0_supconj', 't0_perpass', 't0_ref'], advanced=True, description='t0 to use when converting between compute_times and compute_phases as well as when applying mask_phases')]
         constraints += [(constraint.compute_phases, kwargs.get('component_top', None), kwargs.get('dataset', None))]
 

@@ -760,7 +760,7 @@ class Bundle(ParameterSet):
                         existing_values['pblum_mode'] == 'decoupled'
                     else:
                         existing_values['pblum_mode'] = 'component-coupled'
-                        existing_values['pblum_component'] = b.filter(qualifier='pblum_ref', context='dataset', dataset=ds, check_visible=False).exclude(value='self', check_visible=False).get_parameter(check_visible=False).component
+                        existing_values['pblum_component'] = b.filter(qualifier='pblum_ref', context='dataset', dataset=ds, check_visible=False).exclude(value='self', check_visible=False).get_parameter(check_visible=True).component
 
 
                 for qualifier in b.filter(context='dataset', dataset=ds, **_skip_filter_checks).qualifiers:
@@ -798,11 +798,11 @@ class Bundle(ParameterSet):
                 logger.debug("applying existing values to {} dataset: {}".format(ds, existing_values))
                 b.add_dataset(ds_kind, dataset=ds, overwrite=True, **existing_values)
 
-            for component in b.filter(context='component', kind='star', **_skip_filter_checks).components:
+            for component in b.filter(context='component', **_skip_filter_checks).components:
                 existing_values = {p.qualifier: p.get_value() for p in b.filter(context='component', component=component, **_skip_filter_checks).to_list()}
                 logger.warning("migrating '{}' component".format(component))
                 logger.debug("applying existing values to {} component: {}".format(component, existing_values))
-                b.add_component(kind='star', component=component, overwrite=True, **existing_values)
+                b.add_component(kind=b.get_component(component=component, check_visible=False).kind, component=component, overwrite=True, **existing_values)
 
             # make sure constraints all attach
             b.set_hierarchy()
@@ -820,6 +820,13 @@ class Bundle(ParameterSet):
             existing_values_settings = {p.qualifier: p.get_value() for p in b.filter(context='setting').to_list()}
             b.remove_parameters_all(context='setting', **_skip_filter_checks)
             b._attach_params(_setting.settings(**existing_values_settings), context='setting')
+
+            # new mean_anom parameter in orbits and updated descriptions in star parameters
+            for component in b.filter(context='component', **_skip_filter_checks).components:
+                existing_values = {p.qualifier: p.get_value() for p in b.filter(context='component', component=component, **_skip_filter_checks).to_list()}
+                logger.warning("migrating '{}' component".format(component))
+                logger.debug("applying existing values to {} component: {}".format(component, existing_values))
+                b.add_component(kind=b.get_component(component=component, check_visible=False).kind, component=component, overwrite=True, **existing_values)
 
             # update logg constraints (now in solar units due to bug with MPI handling converting solMass to SI)
             for logg_constraint in b.filter(qualifier='logg', context='constraint', **_skip_filter_checks).to_list():
@@ -2972,6 +2979,7 @@ class Bundle(ParameterSet):
 
         hier_stars = hier.get_stars()
         hier_meshables = hier.get_meshables()
+        hier_orbits = hier.get_orbits()
 
         for component in hier_stars:
             kind = hier.get_kind_of(component) # shouldn't this always be 'star'?
@@ -3254,6 +3262,17 @@ class Bundle(ParameterSet):
                                 [self.get_parameter(qualifier='teff', component=component, context='component', **_skip_filter_checks),
                                  self.get_parameter(qualifier='irrad_frac_refl_bol', component=component, context='component', **_skip_filter_checks)],
                                 False, ['system', 'run_compute'])
+
+        # warning if any t0_supconj is more than 10 cycles from t0@system if time dependent
+        if hier.is_time_dependent():
+            t0_system = self.get_value(qualifier='t0', context='system', unit=u.d, **_skip_filter_checks)
+            for param in self.filter(qualifier='t0_supconj', component=hier_orbits, context='component', **_skip_filter_checks).to_list():
+                norbital_cycles = abs(param.get_value(unit=u.d) - t0_system)  / self.get_value(qualifier='period', component=param.component, context='component', unit=u.d, **_skip_filter_checks)
+                if norbital_cycles > 10:
+                    report.add_item(self,
+                                    "{}@{} is ~{} orbital cycles from t0@system, which could cause precision issues for time-dependent systems".format(param.qualifier, param.component, int(norbital_cycles)),
+                                    [param, self.get_parameter(qualifier='t0', context='system', **_skip_filter_checks)],
+                                    False, ['system', 'run_compute'])
 
         # TODO: add other checks
         # - make sure all ETV components are legal
@@ -3915,6 +3934,13 @@ class Bundle(ParameterSet):
                                         addl_parameters,
                                         True, 'run_compute')
 
+                dpdt_non_zero = [p for p in self.filter(qualifier='dpdt', context='component', **_skip_filter_checks).to_list() if p.get_value() != 0]
+                if len(dpdt_non_zero):
+                    report.add_item(self,
+                                    "ellc does not support orbital period time-derivative",
+                                    dpdt_non_zero+addl_parameters,
+                                    False, 'run_compute')
+
             # jktebop-specific checks
             if compute_kind == 'jktebop':
                 requiv_max_limit = self.get_value(qualifier='requiv_max_limit', compute=compute, context='compute', requiv_max_limit=kwargs.get('requiv_max_limit', None), **_skip_filter_checks)
@@ -3930,6 +3956,20 @@ class Bundle(ParameterSet):
                                         self.filter(qualifier=['sma'], component=self.hierarchy.get_parent_of(component), context='component', **_skip_filter_checks).to_list()+
                                         addl_parameters,
                                         True, 'run_compute')
+
+                dperdt_non_zero = [p for p in self.filter(qualifier='dperdt', context='component', **_skip_filter_checks).to_list() if p.get_value() != 0]
+                if len(dperdt_non_zero):
+                    report.add_item(self,
+                                    "jktebop does not support apsidal motion",
+                                    dperdt_non_zero+addl_parameters,
+                                    False, 'run_compute')
+
+                dpdt_non_zero = [p for p in self.filter(qualifier='dpdt', context='component', **_skip_filter_checks).to_list() if p.get_value() != 0]
+                if len(dpdt_non_zero):
+                    report.add_item(self,
+                                    "jktebop does not support orbital period time-derivative",
+                                    dpdt_non_zero+addl_parameters,
+                                    False, 'run_compute')
 
         # dependency checks
         if not _use_celerite and len(self.filter(context='feature', kind='gaussian_process').features):
@@ -5391,7 +5431,7 @@ class Bundle(ParameterSet):
         kwargs.setdefault('kind', 'envelope')
         return self.remove_component(component, **kwargs)
 
-    def get_ephemeris(self, component=None, t0='t0_supconj', **kwargs):
+    def get_ephemeris(self, component=None, period='period', t0='t0_supconj', **kwargs):
         """
         Get the ephemeris of a component (star or orbit).
 
@@ -5403,7 +5443,10 @@ class Bundle(ParameterSet):
         * `component` (str, optional): name of the component.  If not given,
             component will default to the top-most level of the current
             hierarchy.  See <phoebe.parameters.HierarchyParameter.get_top>.
-        * `t0` (str, optional, default='t0_supconj'): qualifier of the parameter
+        * `period` (str or float, optional, default='period'): qualifier of the parameter
+            to be used for t0.  For orbits, can either be 'period' or 'period_sidereal'.
+            For stars, must be 'period'.
+        * `t0` (str or float, optional, default='t0_supconj'): qualifier of the parameter
             to be used for t0.  Must be 't0' for 't0@system' or a valid qualifier
             (eg. 't0_supconj', 't0_perpass', 't0_ref' for binary orbits.)
             For single stars, `t0` will be used if a float or integer, otherwise
@@ -5431,27 +5474,33 @@ class Bundle(ParameterSet):
 
         ret = {}
 
-        ps = self.filter(component=component, context='component')
+        ps = self.filter(component=component, context='component', **_skip_filter_checks)
+
+        if isinstance(period, str):
+            ret['period'] = ps.get_value(qualifier=period, unit=u.d, **_skip_filter_checks)
+        elif isinstance(period, float) or isinstance(period, int):
+            ret['period'] = period
+        else:
+            raise ValueError("period must be a string (qualifier) or float")
 
         if ps.kind in ['orbit']:
-            ret['period'] = ps.get_value(qualifier='period', unit=u.d)
+            # TODO: ability to pass period to grab period_sidereal instead?
             if isinstance(t0, str):
                 if t0 == 't0':
-                    ret['t0'] = self.get_value(qualifier='t0', context='system', unit=u.d)
+                    ret['t0'] = self.get_value(qualifier='t0', context='system', unit=u.d, **_skip_filter_checks)
                 else:
-                    ret['t0'] = ps.get_value(qualifier=t0, unit=u.d)
+                    ret['t0'] = ps.get_value(qualifier=t0, unit=u.d, **_skip_filter_checks)
             elif isinstance(t0, float) or isinstance(t0, int):
                 ret['t0'] = t0
             else:
                 raise ValueError("t0 must be string (qualifier) or float")
             ret['dpdt'] = ps.get_value(qualifier='dpdt', unit=u.d/u.d)
+
         elif ps.kind in ['star']:
-            # TODO: consider renaming period to prot
-            ret['period'] = ps.get_value(qualifier='period', unit=u.d)
             if isinstance(t0, float) or isinstance(t0, int):
                 ret['t0'] = t0
             else:
-                ret['t0'] = self.get_value('t0', context='system', unit=u.d)
+                ret['t0'] = self.get_value('t0', context='system', unit=u.d, **_skip_filter_checks)
         else:
             raise NotImplementedError
 
@@ -5460,11 +5509,21 @@ class Bundle(ParameterSet):
 
         return ret
 
-    def to_phase(self, time, component=None, t0='t0_supconj', **kwargs):
+    def to_phase(self, time, component=None, period='period', t0='t0_supconj', **kwargs):
         """
         Get the phase(s) of a time(s) for a given ephemeris.
 
-        See also: <phoebe.frontend.bundle.Bundle.get_ephemeris>.
+        The definition of time-to-phase used here is:
+        ```
+        if dpdt != 0:
+            phase = np.mod(1./dpdt * np.log(1 + dpdt/period*(time-t0)), 1.0)
+        else:
+            phase = np.mod((time-t0)/period, 1.0)
+        ```
+
+        See also:
+        * <phoebe.frontend.bundle.Bundle.to_time>
+        * <phoebe.frontend.bundle.Bundle.get_ephemeris>.
 
         Arguments
         -----------
@@ -5473,8 +5532,12 @@ class Bundle(ParameterSet):
         * `component` (str, optional): component for which to get the ephemeris.
             If not given, component will default to the top-most level of the
             current hierarchy.  See <phoebe.parameters.HierarchyParameter.get_top>.
-        * `t0` (str, optional, default='t0_supconj'): qualifier of the parameter
-            to be used for t0
+        * `period` (str or float, optional, default='period'): qualifier of the parameter
+            to be used for t0.  For orbits, can either be 'period' or 'period_sidereal'.
+            For stars, must be 'period'.
+        * `t0` (str or float, optional, default='t0_supconj'): qualifier of the parameter
+            to be used for t0 ('t0_supconj', 't0_perpass', 't0_ref'), passed
+            to <phoebe.frontend.bundle.Bundle.get_ephemeris>.
         * `**kwargs`: any value passed through kwargs will override the
             ephemeris retrieved by component (ie period, t0, dpdt).
             Note: be careful about units - input values will not be converted.
@@ -5492,7 +5555,7 @@ class Bundle(ParameterSet):
         if kwargs.get('shift', False):
             raise ValueError("support for phshift was removed as of 2.1.  Please pass t0 instead.")
 
-        ephem = self.get_ephemeris(component=component, t0=t0, **kwargs)
+        ephem = self.get_ephemeris(component=component, period=period, t0=t0, **kwargs)
 
         if isinstance(time, list):
             time = np.array(time)
@@ -5508,8 +5571,9 @@ class Bundle(ParameterSet):
 
         # if changing this, also see parameters.constraint.time_ephem
         # and phoebe.constraints.builtin.times_to_phases
+        # and update docstring above
         if dpdt != 0:
-            phase = np.mod(1./dpdt * np.log(period + dpdt*(time-t0)), 1.0)
+            phase = np.mod(1./dpdt * np.log(1 + dpdt/period*(time-t0)), 1.0)
         else:
             phase = np.mod((time-t0)/period, 1.0)
 
@@ -5528,11 +5592,21 @@ class Bundle(ParameterSet):
         """
         return self.to_phase(*args, **kwargs)
 
-    def to_time(self, phase, component=None, t0='t0_supconj', **kwargs):
+    def to_time(self, phase, component=None, period='period', t0='t0_supconj', **kwargs):
         """
         Get the time(s) of a phase(s) for a given ephemeris.
 
-        See also: <phoebe.frontend.bundle.Bundle.get_ephemeris>.
+        The definition of phase-to-time used here is:
+        ```
+        if dpdt != 0:
+            time = t0 + period/dpdt*(np.exp(dpdt*(phase))-1.0)
+        else:
+            time = t0 + (phase)*period
+        ```
+
+        See also:
+        * <phoebe.frontend.bundle.Bundle.to_phase>
+        * <phoebe.frontend.bundle.Bundle.get_ephemeris>.
 
         Arguments
         -----------
@@ -5541,8 +5615,12 @@ class Bundle(ParameterSet):
         * `component` (str, optional): component for which to get the ephemeris.
             If not given, component will default to the top-most level of the
             current hierarchy.  See <phoebe.parameters.HierarchyParameter.get_top>.
-        * `t0` (str, optional, default='t0_supconj'): qualifier of the parameter
-            to be used for t0
+        * `period` (str or float, optional, default='period'): qualifier of the parameter
+            to be used for t0.  For orbits, can either be 'period' or 'period_sidereal'.
+            For stars, must be 'period'.
+        * `t0` (str or float, optional, default='t0_supconj'): qualifier of the parameter
+            to be used for t0 ('t0_supconj', 't0_perpass', 't0_ref'), passed
+            to <phoebe.frontend.bundle.Bundle.get_ephemeris>.
         * `**kwargs`: any value passed through kwargs will override the
             ephemeris retrieved by component (ie period, t0, dpdt).
             Note: be careful about units - input values will not be converted.
@@ -5560,7 +5638,7 @@ class Bundle(ParameterSet):
         if kwargs.get('shift', False):
             raise ValueError("support for phshift was removed as of 2.1.  Please pass t0 instead.")
 
-        ephem = self.get_ephemeris(component=component, t0=t0, **kwargs)
+        ephem = self.get_ephemeris(component=component, period=period, t0=t0, **kwargs)
 
         if isinstance(phase, list):
             phase = np.array(phase)
@@ -5571,8 +5649,9 @@ class Bundle(ParameterSet):
 
         # if changing this, also see parameters.constraint.time_ephem
         # and phoebe.constraints.builtin.phases_to_times
+        # and update docstring above
         if dpdt != 0:
-            time = t0 + 1./dpdt*(np.exp(dpdt*(phase))-period)
+            time = t0 + period/dpdt*(np.exp(dpdt*(phase))-1.0)
         else:
             time = t0 + (phase)*period
 
@@ -6292,6 +6371,7 @@ class Bundle(ParameterSet):
         * <phoebe.parameters.constraint.asini>
         * <phoebe.parameters.constraint.ecosw>
         * <phoebe.parameters.constraint.esinw>
+        * <phoebe.parameters.constraint.period_anom>
         * <phoebe.parameters.constraint.t0_perpass_supconj>
         * <phoebe.parameters.constraint.t0_ref_supconj>
         * <phoebe.parameters.constraint.mean_anom>
@@ -8339,7 +8419,7 @@ class Bundle(ParameterSet):
 
             kwargs.setdefault('legend', fig_ps.get_value(qualifier='legend', **_skip_filter_checks))
 
-            for q in ['draw_sidebars', 'uncover', 'highlight']:
+            for q in ['draw_sidebars', 'uncover', 'highlight', 'period', 't0']:
                 if q in fig_ps.qualifiers:
                     kwargs.setdefault(q, fig_ps.get_value(qualifier=q, **_skip_filter_checks))
 
@@ -10021,7 +10101,9 @@ class Bundle(ParameterSet):
                 # we now need to handle any computations of ld_coeffs, pblums, l3s, etc
                 # TODO: skip lookups for phoebe, skip non-supported ld_func for photodynam, etc
                 # TODO: have this return a dictionary like pblums/l3s that we can pass on to the backend?
-                ds_kinds_enabled = self.filter(dataset=computeparams.filter(qualifier='enabled', value=True, **_skip_filter_checks).datasets, context='dataset', **_skip_filter_checks).kinds
+
+                # we need to check both for enabled but also passed via dataset kwarg
+                ds_kinds_enabled = self.filter(dataset=computeparams.filter(qualifier='enabled', value=True, **_skip_filter_checks).filter(dataset=dataset).datasets, context='dataset', **_skip_filter_checks).kinds
                 if 'lc' in ds_kinds_enabled or 'rv' in ds_kinds_enabled or 'lp' in ds_kinds_enabled:
                     logger.info("run_compute: computing necessary ld_coeffs, pblums, l3s")
                     self.compute_ld_coeffs(compute=compute, skip_checks=True, set_value=True, **{k:v for k,v in kwargs.items() if k in computeparams.qualifiers})

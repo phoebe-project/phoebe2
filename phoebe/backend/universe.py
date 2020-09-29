@@ -3092,9 +3092,14 @@ class Spot(Feature):
         if len(b.hierarchy.get_stars())>=2:
             star_ps = b.get_component(component=feature_ps.component, **_skip_filter_checks)
             orbit_ps = b.get_component(component=b.hierarchy.get_parent_of(feature_ps.component), **_skip_filter_checks)
-            syncpar = star_ps.get_value(qualifier='syncpar', **_skip_filter_checks)
-            period = orbit_ps.get_value(qualifier='period', **_skip_filter_checks)
-            dlongdt = (syncpar - 1) / period * 2 * np.pi
+            # TODO: how should this handle dpdt?
+
+            # we won't use syncpar directly because that is defined wrt sidereal period and we want to make sure
+            # this translated to roche longitude correctly.  In the non-apsidal motion case
+            # syncpar = period_anom_orb / period_star
+            period_anom_orb = orbit_ps.get_value(qualifier='period_anom', unit=u.d, **_skip_filter_checks)
+            period_star = star_ps.get_value(qualifier='period', unit=u.d, **_skip_filter_checks)
+            dlongdt = 2*pi * (period_anom_orb/period_star - 1) / period_anom_orb
         else:
             star_ps = b.get_component(component=feature_ps.component, **_skip_filter_checks)
             dlongdt = star_ps.get_value(qualifier='freq', unit=u.rad/u.d, **_skip_filter_checks)
