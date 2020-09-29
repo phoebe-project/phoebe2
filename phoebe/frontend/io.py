@@ -1225,7 +1225,7 @@ def par_value(param, index=None, **kwargs):
         elif param.qualifier == 'period':
             # find period_sidereal(t0_ref) (currently is period_sidereal(t0@system))
             b = param._bundle
-            logger.debug("period_sidereal(t0@system): ", val)
+            logger.debug("period_sidereal(t0@system): {}".format(val))
             dpdt = b.get_value(qualifier='dpdt', component=param.component, context='component', unit='d/d', **_skip_filter_checks)
             t0_system = b.get_value(qualifier='t0', context='system', unit='d')
             # NOTE: t0_ref already accounts for BOTH dpdt and dperdt

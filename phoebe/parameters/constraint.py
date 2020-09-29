@@ -2640,7 +2640,16 @@ def compute_phases(b, component, dataset, solve_for=None, **kwargs):
 
 
     else:
-        period_anom = b.get_parameter(qualifier='period_anom', component=component if component!='_default' else b.hierarchy.get_top(), context='component', **_skip_filter_checks)
+        try:
+            period_anom = b.get_parameter(qualifier='period_anom', component=component if component!='_default' else b.hierarchy.get_top(), context='component', **_skip_filter_checks)
+        except ValueError:
+            # we need to handle the backward compatibility case where period_anom does not yet exit (probably calling this DURING migration)
+            if 'period_anom' not in b.qualifiers:
+                logger.warning("compute_phases constraint falling back on period (sidereal)")
+                period_anom = b.get_parameter(qualifier='period', component=component if component!='_default' else b.hierarchy.get_top(), context='component', **_skip_filter_checks)
+            else:
+                raise
+
         phases_period = ds.get_parameter(qualifier='phases_period', component=component, **_skip_filter_checks)
         phases_t0 = ds.get_parameter(qualifier='phases_t0', component=component, **_skip_filter_checks)
         t0_supconj = b.get_parameter(qualifier='t0_supconj', component=component if component!='_default' else b.hierarchy.get_top(), context='component', **_skip_filter_checks)

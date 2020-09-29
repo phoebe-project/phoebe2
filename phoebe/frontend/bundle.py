@@ -760,7 +760,7 @@ class Bundle(ParameterSet):
                         existing_values['pblum_mode'] == 'decoupled'
                     else:
                         existing_values['pblum_mode'] = 'component-coupled'
-                        existing_values['pblum_component'] = b.filter(qualifier='pblum_ref', context='dataset', dataset=ds, check_visible=False).exclude(value='self', check_visible=False).get_parameter(check_visible=False).component
+                        existing_values['pblum_component'] = b.filter(qualifier='pblum_ref', context='dataset', dataset=ds, check_visible=False).exclude(value='self', check_visible=False).get_parameter(check_visible=True).component
 
 
                 for qualifier in b.filter(context='dataset', dataset=ds, **_skip_filter_checks).qualifiers:
@@ -798,11 +798,11 @@ class Bundle(ParameterSet):
                 logger.debug("applying existing values to {} dataset: {}".format(ds, existing_values))
                 b.add_dataset(ds_kind, dataset=ds, overwrite=True, **existing_values)
 
-            for component in b.filter(context='component', kind='star', **_skip_filter_checks).components:
+            for component in b.filter(context='component', **_skip_filter_checks).components:
                 existing_values = {p.qualifier: p.get_value() for p in b.filter(context='component', component=component, **_skip_filter_checks).to_list()}
                 logger.warning("migrating '{}' component".format(component))
                 logger.debug("applying existing values to {} component: {}".format(component, existing_values))
-                b.add_component(kind='star', component=component, overwrite=True, **existing_values)
+                b.add_component(kind=b.get_component(component=component, check_visible=False).kind, component=component, overwrite=True, **existing_values)
 
             # make sure constraints all attach
             b.set_hierarchy()
@@ -820,6 +820,13 @@ class Bundle(ParameterSet):
             existing_values_settings = {p.qualifier: p.get_value() for p in b.filter(context='setting').to_list()}
             b.remove_parameters_all(context='setting', **_skip_filter_checks)
             b._attach_params(_setting.settings(**existing_values_settings), context='setting')
+
+            # new mean_anom parameter in orbits and updated descriptions in star parameters
+            for component in b.filter(context='component', **_skip_filter_checks).components:
+                existing_values = {p.qualifier: p.get_value() for p in b.filter(context='component', component=component, **_skip_filter_checks).to_list()}
+                logger.warning("migrating '{}' component".format(component))
+                logger.debug("applying existing values to {} component: {}".format(component, existing_values))
+                b.add_component(kind=b.get_component(component=component, check_visible=False).kind, component=component, overwrite=True, **existing_values)
 
             # update logg constraints (now in solar units due to bug with MPI handling converting solMass to SI)
             for logg_constraint in b.filter(qualifier='logg', context='constraint', **_skip_filter_checks).to_list():

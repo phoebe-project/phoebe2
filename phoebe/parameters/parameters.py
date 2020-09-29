@@ -10752,7 +10752,8 @@ class HierarchyParameter(StringParameter):
         ---------
         * (bool): whether the system is time-dependent
         """
-        for orbit in self.get_orbits():
+        orbits = self.get_orbits()
+        for orbit in orbits:
             if self._bundle.get_value(qualifier='dpdt', component=orbit, context='component') != 0:
                 return True
             if self._bundle.get_value(qualifier='dperdt', component=orbit, context='component') != 0:
@@ -10760,10 +10761,11 @@ class HierarchyParameter(StringParameter):
             # if conf.devel and self._bundle.get_value(qualifier='deccdt', component=orbit, context='component') != 0:
             #     return True
 
-        for component in self.get_stars():
-            if self._bundle.get_value('syncpar', component=component, context='component') != 1 and len(self._bundle.filter(context='feature', component=component)):
-                # spots on asynchronous stars
-                return True
+        if len(orbits):
+            for component in self.get_stars():
+                if self._bundle.get_value(qualifier='syncpar', component=component, context='component') != 1 and len(self._bundle.filter(context='feature', component=component)):
+                    # spots on asynchronous stars
+                    return True
 
         # TODO: allow passing compute to do only enabled features attached to enabled datasets?
         if consider_gaussian_process and len(self._bundle.filter(kind='gaussian_process', context='feature', **_skip_filter_checks).features):
