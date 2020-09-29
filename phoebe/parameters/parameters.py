@@ -198,6 +198,7 @@ _forbidden_labels += ['phoebe_version', 'dict_filter',
 # from component
 _forbidden_labels += ['requiv', 'requiv_max', 'requiv_min', 'teff', 'abun', 'logg',
                       'fillout_factor', 'pot_min', 'pot_max',
+                      'period_anom',
                       'syncpar', 'period', 'pitch', 'yaw', 'incl', 'long_an',
                       'gravb_bol', 'irrad_frac_refl_bol', 'irrad_frac_lost_bol',
                       'ld_mode_bol', 'ld_func_bol',
@@ -211,7 +212,7 @@ _forbidden_labels += ['requiv', 'requiv_max', 'requiv_min', 'teff', 'abun', 'log
 # from dataset:
 _forbidden_labels += ['times', 'fluxes', 'sigmas', 'sigmas_lnf',
                      'compute_times', 'compute_phases', 'compute_phases_t0',
-                     'phases_t0', 'mask_enabled', 'mask_phases',
+                     'phases_period', 'phases_t0', 'mask_enabled', 'mask_phases',
                      'solver_times', 'expose_samples', 'expose_failed',
                      'ld_mode', 'ld_func', 'ld_coeffs', 'ld_coeffs_source',
                      'passband', 'intens_weighting',
