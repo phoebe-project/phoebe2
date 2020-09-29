@@ -198,6 +198,7 @@ _forbidden_labels += ['phoebe_version', 'dict_filter',
 # from component
 _forbidden_labels += ['requiv', 'requiv_max', 'requiv_min', 'teff', 'abun', 'logg',
                       'fillout_factor', 'pot_min', 'pot_max',
+                      'period_anom',
                       'syncpar', 'period', 'pitch', 'yaw', 'incl', 'long_an',
                       'gravb_bol', 'irrad_frac_refl_bol', 'irrad_frac_lost_bol',
                       'ld_mode_bol', 'ld_func_bol',
@@ -211,7 +212,7 @@ _forbidden_labels += ['requiv', 'requiv_max', 'requiv_min', 'teff', 'abun', 'log
 # from dataset:
 _forbidden_labels += ['times', 'fluxes', 'sigmas', 'sigmas_lnf',
                      'compute_times', 'compute_phases', 'compute_phases_t0',
-                     'phases_t0', 'mask_enabled', 'mask_phases',
+                     'phases_period', 'phases_dpdt', 'phases_t0', 'mask_enabled', 'mask_phases',
                      'solver_times', 'expose_samples', 'expose_failed',
                      'ld_mode', 'ld_func', 'ld_coeffs', 'ld_coeffs_source',
                      'passband', 'intens_weighting',
@@ -3578,9 +3579,11 @@ class ParameterSet(object):
         mask_enabled = dataset_ps.get_value(qualifier='mask_enabled', default=False, mask_enabled=mask_enabled, **_skip_filter_checks)
         if mask_enabled:
             mask_phases = dataset_ps.get_value(qualifier='mask_phases', mask_phases=mask_phases, **_skip_filter_checks)
-            mask_t0 = dataset_ps.get_value(qualifier='phases_t0', unit=u.d, **_skip_filter_checks)
+            mask_period = dataset_ps.get_value(qualifier='phases_period', **_skip_filter_checks)
+            mask_dpdt = dataset_ps.get_value(qualifier='phases_dpdt', **_skip_filter_checks)
+            mask_t0 = dataset_ps.get_value(qualifier='phases_t0', **_skip_filter_checks)
             if len(mask_phases):
-                phases = self._bundle.to_phase(times, t0=mask_t0)
+                phases = self._bundle.to_phase(times, period=mask_period, dpdt=mask_dpdt, t0=mask_t0)
 
                 inds = phase_mask_inds(phases, mask_phases)
 
@@ -3706,10 +3709,12 @@ class ParameterSet(object):
                 mask_enabled = ds_ps.get_value(qualifier='mask_enabled', default=False, mask_enabled=mask_enabled, **_skip_filter_checks)
                 if mask_enabled:
                     mask_phases = ds_ps.get_value(qualifier='mask_phases', mask_phases=mask_phases, **_skip_filter_checks)
-                    mask_t0 = ds_ps.get_value(qualifier='phases_t0', unit=u.d, **_skip_filter_checks)
+                    mask_period = ds_ps.get_value(qualifier='phases_period', **_skip_filter_checks)
+                    mask_dpdt = ds_ps.get_value(qualifier='phases_dpdt', **_skip_filter_checks)
+                    mask_t0 = ds_ps.get_value(qualifier='phases_t0', **_skip_filter_checks)
                     if len(mask_phases):
                         times = ds_ps.get_value(qualifier='times', component=ds_comp, unit=u.d, **_skip_filter_checks)
-                        phases = self._bundle.to_phase(times, t0=mask_t0)
+                        phases = self._bundle.to_phase(times, period=mask_period, dpdt=mask_dpdt, t0=mask_t0)
 
                         inds = phase_mask_inds(phases, mask_phases)
 
@@ -3823,7 +3828,7 @@ class ParameterSet(object):
 
         # print("*** kwargs['context'] (after defaults)", kwargs.get('context'))
         # print("*** before filter self.contexts", self.contexts)
-
+        # print("*** kwargs", kwargs)
         filter_kwargs = {}
         for k in list(self.get_meta(ignore=['uniqueid', 'uniquetwig', 'twig']).keys())+['twig']:
             if k in ['time']:
@@ -3831,9 +3836,15 @@ class ParameterSet(object):
                 continue
             filter_kwargs[k] = kwargs.pop(k, None)
 
+        # any items that we remove from filter_kwargs need to be replaced in kwargs
+        for k,v in filter_kwargs.items():
+            if not (filter_kwargs.get('context', []) is None or k not in filter_kwargs.get('context', [])):
+                kwargs[k] = filter_kwargs[k]
+                filter_kwargs[k] = None
+
         # print("*** filter_kwargs", filter_kwargs)
         # print("*** applying filter", {k:v for k,v in filter_kwargs.items() if (filter_kwargs.get('context', []) is None or k not in filter_kwargs.get('context', []))})
-        ps = self.filter(check_visible=False, **{k:v for k,v in filter_kwargs.items() if (filter_kwargs.get('context', []) is None or k not in filter_kwargs.get('context', []))}).exclude(qualifier=['compute_times', 'compute_phases', 'compute_phases_t0', 'phases_t0', 'mask_phases'], check_visible=False)
+        ps = self.filter(check_visible=False, **filter_kwargs).exclude(qualifier=['compute_times', 'compute_phases', 'compute_phases_t0', 'phases_t0', 'mask_phases'], check_visible=False)
 
         if 'time' in kwargs.keys() and ps.kind in ['mesh', 'lp']:
             ps = ps.filter(time=kwargs.get('time'), check_visible=False)
@@ -3886,9 +3897,15 @@ class ParameterSet(object):
                 return_ += this_return
             return _handle_additional_calls(ps, return_)
 
-        elif ps.context in ['dataset', 'model'] and len(ps.datasets)>1 and ps.kind not in ['mesh']:
-            for dataset in ps.filter(dataset=filter_kwargs.get('dataset', None), **_skip_filter_checks).datasets:
+        elif ps.context in ['dataset', 'model'] and len(ps.datasets)>1 and not (ps.context=='dataset' and ps.kind in ['mesh', 'orb']):
+            # print("*** entering dataset loop, filter_kwargs['dataset'], kwargs['dataset']".format(filter_kwargs.get('dataset', None), kwargs.get('dataset', None)))
+            for dataset in ps.filter(dataset=kwargs.get('dataset', filter_kwargs.get('dataset', None)), **_skip_filter_checks).datasets:
                 # print("*** dataset loop, context={}, dataset={}".format(ps.context, dataset))
+                # print("*** dataset loop filter_kwargs['model']={}, kwargs['model']={}".format(filter_kwargs.get('model', None), kwargs.get('model', None)))
+                if dataset not in ps.filter(model=kwargs.get('model', filter_kwargs.get('model', None)), **_skip_filter_checks).datasets:
+                    # in cases where a dataset is disabled for a certain model, we shouldn't
+                    # try to plot the observations when model was provided
+                    continue
                 this_return = ps.filter(check_visible=False, dataset=dataset)._unpack_plotting_kwargs(animate=animate, **kwargs)
                 return_ += this_return
             return _handle_additional_calls(ps, return_)
@@ -3906,8 +3923,9 @@ class ParameterSet(object):
                 return_ += this_return
             return _handle_additional_calls(ps, return_)
 
-        if len(ps.models) > 1:
-            for model in ps.models:
+        if len(ps.models) > 1: # and ps.context=='model'
+            # we'll filter by filter_kwargs again in case it wasn't filtered above for being in default_contexts
+            for model in ps.filter(model=filter_kwargs.get('model', None)).models:
                 # TODO: change linestyle for models instead of color?
                 this_return = ps.filter(check_visible=False, model=model)._unpack_plotting_kwargs(animate=animate, **kwargs)
                 return_ += this_return
@@ -3923,7 +3941,7 @@ class ParameterSet(object):
         if len(ps.components) > 1 and ps.context in ['model', 'dataset'] and ps.kind not in ['lc']:
             # lc has per-component passband-dependent parameters in the dataset which are not plottable
             return_ = []
-            for component in ps.components:
+            for component in ps.filter(component=filter_kwargs.get('component', None)).exclude(qualifier=['*_phases', 'phases_*']).components:
                 this_return = ps.filter(check_visible=False, component=component)._unpack_plotting_kwargs(animate=animate, **kwargs)
                 return_ += this_return
             return _handle_additional_calls(ps, return_)
@@ -4030,10 +4048,12 @@ class ParameterSet(object):
             if not len(mask_phases):
                 return array
 
+            mask_period = ps_ds.get_value(qualifier='phases_period', phases_period=kwargs.get('phases_period', None), **_skip_filter_checks)
+            mask_dpdt = ps_ds.get_value(qualifier='phases_dpdt', phases_dpdt=kwargs.get('phases_dpdt', None), **_skip_filter_checks)
             mask_t0 = ps_ds.get_value(qualifier='phases_t0', phases_t0=kwargs.get('phases_t0', None), **_skip_filter_checks)
 
             times = ps.get_value(qualifier='times', unit=u.d, **_skip_filter_checks)
-            phases = ps._bundle.to_phase(times, t0=mask_t0)
+            phases = ps._bundle.to_phase(times, period=mask_period, dpdt=mask_dpdt, t0=mask_t0)
 
             return array[phase_mask_inds(phases, mask_phases)]
 
@@ -4191,7 +4211,7 @@ class ParameterSet(object):
                         times = ps.get_value(qualifier='times', unit=u.d, **_skip_filter_checks)
                         times = _handle_mask(ps, times, **kwargs)
 
-                    kwargs[direction] = self._bundle.to_phase(times, component=component_phase, t0=kwargs.get('t0', 't0_supconj')) * u.dimensionless_unscaled
+                    kwargs[direction] = self._bundle.to_phase(times, component=component_phase, period=kwargs.get('period', 'period'), t0=kwargs.get('t0', 't0_supconj'), dpdt=kwargs.get('dpdt', 'dpdt')) * u.dimensionless_unscaled
 
                     kwargs.setdefault('{}label'.format(direction), 'phase:{}'.format(component_phase) if component_phase is not None else 'phase')
 
@@ -4238,6 +4258,7 @@ class ParameterSet(object):
                             sample_x = self._bundle.get_quantity(qualifier='times', model=ps.model, component=ps.component, dataset=ps.dataset, context='model', **_skip_filter_checks)
                         elif kwargs.get('xqualifier', 'times') in ['phase', 'phases']:
                             sample_times = self._bundle.get_value(qualifier='times', model=ps.model, component=ps.component, dataset=ps.dataset, context='model', unit=u.d, **_skip_filter_checks)
+                            # TODO: should this to_phase take t0/period?
                             sample_x = self._bundle.to_phase(sample_times) * u.dimensionless_unscaled
                         else:
                             raise NotImplementedError("cannot plot residuals from the sampled model with x='{}'".format(kwargs.get('xqualifier')))
@@ -4894,6 +4915,7 @@ class ParameterSet(object):
                 elif isinstance(iqualifier, str) and iqualifier.split(':')[0] == 'phases':
                     # TODO: need to test this
                     component = iqualifier.split(':')[1] if len(iqualifier.split(':')) > 1 else None
+                    # TODO: take t0 and period strings
                     kwargs['i'] = self._bundle.to_phase(float(ps.time), component=component)
                     kwargs['iqualifier'] = iqualifier
                 else:
@@ -4917,6 +4939,7 @@ class ParameterSet(object):
                     # TODO: need to test this
                     icomponent = iqualifier.split(':')[1] if len(iqualifier.split(':')) > 1 else None
                     times = _handle_mask(ps, ps.get_quantity(qualifier='times', **_skip_filter_checks), **kwargs)
+                    # TODO: take period and t0 strings
                     kwargs['i'] = self._bundle.to_phase(times, component=icomponent)
                     kwargs['iqualifier'] = iqualifier
                 else:
@@ -5051,11 +5074,24 @@ class ParameterSet(object):
             then the animation will cycle over the tagged times of the model
             datasets (i.e. if mesh or lp datasets exist), or the computed
             times otherwise.
+        * `period` (string/float, optional): qualifier/twig or float of the period that
+            should be used for phasing, if applicable.  If provided as a string,
+            `b.get_value(period)` needs to provide a valid float.  This is used
+            if `phase`/`phases` provided instead of `time`/`times` as well as
+            if 'phases' is set as any direction (`x`, `y`, `z`, etc).
+            Passed directly to <phoebe.frontend.bundle.Bundle.to_phase>.
+        * `dpdt` (string/float, optional): qualifier/twig or float of the dpdt that
+            should be used for phasing, if applicable.  If provided as a string,
+            `b.get_value(dpdt)` needs to provide a valid float.  This is used
+            if `phase`/`phases` provided instead of `time`/`times` as well as
+            if 'phases' is set as any direction (`x`, `y`, `z`, etc).
+            Passed directly to <phoebe.frontend.bundle.Bundle.to_phase>.
         * `t0` (string/float, optional): qualifier/twig or float of the t0 that
             should be used for phasing, if applicable.  If provided as a string,
             `b.get_value(t0)` needs to provide a valid float.  This is used
             if `phase`/`phases` provided instead of `time`/`times` as well as
             if 'phases' is set as any direction (`x`, `y`, `z`, etc).
+            Passed directly to <phoebe.frontend.bundle.Bundle.to_phase>.
         * `phase` (float, optional): phase to use for plotting/animating.  This
             will convert to `time` using the current ephemeris via
             <phoebe.frontend.bundle.Bundle.to_time> along with the passed value
@@ -5298,19 +5334,21 @@ class ParameterSet(object):
             if 'time' in kwargs.keys():
                 raise ValueError("cannot pass both time and phase")
 
+            period = kwargs.get('period', 'period')
+            dpdt = kwargs.get('dpdt', 'dpdt')
             t0 = kwargs.get('t0', 't0_supconj')
-            logger.info("converting from phase to time with t0={}".format(t0))
-            kwargs['time'] = self._bundle.to_time(kwargs.pop('phase'), t0=t0)
+            logger.info("converting from phase to time with period={}, dpdt={}, t0={}".format(period, dpdt, t0))
+            kwargs['time'] = self._bundle.to_time(kwargs.pop('phase'), period=period, dpdt=dpdt, t0=t0)
 
         if 'phases' in kwargs.keys():
             if 'times' in kwargs.keys():
                 raise ValueError("cannot pass both times and phases")
 
+            period = kwargs.get('period', 'period')
+            dpdt = kwargs.get('dpdt', 'dpdt')
             t0 = kwargs.get('t0', 't0_supconj')
-            logger.info("converting from phases to times with t0={}".format(t0))
-            kwargs['times'] = self._bundle.to_time(kwargs.pop('phases'), t0=t0)
-
-
+            logger.info("converting from phases to times with period={}, dpdt={}, t0={}".format(period, dpdt, t0))
+            kwargs['times'] = self._bundle.to_time(kwargs.pop('phases'), period=period, dpdt=dpdt, t0=t0)
 
         if 'times' in kwargs.keys() and not animate:
             if kwargs.get('time', None) is not None:
@@ -6633,12 +6671,62 @@ class Parameter(object):
 
         See also:
         * <phoebe.parameters.Parameter.is_visible>
+        * <phoebe.parameters.Parameter.visible_if_parameters>
 
         Returns
         --------
         * (str): the `visible_if` expression for this Parameter
         """
         return self._visible_if
+
+    @property
+    def visible_if_parameters(self):
+        """
+        Return the parameters affecting the visibility of this <phoebe.parameters.Parameter>.
+
+        See also:
+        * <phoebe.parameters.Parameter.visible_if>
+        * <phoebe.parameters.Parameters.is_visible>
+
+        Returns
+        ----------
+        * <phoebe.parameters.ParameterSet>
+        """
+        parameter_uids = []
+
+        for visible_if in self.visible_if.replace(',','||').split('||'):
+            if visible_if.lower() == 'false':
+                continue
+
+            # otherwise we need to find the parameter we're referencing and check its value
+            remove_metawargs = []
+            while visible_if[0] == '[':
+                remove_metawargs.append(visible_if[1:].split(']')[0])
+                visible_if = ']'.join(visible_if[1:].split(']')[1:])
+
+            qualifier, value = visible_if.split(':')
+
+            if 'hierarchy.' in qualifier:
+                # TODO: set specific syntax (hierarchy.get_meshables:2)
+                # then this needs to do some logic on the hierarchy
+                parameter_uids += [self._bundle.hierarchy.uniqueid]
+
+            else:
+                # the parameter needs to have all the same meta data except qualifier
+                # TODO: switch this to use self.get_parent_ps ?
+                metawargs = {k:v for k,v in self.get_meta(ignore=['twig', 'uniquetwig', 'uniqueid']+remove_metawargs).items() if v is not None}
+                metawargs['qualifier'] = qualifier
+
+                # this call is quite expensive and bloats every get_parameter(check_visible=True)
+                param = self._bundle.get_parameter(check_visible=False,
+                                                   check_default=False,
+                                                   check_advanced=False,
+                                                   check_single=False,
+                                                   **metawargs)
+
+                parameter_uids += [param.uniqueid]
+
+        return self._bundle.filter(uniqueid=parameter_uids, **_skip_filter_checks)
 
     @property
     def is_visible(self, visible_if=None):
@@ -6652,6 +6740,7 @@ class Parameter(object):
 
         See also:
         * <phoebe.parameters.Parameter.visible_if>
+        * <phoebe.parameters.Parameter.visible_if_parameters>
 
         Returns
         --------
@@ -6692,11 +6781,10 @@ class Parameter(object):
                 return False
 
             # otherwise we need to find the parameter we're referencing and check its value
-            if visible_if[0]=='[':
-                remove_metawargs, visible_if = visible_if[1:].split(']')
-                remove_metawargs = remove_metawargs.split(',')
-            else:
-                remove_metawargs = []
+            remove_metawargs = []
+            while visible_if[0] == '[':
+                remove_metawargs.append(visible_if[1:].split(']')[0])
+                visible_if = ']'.join(visible_if[1:].split(']')[1:])
 
             qualifier, value = visible_if.split(':')
 
@@ -6754,7 +6842,12 @@ class Parameter(object):
 
 
                 if isinstance(value, str) and value[0] in ['!', '~']:
-                    return param.get_value() != value[1:]
+                    pvalue = param.get_value()
+                    if isinstance(pvalue, float):
+                        return pvalue != float(value[1:])
+                    elif isinstance(pvalue, int):
+                        return pvalue != int(float(value[1:]))
+                    return pvalue != value[1:]
                 elif isinstance(value, str) and "|" in value:
                     return param.get_value() in value.split("|")
                 elif value=='<notempty>':
@@ -9401,7 +9494,8 @@ class FloatArrayParameter(FloatParameter):
         np.set_printoptions(**opt)
         return str_
 
-    def interp_value(self, unit=None, component=None, t0='t0_supconj',
+    def interp_value(self, unit=None, component=None,
+                     period='period', dpdt='dpdt', t0='t0_supconj',
                      consider_gaussian_process=True, **kwargs):
         """
         Interpolate to find the value in THIS array given a value from
@@ -9459,6 +9553,12 @@ class FloatArrayParameter(FloatParameter):
             `**kwargs` below).
         * `component` (string, optional, default=None): if interpolating in phases,
             `component` will be passed along to
+            <phoebe.frontend.bundle.Bundle.to_phase>.
+        * `period` (string/float, optional, default='period'): if interpolating
+            in phases, `period` will be passed along to
+            <phoebe.frontend.bundle.Bundle.to_phase>.
+        * `dpdt` (string/float, optional, default='dpdt'): if interpolating in
+            phases, `dpdt` will be passed along to
             <phoebe.frontend.bundle.Bundle.to_phase>.
         * `t0` (string/float, optional, default='t0_supconj'): if interpolating
             in phases, `t0` will be passed along to
@@ -9523,7 +9623,7 @@ class FloatArrayParameter(FloatParameter):
             if np.any(qualifier_interp_value < times.min()) or np.any(qualifier_interp_value > times.max()):
                 qualifier_interp_value_time = qualifier_interp_value
                 qualifier = 'phases'
-                qualifier_interp_value = bundle.to_phase(qualifier_interp_value_time, component=component, t0=t0)
+                qualifier_interp_value = bundle.to_phase(qualifier_interp_value_time, component=component, period=period, dpdt=dpdt, t0=t0)
 
                 qualifier_interp_value_time_str = "({} -> {})".format(min(qualifier_interp_value_time), max(qualifier_interp_value_time)) if hasattr(qualifier_interp_value_time, '__iter__') else qualifier_interp_value_time
                 qualifier_interp_value_str = "({} -> {})".format(min(qualifier_interp_value), max(qualifier_interp_value)) if hasattr(qualifier_interp_value, '__iter__') else qualifier_interp_value
@@ -9550,7 +9650,7 @@ class FloatArrayParameter(FloatParameter):
                 raise ValueError("cannot interpolate in phase for time-dependent systems")
 
             times = parent_ps.get_value(qualifier='times', **_skip_filter_checks)
-            phases = bundle.to_phase(times, component=component, t0=t0)
+            phases = bundle.to_phase(times, component=component, period=period, dpdt=dpdt, t0=t0)
 
             sort = phases.argsort()
 
@@ -9601,6 +9701,9 @@ class FloatArrayParameter(FloatParameter):
             `**kwargs` below).
         * `component` (string, optional): if interpolating in phases, `component`
             will be passed along to <phoebe.frontend.bundle.Bundle.to_phase>.
+        * `period` (string/float, optional, default='period'): if interpolating
+            in phases, `period` will be passed along to
+            <phoebe.frontend.bundle.Bundle.to_phase>.
         * `t0` (string/float, optional): if interpolating in phases, `t0` will
             be passed along to <phoebe.frontend.bundle.Bundle.to_phase>.
         * `**kwargs`: see examples above, must provide a single
@@ -10659,6 +10762,9 @@ class HierarchyParameter(StringParameter):
         * a gaussian_process feature is attached to any dataset, unless
             `consider_gaussian_process` is False.
 
+        To access the HierarchyParameter from the Bundle, see
+         <phoebe.frontend.bundle.Bundle.get_hierarchy>.
+
         Arguments
         ---------
         * `consider_gaussian_process` (bool, optional, defult=True): whether
@@ -10668,7 +10774,8 @@ class HierarchyParameter(StringParameter):
         ---------
         * (bool): whether the system is time-dependent
         """
-        for orbit in self.get_orbits():
+        orbits = self.get_orbits()
+        for orbit in orbits:
             if self._bundle.get_value(qualifier='dpdt', component=orbit, context='component') != 0:
                 return True
             if self._bundle.get_value(qualifier='dperdt', component=orbit, context='component') != 0:
@@ -10676,10 +10783,11 @@ class HierarchyParameter(StringParameter):
             # if conf.devel and self._bundle.get_value(qualifier='deccdt', component=orbit, context='component') != 0:
             #     return True
 
-        for component in self.get_stars():
-            if self._bundle.get_value('syncpar', component=component, context='component') != 1 and len(self._bundle.filter(context='feature', component=component)):
-                # spots on asynchronous stars
-                return True
+        if len(orbits):
+            for component in self.get_stars():
+                if self._bundle.get_value(qualifier='syncpar', component=component, context='component') != 1 and len(self._bundle.filter(context='feature', component=component)):
+                    # spots on asynchronous stars
+                    return True
 
         # TODO: allow passing compute to do only enabled features attached to enabled datasets?
         if consider_gaussian_process and len(self._bundle.filter(kind='gaussian_process', context='feature', **_skip_filter_checks).features):

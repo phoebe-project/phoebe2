@@ -2,7 +2,7 @@
 {
 "qualifier": "t0",
 "context": "system",
-"description": "Time at which all values are provided",
+"description": "Time at which all values are provided.  For values with time-derivatives, this defines their zero-point.",
 "value": 0.0,
 "default_unit": "d",
 "limits": [
@@ -241,7 +241,7 @@ null
 "component": "primary",
 "kind": "star",
 "context": "component",
-"description": "Rotation period",
+"description": "Rotation period (wrt the sky)",
 "value": 1.0,
 "default_unit": "d",
 "limits": [
@@ -258,7 +258,7 @@ null
 "component": "primary",
 "kind": "star",
 "context": "component",
-"description": "Rotation frequency",
+"description": "Rotation frequency (wrt the sky)",
 "value": 6.283185,
 "default_unit": "rad / d",
 "limits": [
@@ -424,8 +424,8 @@ null
 "description": "Source for bolometric limb darkening coefficients (used only for irradiation; 'auto' to interpolate from the applicable table according to the 'atm' parameter, or the name of a specific atmosphere table)",
 "choices": [
 "auto",
-"ck2004",
-"phoenix"
+"phoenix",
+"ck2004"
 ],
 "value": "auto",
 "visible_if": "ld_mode_bol:lookup",
@@ -586,7 +586,7 @@ null
 "component": "secondary",
 "kind": "star",
 "context": "component",
-"description": "Rotation period",
+"description": "Rotation period (wrt the sky)",
 "value": 1.0,
 "default_unit": "d",
 "limits": [
@@ -603,7 +603,7 @@ null
 "component": "secondary",
 "kind": "star",
 "context": "component",
-"description": "Rotation frequency",
+"description": "Rotation frequency (wrt the sky)",
 "value": 6.283185,
 "default_unit": "rad / d",
 "limits": [
@@ -769,8 +769,8 @@ null
 "description": "Source for bolometric limb darkening coefficients (used only for irradiation; 'auto' to interpolate from the applicable table according to the 'atm' parameter, or the name of a specific atmosphere table)",
 "choices": [
 "auto",
-"ck2004",
-"phoenix"
+"phoenix",
+"ck2004"
 ],
 "value": "auto",
 "visible_if": "ld_mode_bol:lookup",
@@ -817,7 +817,7 @@ null
 "component": "binary",
 "kind": "orbit",
 "context": "component",
-"description": "Orbital period",
+"description": "Orbital period (defined at t0@system, sidereal: wrt the sky)",
 "value": 1.0,
 "default_unit": "d",
 "limits": [
@@ -829,11 +829,28 @@ null
 "Class": "FloatParameter"
 },
 {
+"qualifier": "period_anom",
+"component": "binary",
+"kind": "orbit",
+"context": "component",
+"description": "Anomalistic orbital period (defined at t0@system, anomalistic: time between two successive periastron passages)",
+"value": 1.0,
+"default_unit": "d",
+"limits": [
+null,
+null
+],
+"visible_if": "dperdt:!0.0",
+"copy_for": false,
+"latexfmt": "P_\\mathrm{{anom, {component} }}",
+"Class": "FloatParameter"
+},
+{
 "qualifier": "freq",
 "component": "binary",
 "kind": "orbit",
 "context": "component",
-"description": "Orbital frequency",
+"description": "Orbital frequency (sidereal)",
 "value": 6.283185,
 "default_unit": "rad / d",
 "limits": [
@@ -850,7 +867,7 @@ null
 "component": "binary",
 "kind": "orbit",
 "context": "component",
-"description": "Time derivative of orbital period",
+"description": "Time derivative of orbital period (anomalistic), where period is defined at t0@system",
 "value": 0.0,
 "default_unit": "s / yr",
 "limits": [
@@ -867,7 +884,7 @@ null
 "component": "binary",
 "kind": "orbit",
 "context": "component",
-"description": "Argument of periastron",
+"description": "Argument of periastron (defined at time t0@system)",
 "value": 0.0,
 "default_unit": "deg",
 "limits": [
@@ -883,7 +900,7 @@ null
 "component": "binary",
 "kind": "orbit",
 "context": "component",
-"description": "Periastron change",
+"description": "Time derivative of argument of periastron, where per0 is defined at t0@system",
 "value": 0.0,
 "default_unit": "deg / yr",
 "limits": [
@@ -1012,7 +1029,7 @@ null
 "component": "binary",
 "kind": "orbit",
 "context": "component",
-"description": "Semi major axis of the orbit",
+"description": "Semi-major axis of the orbit (defined at time t0@system)",
 "value": 5.3,
 "default_unit": "solRad",
 "limits": [
@@ -1305,6 +1322,22 @@ null
 "value": "t0_supconj_to_ref({t0_supconj@binary@component}, {period@binary@component}, {ecc@binary@component}, {per0@binary@component}, {dpdt@binary@component}, {dperdt@binary@component}, {t0@system})",
 "default_unit": "d",
 "constraint_func": "t0_ref_supconj",
+"constraint_kwargs": {
+"orbit": "binary"
+},
+"constraint_addl_vars": [],
+"in_solar_units": true,
+"Class": "ConstraintParameter"
+},
+{
+"qualifier": "period_anom",
+"component": "binary",
+"kind": "orbit",
+"context": "constraint",
+"description": "expression that determines the constraint",
+"value": "{period@binary@component} / ((((-1.000000 * {period@binary@component}) * {dperdt@binary@component}) / 6.283185307179586231995926937088) + 1.000000000000000000000000000000)",
+"default_unit": "d",
+"constraint_func": "period_anom",
 "constraint_kwargs": {
 "orbit": "binary"
 },
@@ -1894,10 +1927,10 @@ null
 "context": "compute",
 "description": "Atmosphere table",
 "choices": [
-"extern_planckint",
-"blackbody",
-"phoenix",
 "ck2004",
+"blackbody",
+"extern_planckint",
+"phoenix",
 "extern_atmx"
 ],
 "value": "ck2004",
@@ -2099,10 +2132,10 @@ null
 "context": "compute",
 "description": "Atmosphere table",
 "choices": [
-"extern_planckint",
-"blackbody",
-"phoenix",
 "ck2004",
+"blackbody",
+"extern_planckint",
+"phoenix",
 "extern_atmx"
 ],
 "value": "ck2004",
@@ -2117,10 +2150,10 @@ null
 "context": "compute",
 "description": "Atmosphere table",
 "choices": [
-"extern_planckint",
-"blackbody",
-"phoenix",
 "ck2004",
+"blackbody",
+"extern_planckint",
+"phoenix",
 "extern_atmx"
 ],
 "value": "ck2004",

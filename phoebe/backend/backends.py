@@ -171,7 +171,8 @@ def _extract_from_bundle(b, compute, dataset=None, times=None,
     the backend returns the filled synthetics.
 
     :parameter b: the :class:`phoebe.frontend.bundle.Bundle`
-    :return: times (list of floats), infos (list of lists of dictionaries),
+    :return: times (list of floats or dictionary of lists of floats),
+        infos (list of lists of dictionaries),
         new_syns (ParameterSet containing all new parameters)
     :raises NotImplementedError: if for some reason there is a problem getting
         a unique match to a dataset (shouldn't ever happen unless
@@ -221,7 +222,9 @@ def _extract_from_bundle(b, compute, dataset=None, times=None,
             dataset_components = b.hierarchy.get_stars()
 
         for component in dataset_components:
-            if provided_times:
+            if isinstance(provided_times, dict) and dataset in provided_times.keys():
+                this_times = provided_times.get(dataset)
+            elif provided_times is not None and not isinstance(provided_times, dict):
                 this_times = provided_times
             elif dataset_kind == 'mesh' and include_mesh:
                 this_times = _expand_mesh_times(b, dataset_ps, component)
@@ -2346,6 +2349,7 @@ class EllcBackend(BaseBackendByDataset):
         logger.debug("rank:{}/{} EllcBackend._worker_setup".format(mpi.myrank, mpi.nprocs))
 
         computeparams = b.get_compute(compute, force_ps=True, **_skip_filter_checks)
+        t0_system = b.get_value(qualifier='t0', context='system', unit=u.d, **_skip_filter_checks)
 
         hier = b.get_hierarchy()
 
@@ -2365,26 +2369,42 @@ class EllcBackend(BaseBackendByDataset):
 
         exact_grav = computeparams.get_value(qualifier='exact_grav', exact_grav=kwargs.get('grav', None), **_skip_filter_checks)
 
-        comp_ps = b.filter(context='component')
+        comp_ps = b.filter(context='component', **_skip_filter_checks)
 
         a = comp_ps.get_value(qualifier='sma', component=orbitref, unit=u.solRad, **_skip_filter_checks)
         radius_1 = comp_ps.get_value(qualifier='requiv', component=starrefs[0], unit=u.solRad, **_skip_filter_checks) / a
         radius_2 = comp_ps.get_value(qualifier='requiv', component=starrefs[1], unit=u.solRad, **_skip_filter_checks) / a
 
-        period = comp_ps.get_value(qualifier='period', component=orbitref, unit=u.d, **_skip_filter_checks)
+        period_anom = comp_ps.get_value(qualifier='period_anom', component=orbitref, unit=u.d, **_skip_filter_checks)
         q = comp_ps.get_value(qualifier='q', component=orbitref, **_skip_filter_checks)
 
-        # TODO: there seems to be a convention flip between primary and secondary star in ellc... maybe we can just address via t_zero?
         t_zero = comp_ps.get_value(qualifier='t0_supconj', component=orbitref, unit=u.d, **_skip_filter_checks)
 
         incl = comp_ps.get_value(qualifier='incl', component=orbitref, unit=u.deg, **_skip_filter_checks)
         didt = 0.0
         # didt = b.get_value(qualifier='dincldt', component=orbitref, context='component', unit=u.deg/u.d) * period
+        # incl += didt * (t_zero - t0_system)
 
         ecc = comp_ps.get_value(qualifier='ecc', component=orbitref, **_skip_filter_checks)
         w = comp_ps.get_value(qualifier='per0', component=orbitref, unit=u.rad, **_skip_filter_checks)
 
-        domdt = comp_ps.get_value(qualifier='dperdt', component=orbitref, unit=u.deg/u.d, **_skip_filter_checks) * period
+        # need to correct w (per0) to be at t_zero (t0_supconj) instead of t0@system as defined in PHOEBE
+        logger.debug("per0(t0@system): {}".format(w))
+        domdt_rad = comp_ps.get_value(qualifier='dperdt', component=orbitref, unit=u.rad/u.d, **_skip_filter_checks)
+        w += domdt_rad * (t_zero - t0_system)
+        logger.debug("per0(t0_supconj): {}".format(w))
+
+        # NOTE: domdt is listed in ellc as deg/anomalistic period, but as deg/sidereal period in the fortran source (which agrees with comparisons)
+        # NOTE: this does NOT need to be iterative, because the original dperdt is in deg/d and independent of period
+        logger.debug("dperdt (rad/d): ", domdt_rad)
+        period_sid = comp_ps.get_value(qualifier='period', component=orbitref, unit=u.d, **_skip_filter_checks)
+        # NOTE: period_sidereal does not need to be corrected from t0@system -> t0_supconj because ellc does not support dpdt
+        logger.debug("period_sidereal(t0@system,t0_ref,dpdt=0): ", period_sid)
+        domdt = comp_ps.get_value(qualifier='dperdt', component=orbitref, unit=u.deg/u.d, **_skip_filter_checks) * period_sid
+        logger.debug("dperdt (deg/d * period_sidereal): ", domdt)
+
+        f_c = np.sqrt(ecc) * np.cos(w)
+        f_s = np.sqrt(ecc) * np.sin(w)
 
         gdc_1 = comp_ps.get_value(qualifier='gravb_bol', component=starrefs[0], **_skip_filter_checks)
         gdc_2 = comp_ps.get_value(qualifier='gravb_bol', component=starrefs[1], **_skip_filter_checks)
@@ -2400,6 +2420,8 @@ class EllcBackend(BaseBackendByDataset):
             # Parameters of the spots on star 1. For each spot the parameters, in order,
             # are longitude, latitude, size and brightness factor. All three angles are
             # in degrees.
+
+            # TODO: do we need to correct these from t0_system to t_zero (if rotfac!=1)?
 
             spots_1 = []
             spots_2 = []
@@ -2433,8 +2455,8 @@ class EllcBackend(BaseBackendByDataset):
         #     A_g/2, where A_g is the geometric albedo.
         irrad_method = computeparams.get_value(qualifier='irrad_method', irrad_method=kwargs.get('irrad_method', None), **_skip_filter_checks)
         if irrad_method == 'lambert':
-            heat_1 = b.get_value(qualifier='irrad_frac_refl_bol', component=starrefs[0], context='component') / 2.
-            heat_2 = b.get_value(qualifier='irrad_frac_refl_bol', component=starrefs[1], context='component') / 2.
+            heat_1 = b.get_value(qualifier='irrad_frac_refl_bol', component=starrefs[0], context='component', **_skip_filter_checks) / 2.
+            heat_2 = b.get_value(qualifier='irrad_frac_refl_bol', component=starrefs[1], context='component', **_skip_filter_checks) / 2.
             # let's save ourselves, and also allow for flux-weighted RVs
             if heat_1 == 0 and heat_2 == 0:
                 heat_1 = None
@@ -2444,9 +2466,6 @@ class EllcBackend(BaseBackendByDataset):
             heat_2 = None
         else:
             raise NotImplementedError("irrad_method='{}' not supported".format(irrad_method))
-
-        f_c = np.sqrt(ecc) * np.cos(w)
-        f_s = np.sqrt(ecc) * np.sin(w)
 
         # lambda_1/2 : {None, float},  optional
          # Sky-projected angle between orbital and rotation axes, star 1/2 [degrees]
@@ -2463,7 +2482,7 @@ class EllcBackend(BaseBackendByDataset):
                     radius_1=radius_1, radius_2=radius_2,
                     incl=incl,
                     t_zero=t_zero,
-                    period=period,
+                    period_anom=period_anom,
                     q=q,
                     a=a,
                     f_c=f_c, f_s=f_s,
@@ -2499,7 +2518,7 @@ class EllcBackend(BaseBackendByDataset):
         incl = kwargs.get('incl')
 
         t_zero = kwargs.get('t_zero')
-        period = kwargs.get('period')
+        period_anom = kwargs.get('period_anom')
         a = kwargs.get('a')
         q = kwargs.get('q')
 
@@ -2537,7 +2556,7 @@ class EllcBackend(BaseBackendByDataset):
         ldc_2 = ds_ps.get_value(qualifier='ld_coeffs', component=starrefs[1], **_skip_filter_checks)
 
         pblums = kwargs.get('pblums').get(info['dataset'])
-        sbratio = (pblums.get(starrefs[1])/b.get_value(qualifier='requiv', component=starrefs[1], context='component', unit=u.solRad)**2)/(pblums.get(starrefs[0])/b.get_value(qualifier='requiv', component=starrefs[0], context='component', unit=u.solRad)**2)
+        sbratio = (pblums.get(starrefs[1])/b.get_value(qualifier='requiv', component=starrefs[1], context='component', unit=u.solRad, **_skip_filter_checks)**2)/(pblums.get(starrefs[0])/b.get_value(qualifier='requiv', component=starrefs[0], context='component', unit=u.solRad, **_skip_filter_checks)**2)
 
         if info['kind'] == 'lc':
             # third light handled by run_compute
@@ -2557,7 +2576,7 @@ class EllcBackend(BaseBackendByDataset):
                              incl=incl,
                              light_3=light_3,
                              t_zero=t_zero,
-                             period=period,
+                             period=period_anom,
                              a=a,
                              q=q,
                              f_c=f_c, f_s=f_s,

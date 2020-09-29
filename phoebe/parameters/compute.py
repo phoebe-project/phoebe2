@@ -440,7 +440,7 @@ def jktebop(**kwargs):
     * requiv
     * gravb_bol
     * irrad_frac_refl_bol
-    * teff (ratio^4 used as an estimate of surface brightness ratio, unless pblum_mode='decoupled' in which case pblum ratio is passed directly)
+    * teff (surface-brightness approximated as pblum ratio according to pblum_method divided by square of respective requivs)
 
     Orbit:
     * sma
@@ -586,18 +586,18 @@ def ellc(**kwargs):
     * requiv (passed as relative radii by dividing by sma)
     * syncpar
     * gravb_bol
-    * teff (ratio^4 used as an estimate of surface brightness ratio, unless pblum_mode='decoupled' in which case pblum ratio is passed directly)
+    * teff (surface-brightness approximated as pblum ratio according to pblum_method divided by square of respective requivs)
     * irrad_frac_refl_bol
     * yaw (misalignment only supported with `distortion_method='sphere'` and only included for Rossiter-McLaughlin contribution to RVs)
 
     Orbit:
     * sma
-    * period
+    * period_anom
     * q
     * incl
-    * ecc (passed as sqrt(ecc) cos per0 and sqrt(ecc) sin per0)
-    * per0 (passed as sqrt(ecc) cos per0 and sqrt(ecc) sin per0)
-    * dperdt
+    * ecc (passed as `sqrt(ecc)*cos(per0)` and `sqrt(ecc)*sin(per0)`)
+    * per0 (passed as `sqrt(ecc)*cos(per0)` and `sqrt(ecc)*sin(per0)`, translated from t0@system to t0_supconj)
+    * dperdt (passed as dperdt/period where period is the sidereal period)
     * t0_supconj
 
     System:

@@ -87,73 +87,7 @@ def _bsolver(b, solver, compute, distributions, wrap_central_values={}):
         # TODO: what to do if continue_from was used but constraint has since been flipped?
         bexcl.set_value(uniqueid=uniqueid, value=value, **_skip_filter_checks)
 
-
-    # handle solver_times
-    for param in bexcl.filter(qualifier='solver_times', **_skip_filter_checks).to_list():
-        # TODO: skip if this dataset is disabled for compute?
-
-        solver_times = param.get_value()
-        ds_ps = bexcl.get_dataset(dataset=param.dataset, **_skip_filter_checks)
-        mask_enabled = ds_ps.get_value(qualifier='mask_enabled', default=False)
-        if mask_enabled:
-            mask_phases = ds_ps.get_value(qualifier='mask_phases', **_skip_filter_checks)
-            mask_t0 = ds_ps.get_value(qualifier='phases_t0', **_skip_filter_checks)
-        else:
-            mask_phases = None
-            mask_t0 = 't0_supconj'
-
-        new_compute_times = None
-
-        if solver_times == 'auto':
-            compute_times = bexcl.get_value(qualifier='compute_times', dataset=param.dataset, context='dataset', **_skip_filter_checks)
-            compute_phases = bexcl.to_phases(compute_times, t0=mask_t0)
-            masked_compute_times = compute_times[phase_mask_inds(compute_phases, mask_phases)]
-
-            # concatenate for the case of datasets (like RVs) with times in multiple components
-            times = np.unique(np.concatenate([time_param.get_value() for time_param in bexcl.filter(qualifier='times', dataset=param.dataset, **_skip_filter_checks).to_list()]))
-            phases = bexcl.to_phases(times, t0=mask_t0)
-            masked_times = times[phase_mask_inds(phases, mask_phases)]
-
-            if len(masked_times) < len(masked_compute_times):
-                logger.debug("solver_times=auto: using times instead of compute_times")
-                if mask_enabled and len(mask_phases):
-                    new_compute_times = masked_times
-                else:
-                    new_compute_times = [] # set to empty list which will force run_compute to use dataset-times
-            else:
-                logger.debug("solver_times=auto: using compute_times")
-                if mask_enabled and len(mask_phases):
-                    new_compute_times = masked_compute_times
-                else:
-                    new_compute_times = None  # leave at user-set compute_times
-
-
-        elif solver_times == 'times':
-            logger.debug("solver_times=times: resetting compute_times in copied bundle")
-            if mask_enabled and len(mask_phases):
-                times = np.unique(np.concatenate([time_param.get_value() for time_param in bexcl.filter(qualifier='times', dataset=param.dataset, **_skip_filter_checks).to_list()]))
-                phases = bexcl.to_phases(times, t0=mask_t0)
-                new_compute_times = times[phase_mask_inds(phases, mask_phases)]
-            else:
-                new_compute_times = [] # set to empty list which will force run_compute to use dataset-times
-
-        elif solver_times == 'compute_times':
-            logger.debug("solver_times=compute_times")
-            if mask_enabled and len(mask_phases):
-                compute_times = bexcl.get_value(qualifier='compute_times', dataset=param.dataset, context='dataset', **_skip_filter_checks)
-                compute_phases = bexcl.to_phases(compute_times, t0=mask_t0)
-                new_compute_times = compute_times[phase_mask_inds(compute_phases, mask_phases)]
-
-            else:
-                new_compute_times = None  # leave at user-set compute_times
-        else:
-            raise NotImplementedError("solver_times='{}' not implemented".format(solver_times))
-
-        if new_compute_times is not None:
-            if ds_ps.get_parameter(qualifier='compute_times', **_skip_filter_checks).is_constraint is not None:
-                # this is in the deepcopied bundle, so we can overwrite compute_times directly
-                bexcl.flip_constraint(qualifier='compute_times', dataset=ds_ps.dataset, solve_for='compute_phases')
-            ds_ps.set_value_all(qualifier='compute_times', value=new_compute_times, **_skip_filter_checks)
+    bexcl.parse_solver_times(return_as_dict=False, set_compute_times=True)
 
     return bexcl
 

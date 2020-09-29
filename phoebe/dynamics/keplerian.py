@@ -75,12 +75,13 @@ def dynamics_from_bundle(b, times, compute=None, return_euler=False, **kwargs):
 
         #print "***", component, ancestororbits
 
-        periods.append([s.get_value(qualifier='period', unit=u.d, component=orbit, **_skip_filter_checks) for orbit in ancestororbits])
+        periods.append([s.get_value(qualifier='period_anom', unit=u.d, component=orbit, **_skip_filter_checks) for orbit in ancestororbits])
         eccs.append([s.get_value(qualifier='ecc', component=orbit, **_skip_filter_checks) for orbit in ancestororbits])
         t0_perpasses.append([s.get_value(qualifier='t0_perpass', unit=u.d, component=orbit, **_skip_filter_checks) for orbit in ancestororbits])
         per0s.append([s.get_value(qualifier='per0', unit=u.rad, component=orbit, **_skip_filter_checks) for orbit in ancestororbits])
         long_ans.append([s.get_value(qualifier='long_an', unit=u.rad, component=orbit, **_skip_filter_checks) for orbit in ancestororbits])
         incls.append([s.get_value(qualifier='incl', unit=u.rad, component=orbit, **_skip_filter_checks) for orbit in ancestororbits])
+        # TODO: do we need to convert from anomalistic to sidereal?
         dpdts.append([s.get_value(qualifier='dpdt', unit=u.d/u.d, component=orbit, **_skip_filter_checks) for orbit in ancestororbits])
         if conf.devel:
             try:
@@ -141,7 +142,7 @@ def dynamics(times, periods, eccs, smas, t0_perpasses, per0s, long_ans, incls,
     Args:
         times: (iterable) times at which to compute positions and
             velocities for each star
-        periods: (iterable) period of the parent orbit for each star
+        periods: (iterable) anomalistic period of the parent orbit for each star
             [days]
         eccs: (iterable) eccentricity of the parent orbit for each star
         smas: (iterable) semi-major axis of the parent orbit for each
@@ -195,13 +196,16 @@ def dynamics(times, periods, eccs, smas, t0_perpasses, per0s, long_ans, incls,
         #-- if dpdt is non-zero, the period is actually an array, and the semi-
         #   major axis changes to match Kepler's third law (unless
         #   `mass_conservation` is set to False)
+        # p0 = period
+        # sma0 = sma
+
         if dpdt!=0:
-            period_ = period
-            period = dpdt*(times-t0) + period_
-            if mass_conservation and not np.isscalar(period):
-                 sma = sma/period[0]**2*period**2
-            elif mass_conservation:
-                 sma = sma/period_**2*period**2
+            p0 = period
+            period = dpdt*(times-t0) + p0
+            if mass_conservation:
+                # Pieter used to have a if not np.isscale(period) to use period[0] instead of p0,
+                # effectively starting mass conservation at the first dataset time instead of t0
+                sma = sma/p0**2*period**2
 
         #-- if dperdt is non-zero, the argument of periastron is actually an
         #   array

@@ -250,11 +250,11 @@ def t0_ref_to_supconj(t0_ref, period, ecc, per0, dpdt, dperdt, t0):
 def t0_supconj_to_ref(t0_supconj, period, ecc, per0, dpdt, dperdt, t0):
     return ConstraintParameter(t0_supconj._bundle, "t0_supconj_to_ref({}, {}, {}, {}, {}, {}, {})".format(_get_expr(t0_supconj), _get_expr(period), _get_expr(ecc), _get_expr(per0), _get_expr(dpdt), _get_expr(dperdt), _get_expr(t0)))
 
-def _times_to_phases(times, period, dpdt, t0, t0_supconj, t0_perpass, t0_ref):
-    return ConstraintParameter(times._bundle, "times_to_phases({}, {}, {}, {}, {}, {}, {})".format(_get_expr(times), _get_expr(period), _get_expr(dpdt), _get_expr(t0), _get_expr(t0_supconj), _get_expr(t0_perpass), _get_expr(t0_ref)))
+def _times_to_phases(times, period_choice, period, period_anom, phases_dpdt, dpdt, t0_choice, t0_supconj, t0_perpass, t0_ref):
+    return ConstraintParameter(times._bundle, "times_to_phases({}, {}, {}, {}, {}, {}, {}, {}, {}, {})".format(_get_expr(times), _get_expr(period_choice), _get_expr(period), _get_expr(period_anom), _get_expr(phases_dpdt), _get_expr(dpdt), _get_expr(t0_choice), _get_expr(t0_supconj), _get_expr(t0_perpass), _get_expr(t0_ref)))
 
-def _phases_to_times(phases, period, dpdt, t0, t0_supconj, t0_perpass, t0_ref):
-    return ConstraintParameter(phases._bundle, "phases_to_times({}, {}, {}, {}, {}, {}, {})".format(_get_expr(phases), _get_expr(period), _get_expr(dpdt), _get_expr(t0), _get_expr(t0_supconj), _get_expr(t0_perpass), _get_expr(t0_ref)))
+def _phases_to_times(phases, period_choice, period, period_anom, phases_dpdt, dpdt, t0_choice, t0_supconj, t0_perpass, t0_ref):
+    return ConstraintParameter(phases._bundle, "phases_to_times({}, {}, {}, {}, {}, {}, {}, {}, {}, {})".format(_get_expr(phases), _get_expr(period_choice), _get_expr(period), _get_expr(period_anom), _get_expr(phases_dpdt), _get_expr(dpdt), _get_expr(t0_choice), _get_expr(t0_supconj), _get_expr(t0_perpass), _get_expr(t0_ref)))
 
 #{ Custom constraints
 
@@ -677,6 +677,72 @@ def t0_ref_supconj(b, orbit, solve_for=None, **kwargs):
     elif solve_for == t0_supconj:
         lhs = t0_supconj
         rhs = t0_ref_to_supconj(t0_ref, period, ecc, per0, dpdt, dperdt, t0)
+
+    else:
+        raise NotImplementedError
+
+    return lhs, rhs, [], {'orbit': orbit}
+
+_validsolvefor['period_anom'] = ['period', 'period_anom']
+def period_anom(b, orbit, solve_for=None, **kwargs):
+    """
+    Create a constraint for period_anom in an orbit - allowing translating between
+    period (sidereal) and period_anom (anomalistic).
+
+    This constraint uses the following linear approximation:
+
+    `period_sidereal = period_anomalistic * (1 - period_sidereal * dperdt/(2pi))`
+
+    This constraint is automatically included for all orbits, during
+    <phoebe.frontend.bundle.Bundle.add_component> for a
+    <phoebe.parameters.component.orbit>.
+
+    This is usually passed as an argument to
+     <phoebe.frontend.bundle.Bundle.add_constraint> as
+     `b.add_constraint('period_anom', orbit='binary')`, where `orbit` is
+     one of <phoebe.parameters.HierarchyParameter.get_orbits>.
+
+    Arguments
+    -----------
+    * `b` (<phoebe.frontend.bundle.Bundle>): the Bundle
+    * `orbit` (string): the label of the orbit in which this constraint should
+        be built.
+    * `solve_for` (<phoebe.parameters.Parameter>, optional, default=None): if
+        'period_anom' should not be the derived/constrained parameter, provide which
+        other parameter should be derived (ie 'period')
+
+    Returns
+    ----------
+    * (<phoebe.parameters.Parameter>, <phoebe.parameters.ConstraintParameter>, list):
+        lhs (Parameter), rhs (ConstraintParameter), addl_params (list of additional
+        parameters that may be included in the constraint), kwargs (dict of
+        keyword arguments that were passed to this function).
+
+    Raises
+    --------
+    * NotImplementedError: if the value of `solve_for` is not implemented.
+    """
+
+    orbit_ps = _get_system_ps(b, orbit)
+
+    period_sid = orbit_ps.get_parameter(qualifier='period', **_skip_filter_checks)
+    period_anom = orbit_ps.get_parameter(qualifier='period_anom', **_skip_filter_checks)
+    dperdt = orbit_ps.get_parameter(qualifier='dperdt', **_skip_filter_checks)
+
+    if solve_for in [None, period_anom]:
+        lhs = period_anom
+        # rhs = period_sidereal_to_anomalistic(period_sidereal, dperdt)
+
+        # period_sidereal = period_anomalistic * (1 - period_sidereal * dperdt/(2pi))
+        # solving for period_anomalistic gives us:
+        rhs = period_sid / (-1*period_sid * dperdt/(2*np.pi*u.rad) + 1*u.dimensionless_unscaled)
+    elif solve_for in [period_sid]:
+        lhs = period_sid
+        # rhs = period_anomalistic_to_sidereal(period, dperdt)
+
+        # period_sidereal = period_anomalistic * (1 - period_sidereal * dperdt/(2pi))
+        # solving for period_sidereal gives us:
+        rhs = period_anom / (period_anom * dperdt/(2*np.pi*u.rad) + 1*u.dimensionless_unscaled)
 
     else:
         raise NotImplementedError
@@ -1603,6 +1669,7 @@ def mass(b, component, solve_for=None, **kwargs):
         sibling_solve_for = None
 
     sma = parentorbit_ps.get_parameter(qualifier='sma', **_skip_filter_checks)
+    # NOTE: sidereal period
     period = parentorbit_ps.get_parameter(qualifier='period', **_skip_filter_checks)
     q = parentorbit_ps.get_parameter(qualifier='q', **_skip_filter_checks)
 
@@ -2350,6 +2417,7 @@ def rotation_period(b, component, solve_for=None, **kwargs):
     period_star = component_ps.get_parameter(qualifier='period', **_skip_filter_checks)
     syncpar_star = component_ps.get_parameter(qualifier='syncpar', **_skip_filter_checks)
 
+    # NOTE: sidereal period
     period_orbit = parentorbit_ps.get_parameter(qualifier='period', **_skip_filter_checks)
 
     if solve_for in [None, period_star]:
@@ -2572,7 +2640,18 @@ def compute_phases(b, component, dataset, solve_for=None, **kwargs):
 
 
     else:
+        try:
+            period_anom = b.get_parameter(qualifier='period_anom', component=component if component!='_default' else b.hierarchy.get_top(), context='component', **_skip_filter_checks)
+        except ValueError:
+            # we need to handle the backward compatibility case where period_anom does not yet exit (probably calling this DURING migration)
+            if 'period_anom' not in b.qualifiers:
+                logger.warning("compute_phases constraint falling back on period (sidereal)")
+                period_anom = b.get_parameter(qualifier='period', component=component if component!='_default' else b.hierarchy.get_top(), context='component', **_skip_filter_checks)
+            else:
+                raise
 
+        phases_period = ds.get_parameter(qualifier='phases_period', component=component, **_skip_filter_checks)
+        phases_dpdt = ds.get_parameter(qualifier='phases_dpdt', component=component, **_skip_filter_checks)
         phases_t0 = ds.get_parameter(qualifier='phases_t0', component=component, **_skip_filter_checks)
         t0_supconj = b.get_parameter(qualifier='t0_supconj', component=component if component!='_default' else b.hierarchy.get_top(), context='component', **_skip_filter_checks)
         t0_perpass = b.get_parameter(qualifier='t0_perpass', component=component if component!='_default' else b.hierarchy.get_top(), context='component', **_skip_filter_checks)
@@ -2581,10 +2660,10 @@ def compute_phases(b, component, dataset, solve_for=None, **kwargs):
 
         if solve_for in [None, compute_phases]:
             lhs = compute_phases
-            rhs = _times_to_phases(compute_times, period, dpdt, phases_t0, t0_supconj, t0_perpass, t0_ref)
+            rhs = _times_to_phases(compute_times, phases_period, period, period_anom, phases_dpdt, dpdt, phases_t0, t0_supconj, t0_perpass, t0_ref)
         elif solve_for in [compute_times]:
             lhs = compute_times
-            rhs = _phases_to_times(compute_phases, period, dpdt, phases_t0, t0_supconj, t0_perpass, t0_ref)
+            rhs = _phases_to_times(compute_phases, phases_period, period, period_anom, phases_dpdt, dpdt, phases_t0, t0_supconj, t0_perpass, t0_ref)
         else:
             raise NotImplementedError
 

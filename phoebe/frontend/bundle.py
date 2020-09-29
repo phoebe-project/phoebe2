@@ -42,7 +42,7 @@ from phoebe.distortions import roche
 from phoebe.frontend import io
 from phoebe.atmospheres.passbands import list_installed_passbands, list_online_passbands, get_passband, update_passband, _timestamp_to_dt
 from phoebe.dependencies import distl as _distl
-from phoebe.utils import _bytes, parse_json
+from phoebe.utils import _bytes, parse_json, _get_masked_times, _get_masked_compute_times
 from phoebe import helpers as _helpers
 import libphoebe
 
@@ -569,8 +569,8 @@ class Bundle(ParameterSet):
         * RuntimeError: if the version of the imported file fails to load according
             to `import_from_older` or `import_from_newer`.
         """
-        def _ps_dict(ps):
-            return {p.qualifier: p.get_quantity() if hasattr(p, 'get_quantity') else p.get_value() for p in ps.to_list()}
+        def _ps_dict(ps, include_constrained=True):
+            return {p.qualifier: p.get_quantity() if hasattr(p, 'get_quantity') else p.get_value() for p in ps.to_list() if (include_constrained or not p.is_constraint)}
 
         if io._is_file(filename):
             f = filename
@@ -612,171 +612,6 @@ class Bundle(ParameterSet):
             return b
         elif not import_from_older:
             raise RuntimeError("The file/bundle is from an older version of PHOEBE ({}) than installed ({}). Attempt importing by passing import_from_older=True.".format(phoebe_version_import, phoebe_version_this))
-
-
-        if phoebe_version_import < StrictVersion("2.3.0"):
-            warning = "importing from an older version ({}) of PHOEBE which did not support sample_from, etc... all compute options will be migrated to include all new options.  Additionally, extinction parameters will be moved from the dataset to system context.  This may take some time.  Please check all values.".format(phoebe_version_import)
-
-            b.remove_parameters_all(qualifier='log_history', **_skip_filter_checks)
-
-            # new settings parameters were added for run_checks_*
-            logger.warning("updating all parameters in setting context")
-            existing_values_settings = {p.qualifier: p.get_value() for p in b.filter(context='setting').to_list()}
-            b.remove_parameters_all(context='setting', **_skip_filter_checks)
-            b._attach_params(_setting.settings(**existing_values_settings), context='setting')
-
-            # update logg constraints (now in solar units due to bug with MPI handling converting solMass to SI)
-            for logg_constraint in b.filter(qualifier='logg', context='constraint', **_skip_filter_checks).to_list():
-                component = logg_constraint.component
-                logger.warning("re-creating logg constraint for component='{}' to be in solar instead of SI units".format(component))
-                b.remove_constraint(uniqueid=logg_constraint.uniqueid)
-                b.add_constraint('logg', component=component)
-
-            for compute in b.filter(context='compute').computes:
-                logger.info("attempting to update compute='{}' to new version requirements".format(compute))
-                ps_compute = b.filter(context='compute', compute=compute)
-                compute_kind = ps_compute.kind
-                dict_compute = _ps_dict(ps_compute)
-                # NOTE: we will not remove (or update) the dataset from any existing models
-                b.remove_compute(compute, context=['compute'])
-                b.add_compute(compute_kind, compute=compute, check_label=False, **dict_compute)
-
-            # extinction parameters were moved from dataset to system, so we'll just add the new parameters
-            system, constraints = _system.system()
-            b._attach_params([p for p in system.to_list() if p.qualifier in ['ebv', 'Av', 'Rv']], context='system')
-
-            Avs = list(set([Av_param.get_value() for Av_param in b.filter(qualifier='Av', context='dataset', **_skip_filter_checks).to_list()]))
-            if len(Avs):
-                if len(Avs) > 1:
-                    logger.warning("PHOEBE no longer supports multiple values for Av, adopting Av={}".format(Avs[0]))
-                b.set_value(qualifier='Av', context='system', value=Avs[0], **_skip_filter_checks)
-            Rvs = list(set([Rv_param.get_value() for Rv_param in b.filter(qualifier='Rv', context='dataset', **_skip_filter_checks).to_list()]))
-            if len(Rvs):
-                if len(Rvs) > 1:
-                    logger.warning("PHOEBE no longer supports multiple values for Rv, adopting Rv={}".format(Rvs[0]))
-                b.set_value(qualifier='Rv', context='system', value=Rvs[0], **_skip_filter_checks)
-
-            b.remove_parameters_all(qualifier=['ebv', 'Av', 'Rv'], context='dataset', **_skip_filter_checks)
-            b.remove_parameters_all(constraint_func='extinction', context='constraint', **_skip_filter_checks)
-
-            for constraint in constraints:
-                # there were no constraints before in the system context
-                b.add_constraint(*constraint)
-
-            # call set_hierarchy to force asini@component constraints (comp_asini) to be built
-            b.set_hierarchy()
-
-
-        if phoebe_version_import < StrictVersion("2.2.0"):
-            warning = "importing from an older version ({}) of PHOEBE which did not support compute_times, ld_mode/ld_coeffs_source, pblum_mode, l3_mode, etc... all datasets will be migrated to include all new options.  This may take some time.  Please check all values.".format(phoebe_version_import)
-            # print("WARNING: {}".format(warning))
-            logger.warning(warning)
-
-            def existing_value(param):
-                if param.qualifier == 'l3':
-                    q = param.get_quantity()
-                    try:
-                        return q.to(u.W/u.m**2)
-                    except:
-                        # older versions had the unit incorrect, so let's just assume u.W/u.m**3 meant u.W/u.m**2
-                        return q.to(u.W/u.m**3).value * u.W/u.m**2
-                if param.qualifier == 'ld_func':
-                    if param.value == 'interp':
-                        return 'logarithmic'
-                    else:
-                        return param.value
-                else:
-                    return param.get_quantity() if hasattr(param, 'get_quantity') else param.get_value()
-
-            # TESS:default has been renamed to TESS:T
-            # Tycho:BT has been renamed to Tycho:B
-            # Tycho:VT has been renamed to Tycho:V
-            pb_map = {'TESS:default': 'TESS:T', 'Tycho:BT': 'Tycho:B', 'Tycho:VT': 'Tycho:V'}
-            for param in b.filter(qualifier='passband', **_skip_filter_checks).to_list():
-                old_value = param.get_value()
-                if old_value in pb_map.keys():
-                    new_value = pb_map.get(old_value)
-                    logger.warning("migrating passband='{}' to passband='{}'".format(old_value, new_value))
-                    param.set_value(new_value)
-
-            existing_values_settings = {p.qualifier: p.get_value() for p in b.filter(context='setting').to_list()}
-            b.remove_parameters_all(context='setting', **_skip_filter_checks)
-            b._attach_params(_setting.settings(**existing_values_settings), context='setting')
-
-            # overwriting the datasets during migration will clear the model, so
-            # let's save a copy and re-attach it after
-            ps_model = b.filter(context='model', check_visible=False, check_default=False)
-
-            existing_values_per_ds = {}
-            for ds in b.filter(context='dataset').datasets:
-                # NOTE: before 2.2.0, contexts included *_syn and *_dep, so
-                # we need to be aware of that in this block of logic.
-
-                # TODO: migrate pblum_ref to pblum_mode = 'decoupled' or pblum_mode = 'dataset-constrained' and set pblum_component?
-                ds_kind = b.get_dataset(ds).exclude(kind=["*_syn", "*_dep"]).kind
-                existing_values = {}
-
-                if ds_kind == 'lc':
-                    # handle pblum_ref -> pblum_mode/pblum_component
-                    if len(b.filter(qualifier='pblum_ref', value='self', context='dataset', dataset=ds, check_visible=False, check_default=False)) == 2:
-                        existing_values['pblum_mode'] == 'decoupled'
-                    else:
-                        existing_values['pblum_mode'] = 'component-coupled'
-                        existing_values['pblum_component'] = b.filter(qualifier='pblum_ref', context='dataset', dataset=ds, check_visible=False).exclude(value='self', check_visible=False).get_parameter(check_visible=False).component
-
-
-                for qualifier in b.filter(context='dataset', dataset=ds, **_skip_filter_checks).qualifiers:
-                    if qualifier in ['pblum_ref']:
-                        # already handled these above
-                        continue
-                    ps = b.filter(qualifier=qualifier, context='dataset', dataset=ds, **_skip_filter_checks)
-                    if len(ps.to_list()) > 1:
-                        existing_values[qualifier] = {}
-                        for param in ps.to_list():
-                            existing_values[qualifier]["{}@{}".format(param.time, param.component) if param.time is not None else param.component] = existing_value(param)
-                            if qualifier=='ld_func':
-                                if 'ld_mode' not in existing_values.keys():
-                                    existing_values['ld_mode'] = {}
-                                existing_values['ld_mode']["{}@{}".format(param.time, param.component) if param.time is not None else param.component] = 'interp' if param.value == 'interp' else 'manual'
-
-                    else:
-                        param = b.get_parameter(qualifier=qualifier, context='dataset', dataset=ds, **_skip_filter_checks)
-                        existing_values[qualifier] = existing_value(param)
-                        if qualifier=='ld_func':
-                            existing_values['ld_mode']["{}@{}".format(param.time, param.component) if param.time is not None else param.component] = 'interp' if param.value == 'interp' else 'manual'
-
-                if ds_kind in ['lp']:
-                    # then we need to pass the times from the attribute instead of parameter
-                    existing_values['times'] = b.filter(context='dataset', dataset=ds, **_skip_filter_checks).times
-
-                existing_values['kind'] = ds_kind
-
-                existing_values_per_ds[ds] = existing_values
-                b.remove_dataset(dataset=ds)
-
-            for ds, existing_values in existing_values_per_ds.items():
-                ds_kind = existing_values.pop('kind')
-                logger.warning("migrating '{}' {} dataset.".format(ds, ds_kind))
-                logger.debug("applying existing values to {} dataset: {}".format(ds, existing_values))
-                b.add_dataset(ds_kind, dataset=ds, overwrite=True, **existing_values)
-
-            for component in b.filter(context='component', kind='star', **_skip_filter_checks).components:
-                existing_values = {p.qualifier: p.get_value() for p in b.filter(context='component', component=component, **_skip_filter_checks).to_list()}
-                logger.warning("migrating '{}' component".format(component))
-                logger.debug("applying existing values to {} component: {}".format(component, existing_values))
-                b.add_component(kind='star', component=component, overwrite=True, **existing_values)
-
-            # make sure constraints all attach
-            b.set_hierarchy()
-
-            logger.debug("restoring previous models")
-            b._attach_params(ps_model, context='model')
-
-        if phoebe_version_import < StrictVersion("2.1.2"):
-            b._import_before_v211 = True
-            warning = "importing from an older version ({}) of PHOEBE which did not support constraints in solar units.  All constraints will remain in SI, but calling set_hierarchy will likely fail.".format(phoebe_version_import)
-            print("WARNING: {}".format(warning))
-            logger.warning(warning)
 
         if phoebe_version_import < StrictVersion("2.1.0"):
             logger.warning("importing from an older version ({}) of PHOEBE into version {}".format(phoebe_version_import, phoebe_version_this))
@@ -863,6 +698,188 @@ class Bundle(ParameterSet):
 
             # make sure constraints are updated according to conf.interactive_constraints
             b.run_delayed_constraints()
+
+        if phoebe_version_import < StrictVersion("2.1.2"):
+            b._import_before_v211 = True
+            warning = "importing from an older version ({}) of PHOEBE which did not support constraints in solar units.  All constraints will remain in SI, but calling set_hierarchy will likely fail.".format(phoebe_version_import)
+            print("WARNING: {}".format(warning))
+            logger.warning(warning)
+
+        if phoebe_version_import < StrictVersion("2.2.0"):
+            warning = "importing from an older version ({}) of PHOEBE which did not support compute_times, ld_mode/ld_coeffs_source, pblum_mode, l3_mode, etc... all datasets will be migrated to include all new options.  This may take some time.  Please check all values.".format(phoebe_version_import)
+            # print("WARNING: {}".format(warning))
+            logger.warning(warning)
+
+            def existing_value(param):
+                if param.qualifier == 'l3':
+                    q = param.get_quantity()
+                    try:
+                        return q.to(u.W/u.m**2)
+                    except:
+                        # older versions had the unit incorrect, so let's just assume u.W/u.m**3 meant u.W/u.m**2
+                        return q.to(u.W/u.m**3).value * u.W/u.m**2
+                if param.qualifier == 'ld_func':
+                    if param.value == 'interp':
+                        return 'logarithmic'
+                    else:
+                        return param.value
+                else:
+                    return param.get_quantity() if hasattr(param, 'get_quantity') else param.get_value()
+
+            # TESS:default has been renamed to TESS:T
+            # Tycho:BT has been renamed to Tycho:B
+            # Tycho:VT has been renamed to Tycho:V
+            pb_map = {'TESS:default': 'TESS:T', 'Tycho:BT': 'Tycho:B', 'Tycho:VT': 'Tycho:V'}
+            for param in b.filter(qualifier='passband', **_skip_filter_checks).to_list():
+                old_value = param.get_value()
+                if old_value in pb_map.keys():
+                    new_value = pb_map.get(old_value)
+                    logger.warning("migrating passband='{}' to passband='{}'".format(old_value, new_value))
+                    param.set_value(new_value)
+
+            existing_values_settings = {p.qualifier: p.get_value() for p in b.filter(context='setting').to_list()}
+            b.remove_parameters_all(context='setting', **_skip_filter_checks)
+            b._attach_params(_setting.settings(**existing_values_settings), context='setting')
+
+            # overwriting the datasets during migration will clear the model, so
+            # let's save a copy and re-attach it after
+            ps_model = b.filter(context='model', check_visible=False, check_default=False)
+
+            existing_values_per_ds = {}
+            for ds in b.filter(context='dataset').datasets:
+                # NOTE: before 2.2.0, contexts included *_syn and *_dep, so
+                # we need to be aware of that in this block of logic.
+
+                # TODO: migrate pblum_ref to pblum_mode = 'decoupled' or pblum_mode = 'dataset-constrained' and set pblum_component?
+                ds_kind = b.get_dataset(ds).exclude(kind=["*_syn", "*_dep"]).kind
+                existing_values = {}
+
+                if ds_kind == 'lc':
+                    # handle pblum_ref -> pblum_mode/pblum_component
+                    if len(b.filter(qualifier='pblum_ref', value='self', context='dataset', dataset=ds, check_visible=False, check_default=False)) == 2:
+                        existing_values['pblum_mode'] == 'decoupled'
+                    else:
+                        existing_values['pblum_mode'] = 'component-coupled'
+                        existing_values['pblum_component'] = b.filter(qualifier='pblum_ref', context='dataset', dataset=ds, check_visible=False).exclude(value='self', check_visible=False).get_parameter(check_visible=True).component
+
+
+                for qualifier in b.filter(context='dataset', dataset=ds, **_skip_filter_checks).qualifiers:
+                    if qualifier in ['pblum_ref']:
+                        # already handled these above
+                        continue
+                    ps = b.filter(qualifier=qualifier, context='dataset', dataset=ds, **_skip_filter_checks)
+                    if len(ps.to_list()) > 1:
+                        existing_values[qualifier] = {}
+                        for param in ps.to_list():
+                            existing_values[qualifier]["{}@{}".format(param.time, param.component) if param.time is not None else param.component] = existing_value(param)
+                            if qualifier=='ld_func':
+                                if 'ld_mode' not in existing_values.keys():
+                                    existing_values['ld_mode'] = {}
+                                existing_values['ld_mode']["{}@{}".format(param.time, param.component) if param.time is not None else param.component] = 'interp' if param.value == 'interp' else 'manual'
+
+                    else:
+                        param = b.get_parameter(qualifier=qualifier, context='dataset', dataset=ds, **_skip_filter_checks)
+                        existing_values[qualifier] = existing_value(param)
+                        if qualifier=='ld_func':
+                            existing_values['ld_mode']["{}@{}".format(param.time, param.component) if param.time is not None else param.component] = 'interp' if param.value == 'interp' else 'manual'
+
+                if ds_kind in ['lp']:
+                    # then we need to pass the times from the attribute instead of parameter
+                    existing_values['times'] = b.filter(context='dataset', dataset=ds, **_skip_filter_checks).times
+
+                existing_values['kind'] = ds_kind
+
+                existing_values_per_ds[ds] = existing_values
+                b.remove_dataset(dataset=ds)
+
+            for ds, existing_values in existing_values_per_ds.items():
+                ds_kind = existing_values.pop('kind')
+                logger.warning("migrating '{}' {} dataset.".format(ds, ds_kind))
+                logger.debug("applying existing values to {} dataset: {}".format(ds, existing_values))
+                b.add_dataset(ds_kind, dataset=ds, overwrite=True, **existing_values)
+
+            for component in b.filter(context='component', **_skip_filter_checks).components:
+                existing_values = {p.qualifier: p.get_value() for p in b.filter(context='component', component=component, **_skip_filter_checks).to_list()}
+                logger.warning("migrating '{}' component".format(component))
+                logger.debug("applying existing values to {} component: {}".format(component, existing_values))
+                b.add_component(kind=b.get_component(component=component, check_visible=False).kind, component=component, overwrite=True, **existing_values)
+
+            # make sure constraints all attach
+            b.set_hierarchy()
+
+            logger.debug("restoring previous models")
+            b._attach_params(ps_model, context='model')
+
+        if phoebe_version_import < StrictVersion("2.3.0"):
+            warning = "importing from an older version ({}) of PHOEBE which did not support sample_from, etc... all compute options will be migrated to include all new options.  Additionally, extinction parameters will be moved from the dataset to system context.  This may take some time.  Please check all values.".format(phoebe_version_import)
+
+            b.remove_parameters_all(qualifier='log_history', **_skip_filter_checks)
+
+            # new settings parameters were added for run_checks_*
+            logger.warning("updating all parameters in setting context")
+            existing_values_settings = {p.qualifier: p.get_value() for p in b.filter(context='setting').to_list()}
+            b.remove_parameters_all(context='setting', **_skip_filter_checks)
+            b._attach_params(_setting.settings(**existing_values_settings), context='setting')
+
+            # new mean_anom parameter in orbits and updated descriptions in star parameters
+            for component in b.filter(context='component', **_skip_filter_checks).components:
+                existing_values = {p.qualifier: p.get_value() for p in b.filter(context='component', component=component, **_skip_filter_checks).to_list()}
+                logger.warning("migrating '{}' component".format(component))
+                logger.debug("applying existing values to {} component: {}".format(component, existing_values))
+                b.add_component(kind=b.get_component(component=component, check_visible=False).kind, component=component, overwrite=True, **existing_values)
+
+            # update logg constraints (now in solar units due to bug with MPI handling converting solMass to SI)
+            for logg_constraint in b.filter(qualifier='logg', context='constraint', **_skip_filter_checks).to_list():
+                component = logg_constraint.component
+                logger.warning("re-creating logg constraint for component='{}' to be in solar instead of SI units".format(component))
+                b.remove_constraint(uniqueid=logg_constraint.uniqueid)
+                b.add_constraint('logg', component=component)
+
+            for compute in b.filter(context='compute').computes:
+                logger.info("attempting to update compute='{}' to new version requirements".format(compute))
+                ps_compute = b.filter(context='compute', compute=compute, **_skip_filter_checks)
+                compute_kind = ps_compute.kind
+                dict_compute = _ps_dict(ps_compute)
+                # NOTE: we will not remove (or update) the dataset from any existing models
+                b.remove_compute(compute, context=['compute'])
+                b.add_compute(compute_kind, compute=compute, check_label=False, **dict_compute)
+
+            # all datasets need to be rebuilt to handle compute_phases_t0 -> phases_t0
+            # and add mask_phases and solver_times support
+            for dataset in b.filter(context='dataset').datasets:
+                logger.info("attempting to update dataset='{}' to new version requirements".format(dataset))
+                ps_ds = b.filter(context='dataset', dataset=dataset, **_skip_filter_checks)
+                ds_kind = ps_ds.kind
+                dict_ds = _ps_dict(ps_ds, include_constrained=False)
+                if 'compute_phases_t0' in dict_ds.keys():
+                    dict_ds['phases_t0'] = dict_ds.pop('compute_phases_t0')
+                b.remove_dataset(dataset, context=['dataset', 'constraint'])
+                b.add_dataset(ds_kind, dataset=dataset, check_label=False, **dict_ds)
+
+            # extinction parameters were moved from dataset to system, so we'll just add the new parameters
+            system, constraints = _system.system()
+            b._attach_params([p for p in system.to_list() if p.qualifier in ['ebv', 'Av', 'Rv']], context='system')
+
+            Avs = list(set([Av_param.get_value() for Av_param in b.filter(qualifier='Av', context='dataset', **_skip_filter_checks).to_list()]))
+            if len(Avs):
+                if len(Avs) > 1:
+                    logger.warning("PHOEBE no longer supports multiple values for Av, adopting Av={}".format(Avs[0]))
+                b.set_value(qualifier='Av', context='system', value=Avs[0], **_skip_filter_checks)
+            Rvs = list(set([Rv_param.get_value() for Rv_param in b.filter(qualifier='Rv', context='dataset', **_skip_filter_checks).to_list()]))
+            if len(Rvs):
+                if len(Rvs) > 1:
+                    logger.warning("PHOEBE no longer supports multiple values for Rv, adopting Rv={}".format(Rvs[0]))
+                b.set_value(qualifier='Rv', context='system', value=Rvs[0], **_skip_filter_checks)
+
+            b.remove_parameters_all(qualifier=['ebv', 'Av', 'Rv'], context='dataset', **_skip_filter_checks)
+            b.remove_parameters_all(constraint_func='extinction', context='constraint', **_skip_filter_checks)
+
+            for constraint in constraints:
+                # there were no constraints before in the system context
+                b.add_constraint(*constraint)
+
+            # call set_hierarchy to force asini@component constraints (comp_asini) to be built
+            b.set_hierarchy()
 
         return b
 
@@ -2105,7 +2122,7 @@ class Bundle(ParameterSet):
 
         # TODO: should we also check to make sure p.component in [None]+self.hierarchy.get_components()?  If so, we'll need to call this method in set_hierarchy as well.
 
-        choices = self.get_adjustable_parameters(exclude_constrained=False).twigs
+        choices = self.get_adjustable_parameters(exclude_constrained=False, check_visible=False).twigs
         for param in params:
             choices_changed = False
             if return_changes and choices != param._choices:
@@ -2683,7 +2700,7 @@ class Bundle(ParameterSet):
 
         return
 
-    def get_adjustable_parameters(self, exclude_constrained=True):
+    def get_adjustable_parameters(self, exclude_constrained=True, check_visible=True):
         """
         Return a <phoebe.parameters.ParameterSet> of parameters that are
         current adjustable (ie. by a solver).
@@ -2695,6 +2712,9 @@ class Bundle(ParameterSet):
             that are directly adjustable, but `False` if looking for parameters
             that can have priors placed on them or that could be adjusted if the
             appropriate constraint(s) were flipped.
+        * `check_visible` (bool, optional, default=True): whether to check the
+            visibility of the parameters (and therefore exclude parameters that
+            are not visible).
 
         Returns
         ---------
@@ -2704,7 +2724,7 @@ class Bundle(ParameterSet):
 
         # parameters that can be fitted are only in the component or dataset context,
         # must be float parameters and must not be constrained (and must be visible)
-        ps = self.filter(context=['component', 'dataset', 'system', 'feature'], check_visible=True, check_default=True)
+        ps = self.filter(context=['component', 'dataset', 'system', 'feature'], check_visible=check_visible, check_default=True)
         return ParameterSet([p for p in ps.to_list() if p.__class__.__name__=='FloatParameter' and (not exclude_constrained or not len(p.constrained_by))])
 
 
@@ -2959,6 +2979,7 @@ class Bundle(ParameterSet):
 
         hier_stars = hier.get_stars()
         hier_meshables = hier.get_meshables()
+        hier_orbits = hier.get_orbits()
 
         for component in hier_stars:
             kind = hier.get_kind_of(component) # shouldn't this always be 'star'?
@@ -3241,6 +3262,17 @@ class Bundle(ParameterSet):
                                 [self.get_parameter(qualifier='teff', component=component, context='component', **_skip_filter_checks),
                                  self.get_parameter(qualifier='irrad_frac_refl_bol', component=component, context='component', **_skip_filter_checks)],
                                 False, ['system', 'run_compute'])
+
+        # warning if any t0_supconj is more than 10 cycles from t0@system if time dependent
+        if hier.is_time_dependent():
+            t0_system = self.get_value(qualifier='t0', context='system', unit=u.d, **_skip_filter_checks)
+            for param in self.filter(qualifier='t0_supconj', component=hier_orbits, context='component', **_skip_filter_checks).to_list():
+                norbital_cycles = abs(param.get_value(unit=u.d) - t0_system)  / self.get_value(qualifier='period', component=param.component, context='component', unit=u.d, **_skip_filter_checks)
+                if norbital_cycles > 10:
+                    report.add_item(self,
+                                    "{}@{} is ~{} orbital cycles from t0@system, which could cause precision issues for time-dependent systems".format(param.qualifier, param.component, int(norbital_cycles)),
+                                    [param, self.get_parameter(qualifier='t0', context='system', **_skip_filter_checks)],
+                                    False, ['system', 'run_compute'])
 
         # TODO: add other checks
         # - make sure all ETV components are legal
@@ -3902,6 +3934,13 @@ class Bundle(ParameterSet):
                                         addl_parameters,
                                         True, 'run_compute')
 
+                dpdt_non_zero = [p for p in self.filter(qualifier='dpdt', context='component', **_skip_filter_checks).to_list() if p.get_value() != 0]
+                if len(dpdt_non_zero):
+                    report.add_item(self,
+                                    "ellc does not support orbital period time-derivative",
+                                    dpdt_non_zero+addl_parameters,
+                                    False, 'run_compute')
+
             # jktebop-specific checks
             if compute_kind == 'jktebop':
                 requiv_max_limit = self.get_value(qualifier='requiv_max_limit', compute=compute, context='compute', requiv_max_limit=kwargs.get('requiv_max_limit', None), **_skip_filter_checks)
@@ -3917,6 +3956,20 @@ class Bundle(ParameterSet):
                                         self.filter(qualifier=['sma'], component=self.hierarchy.get_parent_of(component), context='component', **_skip_filter_checks).to_list()+
                                         addl_parameters,
                                         True, 'run_compute')
+
+                dperdt_non_zero = [p for p in self.filter(qualifier='dperdt', context='component', **_skip_filter_checks).to_list() if p.get_value() != 0]
+                if len(dperdt_non_zero):
+                    report.add_item(self,
+                                    "jktebop does not support apsidal motion",
+                                    dperdt_non_zero+addl_parameters,
+                                    False, 'run_compute')
+
+                dpdt_non_zero = [p for p in self.filter(qualifier='dpdt', context='component', **_skip_filter_checks).to_list() if p.get_value() != 0]
+                if len(dpdt_non_zero):
+                    report.add_item(self,
+                                    "jktebop does not support orbital period time-derivative",
+                                    dpdt_non_zero+addl_parameters,
+                                    False, 'run_compute')
 
         # dependency checks
         if not _use_celerite and len(self.filter(context='feature', kind='gaussian_process').features):
@@ -4018,8 +4071,37 @@ class Bundle(ParameterSet):
                 if kwargs.get('run_checks_compute', True):
                     if compute not in self.computes:
                         raise ValueError("compute='{}' not in computes".format(compute))
+                    # TODO: do we need to append (only if report was sent as a kwarg)
                     report = self.run_checks_compute(compute=compute, raise_logger_warning=False, raise_error=False, report=report, addl_parameters=[solver_ps.get_parameter(qualifier='compute', **_skip_filter_checks)])
 
+                # test to make sure solver_times will cover the full dataset for time-dependent systems
+                if self.hierarchy.is_time_dependent(consider_gaussian_process=True):
+                    for dataset in self.filter(qualifier='enabled', compute=compute, context='compute', value=True, **_skip_filter_checks).datasets:
+                        solver_times = self.get_value(qualifier='solver_times', dataset=dataset, context='dataset', **_skip_filter_checks)
+                        if solver_times == 'times':
+                            continue
+
+                        for param in self.filter(qualifier='times', dataset=dataset, context='dataset', **_skip_filter_checks).to_list():
+                            component = param.component
+                            compute_times = self.get_value(qualifier='compute_times', dataset=param.dataset, context='dataset', **_skip_filter_checks)
+                            times = self.get_value(qualifier='times', dataset=param.dataset, component=param.component, context='dataset', **_skip_filter_checks)
+
+                            if len(times) and len(compute_times) and (min(times) < min(compute_times) or max(times) > max(compute_times)):
+
+                                params = [self.get_parameter(qualifier='solver_times', dataset=dataset, context='dataset', **_skip_filter_checks),
+                                          self.get_parameter(qualifier='times', dataset=dataset, component=component, context='dataset', **_skip_filter_checks),
+                                          self.get_parameter(qualifier='compute_times', dataset=dataset, context='dataset', **_skip_filter_checks)]
+
+                                msg = "'compute_times@{}' must cover full range of 'times@{}', for time-dependent systems with solver_times@{}='{}'.".format(dataset, dataset, dataset, solver_times)
+                                if len(self.get_parameter(qualifier='compute_phases', dataset=dataset, context='dataset', **_skip_filter_checks).constrains):
+                                    msg += " Consider flipping the 'compute_phases' constraint and providing 'compute_times' instead."
+                                    params += [self.get_parameter(qualifier='compute_phases', dataset=dataset, context='dataset', **_skip_filter_checks),
+                                               self.get_constraint(qualifier='compute_times', dataset=dataset, **_skip_filter_checks)]
+
+                                report.add_item(self,
+                                                msg,
+                                                params,
+                                                True, ['run_solver'])
 
             if 'lc_datasets' in solver_ps.qualifiers:
                 lc_datasets = solver_ps.get_value(qualifier='lc_datasets', lc_datasets=kwargs.get('lc_datasets', None), expand=True, **_skip_filter_checks)
@@ -4047,7 +4129,7 @@ class Bundle(ParameterSet):
             else:
                 rv_datasets = self.filter(kind='rv', context='dataset', **_skip_filter_checks).datasets
 
-            adjustable_parameters = self.get_adjustable_parameters(exclude_constrained=False)
+            adjustable_parameters = self.get_adjustable_parameters(exclude_constrained=False, check_visible=False)
 
             if 'fit_parameters' in solver_ps.qualifiers:
                 fit_parameters = solver_ps.get_value(qualifier='fit_parameters', fit_parameters=kwargs.get('fit_parameters', None), expand=True, **_skip_filter_checks)
@@ -4067,6 +4149,14 @@ class Bundle(ParameterSet):
                                          fit_parameter.is_constraint
                                         ]+addl_parameters,
                                         True, 'run_solver')
+
+                    if not fit_parameter.is_visible:
+                        report.add_item(self,
+                                        "fit_parameters contains the invisible parameter '{}'".format(twig),
+                                        [solver_ps.get_parameter(qualifier='fit_parameters', **_skip_filter_checks)]
+                                        +fit_parameter.visible_if_parameters.filter(check_visible=True).to_list()
+                                        +addl_parameters,
+                                         True, 'run_solver')
 
 
                 fit_ps = adjustable_parameters.filter(twig=fit_parameters, **_skip_filter_checks)
@@ -4123,7 +4213,7 @@ class Bundle(ParameterSet):
                             # we'll raise an error if a delta distribution (i.e. probably not from a sampler)
                             # but only a warning for other distributions
 
-                            msg = "{} is constrained, so will be ignored by init_from='{}'.  Flip constraint to include in sampling.".format(ref_param.twig, dist_or_solution)
+                            msg = "{} is constrained, so cannot be included in init_from='{}'.  Flip constraint to include in sampling, or remove '{}' from init_from.".format(ref_param.twig, dist_or_solution, dist_or_solution)
 
                             report.add_item(self,
                                             msg,
@@ -4132,7 +4222,15 @@ class Bundle(ParameterSet):
                                             ref_param.is_constraint,
                                             self.get_parameter(qualifier='init_from', solver=solver, context='solver', **_skip_filter_checks)
                                             ]+addl_parameters,
-                                            False, 'run_solver')
+                                            True, 'run_solver')
+
+                        if not ref_param.is_visible:
+                            report.add_item(self,
+                                            "{} is not a visible parameter, so cannot be included in init_from='{}'.".format(ref_param.twig, dist_or_solution),
+                                            [solver_ps.get_parameter(qualifier='init_from', **_skip_filter_checks)]
+                                            +ref_param.visible_if_parameters.filter(check_visible=True).to_list()
+                                            +addl_parameters,
+                                             True, 'run_solver')
 
                 elif dist_or_solution in self.solutions:
                     solution_ps = self.get_solution(solution=dist_or_solution, **_skip_filter_checks)
@@ -4144,7 +4242,7 @@ class Bundle(ParameterSet):
                             # we'll raise an error if not a sampler (i.e. if values would be adopted by default)
                             # but only a warning for samplers (i.e. distributions would be adopted by default)
 
-                            msg = "{} is constrained, so the distribution be ignored by init_from='{}'.  Flip constraint to include in sampling, or remove '{}' from init_from.".format(param.twig, dist_or_solution, dist_solution)
+                            msg = "{} is constrained, so cannot be included in init_from='{}'.  Flip constraint to include in sampling, or remove '{}' from init_from.".format(param.twig, dist_or_solution, dist_solution)
 
                             report.add_item(self,
                                             msg,
@@ -4152,7 +4250,16 @@ class Bundle(ParameterSet):
                                              param.is_constraint,
                                              self.get_parameter(qualifier='init_from', solver=solver, context='solver', **_skip_filter_checks)
                                              ]+addl_parameters,
-                                             False, 'run_solver')
+                                             True, 'run_solver')
+
+                        if not ref_param.is_visible:
+                            report.add_item(self,
+                                            "{} is not a visible parameter, so cannot be included in init_from='{}'.".format(ref_param.twig, dist_or_solution),
+                                            [solver_ps.get_parameter(qualifier='init_from', **_skip_filter_checks)]
+                                            +ref_param.visible_if_parameters.filter(check_visible=True).to_list()
+                                            +addl_parameters,
+                                             True, 'run_solver')
+
                 else:
                     raise ValueError("{} could not be found in distributions or solutions".format(dist_or_solution))
 
@@ -5324,7 +5431,7 @@ class Bundle(ParameterSet):
         kwargs.setdefault('kind', 'envelope')
         return self.remove_component(component, **kwargs)
 
-    def get_ephemeris(self, component=None, t0='t0_supconj', **kwargs):
+    def get_ephemeris(self, component=None, period='period', t0='t0_supconj', **kwargs):
         """
         Get the ephemeris of a component (star or orbit).
 
@@ -5336,7 +5443,10 @@ class Bundle(ParameterSet):
         * `component` (str, optional): name of the component.  If not given,
             component will default to the top-most level of the current
             hierarchy.  See <phoebe.parameters.HierarchyParameter.get_top>.
-        * `t0` (str, optional, default='t0_supconj'): qualifier of the parameter
+        * `period` (str or float, optional, default='period'): qualifier of the parameter
+            to be used for t0.  For orbits, can either be 'period' or 'period_sidereal'.
+            For stars, must be 'period'.
+        * `t0` (str or float, optional, default='t0_supconj'): qualifier of the parameter
             to be used for t0.  Must be 't0' for 't0@system' or a valid qualifier
             (eg. 't0_supconj', 't0_perpass', 't0_ref' for binary orbits.)
             For single stars, `t0` will be used if a float or integer, otherwise
@@ -5364,40 +5474,64 @@ class Bundle(ParameterSet):
 
         ret = {}
 
-        ps = self.filter(component=component, context='component')
+        ps = self.filter(component=component, context='component', **_skip_filter_checks)
+
+        if isinstance(period, str):
+            ret['period'] = ps.get_value(qualifier=period, unit=u.d, **_skip_filter_checks)
+        elif isinstance(period, float) or isinstance(period, int):
+            ret['period'] = period
+        else:
+            raise ValueError("period must be a string (qualifier) or float")
 
         if ps.kind in ['orbit']:
-            ret['period'] = ps.get_value(qualifier='period', unit=u.d)
+            # TODO: ability to pass period to grab period_sidereal instead?
             if isinstance(t0, str):
                 if t0 == 't0':
-                    ret['t0'] = self.get_value(qualifier='t0', context='system', unit=u.d)
+                    ret['t0'] = self.get_value(qualifier='t0', context='system', unit=u.d, **_skip_filter_checks)
                 else:
-                    ret['t0'] = ps.get_value(qualifier=t0, unit=u.d)
+                    ret['t0'] = ps.get_value(qualifier=t0, unit=u.d, **_skip_filter_checks)
             elif isinstance(t0, float) or isinstance(t0, int):
                 ret['t0'] = t0
             else:
                 raise ValueError("t0 must be string (qualifier) or float")
             ret['dpdt'] = ps.get_value(qualifier='dpdt', unit=u.d/u.d)
+
         elif ps.kind in ['star']:
-            # TODO: consider renaming period to prot
-            ret['period'] = ps.get_value(qualifier='period', unit=u.d)
             if isinstance(t0, float) or isinstance(t0, int):
                 ret['t0'] = t0
             else:
-                ret['t0'] = self.get_value('t0', context='system', unit=u.d)
+                ret['t0'] = self.get_value('t0', context='system', unit=u.d, **_skip_filter_checks)
         else:
             raise NotImplementedError
 
         for k,v in kwargs.items():
+            if k=='dpdt' and isinstance(v, str):
+                if v.lower() == 'none':
+                    # for example, passing dpdt = 'none' (via figure)
+                    v = 0.0
+                elif v == 'dpdt':
+                    continue
+                else:
+                    raise ValueError("dpdt={} not implemented".format(v))
             ret[k] = v
 
         return ret
 
-    def to_phase(self, time, component=None, t0='t0_supconj', **kwargs):
+    def to_phase(self, time, component=None, period='period', t0='t0_supconj', **kwargs):
         """
         Get the phase(s) of a time(s) for a given ephemeris.
 
-        See also: <phoebe.frontend.bundle.Bundle.get_ephemeris>.
+        The definition of time-to-phase used here is:
+        ```
+        if dpdt != 0:
+            phase = np.mod(1./dpdt * np.log(1 + dpdt/period*(time-t0)), 1.0)
+        else:
+            phase = np.mod((time-t0)/period, 1.0)
+        ```
+
+        See also:
+        * <phoebe.frontend.bundle.Bundle.to_time>
+        * <phoebe.frontend.bundle.Bundle.get_ephemeris>.
 
         Arguments
         -----------
@@ -5406,8 +5540,12 @@ class Bundle(ParameterSet):
         * `component` (str, optional): component for which to get the ephemeris.
             If not given, component will default to the top-most level of the
             current hierarchy.  See <phoebe.parameters.HierarchyParameter.get_top>.
-        * `t0` (str, optional, default='t0_supconj'): qualifier of the parameter
-            to be used for t0
+        * `period` (str or float, optional, default='period'): qualifier of the parameter
+            to be used for t0.  For orbits, can either be 'period' or 'period_sidereal'.
+            For stars, must be 'period'.
+        * `t0` (str or float, optional, default='t0_supconj'): qualifier of the parameter
+            to be used for t0 ('t0_supconj', 't0_perpass', 't0_ref'), passed
+            to <phoebe.frontend.bundle.Bundle.get_ephemeris>.
         * `**kwargs`: any value passed through kwargs will override the
             ephemeris retrieved by component (ie period, t0, dpdt).
             Note: be careful about units - input values will not be converted.
@@ -5425,7 +5563,7 @@ class Bundle(ParameterSet):
         if kwargs.get('shift', False):
             raise ValueError("support for phshift was removed as of 2.1.  Please pass t0 instead.")
 
-        ephem = self.get_ephemeris(component=component, t0=t0, **kwargs)
+        ephem = self.get_ephemeris(component=component, period=period, t0=t0, **kwargs)
 
         if isinstance(time, list):
             time = np.array(time)
@@ -5441,8 +5579,9 @@ class Bundle(ParameterSet):
 
         # if changing this, also see parameters.constraint.time_ephem
         # and phoebe.constraints.builtin.times_to_phases
+        # and update docstring above
         if dpdt != 0:
-            phase = np.mod(1./dpdt * np.log(period + dpdt*(time-t0)), 1.0)
+            phase = np.mod(1./dpdt * np.log(1 + dpdt/period*(time-t0)), 1.0)
         else:
             phase = np.mod((time-t0)/period, 1.0)
 
@@ -5461,11 +5600,21 @@ class Bundle(ParameterSet):
         """
         return self.to_phase(*args, **kwargs)
 
-    def to_time(self, phase, component=None, t0='t0_supconj', **kwargs):
+    def to_time(self, phase, component=None, period='period', t0='t0_supconj', **kwargs):
         """
         Get the time(s) of a phase(s) for a given ephemeris.
 
-        See also: <phoebe.frontend.bundle.Bundle.get_ephemeris>.
+        The definition of phase-to-time used here is:
+        ```
+        if dpdt != 0:
+            time = t0 + period/dpdt*(np.exp(dpdt*(phase))-1.0)
+        else:
+            time = t0 + (phase)*period
+        ```
+
+        See also:
+        * <phoebe.frontend.bundle.Bundle.to_phase>
+        * <phoebe.frontend.bundle.Bundle.get_ephemeris>.
 
         Arguments
         -----------
@@ -5474,8 +5623,12 @@ class Bundle(ParameterSet):
         * `component` (str, optional): component for which to get the ephemeris.
             If not given, component will default to the top-most level of the
             current hierarchy.  See <phoebe.parameters.HierarchyParameter.get_top>.
-        * `t0` (str, optional, default='t0_supconj'): qualifier of the parameter
-            to be used for t0
+        * `period` (str or float, optional, default='period'): qualifier of the parameter
+            to be used for t0.  For orbits, can either be 'period' or 'period_sidereal'.
+            For stars, must be 'period'.
+        * `t0` (str or float, optional, default='t0_supconj'): qualifier of the parameter
+            to be used for t0 ('t0_supconj', 't0_perpass', 't0_ref'), passed
+            to <phoebe.frontend.bundle.Bundle.get_ephemeris>.
         * `**kwargs`: any value passed through kwargs will override the
             ephemeris retrieved by component (ie period, t0, dpdt).
             Note: be careful about units - input values will not be converted.
@@ -5493,7 +5646,7 @@ class Bundle(ParameterSet):
         if kwargs.get('shift', False):
             raise ValueError("support for phshift was removed as of 2.1.  Please pass t0 instead.")
 
-        ephem = self.get_ephemeris(component=component, t0=t0, **kwargs)
+        ephem = self.get_ephemeris(component=component, period=period, t0=t0, **kwargs)
 
         if isinstance(phase, list):
             phase = np.array(phase)
@@ -5504,8 +5657,9 @@ class Bundle(ParameterSet):
 
         # if changing this, also see parameters.constraint.time_ephem
         # and phoebe.constraints.builtin.phases_to_times
+        # and update docstring above
         if dpdt != 0:
-            time = t0 + 1./dpdt*(np.exp(dpdt*(phase))-period)
+            time = t0 + period/dpdt*(np.exp(dpdt*(phase))-1.0)
         else:
             time = t0 + (phase)*period
 
@@ -6225,6 +6379,7 @@ class Bundle(ParameterSet):
         * <phoebe.parameters.constraint.asini>
         * <phoebe.parameters.constraint.ecosw>
         * <phoebe.parameters.constraint.esinw>
+        * <phoebe.parameters.constraint.period_anom>
         * <phoebe.parameters.constraint.t0_perpass_supconj>
         * <phoebe.parameters.constraint.t0_ref_supconj>
         * <phoebe.parameters.constraint.mean_anom>
@@ -8272,7 +8427,7 @@ class Bundle(ParameterSet):
 
             kwargs.setdefault('legend', fig_ps.get_value(qualifier='legend', **_skip_filter_checks))
 
-            for q in ['draw_sidebars', 'uncover', 'highlight']:
+            for q in ['draw_sidebars', 'uncover', 'highlight', 'period', 't0']:
                 if q in fig_ps.qualifiers:
                     kwargs.setdefault(q, fig_ps.get_value(qualifier=q, **_skip_filter_checks))
 
@@ -9536,6 +9691,9 @@ class Bundle(ParameterSet):
                 datasets += self.filter(dataset=dataset.get(compute_, []), context='dataset', **_skip_filter_checks).datasets
 
 
+        if not len(datasets):
+            raise ValueError("cannot run forward model without any enabled datasets")
+
         return model, computes, datasets, do_create_fig_params, changed_params, overwrite_ps, kwargs
 
 
@@ -9674,7 +9832,7 @@ class Bundle(ParameterSet):
         return ret_changes
 
     @send_if_client
-    def run_compute(self, compute=None, model=None,
+    def run_compute(self, compute=None, model=None, solver=None,
                     detach=False,
                     dataset=None, times=None,
                     return_changes=False, **kwargs):
@@ -9713,6 +9871,11 @@ class Bundle(ParameterSet):
             of `overwrite` (see below).   See also
             <phoebe.frontend.bundle.Bundle.rename_model> to rename a model after
             creation.
+        * `solver` (string, optional): name of the solver options to use to
+            extract compute options and use `solver_times`
+            (see <phoebe.frontend.bundle.Bundle.parse_solver_times>) unless
+            `times` is also passed.  `compute` must be None (not passed) or an
+            error will be raised.
         * `detach` (bool, optional, default=False, EXPERIMENTAL):
             whether to detach from the computation run,
             or wait for computations to complete.  If detach is True, see
@@ -9771,12 +9934,38 @@ class Bundle(ParameterSet):
             # then we want to temporarily go in to client mode
             raise NotImplementedError("detach currently must be a bool")
             self.as_client(as_client=detach)
-            ret_ = self.run_compute(compute=compute, model=model, dataset=dataset, times=times, return_changes=return_changes, **kwargs)
+            ret_ = self.run_compute(compute=compute, model=model, solver=solver, dataset=dataset, times=times, return_changes=return_changes, **kwargs)
             self.as_client(as_client=False)
             return _return_ps(self, ret_)
 
+        if solver is not None and compute is not None:
+            raise ValueError("cannot provide both solver and compute")
+
+        if solver is not None:
+            if not kwargs.get('skip_checks', False):
+                report = self.run_checks_solver(solver=solver, run_checks_compute=False,
+                                                allow_skip_constraints=False,
+                                                raise_logger_warning=True, raise_error=True)
+
+            solver_ps = self.get_solver(solver=solver)
+            if 'compute' not in solver_ps.qualifiers:
+                raise ValueError("solver='{}' does not contain compute parameter, pass compute instead of solver".format(solver))
+            compute = solver_ps.get_value(qualifier='compute')
+            if times is None:
+                # then override with the parsed solver times (this will be a dictionary
+                # with datasets as keys and arrays of times as values)
+                times = self.parse_solver_times(return_as_dict=True, set_compute_times=False)
+
         if isinstance(times, float) or isinstance(times, int):
             times = [times]
+
+        if isinstance(times, dict):
+            # make sure keys are datasets
+            for k,v in times.items():
+                if k not in self.datasets:
+                    raise ValueError("keys in times dictionary must be valid datasets")
+                if isinstance(v, float) or isinstance(v, int):
+                    times[k] = [v]
 
         # NOTE: _prepare_compute calls run_checks_compute and will handle raising
         # any necessary errors
@@ -9923,14 +10112,23 @@ class Bundle(ParameterSet):
                 # we now need to handle any computations of ld_coeffs, pblums, l3s, etc
                 # TODO: skip lookups for phoebe, skip non-supported ld_func for photodynam, etc
                 # TODO: have this return a dictionary like pblums/l3s that we can pass on to the backend?
-                logger.info("run_compute: computing necessary ld_coeffs, pblums, l3s")
-                self.compute_ld_coeffs(compute=compute, skip_checks=True, set_value=True, **{k:v for k,v in kwargs.items() if k in computeparams.qualifiers})
-                # NOTE that if pblum_method != 'phoebe', then system will be None
-                # otherwise the system will be create which we can pass on to the backend
-                # the phoebe backend can then skip initializing the system at least on the master proc
-                # (workers will need to recreate the mesh)
-                system, pblums_abs, pblums_scale, pblums_rel, pbfluxes = self.compute_pblums(compute=compute, ret_structured_dicts=True, skip_checks=True, **{k:v for k,v in kwargs.items() if k in computeparams.qualifiers})
-                l3s = self.compute_l3s(compute=compute, use_pbfluxes=pbfluxes, ret_structured_dicts=True, skip_checks=True, skip_compute_ld_coeffs=True, **{k:v for k,v in kwargs.items() if k in computeparams.qualifiers})
+
+                # we need to check both for enabled but also passed via dataset kwarg
+                ds_kinds_enabled = self.filter(dataset=computeparams.filter(qualifier='enabled', value=True, **_skip_filter_checks).filter(dataset=dataset).datasets, context='dataset', **_skip_filter_checks).kinds
+                if 'lc' in ds_kinds_enabled or 'rv' in ds_kinds_enabled or 'lp' in ds_kinds_enabled:
+                    logger.info("run_compute: computing necessary ld_coeffs, pblums, l3s")
+                    self.compute_ld_coeffs(compute=compute, skip_checks=True, set_value=True, **{k:v for k,v in kwargs.items() if k in computeparams.qualifiers})
+                    # NOTE that if pblum_method != 'phoebe', then system will be None
+                    # otherwise the system will be create which we can pass on to the backend
+                    # the phoebe backend can then skip initializing the system at least on the master proc
+                    # (workers will need to recreate the mesh)
+                    system, pblums_abs, pblums_scale, pblums_rel, pbfluxes = self.compute_pblums(compute=compute, ret_structured_dicts=True, skip_checks=True, **{k:v for k,v in kwargs.items() if k in computeparams.qualifiers})
+                    l3s = self.compute_l3s(compute=compute, use_pbfluxes=pbfluxes, ret_structured_dicts=True, skip_checks=True, skip_compute_ld_coeffs=True, **{k:v for k,v in kwargs.items() if k in computeparams.qualifiers})
+                else:
+                    system = None
+                    pblums_scale = {}
+                    pblums_rel = {}
+                    l3s = {}
 
                 logger.info("run_compute: calling {} backend to create '{}' model".format(computeparams.kind, model))
                 if mpi.within_mpirun:
@@ -10738,7 +10936,7 @@ class Bundle(ParameterSet):
 
         self._check_label(solution, allow_overwrite=kwargs.get('overwrite', solution=='latest'))
 
-        # handle case where compute is not provided
+        # handle case where solver is not provided
         if solver is None:
             solvers = self.get_solver(check_default=False, check_visible=False, **kwargs).solvers
             if len(solvers)==0:
@@ -10940,6 +11138,168 @@ class Bundle(ParameterSet):
 
         return ret_changes
 
+
+
+    def parse_solver_times(self, return_as_dict=True, set_compute_times=False):
+        """
+        Parse what times will be used within <phoebe.frontend.bundle.Bundle.run_solver>
+        (for any optimizer or sampler that requires a forward-model)
+        or when passing `solver` to <phoebe.frontend.bundle.Bundle.run_compute>,
+        based on the value of `solver_times`, `times`, `compute_times`, `mask_enabled`,
+        `mask_phases`, and <phoebe.parameters.HierarchyParameter.is_time_dependent>.
+
+        Note: this is not necessary to call manually as it will be called and
+        handled automatically within <phoebe.frontend.bundle.Bundle.run_solver>
+        or <phoebe.frontend.bundle.Bundle.run_compute>.  This method only exposes
+        the same logic to diagnose the influence of these options on the computed
+        times.
+
+        Overview of logic:
+        * if `solver_times='times'` but not `mask_enabled`: returns the dataset-times
+            (concatenating over components as necessary).
+        * if `solver_times='times'` and `mask_enabled`: returns the masked
+            dataset-times (concatenating over components as necessary), according
+            to `mask_phases`.
+        * if `solver_times='compute_times'` but not `mask_enabled`: returns
+            the `compute_times`
+        * if `solver_times='compute_times'` and `mask_enabled` but not time-dependent:
+            returns the values in `compute_phases` (converted to times) such that
+            each entry in the masked dataset-times (concatenating over components
+            as necessary) is surrounded by the nearest entries in `compute_phases`.
+        * if `solver_times='compute_times'` and `mask_enabled` and time-dependent:
+            returns the values in `compute_times` such that each entry in the
+            masked dataset-times is surrounded by the nearest entries in `compute_times`.
+        * if `solver_times='auto'`: determines the arrays for the corresponding
+            situations for both `solver_times='times'` and `'compute_times'` and
+            returns whichever is the shorter array.
+
+        Note that this logic is currently independent per-dataset, with no consideration
+        of time-savings by generating synthetic models at the same times across
+        different datasets.
+
+        See also:
+        * <phoebe.frontend.bundle.Bundle.run_solver>
+        * <phoebe.frontend.bundle.Bundle.run_compute>
+        * <phoebe.parameters.HierarchyParameter.is_time_dependent>
+
+        Arguments
+        -------------
+        * `return_as_dict` (bool, optional, default=True): whether to return
+            the parsed times as they will be applied as a dictionary of
+            dataset-list pairs.
+        * `set_compute_times` (bool, optional, default=False): whether to set
+            the values of the corresponding `compute_times` (and `compute_phases`)
+            parameters within the Bundle.  Whenever using the dataset times,
+            this will set the `compute_times` to an empty list rather than
+            copying the array (whereas `return_as_dict` exposes the underlying array).
+
+        Returns
+        ------------
+        * (dict) of dataset-list pairs, if `return_as_dict` otherwise `None`
+
+        """
+        compute_times_per_ds = {}
+
+        is_time_dependent = self.hierarchy.is_time_dependent()
+
+        # TODO: change this to have times = {dataset: new_compute_times} which will be passed to all run_compute calls
+        # so that this is also callable from the frontend for the user or by passing solver to run_compute
+
+        # handle solver_times
+        for param in self.filter(qualifier='solver_times', **_skip_filter_checks).to_list():
+            # TODO: skip if this dataset is disabled for compute?
+            # TODO: any change in logic for time-dependent systems?
+
+            solver_times = param.get_value()
+            ds_ps = self.get_dataset(dataset=param.dataset, **_skip_filter_checks)
+            mask_enabled = ds_ps.get_value(qualifier='mask_enabled', default=False, **_skip_filter_checks)
+            if mask_enabled:
+                mask_phases = ds_ps.get_value(qualifier='mask_phases', **_skip_filter_checks)
+                mask_t0 = ds_ps.get_value(qualifier='phases_t0', **_skip_filter_checks)
+            else:
+                mask_phases = None
+                mask_t0 = 't0_supconj'
+
+            new_compute_times = None
+
+            if solver_times == 'auto':
+                masked_times, times, phases = _get_masked_times(self, param.dataset, mask_phases, mask_t0, return_times_phases=True)
+                masked_compute_times = _get_masked_compute_times(self, param.dataset, mask_phases, mask_t0,
+                                                                 is_time_dependent=is_time_dependent,
+                                                                 times=times, phases=phases)
+
+                if len(masked_times) < len(masked_compute_times):
+                    if mask_enabled and len(mask_phases):
+                        logger.info("solver_times=auto (dataset={}): using masked times (len: {}) instead of compute_times (len: {})".format(param.dataset, len(masked_times), len(masked_compute_times)))
+                        new_compute_times = masked_times
+                    else:
+                        logger.info("solver_times=auto (dataset={}): using dataset times (len: {}) instead of compute_times (len: {})".format(param.dataset, len(masked_times), len(masked_compute_times)))
+                        new_compute_times = [] # set to empty list which will force run_compute to use dataset-times
+                else:
+                    if mask_enabled and len(mask_phases):
+                        if is_time_dependent:
+                            logger.info("solver_times=auto (dataset={}): using filtered compute_times (len: {}) surrounding masked times instead of times (len: {})".format(param.dataset, len(masked_compute_times), len(masked_times)))
+                        else:
+                            logger.info("solver_times=auto (dataset={}): using filtered compute_phases (len: {}) surrounding masked phases instead of times (len: {})".format(param.dataset, len(masked_compute_times), len(masked_times)))
+                        new_compute_times = masked_compute_times
+                    else:
+                        logger.info("solver_times=auto (dataset={}): using user-provided compute_times (len: {}) instead of times (len: {})".format(param.dataset, len(masked_compute_times), len(times)))
+                        new_compute_times = None  # leave at user-set compute_times
+
+
+            elif solver_times == 'times':
+                if mask_enabled and len(mask_phases):
+                    logger.info("solver_times=times (dataset={}): using masked dataset times".format(param.dataset))
+                    masked_times = _get_masked_times(self, param.dataset, mask_phases, mask_t0, return_times_phases=False)
+                    new_compute_times = masked_times
+                else:
+                    logger.info("solver_times=times (dataset={}): using dataset times".format(param.dataset))
+                    masked_times = None # if return_as_dict then we'll have to re-access dataset times
+                    new_compute_times = [] # set to empty list which will force run_compute to use dataset-times
+
+            elif solver_times == 'compute_times':
+                if mask_enabled and len(mask_phases):
+                    if is_time_dependent:
+                        logger.info("solver_times=compute_times (dataset={}): using filtered compute_times surrounding masked times".format(param.dataset))
+                    else:
+                        logger.info("solver_times=compute_times (dataset={}): using filtered compute_phases surrounding masked phases".format(param.dataset))
+                    masked_compute_times =  _get_masked_compute_times(self, param.dataset, mask_phases, mask_t0,
+                                                                   is_time_dependent=is_time_dependent)
+                    new_compute_times = masked_compute_times
+                else:
+                    logger.info("solver_times=compute_times (dataset={}): using user-provided compute_times".format(param.dataset))
+                    masked_compute_times = None # if return_as_dict then we'll have to re-access compute_times
+                    new_compute_times = None  # leave at user-set compute_times
+            else:
+                raise NotImplementedError("solver_times='{}' not implemented".format(solver_times))
+
+            if return_as_dict:
+                if new_compute_times == []:
+                    if masked_times is None:
+                        compute_times_per_ds[param.dataset] = _get_masked_times(self, param.dataset, [], 0.0, return_times_phases=False)
+                    else:
+                        compute_times_per_ds[param.dataset] = masked_times
+                elif new_compute_times is None:
+                    if masked_compute_times is None:
+                        compute_times_per_ds[param.dataset] = ds_ps.get_value(qualifier='compute_times', unit=u.d, **_skip_filter_checks)
+                    else:
+                        compute_times_per_ds[param.dataset] = masked_compute_times
+                else:
+                    compute_times_per_ds[param.dataset] = new_compute_times
+
+            if set_compute_times and new_compute_times is not None:
+                if ds_ps.get_parameter(qualifier='compute_times', **_skip_filter_checks).is_constraint is not None:
+                    # this is in the deepcopied bundle, so we can overwrite compute_times directly
+                    self.flip_constraint(qualifier='compute_times', dataset=ds_ps.dataset, solve_for='compute_phases')
+                logger.info("solver_times={} (dataset={}): setting compute_times".format(solver_times, param.dataset))
+                ds_ps.set_value_all(qualifier='compute_times', value=new_compute_times, **_skip_filter_checks)
+
+        if return_as_dict:
+            return compute_times_per_ds
+        else:
+            return
+
+
     @send_if_client
     def run_solver(self, solver=None, solution=None, detach=False, return_changes=False, **kwargs):
         """
@@ -10967,6 +11327,7 @@ class Bundle(ParameterSet):
         * <phoebe.frontend.bundle.Bundle.get_solver>
         * <phoebe.frontend.bundle.Bundle.get_solution>
         * <phoebe.frontend.bundle.Bundle.adopt_solution>
+        * <phoebe.frontend.bundle.Bundle.parse_solver_times>
         * <phoebe.mpi_on>
         * <phoebe.mpi_off>
 

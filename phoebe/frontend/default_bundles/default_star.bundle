@@ -2,7 +2,7 @@
 {
 "qualifier": "t0",
 "context": "system",
-"description": "Time at which all values are provided",
+"description": "Time at which all values are provided.  For values with time-derivatives, this defines their zero-point.",
 "value": 0.0,
 "default_unit": "d",
 "limits": [
@@ -241,7 +241,7 @@ null
 "component": "starA",
 "kind": "star",
 "context": "component",
-"description": "Rotation period",
+"description": "Rotation period (wrt the sky)",
 "value": 1.0,
 "default_unit": "d",
 "limits": [
@@ -258,7 +258,7 @@ null
 "component": "starA",
 "kind": "star",
 "context": "component",
-"description": "Rotation frequency",
+"description": "Rotation frequency (wrt the sky)",
 "value": 6.283185,
 "default_unit": "rad / d",
 "limits": [
@@ -424,8 +424,8 @@ null
 "description": "Source for bolometric limb darkening coefficients (used only for irradiation; 'auto' to interpolate from the applicable table according to the 'atm' parameter, or the name of a specific atmosphere table)",
 "choices": [
 "auto",
-"ck2004",
-"phoenix"
+"phoenix",
+"ck2004"
 ],
 "value": "auto",
 "visible_if": "ld_mode_bol:lookup",
@@ -802,10 +802,10 @@ null
 "context": "compute",
 "description": "Atmosphere table",
 "choices": [
-"extern_planckint",
-"blackbody",
-"phoenix",
 "ck2004",
+"blackbody",
+"extern_planckint",
+"phoenix",
 "extern_atmx"
 ],
 "value": "ck2004",
@@ -958,10 +958,10 @@ null
 "context": "compute",
 "description": "Atmosphere table",
 "choices": [
-"extern_planckint",
-"blackbody",
-"phoenix",
 "ck2004",
+"blackbody",
+"extern_planckint",
+"phoenix",
 "extern_atmx"
 ],
 "value": "ck2004",
