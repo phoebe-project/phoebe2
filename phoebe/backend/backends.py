@@ -2644,7 +2644,7 @@ class EllcBackend(BaseBackendByDataset):
                              sbratio=sbratio,
                              incl=incl,
                              t_zero=t_zero,
-                             period=period,
+                             period=period_anom,
                              a=a,
                              q=q,
                              f_c=f_c, f_s=f_s,
