@@ -5499,7 +5499,7 @@ class Bundle(ParameterSet):
         The definition of time-to-phase used here is:
         ```
         if dpdt != 0:
-            phase = np.mod(1./dpdt * np.log(period + dpdt*(time-t0)), 1.0)
+            phase = np.mod(1./dpdt * np.log(1 + dpdt/period*(time-t0)), 1.0)
         else:
             phase = np.mod((time-t0)/period, 1.0)
         ```
@@ -5556,7 +5556,7 @@ class Bundle(ParameterSet):
         # and phoebe.constraints.builtin.times_to_phases
         # and update docstring above
         if dpdt != 0:
-            phase = np.mod(1./dpdt * np.log(period + dpdt*(time-t0)), 1.0)
+            phase = np.mod(1./dpdt * np.log(1 + dpdt/period*(time-t0)), 1.0)
         else:
             phase = np.mod((time-t0)/period, 1.0)
 
@@ -5582,7 +5582,7 @@ class Bundle(ParameterSet):
         The definition of phase-to-time used here is:
         ```
         if dpdt != 0:
-            time = t0 + 1./dpdt*(np.exp(dpdt*(phase))-period)
+            time = t0 + period/dpdt*(np.exp(dpdt*(phase))-1.0)
         else:
             time = t0 + (phase)*period
         ```
@@ -5634,8 +5634,7 @@ class Bundle(ParameterSet):
         # and phoebe.constraints.builtin.phases_to_times
         # and update docstring above
         if dpdt != 0:
-            # TODO: not sure this is correct!!!
-            time = t0 + 1./dpdt*(np.exp(dpdt*(phase))-period)
+            time = t0 + period/dpdt*(np.exp(dpdt*(phase))-1.0)
         else:
             time = t0 + (phase)*period
 
