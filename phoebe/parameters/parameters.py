@@ -6680,11 +6680,10 @@ class Parameter(object):
                 continue
 
             # otherwise we need to find the parameter we're referencing and check its value
-            if visible_if[0]=='[':
-                remove_metawargs, visible_if = visible_if[1:].split(']')
-                remove_metawargs = remove_metawargs.split(',')
-            else:
-                remove_metawargs = []
+            remove_metawargs = []
+            while visible_if[0] == '[':
+                remove_metawargs.append(visible_if[1:].split(']')[0])
+                visible_if = ']'.join(visible_if[1:].split(']')[1:])
 
             qualifier, value = visible_if.split(':')
 
@@ -6763,11 +6762,10 @@ class Parameter(object):
                 return False
 
             # otherwise we need to find the parameter we're referencing and check its value
-            if visible_if[0]=='[':
-                remove_metawargs, visible_if = visible_if[1:].split(']')
-                remove_metawargs = remove_metawargs.split(',')
-            else:
-                remove_metawargs = []
+            remove_metawargs = []
+            while visible_if[0] == '[':
+                remove_metawargs.append(visible_if[1:].split(']')[0])
+                visible_if = ']'.join(visible_if[1:].split(']')[1:])
 
             qualifier, value = visible_if.split(':')
 
