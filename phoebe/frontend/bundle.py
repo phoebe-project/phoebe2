@@ -6354,6 +6354,7 @@ class Bundle(ParameterSet):
         * <phoebe.parameters.constraint.asini>
         * <phoebe.parameters.constraint.ecosw>
         * <phoebe.parameters.constraint.esinw>
+        * <phoebe.parameters.constraint.period_anom>
         * <phoebe.parameters.constraint.t0_perpass_supconj>
         * <phoebe.parameters.constraint.t0_ref_supconj>
         * <phoebe.parameters.constraint.mean_anom>
