@@ -12,7 +12,7 @@ logger.addHandler(logging.NullHandler())
 # expose these at top-level so they're available to constraints
 from numpy import sin, cos, tan, arcsin, arccos, arctan, arctan2, sqrt, log10
 
-def phases_to_times(phase, period_choice, period, period_anom, dpdt, t0_choice, t0_supconj, t0_perpass, t0_ref):
+def phases_to_times(phase, period_choice, period, period_anom, dpdt_choice, dpdt, t0_choice, t0_supconj, t0_perpass, t0_ref):
     # print("*** builtin.phases_to_times period_choice: {}, t0_choice: {}".format(period_choice, t0_choice))
     if period_choice == 'period':
         period = period
@@ -30,6 +30,13 @@ def phases_to_times(phase, period_choice, period, period_anom, dpdt, t0_choice, 
     else:
         raise NotImplementedError()
 
+    if dpdt_choice == 'dpdt':
+        dpdt = dpdt
+    elif dpdt_choice == 'none':
+        dpdt = 0.0
+    else:
+        raise NotImplementedError()
+
     # print("*** builtin.phases_to_times period: {}, t0: {}".format(period, t0))
 
     if isinstance(phase, list):
@@ -43,7 +50,7 @@ def phases_to_times(phase, period_choice, period, period_anom, dpdt, t0_choice, 
 
     return time
 
-def times_to_phases(time, period_choice, period, period_anom, dpdt, t0_choice, t0_supconj, t0_perpass, t0_ref):
+def times_to_phases(time, period_choice, period, period_anom, dpdt_choice, dpdt, t0_choice, t0_supconj, t0_perpass, t0_ref):
     # print("*** builtin.times_to_phases", period_choice, t0_choice)
     if period_choice == 'period':
         period = period
@@ -58,6 +65,13 @@ def times_to_phases(time, period_choice, period, period_anom, dpdt, t0_choice, t
         t0 = t0_perpass
     elif t0_choice == 't0_ref':
         t0 = t0_ref
+    else:
+        raise NotImplementedError()
+
+    if dpdt_choice == 'dpdt':
+        dpdt = dpdt
+    elif dpdt_choice == 'none':
+        dpdt = 0.0
     else:
         raise NotImplementedError()
 

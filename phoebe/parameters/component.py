@@ -76,7 +76,7 @@ def orbit(component, **kwargs):
     params = []
 
     params += [FloatParameter(qualifier='period', latexfmt=r'P_\mathrm{{ {component} }}', timederiv='dpdt', value=kwargs.get('period', 1.0), default_unit=u.d, limits=(1e-6,None), description='Orbital period (defined at t0@system, sidereal: wrt the sky)')]
-    params += [FloatParameter(qualifier='period_anom', visible_if='dperdt:!0.0||dpdt:!0.0', latexfmt=r'P_\mathrm{{anom, {component} }}', value=kwargs.get('period_anom', 1.0), default_unit=u.d, limit=(1e-6,None), description='Anomalistic orbital period (defined at t0@system, anomalistic: time between two successive periastron passages)')]
+    params += [FloatParameter(qualifier='period_anom', visible_if='dperdt:!0.0', latexfmt=r'P_\mathrm{{anom, {component} }}', value=kwargs.get('period_anom', 1.0), default_unit=u.d, limit=(1e-6,None), description='Anomalistic orbital period (defined at t0@system, anomalistic: time between two successive periastron passages)')]
     params += [FloatParameter(qualifier='freq', latexfmt=r'f_\mathrm{{ {component} }}', value=kwargs.get('freq', 2*np.pi/3.0), default_unit=u.rad/u.d, advanced=True, description='Orbital frequency (sidereal)')]
     params += [FloatParameter(qualifier='dpdt', latexfmt=r'\dot{{P}}_\mathrm{{ {component} }}',  value=kwargs.get('dpdt', 0.0), default_unit=u.s/u.yr, advanced=True, description='Time derivative of orbital period (anomalistic), where period is defined at t0@system')]
     params += [FloatParameter(qualifier='per0', latexfmt=r'\omega_{{0, \mathrm{{ {component} }} }}', timederiv='dperdt', value=kwargs.get('per0', 0.0), default_unit=u.deg, description='Argument of periastron (defined at time t0@system)')]

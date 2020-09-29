@@ -196,13 +196,16 @@ def dynamics(times, periods, eccs, smas, t0_perpasses, per0s, long_ans, incls,
         #-- if dpdt is non-zero, the period is actually an array, and the semi-
         #   major axis changes to match Kepler's third law (unless
         #   `mass_conservation` is set to False)
+        # p0 = period
+        # sma0 = sma
+
         if dpdt!=0:
-            period_ = period
-            period = dpdt*(times-t0) + period_
-            if mass_conservation and not np.isscalar(period):
-                 sma = sma/period[0]**2*period**2
-            elif mass_conservation:
-                 sma = sma/period_**2*period**2
+            p0 = period
+            period = dpdt*(times-t0) + p0
+            if mass_conservation:
+                # Pieter used to have a if not np.isscale(period) to use period[0] instead of p0,
+                # effectively starting mass conservation at the first dataset time instead of t0
+                sma = sma/p0**2*period**2
 
         #-- if dperdt is non-zero, the argument of periastron is actually an
         #   array

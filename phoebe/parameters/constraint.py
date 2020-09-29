@@ -250,11 +250,11 @@ def t0_ref_to_supconj(t0_ref, period, ecc, per0, dpdt, dperdt, t0):
 def t0_supconj_to_ref(t0_supconj, period, ecc, per0, dpdt, dperdt, t0):
     return ConstraintParameter(t0_supconj._bundle, "t0_supconj_to_ref({}, {}, {}, {}, {}, {}, {})".format(_get_expr(t0_supconj), _get_expr(period), _get_expr(ecc), _get_expr(per0), _get_expr(dpdt), _get_expr(dperdt), _get_expr(t0)))
 
-def _times_to_phases(times, period_choice, period, period_anom, dpdt, t0_choice, t0_supconj, t0_perpass, t0_ref):
-    return ConstraintParameter(times._bundle, "times_to_phases({}, {}, {}, {}, {}, {}, {}, {}, {})".format(_get_expr(times), _get_expr(period_choice), _get_expr(period), _get_expr(period_anom), _get_expr(dpdt), _get_expr(t0_choice), _get_expr(t0_supconj), _get_expr(t0_perpass), _get_expr(t0_ref)))
+def _times_to_phases(times, period_choice, period, period_anom, phases_dpdt, dpdt, t0_choice, t0_supconj, t0_perpass, t0_ref):
+    return ConstraintParameter(times._bundle, "times_to_phases({}, {}, {}, {}, {}, {}, {}, {}, {}, {})".format(_get_expr(times), _get_expr(period_choice), _get_expr(period), _get_expr(period_anom), _get_expr(phases_dpdt), _get_expr(dpdt), _get_expr(t0_choice), _get_expr(t0_supconj), _get_expr(t0_perpass), _get_expr(t0_ref)))
 
-def _phases_to_times(phases, period_choice, period, period_anom, dpdt, t0_choice, t0_supconj, t0_perpass, t0_ref):
-    return ConstraintParameter(phases._bundle, "phases_to_times({}, {}, {}, {}, {}, {}, {}, {}, {})".format(_get_expr(phases), _get_expr(period_choice), _get_expr(period), _get_expr(period_anom), _get_expr(dpdt), _get_expr(t0_choice), _get_expr(t0_supconj), _get_expr(t0_perpass), _get_expr(t0_ref)))
+def _phases_to_times(phases, period_choice, period, period_anom, phases_dpdt, dpdt, t0_choice, t0_supconj, t0_perpass, t0_ref):
+    return ConstraintParameter(phases._bundle, "phases_to_times({}, {}, {}, {}, {}, {}, {}, {}, {}, {})".format(_get_expr(phases), _get_expr(period_choice), _get_expr(period), _get_expr(period_anom), _get_expr(phases_dpdt), _get_expr(dpdt), _get_expr(t0_choice), _get_expr(t0_supconj), _get_expr(t0_perpass), _get_expr(t0_ref)))
 
 #{ Custom constraints
 
@@ -2651,6 +2651,7 @@ def compute_phases(b, component, dataset, solve_for=None, **kwargs):
                 raise
 
         phases_period = ds.get_parameter(qualifier='phases_period', component=component, **_skip_filter_checks)
+        phases_dpdt = ds.get_parameter(qualifier='phases_dpdt', component=component, **_skip_filter_checks)
         phases_t0 = ds.get_parameter(qualifier='phases_t0', component=component, **_skip_filter_checks)
         t0_supconj = b.get_parameter(qualifier='t0_supconj', component=component if component!='_default' else b.hierarchy.get_top(), context='component', **_skip_filter_checks)
         t0_perpass = b.get_parameter(qualifier='t0_perpass', component=component if component!='_default' else b.hierarchy.get_top(), context='component', **_skip_filter_checks)
@@ -2659,10 +2660,10 @@ def compute_phases(b, component, dataset, solve_for=None, **kwargs):
 
         if solve_for in [None, compute_phases]:
             lhs = compute_phases
-            rhs = _times_to_phases(compute_times, phases_period, period, period_anom, dpdt, phases_t0, t0_supconj, t0_perpass, t0_ref)
+            rhs = _times_to_phases(compute_times, phases_period, period, period_anom, phases_dpdt, dpdt, phases_t0, t0_supconj, t0_perpass, t0_ref)
         elif solve_for in [compute_times]:
             lhs = compute_times
-            rhs = _phases_to_times(compute_phases, phases_period, period, period_anom, dpdt, phases_t0, t0_supconj, t0_perpass, t0_ref)
+            rhs = _phases_to_times(compute_phases, phases_period, period, period_anom, phases_dpdt, dpdt, phases_t0, t0_supconj, t0_perpass, t0_ref)
         else:
             raise NotImplementedError
 

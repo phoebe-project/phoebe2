@@ -5505,6 +5505,14 @@ class Bundle(ParameterSet):
             raise NotImplementedError
 
         for k,v in kwargs.items():
+            if k=='dpdt' and isinstance(v, str):
+                if v.lower() == 'none':
+                    # for example, passing dpdt = 'none' (via figure)
+                    v = 0.0
+                elif v == 'dpdt':
+                    continue
+                else:
+                    raise ValueError("dpdt={} not implemented".format(v))
             ret[k] = v
 
         return ret
@@ -9682,6 +9690,9 @@ class Bundle(ParameterSet):
             elif isinstance(dataset, dict):
                 datasets += self.filter(dataset=dataset.get(compute_, []), context='dataset', **_skip_filter_checks).datasets
 
+
+        if not len(datasets):
+            raise ValueError("cannot run forward model without any enabled datasets")
 
         return model, computes, datasets, do_create_fig_params, changed_params, overwrite_ps, kwargs
 

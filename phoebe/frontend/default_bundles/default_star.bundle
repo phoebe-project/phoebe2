@@ -2,7 +2,7 @@
 {
 "qualifier": "t0",
 "context": "system",
-"description": "Time at which all values are provided",
+"description": "Time at which all values are provided.  For values with time-derivatives, this defines their zero-point.",
 "value": 0.0,
 "default_unit": "d",
 "limits": [
@@ -804,9 +804,9 @@ null
 "choices": [
 "ck2004",
 "blackbody",
+"extern_planckint",
 "phoenix",
-"extern_atmx",
-"extern_planckint"
+"extern_atmx"
 ],
 "value": "ck2004",
 "copy_for": {
@@ -960,9 +960,9 @@ null
 "choices": [
 "ck2004",
 "blackbody",
+"extern_planckint",
 "phoenix",
-"extern_atmx",
-"extern_planckint"
+"extern_atmx"
 ],
 "value": "ck2004",
 "copy_for": false,

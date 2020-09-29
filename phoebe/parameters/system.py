@@ -29,7 +29,7 @@ def system(**kwargs):
     params = []
     constraints = []
 
-    params += [FloatParameter(qualifier='t0', latexfmt=r't_0', value=kwargs.get('t0', 0.0), default_unit=u.d, description='Time at which all values are provided')]
+    params += [FloatParameter(qualifier='t0', latexfmt=r't_0', value=kwargs.get('t0', 0.0), default_unit=u.d, description='Time at which all values are provided.  For values with time-derivatives, this defines their zero-point.')]
 
     # TODO: re-enable these once they're incorporated into orbits (dynamics) correctly.
     params += [FloatParameter(qualifier='ra', latexfmt=r'\alpha', value=kwargs.get('ra', 0.0), default_unit=u.deg, advanced=True, description='Right ascension')]
