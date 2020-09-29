@@ -15,6 +15,8 @@ def lc(b, **kwargs):
     params += [SelectParameter(qualifier='models', value=kwargs.get('models', '*'), choices=[''], description='Models to include in the plot')]
 
     params += [ChoiceParameter(qualifier='x', value=kwargs.get('x', 'times'), choices=['times', 'phases'], description='Array to plot along x-axis')]
+    params += [ChoiceParameter(qualifier='period', visible_if='[context][figure][kind]dperdt:!0.0,x:phases', value=kwargs.get('period', 'period'), choices=['period', 'period_anom'], advanced=True, description='Period to use when phasing for x-axis')]
+    params += [ChoiceParameter(qualifier='t0', visible_if='x:phases', value=kwargs.get('t0', 't0_supconj'), choices=['t0_supconj', 't0_perpass', 't0_ref'], advanced=True, description='t0 to use when phasing for x-axis')]
     params += [ChoiceParameter(qualifier='y', value=kwargs.get('y', 'fluxes'), choices=['fluxes', 'residuals'], description='Array to plot along y-axis')]
 
     params += _label_units_lims('x', visible_if='x:times', default_unit=u.d, is_default=True, **kwargs)
@@ -43,6 +45,8 @@ def rv(b, **kwargs):
     params += [SelectParameter(qualifier='components', value=kwargs.get('components', '*'), choices=[''], description='Components to include in the plot')]
 
     params += [ChoiceParameter(qualifier='x', value=kwargs.get('x', 'times'), choices=['times', 'phases'], description='Array to plot along x-axis')]
+    params += [ChoiceParameter(qualifier='period', visible_if='[context][figure][kind]dperdt:!0.0,x:phases', value=kwargs.get('period', 'period'), choices=['period', 'period_anom'], advanced=True, description='Period to use when phasing for x-axis')]
+    params += [ChoiceParameter(qualifier='t0', visible_if='x:phases', value=kwargs.get('t0', 't0_supconj'), choices=['t0_supconj', 't0_perpass', 't0_ref'], advanced=True, description='t0 to use when phasing for x-axis')]
     params += [ChoiceParameter(qualifier='y', value=kwargs.get('y', 'rvs'), choices=['rvs', 'residuals'], description='Array to plot along y-axis')]
 
     params += _label_units_lims('x', visible_if='x:times', default_unit=u.d, is_default=True, **kwargs)
@@ -88,6 +92,8 @@ def orb(b, **kwargs):
     params += [SelectParameter(qualifier='components', value=kwargs.get('components', '*'), choices=[''], description='Components to include in the plot')]
 
     params += [ChoiceParameter(qualifier='x', value=kwargs.get('x', 'us'), choices=['times', 'phases', 'us', 'vs', 'ws', 'vus', 'vvs', 'vws'], description='Array to plot along x-axis')]
+    params += [ChoiceParameter(qualifier='period', visible_if='[context][figure][kind]dperdt:!0.0,x:phases', value=kwargs.get('period', 'period'), choices=['period', 'period_anom'], advanced=True, description='Period to use when phasing for x-axis')]
+    params += [ChoiceParameter(qualifier='t0', visible_if='x:phases', value=kwargs.get('t0', 't0_supconj'), choices=['t0_supconj', 't0_perpass', 't0_ref'], advanced=True, description='t0 to use when phasing for x-axis')]
     params += [ChoiceParameter(qualifier='y', value=kwargs.get('y', 'ws'), choices=['us', 'vs', 'ws', 'vus', 'vvs', 'vws'], description='Array to plot along y-axis')]
 
     params += _label_units_lims('x', visible_if='x:times', default_unit=u.d, is_default=False, **kwargs)

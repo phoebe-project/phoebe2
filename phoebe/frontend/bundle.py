@@ -8401,7 +8401,7 @@ class Bundle(ParameterSet):
 
             kwargs.setdefault('legend', fig_ps.get_value(qualifier='legend', **_skip_filter_checks))
 
-            for q in ['draw_sidebars', 'uncover', 'highlight']:
+            for q in ['draw_sidebars', 'uncover', 'highlight', 'period', 't0']:
                 if q in fig_ps.qualifiers:
                     kwargs.setdefault(q, fig_ps.get_value(qualifier=q, **_skip_filter_checks))
 
