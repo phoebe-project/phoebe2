@@ -569,8 +569,8 @@ class Bundle(ParameterSet):
         * RuntimeError: if the version of the imported file fails to load according
             to `import_from_older` or `import_from_newer`.
         """
-        def _ps_dict(ps):
-            return {p.qualifier: p.get_quantity() if hasattr(p, 'get_quantity') else p.get_value() for p in ps.to_list()}
+        def _ps_dict(ps, include_constrained=True):
+            return {p.qualifier: p.get_quantity() if hasattr(p, 'get_quantity') else p.get_value() for p in ps.to_list() if (include_constrained or not p.is_constraint)}
 
         if io._is_file(filename):
             f = filename
@@ -613,59 +613,97 @@ class Bundle(ParameterSet):
         elif not import_from_older:
             raise RuntimeError("The file/bundle is from an older version of PHOEBE ({}) than installed ({}). Attempt importing by passing import_from_older=True.".format(phoebe_version_import, phoebe_version_this))
 
+        if phoebe_version_import < StrictVersion("2.1.0"):
+            logger.warning("importing from an older version ({}) of PHOEBE into version {}".format(phoebe_version_import, phoebe_version_this))
 
-        if phoebe_version_import < StrictVersion("2.3.0"):
-            warning = "importing from an older version ({}) of PHOEBE which did not support sample_from, etc... all compute options will be migrated to include all new options.  Additionally, extinction parameters will be moved from the dataset to system context.  This may take some time.  Please check all values.".format(phoebe_version_import)
+            # rpole -> requiv: https://github.com/phoebe-project/phoebe2/pull/300
+            dict_stars = {}
+            for star in b.hierarchy.get_stars():
+                ps_star = b.filter(context='component', component=star)
+                dict_stars[star] = _ps_dict(ps_star)
 
-            b.remove_parameters_all(qualifier='log_history', **_skip_filter_checks)
+                # TODO: actually do the translation
+                rpole = dict_stars[star].pop('rpole', 1.0*u.solRad).to(u.solRad).value
+                # PHOEBE 2.0 didn't have syncpar for contacts
+                if len(b.filter(qualifier='syncpar', component=star)):
+                    F = b.get_value(qualifier='syncpar', component=star, context='component')
+                else:
+                    F = 1.0
+                parent_orbit = b.hierarchy.get_parent_of(star)
+                component = b.hierarchy.get_primary_or_secondary(star, return_ind=True)
+                sma = b.get_value(qualifier='sma', component=parent_orbit, context='component', unit=u.solRad)
+                q = b.get_value(qualifier='q', component=parent_orbit, context='component')
+                d = 1 - b.get_value(qualifier='ecc', component=parent_orbit)
 
-            # new settings parameters were added for run_checks_*
-            logger.warning("updating all parameters in setting context")
-            existing_values_settings = {p.qualifier: p.get_value() for p in b.filter(context='setting').to_list()}
-            b.remove_parameters_all(context='setting', **_skip_filter_checks)
-            b._attach_params(_setting.settings(**existing_values_settings), context='setting')
+                logger.info("roche.rpole_to_requiv_aligned(rpole={}, sma={}, q={}, F={}, d={}, component={})".format(rpole, sma, q, F, d, component))
+                dict_stars[star]['requiv'] = roche.rpole_to_requiv_aligned(rpole, sma, q, F, d, component=component)
 
-            # update logg constraints (now in solar units due to bug with MPI handling converting solMass to SI)
-            for logg_constraint in b.filter(qualifier='logg', context='constraint', **_skip_filter_checks).to_list():
-                component = logg_constraint.component
-                logger.warning("re-creating logg constraint for component='{}' to be in solar instead of SI units".format(component))
-                b.remove_constraint(uniqueid=logg_constraint.uniqueid)
-                b.add_constraint('logg', component=component)
+                b.remove_component(star)
 
-            for compute in b.filter(context='compute').computes:
-                logger.info("attempting to update compute='{}' to new version requirements".format(compute))
-                ps_compute = b.filter(context='compute', compute=compute)
-                compute_kind = ps_compute.kind
-                dict_compute = _ps_dict(ps_compute)
-                # NOTE: we will not remove (or update) the dataset from any existing models
-                b.remove_compute(compute, context=['compute'])
-                b.add_compute(compute_kind, compute=compute, check_label=False, **dict_compute)
 
-            # extinction parameters were moved from dataset to system, so we'll just add the new parameters
-            system, constraints = _system.system()
-            b._attach_params([p for p in system.to_list() if p.qualifier in ['ebv', 'Av', 'Rv']], context='system')
+            for star, dict_star in dict_stars.items():
+                logger.info("attempting to update component='{}' to new version requirements".format(star))
+                b.add_component('star', component=star, check_label=False, **dict_star)
 
-            Avs = list(set([Av_param.get_value() for Av_param in b.filter(qualifier='Av', context='dataset', **_skip_filter_checks).to_list()]))
-            if len(Avs):
-                if len(Avs) > 1:
-                    logger.warning("PHOEBE no longer supports multiple values for Av, adopting Av={}".format(Avs[0]))
-                b.set_value(qualifier='Av', context='system', value=Avs[0], **_skip_filter_checks)
-            Rvs = list(set([Rv_param.get_value() for Rv_param in b.filter(qualifier='Rv', context='dataset', **_skip_filter_checks).to_list()]))
-            if len(Rvs):
-                if len(Rvs) > 1:
-                    logger.warning("PHOEBE no longer supports multiple values for Rv, adopting Rv={}".format(Rvs[0]))
-                b.set_value(qualifier='Rv', context='system', value=Rvs[0], **_skip_filter_checks)
 
-            b.remove_parameters_all(qualifier=['ebv', 'Av', 'Rv'], context='dataset', **_skip_filter_checks)
-            b.remove_parameters_all(constraint_func='extinction', context='constraint', **_skip_filter_checks)
+            dict_envs = {}
+            for env in b.hierarchy.get_envelopes():
+                ps_env = b.filter(context='component', component=env)
+                dict_envs[env] = _ps_dict(ps_env)
+                b.remove_component(env)
 
-            for constraint in constraints:
-                # there were no constraints before in the system context
-                b.add_constraint(*constraint)
+            for env, dict_env in dict_envs.items():
+                logger.info("attempting to update component='{}' to new version requirements".format(env))
+                b.add_component('envelope', component=env, check_label=False, **dict_env)
 
-            # call set_hierarchy to force asini@component constraints (comp_asini) to be built
+                # TODO: this probably will fail once more than one contacts are
+                # supported, but will never need that for 2.0->2.1 since
+                # multiples aren't supported (yet) call b.set_hierarchy() to
+
+                # reset all hieararchy-dependent constraints (including
+                # pot<->requiv)
+                b.set_hierarchy()
+
+                primary = b.hierarchy.get_stars()[0]
+                b.flip_constraint('pot', component=env, solve_for='requiv@{}'.format(primary), check_nan=False)
+                b.set_value(qualifier='pot', component=env, context='component', value=dict_env['pot'])
+                b.flip_constraint('requiv', component=primary, solve_for='pot', check_nan=False)
+
+            # reset all hieararchy-dependent constraints
             b.set_hierarchy()
 
+            # mesh datasets: https://github.com/phoebe-project/phoebe2/pull/261, https://github.com/phoebe-project/phoebe2/pull/300
+            for dataset in b.filter(context='dataset', kind='mesh').datasets:
+                logger.info("attempting to update mesh dataset='{}' to new version requirements".format(dataset))
+                ps_mesh = b.filter(context='dataset', kind='mesh', dataset=dataset)
+                dict_mesh = _ps_dict(ps_mesh)
+                # NOTE: we will not remove (or update) the dataset from any existing models
+                b.remove_dataset(dataset, context=['dataset', 'constraint', 'compute'])
+                if len(b.filter(dataset=dataset, context='model')):
+                    logger.warning("existing model for dataset='{}' models={} will not be removed, but likely will not work with new plotting updates".format(dataset, b.filter(dataset=dataset, context='model').models))
+
+                b.add_dataset('mesh', dataset=dataset, check_label=False, **dict_mesh)
+
+            # vgamma definition: https://github.com/phoebe-project/phoebe2/issues/234
+            logger.info("updating vgamma to new version requirements")
+            b.set_value(qualifier='vgamma', value=-1*b.get_value(qualifier='vgamma'))
+
+            # remove phshift parameter: https://github.com/phoebe-project/phoebe2/commit/1fa3a4e1c0f8d80502101e1b1e750f5fb14115cb
+            logger.info("removing any phshift parameters for new version requirements")
+            b.remove_parameters_all(qualifier='phshift')
+
+            # colon -> long: https://github.com/phoebe-project/phoebe2/issues/211
+            logger.info("removing any colon parameters for new version requirements")
+            b.remove_parameters_all(qualifier='colon')
+
+            # make sure constraints are updated according to conf.interactive_constraints
+            b.run_delayed_constraints()
+
+        if phoebe_version_import < StrictVersion("2.1.2"):
+            b._import_before_v211 = True
+            warning = "importing from an older version ({}) of PHOEBE which did not support constraints in solar units.  All constraints will remain in SI, but calling set_hierarchy will likely fail.".format(phoebe_version_import)
+            print("WARNING: {}".format(warning))
+            logger.warning(warning)
 
         if phoebe_version_import < StrictVersion("2.2.0"):
             warning = "importing from an older version ({}) of PHOEBE which did not support compute_times, ld_mode/ld_coeffs_source, pblum_mode, l3_mode, etc... all datasets will be migrated to include all new options.  This may take some time.  Please check all values.".format(phoebe_version_import)
@@ -772,97 +810,69 @@ class Bundle(ParameterSet):
             logger.debug("restoring previous models")
             b._attach_params(ps_model, context='model')
 
-        if phoebe_version_import < StrictVersion("2.1.2"):
-            b._import_before_v211 = True
-            warning = "importing from an older version ({}) of PHOEBE which did not support constraints in solar units.  All constraints will remain in SI, but calling set_hierarchy will likely fail.".format(phoebe_version_import)
-            print("WARNING: {}".format(warning))
-            logger.warning(warning)
+        if phoebe_version_import < StrictVersion("2.3.0"):
+            warning = "importing from an older version ({}) of PHOEBE which did not support sample_from, etc... all compute options will be migrated to include all new options.  Additionally, extinction parameters will be moved from the dataset to system context.  This may take some time.  Please check all values.".format(phoebe_version_import)
 
-        if phoebe_version_import < StrictVersion("2.1.0"):
-            logger.warning("importing from an older version ({}) of PHOEBE into version {}".format(phoebe_version_import, phoebe_version_this))
+            b.remove_parameters_all(qualifier='log_history', **_skip_filter_checks)
 
-            # rpole -> requiv: https://github.com/phoebe-project/phoebe2/pull/300
-            dict_stars = {}
-            for star in b.hierarchy.get_stars():
-                ps_star = b.filter(context='component', component=star)
-                dict_stars[star] = _ps_dict(ps_star)
+            # new settings parameters were added for run_checks_*
+            logger.warning("updating all parameters in setting context")
+            existing_values_settings = {p.qualifier: p.get_value() for p in b.filter(context='setting').to_list()}
+            b.remove_parameters_all(context='setting', **_skip_filter_checks)
+            b._attach_params(_setting.settings(**existing_values_settings), context='setting')
 
-                # TODO: actually do the translation
-                rpole = dict_stars[star].pop('rpole', 1.0*u.solRad).to(u.solRad).value
-                # PHOEBE 2.0 didn't have syncpar for contacts
-                if len(b.filter(qualifier='syncpar', component=star)):
-                    F = b.get_value(qualifier='syncpar', component=star, context='component')
-                else:
-                    F = 1.0
-                parent_orbit = b.hierarchy.get_parent_of(star)
-                component = b.hierarchy.get_primary_or_secondary(star, return_ind=True)
-                sma = b.get_value(qualifier='sma', component=parent_orbit, context='component', unit=u.solRad)
-                q = b.get_value(qualifier='q', component=parent_orbit, context='component')
-                d = 1 - b.get_value(qualifier='ecc', component=parent_orbit)
+            # update logg constraints (now in solar units due to bug with MPI handling converting solMass to SI)
+            for logg_constraint in b.filter(qualifier='logg', context='constraint', **_skip_filter_checks).to_list():
+                component = logg_constraint.component
+                logger.warning("re-creating logg constraint for component='{}' to be in solar instead of SI units".format(component))
+                b.remove_constraint(uniqueid=logg_constraint.uniqueid)
+                b.add_constraint('logg', component=component)
 
-                logger.info("roche.rpole_to_requiv_aligned(rpole={}, sma={}, q={}, F={}, d={}, component={})".format(rpole, sma, q, F, d, component))
-                dict_stars[star]['requiv'] = roche.rpole_to_requiv_aligned(rpole, sma, q, F, d, component=component)
-
-                b.remove_component(star)
-
-
-            for star, dict_star in dict_stars.items():
-                logger.info("attempting to update component='{}' to new version requirements".format(star))
-                b.add_component('star', component=star, check_label=False, **dict_star)
-
-
-            dict_envs = {}
-            for env in b.hierarchy.get_envelopes():
-                ps_env = b.filter(context='component', component=env)
-                dict_envs[env] = _ps_dict(ps_env)
-                b.remove_component(env)
-
-            for env, dict_env in dict_envs.items():
-                logger.info("attempting to update component='{}' to new version requirements".format(env))
-                b.add_component('envelope', component=env, check_label=False, **dict_env)
-
-                # TODO: this probably will fail once more than one contacts are
-                # supported, but will never need that for 2.0->2.1 since
-                # multiples aren't supported (yet) call b.set_hierarchy() to
-
-                # reset all hieararchy-dependent constraints (including
-                # pot<->requiv)
-                b.set_hierarchy()
-
-                primary = b.hierarchy.get_stars()[0]
-                b.flip_constraint('pot', component=env, solve_for='requiv@{}'.format(primary), check_nan=False)
-                b.set_value(qualifier='pot', component=env, context='component', value=dict_env['pot'])
-                b.flip_constraint('requiv', component=primary, solve_for='pot', check_nan=False)
-
-            # reset all hieararchy-dependent constraints
-            b.set_hierarchy()
-
-            # mesh datasets: https://github.com/phoebe-project/phoebe2/pull/261, https://github.com/phoebe-project/phoebe2/pull/300
-            for dataset in b.filter(context='dataset', kind='mesh').datasets:
-                logger.info("attempting to update mesh dataset='{}' to new version requirements".format(dataset))
-                ps_mesh = b.filter(context='dataset', kind='mesh', dataset=dataset)
-                dict_mesh = _ps_dict(ps_mesh)
+            for compute in b.filter(context='compute').computes:
+                logger.info("attempting to update compute='{}' to new version requirements".format(compute))
+                ps_compute = b.filter(context='compute', compute=compute, **_skip_filter_checks)
+                compute_kind = ps_compute.kind
+                dict_compute = _ps_dict(ps_compute)
                 # NOTE: we will not remove (or update) the dataset from any existing models
-                b.remove_dataset(dataset, context=['dataset', 'constraint', 'compute'])
-                if len(b.filter(dataset=dataset, context='model')):
-                    logger.warning("existing model for dataset='{}' models={} will not be removed, but likely will not work with new plotting updates".format(dataset, b.filter(dataset=dataset, context='model').models))
+                b.remove_compute(compute, context=['compute'])
+                b.add_compute(compute_kind, compute=compute, check_label=False, **dict_compute)
 
-                b.add_dataset('mesh', dataset=dataset, check_label=False, **dict_mesh)
+            # all datasets need to be rebuilt to handle compute_phases_t0 -> phases_t0
+            # and add mask_phases and solver_times support
+            for dataset in b.filter(context='dataset').datasets:
+                logger.info("attempting to update dataset='{}' to new version requirements".format(dataset))
+                ps_ds = b.filter(context='dataset', dataset=dataset, **_skip_filter_checks)
+                ds_kind = ps_ds.kind
+                dict_ds = _ps_dict(ps_ds, include_constrained=False)
+                if 'compute_phases_t0' in dict_ds.keys():
+                    dict_ds['phases_t0'] = dict_ds.pop('compute_phases_t0')
+                b.remove_dataset(dataset, context=['dataset', 'constraint'])
+                b.add_dataset(ds_kind, dataset=dataset, check_label=False, **dict_ds)
 
-            # vgamma definition: https://github.com/phoebe-project/phoebe2/issues/234
-            logger.info("updating vgamma to new version requirements")
-            b.set_value(qualifier='vgamma', value=-1*b.get_value(qualifier='vgamma'))
+            # extinction parameters were moved from dataset to system, so we'll just add the new parameters
+            system, constraints = _system.system()
+            b._attach_params([p for p in system.to_list() if p.qualifier in ['ebv', 'Av', 'Rv']], context='system')
 
-            # remove phshift parameter: https://github.com/phoebe-project/phoebe2/commit/1fa3a4e1c0f8d80502101e1b1e750f5fb14115cb
-            logger.info("removing any phshift parameters for new version requirements")
-            b.remove_parameters_all(qualifier='phshift')
+            Avs = list(set([Av_param.get_value() for Av_param in b.filter(qualifier='Av', context='dataset', **_skip_filter_checks).to_list()]))
+            if len(Avs):
+                if len(Avs) > 1:
+                    logger.warning("PHOEBE no longer supports multiple values for Av, adopting Av={}".format(Avs[0]))
+                b.set_value(qualifier='Av', context='system', value=Avs[0], **_skip_filter_checks)
+            Rvs = list(set([Rv_param.get_value() for Rv_param in b.filter(qualifier='Rv', context='dataset', **_skip_filter_checks).to_list()]))
+            if len(Rvs):
+                if len(Rvs) > 1:
+                    logger.warning("PHOEBE no longer supports multiple values for Rv, adopting Rv={}".format(Rvs[0]))
+                b.set_value(qualifier='Rv', context='system', value=Rvs[0], **_skip_filter_checks)
 
-            # colon -> long: https://github.com/phoebe-project/phoebe2/issues/211
-            logger.info("removing any colon parameters for new version requirements")
-            b.remove_parameters_all(qualifier='colon')
+            b.remove_parameters_all(qualifier=['ebv', 'Av', 'Rv'], context='dataset', **_skip_filter_checks)
+            b.remove_parameters_all(constraint_func='extinction', context='constraint', **_skip_filter_checks)
 
-            # make sure constraints are updated according to conf.interactive_constraints
-            b.run_delayed_constraints()
+            for constraint in constraints:
+                # there were no constraints before in the system context
+                b.add_constraint(*constraint)
+
+            # call set_hierarchy to force asini@component constraints (comp_asini) to be built
+            b.set_hierarchy()
 
         return b
 
