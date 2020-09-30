@@ -3579,8 +3579,8 @@ class ParameterSet(object):
         mask_enabled = dataset_ps.get_value(qualifier='mask_enabled', default=False, mask_enabled=mask_enabled, **_skip_filter_checks)
         if mask_enabled:
             mask_phases = dataset_ps.get_value(qualifier='mask_phases', mask_phases=mask_phases, **_skip_filter_checks)
-            mask_period = dataset_ps.get_value(qualifier='phases_period', **_skip_filter_checks)
-            mask_dpdt = dataset_ps.get_value(qualifier='phases_dpdt', **_skip_filter_checks)
+            mask_period = dataset_ps.get_value(qualifier='phases_period', default='period', **_skip_filter_checks)
+            mask_dpdt = dataset_ps.get_value(qualifier='phases_dpdt', default='dpdt', **_skip_filter_checks)
             mask_t0 = dataset_ps.get_value(qualifier='phases_t0', **_skip_filter_checks)
             if len(mask_phases):
                 phases = self._bundle.to_phase(times, period=mask_period, dpdt=mask_dpdt, t0=mask_t0)
@@ -3709,8 +3709,8 @@ class ParameterSet(object):
                 mask_enabled = ds_ps.get_value(qualifier='mask_enabled', default=False, mask_enabled=mask_enabled, **_skip_filter_checks)
                 if mask_enabled:
                     mask_phases = ds_ps.get_value(qualifier='mask_phases', mask_phases=mask_phases, **_skip_filter_checks)
-                    mask_period = ds_ps.get_value(qualifier='phases_period', **_skip_filter_checks)
-                    mask_dpdt = ds_ps.get_value(qualifier='phases_dpdt', **_skip_filter_checks)
+                    mask_period = ds_ps.get_value(qualifier='phases_period', default='period', **_skip_filter_checks)
+                    mask_dpdt = ds_ps.get_value(qualifier='phases_dpdt', default='dpdt', **_skip_filter_checks)
                     mask_t0 = ds_ps.get_value(qualifier='phases_t0', **_skip_filter_checks)
                     if len(mask_phases):
                         times = ds_ps.get_value(qualifier='times', component=ds_comp, unit=u.d, **_skip_filter_checks)
@@ -4048,8 +4048,8 @@ class ParameterSet(object):
             if not len(mask_phases):
                 return array
 
-            mask_period = ps_ds.get_value(qualifier='phases_period', phases_period=kwargs.get('phases_period', None), **_skip_filter_checks)
-            mask_dpdt = ps_ds.get_value(qualifier='phases_dpdt', phases_dpdt=kwargs.get('phases_dpdt', None), **_skip_filter_checks)
+            mask_period = ps_ds.get_value(qualifier='phases_period', default='period', phases_period=kwargs.get('phases_period', None), **_skip_filter_checks)
+            mask_dpdt = ps_ds.get_value(qualifier='phases_dpdt', default='dpdt', phases_dpdt=kwargs.get('phases_dpdt', None), **_skip_filter_checks)
             mask_t0 = ps_ds.get_value(qualifier='phases_t0', phases_t0=kwargs.get('phases_t0', None), **_skip_filter_checks)
 
             times = ps.get_value(qualifier='times', unit=u.d, **_skip_filter_checks)
