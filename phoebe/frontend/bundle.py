@@ -10092,13 +10092,22 @@ class Bundle(ParameterSet):
 
                 metawargs = {'compute': compute, 'model': model, 'context': 'model'}  # dataset, component, etc will be set by the compute_func
 
+                # TODO: consolidate this into _prepare_compute and simplify the logic
+                # make sure to test again compute_multiple tutorial
+                dataset_this_compute = datasets
+                # remove any that are disabled
+                if dataset_this_compute is None:
+                    dataset_this_compute = computeparams.filter(qualifier='enabled', value=True, **_skip_filter_checks).datasets
+                else:
+                    dataset_this_compute = [ds[0] if isinstance(ds, tuple) else ds for ds in dataset_this_compute if computeparams.get_value(qualifier='enabled', dataset=ds[0] if isinstance(ds, tuple) else ds, default=False, **_skip_filter_checks)]
+
                 # if sampling is enabled then we need to pass things off now
                 # to the sampler.  The sampler will then make handle parallelization
                 # and per-sample calls to run_compute.
                 sample_from = computeparams.get_value(qualifier='sample_from', expand=True, sample_from=kwargs.pop('sample_from', None), **_skip_filter_checks)
                 if len(sample_from):
                     params = backends.SampleOverModel().run(self, computeparams.compute,
-                                                            dataset=dataset.get(compute) if isinstance(dataset, dict) else dataset,
+                                                            dataset=dataset_this_compute,
                                                             times=times,
                                                             sample_from=sample_from,
                                                             **kwargs)
@@ -10115,7 +10124,7 @@ class Bundle(ParameterSet):
                 # TODO: have this return a dictionary like pblums/l3s that we can pass on to the backend?
 
                 # we need to check both for enabled but also passed via dataset kwarg
-                ds_kinds_enabled = self.filter(dataset=computeparams.filter(qualifier='enabled', value=True, **_skip_filter_checks).filter(dataset=dataset).datasets, context='dataset', **_skip_filter_checks).kinds
+                ds_kinds_enabled = self.filter(dataset=dataset_this_compute, context='dataset', **_skip_filter_checks).kinds
                 if 'lc' in ds_kinds_enabled or 'rv' in ds_kinds_enabled or 'lp' in ds_kinds_enabled:
                     logger.info("run_compute: computing necessary ld_coeffs, pblums, l3s")
                     self.compute_ld_coeffs(compute=compute, skip_checks=True, set_value=True, **{k:v for k,v in kwargs.items() if k in computeparams.qualifiers})
@@ -10144,7 +10153,7 @@ class Bundle(ParameterSet):
                     kwargs['pblums'] = pblums_rel
 
                 ml_params = compute_class().run(self, computeparams.compute,
-                                                dataset=dataset.get(compute) if isinstance(dataset, dict) else dataset,
+                                                dataset=dataset_this_compute,
                                                 times=times,
                                                 **kwargs)
 
