@@ -3839,12 +3839,17 @@ class ParameterSet(object):
         # any items that we remove from filter_kwargs need to be replaced in kwargs
         for k,v in filter_kwargs.items():
             if not (filter_kwargs.get('context', []) is None or k not in filter_kwargs.get('context', [])):
-                kwargs[k] = filter_kwargs[k]
+                if k is not None:
+                    kwargs[k] = filter_kwargs[k]
                 filter_kwargs[k] = None
 
         # print("*** filter_kwargs", filter_kwargs)
-        # print("*** applying filter", {k:v for k,v in filter_kwargs.items() if (filter_kwargs.get('context', []) is None or k not in filter_kwargs.get('context', []))})
-        ps = self.filter(check_visible=False, **filter_kwargs).exclude(qualifier=['compute_times', 'compute_phases', 'compute_phases_t0', 'phases_t0', 'mask_phases'], check_visible=False)
+        # print("*** kwargs", kwargs)
+        filter_kwargs_this = {k:v for k,v in filter_kwargs.items()}
+        if self.context == 'dataset':
+            _ = filter_kwargs_this.pop('model')
+        # print("*** applying filter", filter_kwargs_this)
+        ps = self.filter(check_visible=False, **filter_kwargs_this).exclude(qualifier=['compute_times', 'compute_phases', 'compute_phases_t0', 'phases_t0', 'mask_phases'], check_visible=False)
 
         if 'time' in kwargs.keys() and ps.kind in ['mesh', 'lp']:
             ps = ps.filter(time=kwargs.get('time'), check_visible=False)
@@ -3864,7 +3869,7 @@ class ParameterSet(object):
         if len(ps.contexts) > 1:
             for context in ps.contexts:
                 # print("*** context loop, context={}".format(context))
-                filter_ = {'context': context, context: filter_kwargs.get(context, None)}
+                filter_ = {'context': context, context: kwargs.get(context, filter_kwargs.get(context, None))}
                 if context == 'model':
                     filter_['dataset'] = filter_kwargs.get('dataset', None)
                 # print("*** context loop, applying filter", filter_)
@@ -3879,32 +3884,35 @@ class ParameterSet(object):
         #     return _handle_additional_calls(ps, return_)
 
         if ps.context=='compute' and len(ps.computes)>1:
-            for compute in ps.filter(compute=filter_kwargs.get('compute', None), **_skip_filter_checks).computes:
+            for compute in ps.filter(compute=kwargs.get('compute', filter_kwargs.get('compute', None)), **_skip_filter_checks).computes:
                 this_return = ps.filter(check_visible=False, compute=compute)._unpack_plotting_kwargs(animate=animate, **kwargs)
                 return_ += this_return
             return _handle_additional_calls(ps, return_)
 
         elif ps.context=='solver' and len(ps.solvers)>1:
-            for solver in ps.filter(solver=filter_kwargs.get('solver', None), **_skip_filter_checks).solvers:
+            for solver in ps.filter(solver=kwargs.get('solver', filter_kwargs.get('solver', None)), **_skip_filter_checks).solvers:
                 this_return = ps.filter(check_visible=False, solver=solver)._unpack_plotting_kwargs(animate=animate, **kwargs)
                 return_ += this_return
             return _handle_additional_calls(ps, return_)
 
         elif ps.context=='solution' and len(ps.solutions)>1:
-            for solution in ps.filter(solution=filter_kwargs.get('solution', None), **_skip_filter_checks).solutions:
+            for solution in ps.filter(solution=kwargs.get('solution', filter_kwargs.get('solution', None)), **_skip_filter_checks).solutions:
                 # print("*** solution loop, solution={}".format(solution))
                 this_return = ps.filter(check_visible=False, solution=solution)._unpack_plotting_kwargs(animate=animate, **kwargs)
                 return_ += this_return
             return _handle_additional_calls(ps, return_)
 
         elif ps.context in ['dataset', 'model'] and len(ps.datasets)>1 and not (ps.context=='dataset' and ps.kind in ['mesh', 'orb']):
-            # print("*** entering dataset loop, filter_kwargs['dataset'], kwargs['dataset']".format(filter_kwargs.get('dataset', None), kwargs.get('dataset', None)))
+            # print("*** entering dataset loop, filter_kwargs['dataset']={}, kwargs['dataset']={}".format(filter_kwargs.get('dataset', None), kwargs.get('dataset', None)))
             for dataset in ps.filter(dataset=kwargs.get('dataset', filter_kwargs.get('dataset', None)), **_skip_filter_checks).datasets:
                 # print("*** dataset loop, context={}, dataset={}".format(ps.context, dataset))
                 # print("*** dataset loop filter_kwargs['model']={}, kwargs['model']={}".format(filter_kwargs.get('model', None), kwargs.get('model', None)))
                 if dataset not in ps.filter(model=kwargs.get('model', filter_kwargs.get('model', None)), **_skip_filter_checks).datasets:
                     # in cases where a dataset is disabled for a certain model, we shouldn't
                     # try to plot the observations when model was provided
+                    continue
+                if ps.kind=='mesh' and self._bundle.get_dataset(dataset=dataset).kind != ps.kind and kwargs.get('x', None) in [None, 'us', 'vs', 'ws', 'xs', 'ys', 'zs'] and kwargs.get('y', None) in [None, 'us', 'vs', 'ws', 'xs', 'ys', 'zs']:
+                    # avoid a y vs x plot for meshes with lc-columns
                     continue
                 this_return = ps.filter(check_visible=False, dataset=dataset)._unpack_plotting_kwargs(animate=animate, **kwargs)
                 return_ += this_return
@@ -3913,19 +3921,20 @@ class ParameterSet(object):
         # If we are asking to plot a dataset that also shows up in columns in
         # the mesh, then remove the mesh kind.  In other words: mesh stuff
         # will only be plotted if mesh is the only kind in the filter.
-        pskinds = ps.kinds
+        pskinds = ps.filter(kind=kwargs.get('kind', filter_kwargs.get('kind', None))).kinds
         if len(pskinds) > 1 and 'mesh' in pskinds:
             pskinds.remove('mesh')
 
         if len(ps.kinds) > 1:
             for kind in pskinds:
+                # print("*** kind loop, kind={}".format(kind))
                 this_return = ps.filter(kind=kind, check_visible=False)._unpack_plotting_kwargs(animate=animate, **kwargs)
                 return_ += this_return
             return _handle_additional_calls(ps, return_)
 
         if len(ps.models) > 1: # and ps.context=='model'
             # we'll filter by filter_kwargs again in case it wasn't filtered above for being in default_contexts
-            for model in ps.filter(model=filter_kwargs.get('model', None)).models:
+            for model in ps.filter(model=kwargs.get('model', filter_kwargs.get('model', None))).models:
                 # TODO: change linestyle for models instead of color?
                 this_return = ps.filter(check_visible=False, model=model)._unpack_plotting_kwargs(animate=animate, **kwargs)
                 return_ += this_return
@@ -3941,7 +3950,7 @@ class ParameterSet(object):
         if len(ps.components) > 1 and ps.context in ['model', 'dataset'] and ps.kind not in ['lc']:
             # lc has per-component passband-dependent parameters in the dataset which are not plottable
             return_ = []
-            for component in ps.filter(component=filter_kwargs.get('component', None)).exclude(qualifier=['*_phases', 'phases_*']).components:
+            for component in ps.filter(component=kwargs.get('component', filter_kwargs.get('component', None))).exclude(qualifier=['*_phases', 'phases_*']).components:
                 this_return = ps.filter(check_visible=False, component=component)._unpack_plotting_kwargs(animate=animate, **kwargs)
                 return_ += this_return
             return _handle_additional_calls(ps, return_)
