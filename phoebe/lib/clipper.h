@@ -72,7 +72,7 @@
 namespace ClipperLib {
 
 enum ClipType { ctIntersection, ctUnion, ctDifference, ctXor };
-enum PolyType { ptSubject, ptClip };
+enum PolyType { ptUnset, ptSubject, ptClip };
 //By far the most widely used winding rules for polygon filling are
 //EvenOdd & NonZero (GDI, GDI+, XLib, OpenGL, Cairo, AGG, Quartz, SVG, Gr32)
 //Others rules include Positive, Negative and ABS_GTR_EQ_TWO (only in OpenGL)
@@ -115,6 +115,8 @@ struct IntPoint {
   }
   */
 
+  void Clear() {X = Y = 0;}
+  
   inline bool operator == (const IntPoint& rhs) const
   {
     return X == rhs.X && Y == rhs.Y;
@@ -245,7 +247,7 @@ void PolygonCentroid(const Paths& polys, DoublePoint & P);
 struct IntRect { cInt left; cInt top; cInt right; cInt bottom; };
 
 //enums that are used internally ...
-enum EdgeSide { esLeft = 1, esRight = 2};
+enum EdgeSide {esUnset = 0, esLeft = 1, esRight = 2};
 
 //forward declarations (for stuff used internally) ...
 struct TEdge;
@@ -533,13 +535,27 @@ struct TEdge {
   }
 
   void InitEdge(TEdge* eNext, TEdge* ePrev, const IntPoint& Pt) {
-    std::memset(this, 0, sizeof(TEdge));
+    Clear();
+    
     Next = eNext;
     Prev = ePrev;
     Curr = Pt;
     OutIdx = Unassigned;
   }
 
+  void Clear(){
+    Bot.Clear();
+    Curr.Clear();
+    Top.Clear();
+    Delta.Clear();
+    
+    Dx = 0;
+    PolyTyp = ptUnset;
+    Side = esUnset;
+    WindDelta = WindCnt = WindCnt2 = OutIdx = 0;
+    OutIdx = WindCnt2 = WindCnt = WindDelta = 0; 
+    Next= Prev = NextInLML = NextInAEL = PrevInAEL = NextInSEL = PrevInSEL = 0;
+  }
 
   TEdge *GetMaximaPair(){
 
@@ -1726,7 +1742,7 @@ bool ClipperBase::AddPath(const Path &pg, PolyType PolyTyp, bool Closed)
       InitEdge(&edges[i], &edges[i+1], &edges[i-1], pg[i]);
     }
   */
-    memset(edges, 0, size*sizeof(TEdge));
+    for (int i = 0; i < size; ++i) edges[i].Clear();
 
     TEdge *e = edges, *e_next = e + 1, *e_end = edges + size;
 
