@@ -531,10 +531,10 @@ def info():
     # lower version will show an error message in the client, provide information
     # for updating to 'client_max_version' and WILL REFUSE to connect.
     #
-    # * client_max_version is the maximum tested version of phoebe2-ui.  Any
-    # later versions will show a warning, provide information for updating
-    # phoebe-server, but WILL attempt to connect as long as the client's
-    # phoebe_min_version is in range.
+    # * client_warning is a string that will be shown based on the version of the
+    # requesting client.  Obviously this string can only be written for clients
+    # that have already been released.  Handling issues with a future client-release
+    # should instead by handled in phoebe2-ui App.state and common.getServerWarning
 
     client_warning = None
     if client_version is not None:
