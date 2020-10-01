@@ -169,6 +169,31 @@ def histogram_from_data(data, bins=10, range=None, weights=None, unit=None, labe
 def samples(samples, weights=None, bw_method=None, unit=None, label=None, label_latex=None, wrap_at=None):
     """
     Create a <Samples> distribution.
+
+    Arguments
+    --------------
+    * `samples` (np.array object): an array of samples.  Note that any Nans
+        will be removed.
+    * `weights` (np.array object with length nsamples or None, optional, default=None):
+        weights for each entry in `samples`.  NOTE: only supported with
+        scipy 1.2+.
+    * `bw_method` (string, float, or None, optional, default=None): passed
+        directly to scipy.stats.gaussian_kde.  Only used for methods that
+        rely on the KDE.
+    * `unit` (astropy.units object, optional): the units of the provided values.
+    * `label` (string, optional): a label for the distribution.  This is used
+        for the x-label while plotting the distribution if `label_latex` is not provided,
+        as well as a shorthand notation when creating a <Composite> distribution.
+    * `label_latex` (string, optional): a latex label for the distribution.  This is used
+        for the x-label while plotting.
+    * `wrap_at` (float, None, or False, optional, default=None): value to
+        use for wrapping.  If None and `unit` are angles, will default to
+        2*pi (or 360 degrees).  If None and `unit` are cycles, will default
+        to 1.0.
+
+    Returns
+    --------
+    * a <Samples> object
     """
     return _distl.Samples(samples, weights, bw_method,
                          unit=unit, label=label, label_latex=label_latex,
@@ -178,6 +203,43 @@ def samples(samples, weights=None, bw_method=None, unit=None, label=None, label_
 def function(func, args=[], kwargs={}, vectorized=True, hist_samples=None, unit=None, label=None, label_latex=None, wrap_at=None):
     """
     Create a <Function> distribution.
+
+
+    Arguments
+    ----------
+    * `func`: callable function that accepts args and kwargs (as floats,
+        after being sampled from any distribution objects)
+    * `args` (list of distribution objects or floats): distribution objects
+        or floats to pass as args to `func`.  Any items that are Distribution
+        objects will be sampled and passed as floats.
+    * `kwargs` (dictionary of distribution objects or floats): distribution
+        objects or floats to pass as kwargs to `func`.  Any items that are
+        Distribution objects will be sampled and passed as floats.
+    * `vectorized` (bool, optional, default=True): whether `func` supports
+        passing arrays to `args` and `kwargs`.
+    * `hist_samples` (int, optional, default=None): number of samples to draw
+        when generating the underlying <Histogram> distribution used for
+        all probability calls.  If not provided or None, this will default
+        to 1e6 if `vectorized` or 1e5 if not.  If `func` takes a long time
+        or many samples in <Function.sample> are rejected and have to be
+        re-drawn, it may be necessary to lower `hist_samples`.
+    * `unit` (astropy.units object, optional): the units returned by `func`.
+        Note that any Distribution objects in `args` and `kwargs` should be
+        in the appropriate units (as the inputs and outputs to `func` are
+        floats and not quantities)
+    * `label` (string, optional): a label for the distribution.  This is used
+        for the x-label while plotting the distribution if `label_latex` is not provided,
+        as well as a shorthand notation when creating a <Composite> distribution.
+    * `label_latex` (string, optional): a latex label for the distribution.  This is used
+        for the x-label while plotting.
+    * `wrap_at` (float, None, or False, optional, default=None): value to
+        use for wrapping.  If None and `unit` are angles, will default to
+        2*pi (or 360 degrees).  If None and `unit` are cycles, will default
+        to 1.0.
+
+    Returns
+    ---------
+    * a <Function> object
     """
     return _distl.Function(func, args, kwargs, vectorized, hist_samples,
                            unit=unit, label=label, label_latex=label_latex, wrap_at=wrap_at)
@@ -190,6 +252,30 @@ def mvgaussian(mean, cov, allow_singular=False,
     """
     Create a <MVGaussian> distribution.
 
+    Arguments
+    --------------
+    * `mean` (float or int, default=0.0): the central value of the
+        multivariate gaussian distribution.
+    * `cov` (float or int, default=1.0): the covariance matrix of the multivariate
+        gaussian distribution.
+    * `allow_singular` (bool, optional, default=False): passed directly to
+        scipy (see link above).
+    * `units` (list of astropy.units objects, optional): the units of the provided values.
+    * `labels` (list of strings, optional): labels for each dimension in the
+        distribution.  This is used
+        for the x-labels while plotting the distribution when `labels_latex`
+        is not provided, as well as a shorthand
+        notation when creating a <Composite> distribution.
+    * `labels_latex` (list of strings, optional):  latex labels for each
+        dimension in the distribution.  This is used for plotting the distribution.
+    * `wrap_ats` (list of floats, None, or False, optional, default=None): values to
+        use for wrapping.  If None and `unit` are angles, will default to
+        2*pi (or 360 degrees).  If None and `unit` are cycles, will default
+        to 1.0.
+
+    Returns
+    --------
+    * a <MVGaussian> object
     """
     return _distl.MVGaussian(mean, cov, allow_singular=allow_singular,
                              units=units, labels=labels, labels_latex=labels_latex, wrap_ats=wrap_ats)
@@ -197,6 +283,32 @@ def mvgaussian(mean, cov, allow_singular=False,
 def mvhistogram_from_data(data, bins=10, range=None, weights=None,
                           units=None, labels=None, labels_latex=None, wrap_ats=None):
     """
+    Create a <MVHistogram> object from data.
+
+    Arguments
+    ------------
+    * `data` (array): input array of samples.  Passed to
+        [np.histogramdd](https://numpy.org/doc/1.18/reference/generated/numpy.histogramdd.html)
+    * `bins` (integer or array, optional, default=10): number of bins or
+        bin edges.  Passed to [np.histogramdd](https://numpy.org/doc/1.18/reference/generated/numpy.histogramdd.html)
+    * `weights` (array, optional, default=None): weights for each entry
+        in `data`.  Passed to [np.histogramdd](https://numpy.org/doc/1.18/reference/generated/numpy.histogramdd.html)
+    * `units` (list of astropy.units objects, optional): the units of the provided values.
+    * `labels` (list of strings, optional): labels for each dimension in the
+        distribution.  This is used
+        for the x-labels while plotting the distribution when `labels_latex`
+        is not provided, as well as a shorthand
+        notation when creating a <Composite> distribution.
+    * `labels_latex` (list of strings, optional):  latex labels for each
+        dimension in the distribution.  This is used for plotting the distribution.
+    * `wrap_ats` (list of floats, None, or False, optional, default=None): values to
+        use for wrapping.  If None and `unit` are angles, will default to
+        2*pi (or 360 degrees).  If None and `unit` are cycles, will default
+        to 1.0.
+
+    Returns
+    ----------
+    * a <MVHistogram> object
     """
     return _distl.MVHistogram.from_data(data, bins=bins, range=range, weights=weights,
                                         units=units, labels=labels, labels_latex=labels_latex, wrap_ats=wrap_ats)
@@ -206,28 +318,115 @@ def mvsamples(samples, weights=None, bw_method=None,
               units=None, labels=None, labels_latex=None, wrap_ats=None):
     """
     Create a <MVSamples> distribution.
+
+    Arguments
+    --------------
+    * `samples` (np.array object with shape (nsamples, <MVSamples.ndimensions>)):
+        the samples.
+    * `weights` (np.array object with shape (nsamples) or None, optional, default=None):
+        weights for each entry in `samples`.  NOTE: only supported with scipy
+        version 1.2+.
+    * `bw_method` (string, float, or None, optional, default=None): passed
+        directly to scipy.stats.gaussian_kde.  Only used for methods that
+        rely on the KDE.
+    * `units` (list of astropy.units objects, optional): the units of the provided values.
+    * `labels` (list of strings, optional): labels for each dimension in the
+        distribution.  This is used
+        for the x-labels while plotting the distribution when `labels_latex`
+        is not provided, as well as a shorthand
+        notation when creating a <Composite> distribution.
+    * `labels_latex` (list of strings, optional):  latex labels for each
+        dimension in the distribution.  This is used for plotting the distribution.
+    * `wrap_ats` (list of floats, None, or False, optional, default=None): values to
+        use for wrapping.  If None and `unit` are angles, will default to
+        2*pi (or 360 degrees).  If None and `unit` are cycles, will default
+        to 1.0.
+
+    Returns
+    --------
+    * an <MVSamples> object
     """
     return _distl.MVSamples(samples, weights, bw_method, units=units, labels=labels, labels_latex=labels_latex, wrap_ats=wrap_ats)
 
 #### GENERATORS ####
-def gaussian_around(scale,
+def gaussian_around(scale, value=None,
                     unit=None, label=None, label_latex=None, wrap_at=None):
     """
-    Create a <Gaussian_Around> distribution.
+    Create a <Gaussian_Around> object which, when called, will resolve
+    to a <Gaussian> object around a given central value.
+
+    Arguments
+    --------------
+    * `scale` (float or int, default=1.0): the scale (sigma) of the gaussian
+        distribution.
+    * `value` (float, optional, default=None): the current face-value.
+    * `unit` (astropy.units object, optional): the units of the provided values.
+    * `label` (string, optional): a label for the distribution.  This is used
+        for the x-label while plotting the distribution if `label_latex` is not provided,
+        as well as a shorthand notation when creating a <Composite> distribution.
+    * `label_latex` (string, optional): a latex label for the distribution.  This is used
+        for the x-label while plotting.
+    * `wrap_at` (float, None, or False, optional, default=None): value to
+        use for wrapping.  If None and `unit` are angles, will default to
+        2*pi (or 360 degrees).  If None and `unit` are cycles, will default
+        to 1.0.
+    Returns
+    --------
+    * a <Gaussian_Around> object
     """
 
-    return _distl.Gaussian_Around(scale, unit, label, label_latex, wrap_at)
+    return _distl.Gaussian_Around(scale, value, unit, label, label_latex, wrap_at)
 
-def uniform_around(width,
+def uniform_around(width, value=None,
                    unit=None, label=None, label_latex=None, wrap_at=None):
     """
-    Create a <Uniform_Around> distribution.
+    Create a <Uniform_Around> object which, when called, will resolve
+    to a <Uniform> object around a given central value.
+
+    Arguments
+    --------------
+    * `width` (float): the width of the resulting <Uniform> object (<Uniform.low>
+        and <Uniform.high> will be set based on the current value and `width`).
+    * `value` (float, optional, default=None): the current face-value.
+    * `unit` (astropy.units object, optional): the units of the provided values.
+    * `label` (string, optional): a label for the distribution.  This is used
+        for the x-label while plotting the distribution if `label_latex` is not provided,
+        as well as a shorthand notation when creating a <Composite> distribution.
+    * `label_latex` (string, optional): a latex label for the distribution.  This is used
+        for the x-label while plotting.
+    * `wrap_at` (float, None, or False, optional, default=None): value to
+        use for wrapping.  If None and `unit` are angles, will default to
+        2*pi (or 360 degrees).  If None and `unit` are cycles, will default
+        to 1.0.
+
+    Returns
+    -----------
+    * a <Uniform_Around> object.
     """
 
-    return _distl.Uniform_Around(width, unit, label, label_latex, wrap_at)
+    return _distl.Uniform_Around(width, value, unit, label, label_latex, wrap_at)
 
-def delta_around(unit=None, label=None, label_latex=None, wrap_at=None):
+def delta_around(value=None, unit=None, label=None, label_latex=None, wrap_at=None):
     """
-    Create a <Delta_Around> distribution.
+    Create a <Delta_Around> object which, when called, will resolve
+    to a <Delta> object around a given central value.
+
+    Arguments
+    --------------
+    * `value` (float, optional, default=None): the current face-value.
+    * `unit` (astropy.units object, optional): the units of the provided values.
+    * `label` (string, optional): a label for the distribution.  This is used
+        for the x-label while plotting the distribution if `label_latex` is not provided,
+        as well as a shorthand notation when creating a <Composite> distribution.
+    * `label_latex` (string, optional): a latex label for the distribution.  This is used
+        for the x-label while plotting.
+    * `wrap_at` (float, None, or False, optional, default=None): value to
+        use for wrapping.  If None and `unit` are angles, will default to
+        2*pi (or 360 degrees).  If None and `unit` are cycles, will default
+        to 1.0.
+
+    Returns
+    --------
+    * a <Delta> object
     """
-    return _distl.Delta_Around(unit, label, label_latex, wrap_at)
+    return _distl.Delta_Around(unit, value, label, label_latex, wrap_at)
