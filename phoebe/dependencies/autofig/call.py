@@ -19,6 +19,12 @@ def _map_none(value):
         # NOTE: including None - we want this to fallback on the cycler
         return value
 
+def _to_linebreak_list(thing, N=1):
+    if isinstance(thing, list):
+        return thing
+    else:
+        return [thing]*N
+
 class CallGroup(common.Group):
     def __init__(self, items):
         super(CallGroup, self).__init__(Call, [], items)
@@ -1069,12 +1075,6 @@ class Plot(Call):
             zerr = None
 
         # then we need to loop over the linebreaks
-        def _to_linebreak_list(thing, N=1):
-            if isinstance(thing, list):
-                return thing
-            else:
-                return [thing]*N
-
         if isinstance(x, list) or isinstance(y, list):
             linebreak_n = len(x) if isinstance(x, list) else len(y)
         else:
@@ -1382,6 +1382,348 @@ class Plot(Call):
             for artist in artists:
                 artist._af_highlight=True
             return_artists += artists
+
+        self._backend_objects = return_artists
+
+        for artist in return_artists:
+            callbacks._connect_to_autofig(self, artist)
+
+            for callback in self.callbacks:
+                callback_callable = getattr(callbacks, callback)
+                callback_callable(artist, self)
+
+        return return_artists
+
+class FillBetween(Call):
+    def __init__(self, x=None, y=None, c=None, i=None,
+                   xunit=None, xlabel=None,
+                   yunit=None, ylabel=None,
+                   cunit=None, clabel=None, cmap=None,
+                   iunit=None, itol=0.0,
+                   axorder=None, axpos=None,
+                   title=None,
+                   label=None,
+                   linebreak=None,
+                   uncover=False, trail=False,
+                   consider_for_limits=True,
+                   **kwargs):
+        """
+        Create a <autofig.call.FillBetween> object which defines a single call to
+        matplotlib.
+
+        See also:
+
+        * <autofig.call.Plot>
+        * <autofig.call.Mesh>
+
+        Arguments
+        -------------
+        * `x` (list/array, optional, default=None): array of values for the x-axes.
+            Access via <autofig.call.FillBetween.x>.
+        * `y` (list/array, optional, default=None): array of values for the y-axes.
+            Must have shape (len(x), 2)
+            Access via <autofig.call.FillBetween.y>.
+        * `c` or `color` (list/array, optional, default=None): array of values for the
+            color-direction.  Access via <autofig.call.FillBetween.c>.  Note: `color`
+            takes precedence over `c` if both are provided.
+        * `i` (list/array or string, optional, default=None): array of values for
+            the independent-variable.  If a string, can be one of: 'x', 'y', 'z',
+            'c', 's' to reference an existing array.  Access via
+            <autofig.call.FillBetween.i>.
+        * `xunit` (string or astropy unit, optional, default=None): units for `x`.
+            See <autofig.call.FillBetween.x> and <autofig.call.CallDimensionX.unit>.
+        * `xlabel` (strong, optional, default=None): label for `x`.
+            See <autofig.call.FillBetween.x> and <autofig.call.CallDimensionX.label>.
+        * `yunit` (string or astropy unit, optional, default=None): units for `y`.
+            See <autofig.call.FillBetween.y> and <autofig.call.CallDimensionY.unit>.
+        * `ylabel` (strong, optional, default=None): label for `y`.
+            See <autofig.call.FillBetween.y> and <autofig.call.CallDimensionY.label>.
+        * `iunit` (string or astropy unit, optional, default=None): units for `i`.
+            See <autofig.call.FillBetween.i> and <autofig.call.CallDimensionI.unit>.
+        * `itol` (float, optional, default=0.0): see <autofig.call.DimensionI.tol>.
+        * `axorder` (int, optional, default=None): see <autofig.call.FillBetween.axorder>.
+        * `axpos` (tuple, optional, default=None): see <autofig.call.FillBetween.axpos>.
+        * `title` (string, optional, default=None): see <autofig.call.FillBetween.title>.
+        * `label` (string, optional, default=None): see <autofig.call.FillBetween.label>.
+        * `linebreak` (string, optional, default=None): see <autofig.call.FillBetween.linebreak>.
+        * `consider_for_limits` (bool, optional, default=True): see
+            <autofig.call.Call.consider_for_limits>.
+        * `uncover` (bool, optional, default=False): see <autofig.call.Call.uncover>.
+        * `trail` (bool or Float, optional, default=False): see
+            <autofig.call.Call.trail>.
+        * `**kwargs`: additional keyword arguments are stored and passed on when
+            attaching to a parent axes.  See <autofig.axes.Axes.add_call>.
+
+        Returns
+        ---------
+        * the instantiated <autofig.call.FillBetween> object.
+        """
+        color = kwargs.pop('color', None)
+        c = color if color is not None else c
+        cmap = kwargs.pop('colormap', cmap)
+        self._c = CallDimensionC(self, c, None, cunit, clabel, cmap=cmap)
+
+        self._axes = None # super will do this again, but we need it for setting marker, etc
+        self._axes_c = None
+
+        color = kwargs.pop('color', None)
+        c = color if color is not None else c
+        cmap = kwargs.pop('colormap', cmap)
+        self._c = CallDimensionC(self, c, None, cunit, clabel, cmap=cmap)
+
+        self.linebreak = linebreak
+
+        if x is None:
+            raise TypeError("x cannot be None for FillBetween")
+        x = np.asarray(x)
+
+        if y is None:
+            raise TypeError("y cannot be None for FillBetween")
+        y = np.asarray(y)
+
+        if y.shape not in [(len(x), 2), (len(x), 3)]:
+            raise ValueError("y must be of shape ({}, 2) or ({}, 3), not {}".format(len(x), len(x), y.shape))
+
+        super(FillBetween, self).__init__(i=i, iunit=iunit, itol=itol,
+                                          x=x, xunit=xunit, xlabel=xlabel,
+                                          y=y, yunit=yunit, ylabel=ylabel,
+                                          consider_for_limits=consider_for_limits,
+                                          uncover=uncover, trail=trail,
+                                          axorder=axorder, axpos=axpos,
+                                          title=title, label=label,
+                                          **kwargs
+                                          )
+
+
+        # self.connect_callback(callbacks.update_sizes)
+
+    def __repr__(self):
+        dirs = []
+        for direction in ['i', 'x', 'y', 'c']:
+            if getattr(self, direction).value is not None:
+                dirs.append(direction)
+
+        return "<Call:FillBetween | dims: {}>".format(", ".join(dirs))
+
+    @classmethod
+    def from_dict(cls, dict):
+        return cls(**dict)
+
+    def to_dict(self):
+        return {'classname': self.__class__.__name__,
+                'x': self.x.to_dict(),
+                'y': self.y.to_dict(),
+                'c': self.c.to_dict(),
+                'i': self.i.to_dict(),
+                'axorder': self._axorder,
+                'axpos': self._axpos,
+                'title': self._title,
+                'label': self._label,
+                'uncover': self._uncover,
+                'trail': self._trail,
+                'consider_for_limits': self._consider_for_limits}
+
+    @property
+    def axes_c(self):
+        # currently no setter as this really should be handle by axes.add_call
+        return self._axes_c
+
+    @property
+    def do_colorscale(self):
+        x = self.x.get_value()
+        y = self.y.get_value()
+        c = self.c.get_value()
+
+        # DETERMINE WHICH SCALINGS WE NEED TO USE
+        if x is not None and y is not None:
+            return c is not None and not isinstance(c, str)
+        else:
+            return False
+
+    @property
+    def c(self):
+        return self._c
+
+    def get_color(self, colorcycler=None):
+        if isinstance(self.c.value, str):
+            color = self.c.value
+        else:
+            # then we'll defer to the cycler.  If we want to color by
+            # the dimension, we should call self.c directly
+            color = None
+        if color is None and colorcycler is not None:
+            color = colorcycler.next_tmp
+        return color
+
+    @property
+    def color(self):
+        return self.get_color()
+
+    @color.setter
+    def color(self, color):
+        # TODO: type and cycler checks
+        color = common.coloralias.map(_map_none(color))
+        if self.axes is not None:
+            self.axes._colorcycler.replace_used(self.get_color(), color)
+        self._c.value = color
+
+    def get_cmap(self, cmapcycler=None):
+        if isinstance(self.c.value, str):
+            return None
+        if self.c.value is None:
+            return None
+
+        cmap = self.c.cmap
+        if cmap is None and cmapcycler is not None:
+            cmap = cmapcycler.next_tmp
+
+        return cmap
+
+    @property
+    def linebreak(self):
+        if self._linebreak is None:
+            return False
+
+        return self._linebreak
+
+    @linebreak.setter
+    def linebreak(self, linebreak):
+        if linebreak is None:
+            self._linebreak = linebreak
+            return
+
+        if not isinstance(linebreak, str):
+            raise TypeError("linebreak must be of type str, found {} {}".format(type(linebreak), linebreak))
+
+        if not len(linebreak)==2:
+            raise ValueError("linebreak must be of length 2")
+
+        if linebreak[0] not in common.dimensions:
+            raise ValueError("linebreak must start with one of {}".format(common.dimensions))
+
+        acceptable_ends = ['+', '-']
+        if linebreak[1] not in acceptable_ends:
+            raise ValueError("linebreak must end with one of {}".format(acceptable_ends))
+
+        self._linebreak = linebreak
+
+    def draw(self, ax=None, i=None,
+             colorcycler=None, markercycler=None, linestylecycler=None):
+        """
+        See also:
+
+        * <autofig.draw>
+        * <autofig.figure.Figure.draw>
+        * <autofig.axes.Axes.draw>
+
+        Arguments
+        -----------
+        * `ax`
+        * `i`
+        * `colorcycler`
+        * `markercycler`: ignored
+        * `linestylecycler`: ignored
+        """
+
+        # Plot.draw
+        if ax is None:
+            ax = plt.gca()
+        else:
+            if not isinstance(ax, plt.Axes):
+                raise TypeError("ax must be of type plt.Axes")
+
+        if not (i is None or isinstance(i, float) or isinstance(i, int) or isinstance(i, u.Quantity) or isinstance(i, list) or isinstance(i, np.ndarray)):
+            raise TypeError("i must be of type float/int/list/None")
+
+        kwargs = self.kwargs.copy()
+
+        # determine 2D or 3D
+        axes_3d = isinstance(ax, Axes3D)
+        if (axes_3d and self.axes.projection=='2d') or (not axes_3d and self.axes.projection=='3d'):
+            raise ValueError("axes and projection do not agree")
+
+        # color (NOTE: not necessarily the dimension c)
+        color = self.get_color(colorcycler=colorcycler)
+
+        # PREPARE FOR PLOTTING AND GET DATA
+        return_artists = []
+        # TODO: handle getting in correct units (possibly passed from axes?)
+        x = self.x.get_value(i=i, unit=self.axes.x.unit)
+        y = self.y.get_value(i=i, unit=self.axes.y.unit)
+        if isinstance(y, list):
+            y = [yi.T for yi in y]
+        else:
+            y = y.T
+
+        c = self.c.get_value(i=i, unit=self.axes_c.unit if self.axes_c is not None else None)
+
+        # then we need to loop over the linebreaks
+        if isinstance(x, list) or isinstance(y, list):
+            linebreak_n = len(x) if isinstance(x, list) else len(y)
+        else:
+            linebreak_n = 1
+
+        xs = _to_linebreak_list(x, linebreak_n)
+        ys = _to_linebreak_list(y, linebreak_n)
+        cs = _to_linebreak_list(c, linebreak_n)
+
+        for loop1,(x,y,c) in enumerate(zip(xs, ys, cs)):
+            data = np.array([x, y[0], y[-1]])
+            if len(y) == 3:
+                data_middle = np.array([x, y[1]])
+            else:
+                data_middle = None
+            # points = np.array([x, y1, y2]).T.reshape(-1, 1, 3)
+
+            # segments are used for LineCollection
+            # segments = np.concatenate([points[:-1], points[1:]], axis=1)
+
+            # DETERMINE WHICH SCALINGS WE NEED TO USE
+            do_colorscale = self.do_colorscale
+            if x is not None and y is not None:
+                do_colorscale = c is not None and not isinstance(c, str)
+            else:
+                do_colorscale = False
+
+            # ALLOW ACCESS TO COLOR FOR I OR LOOP
+            # TODO: in theory these could be exposed (maybe not the loop, but i)
+            # def get_color_i(i, default=color):
+            #     if do_colorscale and self.axes_c is not None:
+            #         cmap = self.axes_c.cmap
+            #         norm = self.axes_c.get_norm(i=i)
+            #         ci = self.axes.c.get_value(i=i)
+            #         return plt.get_cmap(cmap)(norm(ci))
+            #     else:
+            #         return default
+            #
+            # def get_color_loop(loop, do_zorder, default=color):
+            #     if do_colorscale and self.axes_c is not None:
+            #         cmap = self.axes_c.cmap
+            #         norm = self.axes_c.get_norm(i=i)
+            #         if do_zorder:
+            #             cloop = c[loop]
+            #         else:
+            #             cloop = c
+            #         return plt.get_cmap(cmap)(norm(cloop))
+            #     else:
+            #         return default
+
+            fb_kwargs = {}
+            fb_kwargs['color'] = color
+            fb_kwargs['alpha'] = 0.6 # TODO: make this an option
+            if do_colorscale:
+                fb_kwargs['norm'] = self.axes_c.get_norm(i=i) if self.axes_c is not None else None
+                fb_kwargs['cmap'] = self.axes_c.cmap if self.axes_c is not None else None
+
+            artist = ax.fill_between(*data, **fb_kwargs)
+            return_artists += [artist]
+
+            if data_middle is not None:
+                _ = fb_kwargs.pop('alpha')
+                fb_kwargs['linestyle'] = 'solid'
+                fb_kwargs['marker'] = 'None'
+                artists = ax.plot(*data_middle, **fb_kwargs)
+                return_artists += artists
 
         self._backend_objects = return_artists
 
@@ -1910,6 +2252,34 @@ class CallDimensionGroup(common.Group):
         """
         return np.array([c.value for c in self._items]).flatten()
 
+    @property
+    def units(self):
+        """
+        """
+        return [c.unit for c in self._items]
+
+    @property
+    def unit(self):
+        units = list(set(self.units))
+        if len(units) > 1:
+            raise ValueError("more than 1 units, see units")
+        else:
+            return units[0]
+
+    @property
+    def labels(self):
+        """
+        """
+        return [c.label for c in self._items]
+
+    @property
+    def label(self):
+        labels = list(set(self.labels))
+        if len(labels) > 1:
+            raise ValueError("more than 1 labels, see labels")
+        else:
+            return labels[0]
+
 class CallDimensionCGroup(CallDimensionGroup):
     @property
     def cmap(self):
@@ -2047,7 +2417,7 @@ class CallDimension(object):
         if value is None:
             return value
 
-        if unit is not None:
+        if unit is not None and unit!=u.dimensionless_unscaled:
             unit = common._convert_unit(unit)
             value = value*self.unit.to(unit)
 
@@ -2076,6 +2446,8 @@ class CallDimension(object):
             else:
                 return None
 
+
+
         # we can't call i._value here because that may point to a string, and
         # we want this to resolve the array
         i_value = self.call.i.get_value(linebreak=False, sort_by_indep=False)
@@ -2085,6 +2457,9 @@ class CallDimension(object):
         sort_inds = i_value.argsort()
         indep_value = i_value[sort_inds]
         this_value = self._value[sort_inds]
+        if len(self._value.shape) > 1:
+            return np.asarray([self._to_unit(np.interp(i, indep_value, this_value_col, left=np.nan, right=np.nan), unit) for this_value_col in this_value.T]).T
+
         return self._to_unit(np.interp(i, indep_value, this_value, left=np.nan, right=np.nan), unit)
 
     def highlight_at_i(self, i, unit=None):
@@ -2343,7 +2718,7 @@ class CallDimension(object):
             else:
                 return None
 
-        if len(value.shape)==1:
+        if len(value.shape)==1 or isinstance(self.call, FillBetween):
             # then we're dealing with a flat 1D array
             if attr == '_value':
                 if trail is not False:

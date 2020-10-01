@@ -9,13 +9,15 @@ PHOEBE 2.2
 
 <p align="center">
   <a href="https://pypi.org/project/phoebe/"><img src="https://img.shields.io/badge/pip-phoebe-blue.svg"/></a>
-  <a href="http://phoebe-project.org/install"><img src="https://img.shields.io/badge/python-2.7+%20%7C%203.6+-blue.svg"/></a>
+  <a href="http://phoebe-project.org/install"><img src="https://img.shields.io/badge/python-3.6+-blue.svg"/></a>
   <a href="https://github.com/phoebe-project/phoebe2/blob/master/LICENSE"><img src="https://img.shields.io/badge/license-GPL3-blue.svg"/></a>
   <a href="https://travis-ci.org/phoebe-project/phoebe2"><img src="https://travis-ci.org/phoebe-project/phoebe2.svg?branch=master"/></a>
   <a href="http://phoebe-project.org/docs"><img src="https://img.shields.io/badge/docs-passing-success.svg"/></a>
+<br/>
   <a href="https://ui.adsabs.harvard.edu/abs/2016ApJS..227...29P"><img src="https://img.shields.io/badge/ApJS-Prsa+2016-lightgrey.svg"/></a>
   <a href="https://ui.adsabs.harvard.edu/abs/2018ApJS..237...26H"><img src="https://img.shields.io/badge/ApJS-Horvat+2018-lightgrey.svg"/></a>
   <a href="https://ui.adsabs.harvard.edu/abs/2020ApJS..247...63J"><img src="https://img.shields.io/badge/ApJS-Jones+2020-lightgrey.svg"/></a>
+  <a href="https://ui.adsabs.harvard.edu/abs/2020arXiv200616951C"><img src="https://img.shields.io/badge/ApJS-Conroy+2020-lightgrey.svg"/></a>
 </p>
 
 <p align="center">
@@ -30,7 +32,7 @@ PHOEBE stands for PHysics Of Eclipsing BinariEs. PHOEBE is pronounced [fee-bee](
 
 PHOEBE 2 is a rewrite of the original PHOEBE code. For most up-to-date information please refer to the PHOEBE project webpage: [http://phoebe-project.org](http://phoebe-project.org)
 
-PHOEBE 2.0 is described by the release paper published in the Astrophysical Journal Supplement, [Prša et al. (2016, ApJS 227, 29)](https://ui.adsabs.harvard.edu/#abs/2016ApJS..227...29P).  The addition of support for misaligned stars in version 2.1 is described in [Horvat et al. (2018, ApJS 237, 26)](https://ui.adsabs.harvard.edu/#abs/2018ApJS..237...26H).  Interstellar extinction and support for Python 3 was added in version 2.2 and described in [Jones et al. (2020, ApJS 247, 63)](https://ui.adsabs.harvard.edu/abs/2020ApJS..247...63J).
+PHOEBE 2.0 is described by the release paper published in the Astrophysical Journal Supplement, [Prša et al. (2016, ApJS 227, 29)](https://ui.adsabs.harvard.edu/#abs/2016ApJS..227...29P).  The addition of support for misaligned stars in version 2.1 is described in [Horvat et al. (2018, ApJS 237, 26)](https://ui.adsabs.harvard.edu/#abs/2018ApJS..237...26H).  Interstellar extinction and support for Python 3 was added in version 2.2 and described in [Jones et al. (2020, ApJS 247, 63)](https://ui.adsabs.harvard.edu/abs/2020ApJS..247...63J).  Inclusion of a general framework for solving the inverse problem as well as support for the [web and desktop clients](http://phoebe-project.org/clients) was introduced in version 2.3 as described in [Conroy et al. (2020, in press)](https://ui.adsabs.harvard.edu/abs/2020arXiv200616951C), which also removes support for Python 2.
 
 PHOEBE 2 is released under the [GNU General Public License v3](https://www.gnu.org/licenses/gpl-3.0.en.html).
 
@@ -42,7 +44,7 @@ The development of PHOEBE 2 is funded in part by [NSF grant #1517474](https://ww
 DOWNLOAD AND INSTALLATION
 -------------------------
 
-The easiest way to download and install PHOEBE 2 is by using pip:
+The easiest way to download and install PHOEBE 2 is by using pip (make sure you're using the correct command for pip that points to your python3 installation - if in doubt use something like `python3 -m pip install phoebe`):
 
     pip install phoebe
 
@@ -54,31 +56,52 @@ To download the PHOEBE 2 source code, use git:
 
 To install PHOEBE 2 from the source locally, go to the `phoebe2/` directory and issue:
 
-    python setup.py build
-    python setup.py install --user
+    python3 setup.py build
+    python3 setup.py install --user
 
 To install PHOEBE 2 from the source site-wide, go to the `phoebe2/` directory and issue:
 
-    python setup.py build
-    sudo python setup.py install
+    python3 setup.py build
+    sudo python3 setup.py install
 
-For further details on pre-requisites and minimal versions of python consult the [PHOEBE project webpage](http://phoebe-project.org/install/2.2).
+Note that as of the 2.3 release, PHOEBE requires Python 3.6 or later.  For further details on pre-requisites consult the [PHOEBE project webpage](http://phoebe-project.org/install/2.2).
 
 
 GETTING STARTED
 ---------------
 
-PHOEBE 2 has a steep learning curve. There is no graphical front-end as of yet; the front-end is now written in python. To start PHOEBE, issue:
+PHOEBE 2 has a fairly steep learning curve. To start PHOEBE from python, issue:
 
     python
     >>> import phoebe
     >>>
+
+As of the 2.3 release, PHOEBE also includes a desktop and web client user-interface which is installed independently of the python package here.  See the [phoebe2-ui repository](https://github.com/phoebe-project/phoebe2-ui) and [phoebe-project.org/clients](http://phoebe-project.org/clients) for more details.
 
 To understand how to use PHOEBE, please consult the [tutorials, scripts and manuals](http://phoebe-project.org/docs/2.2/) hosted on the PHOEBE webpage.
 
 
 CHANGELOG
 ----------
+
+### 2.3.0 - inverse problem feature release
+
+* Add support for inverse problem solvers, including "estimators", "optimizers", and "samplers"
+* Add support for attaching distributions (as [distl](https://github.com/kecnry/distl) objects) to parameters, including priors and posteriors.
+* Add support for [web and desktop clients](http://phoebe-project.org/clients) via a light-weight built in `phoebe-server`.
+* Removed support for Python 2 (now requires Python 3.6+)
+* Implement optional gaussian processes for light curves
+* Implement phase-masking
+* Added official support for [ellc](https://github.com/pmaxted/ellc) and [jktebop](https://www.astro.keele.ac.uk/jkt/codes/jktebop.html) alternate backends
+* Per-component and per-dataset RV offsets
+* Fixed phasing in time-dependent systems
+* Distinction between anomalous and sidereal period in apsidal motion cases
+* Extinction parameters moved from per-dataset to the system-level
+* Added several new optional constraints
+* Overhaul of the run_checks framework
+* Updated scipy dependency to 1.7+
+* Numerous small bugfixes and enhancements
+
 
 ### 2.2.2 - kwargs hotfix
 

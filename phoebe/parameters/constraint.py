@@ -2,16 +2,18 @@ import numpy as np
 #from numpy import sin, cos, tan, arcsin, arccos, arctan, sqrt
 
 from phoebe.parameters.parameters import ParameterSet, ConstraintParameter, FloatParameter
+from phoebe.constraints.expression import ConstraintVar
 from phoebe import u, c
 
 import logging
 logger = logging.getLogger("CONSTRAINT")
 logger.addHandler(logging.NullHandler())
 
-list_of_constraints_requiring_si = ['logg']
+list_of_constraints_requiring_si = []
 
 _skip_filter_checks = {'check_default': False, 'check_visible': False}
 
+_validsolvefor = {}
 
 def _get_system_ps(b, item, context='component'):
     """
@@ -248,11 +250,11 @@ def t0_ref_to_supconj(t0_ref, period, ecc, per0, dpdt, dperdt, t0):
 def t0_supconj_to_ref(t0_supconj, period, ecc, per0, dpdt, dperdt, t0):
     return ConstraintParameter(t0_supconj._bundle, "t0_supconj_to_ref({}, {}, {}, {}, {}, {}, {})".format(_get_expr(t0_supconj), _get_expr(period), _get_expr(ecc), _get_expr(per0), _get_expr(dpdt), _get_expr(dperdt), _get_expr(t0)))
 
-def _times_to_phases(times, period, dpdt, t0, t0_supconj, t0_perpass, t0_ref):
-    return ConstraintParameter(times._bundle, "times_to_phases({}, {}, {}, {}, {}, {}, {})".format(_get_expr(times), _get_expr(period), _get_expr(dpdt), _get_expr(t0), _get_expr(t0_supconj), _get_expr(t0_perpass), _get_expr(t0_ref)))
+def _times_to_phases(times, period_choice, period, period_anom, phases_dpdt, dpdt, t0_choice, t0_supconj, t0_perpass, t0_ref):
+    return ConstraintParameter(times._bundle, "times_to_phases({}, {}, {}, {}, {}, {}, {}, {}, {}, {})".format(_get_expr(times), _get_expr(period_choice), _get_expr(period), _get_expr(period_anom), _get_expr(phases_dpdt), _get_expr(dpdt), _get_expr(t0_choice), _get_expr(t0_supconj), _get_expr(t0_perpass), _get_expr(t0_ref)))
 
-def _phases_to_times(phases, period, dpdt, t0, t0_supconj, t0_perpass, t0_ref):
-    return ConstraintParameter(phases._bundle, "phases_to_times({}, {}, {}, {}, {}, {}, {})".format(_get_expr(phases), _get_expr(period), _get_expr(dpdt), _get_expr(t0), _get_expr(t0_supconj), _get_expr(t0_perpass), _get_expr(t0_ref)))
+def _phases_to_times(phases, period_choice, period, period_anom, phases_dpdt, dpdt, t0_choice, t0_supconj, t0_perpass, t0_ref):
+    return ConstraintParameter(phases._bundle, "phases_to_times({}, {}, {}, {}, {}, {}, {}, {}, {}, {})".format(_get_expr(phases), _get_expr(period_choice), _get_expr(period), _get_expr(period_anom), _get_expr(phases_dpdt), _get_expr(dpdt), _get_expr(t0_choice), _get_expr(t0_supconj), _get_expr(t0_perpass), _get_expr(t0_ref)))
 
 #{ Custom constraints
 
@@ -283,6 +285,7 @@ def custom(b, *args, **kwargs):
 #}
 #{ Intra-orbit constraints
 
+_validsolvefor['asini'] = ['asini', 'incl', 'sma']
 def asini(b, orbit, solve_for=None):
     """
     Create a constraint for asini in an orbit.
@@ -329,9 +332,9 @@ def asini(b, orbit, solve_for=None):
     metawargs.pop('qualifier')
 
     # Now we'll define the parameters in case they don't exist and need to be created
-    sma_def = FloatParameter(qualifier='sma', value=8.0, default_unit=u.solRad, description='Semi major axis')
-    incl_def = FloatParameter(qualifier='incl', value=90.0, default_unit=u.deg, description='Orbital inclination angle')
-    asini_def = FloatParameter(qualifier='asini', value=8.0, default_unit=u.solRad, description='Projected semi major axis')
+    sma_def = FloatParameter(qualifier='sma', latexfmt=r'a_\mathrm{{ {component} }}', value=8.0, default_unit=u.solRad, description='Semi major axis')
+    incl_def = FloatParameter(qualifier='incl', latexfmt=r'a_\mathrm{{ {component} }}', value=90.0, default_unit=u.deg, description='Orbital inclination angle')
+    asini_def = FloatParameter(qualifier='asini', latexfmt=r'a_\mathrm{{ {component} }} \sin i_\mathrm{{ {component} }}', value=8.0, default_unit=u.solRad, description='Projected semi major axis')
 
     # And now call get_or_create on the bundle
     sma, created = b.get_or_create('sma', sma_def, **metawargs)
@@ -356,6 +359,7 @@ def asini(b, orbit, solve_for=None):
     #- return lhs, rhs, args_as_pss
     return lhs, rhs, [], {'orbit': orbit}
 
+_validsolvefor['esinw'] = ['esinw', 'ecc', 'per0', 'ecosw']
 def esinw(b, orbit, solve_for=None, **kwargs):
     """
     Create a constraint for esinw in an orbit.
@@ -396,10 +400,10 @@ def esinw(b, orbit, solve_for=None, **kwargs):
     metawargs = orbit_ps.meta
     metawargs.pop('qualifier')
 
-    esinw_def = FloatParameter(qualifier='esinw', value=0.0, default_unit=u.dimensionless_unscaled, limits=(-1.0,1.0), description='Eccentricity times sin of argument of periastron')
+    esinw_def = FloatParameter(qualifier='esinw', latexfmt=r'e_\mathrm{{ {component} }} \sin \omega_0', value=0.0, default_unit=u.dimensionless_unscaled, limits=(-1.0,1.0), description='Eccentricity times sin of argument of periastron')
     esinw, created = b.get_or_create('esinw', esinw_def, **metawargs)
 
-    ecosw_def = FloatParameter(qualifier='ecosw', value=0.0, default_unit=u.dimensionless_unscaled, limits=(-1.0,1.0), description='Eccentricity times cos of argument of periastron')
+    ecosw_def = FloatParameter(qualifier='ecosw', latexfmt=r'e_\mathrm{{ {component} }} \cos \omega_0', value=0.0, default_unit=u.dimensionless_unscaled, limits=(-1.0,1.0), description='Eccentricity times cos of argument of periastron')
     ecosw, ecosw_created = b.get_or_create('ecosw', ecosw_def, **metawargs)
 
     ecosw_constrained = kwargs.get('ecosw_constrained', len(ecosw.constrained_by) > 0)
@@ -451,6 +455,7 @@ def esinw(b, orbit, solve_for=None, **kwargs):
 
     return lhs, rhs, [esinw, ecosw, ecc, per0], {'orbit': orbit}
 
+_validsolvefor['ecosw'] = ['ecosw', 'ecc', 'per0', 'esinw']
 def ecosw(b, orbit, solve_for=None, **kwargs):
     """
     Create a constraint for ecosw in an orbit.
@@ -491,10 +496,10 @@ def ecosw(b, orbit, solve_for=None, **kwargs):
     metawargs = orbit_ps.meta
     metawargs.pop('qualifier')
 
-    ecosw_def = FloatParameter(qualifier='ecosw', value=0.0, default_unit=u.dimensionless_unscaled, limits=(-1.0,1.0), description='Eccentricity times cos of argument of periastron')
+    ecosw_def = FloatParameter(qualifier='ecosw', latexfmt=r'e_\mathrm{{ {component} }} \cos \omega_0', value=0.0, default_unit=u.dimensionless_unscaled, limits=(-1.0,1.0), description='Eccentricity times cos of argument of periastron')
     ecosw, created = b.get_or_create('ecosw', ecosw_def, **metawargs)
 
-    esinw_def = FloatParameter(qualifier='esinw', value=0.0, default_unit=u.dimensionless_unscaled, limits=(-1.0,1.0), description='Eccentricity times sin of argument of periastron')
+    esinw_def = FloatParameter(qualifier='esinw', latexfmt=r'e_\mathrm{{ {component} }} \sin \omega_0', value=0.0, default_unit=u.dimensionless_unscaled, limits=(-1.0,1.0), description='Eccentricity times sin of argument of periastron')
     esinw, esinw_created = b.get_or_create('esinw', esinw_def, **metawargs)
 
     esinw_constrained = kwargs.get('esinw_constrained', len(esinw.constrained_by) > 0)
@@ -546,6 +551,7 @@ def ecosw(b, orbit, solve_for=None, **kwargs):
 
     return lhs, rhs, [esinw, ecosw, ecc, per0], {'orbit': orbit}
 
+_validsolvefor['t0_perpass_supconj'] = ['t0_perpass', 't0_supconj']
 def t0_perpass_supconj(b, orbit, solve_for=None, **kwargs):
     """
     Create a constraint for t0_perpass in an orbit - allowing translating between
@@ -616,6 +622,7 @@ def t0(*args, **kwargs):
     """
     return t0_perpass_supconj(*args, **kwargs)
 
+_validsolvefor['t0_ref_supconj'] = ['t0_ref', 't0_supconj']
 def t0_ref_supconj(b, orbit, solve_for=None, **kwargs):
     """
     Create a constraint for t0_ref in an orbit - allowing translating between
@@ -676,7 +683,73 @@ def t0_ref_supconj(b, orbit, solve_for=None, **kwargs):
 
     return lhs, rhs, [], {'orbit': orbit}
 
+_validsolvefor['period_anom'] = ['period', 'period_anom']
+def period_anom(b, orbit, solve_for=None, **kwargs):
+    """
+    Create a constraint for period_anom in an orbit - allowing translating between
+    period (sidereal) and period_anom (anomalistic).
 
+    This constraint uses the following linear approximation:
+
+    `period_sidereal = period_anomalistic * (1 - period_sidereal * dperdt/(2pi))`
+
+    This constraint is automatically included for all orbits, during
+    <phoebe.frontend.bundle.Bundle.add_component> for a
+    <phoebe.parameters.component.orbit>.
+
+    This is usually passed as an argument to
+     <phoebe.frontend.bundle.Bundle.add_constraint> as
+     `b.add_constraint('period_anom', orbit='binary')`, where `orbit` is
+     one of <phoebe.parameters.HierarchyParameter.get_orbits>.
+
+    Arguments
+    -----------
+    * `b` (<phoebe.frontend.bundle.Bundle>): the Bundle
+    * `orbit` (string): the label of the orbit in which this constraint should
+        be built.
+    * `solve_for` (<phoebe.parameters.Parameter>, optional, default=None): if
+        'period_anom' should not be the derived/constrained parameter, provide which
+        other parameter should be derived (ie 'period')
+
+    Returns
+    ----------
+    * (<phoebe.parameters.Parameter>, <phoebe.parameters.ConstraintParameter>, list):
+        lhs (Parameter), rhs (ConstraintParameter), addl_params (list of additional
+        parameters that may be included in the constraint), kwargs (dict of
+        keyword arguments that were passed to this function).
+
+    Raises
+    --------
+    * NotImplementedError: if the value of `solve_for` is not implemented.
+    """
+
+    orbit_ps = _get_system_ps(b, orbit)
+
+    period_sid = orbit_ps.get_parameter(qualifier='period', **_skip_filter_checks)
+    period_anom = orbit_ps.get_parameter(qualifier='period_anom', **_skip_filter_checks)
+    dperdt = orbit_ps.get_parameter(qualifier='dperdt', **_skip_filter_checks)
+
+    if solve_for in [None, period_anom]:
+        lhs = period_anom
+        # rhs = period_sidereal_to_anomalistic(period_sidereal, dperdt)
+
+        # period_sidereal = period_anomalistic * (1 - period_sidereal * dperdt/(2pi))
+        # solving for period_anomalistic gives us:
+        rhs = period_sid / (-1*period_sid * dperdt/(2*np.pi*u.rad) + 1*u.dimensionless_unscaled)
+    elif solve_for in [period_sid]:
+        lhs = period_sid
+        # rhs = period_anomalistic_to_sidereal(period, dperdt)
+
+        # period_sidereal = period_anomalistic * (1 - period_sidereal * dperdt/(2pi))
+        # solving for period_sidereal gives us:
+        rhs = period_anom / (period_anom * dperdt/(2*np.pi*u.rad) + 1*u.dimensionless_unscaled)
+
+    else:
+        raise NotImplementedError
+
+    return lhs, rhs, [], {'orbit': orbit}
+
+_validsolvefor['mean_anom'] = ['mean_anom', 't0_perpass']
 def mean_anom(b, orbit, solve_for=None, **kwargs):
     """
 
@@ -718,7 +791,7 @@ def mean_anom(b, orbit, solve_for=None, **kwargs):
     mean_anom = orbit_ps.get_parameter(qualifier='mean_anom', **_skip_filter_checks)
     t0_perpass = orbit_ps.get_parameter(qualifier='t0_perpass', **_skip_filter_checks)
     period = orbit_ps.get_parameter(qualifier='period', **_skip_filter_checks)
-    dpdt = orbit_ps.get_parameter(qualifier='period', **_skip_filter_checks)
+    dpdt = orbit_ps.get_parameter(qualifier='dpdt', **_skip_filter_checks)
     t0 = b.get_parameter(qualifier='t0', context='system', **_skip_filter_checks)
 
     if solve_for in [None, mean_anom]:
@@ -747,6 +820,7 @@ def _true_anom_to_phase(true_anom, period, ecc, per0):
 
     return phase
 
+_validsolvefor['ph_supconj'] = ['ph_supconj']
 def ph_supconj(b, orbit, solve_for=None, **kwargs):
     """
     This is usually passed as an argument to
@@ -786,6 +860,7 @@ def ph_supconj(b, orbit, solve_for=None, **kwargs):
 
     return lhs, rhs, [], {'orbit': orbit}
 
+_validsolvefor['ph_infconj'] = ['ph_infconj']
 def ph_infconj(b, orbit, solve_for=None, **kwargs):
     """
     This constraint is automatically added for binary systems via
@@ -817,6 +892,7 @@ def ph_infconj(b, orbit, solve_for=None, **kwargs):
 
     return lhs, rhs, [], {'orbit': orbit}
 
+_validsolvefor['ph_perpass'] = ['ph_perpass']
 def ph_perpass(b, orbit, solve_for=None, **kwargs):
     """
     This is usually passed as an argument to
@@ -847,7 +923,7 @@ def ph_perpass(b, orbit, solve_for=None, **kwargs):
 
 
 
-
+_validsolvefor['freq'] = ['freq', 'period']
 def freq(b, component, solve_for=None, **kwargs):
     """
     Create a constraint for frequency (either orbital or rotational) given a period.
@@ -952,6 +1028,7 @@ def keplers_third_law_hierarchical(b, orbit1, orbit2, solve_for=None, **kwargs):
 #}
 #{ Intra-component constraints
 
+_validsolvefor['irrad_frac'] = ['irrad_frac_lost_bol', 'irrad_frac_refl_bol']
 def irrad_frac(b, component, solve_for=None, **kwargs):
     """
     Create a constraint to ensure that energy is conserved and all incident
@@ -1003,6 +1080,7 @@ def irrad_frac(b, component, solve_for=None, **kwargs):
 
     return lhs, rhs, [], {'component': component}
 
+_validsolvefor['semidetached'] = ['requiv']
 def semidetached(b, component, solve_for=None, **kwargs):
     """
     Create a constraint to force requiv to be semidetached.
@@ -1045,9 +1123,13 @@ def semidetached(b, component, solve_for=None, **kwargs):
 
     return lhs, rhs, [], {'component': component}
 
+_validsolvefor['logg'] = ['logg', 'requiv', 'mass']
 def logg(b, component, solve_for=None, **kwargs):
     """
     Create a constraint for logg at requiv for a star.
+
+    Note that the constant includes G in solar units and then a conversion
+    factor from solar to cgs.
 
     This constraint is automatically included for all
     <phoebe.parameters.component.star> during
@@ -1085,20 +1167,23 @@ def logg(b, component, solve_for=None, **kwargs):
 
     metawargs = comp_ps.meta
     metawargs.pop('qualifier')
-    logg_def = FloatParameter(qualifier='logg', value=1.0, default_unit=u.dimensionless_unscaled, description='logg at requiv')
+    logg_def = FloatParameter(qualifier='logg', latexfmt=r'\mathrm{log}g_\mathrm{{ {component} }}', value=1.0, default_unit=u.dimensionless_unscaled, description='logg at requiv')
     logg, created = b.get_or_create('logg', logg_def, **metawargs)
 
-    G = c.G
+    # logg needs to be in cgs, but we'll handle all quantities in solar
+    G = c.G.to('solRad3/(solMass d2)').value
+    solar_to_cgs = (1*u.solRad/u.d**2).to(u.cm/u.s**2).value
+
 
     if solve_for in [logg, None]:
         lhs = logg
-        rhs = log10(mass / requiv**2 * G * 100)
+        rhs = log10(mass / requiv**2 * G * solar_to_cgs)
     elif solve_for in [requiv]:
         lhs = requiv
-        rhs = sqrt((mass*G * 100)/10**logg)
+        rhs = sqrt((mass*G * solar_to_cgs)/10**logg)
     elif solve_for in [mass]:
         lhs = mass
-        rhs = requiv**2 * 10**logg / ( G * 100)
+        rhs = requiv**2 * 10**logg / ( G * solar_to_cgs)
     else:
         raise NotImplementedError
 
@@ -1212,6 +1297,7 @@ def logg(b, component, solve_for=None, **kwargs):
 #}
 #{ Inter-component constraints
 
+_validsolvefor['teffratio'] = ['teffratio', 'teff@hier.children_of(orbit)[0]', 'teff@hier.children_of(orbit)[1]']
 def teffratio(b, orbit=None, solve_for=None, **kwargs):
     """
     Create a constraint to for the teff ratio between two stars in the same orbit.
@@ -1260,8 +1346,8 @@ def teffratio(b, orbit=None, solve_for=None, **kwargs):
     comp1_ps = b.get_component(component=comp1, **_skip_filter_checks)
     comp2_ps = b.get_component(component=comp2, **_skip_filter_checks)
 
-    teffratio_def = FloatParameter(qualifier='teffratio', value=1.0, default_unit=u.dimensionless_unscaled, limits=[0, None], description='ratio between effective temperatures of children stars')
-    teffratio, created = b.get_or_create('teffratio', teffratio_def, component=orbit, context='component')
+    teffratio_def = FloatParameter(qualifier='teffratio',  latexfmt=r'T_\mathrm{{ eff, {children1} }} / T_\mathrm{{ eff, {children0} }}', value=1.0, default_unit=u.dimensionless_unscaled, limits=[0, None], description='ratio between effective temperatures of children stars')
+    teffratio, created = b.get_or_create('teffratio', teffratio_def, kind='orbit', component=orbit, context='component')
 
     teff1 = comp1_ps.get_parameter(qualifier='teff', **_skip_filter_checks)
     teff2 = comp2_ps.get_parameter(qualifier='teff', **_skip_filter_checks)
@@ -1281,7 +1367,7 @@ def teffratio(b, orbit=None, solve_for=None, **kwargs):
     return lhs, rhs, [], {'orbit': orbit}
 
 
-
+_validsolvefor['requivratio'] = ['requivratio', 'requiv@hier.children_of(orbit)[0]', 'requiv@hier.children_of(orbit)[1]']
 def requivratio(b, orbit=None, solve_for=None, **kwargs):
     """
     Create a constraint to for the requiv ratio between two stars in the same orbit.
@@ -1327,24 +1413,36 @@ def requivratio(b, orbit=None, solve_for=None, **kwargs):
 
     comp1, comp2 = hier.get_stars_of_children_of(orbit)
 
+    orbit_ps = b.get_component(component=orbit, **_skip_filter_checks)
     comp1_ps = b.get_component(component=comp1, **_skip_filter_checks)
     comp2_ps = b.get_component(component=comp2, **_skip_filter_checks)
 
     requiv1 = comp1_ps.get_parameter(qualifier='requiv', **_skip_filter_checks)
     requiv2 = comp2_ps.get_parameter(qualifier='requiv', **_skip_filter_checks)
 
-    requivratio_def = FloatParameter(qualifier='requivratio', value=1.0, default_unit=u.dimensionless_unscaled, limits=[0, None], description='ratio between equivalent radii of children stars')
-    requivratio, requivratio_created = b.get_or_create('requivratio', requivratio_def, component=orbit, context='component')
+    sma = orbit_ps.get_parameter(qualifier='sma', **_skip_filter_checks)
 
-    requivsum_def = FloatParameter(qualifier='requivsum', value=1.0, default_unit=u.dimensionless_unscaled, limits=[0, None], description='sum of equivalent radii of children stars')
-    requivsum, requivsum_created = b.get_or_create('requivsum', requivsum_def, component=orbit, context='component')
+    requivratio_def = FloatParameter(qualifier='requivratio', latexfmt=r'R_\mathrm{{ equiv, {children1} }} / R_\mathrm{{ equiv, {children0} }}', value=1.0, default_unit=u.dimensionless_unscaled, limits=[0, None], description='ratio between equivalent radii of children stars')
+    requivratio, requivratio_created = b.get_or_create('requivratio', requivratio_def, kind='orbit', component=orbit, context='component')
 
-    requivsum_constrained = kwargs.get('requivsum_constrained', len(requivsum.constrained_by) > 0)
+    requivsumfrac_exists = 'requivsumfrac' in orbit_ps.qualifiers
+    if requivsumfrac_exists:
+        requivsumfrac = orbit_ps.get_parameter(qualifier='requivsumfrac', **_skip_filter_checks)
+        requivsumfrac_constrained = kwargs.get('requivsumfrac_constrained', len(requivsumfrac.constrained_by) > 0)
+        params = [requivratio, requivsumfrac, requiv1, requiv2, sma]
+
+        if requivsumfrac.is_constraint is not None and requivratio not in requivsumfrac.is_constraint.addl_vars:
+            requivsumfrac.is_constraint._addl_vars.append(ConstraintVar(b, requivratio.twig))
+
+    else:
+        requivsumfrac = None
+        requivsumfrac_constrained = True
+        params = [requivratio, requiv1, requiv2, sma]
 
     if solve_for in [requivratio, None]:
         lhs = requivratio
         rhs = requiv2/requiv1
-        if not requivsum_created and not requivsum_constrained:
+        if not requivsumfrac_constrained:
             if requiv1.is_constraint:
                 requiv1.is_constraint.constraint_kwargs['requivratio_constrained'] = True
                 requiv1.is_constraint.flip_for('requiv@{}'.format(requiv1.component), force=True)
@@ -1354,10 +1452,10 @@ def requivratio(b, orbit=None, solve_for=None, **kwargs):
 
     elif solve_for in [requiv1]:
         lhs = requiv1
-        if requivsum_constrained:
+        if requivsumfrac_constrained:
             rhs = requiv2 / requivratio
         else:
-            rhs = requivsum / (requivratio + 1)
+            rhs = (requivsumfrac * sma) / (requivratio + 1)
             # the other constraint needs to also follow the alternate equations
             if requiv2.is_constraint and 'requivratio_constrained' not in requiv2.is_constraint.constraint_kwargs.keys():
                 requiv2.is_constraint.constraint_kwargs['requivratio_constrained'] = False
@@ -1365,31 +1463,32 @@ def requivratio(b, orbit=None, solve_for=None, **kwargs):
 
     elif solve_for in [requiv2]:
         lhs = requiv2
-        if requivsum_constrained:
+        if requivsumfrac_constrained:
             rhs = requivratio * requiv1
         else:
-            rhs = (requivratio * requivsum) / (requivratio + 1)
+            rhs = (requivratio * requivsumfrac * sma) / (requivratio + 1)
             # the other constraint needs to also follow the alternate equations
             if requiv1.is_constraint and 'requivratio_constrained' not in requiv1.is_constraint.constraint_kwargs.keys():
                 requiv1.is_constraint.constraint_kwargs['requivratio_constrained'] = False
                 requiv1.is_constraint.flip_for('requiv@{}'.format(requiv1.component), force=True)
-    elif solve_for == requivsum:
-        raise NotImplementedError("cannot solve this constraint for 'requivsum' since it was originally 'requivratio'")
+    elif solve_for == requivsumfrac:
+        raise NotImplementedError("cannot solve this constraint for 'requivsumfrac' since it was originally 'requivratio'")
     else:
         raise NotImplementedError
 
+    return lhs, rhs, params, {'orbit': orbit}
 
-    return lhs, rhs, [requivratio, requivsum, requiv1, requiv2], {'orbit': orbit}
-
-def requivsum(b, orbit=None, solve_for=None, **kwargs):
+_validsolvefor['requivsumfrac'] = ['requivsumfrac', 'sma', 'requiv@hier.children_of(orbit)[0]', 'requiv@hier.children_of(orbit)[1]']
+def requivsumfrac(b, orbit=None, solve_for=None, **kwargs):
     """
-    Create a constraint to for the requiv sum of two stars in the same orbit.
-    Defined as requivsum = requiv@comp2 / requiv@comp1, where comp1 and comp2 are
+    Create a constraint to for the requiv sum of two stars in the same orbit
+    normalized to the semi major axis.
+    Defined as requivsumfrac = (requiv@comp2 + requiv@comp1)/sma, where comp1 and comp2 are
     determined from the primary and secondary components of the orbit `orbit`.
 
     This is usually passed as an argument to
     <phoebe.frontend.bundle.Bundle.add_constraint> as
-    `b.add_constraint('requivsum', orbit='binary')`, where
+    `b.add_constraint('requivsumfrac', orbit='binary')`, where
     `orbit` is one of <phoebe.parameters.HierarchyParameter.get_orbits>.
 
     Arguments
@@ -1398,7 +1497,7 @@ def requivsum(b, orbit=None, solve_for=None, **kwargs):
     * `orbit` (string): the label of the orbit in which this constraint should be built.
         Optional if only one orbit exists in the hierarchy.
     * `solve_for` (<phoebe.parameters.Parameter>, optional, default=None): if
-        'requivsum' should not be the derived/constrained parameter, provide which
+        'requivsumfrac' should not be the derived/constrained parameter, provide which
         other parameter should be derived (ie 'requiv@...').
 
     Returns
@@ -1426,51 +1525,66 @@ def requivsum(b, orbit=None, solve_for=None, **kwargs):
 
     comp1, comp2 = hier.get_stars_of_children_of(orbit)
 
+    orbit_ps = b.get_component(component=orbit, **_skip_filter_checks)
     comp1_ps = b.get_component(component=comp1, **_skip_filter_checks)
     comp2_ps = b.get_component(component=comp2, **_skip_filter_checks)
 
     requiv1 = comp1_ps.get_parameter(qualifier='requiv', **_skip_filter_checks)
     requiv2 = comp2_ps.get_parameter(qualifier='requiv', **_skip_filter_checks)
+    sma = orbit_ps.get_parameter(qualifier='sma', **_skip_filter_checks)
 
-    requivratio_def = FloatParameter(qualifier='requivratio', value=1.0, default_unit=u.dimensionless_unscaled, limits=[0, None], description='ratio between equivalent radii of children stars')
-    requivratio, requivratio_created = b.get_or_create('requivratio', requivratio_def, component=orbit, context='component')
+    requivsumfrac_def = FloatParameter(qualifier='requivsumfrac', latexfmt=r'(R_\mathrm{{ equiv, {children0} }} + R_\mathrm{{ equiv, {children1} }}) / a_\mathrm{{ {component} }}', value=1.0, default_unit=u.dimensionless_unscaled, limits=[0, None], description='sum of fractional equivalent radii of children stars')
+    requivsumfrac, requivsumfrac_created = b.get_or_create('requivsumfrac', requivsumfrac_def, kind='orbit', component=orbit, context='component')
 
-    requivsum_def = FloatParameter(qualifier='requivsum', value=1.0, default_unit=u.dimensionless_unscaled, limits=[0, None], description='sum of equivalent radii of children stars')
-    requivsum, requivsum_created = b.get_or_create('requivsum', requivsum_def, component=orbit, context='component')
+    requivratio_exists = 'requivratio' in orbit_ps.qualifiers
+    if requivratio_exists:
+        requivratio = orbit_ps.get_parameter(qualifier='requivratio', **_skip_filter_checks)
+        requivratio_constrained = kwargs.get('requivratio_constrained', len(requivratio.constrained_by) > 0)
+        params = [requivratio, requivsumfrac, requiv1, requiv2, sma]
 
-    requivratio_constrained = kwargs.get('requivratio_constrained', len(requivratio.constrained_by) > 0)
+        if requivratio.is_constraint is not None and requivsumfrac not in requivratio.is_constraint.addl_vars:
+            requivratio.is_constraint._addl_vars.append(ConstraintVar(b, requivsumfrac.twig))
+    else:
+        requivratio = None
+        requivratio_constrained = True
+        params = [requivsumfrac, requiv1, requiv2, sma]
 
-    if solve_for in [requivsum, None]:
-        lhs = requivsum
-        rhs = requiv1 + requiv2
-        if not requivratio_created and not requivratio_constrained:
+
+    if solve_for in [requivsumfrac, None]:
+        lhs = requivsumfrac
+        rhs = (requiv1 + requiv2)/sma
+        if requivratio_exists and not requivratio_constrained:
             if requiv1.is_constraint:
-                requiv1.is_constraint.constraint_kwargs['requivsum_constrained'] = True
+                requiv1.is_constraint.constraint_kwargs['requivsumfrac_constrained'] = True
                 requiv1.is_constraint.flip_for('requiv@{}'.format(requiv1.component), force=True)
             elif requiv2.is_constraint:
-                requiv2.is_constraint.constraint_kwargs['requivsum_constrained'] = True
+                requiv2.is_constraint.constraint_kwargs['requivsumfrac_constrained'] = True
                 requiv2.is_constraint.flip_for('requiv@'.format(requiv2.component), force=True)
+
+    elif solve_for in [sma]:
+        lhs = sma
+        rhs = (requiv1 + requiv2) / requivsumfrac
 
     elif solve_for in [requiv1]:
         lhs = requiv1
         if requivratio_constrained:
-            rhs = requivsum - requiv2
+            rhs = requivsumfrac * sma - requiv2
         else:
-            rhs = requivsum / (requivratio + 1)
+            rhs = (requivsumfrac * sma) / (requivratio + 1)
             # the other constraint needs to also follow the alternate equations
             if requiv2.is_constraint and 'requivsum_constrained' not in requiv2.is_constraint.constraint_kwargs.keys():
-                requiv2.is_constraint.constraint_kwargs['requivsum_constrained'] = False
+                requiv2.is_constraint.constraint_kwargs['requivsumfrac_constrained'] = False
                 requiv2.is_constraint.flip_for('requiv@{}'.format(requiv2.component), force=True)
 
     elif solve_for in [requiv2]:
         lhs = requiv2
         if requivratio_constrained:
-            rhs = requivsum - requiv1
+            rhs = requivsumfrac * sma - requiv1
         else:
-            rhs = (requivratio * requivsum) / (requivratio + 1)
+            rhs = (requivratio * requivsumfrac * sma) / (requivratio + 1)
             # the other constraint needs to also follow the alternate equations
-            if requiv1.is_constraint and 'requivsum_constrained' not in requiv1.is_constraint.constraint_kwargs.keys():
-                requiv1.is_constraint.constraint_kwargs['requivsum_constrained'] = False
+            if requiv1.is_constraint and 'requivsumfrac_constrained' not in requiv1.is_constraint.constraint_kwargs.keys():
+                requiv1.is_constraint.constraint_kwargs['requivsumfrac_constrained'] = False
                 requiv1.is_constraint.flip_for('requiv@{}'.format(requiv1.component), force=True)
 
     elif solve_for == requivratio:
@@ -1479,12 +1593,12 @@ def requivsum(b, orbit=None, solve_for=None, **kwargs):
         raise NotImplementedError
 
 
-    return lhs, rhs, [requivratio, requivsum, requiv1, requiv2], {'orbit': orbit}
+    return lhs, rhs, params, {'orbit': orbit}
 
 #}
 #{ Orbit-component constraints
 
-
+_validsolvefor['mass'] = ['mass', 'sma', 'period', 'q']
 def mass(b, component, solve_for=None, **kwargs):
     """
     Create a constraint for the mass of a star based on Kepler's third
@@ -1555,6 +1669,7 @@ def mass(b, component, solve_for=None, **kwargs):
         sibling_solve_for = None
 
     sma = parentorbit_ps.get_parameter(qualifier='sma', **_skip_filter_checks)
+    # NOTE: sidereal period
     period = parentorbit_ps.get_parameter(qualifier='period', **_skip_filter_checks)
     q = parentorbit_ps.get_parameter(qualifier='q', **_skip_filter_checks)
 
@@ -1653,7 +1768,7 @@ def mass(b, component, solve_for=None, **kwargs):
     #
     # return lhs, rhs, [esinw, ecosw, ecc, per0], {'orbit': orbit}
 
-
+_validsolvefor['comp_sma'] = ['sma@orbit', 'incl@orbit']
 def comp_sma(b, component, solve_for=None, **kwargs):
     """
     Create a constraint for the star's semi-major axes WITHIN its
@@ -1665,7 +1780,7 @@ def comp_sma(b, component, solve_for=None, **kwargs):
 
     This is usually passed as an argument to
      <phoebe.frontend.bundle.Bundle.add_constraint> as
-     `b.add_constraint('mass', component='primary')`, where `component` is
+     `b.add_constraint('comp_sma', component='primary')`, where `component` is
      one of <phoebe.parameters.HierarchyParameter.get_stars>.
 
     If 'sma' does not exist in the component, it will be created
@@ -1703,7 +1818,7 @@ def comp_sma(b, component, solve_for=None, **kwargs):
 
     metawargs = component_ps.meta
     metawargs.pop('qualifier')
-    compsma_def = FloatParameter(qualifier='sma', value=4.0, default_unit=u.solRad, advanced=True, description='Semi major axis of the component in the orbit')
+    compsma_def = FloatParameter(qualifier='sma', latexfmt=r'a_\mathrm{{ {component} }}', value=4.0, default_unit=u.solRad, advanced=True, description='Semi major axis of the component in the orbit')
     compsma, created = b.get_or_create('sma', compsma_def, **metawargs)
 
     sma = parentorbit_ps.get_parameter(qualifier='sma', **_skip_filter_checks)
@@ -1732,7 +1847,154 @@ def comp_sma(b, component, solve_for=None, **kwargs):
 
     return lhs, rhs, [], {'component': component}
 
+_validsolvefor['comp_asini'] = ['asini@star', 'sma@orbit']
+def comp_asini(b, component, solve_for=None, **kwargs):
+    """
+    Create a constraint for the star's projected semi-major axes WITHIN its
+    parent orbit.
 
+    This constraint is automatically created and attached for all stars
+    in binary orbits via <phoebe.frontend.bundle.Bundle.set_hierarchy>.
+
+    This is usually passed as an argument to
+     <phoebe.frontend.bundle.Bundle.add_constraint> as
+     `b.add_constraint('comp_asini', component='primary')`, where `component` is
+     one of <phoebe.parameters.HierarchyParameter.get_stars>.
+
+    If 'asini' does not exist in the component, it will be created
+
+    Arguments
+    -----------
+    * `b` (<phoebe.frontend.bundle.Bundle>): the Bundle
+    * `component` (string): the label of the orbit or component in which this
+        constraint should be built.
+    * `solve_for` (<phoebe.parameters.Parameter>, optional, default=None): if
+        'asini@star' should not be the derived/constrained parameter, provide which
+        other parameter should be derived (ie 'sma@orbit').
+
+    Returns
+    ----------
+    * (<phoebe.parameters.Parameter>, <phoebe.parameters.ConstraintParameter>, list):
+        lhs (Parameter), rhs (ConstraintParameter), addl_params (list of additional
+        parameters that may be included in the constraint), kwargs (dict of
+        keyword arguments that were passed to this function).
+
+    Raises
+    --------
+    * NotImplementedError: if the value of `solve_for` is not implemented.
+    """
+    hier = b.get_hierarchy()
+    if not len(hier.get_value()):
+        # TODO: change to custom error type to catch in bundle.add_component
+        # TODO: check whether the problem is 0 hierarchies or more than 1
+        raise NotImplementedError("constraint for comp_sma requires hierarchy")
+
+    component_ps = _get_system_ps(b, component)
+
+    parentorbit = hier.get_parent_of(component)
+    parentorbit_ps = _get_system_ps(b, parentorbit)
+
+    metawargs = component_ps.meta
+    metawargs.pop('qualifier')
+    compasini_def = FloatParameter(qualifier='asini', latexfmt=r'a_\mathrm{{ {component} }} \sin i_\mathrm{{ {parent} }}',  value=4.0, default_unit=u.solRad, advanced=True, description='Projected semi major axis of the component in the orbit')
+    compasini, created = b.get_or_create('asini', compasini_def, **metawargs)
+
+    sma = parentorbit_ps.get_parameter(qualifier='sma', **_skip_filter_checks)
+    q = parentorbit_ps.get_parameter(qualifier='q', **_skip_filter_checks)
+    incl = parentorbit_ps.get_parameter(qualifier='incl', **_skip_filter_checks)
+
+    # NOTE: similar logic is also in dynamics.keplerian.dynamics_from_bundle to
+    # handle nested hierarchical orbits.  If changing any of the logic here,
+    # it should be changed there as well.
+
+    if hier.get_primary_or_secondary(component) == 'primary':
+        qthing = (1. + 1./q)
+    else:
+        qthing = (1. + q)
+
+
+    if solve_for in [None, compasini]:
+        lhs = compasini
+        rhs = sma * sin(incl) / qthing
+
+    elif solve_for == sma:
+        lhs = sma
+        rhs = compasini / sin(incl) * qthing
+
+    else:
+        raise NotImplementedError
+
+    return lhs, rhs, [], {'component': component}
+
+_validsolvefor['requivfrac'] = ['requivfrac@star', 'requiv@star', 'sma@orbit']
+def requivfrac(b, component, solve_for=None, **kwargs):
+    """
+    Create a constraint for the star's fractional equivalent radius.
+
+    This is usually passed as an argument to
+     <phoebe.frontend.bundle.Bundle.add_constraint> as
+     `b.add_constraint('requivfrac', component='primary')`, where `component` is
+     one of <phoebe.parameters.HierarchyParameter.get_stars>.
+
+    If 'requivfrac' does not exist in the component, it will be created
+
+    Arguments
+    -----------
+    * `b` (<phoebe.frontend.bundle.Bundle>): the Bundle
+    * `component` (string): the label of the orbit or component in which this
+        constraint should be built.
+    * `solve_for` (<phoebe.parameters.Parameter>, optional, default=None): if
+        'requivfrac@star' should not be the derived/constrained parameter, provide which
+        other parameter should be derived (ie 'requiv@star' 'sma@orbit').
+
+    Returns
+    ----------
+    * (<phoebe.parameters.Parameter>, <phoebe.parameters.ConstraintParameter>, list):
+        lhs (Parameter), rhs (ConstraintParameter), addl_params (list of additional
+        parameters that may be included in the constraint), kwargs (dict of
+        keyword arguments that were passed to this function).
+
+    Raises
+    --------
+    * NotImplementedError: if the value of `solve_for` is not implemented.
+    """
+    hier = b.get_hierarchy()
+    if not len(hier.get_value()):
+        # TODO: change to custom error type to catch in bundle.add_component
+        # TODO: check whether the problem is 0 hierarchies or more than 1
+        raise NotImplementedError("constraint for comp_sma requires hierarchy")
+
+    component_ps = _get_system_ps(b, component)
+
+    parentorbit = hier.get_parent_of(component)
+    parentorbit_ps = _get_system_ps(b, parentorbit)
+
+    metawargs = component_ps.meta
+    metawargs.pop('qualifier')
+    requivfrac_def = FloatParameter(qualifier='requivfrac', latexfmt=r'R_\mathrm{{ {component} }} / a_\mathrm{{ {parent} }}', value=1.0, default_unit=u.solRad, advanced=True, description='Fractional equivalent radius')
+    requivfrac, created = b.get_or_create('requivfrac', requivfrac_def, **metawargs)
+
+    requiv = component_ps.get_parameter(qualifier='requiv', **_skip_filter_checks)
+    sma = parentorbit_ps.get_parameter(qualifier='sma', **_skip_filter_checks)
+
+    if solve_for in [None, requivfrac]:
+        lhs = requivfrac
+        rhs = requiv / sma
+
+    elif solve_for == requiv:
+        lhs = requiv
+        rhs = requivfrac * sma
+
+    elif solve_for == sma:
+        lhs = sma
+        rhs = requiv / requivfrac
+
+    else:
+        raise NotImplementedError
+
+    return lhs, rhs, [], {'component': component}
+
+_validsolvefor['requiv_detached_max'] = ['requiv_max']
 def requiv_detached_max(b, component, solve_for=None, **kwargs):
     """
     Create a constraint to determine the critical (at L1) value of
@@ -1807,6 +2069,7 @@ def requiv_detached_max(b, component, solve_for=None, **kwargs):
 
     return lhs, rhs, [], {'component': component}
 
+_validsolvefor['potential_contact_min'] = ['pot_min']
 def potential_contact_min(b, component, solve_for=None, **kwargs):
     """
     Create a constraint to determine the critical (at L23) value of
@@ -1865,6 +2128,7 @@ def potential_contact_min(b, component, solve_for=None, **kwargs):
 
     return lhs, rhs, [], {'component': component}
 
+_validsolvefor['potential_contact_max'] = ['pot_max']
 def potential_contact_max(b, component, solve_for=None, **kwargs):
     """
     Create a constraint to determine the critical (at L1) value of
@@ -1923,6 +2187,7 @@ def potential_contact_max(b, component, solve_for=None, **kwargs):
 
     return lhs, rhs, [], {'component': component}
 
+_validsolvefor['requiv_contact_min'] = ['requiv_min']
 def requiv_contact_min(b, component, solve_for=None, **kwargs):
     """
     Create a constraint to determine the critical (at L1) value of
@@ -1982,6 +2247,7 @@ def requiv_contact_min(b, component, solve_for=None, **kwargs):
 
     return lhs, rhs, [], {'component': component}
 
+_validsolvefor['requiv_contact_max'] = ['requiv_max']
 def requiv_contact_max(b, component, solve_for=None, **kwargs):
     """
     Create a constraint to determine the critical (at L2/3) value of
@@ -2041,6 +2307,7 @@ def requiv_contact_max(b, component, solve_for=None, **kwargs):
 
     return lhs, rhs, [], {'component': component}
 
+_validsolvefor['fillout_factor'] = ['fillout_factor', 'pot']
 def fillout_factor(b, component, solve_for=None, **kwargs):
     """
     Create a constraint to determine the fillout factor of a contact envelope.
@@ -2102,6 +2369,7 @@ def fillout_factor(b, component, solve_for=None, **kwargs):
 
     return lhs, rhs, [], {'component': component}
 
+_validsolvefor['rotation_period'] = ['period@star', 'syncpar', 'period@orbit']
 def rotation_period(b, component, solve_for=None, **kwargs):
     """
     Create a constraint for the rotation period of a star given its orbital
@@ -2149,6 +2417,7 @@ def rotation_period(b, component, solve_for=None, **kwargs):
     period_star = component_ps.get_parameter(qualifier='period', **_skip_filter_checks)
     syncpar_star = component_ps.get_parameter(qualifier='syncpar', **_skip_filter_checks)
 
+    # NOTE: sidereal period
     period_orbit = parentorbit_ps.get_parameter(qualifier='period', **_skip_filter_checks)
 
     if solve_for in [None, period_star]:
@@ -2168,6 +2437,7 @@ def rotation_period(b, component, solve_for=None, **kwargs):
 
     return lhs, rhs, [], {'component': component}
 
+_validsolvefor['pitch'] = ['incl@star', 'incl@orbit', 'pitch']
 def pitch(b, component, solve_for=None, **kwargs):
     """
     Create a constraint for the inclination of a star relative to its parent orbit.
@@ -2233,6 +2503,7 @@ def pitch(b, component, solve_for=None, **kwargs):
 
     return lhs, rhs, [], {'component': component}
 
+_validsolvefor['yaw'] = ['long_an@star', 'long_an@orbit', 'yaw']
 def yaw(b, component, solve_for=None, **kwargs):
     """
     Create a constraint for the inclination of a star relative to its parent orbit.
@@ -2315,7 +2586,7 @@ def passband_ratio(b, *args, **kwargs):
 
 #}
 #{ Dataset constraints
-
+_validsolvefor['compute_phases'] = ['compute_phases', 'compute_times']
 def compute_phases(b, component, dataset, solve_for=None, **kwargs):
     """
     Create a constraint for the translation between compute_phases and compute_times.
@@ -2325,7 +2596,7 @@ def compute_phases(b, component, dataset, solve_for=None, **kwargs):
 
     This is usually passed as an argument to
      <phoebe.frontend.bundle.Bundle.add_constraint> as
-     `b.add_constraint('compute_phase', component=b.hierarchy.get_top(), dataset='dataset')`.
+     `b.add_constraint('compute_phases', component=b.hierarchy.get_top(), dataset='dataset')`.
 
     Arguments
     -----------
@@ -2369,8 +2640,19 @@ def compute_phases(b, component, dataset, solve_for=None, **kwargs):
 
 
     else:
+        try:
+            period_anom = b.get_parameter(qualifier='period_anom', component=component if component!='_default' else b.hierarchy.get_top(), context='component', **_skip_filter_checks)
+        except ValueError:
+            # we need to handle the backward compatibility case where period_anom does not yet exit (probably calling this DURING migration)
+            if 'period_anom' not in b.qualifiers:
+                logger.warning("compute_phases constraint falling back on period (sidereal)")
+                period_anom = b.get_parameter(qualifier='period', component=component if component!='_default' else b.hierarchy.get_top(), context='component', **_skip_filter_checks)
+            else:
+                raise
 
-        compute_phases_t0 = ds.get_parameter(qualifier='compute_phases_t0', component=component, **_skip_filter_checks)
+        phases_period = ds.get_parameter(qualifier='phases_period', component=component, **_skip_filter_checks)
+        phases_dpdt = ds.get_parameter(qualifier='phases_dpdt', component=component, **_skip_filter_checks)
+        phases_t0 = ds.get_parameter(qualifier='phases_t0', component=component, **_skip_filter_checks)
         t0_supconj = b.get_parameter(qualifier='t0_supconj', component=component if component!='_default' else b.hierarchy.get_top(), context='component', **_skip_filter_checks)
         t0_perpass = b.get_parameter(qualifier='t0_perpass', component=component if component!='_default' else b.hierarchy.get_top(), context='component', **_skip_filter_checks)
         t0_ref = b.get_parameter(qualifier='t0_ref', component=component if component!='_default' else b.hierarchy.get_top(), context='component', **_skip_filter_checks)
@@ -2378,34 +2660,34 @@ def compute_phases(b, component, dataset, solve_for=None, **kwargs):
 
         if solve_for in [None, compute_phases]:
             lhs = compute_phases
-            rhs = _times_to_phases(compute_times, period, dpdt, compute_phases_t0, t0_supconj, t0_perpass, t0_ref)
+            rhs = _times_to_phases(compute_times, phases_period, period, period_anom, phases_dpdt, dpdt, phases_t0, t0_supconj, t0_perpass, t0_ref)
         elif solve_for in [compute_times]:
             lhs = compute_times
-            rhs = _phases_to_times(compute_phases, period, dpdt, compute_phases_t0, t0_supconj, t0_perpass, t0_ref)
+            rhs = _phases_to_times(compute_phases, phases_period, period, period_anom, phases_dpdt, dpdt, phases_t0, t0_supconj, t0_perpass, t0_ref)
         else:
             raise NotImplementedError
 
     return lhs, rhs, [], {'component': component, 'dataset': dataset}
 
-def extinction(b, dataset, solve_for=None, **kwargs):
+# System constraints
+
+_validsolvefor['extinction'] = ['ebv', 'Av', 'Rv']
+def extinction(b, solve_for=None, **kwargs):
     """
     Create a constraint for the translation between ebv, Av, and Rv.
 
-    This constraint is automatically created and attached for all applicable datasets
-    via <phoebe.frontend.bundle.Bundle.add_dataset>.
+    This constraint is automatically created and attached for all systems.
 
     This is usually passed as an argument to
      <phoebe.frontend.bundle.Bundle.add_constraint> as
-     `b.add_constraint('extinction', dataset='dataset')`.
+     `b.add_constraint('extinction')`.
 
     Arguments
     -----------
     * `b` (<phoebe.frontend.bundle.Bundle>): the Bundle
-    * `dataset` (string): the label of the dataset in which to find the
-        `ebv`, `Av`, and `Rv` parameters.
     * `solve_for` (<phoebe.parameters.Parameter, optional, default=None): if
         'ebv' should not be the derived/constrained parameter, provide which
-        other parameter should be derived (ie 'compute_times').
+        other parameter should be derived (ie 'Av', 'Rv').
 
     Returns
     ----------
@@ -2420,10 +2702,10 @@ def extinction(b, dataset, solve_for=None, **kwargs):
     """
 
     # Rv =Av/ebv
-    dataset_ps = b.get_dataset(dataset=dataset)
-    ebv = dataset_ps.get_parameter('ebv')
-    Av = dataset_ps.get_parameter('Av')
-    Rv = dataset_ps.get_parameter('Rv')
+    system_ps = b.filter(context='system', **_skip_filter_checks)
+    ebv = system_ps.get_parameter(qualifier='ebv', **_skip_filter_checks)
+    Av = system_ps.get_parameter(qualifier='Av', **_skip_filter_checks)
+    Rv = system_ps.get_parameter(qualifier='Rv', **_skip_filter_checks)
 
 
     if solve_for in [None, ebv]:
@@ -2439,85 +2721,137 @@ def extinction(b, dataset, solve_for=None, **kwargs):
     else:
         raise NotImplementedError
 
-    return lhs, rhs, [], {'dataset': dataset}
+    return lhs, rhs, [], {}
 
-def time_ephem(b, component, dataset, solve_for=None, **kwargs):
+_validsolvefor['parallax'] = ['distance', 'parallax']
+def parallax(b, solve_for=None, **kwargs):
     """
-    use the ephemeris of component to predict the expected times of eclipse (used
-        in the ETV dataset)
+    Create a constraint for the translation between distance and parallax.
 
     This is usually passed as an argument to
-     <phoebe.frontend.bundle.Bundle.add_constraint>.
+     <phoebe.frontend.bundle.Bundle.add_constraint> as
+     `b.add_constraint('parallax')`.
+
+    Arguments
+    -----------
+    * `b` (<phoebe.frontend.bundle.Bundle>): the Bundle
+    * `solve_for` (<phoebe.parameters.Parameter, optional, default=None): if
+        'parallax' should not be the derived/constrained parameter, provide which
+        other parameter should be derived (ie 'distance').
+
+    Returns
+    ----------
+    * (<phoebe.parameters.Parameter>, <phoebe.parameters.ConstraintParameter>, list):
+        lhs (Parameter), rhs (ConstraintParameter), addl_params (list of additional
+        parameters that may be included in the constraint), kwargs (dict of
+        keyword arguments that were passed to this function).
+
+    Raises
+    --------
+    * NotImplementedError: if the value of `solve_for` is not implemented.
     """
-    hier = b.get_hierarchy()
-    if not len(hier.get_value()):
-        # TODO: change to custom error type to catch in bundle.add_component
-        # TODO: check whether the problem is 0 hierarchies or more than 1
-        raise NotImplementedError("constraint for time_ecl requires hierarchy")
 
-    if component=='_default':
-        # need to do this so that the constraint won't fail before being copied
-        parentorbit = hier.get_top()
-    else:
-        parentorbit = hier.get_parent_of(component)
+    # Rv =Av/ebv
+    system_ps = b.filter(context='system', **_skip_filter_checks)
+    distance = system_ps.get_parameter(qualifier='distance', **_skip_filter_checks)
 
-    parentorbit_ps = _get_system_ps(b, parentorbit)
+    parallax_def = FloatParameter(qualifier='parallax', latexfmt=r'\pi', value=1.0, default_unit=u.arcsec, description='Parallax')
 
-    filterwargs = _skip_filter_checks
-    if component is not None:
-        filterwargs['component'] = component
-    if dataset is not None:
-        filterwargs['dataset'] = dataset
+    # And now call get_or_create on the bundle
+    metawargs = system_ps.meta
+    metawargs.pop('qualifier')
+    parallax, created = b.get_or_create('parallax', parallax_def, **metawargs)
 
-    time_ephem = b.get_parameter(qualifier='time_ephems', **filterwargs)
-    t0 = parentorbit_ps.get_parameter(qualifier='t0_supconj', **_skip_filter_checks)  # TODO: make sure t0_supconj makes sense here
-    period = parentorbit_ps.get_parameter(qualifier='period', **_skip_filter_checks)
-    phshift = parentorbit_ps.get_parameter(qualifier='phshift', **_skip_filter_checks)
-    dpdt = parentorbit_ps.get_parameter(qualifier='dpdt', **_skip_filter_checks)
-    esinw_ = parentorbit_ps.get_parameter(qualifier='esinw', **_skip_filter_checks)
-
-    N = b.get_parameter(qualifier='Ns', **filterwargs)
-
-    if solve_for in [None, time_ephem]:
-
-        # TODO: N is always an int, but we want to include the expected phase of eclipse (ie N+ph_ecl) based on which component and esinw/ecosw
-        # then we can have bundle.add_component automatically default to add all components instead of just the primary
-
-        # same as Bundle.to_time except phase can be > 1
-        lhs = time_ephem
-        # we have to do a trick here since dpdt is in sec/yr and floats are
-        # assumed to have the same unit during subtraction or addition.
-        one = 1.0*(u.s/u.s)
-        if component!='_default' and hier.get_primary_or_secondary(component)=='secondary':
-            # TODO: make sure this constraint updates if the hierarchy changes?
-            N = N + 0.5 + esinw_  # TODO: check this
-        rhs = t0 + ((N - phshift) * period) / (-1 * (N - phshift) * dpdt + one)
-        #rhs = (N-phshift)*period
+    # NOTE: parallax here is in radians and distance in solRad (solar units)
+    if solve_for in [None, parallax]:
+        lhs = parallax
+        rhs = (1*u.arcsec.to(u.rad)/1*u.pc.to(u.solRad))/distance
+    elif solve_for in [distance]:
+        lhs = distance
+        rhs = (1*u.pc.to(u.solRad)/1*u.arcsec.to(u.rad))/parallax
     else:
         raise NotImplementedError
 
-    return lhs, rhs, [], {'component': component, 'dataset': dataset}
+    return lhs, rhs, [], {}
 
-def etv(b, component, dataset, solve_for=None, **kwargs):
-    """
-    compute the ETV column from the time_ephem and time_ecl columns (used in the
-        ETV dataset).
-
-    This is usually passed as an argument to
-     <phoebe.frontend.bundle.Bundle.add_constraint>.
-    """
-
-    time_ephem = b.get_parameter(qualifier='time_ephems', component=component, dataset=dataset, context=['dataset', 'model'])  # need to provide context to avoid getting the constraint
-    time_ecl = b.get_parameter(qualifier='time_ecls', component=component, dataset=dataset)
-    etv = b.get_parameter(qualifier='etvs', component=component, dataset=dataset)
-
-    if solve_for in [None, etv]:
-        lhs = etv
-        rhs = time_ecl - time_ephem
-    else:
-        raise NotImplementedError
-
-    return lhs, rhs, [], {'component': component, 'dataset': dataset}
+# _validsolvefor['time_ephem'] = ['time_ephem']
+# def time_ephem(b, component, dataset, solve_for=None, **kwargs):
+#     """
+#     use the ephemeris of component to predict the expected times of eclipse (used
+#         in the ETV dataset)
+#
+#     This is usually passed as an argument to
+#      <phoebe.frontend.bundle.Bundle.add_constraint>.
+#     """
+#     hier = b.get_hierarchy()
+#     if not len(hier.get_value()):
+#         # TODO: change to custom error type to catch in bundle.add_component
+#         # TODO: check whether the problem is 0 hierarchies or more than 1
+#         raise NotImplementedError("constraint for time_ecl requires hierarchy")
+#
+#     if component=='_default':
+#         # need to do this so that the constraint won't fail before being copied
+#         parentorbit = hier.get_top()
+#     else:
+#         parentorbit = hier.get_parent_of(component)
+#
+#     parentorbit_ps = _get_system_ps(b, parentorbit)
+#
+#     filterwargs = _skip_filter_checks
+#     if component is not None:
+#         filterwargs['component'] = component
+#     if dataset is not None:
+#         filterwargs['dataset'] = dataset
+#
+#     time_ephem = b.get_parameter(qualifier='time_ephems', **filterwargs)
+#     t0 = parentorbit_ps.get_parameter(qualifier='t0_supconj', **_skip_filter_checks)  # TODO: make sure t0_supconj makes sense here
+#     period = parentorbit_ps.get_parameter(qualifier='period', **_skip_filter_checks)
+#     phshift = parentorbit_ps.get_parameter(qualifier='phshift', **_skip_filter_checks)
+#     dpdt = parentorbit_ps.get_parameter(qualifier='dpdt', **_skip_filter_checks)
+#     esinw_ = parentorbit_ps.get_parameter(qualifier='esinw', **_skip_filter_checks)
+#
+#     N = b.get_parameter(qualifier='Ns', **filterwargs)
+#
+#     if solve_for in [None, time_ephem]:
+#
+#         # TODO: N is always an int, but we want to include the expected phase of eclipse (ie N+ph_ecl) based on which component and esinw/ecosw
+#         # then we can have bundle.add_component automatically default to add all components instead of just the primary
+#
+#         # same as Bundle.to_time except phase can be > 1
+#         lhs = time_ephem
+#         # we have to do a trick here since dpdt is in sec/yr and floats are
+#         # assumed to have the same unit during subtraction or addition.
+#         one = 1.0*(u.s/u.s)
+#         if component!='_default' and hier.get_primary_or_secondary(component)=='secondary':
+#             # TODO: make sure this constraint updates if the hierarchy changes?
+#             N = N + 0.5 + esinw_  # TODO: check this
+#         rhs = t0 + ((N - phshift) * period) / (-1 * (N - phshift) * dpdt + one)
+#         #rhs = (N-phshift)*period
+#     else:
+#         raise NotImplementedError
+#
+#     return lhs, rhs, [], {'component': component, 'dataset': dataset}
+#
+# def etv(b, component, dataset, solve_for=None, **kwargs):
+#     """
+#     compute the ETV column from the time_ephem and time_ecl columns (used in the
+#         ETV dataset).
+#
+#     This is usually passed as an argument to
+#      <phoebe.frontend.bundle.Bundle.add_constraint>.
+#     """
+#
+#     time_ephem = b.get_parameter(qualifier='time_ephems', component=component, dataset=dataset, context=['dataset', 'model'])  # need to provide context to avoid getting the constraint
+#     time_ecl = b.get_parameter(qualifier='time_ecls', component=component, dataset=dataset)
+#     etv = b.get_parameter(qualifier='etvs', component=component, dataset=dataset)
+#
+#     if solve_for in [None, etv]:
+#         lhs = etv
+#         rhs = time_ecl - time_ephem
+#     else:
+#         raise NotImplementedError
+#
+#     return lhs, rhs, [], {'component': component, 'dataset': dataset}
 
 #}
 
@@ -2585,3 +2919,89 @@ def requiv_to_pot(b, component, solve_for=None, **kwargs):
         raise NotImplementedError
 
     return lhs, rhs, [], {'component': component}
+
+
+
+_validsolvefor['impact_param'] = ['incl', 'impact_param']
+def impact_param(b, orbit=None, solve_for=None, **kwargs):
+    """
+    Create a constraint between the impact parameter and inclination in an orbit.
+
+    This is usually passed as an argument to
+     <phoebe.frontend.bundle.Bundle.add_constraint> as
+     `b.add_constraint('impact_param', orbit='binary')`, where `orbit` is one of
+     <phoebe.parameters.HierarchyParameter.get_orbits>.
+
+    If 'impact_param' does not exist in the orbit, it will be created.
+
+    Arguments
+    -----------
+    * `b` (<phoebe.frontend.bundle.Bundle>): the Bundle
+    * `orbit` (string): the label of the orbit in which this constraint should
+        be built.
+    * `solve_for` (<phoebe.parameters.Parameter>, optional, default=None): if
+        'impact_param' should not be the derived/constrained parameter, provide which
+        other parameter should be derived (ie 'incl')
+
+    Returns
+    ----------
+    * (<phoebe.parameters.Parameter>, <phoebe.parameters.ConstraintParameter>, list):
+        lhs (Parameter), rhs (ConstraintParameter), addl_params (list of additional
+        parameters that may be included in the constraint), kwargs (dict of
+        keyword arguments that were passed to this function).
+
+    Raises
+    --------
+    * NotImplementedError: if the value of `solve_for` is not implemented.
+    """
+
+    hier = b.hierarchy
+
+    if orbit is None:
+        orbits = hier.get_orbits()
+        if len(orbits)==1:
+            orbit = orbits[0]
+        else:
+            raise ValueError("must provide orbit since more than one orbit present in the hierarchy")
+
+
+    orbit_ps = _get_system_ps(b, orbit)
+
+    # We want to get the parameters in THIS orbit, but calling through
+    # the bundle in case we need to create it.
+    # To do that, we need to know the search parameters to get items from this PS.
+    metawargs = orbit_ps.meta
+    metawargs.pop('qualifier')
+
+    # Now we'll define the parameters in case they don't exist and need to be created
+    impactparam_def = FloatParameter(qualifier='impact_param', latexfmt=r'x_\mathrm{im}', value=0., default_unit=u.dimensionless_unscaled, limits=[-2, 2], description='Impact parameter of the orbit')
+
+    # And now call get_or_create on the bundle
+    impactparam, impactparam_created = b.get_or_create('impact_param', impactparam_def, **metawargs)
+    comp1, comp2 = hier.get_stars_of_children_of(orbit)
+    comp1_ps = b.get_component(component=comp1, **_skip_filter_checks)
+    comp2_ps = b.get_component(component=comp2, **_skip_filter_checks)
+
+    requiv1 = comp1_ps.get_parameter(qualifier='requiv', **_skip_filter_checks)
+    requiv2 = comp2_ps.get_parameter(qualifier='requiv', **_skip_filter_checks)
+    sma = orbit_ps.get_parameter(qualifier='sma', **_skip_filter_checks)
+    requivsumfrac = (requiv1 + requiv2)/sma
+
+    incl = orbit_ps.get_parameter(qualifier='incl', **_skip_filter_checks)
+    esinw = orbit_ps.get_parameter(qualifier='esinw', **_skip_filter_checks)
+    ecosw = orbit_ps.get_parameter(qualifier='ecosw', **_skip_filter_checks)
+
+
+    if solve_for in [None, impactparam]:
+        lhs = impactparam
+        rhs = cos(incl)/requivsumfrac * (1-esinw**2-ecosw**2)/(1+esinw)
+
+    elif solve_for == incl:
+        lhs = incl
+        rhs = arccos(impactparam*requivsumfrac*(1+esinw)/(1-esinw**2-ecosw**2))
+
+    else:
+        raise NotImplementedError
+
+    #- return lhs, rhs, args_as_pss
+    return lhs, rhs, [], {'orbit': orbit}

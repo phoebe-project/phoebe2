@@ -32,6 +32,7 @@ import logging
 logger = logging.getLogger("DYNAMICS.NBODY")
 logger.addHandler(logging.NullHandler())
 
+_skip_filter_checks = {'check_default': False, 'check_visible': False}
 
 def _ensure_tuple(item):
     """
@@ -88,11 +89,11 @@ def dynamics_from_bundle(b, times, compute=None, return_roche_euler=False, use_k
 
     hier = b.hierarchy
 
-    computeps = b.get_compute(compute, check_visible=False, force_ps=True)
-    stepsize = computeps.get_value('stepsize', check_visible=False, **kwargs)
-    ltte = computeps.get_value('ltte', check_visible=False, **kwargs)
-    gr = computeps.get_value('gr', check_visible=False, **kwargs)
-    integrator = computeps.get_value('integrator', check_visible=False, **kwargs)
+    computeps = b.get_compute(compute=compute, force_ps=True, **_skip_filter_checks)
+    stepsize = computeps.get_value(qualifier='stepsize', stepsize=kwargs.get('stepsize', None), **_skip_filter_checks)
+    ltte = computeps.get_value(qualifier='ltte', ltte=kwargs.get('ltte', None), **_skip_filter_checks)
+    gr = computeps.get_value(qualifier='gr', gr=kwargs.get('gr', None), **_skip_filter_checks)
+    integrator = computeps.get_value(qualifier='integrator', integrator=kwargs.get('integrator', None), **_skip_filter_checks)
 
     starrefs = hier.get_stars()
     orbitrefs = hier.get_orbits() if use_kepcart else [hier.get_parent_of(star) for star in starrefs]
@@ -103,26 +104,26 @@ def dynamics_from_bundle(b, times, compute=None, return_roche_euler=False, use_k
         # (one is constrained from the other and the orbit.... nvm, this gets ugly)
         return 2 * np.pi * (t0 - t0_perpass) / period
 
-    masses = [b.get_value('mass', u.solMass, component=component, context='component') * c.G.to('AU3 / (Msun d2)').value for component in starrefs]  # GM
-    smas = [b.get_value('sma', u.AU, component=component, context='component') for component in orbitrefs]
-    eccs = [b.get_value('ecc', component=component, context='component') for component in orbitrefs]
-    incls = [b.get_value('incl', u.rad, component=component, context='component') for component in orbitrefs]
-    per0s = [b.get_value('per0', u.rad, component=component, context='component') for component in orbitrefs]
-    long_ans = [b.get_value('long_an', u.rad, component=component, context='component') for component in orbitrefs]
-    t0_perpasses = [b.get_value('t0_perpass', u.d, component=component, context='component') for component in orbitrefs]
-    periods = [b.get_value('period', u.d, component=component, context='component') for component in orbitrefs]
+    masses = [b.get_value(qualifier='mass', unit=u.solMass, component=component, context='component', **_skip_filter_checks) * c.G.to('AU3 / (Msun d2)').value for component in starrefs]  # GM
+    smas = [b.get_value(qualifier='sma', unit=u.AU, component=component, context='component', **_skip_filter_checks) for component in orbitrefs]
+    eccs = [b.get_value(qualifier='ecc', component=component, context='component', **_skip_filter_checks) for component in orbitrefs]
+    incls = [b.get_value(qualifier='incl', unit=u.rad, component=component, context='component', **_skip_filter_checks) for component in orbitrefs]
+    per0s = [b.get_value(qualifier='per0', unit=u.rad, component=component, context='component', **_skip_filter_checks) for component in orbitrefs]
+    long_ans = [b.get_value(qualifier='long_an', unit=u.rad, component=component, context='component', **_skip_filter_checks) for component in orbitrefs]
+    t0_perpasses = [b.get_value(qualifier='t0_perpass', unit=u.d, component=component, context='component', **_skip_filter_checks) for component in orbitrefs]
+    periods = [b.get_value(qualifier='period', unit=u.d, component=component, context='component', **_skip_filter_checks) for component in orbitrefs]
 
     if return_roche_euler:
         # rotperiods are only needed to compute instantaneous syncpars
-        rotperiods = [b.get_value('period', u.d, component=component, context='component') for component in starrefs]
+        rotperiods = [b.get_value(qualifier='period', unit=u.d, component=component, context='component', **_skip_filter_checks) for component in starrefs]
     else:
         rotperiods = None
 
-    vgamma = b.get_value('vgamma', context='system', unit=u.AU/u.d)
-    t0 = b.get_value('t0', context='system', unit=u.d)
+    vgamma = b.get_value(qualifier='vgamma', context='system', unit=u.AU/u.d, **_skip_filter_checks)
+    t0 = b.get_value(qualifier='t0', context='system', unit=u.d, **_skip_filter_checks)
 
     # mean_anoms = [mean_anom(t0, t0_perpass, period) for t0_perpass, period in zip(t0_perpasses, periods)]
-    mean_anoms = [b.get_value('mean_anom', u.rad, component=component, context='component') for component in orbitrefs]
+    mean_anoms = [b.get_value(qualifier='mean_anom', unit=u.rad, component=component, context='component', **_skip_filter_checks) for component in orbitrefs]
 
     return dynamics(times, masses, smas, eccs, incls, per0s, long_ans, \
                     mean_anoms, rotperiods, t0, vgamma, stepsize, ltte, gr,

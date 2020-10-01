@@ -137,6 +137,16 @@ _physical_types_to_solar = {'length': 'solRad',
                             'angular speed': 'rad/d',
                             'dimensionless': ''}
 
+_physical_types_to_si = {'length': 'm',
+                            'mass': 'kg',
+                            'temperature': 'K',
+                            'power': 'W',
+                            'time': 's',
+                            'speed': 'm/s',
+                            'angle': 'rad',
+                            'angular speed': 'rad/s',
+                            'dimensionless': ''}
+
 def _get_physical_type(object):
 
     if hasattr(object, 'physical_type'):
@@ -174,6 +184,9 @@ def to_solar(object):
 
 u.can_convert_to_solar = can_convert_to_solar
 u.to_solar = to_solar
+u._get_physical_type = _get_physical_type
+u._physical_types_to_si  = _physical_types_to_si
+u._physical_types_to_solar = _physical_types_to_solar
 
 
 

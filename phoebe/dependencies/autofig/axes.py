@@ -18,6 +18,14 @@ def _consistent_allow_none(thing1, thing2):
     else:
         return thing1 == thing2
 
+def _finite(array):
+    return array[np.isfinite(array)]
+
+def _determine_grid(N):
+    cols = np.floor(np.sqrt(N))
+    rows = np.ceil(float(N)/cols) if cols > 0 else 1
+    return int(rows), int(cols)
+
 class AxesGroup(common.Group):
     def __init__(self, items):
         super(AxesGroup, self).__init__(Axes, [], items)
@@ -964,10 +972,6 @@ class Axes(object):
         * ValueError: if `subplot_grid` is a tuple, but not of 2 integers
 
         """
-        def determine_grid(N):
-            cols = np.floor(np.sqrt(N))
-            rows = np.ceil(float(N)/cols) if cols > 0 else 1
-            return int(rows), int(cols)
 
         if fig is None:
             fig = plt.gcf()
@@ -991,7 +995,7 @@ class Axes(object):
             # we'll deal with this situation in the else below
             pass
         elif subplot_grid is None:
-            rows, cols = determine_grid(N)
+            rows, cols = _determine_grid(N)
         elif (isinstance(subplot_grid, list) or isinstance(subplot_grid, tuple)) and len(subplot_grid)==2:
             rows, cols = subplot_grid
         else:
@@ -1558,8 +1562,8 @@ class AxDimension(AxArray):
                     elif isinstance(call, _call.Mesh):
                         # then interp_in_direction should be [polygon, vertex]
                         interp_in_direction_flat = interp_in_direction.flatten()
-                        central_values.append(np.nanmin(interp_in_direction_flat))
-                        central_values.append(np.nanmax(interp_in_direction_flat))
+                        central_values.append(np.nanmin(_finite(interp_in_direction_flat)))
+                        central_values.append(np.nanmax(_finite(interp_in_direction_flat)))
                     else:
                         central_values.append(interp_in_direction)
 
@@ -1631,7 +1635,7 @@ class AxDimension(AxArray):
                     if not len(central_values):
                         continue
 
-                    rang_at_indep = np.nanmax(central_values) - np.nanmin(central_values)
+                    rang_at_indep = np.nanmax(_finite(central_values)) - np.nanmin(_finite(central_values))
                     if rang_at_indep > rang:
                         rang = rang_at_indep
 
@@ -1688,10 +1692,11 @@ class AxDimension(AxArray):
                 if error is None:
                     error = np.zeros_like(array_flat)
 
-                if not fixed_min and (lim[0] is None or np.nanmin(array_flat-error) < lim[0]):
-                    lim[0] = np.nanmin(array_flat-error)
-                if not fixed_max and (lim[1] is None or np.nanmax(array_flat+error) > lim[1]):
-                    lim[1] = np.nanmax(array_flat+error)
+                if not fixed_min and (lim[0] is None or np.nanmin(_finite(array_flat-error)) < lim[0]):
+                    lim[0] = np.nanmin(_finite(array_flat-error))
+                if not fixed_max and (lim[1] is None or np.nanmax(_finite(array_flat+error)) > lim[1]):
+                    lim[1] = np.nanmax(_finite(array_flat+error))
+
 
         else:
             raise NotImplementedError

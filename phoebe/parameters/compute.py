@@ -13,6 +13,28 @@ from phoebe import conf
 passbands._init_passbands()  # TODO: move to module import
 _atm_choices = list(set([atm for pb in passbands._pbtable.values() for atm in pb['atms'] if atm in passbands._supported_atms]))
 
+def _sampling_params(**kwargs):
+    """
+    """
+    params = []
+
+    params += [SelectParameter(qualifier='sample_from', value=kwargs.get('sample_from', []), choices=[], description='distributions or solutions to use for sampling.  If pointing to a solution, adopt_solution(as_distributions=True, **kwargs) will be called to create a temporary distribution which will be removed automatically.  If all distributions are delta functions (face-values), sample_mode and sample_num will be ignored with a warning.')]
+    params += [ChoiceParameter(visible_if='sample_from:<notempty>', qualifier='sample_from_combine', value=kwargs.get('sample_from_combine', 'first'), choices=['first'], description='Method to use to combine multiple distributions from sample_from for the same parameter.  first: ignore duplicate entries and take the first in the sample_from parameter')]
+    params += [IntParameter(visible_if='sample_from:<notempty>', qualifier='sample_num', value=kwargs.get('sample_num', 10), limits=(8, 1e6), description='Number of forward models to run sampling from the distributions defined in sample_from and sample_from_combine.')]
+    params += [ChoiceParameter(visible_if='sample_from:<notempty>', qualifier='sample_mode', value=kwargs.get('sample_mode', '1-sigma'), choices=['all', 'median', '1-sigma', '3-sigma', '5-sigma'], description='Mode to use when exposing model after sampling.  all: expose all sampled forward-models.  median: only return the median of all sampled models.  1/3/5-sigma: expose the synthetic variable at the median and +/- n-sigma.')]
+    params += [BoolParameter(visible_if='sample_from:<notempty>', qualifier='expose_samples', value=kwargs.get('expose_samples', True), description='Whether to expose failed samples along with the simplified error messages.')]
+    params += [BoolParameter(visible_if='sample_from:<notempty>', qualifier='expose_failed', value=kwargs.get('expose_failed', True), description='Whether to expose failed samples along with the simplified error messages.')]
+
+    return params
+
+def _comments_params(**kwargs):
+    """
+    """
+    params = []
+
+    params += [StringParameter(qualifier='comments', value=kwargs.get('comments', ''), description='User-provided comments for these compute-options.  Feel free to place any notes here - if not overridden, they will be copied to any resulting models.')]
+    return params
+
 def phoebe(**kwargs):
     """
     Create a <phoebe.parameters.ParameterSet> for compute options for the
@@ -46,7 +68,7 @@ def phoebe(**kwargs):
     Arguments
     ----------
     * `enabled` (bool, optional, default=True): whether to create synthetics in
-        compute/fitting runs.
+        compute/solver runs.
     * `dynamics_method` (string, optional, default='keplerian'): which method to
         use to determine the dynamics of components.
     * `ltte` (bool, optional, default=False): whether to correct for light
@@ -83,10 +105,11 @@ def phoebe(**kwargs):
     * (<phoebe.parameters.ParameterSet>): ParameterSet of all newly created
         <phoebe.parameters.Parameter> objects.
     """
-    params = []
+    params = _sampling_params(**kwargs)
+    params += _comments_params(**kwargs)
 
-    params += [BoolParameter(qualifier='enabled', copy_for={'context': 'dataset', 'dataset': '*'}, dataset='_default', value=kwargs.get('enabled', True), description='Whether to create synthetics in compute/fitting run')]
-    params += [BoolParameter(qualifier='enabled', copy_for={'context': 'feature', 'feature': '*'}, feature='_default', value=kwargs.get('enabled', True), description='Whether to enable the feature in compute/fitting run')]
+    params += [BoolParameter(qualifier='enabled', copy_for={'context': 'dataset', 'dataset': '*'}, dataset='_default', value=kwargs.get('enabled', True), description='Whether to create synthetics in compute/solver run')]
+    params += [BoolParameter(qualifier='enabled', copy_for={'context': 'feature', 'feature': '*'}, feature='_default', value=kwargs.get('enabled', True), description='Whether to enable the feature in compute/solver run')]
 
     # DYNAMICS
     params += [ChoiceParameter(qualifier='dynamics_method', value=kwargs.get('dynamics_method', 'keplerian'), choices=['keplerian'], description='Which method to use to determine the dynamics of components')]
@@ -128,8 +151,8 @@ def phoebe(**kwargs):
         params += [IntParameter(visible_if='mesh_method:wd', copy_for={'kind': ['star', 'envelope'], 'component': '*'}, component='_default', qualifier='gridsize', value=kwargs.get('gridsize', 60), limits=(10,None), default_unit=u.dimensionless_unscaled, description='Number of meshpoints for WD method')]
 
     if conf.devel:
-        params += [BoolParameter(qualifier='mesh_offset', value=kwargs.get('mesh_offset', True), description='Whether to adjust the mesh to have the correct surface area (TESTING)')]
-        params += [FloatParameter(visible_if='mesh_method:marching', copy_for={'kind': ['star', 'envelope'], 'component': '*'}, component='_default', qualifier='mesh_init_phi', value=kwargs.get('mesh_init_phi', 0.0), default_unit=u.rad, limits=(0,2*np.pi), description='Initial rotation offset for mesh (TESTING)')]
+        params += [BoolParameter(qualifier='mesh_offset', value=kwargs.get('mesh_offset', True), advanced=True, description='Whether to adjust the mesh to have the correct surface area')]
+        params += [FloatParameter(visible_if='mesh_method:marching', copy_for={'kind': ['star', 'envelope'], 'component': '*'}, component='_default', qualifier='mesh_init_phi', value=kwargs.get('mesh_init_phi', 0.0), default_unit=u.rad, limits=(0,2*np.pi), advanced=True, description='Initial rotation offset for mesh')]
 
     # ECLIPSE DETECTION
     params += [ChoiceParameter(qualifier='eclipse_method', value=kwargs.get('eclipse_method', 'native'), choices=['only_horizon', 'graham', 'none', 'visible_partial', 'native', 'wd_horizon'] if conf.devel else ['native', 'only_horizon'], advanced=True, description='Type of eclipse algorithm')]
@@ -145,7 +168,7 @@ def phoebe(**kwargs):
     # copy_for = {'kind': ['rv_dep'], 'component': '*', 'dataset': '*'}
     # means that this should exist for each component/dataset pair with the
     # rv_dep kind
-    params += [ChoiceParameter(qualifier='lc_method', copy_for = {'kind': ['lc'], 'dataset': '*'}, dataset='_default', value=kwargs.get('lc_method', 'numerical'), choices=['numerical', 'analytical'] if conf.devel else ['numerical'], advanced=True, description='Method to use for computing LC fluxes')]
+    # params += [ChoiceParameter(qualifier='lc_method', copy_for = {'kind': ['lc'], 'dataset': '*'}, dataset='_default', value=kwargs.get('lc_method', 'numerical'), choices=['numerical', 'analytical'] if conf.devel else ['numerical'], advanced=True, description='Method to use for computing LC fluxes')]
     params += [ChoiceParameter(qualifier='fti_method', copy_for = {'kind': ['lc'], 'dataset': '*'}, dataset='_default', value=kwargs.get('fti_method', 'none'), choices=['none', 'oversample'], description='How to handle finite-time integration (when non-zero exptime)')]
     params += [IntParameter(visible_if='fti_method:oversample', qualifier='fti_oversample', copy_for={'kind': ['lc'], 'dataset': '*'}, dataset='_default', value=kwargs.get('fti_oversample', 5), limits=(1,None), default_unit=u.dimensionless_unscaled, description='Number of times to sample per-datapoint for finite-time integration')]
 
@@ -163,7 +186,7 @@ def phoebe(**kwargs):
 def legacy(**kwargs):
     """
     Create a <phoebe.parameters.ParameterSet> for compute options for the
-    [PHOEBE 1.0 (legacy)](http://phoebe-project.org/1.0) backend.
+    [PHOEBE 1.0 legacy](http://phoebe-project.org/1.0) backend.
 
     See also:
     * <phoebe.frontend.bundle.Bundle.export_legacy>
@@ -201,8 +224,16 @@ def legacy(**kwargs):
     Arguments
     ----------
     * `enabled` (bool, optional, default=True): whether to create synthetics in
-        compute/fitting run.
+        compute/solver run.
     * `atm` (string, optional, default='extern_atmx'): atmosphere tables.
+    * `pblum_method` (string, optional, default='phoebe'): Method to estimate
+        passband luminosities and handle scaling of returned fluxes from legacy.
+        stefan-boltzmann: approximate the star as a uniform sphere and estimate
+        the luminosities from teff, requiv, logg, and abun from the internal
+        passband and atmosphere tables.
+        phoebe: build the mesh using roche distortion at time t0 and compute
+        luminosities use the internal atmosphere tables (considerable overhead,
+        but more accurate for distorted stars).
     * `gridsize` (int, optional, default=60): number of meshpoints for WD.
     * `distortion_method` (string, optional, default='roche'): method to use
         for distorting stars (legacy only supports roche).
@@ -213,25 +244,26 @@ def legacy(**kwargs):
     * `ie` (bool, optional, default=False): whether data should be de-reddened.
     * `rv_method` (string, optional, default='flux-weighted'): which method to
         use for computing radial velocities.
+    * `fti_method` (string, optional, default='none'): How to handle finite-time
+        integration (when non-zero exptime)
+    * `fit_oversample` (int, optiona, default=5): Number of times to sample
+        per-datapoint for finite-time integration (only applicable when `fit_method`
+        is 'oversample')
 
     Returns
     --------
     * (<phoebe.parameters.ParameterSet>): ParameterSet of all newly created
         <phoebe.parameters.Parameter> objects.
     """
-    params = []
+    params = _sampling_params(**kwargs)
+    params += _comments_params(**kwargs)
 
-    params += [BoolParameter(qualifier='enabled', copy_for={'context': 'dataset', 'kind': ['lc', 'rv', 'mesh'], 'dataset': '*'}, dataset='_default', value=kwargs.get('enabled', True), description='Whether to create synthetics in compute/fitting run')]
-    params += [BoolParameter(qualifier='enabled', copy_for={'context': 'feature', 'kind': ['spot'], 'feature': '*'}, feature='_default', value=kwargs.get('enabled', True), description='Whether to enable the feature in compute/fitting run')]
+    params += [BoolParameter(qualifier='enabled', copy_for={'context': 'dataset', 'kind': ['lc', 'rv', 'mesh'], 'dataset': '*'}, dataset='_default', value=kwargs.get('enabled', True), description='Whether to create synthetics in compute/solver run')]
+    params += [BoolParameter(qualifier='enabled', copy_for={'context': 'feature', 'kind': ['spot', 'gaussian_process'], 'feature': '*'}, feature='_default', value=kwargs.get('enabled', True), description='Whether to enable the feature in compute/solver run')]
 
-    # TODO: the kwargs need to match the qualifier names!
-    # TODO: include MORE meshing options
-    params += [ChoiceParameter(copy_for = {'kind': ['star'], 'component': '*'}, component='_default', qualifier='atm', value=kwargs.get('atm', 'extern_atmx'), choices=['extern_atmx', 'extern_planckint'], description='Atmosphere table')]
-#    params += [ChoiceParameter(copy_for = {'kind': ['star'], 'component': '*'}, component='_default', qualifier='atm', value=kwargs.get('atm', 'kurucz'), choices=['kurucz', 'blackbody'], description='Atmosphere table')]
-#    params += [ChoiceParameter(qualifier='morphology', value=kwargs.get('morphology','Detached binary'), choices=['Unconstrained binary system', 'Detached binary', 'Overcontact binary of the W UMa type', 'Overcontact binary not in thermal contact'], description='System type constraint')]
-#    params += [BoolParameter(qualifier='cindex', value=kwargs.get('cindex', False), description='Color index constraint')]
-#    params += [IntParameter(visible_if='cindex_switch:True', qualifier='cindex', value=kwargs.get('cindex', np.array([1.0])), description='Number of reflections')]
-#    params += [BoolParameter(qualifier='heating', value=kwargs.get('heating', True), description='Allow irradiators to heat other components')]
+    params += [ChoiceParameter(copy_for = {'kind': ['star'], 'component': '*'}, component='_default', qualifier='atm', value=kwargs.get('atm', 'extern_atmx'), choices=['extern_atmx', 'extern_planckint'], description='Atmosphere table to use within legacy.  For estimating passband luminosities and flux scaling (see pblum_method), extern_atmx will use ck2004 and extern_planckint will use blackbody.')]
+    params += [ChoiceParameter(qualifier='pblum_method', value=kwargs.get('pblum_method', 'phoebe'), choices=['stefan-boltzmann', 'phoebe'], description='Method to estimate passband luminosities and handle scaling of returned fluxes from legacy.  stefan-boltzmann: approximate the star as a uniform sphere and estimate the luminosities from teff, requiv, logg, and abun from the internal passband and atmosphere tables.  phoebe: build the mesh using roche distortion at time t0 and compute luminosities use the internal atmosphere tables (considerable overhead, but more accurate for distorted stars).')]
+
     params += [IntParameter(copy_for={'kind': ['star'], 'component': '*'}, component='_default', qualifier='gridsize', value=kwargs.get('gridsize', 60), limits=(10, 200), description='Number of meshpoints for WD')]
 
     params += [ChoiceParameter(copy_for={'kind': ['star'], 'component': '*'}, component='_default', qualifier='distortion_method', value=kwargs.get('distortion_method', 'roche'), choices=["roche"], description='Method to use for distorting stars (legacy only supports roche distortion)')]
@@ -239,15 +271,16 @@ def legacy(**kwargs):
     params += [ChoiceParameter(qualifier='irrad_method', value=kwargs.get('irrad_method', 'wilson'), choices=['none', 'wilson'], description='Which method to use to handle irradiation/reflection effects')]
     params += [IntParameter(visible_if='irrad_method:wilson', qualifier='refl_num', value=kwargs.get('refl_num', 1), limits=(0,None), description='Number of reflections')]
 
-#    params += [BoolParameter(qualifier='msc1', value=kwargs.get('msc1', False), description='Mainsequence Constraint for star 1')]
-#    params += [BoolParameter(qualifier='msc2', value=kwargs.get('msc2', False), description='Mainsequence Constraint for star 2')]
-
 
     # TODO: can we come up with a better qualifier for reddening (and be consistent when we enable in phoebe2)
     params += [BoolParameter(qualifier='ie', value=kwargs.get('ie', False), description='Should data be de-reddened')]
 
     params += [ChoiceParameter(qualifier='rv_method', copy_for={'component': {'kind': 'star'}, 'dataset': {'kind': 'rv'}}, component='_default', dataset='_default',
                                value=kwargs.get('rv_method', 'flux-weighted'), choices=['flux-weighted', 'dynamical'], description='Method to use for computing RVs (must be flux-weighted for Rossiter-McLaughlin)')]
+
+    params += [ChoiceParameter(qualifier='fti_method', copy_for = {'kind': ['lc'], 'dataset': '*'}, dataset='_default', value=kwargs.get('fti_method', 'none'), choices=['none', 'oversample'], description='How to handle finite-time integration (when non-zero exptime)')]
+    params += [IntParameter(visible_if='fti_method:oversample', qualifier='fti_oversample', copy_for={'kind': ['lc'], 'dataset': '*'}, dataset='_default', value=kwargs.get('fti_oversample', 5), limits=(1,None), default_unit=u.dimensionless_unscaled, description='Number of times to sample per-datapoint for finite-time integration')]
+
 
     return ParameterSet(params)
 
@@ -334,7 +367,7 @@ def photodynam(**kwargs):
     Arguments
     ----------
     * `enabled` (bool, optional, default=True): whether to create synthetics in
-        compute/fitting runs.
+        compute/solver runs.
     * `stepsize` (float, optional, default=0.01): stepsize to use for dynamics
         integration.
     * `orbiterror` (float, optional, default=1e-20): error to use for dynamics
@@ -352,10 +385,14 @@ def photodynam(**kwargs):
     if not conf.devel:
         raise NotImplementedError("'photodynam' backend not officially supported for this release.  Enable developer mode to test.")
 
-    params = []
+    params = _sampling_params(**kwargs)
+    params += _comments_params(**kwargs)
 
-    params += [BoolParameter(qualifier='enabled', copy_for={'context': 'dataset', 'kind': ['lc', 'rv', 'orb'], 'dataset': '*'}, dataset='_default', value=kwargs.get('enabled', True), description='Whether to create synthetics in compute/fitting run')]
-    params += [BoolParameter(qualifier='enabled', copy_for={'context': 'feature', 'kind': [], 'feature': '*'}, feature='_default', value=kwargs.get('enabled', True), description='Whether to enable the feature in compute/fitting run')]
+    params += [BoolParameter(qualifier='enabled', copy_for={'context': 'dataset', 'kind': ['lc', 'rv', 'orb'], 'dataset': '*'}, dataset='_default', value=kwargs.get('enabled', True), description='Whether to create synthetics in compute/solver run')]
+    params += [BoolParameter(qualifier='enabled', copy_for={'context': 'feature', 'kind': ['gaussian_process'], 'feature': '*'}, feature='_default', value=kwargs.get('enabled', True), description='Whether to enable the feature in compute/solver run')]
+
+    params += [ChoiceParameter(copy_for = {'kind': ['star'], 'component': '*'}, component='_default', qualifier='atm', value=kwargs.get('atm', 'ck2004'), advanced=True, choices=_atm_choices, description='Atmosphere table to use when estimating passband luminosities and flux scaling (see pblum_method).  Note photodynam itself does not support atmospheres.')]
+    params += [ChoiceParameter(qualifier='pblum_method', value=kwargs.get('pblum_method', 'stefan-boltzmann'), choices=['stefan-boltzmann', 'phoebe'], description='Method to estimate passband luminosities and handle scaling of returned fluxes from photodynam.  stefan-boltzmann: approximate the star as a uniform sphere and estimate the luminosities from teff, requiv, logg, and abun from the internal passband and atmosphere tables.  phoebe: build the mesh using roche distortion at time t0 and compute luminosities use the internal atmosphere tables (considerable overhead, but more accurate for distorted stars).')]
 
     params += [FloatParameter(qualifier='stepsize', value=kwargs.get('stepsize', 0.01), default_unit=None, description='Stepsize to use for dynamics integration')]
     params += [FloatParameter(qualifier='orbiterror', value=kwargs.get('orbiterror', 1e-20), default_unit=None, description='Error to use for dynamics integraton')]
@@ -364,20 +401,21 @@ def photodynam(**kwargs):
 
     params += [ChoiceParameter(qualifier='irrad_method', value=kwargs.get('irrad_method', 'none'), choices=['none'], description='Which method to use to handle all irradiation effects (ellc does not support irradiation)')]
 
+    params += [ChoiceParameter(qualifier='fti_method', copy_for = {'kind': ['lc'], 'dataset': '*'}, dataset='_default', value=kwargs.get('fti_method', 'none'), choices=['none', 'oversample'], description='How to handle finite-time integration (when non-zero exptime)')]
+    params += [IntParameter(visible_if='fti_method:oversample', qualifier='fti_oversample', copy_for={'kind': ['lc'], 'dataset': '*'}, dataset='_default', value=kwargs.get('fti_oversample', 5), limits=(1,None), default_unit=u.dimensionless_unscaled, description='Number of times to sample per-datapoint for finite-time integration')]
+
+
     return ParameterSet(params)
 
 def jktebop(**kwargs):
     """
-    **This backend is EXPERIMENTAL and requires developer mode to be enabled**
-
-    **DO NOT USE FOR SCIENCE**
-
     Create a <phoebe.parameters.ParameterSet> for compute options for John
-    Southworth's [jktebop](http://www.astro.keele.ac.uk/jkt/codes/jktebop.html) code.
+    Southworth's [jktebop](https://www.astro.keele.ac.uk/jkt/codes/jktebop.html) code.
 
     Use jktebop to compute radial velocities and light curves for binary systems.
     jktebop must be installed and available on the system in order to use
-    this plugin.  The code is available here (currently tested with v34):
+    this plugin.  The code is available here (currently tested with v40, requires
+    v40+):
 
     http://www.astro.keele.ac.uk/jkt/codes/jktebop.html
 
@@ -392,7 +430,7 @@ def jktebop(**kwargs):
     and ellipsoidal effects, and as spheres for the eclipse shapes."
 
     Note that the wrapper around jktebop only uses its forward model.
-    jktebop also includes its own fitting methods, including bootstrapping.
+    jktebop also includes its own solver methods, including bootstrapping.
     Those capabilities cannot be accessed from PHOEBE.
 
     The following parameters are "exported/translated" when using the jktebop
@@ -402,22 +440,29 @@ def jktebop(**kwargs):
     * requiv
     * gravb_bol
     * irrad_frac_refl_bol
-    * teff (currently used as an estimate for surface brightness ratio)
+    * teff (surface-brightness approximated as pblum ratio according to pblum_method divided by square of respective requivs)
 
     Orbit:
     * sma
     * incl
     * q
-    * ecos
+    * ecosw
     * esinw
     * period
     * t0_supconj
 
-    Dataset (LC only):
-    * ld_func (must not be 'interp')
+    Dataset:
+    * l3_frac (will be estimated if l3_mode=='flux', but will cost time)
+    * ld_mode (cannot be 'interp'.  If 'lookup', coefficients are queried from PHOEBE tables and passed as ld_coeffs)
+    * ld_func (supports linear, logarithmic, square_root, quadratic)
     * ld_coeffs (will call <phoebe.frontend.bundle.Bundle.compute_ld_coeffs> if necessary)
     * pblum (will use <phoebe.frontend.bundle.Bundle.compute_pblums> if necessary)
 
+    Note that jktebop works in magnitudes (not fluxes) and is normalized at
+    quadrature.  Once converted to fluxes, these are then re-scaled according
+    to `pblum_method`.  This renormalization
+    is crude and should not be trusted to give absolute fluxes, but should behave
+    reasonably with plbum_mode='dataset-scaled'.
 
     The following parameters are populated in the resulting model when using the
     jktebop backend:
@@ -425,6 +470,10 @@ def jktebop(**kwargs):
     LCs:
     * times
     * fluxes
+
+    RVs:
+    * times
+    * rvs
 
     Generally, this will be used as an input to the kind argument in
     <phoebe.frontend.bundle.Bundle.add_compute>.  If attaching through
@@ -443,41 +492,67 @@ def jktebop(**kwargs):
     Arguments
     ----------
     * `enabled` (bool, optional, default=True): whether to create synthetics in
-        compute/fitting runs.
+        compute/solver runs.
+    * `requiv_max_limit` (float, optional, default=0.5): Maximum allowed fraction
+        of requiv_max (as jktebop does not handle highly distorted systems)
+        before raising an error in <phoebe.frontend.bundle.Bundle.run_checks_compute>.
+    * `atm` (string, optional, default='ck2003'): Atmosphere table to use when
+        estimating passband luminosities and flux scaling (see pblum_method).
+        Note jktebop itself does not support atmospheres.
+    * `pblum_method` (string, optional, default='stefan-boltzmann'): Method to
+        estimate passband luminosities and handle scaling of returned fluxes from
+        jktebop.  stefan-boltzmann: approximate the star as a uniform sphere and
+        estimate the luminosities from teff, requiv, logg, and abun from the
+        internal passband and atmosphere tables.  phoebe: build the mesh using
+        roche distortion at time t0 and compute luminosities use the internal
+         atmosphere tables (considerable overhead, but more accurate for
+         distorted stars).
     * `ringsize` (float, optional, default=5): integration ring size.
+    * `rv_method` (string, optional, default='dynamical'): Method to use for
+        computing RVs.  jktebop only supports dynamical (Keplerian) RVs.
     * `distortion_method` (string, optional, default='sphere/biaxial spheroid'):
-        method to use for distorting stars.  See note above for jktebop's
-        treatment.
+        Method to use for distorting stars (applies to all components).
+        sphere/biaxial-spheroid: spheres for eclipse shapes and biaxial spheroid
+        for calculation of ellipsoidal effects and reflection,
+        sphere: sphere for eclipse shapes and no ellipsoidal or reflection effects
     * `irrad_method` (string, optional, default='biaxial spheroid'): method
         to use for computing irradiation.  See note above regarding jktebop's
         treatment of `distortion_method`.
+    * `irrad_method` (string, optional, default='none'): method to use for
+        irradiation (ellc does not support irradiation).
 
     Returns
     --------
     * (<phoebe.parameters.ParameterSet>): ParameterSet of all newly created
         <phoebe.parameters.Parameter> objects.
     """
-    if not conf.devel:
-        raise NotImplementedError("'jktebop' backend not officially supported for this release.  Enable developer mode to test.")
+    params = _sampling_params(**kwargs)
+    params += _comments_params(**kwargs)
 
-    params = []
+    params += [BoolParameter(qualifier='enabled', copy_for={'context': 'dataset', 'kind': ['lc', 'rv'], 'dataset': '*'}, dataset='_default', value=kwargs.get('enabled', True), description='Whether to create synthetics in compute/solver run')]
+    params += [BoolParameter(qualifier='enabled', copy_for={'context': 'feature', 'kind': ['gaussian_process'], 'feature': '*'}, feature='_default', value=kwargs.get('enabled', True), description='Whether to enable the feature in compute/solver run')]
 
-    params += [BoolParameter(qualifier='enabled', copy_for={'context': 'dataset', 'kind': ['lc'], 'dataset': '*'}, dataset='_default', value=kwargs.get('enabled', True), description='Whether to create synthetics in compute/fitting run')]
-    params += [BoolParameter(qualifier='enabled', copy_for={'context': 'feature', 'kind': [], 'feature': '*'}, feature='_default', value=kwargs.get('enabled', True), description='Whether to enable the feature in compute/fitting run')]
+    params += [FloatParameter(qualifier='requiv_max_limit', value=kwargs.get('requiv_max_limit', 0.5), limits=(0.01,1), default_unit=u.dimensionless_unscaled, advanced=True, description='Maximum allowed fraction of requiv_max (as jktebop does not handle highly distorted systems) before raising an error in run_checks_compute.')]
+
+    params += [ChoiceParameter(copy_for = {'kind': ['star'], 'component': '*'}, component='_default', qualifier='atm', value=kwargs.get('atm', 'ck2004'), advanced=True, choices=_atm_choices, description='Atmosphere table to use when estimating passband luminosities and flux scaling (see pblum_method).  Note jktebop itself does not support atmospheres.')]
+    params += [ChoiceParameter(qualifier='pblum_method', value=kwargs.get('pblum_method', 'stefan-boltzmann'), choices=['stefan-boltzmann', 'phoebe'], description='Method to estimate passband luminosities and handle scaling of returned fluxes from jktebop.  stefan-boltzmann: approximate the star as a uniform sphere and estimate the luminosities from teff, requiv, logg, and abun from the internal passband and atmosphere tables.  phoebe: build the mesh using roche distortion at time t0 and compute luminosities use the internal atmosphere tables (considerable overhead, but more accurate for distorted stars).')]
 
     params += [FloatParameter(qualifier='ringsize', value=kwargs.get('ringsize', 5), default_unit=u.deg, description='Integration ring size')]
 
-    params += [ChoiceParameter(copy_for={'kind': ['star'], 'component': '*'}, component='_default', qualifier='distortion_method', value=kwargs.get('distortion_method', 'sphere/biaxial spheroid'), choices=["sphere/biaxial spheroid"], description='Method to use for distorting stars (jktebop only supports spheres for eclipse shapes and biaxial spheroid for calculation of ellipsoidal effects and reflection)')]
-    params += [ChoiceParameter(qualifier='irrad_method', value=kwargs.get('irrad_method', 'biaxial spheroid'), choices=['none', 'biaxial spheroid'], description='Which method to use to handle all irradiation effects')]
+    params += [ChoiceParameter(qualifier='rv_method', copy_for = {'component': {'kind': 'star'}, 'dataset': {'kind': 'rv'}}, component='_default', dataset='_default',
+                               value=kwargs.get('rv_method', 'dynamical'), choices=['dynamical'], description='Method to use for computing RVs.  jktebop only supports dynamical (Keplerian) RVs.')]
+
+
+    params += [ChoiceParameter(qualifier='distortion_method', value=kwargs.get('distortion_method', 'sphere/biaxial spheroid'), choices=["sphere/biaxial spheroid", "sphere"], description='Method to use for distorting stars (applies to all components). sphere/biaxial-spheroid: spheres for eclipse shapes and biaxial spheroid for calculation of ellipsoidal effects and reflection, sphere: sphere for eclipse shapes and no ellipsoidal or reflection effects')]
+    params += [ChoiceParameter(qualifier='irrad_method', value=kwargs.get('irrad_method', 'biaxial-spheroid'), choices=['none', 'biaxial-spheroid'], description='Which method to use to handle all irradiation effects')]
+
+    params += [ChoiceParameter(qualifier='fti_method', copy_for = {'kind': ['lc'], 'dataset': '*'}, dataset='_default', value=kwargs.get('fti_method', 'none'), choices=['none', 'oversample'], description='How to handle finite-time integration (when non-zero exptime)')]
+    params += [IntParameter(visible_if='fti_method:oversample', qualifier='fti_oversample', copy_for={'kind': ['lc'], 'dataset': '*'}, dataset='_default', value=kwargs.get('fti_oversample', 5), limits=(1,None), default_unit=u.dimensionless_unscaled, description='Number of times to sample per-datapoint for finite-time integration')]
 
     return ParameterSet(params)
 
 def ellc(**kwargs):
     """
-    **This backend is EXPERIMENTAL and requires developer mode to be enabled**
-
-    **DO NOT USE FOR SCIENCE**
-
     Create a <phoebe.parameters.ParameterSet> for compute options for Pierre
     Maxted's [ellc](https://github.com/pmaxted/ellc) code.
 
@@ -501,37 +576,50 @@ def ellc(**kwargs):
     * <phoebe.frontend.bundle.Bundle.references>
 
     Note that the wrapper around ellc only uses its forward model.
-    ellc also includes its own fitting methods, including emccee.
+    ellc also includes its own solver methods, including emcee.
     Those capabilities cannot be accessed from PHOEBE.
 
     The following parameters are "exported/translated" when using the ellc
     backend:
 
     Star:
-    * requiv
+    * requiv (passed as relative radii by dividing by sma)
     * syncpar
     * gravb_bol
+    * teff (surface-brightness approximated as pblum ratio according to pblum_method divided by square of respective requivs)
+    * irrad_frac_refl_bol
+    * yaw (misalignment only supported with `distortion_method='sphere'` and only included for Rossiter-McLaughlin contribution to RVs)
 
     Orbit:
     * sma
-    * period
+    * period_anom
     * q
     * incl
-    * ecc
-    * per0
-    * dperdt
+    * ecc (passed as `sqrt(ecc)*cos(per0)` and `sqrt(ecc)*sin(per0)`)
+    * per0 (passed as `sqrt(ecc)*cos(per0)` and `sqrt(ecc)*sin(per0)`, translated from t0@system to t0_supconj)
+    * dperdt (passed as dperdt/period where period is the sidereal period)
     * t0_supconj
 
+    System:
+    * vgamma
+
+    Feature (spots only):
+    * colat (passed as latitude=-colat)
+    * long
+    * radius
+    * relteff (passed as brightness_factor = relteff^4)
+
     Dataset (LC/RV only):
-    * l3
-    * ld_func (must not be 'interp')
+    * l3_frac (will be estimated if l3_mode=='flux', but will cost time)
+    * ld_mode (cannot be 'interp'.  If 'lookup', coefficients are queried from PHOEBE tables and passed as ld_coeffs)
+    * ld_func (supports linear, quadratic, logarithmic, square_root, power)
     * ld_coeffs (will call <phoebe.frontend.bundle.Bundle.compute_ld_coeffs> if necessary)
     * pblum (will use <phoebe.frontend.bundle.Bundle.compute_pblums> if necessary)
 
-    Note: ellc returns fluxes in arbitrary units.  These are then rescaled according
-    to the values of pblum, but converted to a flux-scale by assuming spherical stars.
-    For the non-spherical case, the fluxes may be off by a (small) factor.
-
+    Note: ellc returns fluxes that are normalized based on the sum of the irradiated
+    faces of each of the components.  These are then rescaled according to
+    `pblum_method`.  Note that this re-normalization is not exact, but should behave
+    reasonably with plbum_mode='dataset-scaled'.
 
     The following parameters are populated in the resulting model when using the
     ellc backend:
@@ -561,7 +649,18 @@ def ellc(**kwargs):
     Arguments
     ----------
     * `enabled` (bool, optional, default=True): whether to create synthetics in
-        compute/fitting runs.
+        compute/solver runs.
+    * `atm` (string, optional, default='ck2003'): Atmosphere table to use when
+        estimating passband luminosities and flux scaling (see pblum_method).
+        Note jktebop itself does not support atmospheres.
+    * `pblum_method` (string, optional, default='stefan-boltzmann'): Method to
+        estimate passband luminosities and handle scaling of returned fluxes from
+        jktebop.  stefan-boltzmann: approximate the star as a uniform sphere and
+        estimate the luminosities from teff, requiv, logg, and abun from the
+        internal passband and atmosphere tables.  phoebe: build the mesh using
+        roche distortion at time t0 and compute luminosities use the internal
+         atmosphere tables (considerable overhead, but more accurate for
+         distorted stars).
     * `distortion_method` (string, optional, default='roche'): method to use
         for distorting stars.
     * `hf` (float, optional, default=1.5): fluid second love number (only applicable
@@ -573,26 +672,26 @@ def ellc(**kwargs):
         gravity at 4 points on the star.
     * `rv_method` (string, optional, default='flux-weighted'): which method to
         use for computing radial velocities.
+    * `irrad_method` (string, optional, default='none'): method to use for
+        irradiation (ellc does not support irradiation).
     * `fti_method` (string, optional, default='none'): method to use when accounting
         for finite exposure times.
     * `fti_oversample` (int, optional, default=1): number of integration points
         used to account for finite exposure time.  Only used if `fti_method`='oversample'.
-    * `irrad_method` (string, optional, default='none'): method to use for
-        irradiation (ellc does not support irradiation).
-
 
     Returns
     --------
     * (<phoebe.parameters.ParameterSet>): ParameterSet of all newly created
         <phoebe.parameters.Parameter> objects.
     """
-    if not conf.devel:
-        raise NotImplementedError("'ellc' backend not officially supported for this release.  Enable developer mode to test.")
+    params = _sampling_params(**kwargs)
+    params += _comments_params(**kwargs)
 
-    params = []
+    params += [BoolParameter(qualifier='enabled', copy_for={'context': 'dataset', 'kind': ['lc', 'rv'], 'dataset': '*'}, dataset='_default', value=kwargs.get('enabled', True), description='Whether to create synthetics in compute/solver run')]
+    params += [BoolParameter(qualifier='enabled', copy_for={'context': 'feature', 'kind': ['spot', 'gaussian_process'], 'feature': '*'}, feature='_default', value=kwargs.get('enabled', True), description='Whether to enable the feature in compute/solver run')]
 
-    params += [BoolParameter(qualifier='enabled', copy_for={'context': 'dataset', 'kind': ['lc', 'rv'], 'dataset': '*'}, dataset='_default', value=kwargs.get('enabled', True), description='Whether to create synthetics in compute/fitting run')]
-    params += [BoolParameter(qualifier='enabled', copy_for={'context': 'feature', 'kind': [], 'feature': '*'}, feature='_default', value=kwargs.get('enabled', True), description='Whether to enable the feature in compute/fitting run')]
+    params += [ChoiceParameter(copy_for = {'kind': ['star'], 'component': '*'}, component='_default', qualifier='atm', value=kwargs.get('atm', 'ck2004'), advanced=True, choices=_atm_choices, description='Atmosphere table to use when estimating passband luminosities and flux scaling (see pblum_method).  Note ellc itself does not support atmospheres.')]
+    params += [ChoiceParameter(qualifier='pblum_method', value=kwargs.get('pblum_method', 'stefan-boltzmann'), choices=['stefan-boltzmann', 'phoebe'], description='Method to estimate passband luminosities and handle scaling of returned fluxes from ellc.  stefan-boltzmann: approximate the star as a uniform sphere and estimate the luminosities from teff, requiv, logg, and abun from the internal passband and atmosphere tables.  phoebe: build the mesh using roche distortion at time t0 and compute luminosities use the internal atmosphere tables (considerable overhead, but more accurate for distorted stars).')]
 
     params += [ChoiceParameter(copy_for={'kind': ['star'], 'component': '*'}, component='_default', qualifier='distortion_method', value=kwargs.get('distortion_method', 'roche'), choices=["roche", "roche_v", "sphere", "poly1p5", "poly3p0", "love"], description='Method to use for distorting stars')]
     params += [FloatParameter(visible_if='distortion_method:love', copy_for={'kind': ['star'], 'component': '*'}, component='_default', qualifier='hf', value=kwargs.get('hf', 1.5), limits=(0,None), default_unit=u.dimensionless_unscaled, description='fluid second love number for radial displacement')]
@@ -602,15 +701,15 @@ def ellc(**kwargs):
 
     params += [BoolParameter(qualifier='exact_grav', value=kwargs.get('exact_grav', False), description='Whether to use point-by-point calculation of local surface gravity for calculation of gravity darkening or a (much faster) approximation based on functional form fit to local gravity at 4 points on the star.')]
 
-    params += [ChoiceParameter(qualifier='rv_method', copy_for = {'kind': ['rv'], 'component': '*', 'dataset': '*'}, component='_default', dataset='_default',
-                               value=kwargs.get('rv_method', 'flux-weighted'), choices=['flux-weighted', 'dynamical'], description='Method to use for computing RVs (must be flux-weighted for Rossiter-McLaughlin)')]
+    params += [ChoiceParameter(qualifier='rv_method', copy_for = {'component': {'kind': 'star'}, 'dataset': {'kind': 'rv'}}, component='_default', dataset='_default',
+                               value=kwargs.get('rv_method', 'dynamical'), choices=['flux-weighted', 'dynamical'], description='Method to use for computing RVs (must be flux-weighted for Rossiter-McLaughlin).  Note that \'flux-weighted\' is not allowed and will raise an error if irradiation is enabled (see irrad_method).')]
 
 
     # copy for RV datasets once exptime support for RVs in phoebe
-    params += [ChoiceParameter(qualifier='fti_method', copy_for = {'kind': ['lc'], 'dataset': '*'}, dataset='_default', value=kwargs.get('fti_method', 'none'), choices=['none', 'oversample'], description='How to handle finite-time integration (when non-zero exptime)')]
-    params += [IntParameter(visible_if='fit_method:oversample', qualifier='fti_oversample', copy_for={'kind': ['lc'], 'dataset': '*'}, dataset='_default', value=kwargs.get('fti_oversample', 5), limits=(1, None), default_unit=u.dimensionless_unscaled, description='number of integration points used to account for finite exposure time.')]
+    params += [ChoiceParameter(qualifier='fti_method', copy_for = {'kind': ['lc'], 'dataset': '*'}, dataset='_default', value=kwargs.get('fti_method', 'none'), choices=['none', 'ellc', 'oversample'], description='How to handle finite-time integration (when non-zero exptime).  ellc: use ellcs native oversampling. oversample: use phoebe\'s oversampling')]
+    params += [IntParameter(visible_if='fti_method:ellc|oversample', qualifier='fti_oversample', copy_for={'kind': ['lc'], 'dataset': '*'}, dataset='_default', value=kwargs.get('fti_oversample', 5), limits=(1, None), default_unit=u.dimensionless_unscaled, description='number of integration points used to account for finite exposure time.')]
 
-    params += [ChoiceParameter(qualifier='irrad_method', value=kwargs.get('irrad_method', 'none'), choices=['none'], description='Which method to use to handle all irradiation effects (ellc does not support irradiation)')]
+    params += [ChoiceParameter(qualifier='irrad_method', value=kwargs.get('irrad_method', 'lambert'), choices=['lambert', 'none'], description='Which method to use to handle all irradiation effects.  Note that irradiation and rv_method=\'flux-weighted\' cannot be used together.')]
 
     return ParameterSet(params)
 

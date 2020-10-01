@@ -7,8 +7,11 @@ except:
   import subprocess as commands
 
 import tempfile
+from copy import deepcopy
+import itertools
+
 from phoebe.parameters import dataset as _dataset
-from phoebe.parameters import ParameterSet
+from phoebe.parameters import StringParameter, DictParameter, ArrayParameter, ParameterSet
 from phoebe import dynamics
 from phoebe.backend import universe, etvs, horizon_analytic
 from phoebe.atmospheres import passbands
@@ -17,7 +20,12 @@ from phoebe.frontend import io
 import phoebe.frontend.bundle
 from phoebe import u, c
 from phoebe import conf, mpi
+from phoebe import pool as _pool
 
+#global variable to prevent phb1 configuration from happening
+#multiple times
+global _phb1_config
+_phb1_config = False
 
 try:
     import phoebe_legacy as phb1
@@ -31,12 +39,29 @@ except ImportError:
 else:
     _use_phb1 = True
 
+
+
 try:
     import ellc
 except ImportError:
     _use_ellc = False
 else:
     _use_ellc = True
+
+try:
+    from tqdm import tqdm as _tqdm
+except ImportError:
+    def _progressbar(args, total=None, show_progressbar=None):
+        return args
+else:
+    def _progressbar(args, total=None, show_progressbar=True):
+        if show_progressbar:
+            return _tqdm(args, total=total)
+        else:
+            return args
+
+from scipy.stats import norm as _norm
+
 
 import logging
 logger = logging.getLogger("BACKENDS")
@@ -46,6 +71,24 @@ logger.addHandler(logging.NullHandler())
 _backends_that_require_meshing = ['phoebe', 'legacy']
 
 _skip_filter_checks = {'check_default': False, 'check_visible': False}
+
+def _simplify_error_message(msg):
+    # simplify error messages so values, etc, don't create separate
+    # entries in the returned dictionary.
+    msg = str(msg) # in case an exception object
+    if 'not within limits' in msg:
+        msg = 'outside parameter limits'
+    elif 'value further than' in msg:
+        msg = 'outside angle wrapping limits'
+    elif 'overflow' in msg:
+        msg = 'roche overflow'
+    elif 'lookup ld_coeffs' in msg:
+        msg = 'ld_coeffs lookup out-of-bounds'
+    elif 'compute_pblums failed' in msg:
+        msg = 'atm out-of-bounds during compute_pblums'
+    elif 'Atmosphere parameters out of bounds' in msg:
+        msg = 'atm out-of-bounds'
+    return msg
 
 def _needs_mesh(b, dataset, kind, component, compute):
     """
@@ -59,10 +102,10 @@ def _needs_mesh(b, dataset, kind, component, compute):
     if kind not in ['mesh', 'lc', 'rv', 'lp']:
         return False
 
-    if kind == 'lc' and compute_kind=='phoebe' and b.get_value(qualifier='lc_method', compute=compute, dataset=dataset, context='compute')=='analytical':
-        return False
+    # if kind == 'lc' and compute_kind=='phoebe' and b.get_value(qualifier='lc_method', compute=compute, dataset=dataset, context='compute')=='analytical':
+    #     return False
 
-    if kind == 'rv' and (compute_kind == 'legacy' or b.get_value(qualifier='rv_method', compute=compute, component=component, dataset=dataset, context='compute')=='dynamical'):
+    if kind == 'rv' and (compute_kind == 'legacy' or b.get_value(qualifier='rv_method', compute=compute, component=component, dataset=dataset, context='compute', **_skip_filter_checks)=='dynamical'):
         return False
 
     return True
@@ -115,8 +158,8 @@ def _expand_mesh_times(b, dataset_ps, component):
 
     return this_times
 
-def _extract_from_bundle(b, compute, times=None, allow_oversample=False,
-                         by_time=True, **kwargs):
+def _extract_from_bundle(b, compute, dataset=None, times=None,
+                         by_time=True, include_mesh=True, **kwargs):
     """
     Extract a list of sorted times and the datasets that need to be
     computed at each of those times.  Any backend can then loop through
@@ -128,7 +171,8 @@ def _extract_from_bundle(b, compute, times=None, allow_oversample=False,
     the backend returns the filled synthetics.
 
     :parameter b: the :class:`phoebe.frontend.bundle.Bundle`
-    :return: times (list of floats), infos (list of lists of dictionaries),
+    :return: times (list of floats or dictionary of lists of floats),
+        infos (list of lists of dictionaries),
         new_syns (ParameterSet containing all new parameters)
     :raises NotImplementedError: if for some reason there is a problem getting
         a unique match to a dataset (shouldn't ever happen unless
@@ -157,9 +201,14 @@ def _extract_from_bundle(b, compute, times=None, allow_oversample=False,
     # but packetlist may be longer than infolist (since mesh passband-columns allow
     # now have their own entries.)
 
-    for dataset in b.filter(qualifier='enabled', compute=compute, value=True).datasets:
-        dataset_ps = b.filter(context='dataset', dataset=dataset)
-        dataset_compute_ps = b.filter(context='compute', dataset=dataset, compute=compute)
+    if dataset is None:
+        datasets = b.filter(qualifier='enabled', compute=compute, value=True, **_skip_filter_checks).datasets
+    else:
+        datasets = b.filter(dataset=dataset, context='dataset', **_skip_filter_checks).datasets
+
+    for dataset in datasets:
+        dataset_ps = b.filter(context='dataset', dataset=dataset, **_skip_filter_checks)
+        dataset_compute_ps = b.filter(context='compute', dataset=dataset, compute=compute, **_skip_filter_checks)
         dataset_kind = dataset_ps.kind
         time_qualifier = _timequalifier_by_kind(dataset_kind)
         if dataset_kind in ['lc']:
@@ -173,12 +222,14 @@ def _extract_from_bundle(b, compute, times=None, allow_oversample=False,
             dataset_components = b.hierarchy.get_stars()
 
         for component in dataset_components:
-            if provided_times:
+            if isinstance(provided_times, dict) and dataset in provided_times.keys():
+                this_times = provided_times.get(dataset)
+            elif provided_times is not None and not isinstance(provided_times, dict):
                 this_times = provided_times
-            elif dataset_kind == 'mesh':
+            elif dataset_kind == 'mesh' and include_mesh:
                 this_times = _expand_mesh_times(b, dataset_ps, component)
             elif dataset_kind in ['lp']:
-                this_times = np.unique(dataset_ps.get_value(qualifier='compute_times', unit=u.d))
+                this_times = np.unique(dataset_ps.get_value(qualifier='compute_times', unit=u.d, **_skip_filter_checks))
                 if not len(this_times):
                     # then we have Parameters tagged by times, this will probably
                     # also apply to spectra.
@@ -188,9 +239,9 @@ def _extract_from_bundle(b, compute, times=None, allow_oversample=False,
                 timecomponent = component if dataset_kind not in ['mesh', 'lc'] else None
                 # print "*****", dataset_kind, dataset_ps.kinds, timequalifier, timecomponent
                 # NOTE: compute_times is not component-dependent, but times can be (i.e. for RV datasets)
-                this_times = dataset_ps.get_value(qualifier='compute_times', unit=u.d)
+                this_times = dataset_ps.get_value(qualifier='compute_times', unit=u.d, **_skip_filter_checks)
                 if not len(this_times):
-                    this_times = dataset_ps.get_value(qualifier=timequalifier, component=timecomponent, unit=u.d)
+                    this_times = dataset_ps.get_value(qualifier=timequalifier, component=timecomponent, unit=u.d, **_skip_filter_checks)
 
                 # we may also need to compute at other times if requested by a
                 # mesh with this dataset in datasets@mesh
@@ -201,10 +252,9 @@ def _extract_from_bundle(b, compute, times=None, allow_oversample=False,
                         # mesh_times = _expand_mesh_times(b, mesh_obs_ps, component=None)
                         # this_times = np.unique(np.append(this_times, mesh_times))
 
-            if allow_oversample and \
-                    dataset_kind in ['lc'] and \
-                    b.get_value(qualifier='exptime', dataset=dataset) > 0 and \
-                    dataset_compute_ps.get_value(qualifier='fti_method', check_visible=False, **kwargs)=='oversample':
+            if dataset_kind in ['lc'] and \
+                    b.get_value(qualifier='exptime', dataset=dataset, **_skip_filter_checks) > 0 and \
+                    dataset_compute_ps.get_value(qualifier='fti_method', fti_method=kwargs.get('fti_method', None), **_skip_filter_checks)=='oversample':
 
                 # Then we need to override the times retrieved from the dataset
                 # with the oversampled times.  Later we'll do an average over
@@ -212,7 +262,7 @@ def _extract_from_bundle(b, compute, times=None, allow_oversample=False,
                 # NOTE: here we assume that the dataset times are at mid-exposure,
                 # if we want to allow more flexibility, we'll need a parameter
                 # that gives this option and different logic for each case.
-                exptime = dataset_ps.get_value(qualifier='exptime', unit=u.d)
+                exptime = dataset_ps.get_value(qualifier='exptime', unit=u.d, **_skip_filter_checks)
                 fti_oversample = dataset_compute_ps.get_value(qualifier='fti_oversample', check_visible=False, **kwargs)
                 # NOTE: if changing this, also change in bundle.run_compute
                 this_times = np.array([np.linspace(t-exptime/2., t+exptime/2., fti_oversample) for t in this_times]).flatten()
@@ -220,7 +270,7 @@ def _extract_from_bundle(b, compute, times=None, allow_oversample=False,
             if dataset_kind in ['lp']:
                 # for line profiles and spectra, we only need to compute synthetic
                 # model if there are defined wavelengths
-                this_wavelengths = dataset_ps.get_value(qualifier='wavelengths', component=component)
+                this_wavelengths = dataset_ps.get_value(qualifier='wavelengths', component=component, **_skip_filter_checks)
             else:
                 this_wavelengths = None
 
@@ -232,16 +282,16 @@ def _extract_from_bundle(b, compute, times=None, allow_oversample=False,
                         'needs_mesh': _needs_mesh(b, dataset, dataset_kind, component, compute),
                         }
 
-                if dataset_kind == 'mesh':
+                if dataset_kind == 'mesh' and include_mesh:
                     # then we may be requesting passband-dependent columns be
                     # copied to the mesh from other datasets based on the values
                     # of columns@mesh.  Let's store the needed information here,
                     # where mesh_datasets and mesh_kinds correspond to each
                     # other (but mesh_columns does not).
-                    info['mesh_coordinates'] = dataset_ps.get_value(qualifier='coordinates', expand=True)
-                    info['mesh_columns'] = dataset_ps.get_value(qualifier='columns', expand=True)
+                    info['mesh_coordinates'] = dataset_ps.get_value(qualifier='coordinates', expand=True, **_skip_filter_checks)
+                    info['mesh_columns'] = dataset_ps.get_value(qualifier='columns', expand=True, **_skip_filter_checks)
                     info['mesh_datasets'] = list(set([c.split('@')[1] for c in info['mesh_columns'] if len(c.split('@'))>1]))
-                    info['mesh_kinds'] = [b.filter(dataset=ds, context='dataset').kind for ds in info['mesh_datasets']]
+                    info['mesh_kinds'] = [b.filter(dataset=ds, context='dataset', **_skip_filter_checks).kind for ds in info['mesh_datasets']]
 
                 if by_time:
                     for time_ in this_times:
@@ -361,7 +411,7 @@ class BaseBackend(object):
         """
         raise NotImplementedError("run_checks is not implemented by the {} backend".format(self.__class__.__name__))
 
-    def _get_packet_and_syns(self, b, compute, times=[], **kwargs):
+    def _get_packet_and_syns(self, b, compute, dataset=None, times=[], **kwargs):
         """
         see get_packet_and_syns.  _get_packet_and_syns provides the custom parts
         of the packet that are Backend-dependent.
@@ -373,7 +423,7 @@ class BaseBackend(object):
         """
         raise NotImplementedError("_get_packet_and_syns is not implemented by the {} backend".format(self.__class__.__name__))
 
-    def get_packet_and_syns(self, b, compute, times=[], **kwargs):
+    def get_packet_and_syns(self, b, compute, dataset=None, times=[], **kwargs):
         """
         get_packet is called by the master and must get all information necessary
         to send to all workers.  The returned packet will be passed on as
@@ -384,8 +434,12 @@ class BaseBackend(object):
         * backend: the class name will be passed on in the packet so the worker can call the correct backend
         * all kwargs will be passed on verbatim
         """
-        packet, new_syns = self._get_packet_and_syns(b, compute, times, **kwargs)
+        packet, new_syns = self._get_packet_and_syns(b, compute, dataset, times, **kwargs)
         for k,v in kwargs.items():
+            if k=='system':
+                # force the workers to rebuild the system instead of attempting to
+                # send via MPI
+                continue
             packet[k] = v
 
         if kwargs.get('max_computations', None) is not None:
@@ -420,7 +474,7 @@ class BaseBackend(object):
                 for packet in packetlist:
                     # single parameter
                     try:
-                        new_syns.set_value(check_visible=False, check_default=False, **packet)
+                        new_syns.set_value(check_visible=False, check_default=False, ignore_readonly=True, **packet)
                     except Exception as err:
                         raise ValueError("failed to set value from packet: {}.  Original error: {}".format(packet, str(err)))
 
@@ -435,14 +489,14 @@ class BaseBackend(object):
         # send the results back to the master (root=0)
         mpi.comm.gather(rpacketlists, root=0)
 
-    def run(self, b, compute, times=[], **kwargs):
+    def run(self, b, compute, dataset=None, times=[], **kwargs):
         """
         if within mpirun, workers should call _run_worker instead of run
         """
         self.run_checks(b, compute, times, **kwargs)
 
         logger.debug("rank:{}/{} calling get_packet_and_syns".format(mpi.myrank, mpi.nprocs))
-        packet, new_syns = self.get_packet_and_syns(b, compute, times, **kwargs)
+        packet, new_syns = self.get_packet_and_syns(b, compute, dataset, times, **kwargs)
 
         if mpi.enabled:
             # broadcast the packet to ALL workers
@@ -478,14 +532,14 @@ class BaseBackendByTime(BaseBackend):
         """
         raise NotImplementedError("_run_single_time not implemented by the {} backend".format(self.__class__.__name__))
 
-    def _get_packet_and_syns(self, b, compute, times=[], **kwargs):
+    def _get_packet_and_syns(self, b, compute, dataset=None, times=[], **kwargs):
         # extract times/infolists/new_syns from the bundle
         # if the input for times is an empty list, we'll obey dataset times
         # otherwise all datasets will be overridden with the times provided
         # see documentation in _extract_from_bundle for details on the output variables.
         times, infolists, new_syns = _extract_from_bundle(b, compute=compute,
+                                                          dataset=dataset,
                                                           times=times,
-                                                          allow_oversample=True,
                                                           by_time=True,
                                                           **kwargs)
 
@@ -511,7 +565,11 @@ class BaseBackendByTime(BaseBackend):
             infolists = np.array_split(infolists, mpi.nprocs)[mpi.myrank]
 
         packetlists = [] # entry per-time
-        for i, time, infolist in zip(inds, times, infolists):
+        for i, time, infolist in _progressbar(zip(inds, times, infolists), total=len(times), show_progressbar=not b._within_solver and kwargs.get('progressbar', False)):
+            if kwargs.get('out_fname', False) and os.path.isfile(kwargs.get('out_fname')+'.kill'):
+                logger.warning("received kill signal, exiting sampler loop")
+                break
+
             packetlist = self._run_single_time(b, i, time, infolist, **worker_setup_kwargs)
             packetlists.append(packetlist)
 
@@ -531,12 +589,13 @@ class BaseBackendByDataset(BaseBackend):
         """
         raise NotImplementedError("_run_single_dataset not implemented by the {} backend".format(self.__class__.__name__))
 
-    def _get_packet_and_syns(self, b, compute, times=[], **kwargs):
+    def _get_packet_and_syns(self, b, compute, dataset=None, times=[], **kwargs):
         # self.run_checks(b, compute, times, **kwargs)
 
         # see documentation in _extract_from_bundle for details on the output variables.
         infolist, new_syns = _extract_from_bundle(b, compute=compute,
-                                               times=times, by_time=False)
+                                                  dataset=dataset,
+                                                  times=times, by_time=False)
 
         packet = {'infolist': infolist}
 
@@ -551,13 +610,196 @@ class BaseBackendByDataset(BaseBackend):
             infolist = np.array_split(infolist, mpi.nprocs)[mpi.myrank]
 
         packetlists = [] # entry per-dataset
-        for info in infolist:
+        for info in _progressbar(infolist, total=len(infolist), show_progressbar=not b._within_solver and kwargs.get('progressbar', False)):
+            if kwargs.get('out_fname', False) and os.path.isfile(kwargs.get('out_fname')+'.kill'):
+                logger.warning("received kill signal, exiting sampler loop")
+                break
             packetlist = self._run_single_dataset(b, info, **worker_setup_kwargs)
             packetlists.append(packetlist)
 
         return packetlists
 
+def _call_run_single_model(args):
+    # NOTE: b should be a deepcopy here to prevent conflicts
+    b, samples, sample_kwargs, compute, dataset, times, compute_kwargs, expose_samples, expose_failed, i = args
+    # override sample_from
+    compute_kwargs['sample_from'] = []
 
+    success_samples = []
+    failed_samples = {}
+
+    while True:
+        # print("trying with samples={}".format(samples))
+        for uniqueid, value in samples.items():
+
+            # TODO: for some reason when redrawing we're getting arrays with length
+            # one as if we had passed N=1 to sample_distribution_collection.  For now, we'll
+            # just work around the issue.
+            if isinstance(value, np.ndarray):
+                value = value[0]
+            # print("setting uniqueid={}, value={}".format(uniqueid, value))
+            try:
+                b.set_value(uniqueid=uniqueid, value=value, **_skip_filter_checks)
+            except Exception as err:
+                if expose_samples:
+                    msg = _simplify_error_message(err)
+                    failed_samples[msg] = failed_samples.get(msg, []) + [list(samples.values())]
+
+                samples = b.sample_distribution_collection(N=None, keys='uniqueid', **sample_kwargs)
+                break
+
+        try:
+            model_ps = b.run_compute(compute=compute, dataset=dataset, times=times, do_create_fig_params=False, model='sample_{}'.format(i), **compute_kwargs)
+        except Exception as err:
+            # new random draw for the next attempt
+            logger.warning("model failed: drawing new sample")
+            if expose_failed:
+                msg = _simplify_error_message(err)
+                # TODO: remove the list comprehension here once the bug is fixed in distributions that is sometimes returning an array with one entry
+                failed_samples[msg] = failed_samples.get(msg, []) + [list([s[0] if isinstance(s, np.ndarray) else s for s in samples.values()])]
+                # failed_samples[msg] = failed_samples.get(msg, []) + [list(samples.values())]
+
+            samples = b.sample_distribution_collection(N=None, keys='uniqueid', **sample_kwargs)
+            # continue the next iteration in the while loop
+        else:
+            if expose_samples:
+                # TODO: remove the list comprehension here once the bug is fixed in distributions that is sometimes returning an array with one entry
+                success_samples += list([s[0] if isinstance(s, np.ndarray) else s for s in samples.values()])
+                # success_samples += list(samples.values())
+            return model_ps.to_json(), success_samples, failed_samples
+
+
+class SampleOverModel(object):
+    def __init__(self):
+        return
+
+    def run_worker(self, packet):
+        """
+        run_worker will receive the packet (with the bundle deserialized if necessary)
+        and is responsible for any work done by a worker within MPI
+        """
+        logger.debug("rank:{}/{} run_worker".format(mpi.myrank, mpi.nprocs))
+        # packet['b'] = phoebe.frontend.bundle.Bundle(packet['b'])
+        # do the computations requested for this worker
+        # rpacketlists = self.run_single_model(**packet)
+        # send the results back to the master (root=0)
+        # mpi.comm.gather(rpacketlists, root=0)
+        return self.run(**packet)
+
+    def run(self, b, compute, dataset=None, times=[], **kwargs):
+        """
+        if within mpirun, workers should call _run_worker instead of run
+        """
+        # TODO: can we run the checks of the requested backend?
+        #self.run_checks(b, compute, times, **kwargs)
+
+        if mpi.within_mpirun:
+            pool = _pool.MPIPool()
+            is_master = pool.is_master()
+        else:
+            pool = _pool.MultiPool()
+            # pool = schwimmbad.SerialPool()
+            is_master = True
+
+        # temporarily disable MPI within run_compute to disabled parallelizing
+        # per-time.
+        within_mpirun = mpi.within_mpirun
+        mpi_enabled = mpi.enabled
+        mpi._within_mpirun = False
+        mpi._enabled = False
+
+        if is_master:
+            compute_ps = b.get_compute(compute=compute, **_skip_filter_checks)
+            compute_kwargs = {k:v for k,v in kwargs.items() if k in compute_ps.qualifiers+['progressbar', 'skip_checks', 'times'] and 'sample' not in k}
+
+            # sample_from = compute_ps.get_value(qualifier='sample_from', sample_from=kwargs.get('sample_from', None), expand=True, **_skip_filter_checks)
+            # sample_from_combine = compute_ps.get_value(qualifier='sample_from_combine', sample_from_combine=kwargs.get('sample_from_combine', None), **_skip_filter_checks)
+            sample_num = compute_ps.get_value(qualifier='sample_num', sample_num=kwargs.get('sample_num', None), **_skip_filter_checks)
+            sample_mode = compute_ps.get_value(qualifier='sample_mode', sample_mode=kwargs.get('sample_mode', None), **_skip_filter_checks)
+            expose_samples = compute_ps.get_value(qualifier='expose_samples', expose_samples=kwargs.get('expose_samples', None), **_skip_filter_checks)
+            expose_failed = compute_ps.get_value(qualifier='expose_failed', expose_failed=kwargs.get('expose_failed', None), **_skip_filter_checks)
+
+            # samples = range(sample_num)
+            # note: sample_from can be any combination of solutions and distributions
+            distribution_filters, combine, include_constrained, to_univariates, to_uniforms = b._distribution_collection_defaults(qualifier='sample_from', context='compute', compute=compute_ps.compute, **kwargs)
+            sample_kwargs = {'distribution_filters': distribution_filters,
+                             'combine': combine,
+                             'include_constrained': include_constrained,
+                             'to_univariates': to_univariates,
+                             'to_uniforms': to_uniforms}
+
+            sample_dict = b.sample_distribution_collection(N=sample_num,
+                                                keys='uniqueid',
+                                                **sample_kwargs)
+
+            if len(list(sample_dict.values())[0]) == 1 and sample_mode != 'all':
+                logger.warning("only one sample, falling back on sample_mode='all', sample_num=1 instead of sample_mode='{}', sample_num={}".format(sample_mode, sample_num))
+                sample_num = 1
+                sample_mode = 'all'
+
+            bexcl = b.copy()
+            bexcl.remove_parameters_all(context=['model', 'solver', 'solutoin', 'figure'], **_skip_filter_checks)
+            bexcl.remove_parameters_all(kind=['orb', 'mesh'], context='dataset', **_skip_filter_checks)
+            args_per_sample = [(bexcl.copy(), {k:v[i] for k,v in sample_dict.items()}, sample_kwargs, compute, dataset, times, compute_kwargs, expose_samples, expose_failed, i) for i in range(sample_num)]
+            # models = [_call_run_single_model(args) for args in args_per_sample]
+            models_success_failed = list(pool.map(_call_run_single_model, args_per_sample))
+        else:
+            pool.wait()
+
+        if pool is not None:
+            pool.close()
+
+        # restore previous MPI state
+        mpi._within_mpirun = within_mpirun
+        mpi._enabled = mpi_enabled
+
+        if is_master:
+            # TODO: merge the models as requested by sample_mode
+
+            # the first entry only has the figure parameter, so we'll make a copy of that to re-popluate with new values
+            models = [msf[0] for msf in models_success_failed]
+            ret_ps = ParameterSet(models[0])
+            all_models_ps = ParameterSet(list(itertools.chain.from_iterable(models)))
+
+            # merge failed dicts
+            if expose_samples:
+                success_samples = [msf[1] for msf in models_success_failed]
+
+            if expose_failed:
+                samples_dicts = [msf[2] for msf in models_success_failed]
+                failed_samples = {}
+                for samples_dict in samples_dicts:
+                    for msg, samples in samples_dict.items():
+                        failed_samples[msg] = failed_samples.get(msg, []) + samples
+
+            for param in ret_ps.to_list():
+                param._bundle = None
+                if param.qualifier in ['fluxes', 'fluxes_nogps', 'gps', 'rvs']:
+                    all_values = np.array([p.get_value() for p in all_models_ps.filter(qualifier=param.qualifier, dataset=param.dataset, component=param.component, **_skip_filter_checks).to_list()])
+                    if sample_mode == 'all':
+                        param.set_value(all_values, ignore_readonly=True)
+                    elif sample_mode == 'median':
+                        param.set_value(np.median(all_values, axis=0), ignore_readonly=True)
+                    elif sample_mode in ['1-sigma', '3-sigma', '5-sigma']:
+                        sigma = int(sample_mode[0])
+                        bounds = np.percentile(all_values, 100 * _norm.cdf([-sigma, 0, sigma]), axis=0)
+                        param.set_value(bounds, ignore_readonly=True)
+                    else:
+                        raise NotImplementedError("sample_mode='{}' not implemented".format(sample_mode))
+                param._bundle = b
+                param._model = kwargs.get('model')
+
+            addl_params = []
+            addl_params += [StringParameter(qualifier='sample_mode', value=sample_mode, readonly=True, description='mode used for sampling')]
+            addl_params += [ArrayParameter(qualifier='sampled_uniqueids', value=list(sample_dict.keys()), advanced=True, readonly=True, description='uniqueids of sampled parameters')]
+            addl_params += [ArrayParameter(qualifier='sampled_twigs', value=[b.get_parameter(uniqueid=uniqueid, **_skip_filter_checks).twig for uniqueid in sample_dict.keys()], readonly=True, description='twigs of sampled parameters')]
+            if expose_samples:
+                addl_params += [ArrayParameter(qualifier='samples', value=success_samples, readonly=True, description='samples that were drawn and successfully computed (in the units at the time run_compute was called).')]
+            if expose_failed:
+                addl_params += [DictParameter(qualifier='failed_samples', value=failed_samples, readonly=True, description='samples that were drawn but failed to compute (in the units at the time run_compute was called).  Dictionary keys are the messages with values being an array with shape (N, len(fitted_uniqueids))')]
+
+            return ret_ps + ParameterSet(addl_params)
+        return
 
 
 
@@ -582,14 +824,11 @@ class PhoebeBackend(BaseBackendByTime):
         if len(starrefs)==1 and computeparams.get_value(qualifier='distortion_method', component=starrefs[0], **kwargs) in ['roche', 'none']:
             raise ValueError("distortion_method='{}' not valid for single star".format(computeparams.get_value(qualifier='distortion_method', component=starrefs[0], **kwargs)))
 
-    def _create_system_and_compute_pblums(self, b, compute,
+    def _compute_intrinsic_system_at_t0(self, b, compute,
                                           dynamics_method=None,
                                           hier=None,
                                           meshablerefs=None,
                                           datasets=None,
-                                          compute_l3=True,
-                                          compute_l3_frac=False,
-                                          compute_extrinsic=False,
                                           reset=True,
                                           lc_only=True,
                                           **kwargs):
@@ -598,8 +837,11 @@ class PhoebeBackend(BaseBackendByTime):
         system = universe.System.from_bundle(b, compute, datasets=b.datasets, **kwargs)
 
         if dynamics_method is None:
-            computeparams = b.get_compute(compute, force_ps=True)
-            dynamics_method = computeparams.get_value(qualifier='dynamics_method', **kwargs)
+            if compute is None:
+                dynamics_method = 'keplerian'
+            else:
+                computeparams = b.get_compute(compute, force_ps=True)
+                dynamics_method = computeparams.get_value(qualifier='dynamics_method', dynamics_method=kwargs.get('dynamics_method', None), default='keplerian', **_skip_filter_checks)
 
         if hier is None:
             hier = b.get_hierarchy()
@@ -646,21 +888,9 @@ class PhoebeBackend(BaseBackendByTime):
             datasets = enabled_ps.datasets
         # kinds = [b.get_dataset(dataset=ds).kind for ds in datasets]
 
-        logger.debug("rank:{}/{} PhoebeBackend._create_system_and_compute_pblums: handling pblum scaling".format(mpi.myrank, mpi.nprocs))
-        # NOTE: system.compute_pblum_scalings populates at t0 with ignore_effect=True (so intrinsic pblum)
-        system.compute_pblum_scalings(b, datasets, t0, x0, y0, z0, vx0, vy0, vz0, etheta0, elongan0, eincl0, reset=False, lc_only=lc_only)
-        if compute_l3 or compute_extrinsic:
-            if len(b.features):
-                # then the features may affect intrinsic vs extrinsic pblums,
-                # so we need to reset and force re-meshing
-                system.reset(force_remesh=True)
+        system.update_positions(t0, x0, y0, z0, vx0, vy0, vz0, etheta0, elongan0, eincl0, ignore_effects=True)
+        system.populate_observables(t0, ['lc' for dataset in datasets], datasets, ignore_effects=True)
 
-        if compute_l3 and (compute_l3_frac or "frac" in [list(l3.keys())[0] for l3 in system.l3s.values()]):
-            logger.debug("rank:{}/{} PhoebeBackend._create_system_and_compute_pblums: computing l3s".format(mpi.myrank, mpi.nprocs))
-            system.compute_l3s(datasets, t0, x0, y0, z0, vx0, vy0, vz0, etheta0, elongan0, eincl0, compute_l3_frac=compute_l3_frac, reset=False)
-        elif compute_extrinsic:
-            logger.debug("rank:{}/{} PhoebeBackend._create_system_and_compute_pblums: recomputing with extrinsic effects enabled".format(mpi.myrank, mpi.nprocs))
-            system.update_positions(t0, x0, y0, z0, vx0, vy0, vz0, etheta0, elongan0, eincl0, ignore_effects=True)
 
         if reset:
             logger.debug("rank:{}/{} PhoebeBackend._create_system_and_compute_pblums: resetting system".format(mpi.myrank, mpi.nprocs))
@@ -675,25 +905,18 @@ class PhoebeBackend(BaseBackendByTime):
         hier = b.get_hierarchy()
         starrefs  = hier.get_stars()
         meshablerefs = hier.get_meshables()
-
-        # if ld_mode_bol is lookup, we need to pre-compute those and store
-        # them in the (hidden) ld_coeffs_bol parameters
-        # TODO [optimize]: skip this if irrad_method is 'none' or albedos are 0?
-        b._compute_necessary_values(computeparams, **kwargs)
-
         do_horizon = False #computeparams.get_value(qualifier='horizon', **kwargs)
         dynamics_method = computeparams.get_value(qualifier='dynamics_method', dynamics_method=kwargs.pop('dynamics_method', None), **_skip_filter_checks)
         ltte = computeparams.get_value(qualifier='ltte', ltte=kwargs.pop('ltte', None), **_skip_filter_checks)
-        distance = b.get_value(qualifier='distance', context='system', unit=u.m, distance=kwargs.pop('distance', None), **_skip_filter_checks)
 
-        # TODO: skip initializing system if we NEVER need meshes
-        system = self._create_system_and_compute_pblums(b, compute,
-                                                        dynamics_method=dynamics_method,
-                                                        hier=hier,
-                                                        meshablerefs=meshablerefs,
-                                                        compute_l3=True,
-                                                        compute_extrinsic=False,
-                                                        **kwargs)
+        # b.compute_ld_coeffs(set_value=True) # TODO: only need if irradiation is enabled and only for bolometric
+
+        system = kwargs.get('system', universe.System.from_bundle(b, compute, datasets=b.datasets, **kwargs))
+        # pblums_scale computed within run_compute and then passed as kwarg to run (so should be in kwargs sent to each worker)
+        pblums_scale = kwargs.get('pblums_scale')
+        for dataset in list(pblums_scale.keys()):
+            for comp, pblum_scale in pblums_scale[dataset].items():
+                system.get_body(comp).set_pblum_scale(dataset, component=comp, pblum_scale=pblum_scale)
 
         if len(meshablerefs) > 1 or hier.get_kind_of(meshablerefs[0])=='envelope':
             logger.debug("rank:{}/{} PhoebeBackend._worker_setup: computing dynamics at all times".format(mpi.myrank, mpi.nprocs))
@@ -736,7 +959,6 @@ class PhoebeBackend(BaseBackendByTime):
                     meshablerefs=meshablerefs,
                     starrefs=starrefs,
                     dynamics_method=dynamics_method,
-                    distance=distance,
                     ts=ts, xs=xs, ys=ys, zs=zs,
                     vxs=vxs, vys=vys, vzs=vzs,
                     ethetas=ethetas, elongans=elongans, eincls=eincls)
@@ -750,7 +972,6 @@ class PhoebeBackend(BaseBackendByTime):
         meshablerefs = kwargs.get('meshablerefs')
         starrefs = kwargs.get('starrefs')
         dynamics_method = kwargs.get('dynamics_method')
-        distance = kwargs.get('distance')
         xs = kwargs.get('xs')
         ys = kwargs.get('ys')
         zs = kwargs.get('zs')
@@ -907,8 +1128,7 @@ class PhoebeBackend(BaseBackendByTime):
             elif kind=='lc':
                 obs = system.observe(info['dataset'],
                                      kind=kind,
-                                     components=info['component'],
-                                     distance=distance)
+                                     components=info['component'])
 
                 packetlist.append(_make_packet('fluxes',
                                               obs['flux']*u.W/u.m**2,
@@ -1239,28 +1459,31 @@ class LegacyBackend(BaseBackendByDataset):
         """
         """
         logger.debug("rank:{}/{} LegacyBackend._worker_setup: creating temporary phoebe file".format(mpi.myrank, mpi.nprocs))
-
+        global _phb1_config
         # make phoebe 1 file
         # tmp_filename = temp_name = next(tempfile._get_candidate_names())
-        
-        
-        phb1.init()
-        try:
-            if hasattr(phb1, 'auto_configure'):
-                # then phb1 is phoebe_legacy
-                phb1.auto_configure()
-            else:
-                # then phb1 is phoebeBackend
-                phb1.configure()
-        except SystemError:
-            raise SystemError("PHOEBE config failed: try creating PHOEBE config file through GUI")
+        computeparams = b.get_compute(compute, force_ps=True)
+ #       print('_phb1_config', _phb1_config)
+        if _phb1_config == False:
+            phb1.init()
+            try:
+                if hasattr(phb1, 'auto_configure'):
+                    # then phb1 is phoebe_legacy
+                    phb1.auto_configure()
+                    _phb1_config = True
+                else:
+                    # then phb1 is phoebeBackend
+                    phb1.configure()
+                    _phb1_config = True
+            except SystemError:
+                raise SystemError("PHOEBE config failed: try creating PHOEBE config file through GUI")
 
-        # phb1.open(tmp_filename)
-        # grab parameters and import into legacy
 
-        legacy_dict = io.pass_to_legacy(b, compute=compute, **kwargs)
+        computeparams = b.get_compute(compute, force_ps=True)
+        legacy_dict = io.pass_to_legacy(b, compute=compute, disable_l3=True, **kwargs)
+
         io.import_to_legacy(legacy_dict)
-        
+
         # build lookup tables between the dataset labels and the indices needed
         # to pass to phoebe legacy
         lcinds = {}
@@ -1275,10 +1498,6 @@ class LegacyBackend(BaseBackendByDataset):
             comp = phb1.getpar('phoebe_rv_dep', rvind).split(' ')[0].lower()
             rvcurve = rvid+'-'+comp
             rvinds[rvcurve] = rvind
-
-        computeparams = b.get_compute(compute, force_ps=True)
-
-        #os.remove(tmp_filename)
 
         return dict(lcinds=lcinds,
                     rvinds=rvinds,
@@ -1321,8 +1540,8 @@ class LegacyBackend(BaseBackendByDataset):
         packetlist = []
 
         if info['kind'] == 'lc':
-            print(info['dataset'])
-            print('lcinds', lcinds)
+            # print(info['dataset'])
+            # print('lcinds', lcinds)
             lcind = lcinds[info['dataset']]
             fluxes = np.array(phb1.lc(tuple(info['times'].tolist()), lcind))
             packetlist.append(_make_packet('fluxes',
@@ -1348,7 +1567,8 @@ class LegacyBackend(BaseBackendByDataset):
             # per-component switches.
             rv_method = computeparams.get_value(qualifier ='rv_method',
                                                 component=info['component'],
-                                                dataset=info['dataset'])
+                                                dataset=info['dataset'],
+                                                **_skip_filter_checks)
 
             phb1.setpar(proximity_par, rv_method=='flux-weighted')
 
@@ -1558,8 +1778,6 @@ class PhotodynamBackend(BaseBackendByDataset):
 
         computeparams = b.get_compute(compute, force_ps=True)
 
-        b._compute_necessary_values(computeparams)
-
         hier = b.get_hierarchy()
 
         starrefs  = hier.get_stars()
@@ -1741,12 +1959,6 @@ class PhotodynamBackend(BaseBackendByDataset):
             cind = starrefs.index(info['component'])
 
             rvs = -stuff[3*nbodies+4+(cind*3)]
-            rvs += b.get_value(qualifier='rv_offset',
-                               component=info['component'],
-                               dataset=info['dataset'],
-                               context='dataset',
-                               unit=u.AU/u.d,
-                               **_skip_filter_checks)
 
             packetlist.append(_make_packet('times',
                                            stuff[0]*u.d,
@@ -1763,7 +1975,13 @@ class PhotodynamBackend(BaseBackendByDataset):
 
         return packetlist
 
-
+# According to jktebop's readme.txt:
+# The possible entries for the type of limb darkening law are 'lin' (for linear)
+# 'log' (logarithmic), 'sqrt' (square-root), 'quad' (quadratic) or 'cub' (cubic)
+_jktebop_ld_func = {'linear': 'lin',
+                    'logarithmic': 'log',
+                    'square_root': 'sqrt',
+                    'quadratic': 'quad'}
 
 class JktebopBackend(BaseBackendByDataset):
     """
@@ -1778,6 +1996,16 @@ class JktebopBackend(BaseBackendByDataset):
         out = commands.getoutput('jktebop')
         if 'not found' in out:
             raise ImportError('jktebop executable not found.')
+        version = out.split('JKTEBOP  ')[1].split(' ')[0]
+        try:
+            version_int = int(float(version[1:]))
+        except Exception as e:
+            print(e)
+            raise ImportError("could not parse jktebop version.  PHOEBE is tested for v40, but may work on newer versions.")
+        else:
+            min_version = 40
+            if version_int < min_version:
+                raise ImportError("PHOEBE requires jktebop v{}+, found v{}".format(min_version, version_int))
 
         hier = b.get_hierarchy()
 
@@ -1793,8 +2021,6 @@ class JktebopBackend(BaseBackendByDataset):
         #         if b.get_value(qualifier='ld_func', component=comp, dataset=datset, context='dataset') == 'interp':
         #             raise ValueError("jktebop backend does not accept ld_func='interp'")
 
-        logger.warning("jktebop backend is still in development/testing and is VERY experimental")
-
 
     def _worker_setup(self, b, compute, infolist, **kwargs):
         """
@@ -1803,8 +2029,6 @@ class JktebopBackend(BaseBackendByDataset):
 
         computeparams = b.get_compute(compute, force_ps=True)
 
-        b._compute_necessary_values(computeparams)
-
         hier = b.get_hierarchy()
 
         starrefs  = hier.get_stars()
@@ -1812,33 +2036,36 @@ class JktebopBackend(BaseBackendByDataset):
 
         orbitref = orbitrefs[0]
 
-        ringsize = computeparams.get_value(qualifier='ringsize', unit=u.deg, **kwargs)
+        ringsize = computeparams.get_value(qualifier='ringsize', unit=u.deg, ringsize=kwargs.get('ringsize', None), **_skip_filter_checks)
+        distortion_method = computeparams.get_value(qualifier='distortion_method', distortion_method=kwargs.get('distortion_method', None), **_skip_filter_checks)
+        irrad_method = computeparams.get_value(qualifier='irrad_method', irrad_method=kwargs.get('irrad_method', None), **_skip_filter_checks)
 
-        rA = b.get_value(qualifier='requiv', component=starrefs[0], context='component', unit=u.solRad)
-        rB = b.get_value(qualifier='requiv', component=starrefs[1], context='component', unit=u.solRad)
-        sma = b.get_value(qualifier='sma', component=orbitref, context='component', unit=u.solRad)
-        incl = b.get_value(qualifier='incl', component=orbitref, context='component', unit=u.deg)
-        q = b.get_value(qualifier='q', component=orbitref, context='component')
-        ecosw = b.get_value(qualifier='ecosw', component=orbitref, context='component')
-        esinw = b.get_value(qualifier='esinw', component=orbitref, context='component')
+        rA = b.get_value(qualifier='requiv', component=starrefs[0], context='component', unit=u.solRad, **_skip_filter_checks)
+        rB = b.get_value(qualifier='requiv', component=starrefs[1], context='component', unit=u.solRad, **_skip_filter_checks)
+        sma = b.get_value(qualifier='sma', component=orbitref, context='component', unit=u.solRad, **_skip_filter_checks)
+        incl = b.get_value(qualifier='incl', component=orbitref, context='component', unit=u.deg, **_skip_filter_checks)
+        q = b.get_value(qualifier='q', component=orbitref, context='component', **_skip_filter_checks)
+        ecosw = b.get_value(qualifier='ecosw', component=orbitref, context='component', **_skip_filter_checks)
+        esinw = b.get_value(qualifier='esinw', component=orbitref, context='component', **_skip_filter_checks)
 
-        gravbA = b.get_value(qualifier='gravb_bol', component=starrefs[0], context='component')
-        gravbB = b.get_value(qualifier='gravb_bol', component=starrefs[1], context='component')
+        gravbA = b.get_value(qualifier='gravb_bol', component=starrefs[0], context='component', **_skip_filter_checks)
+        gravbB = b.get_value(qualifier='gravb_bol', component=starrefs[1], context='component', **_skip_filter_checks)
 
-
-        period = b.get_value(qualifier='period', component=orbitref, context='component', unit=u.d)
-        t0_supconj = b.get_value(qualifier='t0_supconj', component=orbitref, context='component', unit=u.d)
-
+        period = b.get_value(qualifier='period', component=orbitref, context='component', unit=u.d, **_skip_filter_checks)
+        t0_supconj = b.get_value(qualifier='t0_supconj', component=orbitref, context='component', unit=u.d, **_skip_filter_checks)
 
         return dict(compute=compute,
                     starrefs=starrefs,
                     oritref=orbitref,
                     ringsize=ringsize,
+                    distortion_method=distortion_method,
+                    irrad_method=irrad_method,
                     rA=rA, rB=rB,
                     sma=sma, incl=incl, q=q,
                     ecosw=ecosw, esinw=esinw,
                     gravbA=gravbA, gravbB=gravbB,
-                    period=period, t0_supconj=t0_supconj)
+                    period=period, t0_supconj=t0_supconj,
+                    pblums=kwargs.get('pblums'))
 
     def _run_single_dataset(self, b, info, **kwargs):
         """
@@ -1849,11 +2076,15 @@ class JktebopBackend(BaseBackendByDataset):
         starrefs = kwargs.get('starrefs')
         orbitref = kwargs.get('orbitref')
         ringsize = kwargs.get('ringsize')
+        distortion_method = kwargs.get('distortion_method')
+        irrad_method = kwargs.get('irrad_method')
         rA = kwargs.get('rA')
         rB = kwargs.get('rB')
         sma = kwargs.get('sma')
         incl = kwargs.get('incl')
         q = kwargs.get('q')
+        if distortion_method == 'sphere':
+            q *= -1
         ecosw = kwargs.get('ecosw')
         esinw = kwargs.get('esinw')
         gravbA = kwargs.get('gravbA')
@@ -1862,54 +2093,91 @@ class JktebopBackend(BaseBackendByDataset):
         t0_supconj = kwargs.get('t0_supconj')
 
         # get dataset-dependent things that we need
-        l3 = b.get_value(qualifier='l3', dataset=info['dataset'], context='dataset')
-
-        ldfuncA = b.get_value(qualifier='ld_func', component=starrefs[0], dataset=info['dataset'], context='dataset')
-        ldfuncB = b.get_value(qualifier='ld_func', component=starrefs[1], dataset=info['dataset'], context='dataset')
+        ldfuncA = b.get_value(qualifier='ld_func', component=starrefs[0], dataset=info['dataset'], context='dataset', **_skip_filter_checks)
+        ldfuncB = b.get_value(qualifier='ld_func', component=starrefs[1], dataset=info['dataset'], context='dataset', **_skip_filter_checks)
 
         # use check_visible=False to access the ld_coeffs from
         # compute_ld_coeffs(set_value=True) done in _worker_setup
-        ldcoeffsA = b.get_value(qualifier='ld_coeffs', component=starrefs[0], dataset=info['dataset'], context='dataset', check_visible=False)
-        ldcoeffsB = b.get_value(qualifier='ld_coeffs', component=starrefs[1], dataset=info['dataset'], context='dataset', check_visible=False)
+        ldcoeffsA = b.get_value(qualifier='ld_coeffs', component=starrefs[0], dataset=info['dataset'], context='dataset', **_skip_filter_checks)
+        ldcoeffsB = b.get_value(qualifier='ld_coeffs', component=starrefs[1], dataset=info['dataset'], context='dataset', **_skip_filter_checks)
 
-        irrad_method = b.get_value(qualifier="irrad_method", compute=compute, context='compute')
-        if irrad_method == "biaxial spheroid":
-            albA = b.get_value(qualifier='irrad_frac_refl_bol', component=starrefs[0], context='component')
-            albB = b.get_value(qualifier='irrad_frac_refl_bol', component=starrefs[1], context='component')
+        if irrad_method == "biaxial-spheroid":
+            albA = b.get_value(qualifier='irrad_frac_refl_bol', component=starrefs[0], context='component', **_skip_filter_checks)
+            albB = b.get_value(qualifier='irrad_frac_refl_bol', component=starrefs[1], context='component', **_skip_filter_checks)
         elif irrad_method == 'none':
             albA = 0.0
             albB = 0.0
         else:
             raise NotImplementedError("irrad_method '{}' not supported".format(irrad_method))
 
-        logger.debug("estimating surface brightness ratio from pblum and requiv")
-        # note: these aren't true surface brightnesses, but the ratio should be fine
-        sb_primary = b.get_value(qualifier='pblum', component=starrefs[0], dataset=info['dataset'], context='dataset', unit=u.W, check_visible=False) / b.get_value(qualifier='requiv', component=starrefs[0], context='component', unit=u.solRad)**2
-        sb_secondary = b.get_value(qualifier='pblum', component=starrefs[1], dataset=info['dataset'], context='dataset', unit=u.W, check_visible=False) / b.get_value(qualifier='requiv', component=starrefs[1], context='component', unit=u.solRad)**2
-        sb_ratio =  sb_secondary / sb_primary
-
-        # provide translation from phoebe's 'ld_func' to jktebop's 'LD law type'
-        ldfuncs = {'linear': 'lin',
-                   'logarithmic': 'log',
-                   'square_root': 'sqrt',
-                   'quadratic': 'quad'}
+        pblums = kwargs.get('pblums').get(info['dataset'])
+        sbratio = (pblums.get(starrefs[1])/b.get_value(qualifier='requiv', component=starrefs[1], context='component', unit=u.solRad)**2)/(pblums.get(starrefs[0])/b.get_value(qualifier='requiv', component=starrefs[0], context='component', unit=u.solRad)**2)
 
         # let's make sure we'll be able to make the translation later
-        if ldfuncA not in ldfuncs.keys() or ldfuncB not in ldfuncs.keys():
+        if ldfuncA not in _jktebop_ld_func.keys() or ldfuncB not in _jktebop_ld_func.keys():
             # NOTE: this is now handle in b.run_checks, so should never happen
             # TODO: provide a more useful error statement
             raise ValueError("jktebop only accepts the following options for ld_func: {}".format(ldfuncs.keys()))
 
         # create the input file for jktebop
-        fi = open('_tmp_jktebop_in', 'w')
-        #~ fi.write("# JKTEBOP input file created by PHOEBE\n")
+        # uncomment this block, comment out the following block and the os.remove at the end
+        # for testing
+        # tmpfilenamein = 'jktebop.in'
+        # tmpfilenamelcin = 'jktebop.lc.in'
+        # tmpfilenamelcout = 'jktebop.lc.out'
+        # tmpfilenamervin = 'jktebop.rv.in'
+        # tmpfilenamervout = 'jktebop.rv.out'
+        # tmpfilenameparamout = 'jktebop.param.out'
+        # tmpfilenamemodelout = 'jktebop.model.out'
+        # tmpfilenameout = 'jktebop.out'
+        # try:
+        #     os.remove(tmpfilenamein)
+        # except: pass
+        # try:
+        #     os.remove(tmpfilenamelcin)
+        # except: pass
+        # try:
+        #     os.remove(tmpfilenamelcout)
+        # except: pass
+        # try:
+        #     os.remove(tmpfilenamervin)
+        # except: pass
+        # try:
+        #     os.remove(tmpfilenamervout)
+        # except: pass
+        # try:
+        #     os.remove(tmpfilenameparamout)
+        # except: pass
+        # try:
+        #     os.remove(tmpfilenamemodelout)
+        # except: pass
+        # try:
+        #     os.remove(tmpfilenameout)
+        # except: pass
 
-        # We always want task 2 - according to jktebop's website:
-        # Task 2 	This inputs a parameter file and calculates a
-        # synthetic light curve (10000 points between phases 0 and 1)
-        # using the parameters you put in the file.
-        fi.write('{:5} {:11} Task to do (from 1 to 9)   Integ. ring size (deg)\n'.format(2, ringsize))
-        fi.write('{:5} {:11} Sum of the radii           Ratio of the radii\n'.format((rA+rB)/sma, rA/rB))
+        tmpfilenamein = next(tempfile._get_candidate_names())
+        tmpfilenamelcin = next(tempfile._get_candidate_names())
+        tmpfilenamelcout = next(tempfile._get_candidate_names())
+        if info['kind'] == 'rv':
+            tmpfilenamervin = next(tempfile._get_candidate_names())
+            tmpfilenamervout = next(tempfile._get_candidate_names())
+        tmpfilenameparamout = next(tempfile._get_candidate_names())
+        tmpfilenamemodelout = next(tempfile._get_candidate_names())
+        tmpfilenameout = next(tempfile._get_candidate_names())
+
+
+        fi = open(tmpfilenamein, 'w')
+
+        # Task 3	This inputs a parameter file (containing estimated parameter
+        # values) and an observed light curve. It fits the light curve using
+        # Levenberg-Marquardt minimisation and produces an output parameter file,
+        # a file of residuals of the observations, and file containing the best
+        # fit to the light curve (as in Task 2). The parameter values have formal
+        # errors (from the covariance matrix found by the minimisation algorithm)
+        # but these are not overall uncertainties. You will need to run other
+        # tasks to get reliable parameter uncertainties.
+        fi.write('{:5} {:11} Task to do (from 1 to 9)   Integ. ring size (deg)\n'.format(3, ringsize))
+        fi.write('{:5} {:11} Sum of the radii           Ratio of the radii\n'.format((rA+rB)/sma, rB/rA))
         fi.write('{:5} {:11} Orbital inclination (deg)  Mass ratio of the system\n'.format(incl, q))
 
         # we'll provide ecosw and esinw instead of ecc and long_an
@@ -1920,14 +2188,10 @@ class JktebopBackend(BaseBackendByDataset):
 
 
         fi.write('{:5} {:11} Gravity darkening (starA)  Grav darkening (starB)\n'.format(gravbA, gravbB))
-        fi.write('{:5} {:11} Surface brightness ratio   Amount of third light\n'.format(sb_ratio, l3))
+        fi.write('{:5} {:11} Surface brightness ratio   Amount of third light\n'.format(sbratio, 0.0))
 
 
-        # According to jktebop's readme.txt:
-        # The possible entries for the type of limb darkening law are 'lin' (for linear)
-        # 'log' (logarithmic), 'sqrt' (square-root), 'quad' (quadratic) or 'cub' (cubic)
-
-        fi.write('{:5} {:11} LD law type for star A     LD law type for star B\n'.format(ldfuncs[ldfuncA], ldfuncs[ldfuncB]))
+        fi.write('{:5} {:11} LD law type for star A     LD law type for star B\n'.format(_jktebop_ld_func[ldfuncA], _jktebop_ld_func[ldfuncB]))
         fi.write('{:5} {:11} LD star A (linear coeff)   LD star B (linear coeff)\n'.format(ldcoeffsA[0], ldcoeffsB[0]))
         fi.write('{:5} {:11} LD star A (nonlin coeff)   LD star B (nonlin coeff)\n'.format(ldcoeffsA[1] if len(ldcoeffsA)==2 else 0.0, ldcoeffsB[1] if len(ldcoeffsB)==2 else 0.0))
 
@@ -1949,11 +2213,10 @@ class JktebopBackend(BaseBackendByDataset):
         fi.write(' {:d}  {:d}             Adjust PHASESHIFT or SCALE FACTOR (0, 1, 2, 3)\n'.format(0, 0))
         fi.write(' {:d}  {:d}             Adjust PERIOD or TZERO (min light) (0, 1, 2, 3)\n'.format(0, 0))
 
-        #~ fi.write('{}  Name of file containing light curve\n'.format("_tmp_jktebop_lc_in"))
-        #~ fi.write('{}  Name of output parameter file\n'.format("_tmp_jktebop_param"))
-        #~ fi.write('{}  Name of output light curve file\n'.format("_tmp_jktebop_lc_out"))
-        #~ fi.write('{}  Name of output model light curve fit file\n'.format("_tmp_jktebop_modelfit_out"))
-        #~ fi.write('{}\n')
+        fi.write('{}  Name of file containing light curve\n'.format(tmpfilenamelcin))
+        fi.write('{}  Name of output parameter file\n'.format(tmpfilenameparamout))
+        fi.write('{}  Name of output light curve file\n'.format(tmpfilenamelcout))
+        fi.write('{}  Name of output model light curve fit file\n'.format(tmpfilenamemodelout))
 
         # According to jktebop's readme.txt:
         # FITTING FOR RADIAL VELOCITIES:    the observed RVs should be in separate files
@@ -1968,8 +2231,12 @@ class JktebopBackend(BaseBackendByDataset):
         # The mass ratio parameter is not used for the RVs, only for the light curve.
         # If you want to fix the systemic velocity for star B to that for star A, simply
         # set vary(Vsys) for star B to be equal to -1
-        #~ fi.write('rv1 llaqr-rv1.dat llaqr-rv1.out 55.0 -10.0 1 1\n')
-        #~ fi.write('rv2 llaqr-rv2.dat llaqr-rv2.out 55.0 -10.0 1 1\n')
+        #~ fi.write('rv1 llaqr-rv1.dat llaqr-rv1.out 55.0 -10.0 0 0\n')
+        #~ fi.write('rv2 llaqr-rv2.dat llaqr-rv2.out 55.0 -10.0 0 0\n')
+        if info['kind'] == 'rv':
+            # NOTE: we disable systemic velocity as it will be added in bundle.run_compute
+            K = np.pi * (sma*u.solRad).to(u.km).value * np.sin((incl*u.deg).to(u.rad).value) / (period*u.d).to(u.s).value
+            fi.write('{} {} {} {} {} 0 0\n'.format('rv1' if info['component'] == starrefs[0] else 'rv2', tmpfilenamervin, tmpfilenamervout, K, 0.0))
 
 
         # According to jktebop's readme.txt:
@@ -1977,54 +2244,87 @@ class JktebopBackend(BaseBackendByDataset):
         # occupying a total time interval of NINTERVAL (seconds) by including this line:
         #   NUMI  [numint]  [ninterval]
 
-        # TODO: allow exposure times
+        # TODO: allow exposure times?
 
 
         fi.close()
 
-        # TODO: create_tmp_jktebop_lc_in - probably with times and dummy fluxes if none are in the obs
-        #~ flc = open('_tmp_jktebop_lc_in', 'w')
-        #~ times = b.get_value(qualifier='times', component=info['component'], dataset=info['dataset'], context='dataset', unit=u.d)
-        #~ fluxes = b.get_value(qualifier='flux', component=info['component'], dataset=info['dataset'], context='dataset', unit=u.d)
-
-        #~ if len(fluxes) < len(times):
-            #~ # then just provide dummy fluxes - we're not using
-            #~ # jktebop for fitting anyways, it really just needs the times
-            #~ fluxes = [1.]*len(times)
-
-        #~ for t,f in zip(times, fluxes):
-            #~ flc.write('{}\t{}\n'.format(t,t))
-        #~ flc.close()
+        if info['kind'] == 'lc':
+            np.savetxt(tmpfilenamelcin, np.asarray([info['times'], np.ones_like(info['times'])]).T, fmt='%f')
+        elif info['kind'] == 'rv':
+            # we don't technically need them, but otherwise jktebop complains about not enough data to "fit" for task 3, even though we're holding everything fixed
+            np.savetxt(tmpfilenamelcin, np.asarray([info['times'], np.ones_like(info['times'])]).T, fmt='%f')
+            np.savetxt(tmpfilenamervin, np.asarray([info['times'], np.ones_like(info['times'])]).T, fmt='%f')
+        else:
+            raise NotImplementedError()
 
         # run jktebop
-        out = commands.getoutput("jktebop _tmp_jktebop_in > _tmp_jktebop_lc_out")
+        out = commands.getoutput("jktebop {} > {}".format(tmpfilenamein, tmpfilenameout))
 
-        # parse output
-        phases_all, mags_all, l1, l2, l3 = np.loadtxt(str(period), unpack=True)
-        #~ time, flux = np.loadtxt("_tmp_jktebop_lc_out", unpack=True)
+
 
         # fill packets
         packetlist = []
 
-        # phases_all, mags_all are 10001 evenly-spaced phases, so we need to interpolate
-        # to get at the desired times
-        times_all = b.to_time(phases_all)  # in days
-        mags_interp = np.interp(info['times'], times_all, mags_all)
+        if info['kind'] == 'lc':
+            # parse output
+            times, _, _, _, mags, _ = np.loadtxt(tmpfilenamelcout, unpack=True)
 
-        logger.warning("converting from mags from jktebop to flux")
-        fluxes = 10**((0.0-mags_interp)/2.5) * b.get_value(qualifier='pbflux', dataset=info['dataset'], context='dataset', unit=u.W/u.m**2, check_visible=False)
+            logger.warning("converting from mags from jktebop to flux")
+            fluxes = 10**((0.0-mags)/2.5)
+            fluxes /= np.max(fluxes)
 
-        packetlist.append(_make_packet('times',
-                                       info['times']*u.d,
-                                       None,
-                                       info))
+            packetlist.append(_make_packet('times',
+                                           info['times']*u.d,
+                                           None,
+                                           info))
 
-        packetlist.append(_make_packet('fluxes',
-                                       fluxes,
-                                       None,
-                                       info))
+            packetlist.append(_make_packet('fluxes',
+                                           fluxes,
+                                           None,
+                                           info))
+
+        elif info['kind'] == 'rv':
+            times, _, _, _, rvs, _ = np.loadtxt(tmpfilenamervout, unpack=True)
+
+            packetlist.append(_make_packet('times',
+                                           info['times']*u.d,
+                                           None,
+                                           info))
+
+            packetlist.append(_make_packet('rvs',
+                                           rvs*u.km/u.s,
+                                           None,
+                                           info))
+
+        else:
+            raise NotImplementedError()
+
+
+        os.remove(tmpfilenamein)
+        os.remove(tmpfilenamelcin)
+        os.remove(tmpfilenamelcout)
+        if info['kind'] == 'rv':
+            os.remove(tmpfilenamervin)
+            os.remove(tmpfilenamervout)
+        os.remove(tmpfilenameparamout)
+        os.remove(tmpfilenamemodelout)
+        os.remove(tmpfilenameout)
 
         return packetlist
+
+
+_ellc_ld_func = {'linear': 'lin', 'quadratic': 'quad', 'logarithmic': 'log', 'square_root': 'sqrt', 'power': 'power-2'}
+
+ # The "power-2" limb darkening law is taken from  Morello et al.,
+ # 2017AJ....154..111M:
+ #  I_lambda(mu)/I_lambda(1) = 1 - ldc_1[0] * (1 - mu**ldc_1[1])
+ # For the option "mugrid", ldc_1 must be an array of specific intensity
+ # values as a function of mu=cos(theta), where theta is the angle between the
+ # line of sight and the normal to a given point of the stellar surface. The
+ # value of mu corresponding to element i of ldc_1 is i/(len(ldc_1)-1),  where
+ # i=0,1, ... len(ldc_1)-1.
+ # Default is None
 
 class EllcBackend(BaseBackendByDataset):
     """
@@ -2039,6 +2339,13 @@ class EllcBackend(BaseBackendByDataset):
         if not _use_ellc:
             raise ImportError("could not import ellc")
 
+        if not (hasattr(ellc, 'lc') and hasattr(ellc, 'rv')):
+            try:
+                from ellc import lc as _ellc_lc
+                from ellc import rv as _ellc_rv
+            except Exception as e:
+                raise ImportError("ellc failed to load required lc and/or rv functions with error: {}".format(e))
+
         hier = b.get_hierarchy()
 
         starrefs  = hier.get_stars()
@@ -2047,17 +2354,13 @@ class EllcBackend(BaseBackendByDataset):
         if len(starrefs) != 2 or len(orbitrefs) != 1:
             raise ValueError("ellc backend only accepts binary systems")
 
-        logger.warning("ellc backend is still in development/testing and is VERY experimental")
-
-
     def _worker_setup(self, b, compute, infolist, **kwargs):
         """
         """
         logger.debug("rank:{}/{} EllcBackend._worker_setup".format(mpi.myrank, mpi.nprocs))
 
-        computeparams = b.get_compute(compute, force_ps=True, check_visible=False)
-
-        b._compute_necessary_values(computeparams)
+        computeparams = b.get_compute(compute, force_ps=True, **_skip_filter_checks)
+        t0_system = b.get_value(qualifier='t0', context='system', unit=u.d, **_skip_filter_checks)
 
         hier = b.get_hierarchy()
 
@@ -2066,45 +2369,120 @@ class EllcBackend(BaseBackendByDataset):
 
         orbitref = orbitrefs[0]
 
-        shape_1 = computeparams.get_value(qualifier='distortion_method', component=starrefs[0])
-        shape_2 = computeparams.get_value(qualifier='distortion_method', component=starrefs[1])
+        shape_1 = computeparams.get_value(qualifier='distortion_method', component=starrefs[0], distortion_method=kwargs.get('distortion_method', None), **_skip_filter_checks)
+        shape_2 = computeparams.get_value(qualifier='distortion_method', component=starrefs[1], distortion_method=kwargs.get('distortion_method', None), **_skip_filter_checks)
 
-        hf_1 = computeparams.get_value(qualifier='hf', component=starrefs[0], check_visible=False)
-        hf_2 = computeparams.get_value(qualifier='hf', component=starrefs[1], check_visible=False)
+        hf_1 = computeparams.get_value(qualifier='hf', component=starrefs[0], hf=kwargs.get('hf', None), **_skip_filter_checks)
+        hf_2 = computeparams.get_value(qualifier='hf', component=starrefs[1], hf=kwargs.get('hf', None), **_skip_filter_checks)
 
-        grid_1 = computeparams.get_value(qualifier='grid', component=starrefs[0])
-        grid_2 = computeparams.get_value(qualifier='grid', component=starrefs[1])
+        grid_1 = computeparams.get_value(qualifier='grid', component=starrefs[0], grid=kwargs.get('grid', None), **_skip_filter_checks)
+        grid_2 = computeparams.get_value(qualifier='grid', component=starrefs[1], grid=kwargs.get('grid', None), **_skip_filter_checks)
 
-        exact_grav = computeparams.get_value(qualifier='exact_grav')
+        exact_grav = computeparams.get_value(qualifier='exact_grav', exact_grav=kwargs.get('grav', None), **_skip_filter_checks)
 
-        a = b.get_value(qualifier='sma', component=orbitref, context='component', unit=u.solRad)
-        radius_1 = b.get_value(qualifier='requiv', component=starrefs[0], context='component', unit=u.solRad) / a
-        radius_2 = b.get_value(qualifier='requiv', component=starrefs[1], context='component', unit=u.solRad) / a
+        comp_ps = b.filter(context='component', **_skip_filter_checks)
 
-        period = b.get_value(qualifier='period', component=orbitref, context='component', unit=u.d)
-        q = b.get_value(qualifier='q', component=orbitref, context='component')
+        a = comp_ps.get_value(qualifier='sma', component=orbitref, unit=u.solRad, **_skip_filter_checks)
+        radius_1 = comp_ps.get_value(qualifier='requiv', component=starrefs[0], unit=u.solRad, **_skip_filter_checks) / a
+        radius_2 = comp_ps.get_value(qualifier='requiv', component=starrefs[1], unit=u.solRad, **_skip_filter_checks) / a
 
-        # TODO: there seems to be a convention flip between primary and secondary star in ellc... maybe we can just address via t_zero?
-        t_zero = b.get_value(qualifier='t0_supconj', component=orbitref, context='component', unit=u.d)
+        period_anom = comp_ps.get_value(qualifier='period_anom', component=orbitref, unit=u.d, **_skip_filter_checks)
+        q = comp_ps.get_value(qualifier='q', component=orbitref, **_skip_filter_checks)
 
-        incl = b.get_value(qualifier='incl', component=orbitref, context='component', unit=u.deg)
+        t_zero = comp_ps.get_value(qualifier='t0_supconj', component=orbitref, unit=u.d, **_skip_filter_checks)
+
+        incl = comp_ps.get_value(qualifier='incl', component=orbitref, unit=u.deg, **_skip_filter_checks)
         didt = 0.0
         # didt = b.get_value(qualifier='dincldt', component=orbitref, context='component', unit=u.deg/u.d) * period
+        # incl += didt * (t_zero - t0_system)
 
-        ecc = b.get_value(qualifier='ecc', component=orbitref, context='component')
-        w = b.get_value(qualifier='per0', component=orbitref, context='component', unit=u.rad)
+        ecc = comp_ps.get_value(qualifier='ecc', component=orbitref, **_skip_filter_checks)
+        w = comp_ps.get_value(qualifier='per0', component=orbitref, unit=u.rad, **_skip_filter_checks)
 
-        domdt = b.get_value(qualifier='dperdt', component=orbitref, context='component', unit=u.deg/u.d) * period
+        # need to correct w (per0) to be at t_zero (t0_supconj) instead of t0@system as defined in PHOEBE
+        logger.debug("per0(t0@system): {}".format(w))
+        domdt_rad = comp_ps.get_value(qualifier='dperdt', component=orbitref, unit=u.rad/u.d, **_skip_filter_checks)
+        w += domdt_rad * (t_zero - t0_system)
+        logger.debug("per0(t0_supconj): {}".format(w))
 
-        gdc_1 = b.get_value(qualifier='gravb_bol', component=starrefs[0], context='component')
-        gdc_2 = b.get_value(qualifier='gravb_bol', component=starrefs[1], context='component')
-
-        rotfac_1 = b.get_value(qualifier='syncpar', component=starrefs[0], context='component')
-        rotfac_2 = b.get_value(qualifier='syncpar', component=starrefs[1], context='component')
+        # NOTE: domdt is listed in ellc as deg/anomalistic period, but as deg/sidereal period in the fortran source (which agrees with comparisons)
+        # NOTE: this does NOT need to be iterative, because the original dperdt is in deg/d and independent of period
+        logger.debug("dperdt (rad/d): ", domdt_rad)
+        period_sid = comp_ps.get_value(qualifier='period', component=orbitref, unit=u.d, **_skip_filter_checks)
+        # NOTE: period_sidereal does not need to be corrected from t0@system -> t0_supconj because ellc does not support dpdt
+        logger.debug("period_sidereal(t0@system,t0_ref,dpdt=0): ", period_sid)
+        domdt = comp_ps.get_value(qualifier='dperdt', component=orbitref, unit=u.deg/u.d, **_skip_filter_checks) * period_sid
+        logger.debug("dperdt (deg/d * period_sidereal): ", domdt)
 
         f_c = np.sqrt(ecc) * np.cos(w)
         f_s = np.sqrt(ecc) * np.sin(w)
 
+        gdc_1 = comp_ps.get_value(qualifier='gravb_bol', component=starrefs[0], **_skip_filter_checks)
+        gdc_2 = comp_ps.get_value(qualifier='gravb_bol', component=starrefs[1], **_skip_filter_checks)
+
+        rotfac_1 = comp_ps.get_value(qualifier='syncpar', component=starrefs[0], **_skip_filter_checks)
+        rotfac_2 = comp_ps.get_value(qualifier='syncpar', component=starrefs[1], **_skip_filter_checks)
+
+        enabled_features = b.filter(qualifier='enabled', compute=compute, value=True, **_skip_filter_checks).features
+        spots = b.filter(feature=enabled_features, kind='spot', **_skip_filter_checks).features
+        if len(spots):
+            # from ELLC docs:
+            # spots_1 : (4, n_spots_1) array_like
+            # Parameters of the spots on star 1. For each spot the parameters, in order,
+            # are longitude, latitude, size and brightness factor. All three angles are
+            # in degrees.
+
+            # TODO: do we need to correct these from t0_system to t_zero (if rotfac!=1)?
+
+            spots_1 = []
+            spots_2 = []
+            for spot in spots:
+                spot_ps = b.get_feature(feature=spot, **_skip_filter_checks)
+                spot_comp = spot_ps.component
+                spot_args = [-1*spot_ps.get_value(qualifier='long', unit=u.deg, **_skip_filter_checks),
+                             spot_ps.get_value(qualifier='colat', unit=u.deg, **_skip_filter_checks),
+                             spot_ps.get_value(qualifier='radius', unit=u.deg, **_skip_filter_checks),
+                             spot_ps.get_value(qualifier='relteff', **_skip_filter_checks)**4]
+                if spot_comp == starrefs[0]:
+                    spots_1.append(spot_args)
+                elif spot_comp == starrefs[1]:
+                    spots_2.append(spot_args)
+
+            if not len(spots_1):
+                spots_1 = None
+            else:
+                spots_1 = np.asarray(spots_1).T
+            if not len(spots_2):
+                spots_2 = None
+            else:
+                spots_2 = np.asarray(spots_2).T
+
+        else:
+            spots_1 = None
+            spots_2 = None
+
+        # The simplified reflection model is approximately equivalent to Lambert
+        #     law scattering with the coefficients heat_1 and heat_2  being equal to
+        #     A_g/2, where A_g is the geometric albedo.
+        irrad_method = computeparams.get_value(qualifier='irrad_method', irrad_method=kwargs.get('irrad_method', None), **_skip_filter_checks)
+        if irrad_method == 'lambert':
+            heat_1 = b.get_value(qualifier='irrad_frac_refl_bol', component=starrefs[0], context='component', **_skip_filter_checks) / 2.
+            heat_2 = b.get_value(qualifier='irrad_frac_refl_bol', component=starrefs[1], context='component', **_skip_filter_checks) / 2.
+            # let's save ourselves, and also allow for flux-weighted RVs
+            if heat_1 == 0 and heat_2 == 0:
+                heat_1 = None
+                heat_2 = None
+        elif irrad_method == 'none':
+            heat_1 = None
+            heat_2 = None
+        else:
+            raise NotImplementedError("irrad_method='{}' not supported".format(irrad_method))
+
+        # lambda_1/2 : {None, float},  optional
+         # Sky-projected angle between orbital and rotation axes, star 1/2 [degrees]
+         # N.B. lambda_1/2 is only used if shape_1='sphere'
+        lambda_1 = b.get_value(qualifier='yaw', component=starrefs[0], context='component', unit=u.deg)
+        lambda_2 = b.get_value(qualifier='yaw', component=starrefs[1], context='component', unit=u.deg)
 
         return dict(compute=compute,
                     starrefs=starrefs,
@@ -2115,13 +2493,17 @@ class EllcBackend(BaseBackendByDataset):
                     radius_1=radius_1, radius_2=radius_2,
                     incl=incl,
                     t_zero=t_zero,
-                    period=period,
+                    period_anom=period_anom,
                     q=q,
                     a=a,
                     f_c=f_c, f_s=f_s,
                     didt=didt, domdt=domdt,
                     gdc_1=gdc_1, gdc_2=gdc_2,
-                    rotfac_1=rotfac_1, rotfac_2=rotfac_2)
+                    rotfac_1=rotfac_1, rotfac_2=rotfac_2,
+                    heat_1=heat_1, heat_2=heat_2,
+                    lambda_1=lambda_1, lambda_2=lambda_2,
+                    spots_1=spots_1, spots_2=spots_2,
+                    pblums=kwargs.get('pblums'))
 
     def _run_single_dataset(self, b, info, **kwargs):
         """
@@ -2141,13 +2523,13 @@ class EllcBackend(BaseBackendByDataset):
 
         exact_grav = kwargs.get('exact_grav')
 
-        radius_1 = kwargs.get('radius_2')
-        radius_2 = kwargs.get('radius_1')
+        radius_1 = kwargs.get('radius_1')
+        radius_2 = kwargs.get('radius_2')
 
         incl = kwargs.get('incl')
 
         t_zero = kwargs.get('t_zero')
-        period = kwargs.get('period')
+        period_anom = kwargs.get('period_anom')
         a = kwargs.get('a')
         q = kwargs.get('q')
 
@@ -2163,65 +2545,76 @@ class EllcBackend(BaseBackendByDataset):
         rotfac_1 = kwargs.get('rotfac_1')
         rotfac_2 = kwargs.get('rotfac_2')
 
+        heat_1 = kwargs.get('heat_1')
+        heat_2 = kwargs.get('heat_2')
 
+        spots_1 = kwargs.get('spots_1')
+        spots_2 = kwargs.get('spots_2')
+
+        ds_ps = b.get_dataset(dataset=info['dataset'], **_skip_filter_checks)
         # get dataset-dependent things that we need
-        ldfuncA = b.get_value(qualifier='ld_func', component=starrefs[0], dataset=info['dataset'], context='dataset')
-        ldfuncB = b.get_value(qualifier='ld_func', component=starrefs[1], dataset=info['dataset'], context='dataset')
+        ldfuncA = ds_ps.get_value(qualifier='ld_func', component=starrefs[0], **_skip_filter_checks)
+        ldfuncB = ds_ps.get_value(qualifier='ld_func', component=starrefs[1], **_skip_filter_checks)
 
         # use check_visible=False to access the ld_coeffs from
         # compute_ld_coeffs(set_value=True) done in _worker_setup
-        ldcoeffsA = b.get_value(qualifier='ld_coeffs', component=starrefs[0], dataset=info['dataset'], context='dataset', check_visible=False)
-        ldcoeffsB = b.get_value(qualifier='ld_coeffs', component=starrefs[1], dataset=info['dataset'], context='dataset', check_visible=False)
+        ldcoeffsA = ds_ps.get_value(qualifier='ld_coeffs', component=starrefs[0], **_skip_filter_checks)
+        ldcoeffsB = ds_ps.get_value(qualifier='ld_coeffs', component=starrefs[1], **_skip_filter_checks)
 
-        # albA = b.get_value(qualifier='irrad_frac_refl_bol', component=starrefs[0], context='component')
-        # albB = b.get_value(qualifier='irrad_frac_refl_bol', component=starrefs[1], context='component')
+        ld_1 = _ellc_ld_func.get(ds_ps.get_value(qualifier='ld_func', component=starrefs[0], **_skip_filter_checks))
+        ldc_1 = ds_ps.get_value(qualifier='ld_coeffs', component=starrefs[0], **_skip_filter_checks)
+        ld_2 = _ellc_ld_func.get(ds_ps.get_value(qualifier='ld_func', component=starrefs[1], **_skip_filter_checks))
+        ldc_2 = ds_ps.get_value(qualifier='ld_coeffs', component=starrefs[1], **_skip_filter_checks)
+
+        pblums = kwargs.get('pblums').get(info['dataset'])
+        sbratio = (pblums.get(starrefs[1])/b.get_value(qualifier='requiv', component=starrefs[1], context='component', unit=u.solRad, **_skip_filter_checks)**2)/(pblums.get(starrefs[0])/b.get_value(qualifier='requiv', component=starrefs[0], context='component', unit=u.solRad, **_skip_filter_checks)**2)
 
         if info['kind'] == 'lc':
-            light_3 = b.get_value(qualifier='l3_frac', dataset=info['dataset'], context='dataset', check_visible=False)
+            # third light handled by run_compute
+            light_3 = 0.0
 
-            # this is just a hack for now, we'll eventually want the true sb ratio
-            logger.info("computing sb_ratio from pblums and requivs for dataset='{}'".format(info['dataset']))
-            # note: these aren't true surface brightnesses, but the ratio should be fine
-            sb_primary = b.get_value(qualifier='pblum', component=starrefs[0], dataset=info['dataset'], context='dataset', unit=u.W, check_visible=False) / b.get_value(qualifier='requiv', component=starrefs[0], context='component', unit=u.solRad)**2
-            sb_secondary = b.get_value(qualifier='pblum', component=starrefs[1], dataset=info['dataset'], context='dataset', unit=u.W, check_visible=False) / b.get_value(qualifier='requiv', component=starrefs[1], context='component', unit=u.solRad)**2
-            sb_ratio =  sb_secondary / sb_primary
-
-            t_exp = b.get_value(qualifier='exptime', dataset=info['dataset'], context='dataset')
+            t_exp = ds_ps.get_value(qualifier='exptime', **_skip_filter_checks)
 
             # move outside above 'lc' if-statement once exptime is supported for RVs in phoebe
-            if b.get_value(qualifier='fti_method', compute=compute, dataset=info['dataset'], context='compute') == 'oversample':
-                n_int = b.get_value(qualifier='fti_oversample', compute=compute, dataset=info['dataset'], context='compute')
+            if b.get_value(qualifier='fti_method', compute=compute, dataset=info['dataset'], context='compute', **_skip_filter_checks) == 'ellc':
+                n_int = b.get_value(qualifier='fti_oversample', compute=compute, dataset=info['dataset'], context='compute', **_skip_filter_checks)
             else:
                 n_int = 1
 
-            logger.info("calling ellc.lc for dataset='{}'".format(info['dataset']))
-            fluxes = ellc.lc(info['times'],
-                             radius_1, radius_2,
-                             sb_ratio,
-                             incl,
-                             light_3,
-                             t_zero, period, a, q,
-                             f_c, f_s,
-                             ldc_1=None, ldc_2=None,
+            lc_kwargs = dict(t_obs=info['times'],
+                             radius_1=radius_1, radius_2=radius_2,
+                             sbratio=sbratio,
+                             incl=incl,
+                             light_3=light_3,
+                             t_zero=t_zero,
+                             period=period_anom,
+                             a=a,
+                             q=q,
+                             f_c=f_c, f_s=f_s,
+                             ld_1=ld_1, ld_2=ld_2,
+                             ldc_1=ldc_1, ldc_2=ldc_2,
                              gdc_1=gdc_1, gdc_2=gdc_2,
                              didt=didt, domdt=domdt,
                              rotfac_1=rotfac_1, rotfac_2=rotfac_2,
                              hf_1=hf_1, hf_2=hf_2,
                              bfac_1=None, bfac_2=None,
-                             heat_1=None, heat_2=None,
+                             heat_1=heat_1, heat_2=heat_2,
                              lambda_1=None, lambda_2=None,
                              vsini_1=None, vsini_2=None,
                              t_exp=t_exp, n_int=n_int,
                              grid_1=grid_1, grid_2=grid_2,
-                             ld_1=None, ld_2=None,
                              shape_1=shape_1, shape_2=shape_2,
-                             spots_1=None, spots_2=None,
+                             spots_1=spots_1, spots_2=spots_2,
                              exact_grav=exact_grav,
                              verbose=1)
 
-            # ellc returns "arbitrary" flux values... let's try to rescale
-            # to our flux units to be compatible with other backends
-            fluxes *= b.get_value(qualifier='pbflux', dataset=info['dataset'], context='dataset', unit=u.W/u.m**2, check_visible=False)
+            logger.info("calling ellc.lc for dataset='{}'".format(info['dataset']))
+            logger.debug("ellc.lc(**{})".format(lc_kwargs))
+
+            fluxes = ellc.lc(**lc_kwargs)
+
+            # ellc returns "arbitrary" flux values... these will be rescaled
+            # by run compute to pbflux
 
             # fill packets
             packetlist = []
@@ -2237,42 +2630,55 @@ class EllcBackend(BaseBackendByDataset):
                                            info))
 
         elif info['kind'] == 'rv':
-            rv_method = b.get_value(qualifier='rv_method', compute=compute, dataset=info['dataset'], component=info['component'], context='compute')
+            rv_method = b.get_value(qualifier='rv_method', compute=compute, dataset=info['dataset'], component=info['component'], context='compute', **_skip_filter_checks)
+
             flux_weighted = rv_method == 'flux-weighted'
-            if flux_weighted:
-                raise NotImplementedError("flux-weighted does not seem to work in ellc")
+            # if flux_weighted:
+            #     # TODO: may just be that we need to estimate and pass vsini
+            #     raise NotImplementedError("flux-weighted does not seem to work in ellc")
+            if flux_weighted and (heat_1 is not None or heat_2 is not None):
+                raise NotImplementedError("ellc cannot compute flux-weighted RVs with irradiation")
 
-            # surface-brightness ratio shouldn't matter for rvs...
-            sb_ratio = 1.0
-
+            if flux_weighted and period == 1.0: # add VersionCheck once bug fixed (https://github.com/pmaxted/ellc/issues/4)
+                logger.warning("ellc does not allow period=1.0 with flux_weighted RVs (see  https://github.com/pmaxted/ellc/issues/4).  Overriding period to 1.0+1e-6 for {}@{}".format(info['component'], info['dataset']))
+                period += 1e-6
             # enable once exptime for RVs is supported in PHOEBE
             # t_exp = b.get_value(qualifier='exptime', dataset=info['dataset'], context='dataset')
             t_exp = 0
             n_int = 1
 
+            lambda_1 = kwargs.get('lambda_1')
+            lambda_2 = kwargs.get('lambda_2')
+
+            rv_kwargs = dict(t_obs=info['times'],
+                             radius_1=radius_1, radius_2=radius_2,
+                             sbratio=sbratio,
+                             incl=incl,
+                             t_zero=t_zero,
+                             period=period_anom,
+                             a=a,
+                             q=q,
+                             f_c=f_c, f_s=f_s,
+                             ld_1=ld_1, ld_2=ld_2,
+                             ldc_1=ldc_1, ldc_2=ldc_2,
+                             gdc_1=gdc_1, gdc_2=gdc_2,
+                             didt=didt, domdt=domdt,
+                             rotfac_1=rotfac_1, rotfac_2=rotfac_2,
+                             hf_1=hf_1, hf_2=hf_2,
+                             bfac_1=None, bfac_2=None,
+                             heat_1=heat_1, heat_2=heat_2,
+                             lambda_1=lambda_1, lambda_2=lambda_2,
+                             vsini_1=0., vsini_2=0.,
+                             t_exp=t_exp, n_int=n_int,
+                             grid_1=grid_1, grid_2=grid_2,
+                             shape_1=shape_1, shape_2=shape_2,
+                             spots_1=spots_1, spots_2=spots_2,
+                             flux_weighted=flux_weighted,
+                             verbose=1)
+
             logger.info("calling ellc.rv for dataset='{}'".format(info['dataset']))
-            rvs1, rvs2 = ellc.rv(info['times'],
-                                  radius_1, radius_2,
-                                  sb_ratio,
-                                  incl,
-                                  t_zero, period, a, q,
-                                  f_c, f_s,
-                                  ldc_1=None, ldc_2=None,
-                                  gdc_1=gdc_1, gdc_2=gdc_2,
-                                  didt=didt, domdt=domdt,
-                                  rotfac_1=rotfac_1, rotfac_2=rotfac_2,
-                                  hf_1=hf_1, hf_2=hf_2,
-                                  bfac_1=None, bfac_2=None,
-                                  heat_1=None, heat_2=None,
-                                  lambda_1=None, lambda_2=None,
-                                  vsini_1=None, vsini_2=None,
-                                  t_exp=t_exp, n_int=n_int,
-                                  grid_1=grid_1, grid_2=grid_2,
-                                  ld_1=None, ld_2=None,
-                                  shape_1=shape_1, shape_2=shape_2,
-                                  spots_1=None, spots_2=None,
-                                  flux_weighted=flux_weighted,
-                                  verbose=1)
+            logger.debug("ellc.rv(**{})".format(rv_kwargs))
+            rvs1, rvs2 = ellc.rv(**rv_kwargs)
 
 
             # fill packets
@@ -2284,12 +2690,7 @@ class EllcBackend(BaseBackendByDataset):
                                            info))
 
             rvs = rvs1 if b.hierarchy.get_primary_or_secondary(info['component'])=='primary' else rvs2
-            rvs += b.get_value(qualifier='rv_offset',
-                               component=info['component'],
-                               dataset=info['dataset'],
-                               context='dataset',
-                               unit=u.km/u.s,
-                               **_skip_filter_checks)
+
             packetlist.append(_make_packet('rvs',
                                            rvs*u.km/u.s,
                                            None,

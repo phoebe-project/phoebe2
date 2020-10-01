@@ -1,0 +1,2 @@
+include client-server/phoebe-server
+include client-server/phoebe-autofig

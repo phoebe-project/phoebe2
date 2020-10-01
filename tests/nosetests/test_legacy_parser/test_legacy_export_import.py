@@ -36,8 +36,7 @@ def test_reimport(filename=None):
         val1 = pars[x].value
         val2 = pars2[x].value
         if pars[x].qualifier not in ['times', 'fluxes', 'sigmas', 'rvs']:
-#            print pars[x].qualifier
-#            print pars[x]
+            
             try:
                 assert(val1==val2)
             except:

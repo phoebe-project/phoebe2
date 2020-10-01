@@ -8,6 +8,7 @@ Available environment variables:
 * PHOEBE_PBDIR (directory to search for passbands, in addition to phoebe.list_passband_directories())
 * PHOEBE_DOWNLOAD_PASSBAND_DEFAULTS_GZIPPED=TRUE/FALSE (whether to download gzipped version of passbands by default.  Defaults to False.  Note that gzipped files take longer to load and will increase time for import, but take significantly less disk-space.)
 * PHOEBE_DOWNLOAD_PASSBAND_DEFAULTS_CONTENT (default content, comma separated for list.  Defaults to 'all')
+* PHOEBE_UPDATE_PASSBAND_IGNORE_VERSION=TRUE/FALSE (update passbands that need new content even if the online version is newer than the installed version.  Defaults to False.)
 * PHOEBE_ENABLE_MPI=TRUE/FALSE (whether to use internal parallelization: defaults to True if within mpirun, otherwise False, can override in python with phoebe.mpi.on() and phoebe.mpi.off())
 * PHOEBE_MPI_NPROCS=INT (number of procs to spawn in mpi is enabled but not running within mpirun: defaults to 4, only applicable if not within mpirun and PHOEBE_ENABLE_MPI=TRUE or phoebe.mpi.on() called, can override in python by passing nprocs to phoebe.mpi.on() or by setting phoebe.mpi.nprocs)
 * PHOEBE_PBDIR (directory to search for passbands, in addition to phoebe.list_passband_directories())
@@ -21,6 +22,7 @@ import os as _os
 import sys as _sys
 import inspect as _inspect
 import atexit
+import re
 
 # People shouldn't import Phoebe from the installation directory (inspired upon
 # pymc warning message).
@@ -33,16 +35,6 @@ if _os.getcwd().find(_os.path.abspath(_os.path.split(_os.path.split(__file__)[0]
     # is uniformative to the unexperienced user), we raise the importError here
     # with a helpful error message
     raise ImportError('\n\tYou cannot import Phoebe from inside its main source tree.\n')
-
-# Python version checks (in both __init__.py and setup.py)
-if _sys.version_info[0] == 3:
-    if _sys.version_info[1] < 6:
-        raise ImportError("PHOEBE supports python 2.7+ or 3.6+")
-elif _sys.version_info[0] == 2:
-    if _sys.version_info[1] < 7:
-        raise ImportError("PHOEBE supports python 2.7+ or 3.6+")
-else:
-    raise ImportError("PHOEBE supports python 2.7+ or 3.6+")
 
 def _env_variable_string_or_list(key, default):
     value = _os.getenv(key, default)
@@ -80,7 +72,10 @@ if _env_variable_bool('PHOEBE_ENABLE_PLOTTING', True):
         elif hasattr(_sys, 'real_prefix'):
             # then we're likely in a virtualenv.  Our best bet is to use the 'TkAgg'
             # backend, but this will require python-tk to be installed on the system
-            matplotlib.use('TkAgg')
+            try:
+                matplotlib.use('Agg')
+            except:
+                matplotlib.use('TkAgg')
 
 
 
@@ -192,10 +187,8 @@ class MPI(object):
         if self.within_mpirun:
             raise ValueError("detach not available within mpirun")
 
-        if _sys.version_info[0] == 3:
-            python = 'python3'
-        else:
-            python = 'python'
+        # TODO: allow this as an option in the settings?
+        python = 'python3'
 
         if self.enabled:
             return 'mpiexec -np %d %s {}' % (self.nprocs, python)
@@ -241,13 +234,12 @@ class Settings(object):
         # See #255 (https://github.com/phoebe-project/phoebe2/issues/255)
         self._interactive_checks = not hasattr(__main__, '__file__') or bool(_sys.flags.interactive)
 
-        # we'll enable check_default and check_default by default (can still
-        # be disabled by passing to filter)
-        self._check_visible = True
-        self._check_default = True
-
         self._download_passband_defaults = {'content': _env_variable_string_or_list('PHOEBE_DOWNLOAD_PASSBAND_DEFAULTS_CONTENT', 'all'),
                                             'gzipped': _env_variable_bool('PHOEBE_DOWNLOAD_PASSBAND_DEFAULTS_GZIPPED', False)}
+
+        self._update_passband_ignore_version = _env_variable_bool('PHOEBE_UPDATE_PASSBAND_IGNORE_VERSION', False)
+
+        self._progressbars = True
 
         # And we'll require explicitly setting developer mode on
         self._devel = _env_variable_bool('PHOEBE_DEVEL', False)
@@ -290,26 +282,6 @@ class Settings(object):
     def interactive_constraints(self):
         return self._interactive_constraints
 
-    def check_visible_on(self):
-        self._check_visible = True
-
-    def check_visible_off(self):
-        self._check_visible = False
-
-    @property
-    def check_visible(self):
-        return self._check_visible
-
-    def check_default_on(self):
-        self._check_default = True
-
-    def check_default_off(self):
-        self._check_default = False
-
-    @property
-    def check_default(self):
-        return self._check_default
-
     def devel_on(self):
         self._devel = True
 
@@ -339,6 +311,26 @@ class Settings(object):
     def download_passband_defaults(self):
         return self._download_passband_defaults
 
+    @property
+    def update_passband_ignore_version(self):
+        return self._update_passband_ignore_version
+
+    def update_passband_ignore_version_on(self):
+        self._update_passband_ignore_version = True
+
+    def update_passband_ignore_version_on(self):
+        self._update_passband_ignore_version = False
+
+    def progressbars_on(self):
+        self._progressbars = True
+
+    def progressbars_off(self):
+        self._progressbars = False
+
+    @property
+    def progressbars(self):
+        return self._progressbars
+
 conf = Settings()
 
 ###############################################################################
@@ -349,11 +341,13 @@ conf = Settings()
 
 # make packages available at top-level
 from .dependencies.unitsiau2015 import u,c
-from .dependencies.nparray import array, linspace, arange, logspace, geomspace
+from .dependencies.nparray import array, linspace, arange, logspace, geomspace, invspace
+from .dependencies.distl import gaussian, gaussian_around, normal, boxcar, uniform, uniform_around, histogram_from_bins, histogram_from_data, mvgaussian, mvhistogram_from_data
 from .atmospheres.passbands import install_passband, uninstall_passband, uninstall_all_passbands, download_passband, list_passband_online_history, update_passband_available, update_passband, update_all_passbands, list_all_update_passbands_available, list_online_passbands, list_installed_passbands, list_passbands, list_passband_directories, get_passband
-from .parameters import hierarchy, component, compute, constraint, dataset, feature, figure
+from .parameters import hierarchy, component, compute, constraint, dataset, feature, figure, solver
 from .frontend.bundle import Bundle
 from .backend import backends as _backends
+from .solverbackends import solverbackends as _solverbackends
 from . import utils as _utils
 
 from . import dynamics as dynamics
@@ -426,6 +420,10 @@ if mpi.within_mpirun and mpi.enabled and mpi.myrank != 0:
 
         elif hasattr(_backends, packet.get('backend', False)):
             backend = getattr(_backends, packet.pop('backend'))()
+            backend._run_worker(packet)
+
+        elif hasattr(_solverbackends, packet.get('backend', False)):
+            backend = getattr(_solverbackends, packet.pop('backend'))()
             backend._run_worker(packet)
 
         else:
@@ -594,56 +592,6 @@ def interactive_checks_off():
     """
     conf.interactive_checks_off()
 
-def check_visible_on():
-    """
-    Enable checking for visibility of parameters by default.  Passing
-    `check_visible=False` to <phoebe.parameters.ParameterSet.filter> (or many
-    other methods that involve filtering) can still be used to temporarily
-    skip checking visiblity.
-
-    See also:
-    * <phoebe.check_visible_off>
-    * <phoebe.parameters.Parameter.is_visible>
-    """
-    conf.check_visible_on()
-
-def check_visible_off():
-    """
-    Disable checking for visibility of parameters by default.  Passing
-    `check_visible=True` to <phoebe.parameters.ParameterSet.filter> (or many
-    other methods that involve filtering) will be ignored.
-
-    See also:
-    * <phoebe.check_visible_on>
-    * <phoebe.parameters.Parameter.is_visible>
-    """
-    conf.check_visible_off()
-
-def check_default_on():
-    """
-    Enable ignoring parameters tagged with component or dataset of '_default'
-    by default.  Passing `check_default=False` to
-     <phoebe.parameters.ParameterSet.filter> (or many other methods that involve
-     filtering) can still be used to temporarily skip ignoring '_default'
-     parameters.
-
-    See also:
-    * <phoebe.check_default_off>
-    """
-    conf.check_default_on()
-
-def check_default_off():
-    """
-    Distable ignoring parameters tagged with component or dataset of '_default'
-    by default.  Passing `check_default=True` to
-    <phoebe.parameters.ParameterSet.filter> (or many other methods that involve
-    filtering) will be ignored.
-
-    See also:
-    * <phoebe.check_default_off>
-    """
-    conf.check_default_off()
-
 def devel_on():
     conf.devel_on()
 
@@ -690,6 +638,41 @@ def get_download_passband_defaults():
     """
     return conf.get_download_passband_defaults()
 
+def update_passband_ignore_version_on():
+    """
+    Turn ingoring passband versions when checking for necessary updates on.
+    <phoebe.frontend.bundle.Bundle.run_checks_compute> checks to see if any
+    additional content is required from the used passbands.  If so, these will
+    be queried from the online tables if the timestamps match.  Otherwise, an
+    error will be raised requiring manually calling <phoebe.atmospheres.passbands.update_passband>.
+    By enabling this, this version conflict will be ignored, preventing the need
+    to manually update the passbands.
+
+    This can also be set at import time via the following environment variables:
+    * PHOEBE_UPDATE_PASSBAND_IGNORE_VERSION (defaults to FALSE)
+
+    See also:
+    * <phoebe.update_passband_ignore_version_off>
+
+    """
+    conf.update_passband_ignore_version_on()
+
+def update_passband_ignore_version_off():
+    """
+    Turn ingoring passband versions when checking for necessary updates off.
+    <phoebe.frontend.bundle.Bundle.run_checks_compute> checks to see if any
+    additional content is required from the used passbands.  If so, these will
+    be queried from the online tables if the timestamps match.  Otherwise, an
+    error will be raised requiring manually calling <phoebe.atmospheres.passbands.update_passband>.
+
+    This can also be set at import time via the following environment variables:
+    * PHOEBE_UPDATE_PASSBAND_IGNORE_VERSION (defaults to FALSE)
+
+    See also:
+    * <phoebe.update_passband_ignore_version_on>
+    """
+    conf.update_passband_ignore_version_on()
+
 # Shortcuts to MPI options
 def mpi_on(nprocs=None):
     """
@@ -701,12 +684,16 @@ def mpi_on(nprocs=None):
 
     When MPI is enabled, PHOEBE will do the following:
     * if within mpirun: uses PHOEBE's built-in per-dataset or per-time
-        parallelization
+        parallelization for <phoebe.frontend.bundle.Bundle.run_compute>
+        and per-model parallelization when possible for
+        <phoebe.frontend.bundle.Bundle.run_solver>.
     * if not within mpirun (ie. in a serial python environment): will spawn a
-        separate thread at <phoebe.frontend.bundle.Bundle.run_compute>,
+        separate thread at <phoebe.frontend.bundle.Bundle.run_compute>
+        and <phoebe.frontend.bundle.Bundle.run_solver>,
         using `nprocs` processors.  This separate thread will be detached
         from the main thread if sending `detach=True` to
-        <phoebe.frontend.bundle.Bundle.run_compute>.
+        <phoebe.frontend.bundle.Bundle.run_compute> or
+        <phoebe.frontend.bundle.Bundle.run_solver>.
 
     See also:
     * <phoebe.mpi_off>
@@ -733,7 +720,8 @@ def mpi_off():
     * if not within mpirun (ie. in a serial python environment): PHOEBE will
         run on a single processor in serial-mode.  Compute jobs can still
         be detached from the main thread by sending `detach=True` to
-        <phoebe.frontend.bundle.Bundle.run_compute> but will stll run
+        <phoebe.frontend.bundle.Bundle.run_compute> or
+        <phoebe.frontend.bundle.Bundle.run_solver> but will still run
         on a single processor.
 
     See also:
@@ -741,23 +729,72 @@ def mpi_off():
     """
     mpi.off()
 
+def progressbars_on():
+    """
+    Enable progressbars. Progressbars require `tqdm` to be installed
+    (will silently ignore if not installed).
+
+    See also:
+    * <phoebe.progressbars_off>
+    """
+    conf.progressbars_on()
+
+def progressbars_off():
+    """
+    Disable progressbars. Progressbars require `tqdm` to be installed
+    (will silently ignore if not installed).
+
+    See also:
+    * <phoebe.progressbars_on>
+    """
+    conf.progressbars_off()
+
 # let's use magic to shutdown the workers when the user-script is complete
 atexit.register(mpi.shutdown_workers)
 
 # edit API docs for imported functions
-array, linspace, arange, logspace, geomspace
+
+def strip_docstring_refs(matchobj):
+    text = matchobj.group(0)
+    path = text[1:-1]
+    return path
 
 def add_nparray_docstring(obj):
 
-    nparraydocsprefix = """This is an included dependency from [nparray 1.1.0](https://nparray.readthedocs.io/en/1.1.0/).\n\n===============================================================\n\n"""
+    docsprefix = """This is an included dependency from [nparray 1.2.0](https://nparray.readthedocs.io/en/1.2.0/).\n\n===============================================================\n\n"""
 
-    obj.__doc__ = nparraydocsprefix + "\n".join([l.lstrip() for l in obj.__doc__.split("\n")])
+    docstring = docsprefix + "\n".join([l.lstrip() for l in obj.__doc__.split("\n")])
+    docstring = re.sub(r"(?P<name>\<[0-9a-zA-Z_\.]*\>)", strip_docstring_refs, docstring)
+
+    obj.__doc__ = docstring
 
 add_nparray_docstring(array)
 add_nparray_docstring(linspace)
 add_nparray_docstring(arange)
 add_nparray_docstring(logspace)
 add_nparray_docstring(geomspace)
+add_nparray_docstring(invspace)
+
+
+def add_distl_docstring(obj):
+    docsprefix = """This is an included dependency from [distl](https://distl.readthedocs.io).\n\n===============================================================\n\n"""
+
+    docstring = docsprefix + "\n".join([l.lstrip() for l in obj.__doc__.split("\n")])
+    docstring = re.sub(r"(?P<name>\<[0-9a-zA-Z_\.]*\>)", strip_docstring_refs, docstring)
+
+    obj.__doc__ = docstring
+
+add_distl_docstring(uniform)
+add_distl_docstring(boxcar)
+# add_distl_docstring(delta)
+add_distl_docstring(gaussian)
+add_distl_docstring(normal)
+add_distl_docstring(histogram_from_bins)
+add_distl_docstring(histogram_from_data)
+add_distl_docstring(mvgaussian)
+add_distl_docstring(mvhistogram_from_data)
+add_distl_docstring(uniform_around)
+add_distl_docstring(gaussian_around)
 
 
 # expose available "kinds" per-context
@@ -765,12 +802,20 @@ def _get_phoebe_funcs(module, devel=False):
     ignore = ['_empty_array', 'deepcopy', 'fnmatch',
               'download_passband', 'list_installed_passbands', 'list_online_passbands', 'list_passbands', 'parameter_from_json', 'parse_json',
               'send_if_client', 'update_if_client',
-              '_add_component', '_add_dataset', '_label_units_lims', '_run_compute']
+              '_add_component', '_add_dataset', '_label_units_lims', '_run_compute',
+              'phase_mask_inds']
 
     if not devel:
         ignore += ['pulsation']
-        ignore += ['ellc', 'jktebop', 'photodynam']
+        ignore += ['photodynam']
 
+    mod_split = module.__name__.split('.')
+    if mod_split[-1] in ['figure'] or (mod_split[-1] in ['solver'] and 'figure' not in mod_split):
+        ret = []
+        for sub_module in _inspect.getmembers(module):
+            if _inspect.ismodule(sub_module[1]):
+                ret += [sub_module[0]+"."+o for o in _get_phoebe_funcs(sub_module[1], devel=devel)]
+        return ret
 
     return [o[0] for o in _inspect.getmembers(module) if _inspect.isfunction(o[1]) and o[0] not in ignore and o[0][0] != '_']
 
@@ -783,6 +828,7 @@ def list_available_components(devel=False):
     * <phoebe.list_available_features>
     * <phoebe.list_available_datasets>
     * <phoebe.list_available_computes>
+    * <phoebe.list_available_solvers>
 
     Arguments
     -----------
@@ -803,6 +849,7 @@ def list_available_features(devel=False):
     * <phoebe.list_available_components>
     * <phoebe.list_available_datasets>
     * <phoebe.list_available_computes>
+    * <phoebe.list_available_solvers>
 
     Arguments
     -----------
@@ -823,6 +870,7 @@ def list_available_datasets(devel=False):
     * <phoebe.list_available_components>
     * <phoebe.list_available_features>
     * <phoebe.list_available_computes>
+    * <phoebe.list_available_solvers>
 
     Arguments
     -----------
@@ -843,6 +891,7 @@ def list_available_figures(devel=False):
     * <phoebe.list_available_components>
     * <phoebe.list_available_features>
     * <phoebe.list_available_computes>
+    * <phoebe.list_available_solvers>
 
     Arguments
     -----------
@@ -863,6 +912,7 @@ def list_available_computes(devel=False):
     * <phoebe.list_available_components>
     * <phoebe.list_available_features>
     * <phoebe.list_available_datasets>
+    * <phoebe.list_available_solvers>
 
     Arguments
     -----------
@@ -874,6 +924,27 @@ def list_available_computes(devel=False):
     * (list of strings)
     """
     return _get_phoebe_funcs(compute, devel=devel)
+
+def list_available_solvers(devel=False):
+    """
+    List all available 'kinds' for solver from <phoebe.parameters.solver>.
+
+    See also:
+    * <phoebe.list_available_components>
+    * <phoebe.list_available_features>
+    * <phoebe.list_available_datasets>
+    * <phoebe.list_available_computes>
+
+    Arguments
+    -----------
+    * `devel` (bool, default, optional=False): whether to include development-only
+        kinds.  See <phoebe.devel_on>.
+
+    Returns
+    ---------
+    * (list of strings)
+    """
+    return _get_phoebe_funcs(solver, devel=devel)
 
 for pb in list_all_update_passbands_available():
     msg = 'passband "{}" has a newer version available.  Run phoebe.list_passband_online_history("{}") to get a list of available changes and phoebe.update_passband("{}") or phoebe.update_all_passbands() to update.'.format(pb, pb, pb)
@@ -896,4 +967,7 @@ del logging
 del Settings
 del MPI
 
+del re
+del strip_docstring_refs
 del add_nparray_docstring
+del add_distl_docstring
