@@ -333,14 +333,16 @@ def _env_variable_bool(key, default):
     else:
         return False
 
-with open("README.md", "r") as fh:
-    long_description = fh.read()
+# numpy distutils does not support passing long_description_content_type
+# so we'll have to manually convert to rst and strip out the html in the header
+import m2r
+long_description_s = m2r.parse_from_file("README.md").split('\n')
+long_description = "\n".join(long_description_s[long_description_s.index("INTRODUCTION"):])
 
 setup (name = 'phoebe',
        version = 'devel',
        description = 'PHOEBE devel version',
        long_description=long_description,
-       long_description_content_type="text/markdown",
        author = 'PHOEBE development team',
        author_email = 'phoebe-devel@lists.sourceforge.net',
        url = 'http://github.com/phoebe-project/phoebe2',
