@@ -1,6 +1,7 @@
 import numpy as np
 from phoebe.distortions import roche as _roche
 from phoebe.backend import mesh as _mesh
+from phoebe.dependencies import distl as _distl
 import libphoebe
 from scipy.optimize import newton, bisect
 
@@ -11,31 +12,68 @@ logger.addHandler(logging.NullHandler())
 # expose these at top-level so they're available to constraints
 from numpy import sin, cos, tan, arcsin, arccos, arctan, arctan2, sqrt, log10
 
-def phases_to_times(phase, period, dpdt, t0, t0_supconj, t0_perpass, t0_ref):
-    if t0 == 't0_supconj':
+def phases_to_times(phase, period_choice, period, period_anom, dpdt_choice, dpdt, t0_choice, t0_supconj, t0_perpass, t0_ref):
+    # print("*** builtin.phases_to_times period_choice: {}, t0_choice: {}".format(period_choice, t0_choice))
+    if period_choice == 'period':
+        period = period
+    elif period_choice == 'period_anom':
+        period = period_anom
+    else:
+        raise NotImplementedError()
+
+    if t0_choice == 't0_supconj':
         t0 = t0_supconj
-    elif t0 == 't0_perpass':
+    elif t0_choice == 't0_perpass':
         t0 = t0_perpass
-    elif t0 == 't0_ref':
+    elif t0_choice == 't0_ref':
         t0 = t0_ref
+    else:
+        raise NotImplementedError()
+
+    if dpdt_choice == 'dpdt':
+        dpdt = dpdt
+    elif dpdt_choice == 'none':
+        dpdt = 0.0
+    else:
+        raise NotImplementedError()
+
+    # print("*** builtin.phases_to_times period: {}, t0: {}".format(period, t0))
 
     if isinstance(phase, list):
         phase = np.asarray(phase)
 
     if dpdt != 0:
+        # NOTE: this seems to be incorrect and giving ridiculous answers
         time = t0 + 1./dpdt*(np.exp(dpdt*(phase))-period)
     else:
         time = t0 + (phase)*period
 
     return time
 
-def times_to_phases(time, period, dpdt, t0, t0_supconj, t0_perpass, t0_ref):
-    if t0 == 't0_supconj':
+def times_to_phases(time, period_choice, period, period_anom, dpdt_choice, dpdt, t0_choice, t0_supconj, t0_perpass, t0_ref):
+    # print("*** builtin.times_to_phases", period_choice, t0_choice)
+    if period_choice == 'period':
+        period = period
+    elif period_choice == 'period_anom':
+        period = period_anom
+    else:
+        raise NotImplementedError()
+
+    if t0_choice == 't0_supconj':
         t0 = t0_supconj
-    elif t0 == 't0_perpass':
+    elif t0_choice == 't0_perpass':
         t0 = t0_perpass
-    elif t0 == 't0_ref':
+    elif t0_choice == 't0_ref':
         t0 = t0_ref
+    else:
+        raise NotImplementedError()
+
+    if dpdt_choice == 'dpdt':
+        dpdt = dpdt
+    elif dpdt_choice == 'none':
+        dpdt = 0.0
+    else:
+        raise NotImplementedError()
 
     if isinstance(time, list):
         time = np.asarray(time)
@@ -259,3 +297,6 @@ def pot_to_requiv_contact(pot, q, sma, compno=1):
     except:
         # replace this with actual check in the beginning or before function call
         raise ValueError('potential probably out of bounds for contact envelope')
+
+def distl_from_json(json):
+    return _distl.from_json(json)

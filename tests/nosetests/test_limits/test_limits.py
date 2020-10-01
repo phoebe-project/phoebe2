@@ -15,7 +15,10 @@ def test_limits():
 
 
     assert_raises(ValueError, b.set_value, 'teff@primary', -10)
-    assert_raises(ValueError, b.set_value, 'teff@primary', -10*u.Celsius)
+    # NOTE: celsius not supported for all supported astropy versions (not 1.0)
+    #assert_raises(ValueError, b.set_value, 'teff@primary', -10*u.Celsius)
+
+    assert_raises(ValueError, b.set_value, 'requiv@primary', -10*u.km)
 
     assert_raises(ValueError, b.set_value, 'ecc@binary', 1.0)
 

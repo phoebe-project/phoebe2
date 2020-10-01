@@ -27,8 +27,6 @@ import shutil
 import json
 import time
 
-if sys.version_info[0] == 3:
-  unicode = str
 
 try:
     # For Python 3.0 and later
@@ -78,10 +76,7 @@ if not os.path.exists(_pbdir_local):
     logger.info("creating directory {}".format(_pbdir_local))
     os.makedirs(_pbdir_local)
 
-if not os.getenv('PHOEBE_PBDIR','False')=='False':
-    _pbdir_env = os.getenv('PHOEBE_PBDIR')
-else:
-    _pbdir_env = None
+_pbdir_env = os.getenv('PHOEBE_PBDIR', None)
 
 
 _pbdir_env = os.getenv('PHOEBE_PBDIR', None)
@@ -1954,6 +1949,156 @@ class Passband:
         if 'phoenix:Imu' not in self.content:
             self.content.append('phoenix:Imu')
 
+    def compute_phoenix_intensities(self, path, particular=None, verbose=False):
+        """
+        Computes direction-dependent passband intensities using spherical
+        PHOENIX (Husser et al. 2013) model atmospheres.
+
+        Arguments
+        -----------
+        * `path` (string): path to the directory with SEDs in FITS format.
+        * `particular` (string, optional, default=None): particular file in
+            `path` to be processed; if None, all files in the directory are
+            processed.
+        * `verbose` (bool, optional, default=False): set to True to display
+            progress in the terminal.
+        """
+
+        # PHOENIX uses fits files to store the tables.
+        from astropy.io import fits
+
+        if verbose:
+            print('Computing PHOENIX (Husser et al. 2013) specific passband intensities for %s:%s.' % (self.pbset, self.pbname))
+
+        models = glob.glob(path+'/*fits')
+        Nmodels = len(models)
+
+        # the values of mu are hard-coded to the ck2004 values for 1-to-1 comparison:
+        mu = np.array([0., 0.001, 0.002, 0.003, 0.005, 0.01 , 0.015, 0.02 , 0.025, 0.03, 0.035, 0.04, 0.045, 0.05, 0.06, 0.07, 0.08, 0.09, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.])
+
+        Teff, logg, abun = np.empty(Nmodels), np.empty(Nmodels), np.empty(Nmodels)
+
+        ImuE, ImuP = np.empty(Nmodels*len(mu)), np.empty(Nmodels*len(mu))
+        # boostingE, boostingP = np.empty(Nmodels), np.empty(Nmodels)
+
+        wavelengths = np.arange(500., 26000.)/1e10 # AA -> m
+        keep = (wavelengths >= self.ptf_table['wl'][0]) & (wavelengths <= self.ptf_table['wl'][-1])
+        wl = wavelengths[keep]
+        dwl = wl[1]-wl[0]
+
+        for i, model in enumerate(models):
+            with fits.open(model) as hdu:
+                mus = hdu[1].data
+                intensities = hdu[0].data*1e-1
+
+                # trim the spectrum at passband limits:
+                intensities = intensities[:,keep]
+
+            model = model[model.rfind('/')+1:] # get relative pathname
+            Teff[i] = float(model[3:8])
+            logg[i] = float(model[9:13])
+            abun[i] = float(model[13:17])
+
+            flE = self.ptf(wl)*intensities
+            flEint = flE.sum(axis=1)
+            flEint = self._rescale_phoenix_intensities(mu, mus, flEint)
+
+            flP = wl*flE
+            flPint = flP.sum(axis=1)
+            flPint = self._rescale_phoenix_intensities(mu, mus, flPint)
+
+            ImuE[i*len(mu):(i+1)*len(mu)] = np.log10(flEint/self.ptf_area*dwl)        # energy-weighted intensity
+            ImuP[i*len(mu):(i+1)*len(mu)] = np.log10(flPint/self.ptf_photon_area*dwl) # photon-weighted intensity
+
+            if verbose:
+                sys.stdout.write('\r' + '%0.0f%% done.' % (100*float(i+1)/len(models)))
+                sys.stdout.flush()
+
+        if verbose:
+            print('')
+
+            # for cmi, cmu in enumerate(mus):
+            #     fl = intensities[cmi,:]
+
+                # make a log-scale copy for boosting and fit a Legendre
+                # polynomial to the Imu envelope by way of sigma clipping;
+                # then compute a Legendre series derivative to get the
+                # boosting index; we only take positive fluxes to keep the
+                # log well defined.
+
+                # lnwl = np.log(wl[fl > 0])
+                # lnfl = np.log(fl[fl > 0]) + 5*lnwl
+
+                # First Legendre fit to the data:
+                # envelope = np.polynomial.legendre.legfit(lnwl, lnfl, 5)
+                # continuum = np.polynomial.legendre.legval(lnwl, envelope)
+                # diff = lnfl-continuum
+                # sigma = np.std(diff)
+                # clipped = (diff > -sigma)
+
+                # Sigma clip to get the continuum:
+                # while True:
+                #     Npts = clipped.sum()
+                #     envelope = np.polynomial.legendre.legfit(lnwl[clipped], lnfl[clipped], 5)
+                #     continuum = np.polynomial.legendre.legval(lnwl, envelope)
+                #     diff = lnfl-continuum
+
+                    # clipping will sometimes unclip already clipped points
+                    # because the fit is slightly different, which can lead
+                    # to infinite loops. To prevent that, we never allow
+                    # clipped points to be resurrected, which is achieved
+                    # by the following bitwise condition (array comparison):
+                #     clipped = clipped & (diff > -sigma)
+
+                #     if clipped.sum() == Npts:
+                #         break
+
+                # derivative = np.polynomial.legendre.legder(envelope, 1)
+                # boosting_index = np.polynomial.legendre.legval(lnwl, derivative)
+
+                # calculate energy (E) and photon (P) weighted fluxes and
+                # their integrals.
+
+                # calculate mean boosting coefficient and use it to get
+                # boosting factors for energy (E) and photon (P) weighted
+                # fluxes.
+
+                # boostE = (flE[fl > 0]*boosting_index).sum()/flEint
+                # boostP = (flP[fl > 0]*boosting_index).sum()/flPint
+                # boostingE[i] = boostE
+                # boostingP[i] = boostP
+
+
+
+        # Store axes (Teff, logg, abun, mu) and the full grid of Imu,
+        # with nans where the grid isn't complete. Imu-s come in two
+        # flavors: energy-weighted intensities and photon-weighted
+        # intensities, based on the detector used.
+
+        self._phoenix_intensity_axes = (np.unique(Teff), np.unique(logg), np.unique(abun), np.unique(mu))
+        self._phoenix_Imu_energy_grid = np.nan*np.ones((len(self._phoenix_intensity_axes[0]), len(self._phoenix_intensity_axes[1]), len(self._phoenix_intensity_axes[2]), len(self._phoenix_intensity_axes[3]), 1))
+        self._phoenix_Imu_photon_grid = np.nan*np.ones((len(self._phoenix_intensity_axes[0]), len(self._phoenix_intensity_axes[1]), len(self._phoenix_intensity_axes[2]), len(self._phoenix_intensity_axes[3]), 1))
+        # self._ck2004_boosting_energy_grid = np.nan*np.ones((len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), len(self._ck2004_intensity_axes[3]), 1))
+        # self._ck2004_boosting_photon_grid = np.nan*np.ones((len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), len(self._ck2004_intensity_axes[3]), 1))
+
+        # Set the limb (mu=0) to 0; in log this actually means
+        # flux=1W/m2, but for all practical purposes that is still 0.
+        # self._ck2004_Imu_energy_grid[:,:,:,0,:] = 0.0
+        # self._ck2004_Imu_photon_grid[:,:,:,0,:] = 0.0
+        # self._ck2004_boosting_energy_grid[:,:,:,0,:] = 0.0
+        # self._ck2004_boosting_photon_grid[:,:,:,0,:] = 0.0
+
+        for i, Imu in enumerate(ImuE):
+            self._phoenix_Imu_energy_grid[Teff[i/len(mu)] == self._phoenix_intensity_axes[0], logg[i/len(mu)] == self._phoenix_intensity_axes[1], abun[i/len(mu)] == self._phoenix_intensity_axes[2], mu[i%len(mu)] == self._phoenix_intensity_axes[3], 0] = Imu
+        for i, Imu in enumerate(ImuP):
+            self._phoenix_Imu_photon_grid[Teff[i/len(mu)] == self._phoenix_intensity_axes[0], logg[i/len(mu)] == self._phoenix_intensity_axes[1], abun[i/len(mu)] == self._phoenix_intensity_axes[2], mu[i%len(mu)] == self._phoenix_intensity_axes[3], 0] = Imu
+        # for i, Bavg in enumerate(boostingE):
+        #     self._ck2004_boosting_energy_grid[Teff[i] == self._ck2004_intensity_axes[0], logg[i] == self._ck2004_intensity_axes[1], abun[i] == self._ck2004_intensity_axes[2], mu[i] == self._ck2004_intensity_axes[3], 0] = Bavg
+        # for i, Bavg in enumerate(boostingP):
+        #     self._ck2004_boosting_photon_grid[Teff[i] == self._ck2004_intensity_axes[0], logg[i] == self._ck2004_intensity_axes[1], abun[i] == self._ck2004_intensity_axes[2], mu[i] == self._ck2004_intensity_axes[3], 0] = Bavg
+
+        self.content.append('phoenix_all')
+
     def _ldlaw_lin(self, mu, xl):
         return 1.0-xl*(1-mu)
 
@@ -2595,6 +2740,12 @@ class Passband:
 
         return Inorm
 
+    def _Inorm_phoenix(self, Teff, logg, abun, photon_weighted=False):
+        req = np.vstack((Teff, logg, abun)).T
+        Inorm = libphoebe.interp(req, self._phoenix_axes, 10**self._phoenix_photon_grid if photon_weighted else 10**self._phoenix_energy_grid).T[0]
+
+        return Inorm
+
     def _log10_Imu_ck2004(self, Teff, logg, abun, mu, photon_weighted=False):
         if not hasattr(Teff, '__iter__'):
             req = np.array(((Teff, logg, abun, mu),))
@@ -3160,8 +3311,6 @@ def download_passband(passband, content=None, local=True, gzipped=None):
 
     if isinstance(content, str):
         content_str = content
-    elif isinstance(content, unicode):
-        content_str = str(content)
     elif isinstance(content, list) or isinstance(content, tuple):
         content_str = ",".join(content)
     else:
@@ -3178,8 +3327,8 @@ def download_passband(passband, content=None, local=True, gzipped=None):
     logger.info("downloading from {} and installing to {}...".format(url, passband_fname_local))
     try:
         urlretrieve(url, passband_fname_local)
-    except IOError:
-        raise IOError("unable to download {} passband - check connection".format(passband))
+    except IOError as e:
+        raise IOError("unable to download {} passband - check connection.  Original error: {}".format(passband, e))
     else:
         _init_passband(passband_fname_local)
 
@@ -3682,7 +3831,7 @@ def get_passband(passband, content=None, reload=False, update_if_necessary=False
         if content == 'all':
             content = online_content
         elif content is not None:
-            if isinstance(content, str) or isinstance(content, unicode):
+            if isinstance(content, str):
                 content = [content]
             # need to account for mixed atm/table content = ['ck2004', 'blackbody:Inorm']
             content_expanded = []
@@ -3755,6 +3904,8 @@ def Inorm_bol_bb(Teff=5772., logg=4.43, abun=0.0, atm='blackbody', photon_weight
     --------
     * ValueError: if `atm` is anything other than `'blackbody'`.
     """
+    # TODO: the docs say errors will be raised if photon_weighted is not False
+    # but this doesn't seem to be the case.
 
     if atm != 'blackbody':
         raise ValueError('atmosphere must be set to blackbody for Inorm_bol_bb.')

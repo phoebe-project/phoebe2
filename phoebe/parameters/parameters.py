@@ -9,8 +9,9 @@ from phoebe.constraints.expression import ConstraintVar
 from phoebe.parameters.twighelpers import _uniqueid_to_uniquetwig
 from phoebe.parameters.twighelpers import _twig_to_uniqueid
 from phoebe.frontend import tabcomplete
-from phoebe.dependencies import nparray
-from phoebe.utils import parse_json
+from phoebe.dependencies import nparray, distl
+from phoebe.utils import parse_json, phase_mask_inds
+from phoebe import helpers as _helpers
 
 import sys
 import random
@@ -23,9 +24,11 @@ import os
 import difflib
 import time
 import types
+import tempfile
+import subprocess
 from collections import OrderedDict
 from fnmatch import fnmatch
-from copy import deepcopy
+from copy import deepcopy as _deepcopy
 import readline
 import numpy as np
 
@@ -53,9 +56,6 @@ if os.getenv('PHOEBE_ENABLE_EXTERNAL_JOBS', 'FALSE').upper() == 'TRUE':
 else:
     _can_requests = False
 
-if sys.version_info[0] == 3:
-  unicode = str
-
 # things needed to be imported at top-level for constraints to solve:
 from numpy import sin, cos, tan, arcsin, arccos, arctan, sqrt
 
@@ -81,34 +81,85 @@ if os.getenv('PHOEBE_ENABLE_PLOTTING', 'TRUE').upper() == 'TRUE':
         from phoebe.dependencies import autofig
     except (ImportError, TypeError):
         _use_autofig = False
+        _phoebecolorsdict = {}
     else:
         _use_autofig = True
+        # add the PHOEBE palette to autofig.cyclers
+        black = (19./255, 19./255, 19./255) #131313
+        blue = (43./255, 113./255, 177./255) #2B71B1
+        orange = (255./255, 112./255, 47./255) #FF702F
+        yellow = (255./255, 205./255, 47./255) #FFCD2F
+        green = (34./255,183./255,127./255) #22B77F
+        fuchsia = (237./255,49./255,112./255) #ED3170
+        _phoebecolors = [black, blue, orange, green, yellow, fuchsia]
+        _phoebecolorsdict = {'black': "#131313",
+                             'blue': "#2B71B1",
+                             'orange': "#FF702F",
+                             'green': "#22B77F",
+                             'red': '#F92E3D',
+                             'purple': '#6D2EB8',
+                             'pink': "#ED3170",
+                             'yellow': "#FFCD2F"}
+
+        ofr=6
+        for i in [5,3,1,2,4]:
+            _phoebecolors += [tuple((np.array(basecolor)+np.array([0,i/ofr,i/ofr]))%1) for basecolor in [blue, orange, green, yellow, fuchsia]]
+            _phoebecolors += [tuple((np.array(basecolor)+np.array([i/ofr,0,i/ofr]))%1) for basecolor in [blue, orange, green, yellow, fuchsia]]
+            _phoebecolors += [tuple((np.array(basecolor)+np.array([i/ofr,i/ofr,0]))%1) for basecolor in [blue, orange, green, yellow, fuchsia]]
+            _phoebecolors += [tuple((np.array(basecolor)+np.array([0,i/ofr,0]))%1) for basecolor in [blue, orange, green, yellow, fuchsia]]
+            _phoebecolors += [tuple((np.array(basecolor)+np.array([0,0,i/ofr]))%1) for basecolor in [blue, orange, green, yellow, fuchsia]]
+            _phoebecolors += [tuple((np.array(basecolor)+np.array([i/ofr,0,0]))%1) for basecolor in [blue, orange, green, yellow, fuchsia]]
+            _phoebecolors += [tuple((np.array(basecolor)+np.array([i/ofr,i/ofr,i/ofr]))%1) for basecolor in [blue, orange, green, yellow, fuchsia]]
+        autofig.cyclers._mplcolors = _phoebecolors + autofig.cyclers._mplcolors
+
+    try:
+        import corner
+    except (ImportError, TypeError):
+        _use_corner = False
+    else:
+        _use_corner = True
+
+    try:
+        from dynesty import plotting as dyplot
+    except (ImportError, TypeError):
+        _use_dyplot = False
+    else:
+        _use_dyplot = True
+
 else:
     _use_autofig = False
+    _use_corner = False
+    _use_dyplot = False
+
+
 
 import logging
 logger = logging.getLogger("PARAMETERS")
 logger.addHandler(logging.NullHandler())
 
+_skip_filter_checks = {'check_default': False, 'check_visible': False}
 
-_parameter_class_that_require_bundle = ['HistoryParameter', 'TwigParameter',
-                                        'ConstraintParameter', 'JobParameter']
+_parameter_class_that_require_bundle = ['TwigParameter',
+                                        'ConstraintParameter', 'DistributionParameter',
+                                        'JobParameter']
 
-_meta_fields_twig = ['time', 'qualifier', 'history', 'feature', 'component',
-                     'dataset', 'constraint', 'compute', 'model', 'figure', 'kind',
+_meta_fields_twig = ['time', 'qualifier', 'feature', 'component',
+                     'dataset', 'constraint', 'distribution', 'compute', 'model',
+                     'solver', 'solution', 'figure', 'kind',
                      'context']
 
 _meta_fields_all = _meta_fields_twig + ['twig', 'uniquetwig', 'uniqueid']
 _meta_fields_filter = _meta_fields_all + ['constraint_func', 'value']
 
-_contexts = ['history', 'system', 'component', 'feature',
-             'dataset', 'constraint', 'compute', 'model', 'figure', 'setting']
+_contexts = ['system', 'component', 'feature',
+             'dataset', 'constraint', 'distribution', 'compute', 'model',
+             'solver', 'solution', 'figure', 'setting']
 
 # define a list of default_forbidden labels
 # an individual ParameterSet may build on this list with components, datasets,
 # etc for labels
 # components and datasets should also forbid this list
-_forbidden_labels = deepcopy(_meta_fields_all)
+_forbidden_labels = _deepcopy(_meta_fields_all)
 
 # forbid all "contexts", although should already be in _meta_fields_all
 _forbidden_labels += _contexts
@@ -117,9 +168,9 @@ _forbidden_labels += _contexts
 _forbidden_labels += ['True', 'False', 'true', 'false', 'None', 'none', 'null']
 
 # forbid all "methods"
-_forbidden_labels += ['value', 'adjust', 'prior', 'posterior', 'default_unit',
+_forbidden_labels += ['value', 'adjust', 'default_unit',
                       'quantity',
-                      'unit', 'timederiv', 'visible_if', 'description', 'result']
+                      'unit', 'timederiv', 'visible_if', 'description', 'result', 'advanced', 'readonly', 'latexfmt']
 
 # forbid some random things
 _forbidden_labels += ['protomesh', 'pbmesh']
@@ -135,15 +186,19 @@ _forbidden_labels += ['phoebe', 'legacy', 'jktebop', 'photodynam', 'ellc']
 
 # we also want to forbid any possible qualifiers
 # from system:
-_forbidden_labels += ['t0', 'ra', 'dec', 'epoch', 'distance', 'vgamma', 'hierarchy']
+_forbidden_labels += ['t0', 'ra', 'dec', 'epoch', 'distance', 'parallax', 'vgamma', 'hierarchy',
+                     'Rv', 'Av', 'ebv', 'extinction']
 
 # from setting:
-_forbidden_labels += ['phoebe_version', 'log_history', 'dict_filter',
-                      'dict_set_all', 'run_checks_compute', 'auto_add_figure']
+_forbidden_labels += ['phoebe_version', 'dict_filter',
+                      'dict_set_all', 'run_checks_compute', 'run_checks_solver',
+                      'run_checks_solution', 'run_checks_figure',
+                      'auto_add_figure', 'auto_remove_figure', 'web_client', 'web_client_url']
 
 # from component
 _forbidden_labels += ['requiv', 'requiv_max', 'requiv_min', 'teff', 'abun', 'logg',
                       'fillout_factor', 'pot_min', 'pot_max',
+                      'period_anom',
                       'syncpar', 'period', 'pitch', 'yaw', 'incl', 'long_an',
                       'gravb_bol', 'irrad_frac_refl_bol', 'irrad_frac_lost_bol',
                       'ld_mode_bol', 'ld_func_bol',
@@ -151,18 +206,20 @@ _forbidden_labels += ['requiv', 'requiv_max', 'requiv_min', 'teff', 'abun', 'log
                       'mass', 'dpdt', 'per0',
                       'dperdt', 'ecc', 'deccdt', 't0_perpass', 't0_supconj',
                       't0_ref', 'mean_anom', 'q', 'sma', 'asini', 'ecosw', 'esinw',
+                      'teffratio', 'requivratio', 'requivsumfrac'
                       ]
 
 # from dataset:
-_forbidden_labels += ['times', 'fluxes', 'sigmas',
+_forbidden_labels += ['times', 'fluxes', 'sigmas', 'sigmas_lnf',
                      'compute_times', 'compute_phases', 'compute_phases_t0',
+                     'phases_period', 'phases_dpdt', 'phases_t0', 'mask_enabled', 'mask_phases',
+                     'solver_times', 'expose_samples', 'expose_failed',
                      'ld_mode', 'ld_func', 'ld_coeffs', 'ld_coeffs_source',
                      'passband', 'intens_weighting',
-                     'Rv', 'Av', 'ebv',
                      'pblum_mode', 'pblum_ref', 'pblum', 'pbflux',
                      'pblum_dataset', 'pblum_component',
                      'l3_mode', 'l3', 'l3_frac',
-                     'exptime', 'rvs', 'wavelengths',
+                     'exptime', 'rvs', 'wavelengths', 'rv_offset',
                      'flux_densities', 'profile_func', 'profile_rest', 'profile_sv',
                      'Ns', 'time_ecls', 'time_ephems', 'etvs',
                      'us', 'vs', 'ws', 'vus', 'vvs', 'vws',
@@ -180,21 +237,60 @@ _forbidden_labels += ['times', 'fluxes', 'sigmas',
 
 
 # from compute:
-_forbidden_labels += ['enabled', 'dynamics_method', 'ltte',
+_forbidden_labels += ['enabled', 'dynamics_method', 'ltte', 'comments',
                       'gr', 'stepsize', 'integrator',
                       'irrad_method', 'boosting_method', 'mesh_method', 'distortion_method',
                       'ntriangles', 'rv_grav',
                       'mesh_offset', 'mesh_init_phi', 'horizon_method', 'eclipse_method',
                       'atm', 'lc_method', 'rv_method', 'fti_method', 'fti_oversample',
+                      'pblum_method', 'requiv_max_limit',
                       'etv_method', 'etv_tol',
                       'gridsize', 'refl_num', 'ie',
                       'stepsize', 'orbiterror', 'ringsize',
-                      'exact_grav', 'grid', 'hf'
+                      'exact_grav', 'grid', 'hf',
+                      'sample_from', 'sample_from_combine', 'sample_num', 'sample_mode'
                       ]
+
+# from solver:
+_forbidden_labels += ['nwalkers', 'niters', 'priors', 'init_from',
+                      'lc_datasets', 'rv_datasets', 'lc_combine',
+                      'phase_bin', 'phase_nbins',
+                      'algorithm', 'duration', 'minimum_n_cycles', 'frequency_factor',
+                      'samples_per_peak', 'nyquist_factor',
+                      't0_near_times', 'sample_periods', 'sample_frequencies', 'objective',
+                      'expose_lnlikelihoods', 'expose_lnprobabilities', 'fit_parameters', 'initial_values',
+                      'expose_model', 'gtol', 'norm', 'xtol', 'ftol',
+                      'priors_combine', 'maxiter', 'maxfev', 'adaptive',
+                      'xatol', 'fatol', 'bounds', 'bounds_combine', 'bounds_sigma',
+                      'strategy', 'popsize', 'continue_from', 'init_from_combine',
+                      'burnin_factor', 'thin_factor', 'progress_every_niters',
+                      'nlive', 'maxcall', 'lc_geometry', 'rv_geometry', 'lc_periodogram', 'rv_periodogram', 'ebai',
+                      'nelder_mead', 'differential_evolution', 'cg', 'powell', 'emcee', 'dynesty']
+
+# from solution:
+_forbidden_labels += ['primary_width', 'secondary_width',
+                      'primary_phase', 'secondary_phase',
+                      'primary_depth', 'secondary_depth',
+                      'eclipse_edges',
+                      'fitted_uniqueids', 'fitted_twigs', 'fitted_values', 'fitted_units',
+                      'adopt_parameters', 'adopt_distributions', 'distributions_convert', 'distributions_bins',
+                      'failed_samples', 'lnprobabilities', 'acceptance_fractions',
+                      'autocorr_time', 'burnin', 'thin', 'lnprob_cutoff',
+                      'progress',
+                      'period_factor', 'power',
+                      'nlive', 'niter', 'ncall', 'eff', 'samples', 'samples_id', 'samples_it', 'samples_u',
+                      'logwt', 'logl', 'logvol', 'logz', 'logzerr', 'information', 'bound', 'bounds',
+                      'bound_iter', 'samples_bound', 'scale',
+                      'message', 'nfev', 'niter', 'success', 'initial_values',
+                      'initial_lnlikelihood', 'fitted_lnlikelihood']
+
 
 # from feature:
 _forbidden_labels += ['colat', 'long', 'radius', 'relteff',
-                      'radamp', 'freq', 'l', 'm', 'teffext'
+                      'radamp', 'freq', 'l', 'm', 'teffext',
+                      'spot', 'gaussian_process', 'pulsation',
+                      'kernel', 'log_S0', 'log_Q', 'log_rho',
+                      'log_omega0', 'log_sigma', 'eps'
                       ]
 
 # from figure:
@@ -212,6 +308,7 @@ _forbidden_labels += ['datasets', 'models', 'components', 'contexts',
                       'ecmap_source', 'ecmap',
                       'default_time_source', 'default_time', 'time_source', 'time',
                       'uncover', 'highlight', 'draw_sidebars',
+                      'latex_repr',
                       'legend']
 
 # ? and * used for wildcards in twigs
@@ -236,54 +333,74 @@ def _singular_to_plural_get(k):
 def _plural_to_singular_get(k):
     return _plural_to_singular.get(k, k)
 
+def _return_ps(b, ps):
+    """set the _filter of the ps to be the uniqueids and return"""
+    if isinstance(ps, list):
+        ps = ParameterSet(ps)
+    if ps._bundle is None:
+        ps._bundle = b
+    if not len(ps._filter.keys()):
+        ps._filter = {'uniqueid': ps.uniqueids}
+    return ps
+
 def send_if_client(fctn):
     """Intercept and send to the server if bundle is in client mode."""
     @functools.wraps(fctn)
     def _send_if_client(self, *args, **kwargs):
         fctn_map = {'set_quantity': 'set_value',
                     'set_value': 'set_value',
-                    'set_default_unit': 'set_default_unit'}
+                    'set_default_unit': 'set_default_unit',
+                    'flip_for': 'flip_constraint'}
         b = self._bundle
-        if b is not None and b.is_client:
+        if b is not None and hasattr(b, 'is_client') and b.is_client:
             # TODO: self._filter???
             # TODO: args???
+            requestid = _uniqueid(6)
+            self._bundle._waiting_on_server = requestid
+
             method = fctn_map.get(fctn.__name__, 'bundle_method')
-            d = self._filter if hasattr(self, '_filter') \
+            # NOTE: the deepcopy is necessary here so we don't overwrite self._filter
+            d = self._filter.copy() if hasattr(self, '_filter') \
                 else {'uniqueid': self.uniqueid}
             d['bundleid'] = b._bundleid
+            d['requestid'] = requestid
             d['args'] = args
-            d['fctn'] = fctn.__name__
+            if method == 'bundle_method':
+                d['method'] = fctn.__name__
             for k, v in kwargs.items():
                 if hasattr(v, 'to_json'):
                     v = v.to_json()
                 d[k] = v
 
+            if d.get('method', None) in ['run_compute', 'run_solver']:
+                detach = d.pop('detach', False)
+
             logger.info('emitting {} ({}) to server'.format(method, d))
+
             b._socketio.emit(method, d)
 
-            if fctn.__name__ in ['run_compute', 'run_fitting']:
-                # then we're expecting a quick response with an added jobparam
-                # let's add that now
-                self._bundle.client_update()
+            while self._bundle._waiting_on_server:
+                # print("waiting on server for method: {}, bundleid: {}, requestid: {}".format(d.get('method', None), self._bundle._bundleid, self._bundle._waiting_on_server))
+                time.sleep(0.2)
+
+            ret_ = self._bundle._server_changes
+            self._bundle._server_changes = None
+
+            if d.get('method', None) in ['run_compute', 'run_solver'] and not detach:
+                # then we need to sit in a poll loop until the job returns as completed
+                # otherwise the user will have to call b.attach_job manually?  Or will the results just come in once done?
+                # should be the single job parameter
+                ret_ += self._bundle.attach_job(uniqueid=ParameterSet([p for p in ret_.to_list() if p._bundle is not None]).get_parameter(qualifier='detached_job', **_skip_filter_checks).uniqueid)
+
+            if isinstance(ret_, ParameterSet) and not len(ret_._filter.keys()):
+                ret_ = _return_ps(self._bundle, ret_)
+
+            return ret_
+
         else:
             return fctn(self, *args, **kwargs)
+
     return _send_if_client
-
-
-def update_if_client(fctn):
-    """Intercept and check updates from server if bundle is in client mode."""
-    @functools.wraps(fctn)
-    def _update_if_client(self, *args, **kwargs):
-        b = self._bundle
-        if b is None or not hasattr(b, 'is_client'):
-            return fctn(self, *args, **kwargs)
-        elif b.is_client and \
-                (b._last_client_update is None or
-                (datetime.now() - b._last_client_update).seconds > 1):
-
-            b.client_update()
-        return fctn(self, *args, **kwargs)
-    return _update_if_client
 
 
 def _uniqueid(n=30):
@@ -296,6 +413,8 @@ def _uniqueid(n=30):
     return ''.join(random.SystemRandom().choice(
                    string.ascii_uppercase + string.ascii_lowercase)
                    for _ in range(n))
+
+_clientid = 'python-'+_uniqueid(5)
 
 def _is_unit(unit):
     return isinstance(unit, u.Unit) or isinstance(unit, u.CompositeUnit) or isinstance(unit, u.IrreducibleUnit)
@@ -327,7 +446,7 @@ def parameter_from_json(dictionary, bundle=None):
     if isinstance(dictionary, str):
         dictionary = json.loads(dictionary, object_pairs_hook=parse_json)
 
-    classname = dictionary.pop('Class')
+    classname = dictionary.get('Class')
 
     if classname not in _parameter_class_that_require_bundle:
         bundle = None
@@ -351,6 +470,14 @@ def _fnmatch(to_this, expression_or_string):
         return fnmatch(to_this, expression_or_string)
     else:
         return expression_or_string == to_this
+
+class JupyterUI(object):
+    def __init__(self, url):
+        self.url = url
+    def __repr__(self):
+        return self.url
+    def _repr_html_(self):
+        return "<iframe src=\"{}\" style='width:100%;min-height:400px'></iframe>".format(self.url)
 
 class ParameterSetInfo(dict):
     def __init__(self, ps, attribute):
@@ -419,6 +546,9 @@ class ParameterSet(object):
         self._bundle = None
         self._filter = {}
 
+        if isinstance(params, str):
+            params = json.loads(params)
+
         if len(params) and not isinstance(params[0], Parameter):
             # then attempt to load as if json
             self._params = []
@@ -432,15 +562,15 @@ class ParameterSet(object):
 
         self._qualifier = None
         self._time = None
-        self._history = None
         self._component = None
         self._dataset = None
         self._figure = None
         self._constraint = None
+        self._distribution = None
         self._compute = None
         self._model = None
-        # self._fitting = None
-        # self._feedback = None
+        self._solver = None
+        self._solution = None
         # self._plugin = None
         self._kind = None
         self._context = None
@@ -499,6 +629,15 @@ class ParameterSet(object):
 
     def __ne__(self, other):
         raise NotImplementedError("comparison operators with ParameterSets are not supported")
+
+    def copy(self):
+        """
+        Deepcopy the <<class>>.
+        """
+        return _deepcopy(self)
+
+    def __copy__(self):
+        return self.copy()
 
     @property
     def info(self):
@@ -649,7 +788,7 @@ class ParameterSet(object):
         """
         ret = {}
         for typ in _meta_fields_twig:
-            if typ in ['uniqueid', 'history', 'twig', 'uniquetwig']:
+            if typ in ['uniqueid', 'twig', 'uniquetwig']:
                 continue
 
             k = '{}s'.format(typ)
@@ -670,7 +809,7 @@ class ParameterSet(object):
         Returns
         --------
         * (list) a list of all uniqueids for each <phoebe.parameters.Parameter>
-            in this <phoebe.parmaeters.ParameterSet>
+            in this <phoebe.parameters.ParameterSet>
         """
         return [p.uniqueid for p in self.to_list()]
 
@@ -688,7 +827,7 @@ class ParameterSet(object):
         Returns
         --------
         * (list) a list of all twigs for each <phoebe.parameters.Parameter>
-            in this <phoebe.parmaeters.ParameterSet>
+            in this <phoebe.parameters.ParameterSet>
         """
         return [p.twig for p in self.to_list()]
 
@@ -739,7 +878,7 @@ class ParameterSet(object):
         Returns
         --------
         * (list) a list of all qualifiers for each <phoebe.parameters.Parameter>
-            in this <phoebe.parmaeters.ParameterSet>
+            in this <phoebe.parameters.ParameterSet>
         """
         return self._options_for_tag('qualifier')
 
@@ -773,64 +912,9 @@ class ParameterSet(object):
         Returns
         --------
         * (list) a list of all times for each <phoebe.parameters.Parameter>
-            in this <phoebe.parmaeters.ParameterSet>
+            in this <phoebe.parameters.ParameterSet>
         """
         return self._options_for_tag('time')
-
-    @property
-    def history(self):
-        """Return the value for history if shared by ALL Parameters.
-
-        If the value is not shared by ALL, then None will be returned.  To see
-        all the qualifiers of all parameters, see <phoebe.parameters.ParameterSet.histories>
-        or <phoebe.parameters.ParameterSet.historys>.
-
-        To see the value of a single <phoebe.parameters.Parameter> object, see
-        <phoebe.parameters.Parameter.history>.
-
-        Returns
-        --------
-        (string or None) the value if shared by ALL <phoebe.parameters.Parameter>
-            objects in the <phoebe.parmaters.ParameterSet>, otherwise None
-        """
-        return self._history
-
-    @property
-    def histories(self):
-        """Return a list of all the histories of the Parameters.
-
-        See also:
-        * <phoebe.parameters.ParameterSet.tags>
-
-        For the singular version, see:
-        * <phoebe.parameters.ParameterSet.history>
-
-        Returns
-        --------
-        * (list) a list of all histories for each <phoebe.parameters.Parameter>
-            in this <phoebe.parmaeters.ParameterSet>
-        """
-        return self._options_for_tag('history')
-
-    @property
-    def historys(self):
-        """Return a list of all the histories of the Parameters.
-
-        Shortcut to <phoebe.parameters.ParameterSet.histories>
-
-        See also:
-        * <phoebe.parameters.ParameterSet.tags>
-
-        For the singular version, see:
-        * <phoebe.parameters.ParameterSet.history>
-
-        Returns
-        --------
-        * (list) a list of all twigs for each <phoebe.parameters.Parameter>
-            in this <phoebe.parmaeters.ParameterSet>
-        """
-        return self.histories
-
 
     @property
     def feature(self):
@@ -862,7 +946,7 @@ class ParameterSet(object):
         Returns
         --------
         * (list) a list of all features for each <phoebe.parameters.Parameter>
-            in this <phoebe.parmaeters.ParameterSet>
+            in this <phoebe.parameters.ParameterSet>
         """
         return self._options_for_tag('feature', include_default=False)
 
@@ -905,7 +989,7 @@ class ParameterSet(object):
         Returns
         --------
         * (list) a list of all components for each <phoebe.parameters.Parameter>
-            in this <phoebe.parmaeters.ParameterSet>
+            in this <phoebe.parameters.ParameterSet>
         """
         return self._options_for_tag('component', include_default=False)
 
@@ -939,7 +1023,7 @@ class ParameterSet(object):
         Returns
         --------
         * (list) a list of all datasets for each <phoebe.parameters.Parameter>
-            in this <phoebe.parmaeters.ParameterSet>
+            in this <phoebe.parameters.ParameterSet>
         """
         return self._options_for_tag('dataset', include_default=False)
 
@@ -973,9 +1057,43 @@ class ParameterSet(object):
         Returns
         --------
         * (list) a list of all constraints for each <phoebe.parameters.Parameter>
-            in this <phoebe.parmaeters.ParameterSet>
+            in this <phoebe.parameters.ParameterSet>
         """
         return self._options_for_tag('constraint')
+
+    @property
+    def distribution(self):
+        """Return the value for distribution if shared by ALL Parameters.
+
+        If the value is not shared by ALL, then None will be returned.  To see
+        all the qualifiers of all parameters, see <phoebe.parameters.ParameterSet.distributions>.
+
+        To see the value of a single <phoebe.parameters.Parameter> object, see
+        <phoebe.parameters.Parameter.distribution>.
+
+        Returns
+        --------
+        (string or None) the value if shared by ALL <phoebe.parameters.Parameter>
+            objects in the <phoebe.parmaters.ParameterSet>, otherwise None
+        """
+        return self._distribution
+
+    @property
+    def distributions(self):
+        """Return a list of all the distributions of the Parameters.
+
+        See also:
+        * <phoebe.parameters.ParameterSet.tags>
+
+        For the singular version, see:
+        * <phoebe.parameters.ParameterSet.distribution>
+
+        Returns
+        --------
+        * (list) a list of all constraints for each <phoebe.parameters.Parameter>
+            in this <phoebe.parameters.ParameterSet>
+        """
+        return self._options_for_tag('distribution')
 
     @property
     def compute(self):
@@ -1007,7 +1125,7 @@ class ParameterSet(object):
         Returns
         --------
         * (list) a list of all computes for each <phoebe.parameters.Parameter>
-            in this <phoebe.parmaeters.ParameterSet>
+            in this <phoebe.parameters.ParameterSet>
         """
         return self._options_for_tag('compute')
 
@@ -1041,7 +1159,7 @@ class ParameterSet(object):
         Returns
         --------
         * (list) a list of all models for each <phoebe.parameters.Parameter>
-            in this <phoebe.parmaeters.ParameterSet>
+            in this <phoebe.parameters.ParameterSet>
         """
         return self._options_for_tag('model')
 
@@ -1075,9 +1193,77 @@ class ParameterSet(object):
         Returns
         --------
         * (list) a list of all figures for each <phoebe.parameters.Parameter>
-            in this <phoebe.parmaeters.ParameterSet>
+            in this <phoebe.parameters.ParameterSet>
         """
         return self._options_for_tag('figure')
+
+    @property
+    def solver(self):
+        """Return the value for solver if shared by ALL Parameters.
+
+        If the value is not shared by ALL, then None will be returned.  To see
+        all the qualifiers of all parameters, see <phoebe.parameters.ParameterSet.solvers>.
+
+        To see the value of a single <phoebe.parameters.Parameter> object, see
+        <phoebe.parameters.Parameter.solver>.
+
+        Returns
+        --------
+        (string or None) the value if shared by ALL <phoebe.parameters.Parameter>
+            objects in the <phoebe.parmaters.ParameterSet>, otherwise None
+        """
+        return self._solver
+
+    @property
+    def solvers(self):
+        """Return a list of all the solvers of the Parameters.
+
+        See also:
+        * <phoebe.parameters.ParameterSet.tags>
+
+        For the singular version, see:
+        * <phoebe.parameters.ParameterSet.solver>
+
+        Returns
+        --------
+        * (list) a list of all solvers for each <phoebe.parameters.Parameter>
+            in this <phoebe.parameters.ParameterSet>
+        """
+        return self._options_for_tag('solver')
+
+    @property
+    def solution(self):
+        """Return the value for solution if shared by ALL Parameters.
+
+        If the value is not shared by ALL, then None will be returned.  To see
+        all the qualifiers of all parameters, see <phoebe.parameters.ParameterSet.solutions>.
+
+        To see the value of a single <phoebe.parameters.Parameter> object, see
+        <phoebe.parameters.Parameter.solution>.
+
+        Returns
+        --------
+        (string or None) the value if shared by ALL <phoebe.parameters.Parameter>
+            objects in the <phoebe.parmaters.ParameterSet>, otherwise None
+        """
+        return self._solution
+
+    @property
+    def solutions(self):
+        """Return a list of all the solutions of the Parameters.
+
+        See also:
+        * <phoebe.parameters.ParameterSet.tags>
+
+        For the singular version, see:
+        * <phoebe.parameters.ParameterSet.solution>
+
+        Returns
+        --------
+        * (list) a list of all solutions for each <phoebe.parameters.Parameter>
+            in this <phoebe.parameters.ParameterSet>
+        """
+        return self._options_for_tag('solution')
 
     @property
     def kind(self):
@@ -1109,7 +1295,7 @@ class ParameterSet(object):
         Returns
         --------
         * (list) a list of all kinds for each <phoebe.parameters.Parameter>
-            in this <phoebe.parmaeters.ParameterSet>
+            in this <phoebe.parameters.ParameterSet>
         """
         return self._options_for_tag('kind')
 
@@ -1143,7 +1329,7 @@ class ParameterSet(object):
         Returns
         --------
         * (list) a list of all contexts for each <phoebe.parameters.Parameter>
-            in this <phoebe.parmaeters.ParameterSet>
+            in this <phoebe.parameters.ParameterSet>
         """
         return self._options_for_tag('context')
 
@@ -1162,7 +1348,7 @@ class ParameterSet(object):
             else:
                 setattr(self, '_'+field, None)
 
-    def _uniquetwig(self, param_or_twig, force_levels=['qualifier']):
+    def _uniquetags(self, param_or_twig, force_levels=['qualifier'], exclude_levels=[]):
         """
         get the least unique twig for the parameter given by twig that
         will return this single result for THIS PS
@@ -1171,7 +1357,7 @@ class ParameterSet(object):
                 THIS PS
         :parameter list force_levels: (optional) a list of "levels"
             (eg. context) that should be included whether or not they are
-            necessary
+            necessary.  'context' will be appended unless `incl_context` is disabled.
         :return: the unique twig
         :rtype: str
         """
@@ -1186,12 +1372,17 @@ class ParameterSet(object):
             force_levels.append('context')
 
         for k in force_levels:
+            if k in exclude_levels:
+                continue
             metawargs[k] = getattr(for_this_param, k)
 
         prev_count = len(self)
         # just to fake in case no metawargs are passed at all
         ps_for_this_search = []
         for k in _meta_fields_twig:
+            if k in exclude_levels or k in force_levels:
+                continue
+
             metawargs[k] = getattr(for_this_param, k)
             if getattr(for_this_param, k) is None:
                 continue
@@ -1207,18 +1398,18 @@ class ParameterSet(object):
         if len(ps_for_this_search) != 1:
             # TODO: after fixing regex in twig (t0type vs t0)
             # change this to raise Error instead of return
-            return for_this_param.twig
+            return {k:v for k,v in for_this_param.tags.items() if len(k)}
 
         # now we go in the other direction and try to remove each to make sure
         # the count goes up
         for k in _meta_fields_twig:
-            if metawargs[k] is None or k in force_levels:
+            if metawargs.get(k, None) is None or k in force_levels:
                 continue
 
             ps_for_this_search = self.filter(check_visible=False,
                                              **{ki: metawargs[ki]
                                                 for ki in _meta_fields_twig
-                                                if ki != k})
+                                                if ki != k and ki in metawargs.keys()})
 
             if len(ps_for_this_search) == 1:
                 # then we didn't need to use this tag
@@ -1230,11 +1421,29 @@ class ParameterSet(object):
         if hasattr(for_this_param, context):
             metawargs[context] = getattr(for_this_param, context)
 
+        return {k:v for k,v in metawargs.items() if v is not None}
+
+    def _uniquetwig(self, param_or_twig, force_levels=['qualifier'], exclude_levels=[]):
+        """
+        get the least unique twig for the parameter given by twig that
+        will return this single result for THIS PS
+
+        :parameter str twig: a twig that will return a single Parameter from
+                THIS PS
+        :parameter list force_levels: (optional) a list of "levels"
+            (eg. context) that should be included whether or not they are
+            necessary.  'context' will be appended unless `incl_context` is disabled.
+        :return: the unique twig
+        :rtype: str
+        """
+        metawargs = self._uniquetags(param_or_twig, force_levels=force_levels, exclude_levels=exclude_levels)
+
+
         return "@".join([metawargs[k]
                          for k in _meta_fields_twig
-                         if metawargs[k] is not None])
+                         if metawargs.get(k, None) is not None])
 
-    def _attach_params(self, params, check_copy_for=True, override_tags=False, **kwargs):
+    def _attach_params(self, params, check_copy_for=True, override_tags=False, new_uniqueids=False, overwrite=False, return_changes=False, **kwargs):
         """Attach a list of parameters (or ParameterSet) to this ParameterSet.
 
         :parameter list params: list of parameters, or ParameterSet
@@ -1242,20 +1451,29 @@ class ParameterSet(object):
         """
         lst = params.to_list() if isinstance(params, ParameterSet) else params
         ps = params if isinstance(params, ParameterSet) else ParameterSet(params)
+        ret_changes = []
         for param in lst:
             param._bundle = self
+
+            if new_uniqueids:
+                param._uniqueid = _uniqueid()
 
             for k, v in kwargs.items():
                 # Here we'll set the attributes (_context, _qualifier, etc)
                 if k in ['check_default', 'check_visible']: continue
                 if getattr(param, '_{}'.format(k)) is None or override_tags:
                     setattr(param, '_{}'.format(k), v)
+
+            if overwrite:
+                ret_changes += self.remove_parameters_all(**{k:v for k,v in param.meta.items() if k not in ['uniqueid', 'twig', 'uniquetwig']}).to_list()
             self._params.append(param)
 
         if check_copy_for:
             self._check_copy_for()
 
-        return
+        if ret_changes:
+            return ParameterSet(ret_changes)
+        return []
 
     def _check_copy_for(self):
         """Check the value of copy_for and make appropriate copies."""
@@ -1418,6 +1636,8 @@ class ParameterSet(object):
         """Adding 2 PSs returns a new PS with items that are in either."""
         if isinstance(other, Parameter):
             other = ParameterSet([other])
+        elif isinstance(other, list):
+            other = ParameterSet(other)
 
         if isinstance(other, ParameterSet):
             # NOTE: used to have the following but doesn't work in python3
@@ -1439,6 +1659,8 @@ class ParameterSet(object):
 
         if isinstance(other, Parameter):
             other = ParameterSet([other])
+        elif isinstance(other, list):
+            other = ParameterSet(other)
 
         if isinstance(other, ParameterSet):
             ps = ParameterSet([p for p in self._params if p not in other._params])
@@ -1503,7 +1725,7 @@ class ParameterSet(object):
 
         return cls(data)
 
-    def save(self, filename, incl_uniqueid=False, compact=False):
+    def save(self, filename, incl_uniqueid=False, compact=False, sort_by_context=True):
         """
         Save the ParameterSet to a JSON-formatted ASCII file.
 
@@ -1528,78 +1750,273 @@ class ParameterSet(object):
         f = open(filename, 'w')
         if compact:
             if _can_ujson:
-                ujson.dump(self.to_json(incl_uniqueid=incl_uniqueid), f,
-                           sort_keys=False, indent=0)
+                ujson.dump(self.to_json(incl_uniqueid=incl_uniqueid, sort_by_context=sort_by_context),
+                           f, sort_keys=False, indent=0)
             else:
                 logger.warning("for faster compact saving, install ujson")
-                json.dump(self.to_json(incl_uniqueid=incl_uniqueid), f,
-                          sort_keys=False, indent=0)
+                json.dump(self.to_json(incl_uniqueid=incl_uniqueid, sort_by_context=sort_by_context),
+                          f, sort_keys=False, indent=0)
         else:
-            json.dump(self.to_json(incl_uniqueid=incl_uniqueid), f,
-                      sort_keys=True, indent=0, separators=(',', ': '))
+            json.dump(self.to_json(incl_uniqueid=incl_uniqueid, sort_by_context=sort_by_context),
+                      f, sort_keys=True, indent=0, separators=(',', ': '))
         f.close()
 
         return filename
 
-    def ui(self, client='http://localhost:3000', full_ui=None, **kwargs):
-        """
-        Open an interactive user-interface for the ParameterSet.
+    def _launch_ui(self, web_client, action, filter={}, full_ui=False, blocking=None):
 
-        The bundle must be in client mode in order to open the web-interface.
-        See <phoebe.frontend.bundle.Bundle.as_client> to switch to client mode.
-
-        See also:
-        * <phoebe.frontend.bundle.Bundle.from_server>
-        * <phoebe.frontend.bundle.Bundle.as_client>
-        * <phoebe.frontend.bundle.Bundle.is_client>
-        * <phoebe.frontend.bundle.Bundle.client_update>
-
-        Arguments
-        -----------
-        * `client` (str, optional, default='http://localhost:3000'): URL to find
-            and launch the web-client.
-        * `full_ui` (bool or None, optional, default=None): whether to launch
-            the full navigatable UI (as opposed to just the ParameterSet view).
-            If None, will default to True for a Bundle or False for a ParameterSet.
-        * `**kwargs`: additional kwargs will be sent to
-            <phoebe.parameters.ParameterSet.filter>.
-
-        Returns
-        ----------
-        * `url` (string): the opened URL (will attempt to launch in the system
-            webbrowser)
-        """
-        if not conf.devel:
-            raise NotImplementedError("'ui' not officially supported for this release.  Enable developer mode to test.")
-
-        if self._bundle is None or not self._bundle.is_client:
-            raise ValueError("bundle must be in client mode.  Call bundle.as_client()")
-
-        if len(kwargs):
-            return self.filter(**kwargs).ui(client=client)
-
-        def filteritem(v):
+        def filteritem(k, v):
             if isinstance(v, list):
                 return v
             else:
                 return [v]
 
-        querystr = "&".join(["{}={}".format(k, filteritem(v))
-                             for k, v in self._filter.items()])
-        # print self._filter
-        if full_ui is None:
-            full_ui = len(self._filter.keys()) == 0
+        if len(filter.items()):
+            querystr = "&".join(["{}={}".format(k, filteritem(k, v))
+                                 for k, v in filter.items()])
 
-
-        ### TODO: can we support launching the electron instance if installed?
-        if full_ui:
-            url = "{}/{}/{}?{}".format(client, self._bundle.is_client.strip("http://"), self._bundle._bundleid, querystr)
         else:
-            url = "{}/{}/{}/ps?{}".format(client, self._bundle.is_client.strip("http://"), self._bundle._bundleid, querystr)
+            querystr = ""
 
-        logger.info("opening {} in browser".format(url))
-        webbrowser.open(url)
-        return url
+        was_client = self._bundle.is_client
+
+        # let's handle some defaults.
+        # First determine if we're in jupyter, ipython, or python
+        try:
+            ipython_class = get_ipython().__class__.__name__
+        except NameError:
+            ipython_class = None
+
+        if ipython_class == 'ZMQInteractiveShell':
+            is_jupyter = True
+        else:
+            is_jupyter = False
+
+        if is_jupyter:
+            if self._bundle.is_client:
+                querystr += "&disconnectButton=disconnect"
+            else:
+                querystr += "&disconnectButton=continue"
+
+        # now if full_ui was passed to auto, then we want to default to False
+        # for Jupyter, but to True if no filter otherwise
+        if full_ui == 'auto':
+            if is_jupyter:
+                full_ui = False
+            else:
+                full_ui = len(self._filter.items()) == 0
+
+        if len(self._filter.items()) or not full_ui:
+            # then we want to make sure we're not filtering out things that should be in the filter
+            # but if we're launching the full_ui UNFILTERED, then default to as if it were opened
+            querystr += "&advanced=['is_advanced','is_single','is_constraint']"
+
+        # and now disable the passed action from the parent method if full_ui
+        # is (still) true
+        action = action if not full_ui else None
+
+        if web_client is None:
+            web_client = self._bundle.get_value(qualifier='web_client', context='setting', default=False, **_skip_filter_checks)
+        if web_client is True:
+            web_client = self._bundle.get_value(qualifier='web_client_url', context='setting', default='ui.phoebe-project.org', **_skip_filter_checks)
+
+        # TODO: expose options for advanced filters (or include everything by default)
+
+        if web_client or (is_jupyter and not full_ui):
+            if not web_client:
+                # then we want to launch the UI inline.  We can't do this from
+                # the installed client directly, BUT since the server is on
+                # localhost, it will be serving the static web-version of the
+                # desktop-client to self._bundle.is_client/ui
+                if not self._bundle.is_client:
+                    blocking = blocking if blocking is not None else True
+                    if blocking:
+                        logger.info("(temporarily) entering client mode")
+                    else:
+                        logger.info("entering client mode for non-blocking UI.  Must manually call b.as_client(False) to exit client mode.")
+                    self._bundle.as_client()
+                else:
+                    blocking = blocking if blocking is not None else False
+
+                web_client = self._bundle.is_client
+                is_static_file = True
+
+            else:
+                is_static_file = False
+                blocking = blocking if blocking is not None else False
+
+                # then we must be in client mode already, if not, we'll raise an error
+                # note that we do allow not in client-mode for the case of jupyter
+                # as we will launch the server on localhost and manage it
+                if not self._bundle.is_client:
+                    # TODO: could allow passing as_client to PS.ui() to launch in one line...
+                    # self._bundle.as_client(as_client=as_client, bundleid=bundleid, wait_for_server=True, reconnection_attempts=3, blocking=False)
+                    raise ValueError("bundle must be in client mode (see b.as_client) before launching a web_client.")
+
+            if web_client is True:
+                web_client = 'http://ui.phoebe-project.org'
+
+            if 'http' not in web_client[:5]:
+                web_client = 'http://'+web_client
+
+            if action:
+                url = "{}/{}/{}/{}?{}".format(web_client, self._bundle.is_client.strip("http://"), self._bundle._bundleid, action, querystr)
+            else:
+                url = "{}/{}/{}?{}".format(web_client, self._bundle.is_client.strip("http://"), self._bundle._bundleid, querystr)
+
+
+            if is_jupyter:
+                jui = JupyterUI(url)
+                if blocking:
+                    from IPython.display import display, HTML
+                    display(HTML(jui._repr_html_()))
+
+                    # first wait to make sure the jupyter client connects
+                    while len(self._bundle._server_clients) < 2:
+                        logger.debug("blocking: waiting for jupyter client to connect", self._bundle._server_clients)
+                        time.sleep(0.1)
+
+                    # now the server is connect to at least the jupyter client and python-client
+                    while len(self._bundle._server_clients) > 1:
+                        logger.debug("blocking: waiting for jupyter client to disconnect", self._bundle._server_clients)
+                        time.sleep(0.5)
+
+                    if not was_client:
+                        logger.info("leaving client mode")
+                        self._bundle.as_client(False)
+                else:
+                    return jui
+            else:
+                # the is_jupyter case will be
+                logger.info("opening {} in browser".format(url))
+                webbrowser.open(url)
+                return url
+
+
+        else:
+            # then we'll attempt to launch the desktop app on this machine
+            cmd = 'phoebe'
+            if self._bundle.is_client:
+                blocking = blocking if blocking is not None else False
+            if not self._bundle.is_client:
+                blocking = blocking if blocking is not None else True
+                if blocking:
+                    logger.info("(temporarily) entering client mode")
+                else:
+                    logger.info("entering client mode for non-blocking UI.  Must manually call b.as_client(False) to exit client mode.")
+                self._bundle.as_client()
+
+            # then we're attaching the UI to an already existing instance on an already running server
+            cmd += ' -s {} -b {}'.format(self._bundle.is_client.strip('http://'), self._bundle._bundleid)
+            cmd += ' --skip-child-server'
+            cmd += ' --disable-bundle-change'
+
+            if querystr:
+                cmd += ' -f \"{}\"'.format(querystr.replace(' ', ''))
+
+            if action:
+                cmd += ' -a {}'.format(action)
+
+            # then we want to launch the UI in a separate thread
+            cmd += ' --noWarnOnClose'
+
+            if not blocking:
+                cmd += ' &'
+
+            logger.info("system call: "+cmd)
+            # NOTE: this will block if not blocking
+            os.system(cmd)
+
+            if not was_client and blocking:
+                logger.info("leaving client mode")
+                self._bundle.as_client(False)
+
+
+    def ui(self, web_client=None, full_ui=None, blocking=None, **kwargs):
+        """
+        Open an interactive user-interface for the ParameterSet.
+
+        If the bundle is in client mode (see <phoebe.frontend.bundle.Bundle.is_client>
+        and <phoebe.frontend.bundle.Bundle.as_client>) then the UI will open
+        asynchronously or non-blocking (allowing you to interact from
+        both python and the UI simultaneously).  Otherwise the UI will open
+        synchronously by blocking the thread until the UI is closed and the
+        bundle will continue outside of client mode.  To override this default
+        behavior, see `blocking`. Note that if the bundle is not currently in
+        client-mode but `blocking` is manually set to False, then the bundle
+        will remain in client mode until manually passing `False` to
+        <phoebe.frontend.bundle.Bundle.as_client>
+
+        If the UI is not installed, pass a URL to `web_client`
+        (ie. http://ui.phoebe-project.org) to launch the web-client in the
+        default system browser. Note that this requires the bundle to already be in client mode.
+        Call <phoebe.frontend.bundle.Bundle.as_client> first to use `web_client`.
+
+        In Jupyter notebooks, the UI will be shown in-line with a button to disconnect
+        that instance of the client (if not blocking) or to disconnect and "continue"
+        the notebook execution if blocking.
+
+        To more information or to install the desktop-client, see
+        http://phoebe-project.org/clients
+
+        See also:
+        * <phoebe.frontend.bundle.Bundle.ui_figures>
+        * <phoebe.frontend.bundle.Bundle.from_server>
+        * <phoebe.frontend.bundle.Bundle.as_client>
+        * <phoebe.frontend.bundle.Bundle.is_client>
+
+        Arguments
+        -----------
+        * `web_client` (bool or string, optional, default=False):
+            If not provided or None, this will default to the values in the
+            settings for `web_client` and `web_client_url`.
+            If True, a web-client will be preferred over a desktop-client and
+            will default to using the settings for `web_client_url`.
+            If False, will use the desktop-client instead of a web-client.
+            If a string, the string will be used as the url for the web-client.
+            Note that if using a web-client, the bundle must already be
+            in client mode.  See <phoebe.frontend.bundle.Bundle.is_client>
+            and <phoebe.frontend.bundle.Bundle.as_client>.
+        * `full_ui` (bool, optional, default=None): whether to show the entire
+            bundle or just the filtered ParameterSet.  If not provided, will
+            default to True if acting on the Bundle, or False if acting on
+            a filtered ParameterSet.  If in Jupyter, will default to False
+            always, and override to True will launch the full client (not in-line)
+        * `blocking` (bool, optional, default=None): whether the clal to the
+            UI should be blocking (wait for the client to close/disconnect)
+            before continuing the python-thread or not.  If not provided or
+            None, will default to True if not currently in client-mode
+            (see <phoebe.frontend.bundle.Bundle.is_client> and
+            <phoebe.frontend.bundle.Bundle.as_client>) or False otherwise.
+        * `**kwargs`: additional kwargs will be sent to
+            <phoebe.parameters.ParameterSet.filter>.
+
+        Returns
+        ----------
+        * if `web_client`: `url` (string): the opened URL (will attempt to launch in the system
+            webbrowser)
+
+        Raises
+        -----------
+        * ValueError: if the <phoebe.parameters.ParameterSet> is not attached
+            to a parent <phoebe.frontend.bundle.Bundle>.
+        * ValueError: if `web_client` is provided but the <phoebe.frontend.bundle.Bundle>
+            is not in client mode (see <phoebe.frontend.bundle.Bundle.is_client>
+            and <phoebe.frontend.bundle.Bundle.as_client>)
+        """
+        if self._bundle is None:
+            raise ValueError("cannot call ui on a ParameterSet not attached to a Bundle")
+
+
+        if len(kwargs):
+            return self.filter(**kwargs).ui(web_client=web_client, full_ui=full_ui, blocking=blocking)
+
+        if full_ui is None:
+            # default to True for the full bundle, False for a filtered PS
+            full_ui = 'auto'
+
+        action = 'ps'
+        return self._launch_ui(web_client, action, self._filter, full_ui, blocking)
 
     def to_list(self, **kwargs):
         """
@@ -1657,9 +2074,10 @@ class ParameterSet(object):
             return self.filter(**kwargs).to_list_of_dicts()
         return [param.to_dict() for param in self._params]
 
-    def __dict__(self):
-        """Dictionary representation of a ParameterSet."""
-        return self.to_dict()
+    # @property
+    # def __dict__(self):
+    #     """Dictionary representation of a ParameterSet."""
+    #     return self.to_dict()
 
     def to_flat_dict(self, **kwargs):
         """
@@ -1765,27 +2183,27 @@ class ParameterSet(object):
         ---------
         * (list) list of strings
         """
-        return list(self.__dict__().keys())
+        return list(self.to_dict().keys())
 
     def values(self):
         """
-        Return the values from <phoebe.parmaeters.ParameterSet.to_dict>
+        Return the values from <phoebe.parameters.ParameterSet.to_dict>
 
         Returns
         -------
         * (list) list of <phoebe.paramters.ParameterSet> or
             <phoebe.parameters.Parameter> objects.
         """
-        return self.__dict__().values()
+        return self.to_dict().values()
 
     def items(self):
         """
         Returns the items (key, value pairs) from
-        <phoebe.parmaeters.ParameterSet.to_dict>.
+        <phoebe.parameters.ParameterSet.to_dict>.
 
         :return: string, :class:`Parameter` or :class:`ParameterSet` pairs
         """
-        return self.__dict__().items()
+        return self.to_dict().items()
 
     def set(self, key, value, **kwargs):
         """
@@ -1871,8 +2289,13 @@ class ParameterSet(object):
     def __contains__(self, twig):
         """
         """
-        # may not be an exact match with __dict__.keys()
-        return len(self.filter(twig=twig))
+        # may not be an exact match with to_dict().keys()
+        if isinstance(twig, Parameter):
+            return len(self.filter(uniqueid=twig.uniqueid))
+        elif isinstance(twig, str):
+            return len(self.filter(twig=twig))
+        else:
+            raise NotImplementedError("cannot check contains on type {}".format(type(twig)))
 
     def __len__(self):
         """
@@ -1882,9 +2305,9 @@ class ParameterSet(object):
     def __iter__(self):
         """
         """
-        return iter(self.__dict__())
+        return iter(self.to_dict())
 
-    def to_json(self, incl_uniqueid=False, exclude=[]):
+    def to_json(self, incl_uniqueid=False, incl_none=False, exclude=[], sort_by_context=True):
         """
         Convert the <phoebe.parameters.ParameterSet> to a json-compatible
         object.
@@ -1903,6 +2326,8 @@ class ParameterSet(object):
         * `incl_uniqueid` (bool, optional, default=False): whether to include
             uniqueids in the file (only needed if its necessary to maintain the
             uniqueids when reloading)
+        * `incl_none` (bool, optional, default=False): whether to include tags
+            whose values are None.
         * `exclude` (list, optional, default=[]): tags to exclude when saving.
 
         Returns
@@ -1910,11 +2335,14 @@ class ParameterSet(object):
         * (list of dicts)
         """
         lst = []
-        for context in _contexts:
-            lst += [v.to_json(incl_uniqueid=incl_uniqueid, exclude=exclude)
-                    for v in self.filter(context=context,
-                                         check_visible=False,
-                                         check_default=False).to_list()]
+        if sort_by_context:
+            for context in _contexts:
+                lst += [v.to_json(incl_uniqueid=incl_uniqueid, incl_none=incl_none, exclude=exclude)
+                        for v in self.filter(context=context,
+                                             check_visible=False,
+                                             check_default=False).to_list()]
+        else:
+            lst = [v.to_json(incl_uniqueid=incl_uniqueid, exclude=exclude) for v in self.to_list()]
         return lst
         # return {k: v.to_json() for k,v in self.to_flat_dict().items()}
 
@@ -1925,8 +2353,6 @@ class ParameterSet(object):
         """
         Export arrays from <phoebe.parameters.Parameter.FloatArrayParameter>
         parameters to a file via `np.savetxt`.
-
-        NEW IN PHOEBE 2.2
 
         Each parameter will have its array values as a column in the output
         file in a format that can be reloaded manually with `np.loadtxt`.
@@ -2175,6 +2601,33 @@ class ParameterSet(object):
             of the results is exactly 1 and `force_ps=False`, otherwise the
             resulting <phoebe.parameters.ParameterSet>.
         """
+        def _return(params, force_ps, method=None):
+            if len(params) == 1 and not force_ps:
+                # then just return the parameter itself
+                if method is None:
+                    return params[0]
+                else:
+                    return getattr(params[0], method)()
+
+            elif method is not None:
+                raise ValueError("{} results found, could not call {}".format(len(params), method))
+
+            # TODO: handle returning 0 results better
+
+            ps = ParameterSet(params)
+            ps._bundle = self._bundle
+            ps._filter = self._filter.copy()
+            for k, v in kwargs.items():
+                if k in _meta_fields_filter:
+                    ps._filter[k] = v
+            if twig is not None and not isinstance(twig, list):
+                # try to guess necessary additions to filter
+                twigsplit = twig.split('@')
+                for attr in _meta_fields_twig:
+                    tag = getattr(ps, attr)
+                    if tag in twigsplit:
+                        ps._filter[attr] = tag
+            return ps
 
         if self._bundle is None:
             # then override check_default to False - its annoying when building
@@ -2182,7 +2635,13 @@ class ParameterSet(object):
             # of the Parameters hidden by this switch
             check_default = False
 
-        if not (twig is None or isinstance(twig, str) or isinstance(twig, unicode)):
+        if isinstance(twig, list):
+            params = []
+            for t in twig:
+                params += self.filter(twig=t, check_visible=check_visible, check_default=check_default, check_advanced=check_advanced, check_single=check_single, **kwargs).to_list()
+            return _return(params, force_ps)
+
+        if not (twig is None or isinstance(twig, str)):
             raise TypeError("first argument (twig) must be of type str or None, got {}".format(type(twig)))
 
         if kwargs.get('component', None) == '_default' or\
@@ -2192,6 +2651,9 @@ class ParameterSet(object):
             # then override the default for check_default and make sure to
             # return a result
             check_default = False
+
+        if kwargs.get('uniqueid', None) is not None:
+            check_visible = False
 
         time = kwargs.get('time', None)
         if hasattr(time, '__iter__') and not isinstance(time, str):
@@ -2225,22 +2687,9 @@ class ParameterSet(object):
         # TODO: replace with key,value in kwargs.items()... unless there was
         # some reason that won't work?
         for key in kwargs.keys():
-            # TODO [optimize]: this probably isn't efficient, but I'm getting
-            # sick of running into bugs caused by passing unicodes
-            if isinstance(kwargs[key], unicode):
-                kwargs[key] = str(kwargs[key])
-
             if len(params) and \
                     key in _meta_fields_filter and \
                     kwargs[key] is not None:
-
-                #if kwargs[key] is None:
-                #    params = [pi for pi in params if getattr(pi,key) is None]
-                #else:
-                if isinstance(kwargs[key], unicode):
-                    # unicodes can cause all sorts of confusions with fnmatch,
-                    # so let's just cast now and be done with it
-                    kwargs[key] = str(kwargs[key])
 
                 params = [pi for pi in params if (hasattr(pi,key) and getattr(pi,key) is not None or isinstance(kwargs[key], list) and None in kwargs[key]) and
                     (getattr(pi,key) is kwargs[key] or
@@ -2253,11 +2702,11 @@ class ParameterSet(object):
                     #(key=='time' and abs(float(getattr(pi,key))-float(kwargs[key]))<=abs(np.array([p._time for p in params])-float(kwargs[key]))))]
 
         # handle hiding _default (cheaper than visible_if so let's do first)
-        if check_default and conf.check_default:
+        if check_default:
             params = [pi for pi in params if pi.component != '_default' and pi.dataset != '_default' and pi.feature != '_default']
 
         # handle visible_if
-        if check_visible and conf.check_visible:
+        if check_visible:
             params = [pi for pi in params if pi.is_visible]
 
         # handle hiding advanced parameters
@@ -2281,7 +2730,7 @@ class ParameterSet(object):
         # now do twig matching
         method = None
         if twig is not None:
-            _user_twig = deepcopy(twig)
+            _user_twig = _deepcopy(twig)
             twigsplit = twig.split('@')
             if twigsplit[0] == 'value':
                 twig = '@'.join(twigsplit[1:])
@@ -2341,32 +2790,7 @@ class ParameterSet(object):
                                 options.append(completed_twig)
                 return options
 
-        if len(params) == 1 and not force_ps:
-            # then just return the parameter itself
-            if method is None:
-                return params[0]
-            else:
-                return getattr(params[0], method)()
-
-        elif method is not None:
-            raise ValueError("{} results found, could not call {}".format(len(params), method))
-
-        # TODO: handle returning 0 results better
-
-        ps = ParameterSet(params)
-        ps._bundle = self._bundle
-        ps._filter = self._filter.copy()
-        for k, v in kwargs.items():
-            if k in _meta_fields_filter:
-                ps._filter[k] = v
-        if twig is not None:
-            # try to guess necessary additions to filter
-            # twigsplit = twig.split('@')
-            for attr in _meta_fields_twig:
-                tag = getattr(ps, attr)
-                if tag in twigsplit:
-                    ps._filter[attr] = tag
-        return ps
+        return _return(params, force_ps, method)
 
     def exclude(self, twig=None, check_visible=True, check_default=True, **kwargs):
         """
@@ -2538,7 +2962,7 @@ class ParameterSet(object):
 
         Returns
         -----------
-        * the removed <phoebe.parmaeters.Parameter>.
+        * the removed <phoebe.parameters.Parameter>.
 
         Raises
         ------
@@ -2581,7 +3005,10 @@ class ParameterSet(object):
         params = self.filter(twig=twig, **kwargs)
 
         for param in params.to_list():
-            self._remove_parameter(param)
+            param._bundle = None
+
+        removed_ids = [p.uniqueid for p in params.to_list()]
+        self._params = [p for p in self._params if p.uniqueid not in removed_ids]
 
         return params
 
@@ -2610,7 +3037,9 @@ class ParameterSet(object):
         * `twig` (string, optional, default=None): twig to be used to access
             the Parameter.  See <phoebe.parameters.ParameterSet.get_parameter>.
         * `unit` (string or unit, optional, default=None): unit to convert the
-            quantity.  If not provided or None, will use the default unit.  See
+            quantity.  If not provided or None, will use the default unit.
+            'SI' or 'solar' are also allowed values which will then be determined
+            based on the physical type of the default unit.  See
             <phoebe.parameters.ParameterSet.get_default_unit>.
         * `default` (quantity, optional, default=None): value to return if
             no results are returned by <phoebe.parameters.ParameterSet.get_parameter>
@@ -2696,9 +3125,14 @@ class ParameterSet(object):
         * `twig` (string, optional, default=None): twig to be used to access
             the Parameter.  See <phoebe.parameters.ParameterSet.get_parameter>.
         * `unit` (string or unit, optional, default=None): unit to convert the
-            value.  If not provided or None, will use the default unit.  See
+            value.  If not provided or None, will use the default unit.
+            'SI' or 'solar' are also allowed values which will then be determined
+            based on the physical type of the default unit. See
             <phoebe.parameters.ParameterSet.get_default_unit>. `unit` will
             be ignored for Parameters that do not store quantities.
+        * `draw_from` (string, optional, default=None): distribution-tag to
+            draw from (if applicable).  See <phoebe.parameters.FloatParameter.get_quantity>
+            or <phoebe.parameters.FloatParameter.get_value> for more information.
         * `default` (quantity, optional, default=None): value to return if
             no results are returned by <phoebe.parameters.ParameterSet.get_parameter>
             given the value of `twig` and `**kwargs`.
@@ -2753,7 +3187,7 @@ class ParameterSet(object):
         * `value` (optional, default=None): valid value to set for the
             matched Parameter.
         * `index` (int, optional): only applicable for
-            <phoebe.parmaeters.FloatArrayParameter>.  Passing `index` will call
+            <phoebe.parameters.FloatArrayParameter>.  Passing `index` will call
             <phoebe.parameters.FloatArrayParameter.set_index_value> and pass
             `index` instead of <phoebe.parameters.FloatArrayParameter.set_value>.
         * `**kwargs`: filter options to be passed along to
@@ -2844,7 +3278,7 @@ class ParameterSet(object):
         * `value` (optional, default=None): valid value to set for each
             matched Parameter.
         * `index` (int, optional): only applicable for
-            <phoebe.parmaeters.FloatArrayParameter>.  Passing `index` will call
+            <phoebe.parameters.FloatArrayParameter>.  Passing `index` will call
             <phoebe.parameters.FloatArrayParameter.set_index_value> and pass
             `index` instead of <phoebe.parameters.FloatArrayParameter.set_value>.
         * `ignore_none` (bool, optional, default=False): if `ignore_none=True`,
@@ -3019,46 +3453,6 @@ class ParameterSet(object):
 
         return ps
 
-    def get_adjust(self, twig=None, **kwargs):
-        """
-        [NOT IMPLEMENTED]
-
-        raises NotImplementedError: because it isn't
-        """
-        raise NotImplementedError
-
-    def set_adjust(self):
-        """
-        [NOT IMPLEMENTED]
-
-        raises NotImplementedError: because it isn't
-        """
-        raise NotImplementedError
-
-    def set_adjust_all(self):
-        """
-        [NOT IMPLEMENTED]
-
-        raises NotImplementedError: because it isn't
-        """
-        raise NotImplementedError
-
-    def get_enabled(self, twig=None, **kwargs):
-        """
-        [NOT IMPLEMENTED]
-
-        raises NotImplementedError: because it isn't
-        """
-        raise NotImplementedError
-
-    def set_enabled(self):
-        """
-        [NOT IMPLEMENTED]
-
-        raises NotImplementedError: because it isn't
-        """
-        raise NotImplementedError
-
     def get_description(self, twig=None, **kwargs):
         """
         Get the description of a <phoebe.parameters.Parameter> in the
@@ -3081,7 +3475,10 @@ class ParameterSet(object):
         """
         return self.get_parameter(twig=twig, **kwargs).get_description()
 
-    def calculate_residuals(self, model=None, dataset=None, component=None, as_quantity=True):
+    def calculate_residuals(self, model=None, dataset=None, component=None,
+                            consider_gaussian_process=True,
+                            as_quantity=True, return_interp_model=False,
+                            mask_enabled=None, mask_phases=None):
         """
         Compute residuals between the observed values in a dataset and the
         corresponding model.
@@ -3098,6 +3495,7 @@ class ParameterSet(object):
 
         See also:
         * <phoebe.parameters.ParameterSet.calculate_chi2>
+        * <phoebe.parameters.ParameterSet.calculate_lnlikelihood>
 
         Arguments
         -----------
@@ -3108,12 +3506,26 @@ class ParameterSet(object):
         * `component` (string, optional, default=None): component for comparison.
             Required only if more than one component exist in the dataset (for
             RVs, for example)
+        * `consider_gaussian_process` (bool, optional, defult=True): whether
+            to consider a system with gaussian process(es) as time-dependent
+            for any required interpolation.
         * `as_quantity` (bool, default=True): whether to return a quantity object.
+        * `return_interp_model` (bool, default=False): whether to also return
+            the interpolated model used to compute the residuals.
+        * `mask_enabled` (bool, optional, default=None): whether to enable
+            masking on the dataset(s).  If None or not provided, will default to
+            the values set in the dataset(s).
+        * `mask_phases` (list of tuples, optional, default=None): phase masks
+            to apply if `mask_enabled = True`.  If None or not provided, will
+            default to the values set in the dataset(s).
+
 
         Returns
         -----------
         * (array) array of residuals with same length as the times array of the
-            corresponding dataset.
+            corresponding dataset.  If `return_interp_model = True`, a second
+            array will be returned corresponding to the interpolated values of
+            the model with the same length.
 
         Raises
         ----------
@@ -3121,17 +3533,29 @@ class ParameterSet(object):
             `component`) do not result in a single parameter for comparison.
         * NotImplementedError: if the dataset kind is not supported for residuals.
         """
-        if not len(self.filter(context='dataset').datasets):
-            dataset_ps = self._bundle.get_dataset(dataset=dataset)
+        if dataset is not None and not isinstance(dataset, str):
+            raise TypeError("model must be of type string or None")
+
+        if not len(self.filter(context='dataset', **_skip_filter_checks).datasets):
+            dataset_ps = self._bundle.get_dataset(dataset=dataset, **_skip_filter_checks)
         else:
-            dataset_ps = self.filter(dataset=dataset, context='dataset')
+            dataset_ps = self.filter(dataset=dataset, context='dataset', **_skip_filter_checks)
+
+        if dataset is not None and dataset not in dataset_ps.datasets:
+            raise ValueError("dataset '{}' not found".format(dataset))
 
         dataset_kind = dataset_ps.kind
 
-        if not len(self.filter(context='model').models):
-            model_ps = self._bundle.get_model(model=model).filter(dataset=dataset, component=component)
+        if model is not None and not isinstance(model, str):
+            raise TypeError("model must be of type string or None")
+
+        if not len(self.filter(context='model', **_skip_filter_checks).models):
+            model_ps = self._bundle.filter(model=model, context='model', dataset=dataset, component=component, **_skip_filter_checks)
         else:
-            model_ps = self.filter(model=model, context='model').filter(dataset=dataset, component=component)
+            model_ps = self.filter(model=model, context='model', dataset=dataset, component=component, **_skip_filter_checks)
+
+        if model is not None and model not in model_ps.models:
+            raise ValueError("model '{}' not found".format(model))
 
         if dataset_kind == 'lc':
             qualifier = 'fluxes'
@@ -3142,15 +3566,30 @@ class ParameterSet(object):
             # NOTE: add to documentation if adding support for other datasets
             raise NotImplementedError("calculate_residuals not implemented for dataset with kind='{}' (model={}, dataset={}, component={})".format(dataset_kind, model, dataset, component))
 
-        dataset_param = dataset_ps.get_parameter(qualifier, component=component)
-        model_param = model_ps.get_parameter(qualifier)
+
+        dataset_param = dataset_ps.get_parameter(qualifier, component=component, **_skip_filter_checks)
+        model_param = model_ps.get_parameter(qualifier, **_skip_filter_checks)
 
         # TODO: do we need to worry about conflicting units?
         # NOTE: this should automatically handle interpolating in phases, if necessary
-        times = dataset_ps.get_value(qualifier='times', component=component)
+        times = dataset_ps.get_value(qualifier='times', component=component, **_skip_filter_checks)
         if not len(times):
             raise ValueError("no times in the dataset: {}@{}".format(dataset, component))
-        if not len(dataset_param.get_value()) == len(times):
+
+        mask_enabled = dataset_ps.get_value(qualifier='mask_enabled', default=False, mask_enabled=mask_enabled, **_skip_filter_checks)
+        if mask_enabled:
+            mask_phases = dataset_ps.get_value(qualifier='mask_phases', mask_phases=mask_phases, **_skip_filter_checks)
+            mask_period = dataset_ps.get_value(qualifier='phases_period', default='period', **_skip_filter_checks)
+            mask_dpdt = dataset_ps.get_value(qualifier='phases_dpdt', default='dpdt', **_skip_filter_checks)
+            mask_t0 = dataset_ps.get_value(qualifier='phases_t0', **_skip_filter_checks)
+            if len(mask_phases):
+                phases = self._bundle.to_phase(times, period=mask_period, dpdt=mask_dpdt, t0=mask_t0)
+
+                inds = phase_mask_inds(phases, mask_phases)
+
+                times = times[inds]
+
+        elif not len(dataset_param.get_value()) == len(times):
             if len(dataset_param.get_value())==0:
                 # then the dataset was empty, so let's just return an empty array
                 if as_quantity:
@@ -3163,14 +3602,23 @@ class ParameterSet(object):
         if dataset_param.default_unit != model_param.default_unit:
             raise ValueError("model and dataset do not have the same default_unit, cannot interpolate")
 
-        residuals = np.asarray(dataset_param.interp_value(times=times) - model_param.interp_value(times=times))
+        model_interp = model_param.interp_value(times=times, consider_gaussian_process=consider_gaussian_process)
+        residuals = np.asarray(dataset_param.interp_value(times=times, consider_gaussian_process=consider_gaussian_process) - model_interp)
 
         if as_quantity:
-            return residuals * dataset_param.default_unit
+            if return_interp_model:
+                return residuals * dataset_param.default_unit, model_interp * dataset_param.default_unit
+            else:
+                return residuals * dataset_param.default_unit
         else:
-            return residuals
+            if return_interp_model:
+                return residuals, model_interp
+            else:
+                return residuals
 
-    def calculate_chi2(self, model=None, dataset=None, component=None):
+    def calculate_chi2(self, model=None, dataset=None, component=None,
+                       consider_gaussian_process=True,
+                       mask_enabled=None, mask_phases=None):
         """
         Compute the chi2 between a model and the observed values in the dataset(s).
 
@@ -3190,8 +3638,16 @@ class ParameterSet(object):
         dataset's chi2 value is computed as the sum of squares of residuals
         over the squares of sigmas (if available).
 
+        If `sigmas_lnf` is not -inf (default value), then the following term
+        is added to the squares of sigmas:
+
+        `interpolated_model**2 * np.exp(2 * sigmas_lnf)`
+
+
         See also:
         * <phoebe.parameters.ParameterSet.calculate_residuals>
+        * <phoebe.parameters.ParameterSet.calculate_lnlikelihood>
+        * <phoebe.frontend.bundle.Bundle.calculate_lnp>
 
         Arguments
         -----------
@@ -3204,6 +3660,14 @@ class ParameterSet(object):
             comparison.  Required only if more than one component exist in the
             dataset (for RVs, for example) and not all should be included in
             the chi2
+        * `consider_gaussian_process` (bool, optional, default=True): whether
+            to consider a system with gaussian process(es) as time-dependent
+        * `mask_enabled` (bool, optional, default=None): whether to enable
+            masking on the dataset(s).  If None or not provided, will default to
+            the values set in the dataset(s).
+        * `mask_phases` (list of tuples, optional, default=None): phase masks
+            to apply if `mask_enabled = True`.  If None or not provided, will
+            default to the values set in the dataset(s).
 
         Returns
         -----------
@@ -3216,38 +3680,155 @@ class ParameterSet(object):
 
         chi2 = 0
 
-        if not len(self.filter(context='model').models):
-            model_ps = self._bundle.get_model(model=model).filter(dataset=dataset, component=component)
+        if model is not None and not isinstance(model, str):
+            raise TypeError("model must be of type string or None")
+
+        if not len(self.filter(context='model', **_skip_filter_checks).models):
+            model_ps = self._bundle.filter(model=model, context='model', dataset=dataset, component=component, **_skip_filter_checks)
         else:
-            model_ps = self.filter(model=model, context='model').filter(dataset=dataset, component=component)
+            model_ps = self.filter(model=model, context='model', dataset=dataset, component=component, **_skip_filter_checks)
+
+        if model is not None and model not in model_ps.models:
+            raise ValueError("model '{}' not found".format(model))
+
 
         for ds in model_ps.datasets:
-            ds_comps = model_ps.filter(dataset=ds).components
+            ds_comps = model_ps.filter(dataset=ds, **_skip_filter_checks).components
             if not len(ds_comps):
                 ds_comps = [None]
 
             for ds_comp in ds_comps:
-                residuals = self.calculate_residuals(model=model, dataset=ds, component=ds_comp, as_quantity=True)
-                sigmas = self._bundle.get_dataset(dataset=ds).get_value('sigmas', component=ds_comp, unit=residuals.unit)
+                residuals, model_interp = self.calculate_residuals(model=model, dataset=ds, component=ds_comp,
+                                                                   return_interp_model=True,
+                                                                   consider_gaussian_process=consider_gaussian_process,
+                                                                   mask_enabled=mask_enabled, mask_phases=mask_phases,
+                                                                   as_quantity=True)
+                ds_ps = self._bundle.get_dataset(dataset=ds, **_skip_filter_checks)
+                sigmas = ds_ps.get_value(qualifier='sigmas', component=ds_comp, unit=residuals.unit, **_skip_filter_checks)
+
+                mask_enabled = ds_ps.get_value(qualifier='mask_enabled', default=False, mask_enabled=mask_enabled, **_skip_filter_checks)
+                if mask_enabled:
+                    mask_phases = ds_ps.get_value(qualifier='mask_phases', mask_phases=mask_phases, **_skip_filter_checks)
+                    mask_period = ds_ps.get_value(qualifier='phases_period', default='period', **_skip_filter_checks)
+                    mask_dpdt = ds_ps.get_value(qualifier='phases_dpdt', default='dpdt', **_skip_filter_checks)
+                    mask_t0 = ds_ps.get_value(qualifier='phases_t0', **_skip_filter_checks)
+                    if len(mask_phases):
+                        times = ds_ps.get_value(qualifier='times', component=ds_comp, unit=u.d, **_skip_filter_checks)
+                        phases = self._bundle.to_phase(times, period=mask_period, dpdt=mask_dpdt, t0=mask_t0)
+
+                        inds = phase_mask_inds(phases, mask_phases)
+
+                        sigmas = sigmas[inds]
+
+
+                sigmas_lnf = ds_ps.get_value(qualifier='sigmas_lnf', component=ds_comp, default=-np.inf, **_skip_filter_checks)
 
                 if len(sigmas):
-                    chi2 += np.sum(residuals.value**2 / sigmas**2)
+                    sigmas2 = sigmas**2
+                    if sigmas_lnf != -np.inf:
+                        sigmas2 += model_interp.value ** 2 * np.exp(2 * sigmas_lnf)
+
+                    chi2 += np.sum((residuals.value**2 / sigmas2) + np.log(sigmas2))
                 else:
                     chi2 += np.sum(residuals.value**2)
 
         return chi2
 
+    def calculate_lnlikelihood(self, model=None, dataset=None, component=None, consider_gaussian_process=True):
+        """
+        Compute the log-likelihood between a model and the observed values in the dataset(s).
+
+        Currently supports the following datasets:
+        * <phoebe.parameters.dataset.lc>
+        * <phoebe.parameters.dataset.rv>
+
+        This returns -0.5 * chi2 (see <phoebe.parameters.ParameterSet.calculate_chi2>)
+
+        See also:
+        * <phoebe.parameters.ParameterSet.calculate_residuals>
+        * <phoebe.parameters.ParameterSet.calculate_chi2>
+        * <phoebe.frontend.bundle.Bundle.calculate_lnp>
+
+        Arguments
+        -----------
+        * `model` (string, optional, default=None): model to compare against
+            observations.  Required if more than one model exist.
+        * `dataset` (string or list, optional, default=None): dataset(s) for comparison.
+            Will sum over chi2 values of all datasets that match the filter.  So
+            if not provided, will default to all datasets exposed in the model.
+        * `component` (string or list, optional, default=None): component(s) for
+            comparison.  Required only if more than one component exist in the
+            dataset (for RVs, for example) and not all should be included in
+            the chi2
+        * `consider_gaussian_process` (bool, optional, default=True): whether
+            to consider a system with gaussian process(es) as time-dependent
+
+        Returns
+        -----------
+        * (float) log-likelihood value
+
+        Raises
+        ----------
+        * NotImplementedError: if the dataset kind is not supported for residuals.
+        """
+
+        return -0.5 * self.calculate_chi2(model, dataset, component, consider_gaussian_process=consider_gaussian_process)
 
     def _unpack_plotting_kwargs(self, animate=False, **kwargs):
 
-
+        def _handle_additional_calls(ps, kwargss):
+            for kwargs in kwargss:
+                additional_calls = kwargs.pop('additional_calls', [])
+                if additional_calls:
+                    ps = additional_calls.pop('ps', ps)
+                    kw_additional = {k:v for k,v in kwargs.items() if k not in ['autofig_method', 'i', 'iqualifier', 'x', 'xqualifier', 'xerror', 'y', 'yqualifier', 'yerror', 'z', 'zqualifier', 'zerror']}
+                    for k,v in additional_calls.items():
+                        kw_additional[k] = v
+                    # print("*** kw_additional", kw_additional)
+                    kwargss += ps._unpack_plotting_kwargs(animate=animate, **kw_additional)
+            return kwargss
 
         # We now need to unpack if the contents within kwargs contain multiple
         # contexts/datasets/kinds/components/etc.
         # the dataset tag can appear in the compute context as well, so if the
         # context tag isn't in kwargs, let's default it to dataset or model
-        kwargs.setdefault('context', ['dataset', 'model'])
+        # print("**************************************************")
+        # print("*** kwargs['context'] (provided)", kwargs.get('context'))
+        # print("*** _filter['context']", self._filter.get('context'))
+        if 'context' not in kwargs.keys() and 'context' not in self._filter.keys():
+            provided_tags = list(self._filter.keys()) + list(kwargs.keys())
+            # print("*** getting default contexts, provided_tags=", provided_tags)
+            default_contexts = []
+            if 'style' in kwargs.keys():
+                default_contexts += ['solution']
+            # if we have a tag-filter (either before or within .plot), we want to
+            # include that context.  For example:
+            # b.filter(model='mymodel').plot(solution='mysolution')
+            # should include contexts ['model', 'solution']
+            default_contexts += [context for context in self.contexts if (context in provided_tags or 'twig' in kwargs.keys()) and context in ['dataset', 'compute', 'model', 'distribution', 'solver', 'solution']]
 
+            if not len(default_contexts):
+                # then there were no tag filters so we'll default to model
+                # (and therefore dataset)
+                default_contexts += ['model']
+
+            if 'model' in default_contexts and 'dataset' not in default_contexts:
+                # then we also want to include context='dataset'
+                # NOTE: this will not be the case if context was explicitly
+                # provided by the user
+                default_contexts += ['dataset']
+
+            if 'dataset' in default_contexts and 'model' not in default_contexts:
+                default_contexts += ['model']
+
+            kwargs.setdefault('context', default_contexts)
+
+        if isinstance(kwargs.get('context'), str):
+            kwargs['context'] = [kwargs['context']]
+
+        # print("*** kwargs['context'] (after defaults)", kwargs.get('context'))
+        # print("*** before filter self.contexts", self.contexts)
+        # print("*** kwargs", kwargs)
         filter_kwargs = {}
         for k in list(self.get_meta(ignore=['uniqueid', 'uniquetwig', 'twig']).keys())+['twig']:
             if k in ['time']:
@@ -3255,10 +3836,23 @@ class ParameterSet(object):
                 continue
             filter_kwargs[k] = kwargs.pop(k, None)
 
-        ps = self.filter(**filter_kwargs).exclude(qualifier=['compute_times', 'compute_phases', 'compute_phases_t0'])
+        # any items that we remove from filter_kwargs need to be replaced in kwargs
+        for k,v in filter_kwargs.items():
+            if not (filter_kwargs.get('context', []) is None or k not in filter_kwargs.get('context', [])):
+                if k is not None:
+                    kwargs[k] = filter_kwargs[k]
+                filter_kwargs[k] = None
+
+        # print("*** filter_kwargs", filter_kwargs)
+        # print("*** kwargs", kwargs)
+        filter_kwargs_this = {k:v for k,v in filter_kwargs.items()}
+        if self.context == 'dataset':
+            _ = filter_kwargs_this.pop('model')
+        # print("*** applying filter", filter_kwargs_this)
+        ps = self.filter(check_visible=False, **filter_kwargs_this).exclude(qualifier=['compute_times', 'compute_phases', 'compute_phases_t0', 'phases_t0', 'mask_phases'], check_visible=False)
 
         if 'time' in kwargs.keys() and ps.kind in ['mesh', 'lp']:
-            ps = ps.filter(time=kwargs.get('time'))
+            ps = ps.filter(time=kwargs.get('time'), check_visible=False)
 
         # If ps returns more than one dataset/model/component, then we need to
         # loop and plot all.  This will automatically rotate through colors
@@ -3270,52 +3864,96 @@ class ParameterSet(object):
         # to pass directly to autofig
         return_ = []
 
+        # print("*** after filter ps.contexts", ps.contexts)
+        # print("*** after filter ps.tags", ps.tags)
         if len(ps.contexts) > 1:
             for context in ps.contexts:
-                this_return = ps.filter(check_visible=False, context=context)._unpack_plotting_kwargs(animate=animate, **kwargs)
+                # print("*** context loop, context={}".format(context))
+                filter_ = {'context': context, context: kwargs.get(context, filter_kwargs.get(context, None))}
+                if context == 'model':
+                    filter_['dataset'] = filter_kwargs.get('dataset', None)
+                # print("*** context loop, applying filter", filter_)
+                this_return = ps.filter(check_visible=False, **filter_)._unpack_plotting_kwargs(animate=animate, **kwargs)
                 return_ += this_return
-            return return_
+            return _handle_additional_calls(ps, return_)
 
-        if len(ps.datasets)>1 and ps.kind not in ['mesh']:
-            for dataset in ps.datasets:
+        # if len(ps.distributions)>1:
+        #     for distribution in ps.distributions:
+        #         this_return = ps.filter(check_visible=False, distribution=distribution)._unpack_plotting_kwargs(animate=animate, **kwargs)
+        #         return_ += this_return
+        #     return _handle_additional_calls(ps, return_)
+
+        if ps.context=='compute' and len(ps.computes)>1:
+            for compute in ps.filter(compute=kwargs.get('compute', filter_kwargs.get('compute', None)), **_skip_filter_checks).computes:
+                this_return = ps.filter(check_visible=False, compute=compute)._unpack_plotting_kwargs(animate=animate, **kwargs)
+                return_ += this_return
+            return _handle_additional_calls(ps, return_)
+
+        elif ps.context=='solver' and len(ps.solvers)>1:
+            for solver in ps.filter(solver=kwargs.get('solver', filter_kwargs.get('solver', None)), **_skip_filter_checks).solvers:
+                this_return = ps.filter(check_visible=False, solver=solver)._unpack_plotting_kwargs(animate=animate, **kwargs)
+                return_ += this_return
+            return _handle_additional_calls(ps, return_)
+
+        elif ps.context=='solution' and len(ps.solutions)>1:
+            for solution in ps.filter(solution=kwargs.get('solution', filter_kwargs.get('solution', None)), **_skip_filter_checks).solutions:
+                # print("*** solution loop, solution={}".format(solution))
+                this_return = ps.filter(check_visible=False, solution=solution)._unpack_plotting_kwargs(animate=animate, **kwargs)
+                return_ += this_return
+            return _handle_additional_calls(ps, return_)
+
+        elif ps.context in ['dataset', 'model'] and len(ps.datasets)>1 and not (ps.context=='dataset' and ps.kind in ['mesh', 'orb']):
+            # print("*** entering dataset loop, filter_kwargs['dataset']={}, kwargs['dataset']={}".format(filter_kwargs.get('dataset', None), kwargs.get('dataset', None)))
+            for dataset in ps.filter(dataset=kwargs.get('dataset', filter_kwargs.get('dataset', None)), **_skip_filter_checks).datasets:
+                # print("*** dataset loop, context={}, dataset={}".format(ps.context, dataset))
+                # print("*** dataset loop filter_kwargs['model']={}, kwargs['model']={}".format(filter_kwargs.get('model', None), kwargs.get('model', None)))
+                if dataset not in self._bundle.filter(model=kwargs.get('model', filter_kwargs.get('model', None)), context='model', **_skip_filter_checks).datasets:
+                    # in cases where a dataset is disabled for a certain model, we shouldn't
+                    # try to plot the observations when model was provided
+                    continue
+                if ps.kind=='mesh' and self._bundle.get_dataset(dataset=dataset).kind != ps.kind and kwargs.get('x', None) in [None, 'us', 'vs', 'ws', 'xs', 'ys', 'zs'] and kwargs.get('y', None) in [None, 'us', 'vs', 'ws', 'xs', 'ys', 'zs']:
+                    # avoid a y vs x plot for meshes with lc-columns
+                    continue
                 this_return = ps.filter(check_visible=False, dataset=dataset)._unpack_plotting_kwargs(animate=animate, **kwargs)
                 return_ += this_return
-            return return_
+            return _handle_additional_calls(ps, return_)
 
         # If we are asking to plot a dataset that also shows up in columns in
         # the mesh, then remove the mesh kind.  In other words: mesh stuff
         # will only be plotted if mesh is the only kind in the filter.
-        pskinds = ps.kinds
+        pskinds = ps.filter(kind=kwargs.get('kind', filter_kwargs.get('kind', None))).kinds
         if len(pskinds) > 1 and 'mesh' in pskinds:
             pskinds.remove('mesh')
 
         if len(ps.kinds) > 1:
             for kind in pskinds:
-                this_return = ps.filter(kind=kind)._unpack_plotting_kwargs(animate=animate, **kwargs)
+                # print("*** kind loop, kind={}".format(kind))
+                this_return = ps.filter(kind=kind, check_visible=False)._unpack_plotting_kwargs(animate=animate, **kwargs)
                 return_ += this_return
-            return return_
+            return _handle_additional_calls(ps, return_)
 
-        if len(ps.models) > 1:
-            for model in ps.models:
+        if len(ps.models) > 1: # and ps.context=='model'
+            # we'll filter by filter_kwargs again in case it wasn't filtered above for being in default_contexts
+            for model in ps.filter(model=kwargs.get('model', filter_kwargs.get('model', None))).models:
                 # TODO: change linestyle for models instead of color?
                 this_return = ps.filter(check_visible=False, model=model)._unpack_plotting_kwargs(animate=animate, **kwargs)
                 return_ += this_return
-            return return_
+            return _handle_additional_calls(ps, return_)
 
         if len(ps.times) > 1 and kwargs.get('x', None) not in ['time', 'times'] and kwargs.get('y', None) not in ['time', 'times'] and kwargs.get('z', None) not in ['time', 'times']:
             # only meshes, lp, spectra, etc will be able to iterate over times
             for time in ps.times:
                 this_return = ps.filter(check_visible=False, time=time)._unpack_plotting_kwargs(animate=animate, **kwargs)
                 return_ += this_return
-            return return_
+            return _handle_additional_calls(ps, return_)
 
-        if len(ps.components) > 1 and ps.kind not in ['lc']:
+        if len(ps.components) > 1 and ps.context in ['model', 'dataset'] and ps.kind not in ['lc']:
             # lc has per-component passband-dependent parameters in the dataset which are not plottable
             return_ = []
-            for component in ps.components:
+            for component in ps.filter(component=kwargs.get('component', filter_kwargs.get('component', None))).exclude(qualifier=['*_phases', 'phases_*']).components:
                 this_return = ps.filter(check_visible=False, component=component)._unpack_plotting_kwargs(animate=animate, **kwargs)
                 return_ += this_return
-            return return_
+            return _handle_additional_calls(ps, return_)
 
 
         if ps.kind in ['mesh', 'orb'] and \
@@ -3323,7 +3961,7 @@ class ParameterSet(object):
             # nothing to plot here... at least for now
             return []
 
-        if ps.kind in ['lp'] and not len(ps.filter(qualifier='flux_densities', check_visible=False)):
+        if ps.kind in ['lp'] and not len(ps.filter(qualifier='flux_densities', **_skip_filter_checks)):
             # then maybe we're in the dataset where just compute_times is defined
             return []
 
@@ -3383,11 +4021,51 @@ class ParameterSet(object):
             logger.warning("assuming you meant 'ec' instead of 'edgecolors'")
             kwargs['ec'] = kwargs.pop('edgecolors')
 
+        for k in ['c', 'fc', 'ec']:
+            if k in kwargs.keys():
+                kwargs[k] = _phoebecolorsdict.get(kwargs[k], kwargs[k])
+
         for d in ['x', 'y', 'z']:
             if '{}error'.format(d) not in kwargs.keys():
                 if '{}errors'.format(d) in kwargs.keys():
                     logger.warning("assuming you meant '{}error' instead of '{}errors'".format(d,d))
                     kwargs['{}error'.format(d)] = kwargs.pop('{}errors'.format(d))
+
+        def _corner_twig(param, use_tex=True):
+            if use_tex and param._latexfmt is not None:
+                return param.latextwig
+            if param.context == 'system':
+                return param.qualifier
+            else:
+                return '{}@{}'.format(param.qualifier, getattr(param, param.context))
+
+        def _corner_label(param):
+            if param.default_unit.to_string():
+                return '{} [{}]'.format(_corner_twig(param), param.default_unit)
+            return _corner_twig(param)
+
+        def _handle_mask(ps, array, **kwargs):
+            mask_enabled = ps.get_value(qualifier='mask_enabled', mask_enabled=kwargs.get('mask_enabled', None), default=False, **_skip_filter_checks)
+            if not mask_enabled:
+                return array
+
+            # mask_phases and phases_t0 was excluded from the filter to avoid
+            # looping over the components they're attached to, so we'll need
+            # to re-filter for the entire dataset first
+            ps_ds = ps._bundle.get_dataset(dataset=ps.dataset, **_skip_filter_checks)
+            mask_phases = ps_ds.get_value(qualifier='mask_phases', mask_phases=kwargs.get('mask_phases', None), **_skip_filter_checks)
+            if not len(mask_phases):
+                return array
+
+            mask_period = ps_ds.get_value(qualifier='phases_period', default='period', phases_period=kwargs.get('phases_period', None), **_skip_filter_checks)
+            mask_dpdt = ps_ds.get_value(qualifier='phases_dpdt', default='dpdt', phases_dpdt=kwargs.get('phases_dpdt', None), **_skip_filter_checks)
+            mask_t0 = ps_ds.get_value(qualifier='phases_t0', phases_t0=kwargs.get('phases_t0', None), **_skip_filter_checks)
+
+            times = ps.get_value(qualifier='times', unit=u.d, **_skip_filter_checks)
+            phases = ps._bundle.to_phase(times, period=mask_period, dpdt=mask_dpdt, t0=mask_t0)
+
+            return array[phase_mask_inds(phases, mask_phases)]
+
 
         def _kwargs_fill_dimension(kwargs, direction, ps):
             # kwargs[direction] is currently one of the following:
@@ -3416,14 +4094,14 @@ class ParameterSet(object):
 
                     if kwargs['autofig_method'] == 'mesh' and current_value in ['xs', 'ys', 'zs']:
                         # then we actually need to unpack from the xyz_elements
-                        verts = ps.get_quantity(qualifier='xyz_elements')
+                        verts = ps.get_quantity(qualifier='xyz_elements', **_skip_filter_checks)
                         if not verts.shape[0]:
                             return None
                         array_value = verts.value[:, :, ['xs', 'ys', 'zs'].index(current_value)] * verts.unit
 
                         if direction == 'z':
                             try:
-                                norms = ps.get_quantity(qualifier='xyz_normals')
+                                norms = ps.get_quantity(qualifier='xyz_normals', **_skip_filter_checks)
                             except ValueError:
                                 # if importing from 2.1, uvw_elements may exist, but uvw_normals won't
                                 array_value_norms = None
@@ -3436,14 +4114,14 @@ class ParameterSet(object):
 
                     elif kwargs['autofig_method'] == 'mesh' and current_value in ['us', 'vs', 'ws']:
                         # then we actually need to unpack from the uvw_elements
-                        verts = ps.get_quantity(qualifier='uvw_elements')
+                        verts = ps.get_quantity(qualifier='uvw_elements', **_skip_filter_checks)
                         if not verts.shape[0]:
                             return None
                         array_value = verts.value[:, :, ['us', 'vs', 'ws'].index(current_value)] * verts.unit
 
                         if direction == 'z':
                             try:
-                                norms = ps.get_quantity(qualifier='uvw_normals')
+                                norms = ps.get_quantity(qualifier='uvw_normals', **_skip_filter_checks)
                             except ValueError:
                                 # if importing from 2.1, uvw_elements may exist, but uvw_normals won't
                                 array_value_norms = None
@@ -3456,7 +4134,9 @@ class ParameterSet(object):
 
                     elif current_value in ['time', 'times'] and 'residuals' in kwargs.values():
                         # then we actually need to pull the times from the dataset instead of the model since the length may not match
-                        array_value = ps._bundle.get_value(qualifier='times', dataset=ps.dataset, component=ps.component, context='dataset')
+                        ds_ps = ps._bundle.get_dataset(dataset=ps.dataset, **_skip_filter_checks)
+                        array_value = _handle_mask(ds_ps, ds_ps.get_quantity(qualifier='times', component=ps.component, **_skip_filter_checks), **kwargs)
+
                     else:
                         if '@' in current_value:
                             # then we need to remove the dataset from the filter
@@ -3464,15 +4144,17 @@ class ParameterSet(object):
                         else:
                             psf = ps
 
-                        psff = psf.filter(twig=current_value)
+                        psff = psf.filter(twig=current_value, **_skip_filter_checks)
                         if len(psff)==1:
-                            array_value = psff.get_quantity()
-                        elif len(psff.times) > 1 and psff.get_value(time=psff.times[0]):
+                            array_value = psff.get_quantity(**_skip_filter_checks)
+                        elif len(psff.times) > 1 and psff.get_value(time=psff.times[0], **_skip_filter_checks):
                             # then we'll assume we have something like volume vs times.  If not, then there may be a length mismatch issue later
-                            unit = psff.get_quantity(time=psff.times[0]).unit
-                            array_value = np.array([psff.get_quantity(time=time).to(unit).value for time in psff.times])*unit
+                            unit = psff.get_quantity(time=psff.times[0], **_skip_filter_checks).unit
+                            array_value = np.array([psff.get_quantity(time=time, **_skip_filter_checks).to(unit).value for time in psff.times])*unit
                         else:
                             raise ValueError("could not find Parameter for {} in {}".format(current_value, psf.get_meta(ignore=['uniqueid', 'uniquetwig', 'twig'])))
+
+                        array_value = _handle_mask(psf, array_value, **kwargs)
 
                     kwargs[direction] = array_value
 
@@ -3483,10 +4165,10 @@ class ParameterSet(object):
                         if isinstance(errors, np.ndarray) or isinstance(errors, float) or isinstance(errors, int):
                             kwargs[errorkey] = errors
                         elif isinstance(errors, str):
-                            errors = ps.get_quantity(kwargs.get(errorkey), check_visible=False)
+                            errors = _handle_mask(ps, ps.get_quantity(kwargs.get(errorkey), **_skip_filter_checks), **kwargs)
                             kwargs[errorkey] = errors
                         else:
-                            sigmas = ps.get_quantity(qualifier='sigmas')
+                            sigmas = _handle_mask(ps, ps.get_quantity(qualifier='sigmas', **_skip_filter_checks), **kwargs)
                             if len(sigmas):
                                 kwargs.setdefault(errorkey, sigmas)
 
@@ -3507,8 +4189,8 @@ class ParameterSet(object):
                 elif current_value in ['wavelengths'] and ps.time is not None:
                     # these are not tagged with the time, so we need to find them
                     full_dataset_meta = ps.get_meta(ignore=['uniqueid', 'uniquetwig', 'twig', 'qualifier', 'time'])
-                    full_dataset_ps = ps._bundle.filter(**full_dataset_meta)
-                    candidate_params = full_dataset_ps.filter(qualifier=current_value)
+                    full_dataset_ps = ps._bundle.filter(check_visible=False, **full_dataset_meta)
+                    candidate_params = full_dataset_ps.filter(qualifier=current_value, **_skip_filter_checks)
                     if len(candidate_params) == 1:
                         kwargs[direction] = candidate_params.get_quantity()
                         kwargs.setdefault('{}label'.format(direction), _plural_to_singular_get(current_value))
@@ -3528,13 +4210,17 @@ class ParameterSet(object):
 
                     if 'residuals' in kwargs.values():
                         # then we actually need to pull the times from the dataset instead of the model since the length may not match
-                        times = ps._bundle.get_value(qualifier='times', dataset=ps.dataset, component=ps.component, context='dataset')
+                        ds_ps = ps._bundle.get_dataset(dataset=ps.dataset, **_skip_filter_checks)
+                        times = ds_ps.get_value(qualifier='times', component=ps.component, **_skip_filter_checks)
+                        times = _handle_mask(ds_ps, times, **kwargs)
                     elif ps.kind == 'etvs':
-                        times = ps.get_value(qualifier='time_ecls', unit=u.d)
+                        times = ps.get_value(qualifier='time_ecls', unit=u.d, **_skip_filter_checks)
+                        times = _handle_mask(ps, times, **kwargs)
                     else:
-                        times = ps.get_value(qualifier='times', unit=u.d)
+                        times = ps.get_value(qualifier='times', unit=u.d, **_skip_filter_checks)
+                        times = _handle_mask(ps, times, **kwargs)
 
-                    kwargs[direction] = self._bundle.to_phase(times, component=component_phase, t0=kwargs.get('t0', 't0_supconj')) * u.dimensionless_unscaled
+                    kwargs[direction] = self._bundle.to_phase(times, component=component_phase, period=kwargs.get('period', 'period'), t0=kwargs.get('t0', 't0_supconj'), dpdt=kwargs.get('dpdt', 'dpdt')) * u.dimensionless_unscaled
 
                     kwargs.setdefault('{}label'.format(direction), 'phase:{}'.format(component_phase) if component_phase is not None else 'phase')
 
@@ -3544,14 +4230,58 @@ class ParameterSet(object):
                     kwargs.setdefault('linebreak', '{}-'.format(direction))
 
                     return kwargs
+                elif current_value.split('_')[-1] in ['gps', 'nogps']:
+                    if ps.model is None:
+                        logger.info("skipping {} for dataset".format(current_value))
+                        return {}
+                    kwargs['{}qualifier'.format(direction)] = current_value
+                    return kwargs
+
+                elif current_value in ['residuals_spread']:
+                    if ps.model is None:
+                        logger.info("skipping residuals_spread for dataset")
+                        return {}
+
+                    if '-sigma' in self._bundle.get_value(qualifier='sample_mode', model=ps.model, context='model', default='none', **_skip_filter_checks):
+                        # NOTE: this probably needs to be interpolated
+                        kwargs[direction] = ps.get_quantity(qualifier=['fluxes', 'rvs'], model=ps.model, dataset=ps.dataset, component=ps.component, context='model', **_skip_filter_checks)
+                        kwargs[direction] -= kwargs[direction][1]
+                        kwargs.setdefault('{}label'.format(direction), '{} residuals'.format({'lc': 'flux', 'rv': 'rv'}.get(ps.kind, '')))
+                        kwargs['{}qualifier'.format(direction)] = 'residuals'
+                        # try to place on top of data/error bars since transparency will be applied
+                        kwargs.setdefault('z', 1)
+                        return kwargs
+                    else:
+                        return {}
 
                 elif current_value in ['residuals']:
                     if ps.model is None:
                         logger.info("skipping residuals for dataset")
                         return {}
 
+                    if '-sigma' in self._bundle.get_value(qualifier='sample_mode', model=ps.model, context='model', default='none', **_skip_filter_checks):
+                        # TODO: if we ever use this for anything else, then we'll need to make it a list instead and append new items
+                        # kwargs['additional_calls'] = {'y': 'residuals_spread', 'ps': ps, **{k:v for k,v in kwargs.items() if k in ['x']}} # not python2 safe :-(
+
+                        if kwargs.get('xqualifier', 'times') in ['time', 'times']:
+                            sample_x = self._bundle.get_quantity(qualifier='times', model=ps.model, component=ps.component, dataset=ps.dataset, context='model', **_skip_filter_checks)
+                        elif kwargs.get('xqualifier', 'times') in ['phase', 'phases']:
+                            sample_times = self._bundle.get_value(qualifier='times', model=ps.model, component=ps.component, dataset=ps.dataset, context='model', unit=u.d, **_skip_filter_checks)
+                            # TODO: should this to_phase take t0/period?
+                            sample_x = self._bundle.to_phase(sample_times) * u.dimensionless_unscaled
+                        else:
+                            raise NotImplementedError("cannot plot residuals from the sampled model with x='{}'".format(kwargs.get('xqualifier')))
+                        kwargs['additional_calls'] = {'y': 'residuals_spread', 'ps': ps, 'x': sample_x}
+
                     # we're currently within the MODEL context
-                    kwargs[direction] = ps.calculate_residuals(model=ps.model, dataset=ps.dataset, component=ps.component, as_quantity=True)
+                    # NOTE: calculate_residuals will already handle masking
+                    kwargs[direction] = ps.calculate_residuals(model=ps.model,
+                                                               dataset=ps.dataset,
+                                                               component=ps.component,
+                                                               as_quantity=True,
+                                                               mask_enabled=kwargs.get('mask_enabled', None),
+                                                               mask_phases=kwargs.get('mask_phases', None))
+
                     kwargs.setdefault('{}label'.format(direction), '{} residuals'.format({'lc': 'flux', 'rv': 'rv'}.get(ps.kind, '')))
                     kwargs['{}qualifier'.format(direction)] = current_value
                     kwargs.setdefault('linestyle', 'none')
@@ -3563,13 +4293,15 @@ class ParameterSet(object):
                     if isinstance(errors, np.ndarray) or isinstance(errors, float) or isinstance(errors, int):
                         kwargs[errorkey] = errors
                     elif isinstance(errors, str):
-                        errors = self._bundle.get_quantity(qualifier=kwargs.get(errorkey), dataset=ps.dataset, context='dataset', check_visible=False)
-                        kwargs[errorkey] = errors
+                        ds_ps = self._bundle.get_dataset(ps.dataset, **_skip_filter_checks)
+                        errors = ds_ps.get_quantity(qualifier=kwargs.get(errorkey), context='dataset', **_skip_filter_checks)
+                        kwargs[errorkey] = _handle_mask(ds_ps, errors, **kwargs)
                     else:
-                        sigmas = self._bundle.get_quantity(qualifier='sigmas', dataset=ps.dataset, context='dataset', check_visible=False)
+                        ds_ps = self._bundle.get_dataset(ps.dataset, **_skip_filter_checks)
+                        sigmas = ds_ps.get_quantity(qualifier='sigmas', component=ps.component, context='dataset', **_skip_filter_checks)
+                        sigmas = _handle_mask(ds_ps, sigmas, **kwargs)
                         if len(sigmas):
                             kwargs.setdefault(errorkey, sigmas)
-
 
                     return kwargs
 
@@ -3581,8 +4313,8 @@ class ParameterSet(object):
 
                     if ps.kind == 'mesh' and ps._bundle is not None:
                         full_mesh_meta = ps.get_meta(ignore=['uniqueid', 'uniquetwig', 'twig', 'qualifier', 'dataset'])
-                        full_mesh_ps = ps._bundle.filter(**full_mesh_meta)
-                        candidate_params = full_mesh_ps.filter(current_value)
+                        full_mesh_ps = ps._bundle.filter(check_visible=False, **full_mesh_meta)
+                        candidate_params = full_mesh_ps.filter(current_value, **_skip_filter_checks)
                         if len(candidate_params) == 1:
                             kwargs[direction] = candidate_params.get_quantity()
                             kwargs.setdefault('{}label'.format(direction), _plural_to_singular_get(current_value))
@@ -3596,6 +4328,7 @@ class ParameterSet(object):
                         else:
                             # maybe a hex or anything not in the cycler? or should we raise an error instead?
                             logger.warning("could not find Parameter match for {}={} at time={}, assuming named color".format(direction, current_value, full_mesh_meta['time']))
+
 
                     # Nothing has been found, so we'll assume the string is
                     # the name of a color.  If the color isn't accepted by
@@ -3787,6 +4520,20 @@ class ParameterSet(object):
                         'y': 'etvs',
                         'z': 0}
             sigmas_avail = ['etvs']
+        elif ps.kind in ['emcee', 'dynesty', 'lc_periodogram', 'rv_periodogram', 'lc_geometry', 'rv_geometry', 'ebai']:
+            pass
+            # handled below
+        elif ps.context in ['distribution']:
+            pass
+            # handled below
+        elif ps.context in ['solver', 'solution']:
+            # ignore non-implemented solver/solution parameters
+            return []
+        elif ps.context in ['compute']:
+            if 'sample_from' in ps.qualifiers:
+                pass
+            else:
+                return []
         else:
             logger.debug("could not find plotting defaults for ps.meta: {}, ps.twigs: {}".format(ps.meta, ps.twigs))
             raise NotImplementedError("defaults for kind {} (dataset: {}) not yet implemented".format(ps.kind, ps.dataset))
@@ -3794,7 +4541,321 @@ class ParameterSet(object):
         #### DETERMINE AUTOFIG PLOT TYPE
         # NOTE: this must be done before calling _kwargs_fill_dimension below
         cartesian = ['xs', 'ys', 'zs', 'us', 'vs', 'ws']
-        if ps.kind == 'mesh':
+        if ps.context == 'model' and kwargs.get('style', None) in ['corner', 'failed']:
+            kwargs['plot_package'] = 'corner'
+            kwargs['data'] = ps.get_value(qualifier='samples', default=[], **_skip_filter_checks)
+
+            try:
+                param_list = [self._bundle.get_parameter(uniqueid=uniqueid, **_skip_filter_checks) for uniqueid in ps.get_value(qualifier='sampled_uniqueids', **_skip_filter_checks)]
+            except:
+                logger.warning("could not match to sampled_uniqueids, falling back on sampled_twigs")
+                param_list = [self._bundle.get_parameter(twig=twig, **_skip_filter_checks) for twig in ps.get_value(qualifier='sampled_twigs', **_skip_filter_checks)]
+
+            # TODO: use units from fitted_units instead of parameter?
+            kwargs['labels'] = [_corner_label(param) for param in param_list]
+
+            if kwargs.get('style') == 'failed':
+                kwargs.setdefault('plot_uncertainties', False)
+                kwargs['failed_samples'] = ps.get_value(qualifier='failed_samples', default={}, **_skip_filter_checks)
+
+            return (kwargs,)
+        elif ps.context == 'distribution':
+            kwargs['plot_package'] = 'distl'
+            kwargs.setdefault('distribution', ps.distribution)
+            kwargs['dc'], _ = self._bundle.get_distribution_collection(context='distribution', **{k:v for k,v in kwargs.items() if k in ['distribution', 'combine', 'include_constrained', 'to_univariates', 'to_uniforms', 'parameters', 'plot_uncertainties']})
+            return (kwargs,)
+        elif ps.context == 'solver':
+            kwargs['plot_package'] = 'distl'
+            kwargs['dc'], _ = self._bundle.get_distribution_collection(twig=kwargs.get('distribution_twig', 'priors@{}'.format(ps.solver)))
+            return (kwargs,)
+        elif ps.context == 'compute':
+            if not len(ps.get_value(qualifier='sample_from', expand=True, **_skip_filter_checks)):
+                return []
+            kwargs['plot_package'] = 'distl'
+            kwargs['dc'], _ = self._bundle.get_distribution_collection(twig=kwargs.get('distribution_twig', 'sample_from@{}'.format(ps.compute)))
+            return (kwargs,)
+        elif ps.kind in ['lc_periodogram', 'rv_periodogram']:
+            kwargs['plot_package'] = 'autofig'
+            kwargs['x'] = ps.get_quantity(qualifier='period', **_skip_filter_checks)
+            kwargs['xlabel'] = 'period'
+            kwargs['y'] = ps.get_value(qualifier='power', **_skip_filter_checks)
+            kwargs['ylabel'] = 'power'
+
+            kwargs.setdefault('marker', 'None')
+            # kwargs.setdefault('linestyle', 'solid')
+
+            axvline_kwargs = {'plot_package': 'autofig', 'autofig_method': 'plot'}
+            axvline_kwargs['x'] = ps.get_value(qualifier='fitted_values', **_skip_filter_checks)[0] * ps.get_value(qualifier='period_factor', period_factor=kwargs.get('period_factor', None), **_skip_filter_checks) * u.d
+            axvline_kwargs['linestyle'] = 'dashed'
+            axvline_kwargs['axvline'] = True # to avoid the empty y ignore in plot
+
+
+            return (kwargs, axvline_kwargs)
+
+        elif ps.kind == 'lc_geometry':
+            # lc = ps.get_value(qualifier='lc', **_skip_filter_checks)
+            orbit = ps.get_value(qualifier='orbit', **_skip_filter_checks)
+            primary, secondary = self._bundle.hierarchy.get_children_of(orbit)
+            # phases = self._bundle.to_phase(self._bundle.get_value(qualifier='times', dataset=lc, context='dataset', **_skip_filter_checks))
+            # fluxes = self._bundle.get_value(qualifier='fluxes', dataset=lc, context='dataset', **_skip_filter_checks)
+            phases = ps.get_value(qualifier='input_phases', **_skip_filter_checks)
+            fluxes = ps.get_value(qualifier='input_fluxes', **_skip_filter_checks)
+            sigmas = ps.get_value(qualifier='input_sigmas', **_skip_filter_checks)
+            kwargs['plot_package'] = 'autofig'
+            kwargs['autofig_method'] = 'plot'
+            kwargs['x'] = phases
+            kwargs['xlabel'] = 'phase'
+            kwargs['y'] = fluxes
+            kwargs['yerror'] = sigmas
+            kwargs['ylabel'] = 'flux (normalized)'
+            kwargs['marker'] = '.'
+            kwargs['linestyle'] = 'None'
+            kwargs['c'] = 'gray'
+
+            def _phase_wrap(phase):
+                if phase < -0.5:
+                    phase += 1
+                return phase
+
+            addl_kwargss = []
+
+            analytic_phases = ps.get_value(qualifier='analytic_phases', defualt=None, **_skip_filter_checks)
+            if analytic_phases is not None:
+                analytic_fluxes_dict = ps.get_value(qualifier='analytic_fluxes', **_skip_filter_checks)
+                analytic_best_model = ps.get_value(qualifier='analytic_best_model', **_skip_filter_checks)
+                analytic_fluxes = analytic_fluxes_dict[analytic_best_model]
+                addl_kwargss += [{'plot_package': 'autofig', 'autofig_method': 'plot', 'x': analytic_phases, 'y': analytic_fluxes, 'marker': 'None', 'c': 'k', 'linestyle': 'solid', 's': 0.04, 'label': analytic_best_model}]
+
+            ecl_edges = ps.get_value(qualifier='eclipse_edges', **_skip_filter_checks)
+
+            pcolor = self._bundle.get_value(qualifier='color', component=primary, default='blue', **_skip_filter_checks)
+            addl_kwargss += [{'plot_package': 'autofig', 'autofig_method': 'plot', 'axvline': True, 'x': [_phase_wrap(phase)], 'xlabel': 'phase', 'c': pcolor, 'linestyle': 'dashed'} for phase in ecl_edges[:2]]
+            addl_kwargss += [{'plot_package': 'autofig', 'autofig_method': 'plot', 'axvline': True, 'x': [_phase_wrap(ps.get_value(qualifier='primary_phase', **_skip_filter_checks))], 'xlabel': 'phase', 'c': pcolor, 'label': 'primary ({}) eclipse'.format(primary) if primary!='primary' else 'primary eclipse', 'linestyle': 'solid'}]
+
+            scolor = self._bundle.get_value(qualifier='color', component=secondary, default='orange', **_skip_filter_checks)
+            addl_kwargss += [{'plot_package': 'autofig', 'autofig_method': 'plot', 'axvline': True, 'x': [_phase_wrap(phase)], 'xlabel': 'phase', 'c': scolor, 'linestyle': 'dashed'} for phase in ecl_edges[2:]]
+            addl_kwargss += [{'plot_package': 'autofig', 'autofig_method': 'plot', 'axvline': True, 'x': [_phase_wrap(ps.get_value(qualifier='secondary_phase', **_skip_filter_checks))], 'xlabel': 'phase', 'c': scolor, 'label': 'secondary ({}) eclipse'.format(secondary) if secondary!='secondary' else 'secondary eclipse', 'linestyle': 'solid'}]
+
+
+            # for model, analytic_fluxes in analytic_fluxes_dict.items():
+            #     addl_kwargss += [{'plot_package': 'autofig', 'autofig_method': 'plot', 'x': phases, 'y': analytic_fluxes, 'z': 1, 'marker': 'None', 'c': None if model==analytic_best_model else 'k', 'linestyle': 'solid' if model==analytic_best_model else 'dotted', 's': 0.04 if model==analytic_best_model else 0.02, 'label': model}]
+
+
+
+            return [kwargs] + addl_kwargss
+
+        elif ps.kind == 'rv_geometry':
+            orbit = ps.get_value(qualifier='orbit', **_skip_filter_checks)
+            primary, secondary = self._bundle.hierarchy.get_children_of(orbit)
+
+            kwargs['xlabel'] = 'phase'
+            kwargs['ylabel'] = 'RVs'
+            kwargs['yunit'] = 'km/s'
+            kwargs['plot_package'] = 'autofig'
+            kwargs['autofig_method'] = 'plot'
+
+            kwargss = [_deepcopy(kwargs), _deepcopy(kwargs), _deepcopy(kwargs), _deepcopy(kwargs)]
+            for i,comp in enumerate([primary, secondary]):
+                phases = ps.get_value(qualifier='input_phases', component=comp, **_skip_filter_checks)
+                input_rvs = ps.get_value(qualifier='input_rvs', component=comp, unit='km/s', **_skip_filter_checks)
+                input_sigmas = ps.get_value(qualifier='input_sigmas', component=comp, **_skip_filter_checks)
+
+                analytic_phases = ps.get_value(qualifier='analytic_phases', default=[], **_skip_filter_checks)
+                analytic_rvs = ps.get_value(qualifier='analytic_rvs', component=comp, default=[], unit='km/s', **_skip_filter_checks)
+
+                kwargss[i]['x'] = phases
+                kwargss[i+2]['x'] = analytic_phases
+                kwargss[i]['y'] = input_rvs
+                kwargss[i]['yerror'] = input_sigmas
+                kwargss[i+2]['y'] = analytic_rvs
+                kwargss[i]['marker'] = '.'
+                kwargss[i+2]['marker'] = 'None'
+                kwargss[i]['linestyle'] = 'None'
+                kwargss[i+2]['linestyle'] = 'solid'
+                kwargss[i]['color'] = 'gray'
+                kwargss[i+2]['color'] = self._bundle.get_value(qualifier='color', component=comp, default=['blue', 'orange'][i])
+
+            return kwargss
+
+        elif ps.kind == 'ebai':
+            orbit = ps.get_value(qualifier='orbit', **_skip_filter_checks)
+            primary, secondary = self._bundle.hierarchy.get_children_of(orbit)
+
+            input_phases = ps.get_value(qualifier='input_phases', **_skip_filter_checks)
+            input_fluxes = ps.get_value(qualifier='input_fluxes', **_skip_filter_checks)
+            input_sigmas = ps.get_value(qualifier='input_sigmas', **_skip_filter_checks)
+            ebai_phases = ps.get_value(qualifier='ebai_phases', **_skip_filter_checks)
+            ebai_fluxes = ps.get_value(qualifier='ebai_fluxes', **_skip_filter_checks)
+
+            kwargs['plot_package'] = 'autofig'
+            kwargs['autofig_method'] = 'plot'
+            kwargs['xlabel'] = 'phase'
+            kwargs['ylabel'] = 'flux (normalized)'
+
+            kwargss = [_deepcopy(kwargs), _deepcopy(kwargs)]
+
+            kwargss[0]['x'] = input_phases
+            kwargss[1]['x'] = ebai_phases
+            kwargss[0]['y'] = input_fluxes
+            kwargss[1]['y'] = ebai_fluxes
+            kwargss[0]['yerror'] = input_sigmas
+            kwargss[0]['z'] = 0.0
+            kwargss[1]['z'] = 1.0  # force ebai model on top of data
+            kwargss[0]['marker'] = '.'
+            kwargss[1]['marker'] = '+'
+            kwargss[0]['linestyle'] = 'None'
+            kwargss[1]['linestyle'] = 'solid'
+            kwargss[0]['color'] = 'gray'
+            kwargss[1]['color'] = 'blue'
+            kwargss[0]['label'] = 'observations'
+            kwargss[1]['label'] = '2 gaussian model'
+
+            return kwargss
+
+        elif ps.kind == 'dynesty':
+            kwargs.setdefault('style', 'corner')
+
+            adopt_inds, adopt_uniqueids = self._bundle._get_adopt_inds_uniqueids(ps, **kwargs)
+
+            style = kwargs.get('style')
+            if not isinstance(style, str):
+                raise ValueError("style must be a (single) string for dynesty")
+
+            if style != 'corner':
+                kwargs['results'] = _helpers.get_dynesty_object_from_solution(ps._bundle, ps.solution, adopt_parameters=kwargs.get('adopt_parameters'))
+
+            if style in ['corner', 'failed']:
+                kwargs['plot_package'] = 'distl'
+                if 'parameters' in kwargs.keys() and style=='failed':
+                    raise ValueError("cannot currently plot failed_samples while providing parameters.  Pass or set adopt_parameters to plot a subset of available parameters")
+                if style=='failed' and len(adopt_inds) < 2:
+                    raise ValueError("cannot plot failed_samples with < 2 parameters")
+
+                kwargs['dc'], _ = ps._bundle.get_distribution_collection(solution=ps.solution, **{k:v for k,v in kwargs.items() if k in ['distributions_convert', 'distributions_bins', 'parameters']})
+
+                if style=='failed':
+                    kwargs.setdefault('plot_uncertainties', False)
+                    kwargs['failed_samples'] = {k: np.asarray(v)[:,adopt_inds] for k,v in ps.get_value(qualifier='failed_samples', **_skip_filter_checks).items()}
+
+                return_ += [kwargs]
+
+            elif style == 'trace':
+                kwargs['plot_package'] = 'dynesty'
+                kwargs['dynesty_method'] = 'traceplot'
+            elif style == 'run':
+                kwargs['plot_package'] = 'dynesty'
+                kwargs['dynesty_method'] = 'runplot'
+
+
+            else:
+                raise ValueError("dynesty plots with style='{}' not recognized".format(kwargs.get('style')))
+            return (kwargs,)
+        elif ps.kind == 'emcee':
+            kwargs.setdefault('style', ['trace', 'lnprobability'])
+
+            adopt_inds, adopt_uniqueids = self._bundle._get_adopt_inds_uniqueids(ps, **kwargs)
+
+            burnin = ps.get_value(qualifier='burnin', burnin=kwargs.get('burnin', None), **_skip_filter_checks)
+            thin = ps.get_value(qualifier='thin', thin=kwargs.get('thin', None), **_skip_filter_checks)
+            lnprob_cutoff = ps.get_value(qualifier='lnprob_cutoff', lnprob_cutoff=kwargs.get('lnprob_cutoff', None), **_skip_filter_checks)
+
+            lnprobabilities = ps.get_value(qualifier='lnprobabilities', **_skip_filter_checks)
+            samples = ps.get_value(qualifier='samples', **_skip_filter_checks)
+
+            styles = kwargs.get('style')
+            if isinstance(styles, str):
+                styles = [styles]
+
+            return_ = []
+            for style in styles:
+                kwargs = _deepcopy(kwargs)
+
+                if style in ['corner', 'failed']:
+                    kwargs['plot_package'] = 'distl'
+                    if 'parameters' in kwargs.keys() and style=='failed':
+                        raise ValueError("cannot currently plot failed_samples while providing parameters.  Pass or set adopt_parameters to plot a subset of available parameters")
+                    if style=='failed' and len(adopt_inds) < 2:
+                        raise ValueError("cannot plot failed_samples with < 2 parameters")
+
+                    kwargs['dc'], _ = ps._bundle.get_distribution_collection(solution=ps.solution,
+                                                                            **{k:v for k,v in kwargs.items() if k in ['burnin', 'thin', 'lnprob_cutoff', 'distributions_convert', 'distributions_bins', 'parameters', 'adopt_parameters']})
+
+                    if style=='failed':
+                        kwargs.setdefault('plot_uncertainties', False)
+                        kwargs['failed_samples'] = {k: np.asarray(v)[:,adopt_inds] for k,v in ps.get_value(qualifier='failed_samples', **_skip_filter_checks).items()}
+
+                    return_ += [kwargs]
+
+                elif style in ['lnprobability', 'lnprob', 'lnprobabilities']:
+                    kwargs['plot_package'] = 'autofig'
+                    kwargs['autofig_method'] = 'plot'
+                    kwargs.setdefault('marker', 'None')
+                    kwargs.setdefault('linestyle', 'solid')
+
+                    lnprobabilities_proc, samples_proc = _helpers.process_mcmc_chains(lnprobabilities, samples, burnin, thin, -np.inf, adopt_inds, flatten=False)
+
+                    # we'll be editing items in the array, so we need to make a deepcopy first
+                    lnprobabilities_proc = _deepcopy(lnprobabilities_proc)
+                    lnprobabilities_proc[lnprobabilities_proc < lnprob_cutoff] = np.nan
+
+                    for lnp in lnprobabilities_proc.T:
+                        if not np.any(np.isfinite(lnp)):
+                            continue
+
+                        if np.all(np.isnan(lnp)):
+                            continue
+
+                        kwargs = _deepcopy(kwargs)
+                        kwargs['x'] = np.arange(len(lnp), dtype=float)*thin+burnin
+                        kwargs['xlabel'] = 'iteration (burnin={}, thin={})'.format(burnin, thin)
+                        kwargs['y'] = lnp
+                        kwargs['ylabel'] = 'lnprobability' if lnprob_cutoff==-np.inf else 'lnprobability (lnprob_cutoff={})'.format(lnprob_cutoff)
+                        return_ += [kwargs]
+
+                elif style in ['trace', 'walks']:
+                    kwargs['plot_package'] = 'autofig'
+                    if 'parameters' in kwargs.keys():
+                        raise ValueError("cannot currently plot {} while providing parameters.  Pass or set adopt_parameters to plot a subset of available parameters".format(style))
+                    kwargs['autofig_method'] = 'plot'
+                    kwargs.setdefault('marker', 'None')
+                    kwargs.setdefault('linestyle', 'solid')
+
+                    fitted_uniqueids = self._bundle.get_value(qualifier='fitted_uniqueids', context='solution', solution=ps.solution, **_skip_filter_checks)
+                    # fitted_twigs = self._bundle.get_value(qualifier='fitted_twigs', context='solution', solution=ps.solution, **_skip_filter_checks)
+                    fitted_units = self._bundle.get_value(qualifier='fitted_units', context='solution', solution=ps.solution, **_skip_filter_checks)
+                    fitted_ps = self._bundle.filter(uniqueid=list(adopt_uniqueids), **_skip_filter_checks)
+
+                    lnprobabilities_proc, samples_proc = _helpers.process_mcmc_chains(lnprobabilities, samples, burnin, thin, lnprob_cutoff, adopt_inds, flatten=False)
+
+                    # samples [niters, nwalkers, parameter]
+                    ys = kwargs.get('y', fitted_ps.filter(uniquied=list(adopt_uniqueids), **_skip_filter_checks).twigs)
+                    if isinstance(ys, str):
+                        ys = [ys]
+                    yparams = fitted_ps.filter(twig=ys, **_skip_filter_checks)
+
+                    for yparam in yparams.to_list():
+                        parameter_ind = list(adopt_uniqueids).index(yparam.uniqueid)
+
+                        for walker_ind in range(samples_proc.shape[1]):
+                            kwargs = _deepcopy(kwargs)
+
+                            # this needs to be the unflattened version
+                            samples_y = samples_proc[:, walker_ind, parameter_ind]
+
+                            kwargs['x'] = np.arange(len(samples_y), dtype=float)*thin+burnin
+                            kwargs['xlabel'] = 'iteration (burnin={}, thin={}, lnprob_cutoff={})'.format(burnin, thin, lnprob_cutoff)
+
+                            kwargs['y'] = samples_y
+                            kwargs['ylabel'] = _corner_twig(yparam)
+                            # TODO: use fitted_units instead?
+                            kwargs['yunit'] = fitted_units[parameter_ind]
+                            return_ += [kwargs]
+                else:
+                    raise NotImplementedError()
+
+            return return_
+
+        elif ps.kind == 'mesh':
             if mesh_all_cartesian:
                 kwargs['autofig_method'] = 'mesh'
             else:
@@ -3803,7 +4864,7 @@ class ParameterSet(object):
             if self.time is not None:
                 kwargs['i'] = float(self.time) * u.d
         else:
-            kwargs['autofig_method'] = 'plot'
+            kwargs['autofig_method'] = 'plot'  # may use 'fill_between' later
 
         #### GET DATA ARRAY FOR EACH AUTOFIG "DIRECTION"
         for af_direction in ['x', 'y', 'z', 'c', 's', 'fc', 'ec']:
@@ -3816,6 +4877,12 @@ class ParameterSet(object):
 
             # logger.debug("_kwargs_fill_dimension {} {} {}".format(kwargs, af_direction, ps.twigs))
             kwargs = _kwargs_fill_dimension(kwargs, af_direction, ps)
+            if af_direction == 'y' and len(kwargs.get('y', np.asarray([])).shape) > 1:
+                if '-sigma' in self._bundle.get_value(qualifier='sample_mode', context='model', model=ps.model, default='none', **_skip_filter_checks):
+                    kwargs['autofig_method'] = 'fill_between'
+                    kwargs['y'] = np.asarray(kwargs['y'].value).T * kwargs['y'].unit
+                    kwargs['yunit'] = kwargs['y'].unit
+                    kwargs['xunit'] = kwargs['x'].unit
             if kwargs is None:
                 # cannot plot
                 logger.warning("cannot plot {}-dimension of {}@{}, skipping".format(af_direction, ps.component, ps.dataset))
@@ -3825,7 +4892,13 @@ class ParameterSet(object):
         # try to find 'times' in the cartesian dimensions:
         if 'phases' not in [_singular_to_plural_get(kwargs['{}qualifier'.format(af_direction)].split(':')[0]) for af_direction in ['x', 'y', 'z'] if isinstance(kwargs.get('{}qualifier'.format(af_direction), None), str)]:
             iqualifier_default = 'times'
+        elif kwargs.get('yqualifier') == 'residuals' and kwargs.get('additional_calls', {}).get('y', None) == 'residuals_spread':
+            # then we won't be using linestyle by default and we want to be
+            # compatible with an axis that does residuals_spread
+            iqualifier_default= 'times'
         elif self._bundle.hierarchy.is_time_dependent():
+            if 'i' not in kwargs.keys():
+                logger.warning("defaulting to i='times' to plot in time-order because system is time_dependent.  Pass i='phases' to override.")
             iqualifier_default = 'times'
         else:
             iqualifier_default = 'phases'
@@ -3851,29 +4924,32 @@ class ParameterSet(object):
                 elif isinstance(iqualifier, str) and iqualifier.split(':')[0] == 'phases':
                     # TODO: need to test this
                     component = iqualifier.split(':')[1] if len(iqualifier.split(':')) > 1 else None
+                    # TODO: take t0 and period strings
                     kwargs['i'] = self._bundle.to_phase(float(ps.time), component=component)
                     kwargs['iqualifier'] = iqualifier
                 else:
                     raise NotImplementedError
             elif ps.kind == 'etv':
                 if iqualfier=='times':
-                    kwargs['i'] = ps.get_quantity(qualifier='time_ecls')
+                    kwargs['i'] = ps.get_quantity(qualifier='time_ecls', **_skip_filter_checks)
                     kwargs['iqualifier'] = 'time_ecls'
                 elif iqualifier.split(':')[0] == 'phases':
                     # TODO: need to test this
                     icomponent = iqualifier.split(':')[1] if len(iqualifier.split(':')) > 1 else None
-                    kwargs['i'] = self._bundle.to_phase(ps.get_quantity(qualifier='time_ecls'), component=icomponent)
+                    kwargs['i'] = self._bundle.to_phase(ps.get_quantity(qualifier='time_ecls'), component=icomponent, **_skip_filter_checks)
                     kwargs['iqualifier'] = iqualifier
                 else:
                     raise NotImplementedError
             else:
                 if iqualifier=='times':
-                    kwargs['i'] = ps.get_quantity(qualifier='times')
+                    kwargs['i'] = _handle_mask(ps, ps.get_quantity(qualifier='times', **_skip_filter_checks), **kwargs)
                     kwargs['iqualifier'] = 'times'
                 elif iqualifier.split(':')[0] == 'phases':
                     # TODO: need to test this
                     icomponent = iqualifier.split(':')[1] if len(iqualifier.split(':')) > 1 else None
-                    kwargs['i'] = self._bundle.to_phase(ps.get_quantity(qualifier='times'), component=icomponent)
+                    times = _handle_mask(ps, ps.get_quantity(qualifier='times', **_skip_filter_checks), **kwargs)
+                    # TODO: take period and t0 strings
+                    kwargs['i'] = self._bundle.to_phase(times, component=icomponent)
                     kwargs['iqualifier'] = iqualifier
                 else:
                     raise NotImplementedError
@@ -3957,7 +5033,7 @@ class ParameterSet(object):
     def plot(self, twig=None, **kwargs):
         """
         High-level wrapper around matplotlib that uses
-        [autofig 1.1.0](https://autofig.readthedocs.io/en/1.1.0)
+        [autofig 1.1.0](https://autofig.readthedocs.io/en/1.2.0)
         under-the-hood for automated figure and animation production.
 
         For an even higher-level interface allowing to interactively set and
@@ -3988,7 +5064,7 @@ class ParameterSet(object):
         ```
 
         Note: not all options are listed below.  See the
-        [autofig](https://autofig.readthedocs.io/en/1.1.0/)
+        [autofig](https://autofig.readthedocs.io/en/1.2.0/)
         tutorials and documentation for more options which are passed along
         via `**kwargs`.
 
@@ -4007,11 +5083,24 @@ class ParameterSet(object):
             then the animation will cycle over the tagged times of the model
             datasets (i.e. if mesh or lp datasets exist), or the computed
             times otherwise.
+        * `period` (string/float, optional): qualifier/twig or float of the period that
+            should be used for phasing, if applicable.  If provided as a string,
+            `b.get_value(period)` needs to provide a valid float.  This is used
+            if `phase`/`phases` provided instead of `time`/`times` as well as
+            if 'phases' is set as any direction (`x`, `y`, `z`, etc).
+            Passed directly to <phoebe.frontend.bundle.Bundle.to_phase>.
+        * `dpdt` (string/float, optional): qualifier/twig or float of the dpdt that
+            should be used for phasing, if applicable.  If provided as a string,
+            `b.get_value(dpdt)` needs to provide a valid float.  This is used
+            if `phase`/`phases` provided instead of `time`/`times` as well as
+            if 'phases' is set as any direction (`x`, `y`, `z`, etc).
+            Passed directly to <phoebe.frontend.bundle.Bundle.to_phase>.
         * `t0` (string/float, optional): qualifier/twig or float of the t0 that
             should be used for phasing, if applicable.  If provided as a string,
             `b.get_value(t0)` needs to provide a valid float.  This is used
             if `phase`/`phases` provided instead of `time`/`times` as well as
             if 'phases' is set as any direction (`x`, `y`, `z`, etc).
+            Passed directly to <phoebe.frontend.bundle.Bundle.to_phase>.
         * `phase` (float, optional): phase to use for plotting/animating.  This
             will convert to `time` using the current ephemeris via
             <phoebe.frontend.bundle.Bundle.to_time> along with the passed value
@@ -4043,10 +5132,10 @@ class ParameterSet(object):
             z-axis.  By default, this will just order the points on a 2D plot.
             To plot in 3D, also pass `projection='3d'`.
         * `s` (strong/float/array, optional): qualifier/twig of the array to use
-            for size.  See the [autofig tutorial on size](https://autofig.readthedocs.io/en/1.1.0/tutorials/size_modes/)
+            for size.  See the [autofig tutorial on size](https://autofig.readthedocs.io/en/1.2.0/tutorials/size_modes/)
             for more information.
         * `smode` (string, optional): mode for handling size (`s`).  See the
-            [autofig tutorial on size mode](https://autofig.readthedocs.io/en/1.1.0/tutorials/size_modes/)
+            [autofig tutorial on size mode](https://autofig.readthedocs.io/en/1.2.0/tutorials/size_modes/)
             for more information.
         * `c` (string/float/array, optional): qualifier/twig of the array to use
             for color.
@@ -4069,7 +5158,7 @@ class ParameterSet(object):
             then setting `i` to phases will sort and connect the points in
             phase-order, whereas if set to `times` they will be sorted and connected
             in time-order, with linebreaks when needed for phase-wrapping.
-            See also the [autofig tutorial on a looping independent variable](https://autofig.readthedocs.io/en/1.1.0/gallery/looping_indep/).
+            See also the [autofig tutorial on a looping independent variable](https://autofig.readthedocs.io/en/1.2.0/gallery/looping_indep/).
 
         * `xerror` (string/float/array, optional): qualifier/twig of the array to plot as
             x-errors (will default based on `x` if not provided).  Pass None to
@@ -4112,25 +5201,25 @@ class ParameterSet(object):
             only applicable for mesh plots).
 
         * `xlim` (tuple/string, optional): limits for the x-axis (will default on
-            data if not provided).  See [autofig tutorial on limits](https://autofig.readthedocs.io/en/1.1.0/tutorials/limits/)
+            data if not provided).  See [autofig tutorial on limits](https://autofig.readthedocs.io/en/1.2.0/tutorials/limits/)
             for more information/choices.
         * `ylim` (tuple/string, optional): limits for the y-axis (will default on
-            data if not provided).  See [autofig tutorial on limits](https://autofig.readthedocs.io/en/1.1.0/tutorials/limits/)
+            data if not provided).  See [autofig tutorial on limits](https://autofig.readthedocs.io/en/1.2.0/tutorials/limits/)
             for more information/choices.
         * `zlim` (tuple/string, optional): limits for the z-axis (will default on
-            data if not provided).  See [autofig tutorial on limits](https://autofig.readthedocs.io/en/1.1.0/tutorials/limits/)
+            data if not provided).  See [autofig tutorial on limits](https://autofig.readthedocs.io/en/1.2.0/tutorials/limits/)
             for more information/choices.
         * `slim` (tuple/string, optional): limits for the size-axis (will default on
-            data if not provided).  See [autofig tutorial on limits](https://autofig.readthedocs.io/en/1.1.0/tutorials/limits/)
+            data if not provided).  See [autofig tutorial on limits](https://autofig.readthedocs.io/en/1.2.0/tutorials/limits/)
             for more information/choices.
         * `clim` (tuple/string, optional): limits for the color-axis (will default on
-            data if not provided).  See [autofig tutorial on limits](https://autofig.readthedocs.io/en/1.1.0/tutorials/limits/)
+            data if not provided).  See [autofig tutorial on limits](https://autofig.readthedocs.io/en/1.2.0/tutorials/limits/)
             for more information/choices.
         * `fclim` (tuple/string, optional): limits for the facecolor-axis (will default on
-            data if not provided).  See [autofig tutorial on limits](https://autofig.readthedocs.io/en/1.1.0/tutorials/limits/)
+            data if not provided).  See [autofig tutorial on limits](https://autofig.readthedocs.io/en/1.2.0/tutorials/limits/)
             for more information/choices.
         * `eclim` (tuple/string, optional): limits for the edgecolor-axis (will default on
-            data if not provided).  See [autofig tutorial on limits](https://autofig.readthedocs.io/en/1.1.0/tutorials/limits/)
+            data if not provided).  See [autofig tutorial on limits](https://autofig.readthedocs.io/en/1.2.0/tutorials/limits/)
             for more information/choices.
 
         * `fcmap` (string, optional): colormap to use for the facecolor-axis (will default on
@@ -4142,7 +5231,7 @@ class ParameterSet(object):
             See the [matplotlib colormap reference](https://matplotlib.org/3.1.0/gallery/color/colormap_reference.html)
             for a list of options (may vary based on installed version of matplotlib).
 
-        * `smode` (string, optional): size mode.  See the [autofig tutorial on sizes](https://autofig.readthedocs.io/en/1.1.0/tutorials/size_modes/)
+        * `smode` (string, optional): size mode.  See the [autofig tutorial on sizes](https://autofig.readthedocs.io/en/1.2.0/tutorials/size_modes/)
             for more information.
 
         * `highlight` (bool, optional, default=True): whether to highlight at the
@@ -4195,13 +5284,13 @@ class ParameterSet(object):
 
         * `projection` (string, optional, default='2d'): whether to plot
             on a 2d or 3d axes.  If '3d', the orientation of the axes will
-            be provided by `azim` and `elev` (see [autofig tutorial on 3d](https://autofig.readthedocs.io/en/1.1.0/tutorials/3d/))
+            be provided by `azim` and `elev` (see [autofig tutorial on 3d](https://autofig.readthedocs.io/en/1.2.0/tutorials/3d/))
         * `azim` (float or list, optional): azimuth to use when `projection`
             is '3d'.  If `animate` is True, then a tuple or list will allow
-            rotating the axes throughout the animation (see [autofig tutorial on 3d](https://autofig.readthedocs.io/en/1.1.0/tutorials/3d/))
+            rotating the axes throughout the animation (see [autofig tutorial on 3d](https://autofig.readthedocs.io/en/1.2.0/tutorials/3d/))
         * `elev` (float or list, optional): elevation to use when `projection`
             is '3d'.  If `animate` is True, then a tuple or list will allow
-            rotating the axes throughout the animation (see [autofig tutorial on 3d](https://autofig.readthedocs.io/en/1.1.0/tutorials/3d/))
+            rotating the axes throughout the animation (see [autofig tutorial on 3d](https://autofig.readthedocs.io/en/1.2.0/tutorials/3d/))
         * `exclude_back` (bool, optional): whether to exclude plotting the back
             of meshes when in '2d' projections.  Defaults to True if `fc` is
             not 'none' (otherwise defaults to False so that you can "see through"
@@ -4212,14 +5301,14 @@ class ParameterSet(object):
         * `draw_title` (bool, optional, default=False): whether to draw axes
             titles.
         * `subplot_grid` (tuple, optional, default=None): override the subplot
-            grid used (see [autofig tutorial on subplots](https://autofig.readthedocs.io/en/1.1.0/tutorials/subplot_positioning/)
+            grid used (see [autofig tutorial on subplots](https://autofig.readthedocs.io/en/1.2.0/tutorials/subplot_positioning/)
             for more details).
 
         * `save_kwargs` (dict, optional): any kwargs necessary to pass on to
             save (only applicable if `animate=True`).  On many systems,
             it may be necessary to pass `save_kwargs={'writer': 'imagemagick'}`.
 
-        * `**kwargs`: additional keyword arguments are sent along to [autofig](https://autofig.readthedocs.io/en/1.1.0/).
+        * `**kwargs`: additional keyword arguments are sent along to [autofig](https://autofig.readthedocs.io/en/1.2.0/).
 
         Returns
         --------
@@ -4232,11 +5321,12 @@ class ParameterSet(object):
         """
         if not _use_autofig:
             if os.getenv('PHOEBE_ENABLE_PLOTTING', 'TRUE').upper() != 'TRUE':
-                raise ImportError("cannot plot because PHOEBE_ENABLE_PLOTTING environment variable is disasbled")
+                raise ImportError("cannot plot because PHOEBE_ENABLE_PLOTTING environment variable is disabled")
             else:
                 raise ImportError("autofig not imported, cannot plot")
 
         # since we used the args trick above, all other options have to be in kwargs
+        fig = kwargs.pop('fig', None)
         save = kwargs.pop('save', False)
         show = kwargs.pop('show', False)
         tight_layout = kwargs.pop('tight_layout', False)
@@ -4253,19 +5343,21 @@ class ParameterSet(object):
             if 'time' in kwargs.keys():
                 raise ValueError("cannot pass both time and phase")
 
+            period = kwargs.get('period', 'period')
+            dpdt = kwargs.get('dpdt', 'dpdt')
             t0 = kwargs.get('t0', 't0_supconj')
-            logger.info("converting from phase to time with t0={}".format(t0))
-            kwargs['time'] = self._bundle.to_time(kwargs.pop('phase'), t0=t0)
+            logger.info("converting from phase to time with period={}, dpdt={}, t0={}".format(period, dpdt, t0))
+            kwargs['time'] = self._bundle.to_time(kwargs.pop('phase'), period=period, dpdt=dpdt, t0=t0)
 
         if 'phases' in kwargs.keys():
             if 'times' in kwargs.keys():
                 raise ValueError("cannot pass both times and phases")
 
+            period = kwargs.get('period', 'period')
+            dpdt = kwargs.get('dpdt', 'dpdt')
             t0 = kwargs.get('t0', 't0_supconj')
-            logger.info("converting from phases to times with t0={}".format(t0))
-            kwargs['times'] = self._bundle.to_time(kwargs.pop('phases'), t0=t0)
-
-
+            logger.info("converting from phases to times with period={}, dpdt={}, t0={}".format(period, dpdt, t0))
+            kwargs['times'] = self._bundle.to_time(kwargs.pop('phases'), period=period, dpdt=dpdt, t0=t0)
 
         if 'times' in kwargs.keys() and not animate:
             if kwargs.get('time', None) is not None:
@@ -4286,56 +5378,139 @@ class ParameterSet(object):
         if twig is not None:
             kwargs['twig'] = twig
 
-        # temporarily check_default, and check_visible
-        conf_check_default = conf.check_default
-        if conf_check_default:
-            logger.debug("temporarily disabling check_default")
-            conf.check_default_off()
+        def _plot_failed_samples(mplfig, failed_samples):
+            mplaxes = mplfig.axes
 
-        conf_check_visible = conf.check_visible
-        if conf_check_visible:
-            logger.debug("temporarily disabling check_visible")
-            conf.check_visible_off()
+            for msgi, (msg, samples) in enumerate(failed_samples.items()):
+                samples = np.asarray(samples)
+                color = _phoebecolors[msgi+1]
 
-        def restore_conf():
-            if conf_check_visible:
-                logger.debug("restoring check_visible")
-                conf.check_visible_on()
+                # print(msg, samples.shape)
+                for axi, ax in enumerate(mplaxes):
+                    axix = int(axi % sqrt(len(mplaxes)))
+                    axiy = int(axi / sqrt(len(mplaxes)))
+                    if axix < axiy:
+                        # print("axix: {}, axiy: {}, samples[:,axix].shape: {}, samples[:,axiy].shape: {}".format(axix, axiy, samples[:,axix].shape, samples[:,axiy].shape))
+                        ax.plot(samples[:,axix], samples[:,axiy], marker='x', linestyle='none', color=color, label=msg)
 
-            if conf_check_default:
-                logger.debug("restoring check_default")
-                conf.check_default_on()
+            # may need to reset the axes limits that were defined by corner
+            xlims = {}
+            for axi, ax in enumerate(mplaxes):
+                axix = int(axi % sqrt(len(mplaxes)))
+                axiy = int(axi / sqrt(len(mplaxes)))
+                if axix < axiy:
+                    ax.autoscale(enable=True, tight=True)
+                    if axix not in xlims.keys():
+                        xlims[axix] = ax.get_xlim()
+                    if axiy not in xlims.keys():
+                        xlims[axiy] = ax.get_ylim()
+
+            # and one final loop to apply the same xlims to the hists on the diagonal
+            for axi, ax in enumerate(mplaxes):
+                axix = int(axi % sqrt(len(mplaxes)))
+                axiy = int(axi / sqrt(len(mplaxes)))
+                if axix==axiy:
+                    ax.set_xlim(xlims[axix])
+
+            # and now attempt to draw a legend in an intelligent location in the upper-right of the figure
+            if len(mplaxes) > 1:
+                mplaxes[int(sqrt(len(mplaxes)))].legend(loc='lower left', bbox_to_anchor=(2.1, 0.1))
+            else:
+                raise ValueError("cannot plot failed samples with only one axes")
+
+            return mplfig
 
         try:
             plot_kwargss = self._unpack_plotting_kwargs(animate=animate, **kwargs)
+            # print("*** plot_kwargss", plot_kwargss)
             # this loop handles any of the automatically-generated
             # multiple plotting calls, passing each on to autofig
             for plot_kwargs in plot_kwargss:
-                y = plot_kwargs.get('y', [])
-                if (isinstance(y, u.Quantity) and isinstance(y.value, float)) or (hasattr(y, 'value') and isinstance(y.value, float)):
-                    pass
-                elif not len(y):
-                    # a dataset without observational data, for example
-                    continue
+                plot_package = plot_kwargs.pop('plot_package', 'autofig')
+                if plot_package == 'corner':
+                    if not _use_corner:
+                        raise ImportError("corner not imported, cannot plot")
+                    if len(plot_kwargss) > 1:
+                        raise ValueError("corner plots not supported with other axes")
 
-                autofig_method = plot_kwargs.pop('autofig_method', 'plot')
-                # we kept the qualifiers around so we could do some default-logic,
-                # but it isn't necessary to pass them on to autofig.
-                dump = kwargs.pop('qualifier', None)
-                logger.info("calling autofig.{}({})".format(autofig_method, ", ".join(["{}={}".format(k,v if not isinstance(v, np.ndarray) else "<data ({})>".format(v.shape)) for k,v in plot_kwargs.items()])))
-                func = getattr(self.gcf(), autofig_method)
+                    mplfig = corner.corner(plot_kwargs['data'], labels=plot_kwargs.get('labels', None))
 
-                func(**plot_kwargs)
+                    if 'failed_samples' in plot_kwargs.keys():
+                        mplfig = _plot_failed_samples(mplfig, plot_kwargs.get('failed_samples', {}))
+
+                    if save:
+                        mplfig.savefig(save)
+
+                    return None, mplfig
+
+                elif plot_package == 'distl':
+                    if not _use_corner:
+                        raise ImportError("corner not imported, cannot plot")
+                    if len(plot_kwargss) > 1:
+                        # TODO: could we just return multiple figure instances?
+                        raise ValueError("corner plots not supported with other axes.  Adjust the filter to include only a single distribution (including from compute or solver contexts), or to exclude all distributions.")
+
+                    mplfig = plot_kwargs['dc'].plot(show=show, **plot_kwargs)
+
+                    if 'failed_samples' in plot_kwargs.keys():
+                        mplfig = _plot_failed_samples(mplfig, plot_kwargs.get('failed_samples', {}))
+
+                    if save:
+                        mplfig.savefig(save)
+
+                    return None, mplfig
+
+                elif plot_package == 'dynesty':
+                    if not _use_dyplot:
+                        raise ImportError("dynesty not imported, cannot plot")
+                    if len(plot_kwargss) > 1:
+                        # TODO: could we just return multiple figure instances?
+                        raise ValueError("dynesty plots not supported with other axes.  Adjust the filter to include only a single dynesty plot or to exclude all dynesty plots.")
+
+                    style = plot_kwargs.pop('style')
+                    dynesty_method = plot_kwargs.pop('dynesty_method')
+                    func = getattr(dyplot, dynesty_method)
+                    mplfig, mplaxes = func(**{k:v for k,v in plot_kwargs.items() if k in ['results']})
+                    if save:
+                        mplfig.savefig(save)
+
+                    return None, mplfig
+
+                elif plot_package == 'autofig':
+                    y = plot_kwargs.get('y', [])
+                    axvline = plot_kwargs.pop('axvline', False)
+                    if axvline or (isinstance(y, u.Quantity) and isinstance(y.value, float)) or (hasattr(y, 'value') and isinstance(y.value, float)):
+                        pass
+                    elif not len(y):
+                        # a dataset without observational data, for example
+                        continue
+
+                    autofig_method = plot_kwargs.pop('autofig_method', 'plot')
+                    # we kept the qualifiers around so we could do some default-logic,
+                    # but it isn't necessary to pass them on to autofig.
+                    dump = kwargs.pop('qualifier', None)
+                    func = getattr(self.gcf(), autofig_method)
+
+                    if autofig_method == 'plot' and len(np.asarray(plot_kwargs.get('y', [])).shape) > 1:
+                        # then we want to loop over the y index
+                        for y in plot_kwargs.get('y'):
+                            func(y=y, **{k:v for k,v in plot_kwargs.items() if k!='y'})
+                    else:
+                        logger.info("calling autofig.{}({})".format(autofig_method, ", ".join(["{}={}".format(k,v if not isinstance(v, np.ndarray) else "<data ({} unit={})>".format(v.shape, v.unit if hasattr(v, 'unit') else None)) for k,v in plot_kwargs.items()])))
+
+                        func(**plot_kwargs)
+                else:
+                    raise ValueError("plot_package={} not recognized".format(plot_package))
+
         except Exception as err:
-            restore_conf()
             raise
 
-        restore_conf()
 
         if save or show or animate:
             # NOTE: time, times, will all be included in kwargs
             try:
                 return self._show_or_save(save, show, animate,
+                                          fig=fig,
                                           draw_sidebars=draw_sidebars,
                                           draw_title=draw_title,
                                           tight_layout=tight_layout,
@@ -4359,6 +5534,7 @@ class ParameterSet(object):
             return afig, fig
 
     def _show_or_save(self, save, show, animate,
+                      fig=None,
                       draw_sidebars=True,
                       draw_title=True,
                       tight_layout=False,
@@ -4409,6 +5585,7 @@ class ParameterSet(object):
                                          subplot_grid=subplot_grid,
                                          animate_callback=animate_callback,
                                          interval=interval,
+                                         fig=fig,
                                          save=save,
                                          show=show,
                                          save_kwargs=save_kwargs)
@@ -4427,7 +5604,7 @@ class ParameterSet(object):
 
             if isinstance(time, str):
                 # TODO: need to expand this whole logic to be the same as include_times in backends.py
-                time = self.get_value(time, context=['component', 'system'], check_visible=False)
+                time = self._bundle.get_value(time, context=['component', 'system'], check_visible=False)
 
             # plotting doesn't currently support highlighting at multiple times
             # if isinstance(time, list) or isinstance(time, tuple):
@@ -4455,6 +5632,7 @@ class ParameterSet(object):
                             draw_title=draw_title,
                             tight_layout=tight_layout,
                             subplot_grid=subplot_grid,
+                            fig=fig,
                             save=save, show=show)
 
             # clear the figure so next call will start over and future shows will work
@@ -4577,7 +5755,6 @@ class Parameter(object):
         * `uniqueid` (string, optional): uniqueid for the parameter (suggested to leave blank
             and a random string will be generated)
         * `time` (string/float, optional): value for the time tag
-        * `history` (string, optional): label for the history tag
         * `feature` (string, optional): label for the feature tag
         * `component` (string, optional): label for the component tag
         * `dataset` (string, optional): label for the dataset tag
@@ -4585,6 +5762,8 @@ class Parameter(object):
         * `constraint` (string, optional): label for the constraint tag
         * `compute` (string, optional): label for the compute tag
         * `model` (string, optional): label for the model tag
+        * `solver` (string, optional): label for the solver tag
+        * `solution` (string, optional): label for the solution tag
         * `kind` (string, optional): label for the kind tag
         * `context` (string, optional): label for the context tag
         * `copy_for` (dictionary/False, optional, default=False): dictionary of
@@ -4603,6 +5782,7 @@ class Parameter(object):
         self._is_constraint = None  # label of the constraint that defines the value of this parameter
 
         self._description = description
+        self._readonly = kwargs.get('readonly', False)
         self._advanced = kwargs.get('advanced', False)
         self._bundle = bundle
         self._value = None
@@ -4611,19 +5791,21 @@ class Parameter(object):
         self.set_uniqueid(uniqueid)
         self._qualifier = qualifier
         self._time = kwargs.get('time', None)
-        self._history = kwargs.get('history', None)
         self._feature = kwargs.get('feature', None)
         self._component = kwargs.get('component', None)
         self._dataset = kwargs.get('dataset', None)
         self._figure = kwargs.get('figure', None)
         self._constraint = kwargs.get('constraint', None)
+        self._distribution = kwargs.get('distribution', None)
         self._compute = kwargs.get('compute', None)
         self._model = kwargs.get('model', None)
-        # self._fitting = kwargs.get('fitting', None)
-        # self._feedback = kwargs.get('feedback', None)
+        self._solver = kwargs.get('solver', None)
+        self._solution = kwargs.get('solution', None)
         # self._plugin = kwargs.get('plugin', None)
         self._kind = kwargs.get('kind', None)
         self._context = kwargs.get('context', None)
+
+        self._latexfmt = kwargs.get('latexfmt', None)
 
         # set whether new 'copies' of this parameter need to be created when
         # new objects (body components, not orbits) or datasets are added to
@@ -4632,7 +5814,7 @@ class Parameter(object):
 
         self._visible_if = kwargs.get('visible_if', None)
 
-        self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for', 'advanced']
+        self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for', 'readonly', 'advanced', 'latexfmt']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
         # loading from json can result in unicodes instead of strings - this then
@@ -4640,10 +5822,6 @@ class Parameter(object):
         for attr in _meta_fields_twig + self._dict_fields_other:
             attr = '_{}'.format(attr)
             val = getattr(self, attr)
-
-            if isinstance(val, unicode) and attr not in ['_copy_for']:
-              setattr(self, attr, str(val))
-
 
             #if attr == '_copy_for' and isinstance(self._copy_for, str):
             #    print "***", self._copy_for
@@ -4674,9 +5852,9 @@ class Parameter(object):
             quantity = self.get_value()
 
         if hasattr(self, 'constraint') and self.constraint is not None:
-            return "<Parameter: {}={} (constrained) | keys: {}>".format(self.qualifier, quantity, ', '.join(self._dict_fields_other))
+            return "<Parameter: {}={} (constrained) | keys: {}>".format(self.qualifier, quantity.__repr__() if isinstance(quantity, distl._distl.BaseDistlObject) else quantity, ', '.join(self._dict_fields_other))
         else:
-            return "<Parameter: {}={} | keys: {}>".format(self.qualifier, quantity, ', '.join(self._dict_fields_other))
+            return "<Parameter: {}={} | keys: {}>".format(self.qualifier, quantity.__repr__() if isinstance(quantity, distl._distl.BaseDistlObject) else quantity, ', '.join(self._dict_fields_other))
 
     def __str__(self):
         """
@@ -4691,7 +5869,7 @@ class Parameter(object):
         str_ = "{}: {}\n".format("Parameter", self.uniquetwig)
         str_ += "{:>32}: {}\n".format("Qualifier", self.qualifier)
         str_ += "{:>32}: {}\n".format("Description", self.description)
-        str_ += "{:>32}: {}\n".format("Value", quantity)
+        str_ += "{:>32}: {}\n".format("Value", quantity.__repr__() if isinstance(quantity, distl._distl.BaseDistlObject) else quantity)
 
         if hasattr(self, 'choices'):
             str_ += "{:>32}: {}\n".format("Choices", ", ".join(self.choices))
@@ -4766,10 +5944,14 @@ class Parameter(object):
         * (<phoebe.parameters.Parameter>): the copied Parameter object
         """
         s = self.to_json()
-        cpy = parameter_from_json(s)
-        # TODO: may need to subclass for Parameters that require bundle by using this line instead:
-        # cpy = parameter_from_json(s, bundle=self._bundle)
+
+        if self.__class__.__name__ in _parameter_class_that_require_bundle:
+            cpy = parameter_from_json(s, bundle=self._bundle)
+        else:
+            cpy = parameter_from_json(s)
+
         cpy.set_uniqueid(_uniqueid())
+        cpy._bundle = None
         return cpy
 
     def to_string(self):
@@ -4788,7 +5970,7 @@ class Parameter(object):
     def to_string_short(self):
         """
         Return a short/abreviated string representation of the
-        <phoebe.parmaeters.Parameter>.
+        <phoebe.parameters.Parameter>.
 
         See also:
         * <phoebe.parameters.Parameter.to_string>
@@ -4798,18 +5980,20 @@ class Parameter(object):
         * (str): the string representation
         """
         if hasattr(self, 'constrained_by') and len(self.constrained_by) > 0:
-            return "* {:>30}: {}".format(self.uniquetwig_trunc, self.get_quantity() if hasattr(self, 'quantity') else self.get_value())
+            prefix = 'C '
+        elif self.readonly:
+            prefix = 'R '
         else:
-            return "{:>32}: {}".format(self.uniquetwig_trunc, self.get_quantity() if hasattr(self, 'quantity') else self.get_value())
+            prefix = '  '
 
-    def __dict__(self):
-        """
-        """
-        # including uniquetwig for everything can be VERY SLOW, so let's not
-        # include that in the dictionary
-        d =  {k: getattr(self,k) for k in self._dict_fields if k not in ['uniquetwig']}
-        d['Class'] = self.__class__.__name__
-        return d
+        quantity = self.get_quantity() if hasattr(self, 'quantity') else self.get_value()
+        return "{} {:>30}: {}".format(prefix, self.uniquetwig_trunc, quantity.__repr__() if isinstance(quantity, distl._distl.BaseDistlObject) else quantity)
+
+    # @property
+    # def __dict__(self):
+    #     """
+    #     """
+    # return self.to_dict()
 
     def to_dict(self):
         """
@@ -4819,12 +6003,16 @@ class Parameter(object):
         -------
         * (dict): the dictionary representation of the Parameter.
         """
-        return self.__dict__()
+        # including uniquetwig for everything can be VERY SLOW, so let's not
+        # include that in the dictionary
+        d =  {k: getattr(self,k) for k in self._dict_fields if k not in ['uniquetwig'] and (k not in ['readonly', 'advanced'] or getattr(self,k))}
+        d['Class'] = self.__class__.__name__
+        return d
 
     def __getitem__(self, key):
         """
         """
-        return self.__dict__()[key]
+        return self.to_dict()[key]
 
     def __setitem__(self, key, value):
         """
@@ -4888,13 +6076,13 @@ class Parameter(object):
         """
         filename = os.path.expanduser(filename)
         f = open(filename, 'w')
-        json.dump(self.to_json(incl_uniqueid=incl_uniqueid), f,
-                   sort_keys=True, indent=0, separators=(',', ': '))
+        json.dump(self.to_json(incl_uniqueid=incl_uniqueid),
+                  f, sort_keys=True, indent=0, separators=(',', ': '))
         f.close()
 
         return filename
 
-    def to_json(self, incl_uniqueid=False, exclude=[]):
+    def to_json(self, incl_uniqueid=False, incl_none=False, exclude=[]):
         """
         Convert the <phoebe.parameters.Parameter> to a json-compatible
         object.
@@ -4909,6 +6097,8 @@ class Parameter(object):
         * `incl_uniqueid` (bool, optional, default=False): whether to include
             uniqueids in the file (only needed if its necessary to maintain the
             uniqueids when reloading)
+        * `incl_none` (bool, optional, default=False): whether to include tags
+            whose values are None.
         * `exclude` (list, optional, default=[]): tags to exclude when saving.
 
         Returns
@@ -4924,15 +6114,23 @@ class Parameter(object):
                         v = self._value.to(self.default_unit).to_dict()
                     else:
                         v = self._value.to_dict()
+                elif isinstance(self._value, distl.BaseDistlObject):
+                    v = self._value.to_dict(exclude=exclude)
+                elif isinstance(v, dict):
+                    v = {dk: _parse(k, dv) for dk,dv in v.items()}
+
                 if isinstance(v, u.Quantity):
                     v = self.get_value() # force to be in default units
                 if isinstance(v, np.ndarray):
+                    # can handle N-dim arrays
                     v = v.tolist()
-                if isinstance(v, u.Unit) or isinstance(v, u.CompositeUnit) or isinstance(v, u.IrreducibleUnit):
+                if _is_unit(v):
                     v = str(v.to_string())
                 return v
             elif k=='limits':
                 return [vi.value if hasattr(vi, 'value') else vi for vi in v]
+            elif k=='required_shape':
+                return v.tolist() if v is not None else None
             elif v is None:
                 return v
             elif isinstance(v, str):
@@ -4949,7 +6147,7 @@ class Parameter(object):
                 except:
                     raise NotImplementedError("could not parse {} of '{}' to json".format(k, self.uniquetwig))
 
-        return {k: _parse(k, v) for k,v in self.to_dict().items() if (v is not None and k not in ['twig', 'uniquetwig', 'quantity']+exclude and (k!='uniqueid' or incl_uniqueid or self.qualifier=='detached_job'))}
+        return {k: _parse(k, v) for k,v in self.to_dict().items() if ((v is not None or incl_none) and k not in ['twig', 'uniquetwig', 'quantity']+exclude and (k!='uniqueid' or incl_uniqueid or self.qualifier=='detached_job'))}
 
     @property
     def attributes(self):
@@ -5031,7 +6229,72 @@ class Parameter(object):
         ----------
         * (dict) a dictionary of all singular tag attributes.
         """
-        return self.get_meta(ignore=['uniqueid', 'history', 'twig', 'uniquetwig'])
+        return self.get_meta(ignore=['uniqueid', 'twig', 'uniquetwig'])
+
+    @property
+    def uniquetags(self):
+        """
+        Determine the minimal required filter tags which will point
+        to this single <phoebe.parameters.Parameter> in the parent
+        <phoebe.frontend.bundle.Bundle>.
+
+        See <phoebe.parameters.Parameter.get_uniquetwig>
+        for the ability to pass a <phoebe.parameters.ParameterSet>.
+
+        See also:
+        * <phoebe.parameters.Parameter.tags>
+        * <phoebe.parameters.Parameter.uniquetwig>
+
+        Returns
+        --------
+        * (dict) dictionary of tags
+        """
+        return self.get_uniquetags()
+
+
+    def get_uniquetags(self, ps=None, force_levels=['qualifier'], exclude_levels=[]):
+        """
+        Determine the minimal required filter tags which will point
+        to this single <phoebe.parameters.Parameter> in a given parent
+        <phoebe.parameters.ParameterSet>.
+
+        See also:
+        * <phoebe.parameters.Parameter.tags>
+        * <phoebe.parameters.Parameter.uniquetwig>
+
+        Arguments
+        ----------
+        * `ps` (<phoebe.parameters.ParameterSet>, optional): ParameterSet
+            in which the returned uniquetwig will point to this Parameter.
+            If not provided or None this will default to the parent
+            <phoebe.frontend.bundle.Bundle>, if available.
+        * `force_levels` (list, optional, default=['qualifier']): levels to
+            always include in the returned twig.  In addition, the attribute
+            corresponding to the context of the parameter as well as the
+            context itself will ALWAYS be included (unless in `exclude_levels`).
+        * `exclude_levels` (bool, optional, default=True): levels to exclude
+            from the twig (takes precedence over `force_levels`)
+
+        Returns
+        --------
+        * (dict) dictionary of tags
+        """
+
+        if ps is None:
+            ps = self._bundle
+
+        if ps is None:
+            return self.tags
+
+        return ps._uniquetags(self, force_levels=force_levels, exclude_levels=exclude_levels)
+
+    @property
+    def readonly(self):
+        """
+        Whether the parameter is readonly.  To force setting the value, pass
+        `ignore_readonly=True` to <<class>.set_value>.
+        """
+        return self._readonly
 
     @property
     def advanced(self):
@@ -5071,21 +6334,6 @@ class Parameter(object):
         # need to force formatting because of the different way numpy.float64 is
         # handled before numpy 1.14.  See https://github.com/phoebe-project/phoebe2/issues/247
         return '{:09f}'.format(float(self._time)) if self._time is not None else None
-
-    @property
-    def history(self):
-        """
-        Return the history of this <phoebe.parameters.Parameter>.
-
-        See also:
-        * <phoebe.parameters.ParameterSet.history>
-        * <phoebe.parameters.ParameterSet.historys>
-
-        Returns
-        -------
-        * (str) the history tag of this Parameter.
-        """
-        return self._history
 
     @property
     def feature(self):
@@ -5148,6 +6396,21 @@ class Parameter(object):
         return self._constraint
 
     @property
+    def distribution(self):
+        """
+        Return the distribution of this <phoebe.parameters.Parameter>.
+
+        See also:
+        * <phoebe.parameters.ParameterSet.distribution>
+        * <phoebe.parameters.ParameterSet.distributions>
+
+        Returns
+        -------
+        * (str) the distribution tag of this Parameter.
+        """
+        return self._distribution
+
+    @property
     def compute(self):
         """
         Return the compute of this <phoebe.parameters.Parameter>.
@@ -5191,6 +6454,36 @@ class Parameter(object):
         * (str) the figure tag of this Parameter.
         """
         return self._figure
+
+    @property
+    def solver(self):
+        """
+        Return the solver of this <phoebe.parameters.Parameter>.
+
+        See also:
+        * <phoebe.parameters.ParameterSet.solver>
+        * <phoebe.parameters.ParameterSet.solvers>
+
+        Returns
+        -------
+        * (str) the solver tag of this Parameter.
+        """
+        return self._solver
+
+    @property
+    def solution(self):
+        """
+        Return the solution of this <phoebe.parameters.Parameter>.
+
+        See also:
+        * <phoebe.parameters.ParameterSet.solution>
+        * <phoebe.parameters.ParameterSet.solutions>
+
+        Returns
+        -------
+        * (str) the solution tag of this Parameter.
+        """
+        return self._solution
 
     @property
     def kind(self):
@@ -5277,7 +6570,7 @@ class Parameter(object):
         return self.get_uniquetwig()
 
 
-    def get_uniquetwig(self, ps=None):
+    def get_uniquetwig(self, ps=None, force_levels=['qualifier'], exclude_levels=[]):
         """
         Determine the shortest (more-or-less) twig which will point
         to this single <phoebe.parameters.Parameter> in a given parent
@@ -5293,6 +6586,12 @@ class Parameter(object):
             in which the returned uniquetwig will point to this Parameter.
             If not provided or None this will default to the parent
             <phoebe.frontend.bundle.Bundle>, if available.
+        * `force_levels` (list, optional, default=['qualifier']): levels to
+            always include in the returned twig.  In addition, the attribute
+            corresponding to the context of the parameter as well as the
+            context itself will ALWAYS be included (unless in `exclude_levels`).
+        * `exclude_levels` (bool, optional, default=True): levels to exclude
+            from the twig (takes precedence over `force_levels`)
 
         Returns
         --------
@@ -5305,7 +6604,7 @@ class Parameter(object):
         if ps is None:
             return self.twig
 
-        return ps._uniquetwig(self)
+        return ps._uniquetwig(self, force_levels=force_levels, exclude_levels=exclude_levels)
 
     @property
     def twig(self):
@@ -5325,18 +6624,118 @@ class Parameter(object):
         return "@".join([getattr(self, k) for k in _meta_fields_twig if getattr(self, k) is not None])
 
     @property
+    def latexfmt(self):
+        """
+        """
+        return self._latexfmt
+
+    @property
+    def latextwig(self):
+        """
+        The latex representation of the parameter name/tags.  Will default to
+        <phoebe.parameters.uniquetwig> if a latex representation does not exist.
+
+        See also:
+        * <phoebe.parameters.Parameter.qualifier>
+        * <phoebe.parameters.Parameter.uniquetwig>
+        """
+        if self._latexfmt is not None:
+            d = self.meta
+            if d.get('component', None) is not None:
+                parent = self._bundle.hierarchy.get_parent_of(d.get('component'))
+                children = self._bundle.hierarchy.get_children_of(d.get('component'))
+
+                latex_reprs = {}
+                for p in self._bundle.filter(qualifier='latex_repr', context='figure', **_skip_filter_checks).to_list():
+                    if not len(p.get_value()):
+                        continue
+                    if p.component is not None:
+                        latex_reprs[p.component] = p.get_value()
+                    elif p.dataset is not None:
+                        latex_reprs[p.dataset] = p.get_value()
+                    elif p.feature is not None:
+                        latex_reprs[p.feature] = p.get_value()
+
+                if d.get('component', None) is not None:
+                    d['component'] = latex_reprs.get(d.get('component'), d.get('component'))
+                    if parent is not None:
+                        d['parent'] = latex_reprs.get(parent, parent)
+                    for i,child in enumerate(children):
+                        d['children{}'.format(i)] = latex_reprs.get(child, child)
+
+                if d.get('dataset', None) is not None:
+                    d['dataset'] = latex_reprs.get(d.get('dataset'), d.get('dataset'))
+
+                if d.get('feature', None) is not None:
+                    d['feature'] = latex_reprs.get(d.get('feature'), d.get('feature'))
+
+            return r'$'+self._latexfmt.format(**d)+'$'
+        else:
+            return self.uniquetwig
+
+    @property
     def visible_if(self):
         """
         Return the `visible_if` expression for this <phoebe.parameters.Parameter>.
 
         See also:
         * <phoebe.parameters.Parameter.is_visible>
+        * <phoebe.parameters.Parameter.visible_if_parameters>
 
         Returns
         --------
         * (str): the `visible_if` expression for this Parameter
         """
         return self._visible_if
+
+    @property
+    def visible_if_parameters(self):
+        """
+        Return the parameters affecting the visibility of this <phoebe.parameters.Parameter>.
+
+        See also:
+        * <phoebe.parameters.Parameter.visible_if>
+        * <phoebe.parameters.Parameters.is_visible>
+
+        Returns
+        ----------
+        * <phoebe.parameters.ParameterSet>
+        """
+        parameter_uids = []
+
+        for visible_if in self.visible_if.replace(',','||').split('||'):
+            if visible_if.lower() == 'false':
+                continue
+
+            # otherwise we need to find the parameter we're referencing and check its value
+            remove_metawargs = []
+            while visible_if[0] == '[':
+                remove_metawargs.append(visible_if[1:].split(']')[0])
+                visible_if = ']'.join(visible_if[1:].split(']')[1:])
+
+            qualifier, value = visible_if.split(':')
+
+            if 'hierarchy.' in qualifier:
+                # TODO: set specific syntax (hierarchy.get_meshables:2)
+                # then this needs to do some logic on the hierarchy
+                parameter_uids += [self._bundle.hierarchy.uniqueid]
+
+            else:
+                # the parameter needs to have all the same meta data except qualifier
+                # TODO: switch this to use self.get_parent_ps ?
+                metawargs = {k:v for k,v in self.get_meta(ignore=['twig', 'uniquetwig', 'uniqueid']+remove_metawargs).items() if v is not None}
+                metawargs['qualifier'] = qualifier
+
+                # this call is quite expensive and bloats every get_parameter(check_visible=True)
+                param = self._bundle.get_parameter(check_visible=False,
+                                                   check_default=False,
+                                                   check_advanced=False,
+                                                   check_single=False,
+                                                   **metawargs)
+
+                parameter_uids += [param.uniqueid]
+
+        return self._bundle.filter(uniqueid=parameter_uids, **_skip_filter_checks)
 
     @property
     def is_visible(self, visible_if=None):
@@ -5350,6 +6749,7 @@ class Parameter(object):
 
         See also:
         * <phoebe.parameters.Parameter.visible_if>
+        * <phoebe.parameters.Parameter.visible_if_parameters>
 
         Returns
         --------
@@ -5390,11 +6790,10 @@ class Parameter(object):
                 return False
 
             # otherwise we need to find the parameter we're referencing and check its value
-            if visible_if[0]=='[':
-                remove_metawargs, visible_if = visible_if[1:].split(']')
-                remove_metawargs = remove_metawargs.split(',')
-            else:
-                remove_metawargs = []
+            remove_metawargs = []
+            while visible_if[0] == '[':
+                remove_metawargs.append(visible_if[1:].split(']')[0])
+                visible_if = ']'.join(visible_if[1:].split(']')[1:])
 
             qualifier, value = visible_if.split(':')
 
@@ -5452,11 +6851,20 @@ class Parameter(object):
 
 
                 if isinstance(value, str) and value[0] in ['!', '~']:
-                    return param.get_value() != value[1:]
+                    pvalue = param.get_value()
+                    if isinstance(pvalue, float):
+                        return pvalue != float(value[1:])
+                    elif isinstance(pvalue, int):
+                        return pvalue != int(float(value[1:]))
+                    return pvalue != value[1:]
                 elif isinstance(value, str) and "|" in value:
                     return param.get_value() in value.split("|")
                 elif value=='<notempty>':
-                    return len(param.get_value()) > 0
+                    return len(param.get_value(expand=True)) > 0
+                elif value=='<plural>':
+                    return len(param.get_value(expand=True)) > 1
+                elif value=='<empty>':
+                    return len(param.get_value(expand=True)) == 0
                 elif isinstance(value, str) and value[0] == '<' and value[-1] == '>':
                     return param.get_value() == getattr(self, value[1:-1])
                 else:
@@ -5544,7 +6952,6 @@ class Parameter(object):
         * <phoebe.parameters.ChoiceParameter.get_value>
         * <phoebe.parameters.SelectParameter.get_value>
         * <phoebe.parameters.ConstraintParameter.get_value>
-        * <phoebe.parameters.HistoryParameter.get_value>
 
         Returns
         ---------
@@ -5552,22 +6959,6 @@ class Parameter(object):
         """
 
         return self.get_value()
-
-
-    def _add_history(self, redo_func, redo_kwargs, undo_func, undo_kwargs):
-        """
-        """
-        if self._bundle is None or not self._bundle.history_enabled:
-            return
-        if 'value' in undo_kwargs.keys() and undo_kwargs['value'] is None:
-            return
-
-            logger.debug("creating history entry for {}".format(redo_func))
-        #~ print "*** param._add_history", redo_func, redo_kwargs, undo_func, undo_kwargs
-        self._bundle._add_history(redo_func, redo_kwargs, undo_func, undo_kwargs)
-
-    # TODO (done?): access to value, adjust, unit, prior, posterior, etc in dictionary (when applicable)
-    # TODO (done?): ability to set value, adjust, unit, prior, posterior through dictionary access (but not meta-fields)
 
     def get_parent_ps(self):
         """
@@ -5587,7 +6978,7 @@ class Parameter(object):
 
         metawargs = {k:v for k,v in self.meta.items() if k not in ['qualifier', 'twig', 'uniquetwig']}
 
-        return self._bundle.filter(**metawargs)
+        return self._bundle.filter(check_visible=False, check_default=False, **metawargs)
 
     #~ @property
     #~ def constraint(self):
@@ -5931,8 +7322,7 @@ class Parameter(object):
     def get_value(self, *args, **kwargs):
         """
         This method should be overriden by any subclass of
-        <phoebe.parameters.Parameter>, and should be decorated with the
-        @update_if_client decorator.
+        <phoebe.parameters.Parameter>.
         Please see the individual classes documentation:
 
         * <phoebe.parameters.FloatParameter.get_value>
@@ -5943,7 +7333,6 @@ class Parameter(object):
         * <phoebe.parameters.ChoiceParameter.get_value>
         * <phoebe.parameters.SelectParameter.get_value>
         * <phoebe.parameters.ConstraintParameter.get_value>
-        * <phoebe.parameters.HistoryParameter.get_value>
 
         If subclassing, this method needs to:
         * cast to the correct type/units, handling defaults
@@ -5973,7 +7362,6 @@ class Parameter(object):
         * <phoebe.parameters.ChoiceParameter.set_value>
         * <phoebe.parameters.SelectParameter.set_value>
         * <phoebe.parameters.ConstraintParameter.set_value>
-        * <phoebe.parameters.HistoryParameter.set_value>
 
         If subclassing, this method needs to:
         * check the inputs for the correct format/agreement/cast_type
@@ -5988,6 +7376,12 @@ class Parameter(object):
         """
         raise NotImplementedError # <--- leave this in place, should be subclassed
 
+    def _readonly_check(self, **kwargs):
+        if 'ignore_readonly' in kwargs.keys():
+            return
+        if self.readonly:
+            raise ValueError("Parameter is read-only.  Pass ignore_readonly=True to force setting value (use with caution).")
+
 
 class StringParameter(Parameter):
     """
@@ -5999,12 +7393,11 @@ class StringParameter(Parameter):
         """
         super(StringParameter, self).__init__(*args, **kwargs)
 
-        self.set_value(kwargs.get('value', ''))
+        self.set_value(kwargs.get('value', ''), ignore_readonly=True)
 
-        self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for', 'advanced']
+        self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for', 'readonly', 'advanced', 'latexfmt']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
-    @update_if_client
     def get_value(self, **kwargs):
         """
         Get the current value of the <phoebe.parameters.StringParameter>.
@@ -6046,7 +7439,9 @@ class StringParameter(Parameter):
         * ValueError: if `value` could not be converted to the correct type
             or is not a valid value for the Parameter.
         """
-        _orig_value = deepcopy(value)
+        self._readonly_check(**kwargs)
+
+        _orig_value = _deepcopy(value)
 
         try:
             value = str(value)
@@ -6054,8 +7449,6 @@ class StringParameter(Parameter):
             raise ValueError("could not cast value to string")
         else:
             self._value = value
-
-            self._add_history(redo_func='set_value', redo_kwargs={'value': value, 'uniqueid': self.uniqueid}, undo_func='set_value', undo_kwargs={'value': _orig_value, 'uniqueid': self.uniqueid})
 
 class TwigParameter(Parameter):
     # TODO: change to RefParameter?
@@ -6074,9 +7467,9 @@ class TwigParameter(Parameter):
         # bundle is necessary in order to intialize and set the value
         self._bundle = bundle
 
-        self.set_value(kwargs.get('value', ''))
+        self.set_value(kwargs.get('value', ''), ignore_readonly=True)
 
-        self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for', 'advanced']
+        self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for', 'readonly', 'advanced', 'latexfmt']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     def get_parameter(self):
@@ -6089,7 +7482,6 @@ class TwigParameter(Parameter):
         """
         return self._bundle.get_parameter(uniqueid=self._value)
 
-    @update_if_client
     def get_value(self, **kwargs):
         """
         Get the current value of the <phoebe.parameters.TwigParameter>.
@@ -6138,19 +7530,19 @@ class TwigParameter(Parameter):
         * ValueError: if `value` could not be converted to the correct type
             or is not a valid value for the Parameter.
         """
-        _orig_value = deepcopy(self.get_value())
+        self._readonly_check(**kwargs)
+
+        _orig_value = _deepcopy(self.get_value())
 
         # first make sure only returns one results
         if self._bundle is None:
             raise ValueError("TwigParameters must be attached from the bundle, and cannot be standalone")
 
-        value = str(value)  # <-- in case unicode
+        value = str(value)
 
         # NOTE: this means that in all saving of bundles, we MUST keep the uniqueid and retain them when re-opening
         value = _twig_to_uniqueid(self._bundle, value, **kwargs)
         self._value = value
-
-        self._add_history(redo_func='set_value', redo_kwargs={'value': value, 'uniqueid': self.uniqueid}, undo_func='set_value', undo_kwargs={'value': _orig_value, 'uniqueid': self.uniqueid})
 
 
 class ChoiceParameter(Parameter):
@@ -6165,9 +7557,9 @@ class ChoiceParameter(Parameter):
 
         self._choices = kwargs.get('choices', [''])
 
-        self.set_value(kwargs.get('value', ''))
+        self.set_value(kwargs.get('value', ''), ignore_readonly=True, allow_not_in_choices=True)
 
-        self._dict_fields_other = ['description', 'choices', 'value', 'visible_if', 'copy_for', 'advanced']
+        self._dict_fields_other = ['description', 'choices', 'value', 'visible_if', 'copy_for', 'readonly', 'advanced', 'latexfmt']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     @property
@@ -6195,7 +7587,6 @@ class ChoiceParameter(Parameter):
         """
         return self._choices
 
-    @update_if_client
     def get_value(self, **kwargs):
         """
         Get the current value of the <phoebe.parameters.ChoiceParameter>.
@@ -6248,7 +7639,9 @@ class ChoiceParameter(Parameter):
         * ValueError: if `value` is not one of
             <phoebe.parameters.ChoiceParameter.choices>
         """
-        _orig_value = deepcopy(self.get_value())
+        self._readonly_check(**kwargs)
+
+        _orig_value = _deepcopy(self.get_value())
 
         try:
             value = str(value)
@@ -6259,7 +7652,7 @@ class ChoiceParameter(Parameter):
             if value not in self.choices:
                 self._choices = list_passbands(refresh=True)
 
-        if value not in self.choices:
+        if value not in self.choices and not kwargs.get('allow_not_in_choices', False):
             raise ValueError("value for {} must be one of {}, not '{}'".format(self.uniquetwig, self.choices, value))
 
         # NOTE: downloading passbands from online is now handled by run_checks
@@ -6290,7 +7683,6 @@ class ChoiceParameter(Parameter):
         if run_checks and self._bundle:
             report = self._bundle.run_checks(allow_skip_constraints=True, raise_logger_warning=True)
 
-        self._add_history(redo_func='set_value', redo_kwargs={'value': value, 'uniqueid': self.uniqueid}, undo_func='set_value', undo_kwargs={'value': _orig_value, 'uniqueid': self.uniqueid})
 
     def handle_choice_rename(self, **rename):
         """
@@ -6317,7 +7709,7 @@ class ChoiceParameter(Parameter):
             return False
 
         if value in self.choices:
-            self.set_value(value)
+            self.set_value(value, ignore_readonly=True)
             return True
         else:
             raise ValueError("could not set value to a valid entry in choices: {}".format(self.choices))
@@ -6334,9 +7726,9 @@ class SelectParameter(Parameter):
 
         self._choices = kwargs.get('choices', [])
 
-        self.set_value(kwargs.get('value', []))
+        self.set_value(kwargs.get('value', []), ignore_readonly=True)
 
-        self._dict_fields_other = ['description', 'choices', 'value', 'visible_if', 'copy_for']
+        self._dict_fields_other = ['description', 'choices', 'value', 'visible_if', 'readonly', 'copy_for', 'latexfmt']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     @property
@@ -6402,7 +7794,6 @@ class SelectParameter(Parameter):
 
         return False
 
-    @update_if_client
     def get_value(self, expand=False, **kwargs):
         """
         Get the current value of the <phoebe.parameters.SelectParameter>.
@@ -6435,7 +7826,10 @@ class SelectParameter(Parameter):
             return self.expand_value(**kwargs)
 
         default = super(SelectParameter, self).get_value(**kwargs)
-        if default is not None: return default
+        if default is not None:
+            if isinstance(default, str):
+                return [default]
+            return default
         return self._value
 
     def expand_value(self, **kwargs):
@@ -6483,7 +7877,7 @@ class SelectParameter(Parameter):
         Set the current value of the <phoebe.parameters.SelectParameter>.
 
         `value` must be valid according to
-        <phoebe.parmaeters.SelectParameter.valid_selection>, otherwise a
+        <phoebe.parameters.SelectParameter.valid_selection>, otherwise a
         ValueError will be raised.
 
         Arguments
@@ -6503,7 +7897,9 @@ class SelectParameter(Parameter):
             <phoebe.parameters.SelectParameter.choices>.
             See also <phoebe.parameters.SelectParameter.valid_selection>
         """
-        _orig_value = deepcopy(self.get_value())
+        self._readonly_check(**kwargs)
+
+        _orig_value = _deepcopy(self.get_value())
 
         if isinstance(value, str):
             value = [value]
@@ -6532,7 +7928,6 @@ class SelectParameter(Parameter):
         if run_checks and self._bundle:
             report = self._bundle.run_checks(allow_skip_constraints=True, raise_logger_warning=True)
 
-        self._add_history(redo_func='set_value', redo_kwargs={'value': value, 'uniqueid': self.uniqueid}, undo_func='set_value', undo_kwargs={'value': _orig_value, 'uniqueid': self.uniqueid})
 
     def handle_choice_rename(self, remove_not_valid=False, **rename):
         """
@@ -6554,14 +7949,14 @@ class SelectParameter(Parameter):
         changed = len(rename.keys())
 
         if remove_not_valid:
-            self.set_value(value, run_checks=False)
+            self.set_value(value, run_checks=False, ignore_readonly=True)
             return changed or self.remove_not_valid_selections()
 
         else:
             if np.any([not self.is_valid_selection(v) for v in value]):
                 raise ValueError("not all are valid after renaming")
 
-            self.set_value(value, run_checks=False)
+            self.set_value(value, run_checks=False, ignore_readonly=True)
             return changed
 
 
@@ -6579,7 +7974,7 @@ class SelectParameter(Parameter):
         """
         value = [v for v in self.get_value() if self.valid_selection(v)]
         changed = len(value) != len(self.get_value())
-        self.set_value(value, run_checks=False)
+        self.set_value(value, run_checks=False, ignore_readonly=True)
         return changed
 
     def __add__(self, other):
@@ -6601,6 +7996,97 @@ class SelectParameter(Parameter):
 
         return [v for v in self.get_value() if v not in other]
 
+class SelectTwigParameter(SelectParameter):
+    @staticmethod
+    def _match_twig(value, choice):
+        if '@' in value:
+            value = value.split('@')
+        if '@' in choice:
+            choice = choice.split('@')
+        return np.all([vs in choice for vs in value])
+
+    def valid_selection(self, value):
+        """
+        Determine if `value` is valid given the current value of
+        <phoebe.parameters.SelectTwigParameter.choices>.
+
+        In order to be valid, each item in the list `value` can be one of the
+        items in the list of or match with at least one item by allowing for
+        '*' and '?' wildcards.  Wildcard matching is done via the fnmatch
+        python package.
+
+        See also:
+        * <phoebe.parameters.SelectTwigParameter.remove_not_valid_selections>
+        * <phoebe.parameters.SelectTwigParameter.expand_value>
+
+        Arguments
+        ----------
+        * `value` (string or list): the value to test against the list of choices
+
+        Returns
+        --------
+        * (bool): whether `value` is valid given the choices.
+        """
+        if isinstance(value, list):
+            return np.all([self.valid_selection(v) for v in value])
+
+        if super(SelectTwigParameter, self).valid_selection(value):
+            return True
+
+        twigsplit = value.split('@')
+
+        # need to do special twig matching
+        for choice in self.choices:
+            if self._match_twig(twigsplit, choice):
+                return True
+
+        return False
+
+    def expand_value(self, **kwargs):
+        """
+        Get the current value of the <phoebe.parameters.SelectTwigParameter>.
+
+        This is simply a shortcut to <phoebe.parameters.SelectTwigParameter.get_value>
+        but passing `expand=True`.
+
+        **default/override values**: if passing a keyword argument with the same
+            name as the Parameter qualifier (see
+            <phoebe.parameters.Parameter.qualifier>), then the value passed
+            to that keyword argument will be returned **instead of** the current
+            value of the Parameter.  This is mostly used internally when
+            wishing to override values sent to
+            <phoebe.frontend.bundle.Bundle.run_compute>, for example.
+
+        See also:
+        * <phoebe.parameters.SelectParameter.valid_selection>
+        * <phoebe.parameters.SelectParameter.remove_not_valid_selections>
+
+        Arguments
+        ----------
+        * `**kwargs`: passing a keyword argument that matches the qualifier
+            of the Parameter, will return that value instead of the stored value.
+            See above for how default values are treated.
+
+        Returns
+        --------
+        * (list) the current or overridden value of the Parameter
+        """
+
+        selection = []
+        for v in self.get_value(**kwargs):
+            vsplit = v.split('@')
+            for choice in self.choices:
+                if v==choice and choice not in selection and len(choice):
+                    selection.append(choice)
+                elif _fnmatch(choice, v) and choice not in selection and len(choice):
+                    selection.append(choice)
+                elif self._match_twig(vsplit, choice) and choice not in selection and len(choice):
+                    selection.append(choice)
+
+
+        return selection
+
+
 class BoolParameter(Parameter):
     def __init__(self, *args, **kwargs):
         """
@@ -6608,12 +8094,11 @@ class BoolParameter(Parameter):
         """
         super(BoolParameter, self).__init__(*args, **kwargs)
 
-        self.set_value(kwargs.get('value', True))
+        self.set_value(kwargs.get('value', True), ignore_readonly=True)
 
-        self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for', 'advanced']
+        self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for', 'readonly', 'advanced', 'latexfmt']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
-    @update_if_client
     def get_value(self, **kwargs):
         """
         Get the current value of the <phoebe.parameters.BoolParameter>.
@@ -6658,7 +8143,9 @@ class BoolParameter(Parameter):
         ---------
         * ValueError: if `value` could not be converted to a boolean
         """
-        _orig_value = deepcopy(self.get_value())
+        self._readonly_check(**kwargs)
+
+        _orig_value = _deepcopy(self.get_value())
 
         if value in ['false', 'False', '0']:
             value = False
@@ -6670,13 +8157,10 @@ class BoolParameter(Parameter):
         else:
             self._value = value
 
-            if self.context not in ['setting', 'history']:
-                self._add_history(redo_func='set_value', redo_kwargs={'value': value, 'uniqueid': self.uniqueid}, undo_func='set_value', undo_kwargs={'value': _orig_value, 'uniqueid': self.uniqueid})
-
 class UnitParameter(ChoiceParameter):
     def __init__(self, *args, **kwargs):
         """
-        see :meth:`Parameter.__init__`
+        see <phoebe.parameters.Parameter.__init__>
         """
         super(UnitParameter, self).__init__(*args, **kwargs)
 
@@ -6684,7 +8168,7 @@ class UnitParameter(ChoiceParameter):
         value = self._check_type(value)
         self._value = value
 
-        self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for', 'advanced']
+        self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for', 'readonly', 'advanced', 'latexfmt']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     def _check_type(self, value):
@@ -6698,7 +8182,7 @@ class UnitParameter(ChoiceParameter):
         if value in ['', 'dimensionless']:
             return 'dimensionless'
 
-        if isinstance(value, str) or isinstance(value, unicode):
+        if isinstance(value, str) :
             try:
                 value = u.Unit(str(value))
             except:
@@ -6708,7 +8192,6 @@ class UnitParameter(ChoiceParameter):
 
         return value
 
-    @update_if_client
     def get_value(self, **kwargs):
         """
         Get the current value of the <phoebe.parameters.UnitParameter>.
@@ -6741,19 +8224,18 @@ class UnitParameter(ChoiceParameter):
         * ValueError: if `value` cannot be mapped to one of
             <phoebe.parameters.UnitParameter.choices>
         """
-        _orig_value = deepcopy(self.get_value())
+        self._readonly_check(**kwargs)
+
+        _orig_value = _deepcopy(self.get_value())
 
         value = self._check_type(value)
 
-        if value not in self.choices:
+        if value not in self.choices and not kwargs.get('allow_not_in_choices', False):
             # TODO: see if same physical type and allow if so?
 
             raise ValueError("value for {} must be one of {}, not '{}'".format(self.uniquetwig, self.choices, value))
 
         self._value = value
-
-        self._add_history(redo_func='set_value', redo_kwargs={'value': value, 'uniqueid': self.uniqueid}, undo_func='set_value', undo_kwargs={'value': _orig_value, 'uniqueid': self.uniqueid})
-
 
 
 class DictParameter(Parameter):
@@ -6763,12 +8245,11 @@ class DictParameter(Parameter):
         """
         super(DictParameter, self).__init__(*args, **kwargs)
 
-        self.set_value(kwargs.get('value', {}))
+        self.set_value(kwargs.get('value', {}), ignore_readonly=True)
 
-        self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for', 'advanced']
+        self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for', 'readonly', 'advanced', 'latexfmt']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
-    @update_if_client
     def get_value(self, **kwargs):
         """
         Get the current value of the <phoebe.parameters.DictParameter>.
@@ -6810,7 +8291,9 @@ class DictParameter(Parameter):
         * ValueError: if `value` could not be converted to the correct type
             or is not a valid value for the Parameter.
         """
-        _orig_value = deepcopy(self.get_value())
+        self._readonly_check(**kwargs)
+
+        _orig_value = _deepcopy(self.get_value())
 
         try:
             value = dict(value)
@@ -6818,8 +8301,6 @@ class DictParameter(Parameter):
             raise ValueError("could not cast value to dictionary")
         else:
             self._value = value
-
-            self._add_history(redo_func='set_value', redo_kwargs={'value': value, 'uniqueid': self.uniqueid}, undo_func='set_value', undo_kwargs={'value': _orig_value, 'uniqueid': self.uniqueid})
 
 
 class IntParameter(Parameter):
@@ -6832,9 +8313,9 @@ class IntParameter(Parameter):
         limits = kwargs.get('limits', (None, None))
         self.set_limits(limits)
 
-        self.set_value(kwargs.get('value', 1))
+        self.set_value(kwargs.get('value', 1), ignore_readonly=True)
 
-        self._dict_fields_other = ['description', 'value', 'limits', 'visible_if', 'copy_for', 'advanced']
+        self._dict_fields_other = ['description', 'value', 'limits', 'visible_if', 'copy_for', 'readonly', 'advanced', 'latexfmt']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     @property
@@ -6929,7 +8410,6 @@ class IntParameter(Parameter):
 
         return value
 
-    @update_if_client
     def get_value(self, **kwargs):
         """
         Get the current value of the <phoebe.parameters.IntParameter>.
@@ -6978,14 +8458,183 @@ class IntParameter(Parameter):
             <phoebe.parameters.IntParameter.get_limits> and
             <phoebe.parameters.IntParameter.within_limits>
         """
-        _orig_value = deepcopy(self.get_value())
+        self._readonly_check(**kwargs)
+
+        _orig_value = _deepcopy(self.get_value())
 
         value = self._check_value(value)
 
         self._value = value
 
-        self._add_history(redo_func='set_value', redo_kwargs={'value': value, 'uniqueid': self.uniqueid}, undo_func='set_value', undo_kwargs={'value': _orig_value, 'uniqueid': self.uniqueid})
 
+class DistributionParameter(Parameter):
+    def __init__(self, bundle, value, **kwargs):
+        """
+        see <phoebe.parameters.Parameter.__init__>
+
+        additional options:
+        * `default_unit`
+        """
+        super(DistributionParameter, self).__init__(**kwargs)
+
+        self._bundle = bundle
+        # also have to set all attributes before calling set_value so that
+        # get_referenced_parameter works
+        for k,v in kwargs.items():
+            if hasattr(self, '_{}'.format(k)):
+                setattr(self, '_{}'.format(k), v)
+
+        self.set_value(value, ignore_readonly=True)
+
+        self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for', 'readonly', 'advanced', 'latexfmt']
+        self._dict_fields = _meta_fields_all + self._dict_fields_other
+
+    def get_referenced_parameter(self):
+        """
+        Access the referenced parameter from the Bundle
+
+        Returns
+        ----------
+        * <phoebe.parameters.Parameter> object
+        """
+        return self._bundle.exclude(context=['distribution', 'constraint'],
+                                    check_visible=False).get_parameter(qualifier=self.qualifier,
+                                          check_visible=False,
+                                          **{k:v for k,v in self.meta.items() if k in _contexts and k not in ['context', 'distribution']})
+
+    def lnp(self, value=None):
+        """
+        Return the log probability of drawing a value of the referenced
+        parameter <phoebe.parameters.DistributionParameter.get_referenced_parameter>
+        from the distribution.
+
+        See also:
+        * <phoebe.frontend.bundle.Bundle.calculate_lnp>
+
+        Arguments
+        ------------
+        * `value` (float or quantity, optional, default=None): value at which
+            to compute the probability.  If None, the quantity of the
+            referenced parameter will be used.  If units are not provided, will
+            assumed to be in the units of the distribution.
+
+        Returns
+        --------
+        * (float): log probability
+
+        Raises
+        ----------
+        * TypeError: if `value` is not of type None, quantity, float, or int.
+        """
+        if value is None:
+            param_quantity = self.get_referenced_parameter().get_quantity()
+        elif isinstance(value, u.Quantity):
+            param_quantity = value
+        elif isinstance(value, float) or isinstance(value, int):
+            param_quantity = value * self.get_value().unit
+        else:
+            raise TypeError("value must be of type None, Quantity, float, or int")
+
+        return self.get_value().logpdf(param_quantity.value, unit=param_quantity.unit)
+
+    def get_value(self, **kwargs):
+        """
+        Get the current value of the <phoebe.parameters.DistributionParameter>
+        """
+        default = super(DistributionParameter, self).get_value(**kwargs)
+        if default is not None: return default
+        dist = self._value
+
+        if isinstance(dist, distl.BaseAroundGenerator) and not self._bundle._within_solver:
+            if dist.unit is not None:
+                value = self.get_referenced_parameter().get_quantity().to(dist.unit).value
+            else:
+                value = self.get_referenced_parameter().get_value()
+
+            dist.value = value
+
+        return dist
+
+    def _check_value(self, value):
+        if isinstance(value, distl.BaseDistlObject):
+            return value
+        elif isinstance(value, dict) and 'distl' in value.keys():
+            # then we're loading the JSON version of an nparray object
+            return distl.from_dict(value)
+        elif (isinstance(value, tuple) or isinstance(value, list)) and len(value)==2:
+            # assume uniform
+            return distl.uniform(*value)
+        else:
+            raise TypeError("must be a distl Distribution object, got {} (type: {})".format(value, type(value)))
+
+    @send_if_client
+    def set_value(self, value, force=False, run_checks=None, run_constraints=None, **kwargs):
+        """
+        Set the current value of the <phoebe.parameters.DistributionParameter>.
+
+        Arguments
+        -------------
+        * `value` (distl distribution object): the distribution object
+        * `run_checks` (bool, optional): whether to call
+            <phoebe.frontend.bundle.Bundle.run_checks> after setting the value.
+            If `None`, the value in `phoebe.conf.interactive_checks` will be used.
+            This will not raise an error, but will cause a warning in the logger
+            if the new value will cause the system to fail checks.
+        * `run_constraints` whether to run any necessary constraints after setting
+            the value.  If `None`, the value in `phoebe.conf.interactive_constraints`
+            will be used.
+        * `**kwargs`: IGNORED
+        """
+        self._readonly_check(**kwargs)
+
+        _orig_value = _deepcopy(self.get_value())
+        value = self._check_value(value)
+
+        ref_param = self.get_referenced_parameter()
+        if value.unit is None:
+            value.unit = ref_param.default_unit
+        else:
+            try:
+                value.unit.to(ref_param.default_unit)
+            except:
+                raise ValueError("units of {} on distribution not compatible with units of {} on parameter".format(value.unit, ref_param.default_unit))
+
+        # TODO: apply the label, but use dist.__repr__ for Parameter and ParameterSet
+        # displays of the value (distl falls back on {label} when available)
+        # value.label = ref_param.get_uniquetwig(self._bundle, exclude_levels=['context'])
+
+        self._value = value
+
+
+    def set_property(self, **kwargs):
+        """
+        Set any property of the underlying [distl](https://distl.readthedocs.io)
+        object.
+
+        Example:
+        ```py
+        param.set_value(loc=10, scale=5)
+        ```
+
+        Arguments
+        ----------
+        * `**kwargs`: properties to be set on the underlying distl object.
+        """
+        for property, value in kwargs.items():
+            setattr(self._value, property, value)
+
+    def plot(self, **kwargs):
+        """
+        Plot both the analytic distribution function as well as a sampled
+        histogram from the distribution.  Requires matplotlib to be installed.
+
+        This is simply a shortcut to [distl.BaseDistribution.plot](https://distl.readthedocs.io/en/latest/api/BaseDistribution.plot/)
+
+        Raises
+        --------
+        * ImportError: if matplotlib dependency is not met.
+        """
+        return self.get_value().plot(**kwargs)
 
 class FloatParameter(Parameter):
     def __init__(self, *args, **kwargs):
@@ -7005,16 +8654,16 @@ class FloatParameter(Parameter):
 
         unit = kwargs.get('unit', None)  # will default to default_unit in set_value
 
-        if isinstance(unit, unicode):
-          unit = u.Unit(str(unit))
+        if isinstance(unit, str):
+          unit = u.Unit(unit)
 
 
         timederiv = kwargs.get('timederiv', None)
         self.set_timederiv(timederiv)
 
-        self.set_value(kwargs.get('value', ''), unit)
+        self.set_value(kwargs.get('value', ''), unit, ignore_readonly=True)
 
-        self._dict_fields_other = ['description', 'value', 'quantity', 'default_unit', 'limits', 'visible_if', 'copy_for', 'advanced'] # TODO: add adjust?  or is that a different subclass?
+        self._dict_fields_other = ['description', 'value', 'quantity', 'default_unit', 'limits', 'visible_if', 'copy_for', 'readonly', 'advanced', 'latexfmt'] # TODO: add adjust?  or is that a different subclass?
         if conf.devel:
             # NOTE: this check will take place when CREATING the parameter,
             # so toggling devel after won't affect whether timederiv is included
@@ -7074,8 +8723,8 @@ class FloatParameter(Parameter):
         # TODO: add to docstring documentation about what happens (does the value convert, etc)
         # TODO: check to make sure isinstance(unit, astropy.u.Unit)
         # TODO: check to make sure can convert from current default unit (if exists)
-        if isinstance(unit, unicode) or isinstance(unit, str):
-          unit = u.Unit(str(unit))
+        if isinstance(unit, str):
+          unit = u.Unit(unit)
         elif unit is None:
             unit = u.dimensionless_unscaled
 
@@ -7204,8 +8853,284 @@ class FloatParameter(Parameter):
         """
         self._timederiv = timederiv
 
-    #@update_if_client is on the called get_quantity
-    def get_value(self, unit=None, t=None, **kwargs):
+    @property
+    def in_distributions(self):
+        """
+        List the distribution tags of the distributions attached to this parameters
+
+        Returns
+        ----------
+        * (list of strings)
+        """
+        return self._bundle.filter(context='distribution', qualifier=self.qualifier,
+                                   check_visible=False, check_default=False,
+                                   **{k:v for k,v in self.meta.items() if k in _contexts and k not in ['context', 'distribution']}).distributions
+
+    def add_distribution(self, value):
+        """
+        Add a distribution to the bundle attached to this Parameter.
+
+        See also:
+        * <phoebe.frontend.bundle.Bundle.add_distribution>
+        * <phoebe.frontend.bundle.Bundle.add_dist>
+        * <phoebe.parameters.FloatParameter.get_distribution>
+        * <phoebe.parameters.FloatParameter.sample_distribution>
+
+        Arguments
+        ------------
+        * `value` (distl Distribution object, optional, default=None): the
+            distribution to be applied to the created <phoebe.parameters.DistributionParameter>.
+            If not provided, will be a delta function around the current value
+            of the referenced parameter.
+        """
+        if self._bundle is None:
+            raise ValueError("parameter must be attached to a Bundle to call add_distribution")
+
+        self._bundle.add_distribution(twig=self, value=value)
+
+    def get_distribution_parameters(self, distribution=None, follow_constraints=True):
+        """
+        Get the distribution parameter(s) corresponding to `distribution`.
+
+        See also:
+        * <phoebe.frontend.bundle.Bundle.get_distribution>
+        * <phoebe.frontend.bundle.Bundle.get_dist>
+        * <phoebe.parameters.FloatParameter.get_distribution>
+        * <phoebe.parameters.FloatParameter.sample_distribution>
+        * <phoebe.parameters.FloatParameter.add_distribution>
+
+        Arguments
+        -------------
+        * `distribution` (string list or None, optional, default=None): distribution
+            to use when filtering.  If None, will default to <phoebe.parameters.FloatParameter.in_distributions>
+        * `follow_constraints` (bool, optional, default=True): whether to include
+            the distributions of parameters in the constrained parameter.  Only
+            applicable if this parameter is currently constrained.  See also
+            <phoebe.parameters.FloatParameter.is_constrained> and
+            <phoebe.parameters.FloatParameter.constrained_by>.
+
+        Returns
+        ----------
+        * <phoebe.parameters.ParameterSet> of distribution parameters.
+        """
+        if distribution is None:
+            direct_distribution = self.in_distributions
+        else:
+            direct_distribution = distribution
+
+        direct_ps =  self._bundle.filter(qualifier=self.qualifier,
+                                         distribution=direct_distribution,
+                                         context='distribution',
+                                         check_visible=False,
+                                         **{k:v for k,v in self.meta.items() if k in _contexts and k not in ['context', 'distribution']})
+
+        indirect_params = []
+        if follow_constraints and len(self.constrained_by):
+            # then this is a constrained parameter, so we want to propagate
+            # any distributions through the constraint and return a CompositeDistribution
+            # instead.
+            for constraining_param in self.constrained_by:
+                indirect_params += self._bundle.filter(qualifier=constraining_param.qualifier,
+                                                       distribution=distribution if distribution is not None else constraining_param.in_distributions,
+                                                       context='distribution',
+                                                       check_visible=False,
+                                                       **{k:v for k,v in constraining_param.meta.items() if k in _contexts and k not in ['context', 'distribution']}).to_list()
+
+        return direct_ps + indirect_params
+
+
+    def get_distribution(self, distribution=None, follow_constraints=True,
+                              resolve_around_distributions=False,
+                              distribution_uniqueids=None):
+        """
+        Access the distribution object corresponding to this parameter
+        tagged with distribution=`distribution`.  To access the
+        <phoebe.parameters.DistributionParameter> itself, see
+        <phoebe.frontend.bundle.Bundle.get_distribution>.
+
+        If this parameter is a constrained parameter, and any of the parameters
+        involved in the constraint have distributions attached with
+        distribution=`distribution`, a distribution object will be exposed
+        that is propagated through the constraint (whether or not a
+        <phoebe.parameters.DistributionParameter> exists).  A warning will
+        be raised in the <phoebe.logger> if a distribution does exist but
+        the propaged distribution is to be returned instead.  To disable this
+        behavior, set `follow_constraints` to False.
+
+        See also:
+        * <phoebe.frontend.bundle.Bundle.get_distribution>
+        * <phoebe.frontend.bundle.Bundle.get_dist>
+        * <phoebe.parameters.FloatParameter.get_distribution_parameter>
+        * <phoebe.parameters.FloatParameter.sample_distribution>
+        * <phoebe.parameters.FloatParameter.add_distribution>
+
+        Arguments
+        ----------
+        * `distribution` (string or DistributionCollection, optional, default=None):
+            distribution tag of the <phoebe.parameters.DistributionParameter>.
+            Required if more than one are available.  Alternatively, a
+            DistributionCollection (from <phoebe.frontend.bundle.Bundle.get_distribution_collection>)
+            can be passed to `distribution` along with the uniqueids (pass `keys='uniqueids'`)
+            passed to `distribution_uniqueids`.
+        * `follow_constraints` (bool, optional, default=True): whether to propagate
+            distributions through constraints if this parameter is constrained.
+            If False, the distribution directly attached to the parameter
+            will be exposed instead.
+        * `resolve_around_distributions` (bool, optional, default=False): resolve
+            any "around" distributions to the current face-value.
+        * `distribution_uniqueids` (list of str, optional, default=None): if
+            `distribution` is a DistributionCollection object, providing the uniqueids
+            (from <phoebe.frontend.bundle.Bundle.get_distribution_collection>)
+            is necessary to slice appropriately.  If `distribution` is not a
+            DistributionCollection, `distribution_uniqueids` is ignored.
+
+        Returns
+        ----------
+        * Distribution object (not the parameter, see
+            <phoebe.frontend.bundle.Bundle.get_distribution> to access the
+            <phoebe.parameters.DistributionParameter>)
+
+        Raises
+        ----------
+        * ValueError: if no valid distribution can be found.
+        """
+        if self._bundle is None:
+            raise ValueError("parameter must be attached to a Bundle to call get_distribution")
+
+        if not isinstance(distribution, str) and not isinstance(distribution, distl._distl.BaseDistlObject) and distribution is not None:
+            if isinstance(distribution, list):
+                raise NotImplementedError()
+            else:
+                raise TypeError("distribution must be of type string, DistributionCollection, or None, got {}".format(type(distribution)))
+
+        if isinstance(distribution, str) and distribution not in self._bundle.distributions:
+            # then maybe pointing to a solution, etc
+            distribution, distribution_uniqueids = self._bundle.get_distribution_collection(distribution, keys='uniqueid', allow_non_dc=False)
+
+        dist = None
+        if follow_constraints and len(self.constrained_by):
+            # then this is a constrained parameter, so we want to propagate
+            # any distributions through the constraint and return a CompositeDistribution
+            # instead.
+
+            if isinstance(distribution, str) and len(self._bundle.filter(qualifier=self.qualifier,
+                                                     distribution=distribution,
+                                                     context='distribution',
+                                                     check_visible=False,
+                                                     **{k:v for k,v in self.meta.items() if k in _contexts and k not in ['context', 'distribution']})):
+
+                logger.warning("{} is constrained but also has a distribution attached with distribution='{}'.  Returning the distribution propagated through the constraint instead (pass follow_constraints=False to disable this behavior).".format(self.twig, distribution))
+
+            # constraint_expr = self.is_constraint.get_value()
+            if distribution is None:
+                if len(self._bundle.distributions) > 1:
+                    raise ValueError("must provide label of distribution")
+                elif len(self._bundle.distributions) == 1:
+                    distribution = self._bundle.distributions[0]
+                else:
+                    raise ValueError("no distributions found attached to bundle")
+
+            if isinstance(distribution, distl._distl.DistributionCollection):
+                if distribution_uniqueids is None:
+                    raise ValueError("must provide distribution_uniqueids if distribution is a DistributionCollection")
+                # attach the uniqueids so they're available within get_result
+                # for subsequent calls here
+                distribution.distribution_uniqueids = distribution_uniqueids
+
+            dist = self.is_constraint.get_result(use_distribution=distribution)
+
+            if not isinstance(dist, distl._distl.BaseDistlObject):
+                # then the constraint returned a value, which means none of the
+                # constraining parameters had matching distributions... so we'll
+                # fallback on the distribution directly attached to this parameter
+                # instead
+                dist = None
+
+        if dist is None:
+            if isinstance(distribution, str):
+                try:
+                    dist = self._bundle.get_parameter(qualifier=self.qualifier,
+                                                      distribution=distribution,
+                                                      context='distribution',
+                                                      check_visible=False,
+                                                      **{k:v for k,v in self.meta.items() if k in _contexts and k not in ['context', 'distribution']}).get_value()
+                except ValueError:
+                    return None
+            elif isinstance(distribution, distl._distl.DistributionCollection):
+                if distribution_uniqueids is None:
+                    if hasattr(distribution, 'distribution_uniqueids'):
+                        # will this be a problem when jsoned internally by constraints?
+                        distribution_uniqueids = distribution.distribution_uniqueids
+                    else:
+                        raise ValueError("must provide distribution_uniqueids if distribution is a DistributionCollection")
+
+                if self.uniqueid in distribution_uniqueids:
+                    dist = distribution.dists[distribution_uniqueids.index(self.uniqueid)]
+                else:
+                    dist = None
+
+
+        if dist is None:
+            return None
+
+        if isinstance(dist, distl.BaseAroundGenerator):
+            if resolve_around_distributions:
+                dist = dist.__call__(self.get_value())
+            else:
+                dist.value = self.get_value()
+
+        if dist.label is None:
+            if hasattr(self, self.context):
+                dist.label = '{}@{}'.format(self.qualifier, getattr(self, self.context))
+            else:
+                dist.label = '{}@{}'.format(self.qualifier, self.context)
+            if self._latexfmt is not None:
+                dist.label_latex = self.latextwig.replace("$", "")
+
+        return dist
+
+    def sample_distribution(self, distribution=None, follow_constraints=True,
+                            seed=None, set_value=False):
+        """
+        Sample from the distribution attached to this parameter (and optionally
+        adopt the sampled value).
+
+        See also:
+        * <phoebe.parameters.FloatParameter.get_distribution>
+        * <phoebe.parameters.FloatParameter.add_distribution>
+
+        Arguments
+        ------------
+        * `distribution` (string, optional, default=None): distribution tag
+            of the <phoebe.parameters.DistributionParameter>.  Required if
+            more than one are available.
+        * `follow_constraints` (bool, optional, default=True): whether to propagate
+            distributions through constraints if this parameter is constrained.
+            If False, the distribution directly attached to the parameter
+            will be exposed instead.  See <phoebe.parameters.FloatParameter.get_distribution>
+            for more details.
+        * `seed` (int, optional, default=None): seed to use when randomly
+            drawing from the distribution.
+        * `set_value` (bool, optional, default=False): whether to adopt the
+            sampled value.
+
+        Returns
+        --------
+        * (float): the sampled value
+
+
+        Raises
+        ----------
+        * ValueError: if no valid distribution can be found.
+        """
+        dist = self.get_distribution(distribution, follow_constraints=follow_constraints)
+        value = dist.sample(seed=seed)
+        if set_value:
+            self.set_value(value, ignore_readonly=True)
+        return value
+
+    def get_value(self, unit=None, t=None,
+                  **kwargs):
         """
         Get the current value of the <phoebe.parameters.FloatParameter> or
         <phoebe.parameters.FloatArrayParameter>.
@@ -7216,15 +9141,16 @@ class FloatParameter(Parameter):
         for full details.
         """
         default = super(FloatParameter, self).get_value(**kwargs)
-        if default is not None: return default
-        quantity = self.get_quantity(unit=unit, t=t, **kwargs)
+        if default is not None: return self._check_type(default)
+        quantity = self.get_quantity(unit=unit, t=t,
+                                     **kwargs)
         if hasattr(quantity, 'value'):
             return quantity.value
         else:
             return quantity
 
-    @update_if_client
-    def get_quantity(self, unit=None, t=None, **kwargs):
+    def get_quantity(self, unit=None, t=None,
+                     **kwargs):
         """
         Get the current quantity of the <phoebe.parameters.FloatParameter> or
         <phoebe.parameters.FloatArrayParameter>.
@@ -7244,7 +9170,7 @@ class FloatParameter(Parameter):
         ----------
         * `unit` (unit or string, optional, default=None): unit to convert the
             value.  If not provided, will use the default unit (see
-            <phoebe.parameters.FloatParameter.default_unit>)
+            <phoebe.parameters.FloatParameter.default_unit>
         * `**kwargs`: passing a keyword argument that matches the qualifier
             of the Parameter, will return that value instead of the stored value.
             See above for how default values are treated.
@@ -7255,9 +9181,10 @@ class FloatParameter(Parameter):
         """
         default = super(FloatParameter, self).get_value(**kwargs) # <- note this is calling get_value on the Parameter object
         if default is not None:
-            value = default
+            value = self._check_type(default)
             if isinstance(default, u.Quantity):
                 return value
+            return value * self.default_unit
         else:
             value = self._value
 
@@ -7297,9 +9224,14 @@ class FloatParameter(Parameter):
 
         # TODO: check to see if this is still necessary
         if isinstance(unit, str):
-            # we need to do this to make sure we get PHOEBE's version of
-            # the unit instead of astropy's
-            unit = u.Unit(unit)
+            if unit == 'solar':
+                unit = u._physical_types_to_solar.get(u._get_physical_type(self.default_unit))
+            elif unit in ['si', 'SI']:
+                unit = u._physical_types_to_si.get(u._get_physical_type(self.default_unit))
+            else:
+                # we need to do this to make sure we get PHOEBE's version of
+                # the unit instead of astropy's
+                unit = u.Unit(unit)
 
         # TODO: catch astropy units and convert to PHOEBE's?
 
@@ -7317,7 +9249,7 @@ class FloatParameter(Parameter):
         # accept tuples (ie 1.2, 'rad') from dictionary access
         if isinstance(value, tuple) and unit is None:
             value, unit = value
-        if isinstance(value, str) or isinstance(value, unicode):
+        if isinstance(value, str):
             if len(value.strip().split(' ')) == 2 and unit is None and self.__class__.__name__ == 'FloatParameter':
                 # support value unit as string
                 valuesplit = value.strip().split(' ')
@@ -7349,7 +9281,7 @@ class FloatParameter(Parameter):
 
         elif not (isinstance(value, float) or isinstance(value, int)):
             # TODO: probably need to change this to be flexible with all the cast_types
-            raise ValueError("value could not be cast to float")
+            raise ValueError("value ({}) could not be cast to float".format(value))
 
         return value
 
@@ -7418,7 +9350,9 @@ class FloatParameter(Parameter):
             <phoebe.parameters.FloatParameter.get_limits> and
             <phoebe.parameters.FloatParameter.within_limits>
         """
-        _orig_quantity = deepcopy(self.get_quantity())
+        self._readonly_check(**kwargs)
+
+        _orig_quantity = _deepcopy(self.get_quantity())
 
         if len(self.constrained_by) and not force:
             raise ValueError("cannot change the value of a constrained parameter.  This parameter is constrained by '{}'".format(', '.join([p.uniquetwig for p in self.constrained_by])))
@@ -7429,7 +9363,7 @@ class FloatParameter(Parameter):
 
         value, unit = self._check_value(value, unit)
 
-        if isinstance(unit, str) or isinstance(unit, unicode):
+        if isinstance(unit, str):
             # print "*** converting string to unit"
             unit = u.Unit(unit)  # should raise error if not a recognized unit
         elif unit is not None and not _is_unit(unit):
@@ -7442,11 +9376,6 @@ class FloatParameter(Parameter):
                 if value.unit != unit:
                     raise ValueError("value and unit do not agree")
 
-        elif value is None:
-            # allowed for FloatArrayParameter if self.allow_none.  This should
-            # already have been checked by self._check_type
-            value = value
-
         elif unit is not None:
             # print "*** converting value to quantity"
             value = value * unit
@@ -7458,6 +9387,9 @@ class FloatParameter(Parameter):
         if value is not None and value.unit.physical_type == 'angle':
             # NOTE: this may fail for nparray types
             if value > (360*u.deg) or value < (0*u.deg):
+                if self._bundle is not None and self._bundle._within_solver and not kwargs.get('from_constraint', False):
+                    if abs(value.to(u.deg).value - self._value.to(u.deg).value) > 180:
+                        raise ValueError("value further than 180 deg from {}".format(self._value.to(u.deg).value))
                 value = value % (360*u.deg)
                 logger.warning("wrapping value of {} to {}".format(self.qualifier, value))
 
@@ -7504,7 +9436,6 @@ class FloatParameter(Parameter):
         if run_checks and self._bundle:
             report = self._bundle.run_checks(allow_skip_constraints=True, raise_logger_warning=True)
 
-        self._add_history(redo_func='set_quantity', redo_kwargs={'value': value, 'uniqueid': self.uniqueid}, undo_func='set_value', undo_kwargs={'value': _orig_quantity, 'uniqueid': self.uniqueid})
 
 class FloatArrayParameter(FloatParameter):
     def __init__(self, *args, **kwargs):
@@ -7513,14 +9444,17 @@ class FloatArrayParameter(FloatParameter):
 
         Additional arguments
         ---------------------
-        * `allow_none` (bool, optional, default=False)
         """
-        self._allow_none = kwargs.get('allow_none', False)
+        required_shape = kwargs.pop('required_shape', None)
+        if isinstance(required_shape, int):
+            required_shape = [required_shape]
+        self._required_shape = np.asarray(required_shape) if required_shape is not None else None
+
         super(FloatArrayParameter, self).__init__(*args, **kwargs)
 
         # NOTE: default_unit and value handled in FloatParameter.__init__()
 
-        self._dict_fields_other = ['description', 'value', 'default_unit', 'visible_if', 'copy_for', 'allow_none']
+        self._dict_fields_other = ['description', 'value', 'default_unit', 'visible_if', 'required_shape', 'copy_for', 'readonly', 'advanced', 'latexfmt']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     def __repr__(self):
@@ -7548,15 +9482,8 @@ class FloatArrayParameter(FloatParameter):
         return str_
 
     @property
-    def allow_none(self):
-        """
-        Return whether None is an acceptable value in addition to an array
-
-        Returns
-        --------
-        * (bool)
-        """
-        return self._allow_none
+    def required_shape(self):
+        return self._required_shape
 
     def to_string_short(self):
         """
@@ -7576,7 +9503,9 @@ class FloatArrayParameter(FloatParameter):
         np.set_printoptions(**opt)
         return str_
 
-    def interp_value(self, unit=None, component=None, t0='t0_supconj', **kwargs):
+    def interp_value(self, unit=None, component=None,
+                     period='period', dpdt='dpdt', t0='t0_supconj',
+                     consider_gaussian_process=True, **kwargs):
         """
         Interpolate to find the value in THIS array given a value from
         ANOTHER array in the SAME parent <phoebe.parameters.ParameterSet>
@@ -7606,8 +9535,8 @@ class FloatArrayParameter(FloatParameter):
         case the 'times' qualifier must be found in the ParentPS.  Interpolating
         in phase-space is only allowed if there are no time derivatives present
         in the system.  This can be checked with
-        <phoebe.parameters.HierarchyParameter.is_time_dependent>.  To interpolate
-        in phases:
+        <phoebe.parameters.HierarchyParameter.is_time_dependent>(`consider_gaussian_process=consider_gaussian_process`).
+        To interpolate in phases:
 
         ```
         b['fluxes@lc01@model'].interp_value(phases=0.5)
@@ -7616,6 +9545,10 @@ class FloatArrayParameter(FloatParameter):
         Additionally, when interpolating in time but the time is outside the
         available range, phase-interpolation will automatically be attempted,
         with a warning raised via the <phoebe.logger>.
+
+        Note: if this parameter is a model parameter where `sample_mode`
+        was 'all', an error will be raised.  If `sample_mode` was 'n-sigma',
+        then the median will be used when determining residuals.
 
         See also:
         * <phoebe.parameters.FloatArrayParameter.interp_quantity>
@@ -7630,9 +9563,17 @@ class FloatArrayParameter(FloatParameter):
         * `component` (string, optional, default=None): if interpolating in phases,
             `component` will be passed along to
             <phoebe.frontend.bundle.Bundle.to_phase>.
+        * `period` (string/float, optional, default='period'): if interpolating
+            in phases, `period` will be passed along to
+            <phoebe.frontend.bundle.Bundle.to_phase>.
+        * `dpdt` (string/float, optional, default='dpdt'): if interpolating in
+            phases, `dpdt` will be passed along to
+            <phoebe.frontend.bundle.Bundle.to_phase>.
         * `t0` (string/float, optional, default='t0_supconj'): if interpolating
             in phases, `t0` will be passed along to
              <phoebe.frontend.bundle.Bundle.to_phase>.
+        * `consider_gaussian_process` (bool, optional, defult=True): whether
+            to consider a system with gaussian process(es) as time-dependent.
         * `**kwargs`: see examples above, must provide a single
             qualifier-value pair to use for interpolation.  In most cases
             this will probably be time=value or wavelength=value.  If the value
@@ -7659,9 +9600,11 @@ class FloatArrayParameter(FloatParameter):
         # TODO: add support for non-linear interpolation (probably would need to use scipy)?
 
         return_quantity = kwargs.pop('return_quantity', False)
+        parent_ps = kwargs.pop('parent_ps', self.get_parent_ps())
+        bundle = kwargs.pop('bundle', self._bundle)
 
         if len(kwargs.keys()) > 1:
-            raise KeyError("interp_value only takes a single qualifier-value pair")
+            raise KeyError("interp_value only takes a single qualifier-value pair, got other kwargs: {}".format(list(kwargs.keys())))
 
         qualifier, qualifier_interp_value = list(kwargs.items())[0]
 
@@ -7672,40 +9615,55 @@ class FloatArrayParameter(FloatParameter):
         if isinstance(qualifier_interp_value, str):
             # then assume its a twig and try to resolve
             # for example: time='t0_supconj'
-            qualifier_interp_value = self._bundle.get_value(qualifier_interp_value, context=['system', 'component'])
+            qualifier_interp_value = bundle.get_value(qualifier=qualifier_interp_value, context=['system', 'component'], **_skip_filter_checks)
 
-        parent_ps = self.get_parent_ps()
 
         if qualifier not in parent_ps.qualifiers and not (qualifier=='phases' and 'times' in parent_ps.qualifiers):
             raise KeyError("'{}' not valid qualifier (must be one of {})".format(qualifier, parent_ps.qualifiers))
 
         if isinstance(qualifier_interp_value, u.Quantity):
-            default_unit = parent_ps.get_parameter(qualifier=qualifier).default_unit
+            default_unit = parent_ps.get_parameter(qualifier=qualifier, **_skip_filter_checks).default_unit
             logger.warning("converting from provided quantity with units {} to default units ({}) of {}".format(qualifier_interp_value.unit, default_unit, qualifier))
             qualifier_interp_value = qualifier_interp_value.to(default_unit).value
 
         if qualifier=='times':
-            times = parent_ps.get_value(qualifier='times')
+            # TODO: do we need to worry about units here?
+            times = parent_ps.get_value(qualifier='times', **_skip_filter_checks)
             if np.any(qualifier_interp_value < times.min()) or np.any(qualifier_interp_value > times.max()):
                 qualifier_interp_value_time = qualifier_interp_value
                 qualifier = 'phases'
-                qualifier_interp_value = self._bundle.to_phase(qualifier_interp_value_time, component=component, t0=t0)
+                qualifier_interp_value = bundle.to_phase(qualifier_interp_value_time, component=component, period=period, dpdt=dpdt, t0=t0)
 
                 qualifier_interp_value_time_str = "({} -> {})".format(min(qualifier_interp_value_time), max(qualifier_interp_value_time)) if hasattr(qualifier_interp_value_time, '__iter__') else qualifier_interp_value_time
                 qualifier_interp_value_str = "({} -> {})".format(min(qualifier_interp_value), max(qualifier_interp_value)) if hasattr(qualifier_interp_value, '__iter__') else qualifier_interp_value
                 logger.warning("times={} outside of interpolation limits ({} -> {}), attempting to interpolate at phases={}".format(qualifier_interp_value_time_str, times.min(), times.max(), qualifier_interp_value_str))
 
+        self_value = self.get_value()
+        if len(self_value.shape) > 1:
+            # then we need to check to see if this is in a model with sample_mode set
+            if self.context != 'model':
+                raise NotImplementedError("only 1D arrays supported unless in context='model' with sample_mode='n-sigma'")
+            # do we want bundle or parent_ps here (for the case where doing scaling from run_compute)
+            sample_mode = bundle.get_value(qualifier='sample_mode', context='model', model=self.model, default='none', **_skip_filter_checks)
+            if '-sigma' in sample_mode:
+                logger.warning("using median for interpolation for sample_mode='{}'".format(sample_mode))
+                self_value = self_value[1]
+            elif sample_mode == 'all' and self_value.shape[0] == 1:
+                # then sample_num = 1, possibly from an optimizer solution
+                self_value = self_value[0]
+            else:
+                raise NotImplementedError("iterpolation not supported for sample_mode='{}'".format(sample_mode))
 
         if qualifier=='phases':
-            if self._bundle.hierarchy.is_time_dependent():
+            if bundle.hierarchy.is_time_dependent(consider_gaussian_process=consider_gaussian_process):
                 raise ValueError("cannot interpolate in phase for time-dependent systems")
 
-            times = parent_ps.get_value(qualifier='times')
-            phases = self._bundle.to_phase(times, component=component, t0=t0)
+            times = parent_ps.get_value(qualifier='times', **_skip_filter_checks)
+            phases = bundle.to_phase(times, component=component, period=period, dpdt=dpdt, t0=t0)
 
             sort = phases.argsort()
 
-            value = np.interp(qualifier_interp_value, phases[sort], self.get_value()[sort])
+            value = np.interp(qualifier_interp_value, phases[sort], self_value[sort])
 
         else:
 
@@ -7717,7 +9675,7 @@ class FloatArrayParameter(FloatParameter):
             qualifier_value = qualifier_parameter.get_value()
             sort = qualifier_value.argsort()
 
-            value = np.interp(qualifier_interp_value, qualifier_value[sort], self.get_value()[sort])
+            value = np.interp(qualifier_interp_value, qualifier_value[sort], self_value[sort])
 
         if unit is not None:
             if return_quantity:
@@ -7752,6 +9710,9 @@ class FloatArrayParameter(FloatParameter):
             `**kwargs` below).
         * `component` (string, optional): if interpolating in phases, `component`
             will be passed along to <phoebe.frontend.bundle.Bundle.to_phase>.
+        * `period` (string/float, optional, default='period'): if interpolating
+            in phases, `period` will be passed along to
+            <phoebe.frontend.bundle.Bundle.to_phase>.
         * `t0` (string/float, optional): if interpolating in phases, `t0` will
             be passed along to <phoebe.frontend.bundle.Bundle.to_phase>.
         * `**kwargs`: see examples above, must provide a single
@@ -7780,7 +9741,7 @@ class FloatArrayParameter(FloatParameter):
 
         return self.interp_value(unit=unit, return_quantity=True, **kwargs)
 
-    def append(self, value):
+    def append(self, value, ignore_readonly=False):
         """
         Append a value to the end of the array.
 
@@ -7796,7 +9757,7 @@ class FloatArrayParameter(FloatParameter):
             value = value.to_array()
 
         new_value = np.append(self.get_value(), value) * self.default_unit
-        self.set_value(new_value)
+        self.set_value(new_value, ignore_readonly=ignore_readonly)
 
     def set_index_value(self, index, value, **kwargs):
         """
@@ -7810,13 +9771,13 @@ class FloatArrayParameter(FloatParameter):
         """
         if isinstance(value, u.Quantity):
             value = value.to(self.default_unit).value
-        elif isinstance(value, str) or isinstance(value, unicode):
+        elif isinstance(value, str):
             value = float(value)
         #else:
             #value = value*self.default_unit
         lst =self.get_value()#.value
         lst[index] = value
-        self.set_value(lst)
+        self.set_value(lst, ignore_readonly=kwargs.get('ignore_readonly', False))
 
     def __add__(self, other):
         if not (isinstance(other, list) or isinstance(other, np.ndarray)):
@@ -7851,10 +9812,7 @@ class FloatArrayParameter(FloatParameter):
     def _check_type(self, value):
         """
         """
-        if self.allow_none and value is None:
-            value = None
-
-        elif isinstance(value, u.Quantity):
+        if isinstance(value, u.Quantity):
             if isinstance(value.value, float) or isinstance(value.value, int):
                 value = np.array([value.value])*value.unit
 
@@ -7873,6 +9831,16 @@ class FloatArrayParameter(FloatParameter):
         elif not (isinstance(value, list) or isinstance(value, tuple) or isinstance(value, np.ndarray) or isinstance(value, nparray.ndarray)):
             # TODO: probably need to change this to be flexible with all the cast_types
             raise TypeError("value '{}' ({}) could not be cast to array".format(value, type(value)))
+
+        if len(value) and self.required_shape is not None:
+            if len(value.shape) != len(self.required_shape):
+                raise TypeError("value must have {} dimensions (value.shape={}, required_shape={})".format(len(self.required_shape), value.shape, self.required_shape))
+
+            for i, ilength in enumerate(self.required_shape):
+                if ilength == 0 or ilength is None:
+                    continue
+                if value.shape[i] != ilength:
+                    raise TypeError("dimension {} must have length {} (value.shape={}, required_shape={})".format(i, ilength, value.shape, self.required_shape))
 
         return value
 
@@ -7900,6 +9868,7 @@ class FloatArrayParameter(FloatParameter):
         for property, value in kwargs.items():
             setattr(self._value, property, value)
 
+
 class ArrayParameter(Parameter):
     def __init__(self, *args, **kwargs):
         """
@@ -7907,9 +9876,9 @@ class ArrayParameter(Parameter):
         """
         super(ArrayParameter, self).__init__(*args, **kwargs)
 
-        self.set_value(kwargs.get('value', []))
+        self.set_value(kwargs.get('value', []), ignore_readonly=True)
 
-        self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for', 'advanced']
+        self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for', 'readonly', 'advanced', 'latexfmt']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     def append(self, value):
@@ -7932,7 +9901,6 @@ class ArrayParameter(Parameter):
         #~ """
         #~ raise NotImplementedError
 
-    @update_if_client
     def get_value(self, **kwargs):
         """
         Get the current value of the <phoebe.parameters.ArrayParameter>.
@@ -7978,11 +9946,11 @@ class ArrayParameter(Parameter):
         * ValueError: if `value` could not be converted to the correct type
             or is not a valid value for the Parameter.
         """
-        _orig_value = deepcopy(self._value)
+        self._readonly_check(**kwargs)
+
+        _orig_value = _deepcopy(self._value)
         self._value = np.array(value)
 
-        if self.context not in ['setting', 'history']:
-            self._add_history(redo_func='set_value', redo_kwargs={'value': value, 'uniqueid': self.uniqueid}, undo_func='set_value', undo_kwargs={'value': _orig_value, 'uniqueid': self.uniqueid})
 
 class HierarchyParameter(StringParameter):
     def __init__(self, value, **kwargs):
@@ -8031,10 +9999,11 @@ class HierarchyParameter(StringParameter):
         ---------
         * ValueError: if `value` could not be converted to a string.
         """
+        self._readonly_check(**kwargs)
 
         # TODO: check to make sure valid
 
-        _orig_value = deepcopy(self.get_value())
+        _orig_value = _deepcopy(self.get_value())
 
         try:
             value = str(value)
@@ -8042,8 +10011,6 @@ class HierarchyParameter(StringParameter):
             raise ValueError("cannot cast to string")
         else:
             self._value = value
-
-            self._add_history(redo_func='set_value', redo_kwargs={'value': value, 'uniqueid': self.uniqueid}, undo_func='set_value', undo_kwargs={'value': _orig_value, 'uniqueid': self.uniqueid})
 
         if update_cache:
             self._update_cache()
@@ -8554,7 +10521,7 @@ class HierarchyParameter(StringParameter):
             items = self._get_by_trace(structure, trace[:-1]+[trace[-1]+1])
             # we want to ignore suborbits
             #return [str(ch.split(':')[-1]) for ch in items if isinstance(ch, unicode)]
-            return [str(ch.split(':')[-1]) for ch in items if isinstance(ch, unicode) and (kind is None or ch.split(':')[0] in kind)]
+            return [str(ch.split(':')[-1]) for ch in items if isinstance(ch, str) and (kind is None or ch.split(':')[0] in kind)]
 
     def get_stars_of_children_of(self, component):
         """
@@ -8791,7 +10758,7 @@ class HierarchyParameter(StringParameter):
 
         return False
 
-    def is_time_dependent(self):
+    def is_time_dependent(self, consider_gaussian_process=True):
         """
         Return whether the system has any time-dependent parameters (other than
         phase-dependence).
@@ -8801,12 +10768,23 @@ class HierarchyParameter(StringParameter):
         * `dperdt` is non-zero
         * a feature (eg. spot) is attached to an asynchronous star (with
             non-unity value for `syncpar`).
+        * a gaussian_process feature is attached to any dataset, unless
+            `consider_gaussian_process` is False.
+
+        To access the HierarchyParameter from the Bundle, see
+         <phoebe.frontend.bundle.Bundle.get_hierarchy>.
+
+        Arguments
+        ---------
+        * `consider_gaussian_process` (bool, optional, defult=True): whether
+            to consider a system with gaussian process(es) as time-dependent
 
         Returns
         ---------
         * (bool): whether the system is time-dependent
         """
-        for orbit in self.get_orbits():
+        orbits = self.get_orbits()
+        for orbit in orbits:
             if self._bundle.get_value(qualifier='dpdt', component=orbit, context='component') != 0:
                 return True
             if self._bundle.get_value(qualifier='dperdt', component=orbit, context='component') != 0:
@@ -8814,10 +10792,15 @@ class HierarchyParameter(StringParameter):
             # if conf.devel and self._bundle.get_value(qualifier='deccdt', component=orbit, context='component') != 0:
             #     return True
 
-        for component in self.get_stars():
-            if self._bundle.get_value('syncpar', component=component, context='component') != 1 and len(self._bundle.filter(context='feature', component=component)):
-                # spots on asynchronous stars
-                return True
+        if len(orbits):
+            for component in self.get_stars():
+                if self._bundle.get_value(qualifier='syncpar', component=component, context='component') != 1 and len(self._bundle.filter(context='feature', component=component)):
+                    # spots on asynchronous stars
+                    return True
+
+        # TODO: allow passing compute to do only enabled features attached to enabled datasets?
+        if consider_gaussian_process and len(self._bundle.filter(kind='gaussian_process', context='feature', **_skip_filter_checks).features):
+            return True
 
         return False
 
@@ -8861,9 +10844,9 @@ class ConstraintParameter(Parameter):
         self._constraint_func = kwargs.get('constraint_func', None)
         self._constraint_kwargs = kwargs.get('constraint_kwargs', {})
         self._in_solar_units = kwargs.get('in_solar_units', False)
-        self.set_value(value)
+        self.set_value(value, ignore_readonly=True)
         self.set_default_unit(default_unit)
-        self._dict_fields_other = ['description', 'value', 'default_unit', 'constraint_func', 'constraint_kwargs', 'constraint_addl_vars', 'in_solar_units', 'advanced']
+        self._dict_fields_other = ['description', 'value', 'default_unit', 'constraint_func', 'constraint_kwargs', 'constraint_addl_vars', 'in_solar_units', 'readonly', 'advanced', 'latexfmt']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     @property
@@ -8981,14 +10964,11 @@ class ConstraintParameter(Parameter):
 
         if self.qualifier:
             #~ print "***", self._bundle.__repr__(), self.qualifier, self.component
-            ps = self._bundle.filter(qualifier=self.qualifier, component=self.component, dataset=self.dataset, feature=self.feature, kind=self.kind, model=self.model, check_visible=False) - self._bundle.filter(context='constraint', check_visible=False)
+            ps = self._bundle.exclude(context='constraint', **_skip_filter_checks).filter(qualifier=self.qualifier, component=self.component, dataset=self.dataset, feature=self.feature, model=self.model, **_skip_filter_checks)
             if len(ps) == 1:
-                constrained_parameter = ps.get_parameter(check_visible=False,
-                                                         check_default=False,
-                                                         check_advanced=False,
-                                                         check_single=False)
+                constrained_parameter = ps.get_parameter(**_skip_filter_checks)
             else:
-                raise KeyError("could not find single match for {}".format({'qualifier': self.qualifier, 'component': self.component, 'dataset': self.dataset, 'feature': self.feature, 'model': self.model}))
+                raise KeyError("could not find single match for {} (found {})".format({'qualifier': self.qualifier, 'component': self.component, 'dataset': self.dataset, 'feature': self.feature, 'model': self.model}, ps.twigs))
 
 
             var = ConstraintVar(self._bundle, constrained_parameter.twig)
@@ -9131,8 +11111,8 @@ class ConstraintParameter(Parameter):
         * Error: if the new and current units are incompatible.
         """
         # TODO: check to make sure can convert from current default unit (if exists)
-        if isinstance(unit, unicode) or isinstance(unit, str):
-            unit = u.Unit(str(unit))
+        if isinstance(unit, str):
+            unit = u.Unit(unit)
 
         if not _is_unit(unit):
             raise TypeError("unit must be a Unit")
@@ -9159,11 +11139,13 @@ class ConstraintParameter(Parameter):
         * ValueError: if `value` could not be converted to a string.
         * Error: if `value` could not be parsed into a valid constraint expression.
         """
-        _orig_value = deepcopy(self.get_value())
+        self._readonly_check(**kwargs)
+
+        _orig_value = _deepcopy(self.get_value())
 
         if self._bundle is None:
             raise ValueError("ConstraintParameters must be attached from the bundle, and cannot be standalone")
-        value = str(value) # <-- in case unicode
+        value = str(value)
         # if the user wants to see the expression, we'll replace all
         # var.safe_label with var.curly_label
         self._value, self._vars = self._parse_expr(value)
@@ -9171,9 +11153,6 @@ class ConstraintParameter(Parameter):
         self._var_params = None
         self._addl_var_params = None
         #~ print "***", self.uniquetwig, self.uniqueid
-
-        if not kwargs.get('skip_history', False):
-            self._add_history(redo_func='set_value', redo_kwargs={'value': value, 'uniqueid': self.uniqueid}, undo_func='set_value', undo_kwargs={'value': _orig_value, 'uniqueid': self.uniqueid})
 
     def _update_bookkeeping(self):
         # do bookkeeping on parameters
@@ -9221,7 +11200,6 @@ class ConstraintParameter(Parameter):
         """
         return self.get_value()
 
-    #@update_if_client  # TODO: this breaks
     def get_value(self):
         """
         Return the expression/value of the
@@ -9347,7 +11325,7 @@ class ConstraintParameter(Parameter):
         """
         return self.get_result()
 
-    def get_result(self, t=None, suppress_error=True):
+    def get_result(self, t=None, use_distribution=None, suppress_error=True):
         """
         Get the current value (as a quantity) of the result of the expression
         of this <phoebe.parameters.ConstraintParameter>.
@@ -9369,16 +11347,17 @@ class ConstraintParameter(Parameter):
         # trying to resolve the infinite loop.
         from phoebe.constraints import builtin
         _constraint_builtin_funcs = [f for f in dir(builtin) if isinstance(getattr(builtin, f), types.FunctionType)]
-        _constraint_builtin_funcs += ['sin', 'cos', 'tan', 'arcsin', 'arccos', 'arctan', 'arctan2', 'sqrt', 'log10']
+        _constraint_math_funcs = ['sin', 'cos', 'tan', 'arcsin', 'arccos', 'arctan', 'arctan2', 'sqrt', 'log10']
 
-        def eq_needs_builtin(eq):
-            for func in _constraint_builtin_funcs:
+        def eq_needs_builtin(eq, include_math=True):
+            builtin_funcs =  _constraint_builtin_funcs + _constraint_math_funcs if include_math else _constraint_builtin_funcs
+            for func in builtin_funcs:
                 if "{}(".format(func) in eq:
                     #print "*** eq_needs_builtin", func
                     return True
             return False
 
-        def get_values(vars, safe_label=True, string_safe_arrays=False):
+        def get_values(vars, safe_label=True, string_safe_arrays=False, use_distribution=None, needs_builtin=False):
             # use np.float64 so that dividing by zero will result in a
             # np.inf
             def _single_value(quantity, string_safe_arrays=False):
@@ -9391,22 +11370,39 @@ class ConstraintParameter(Parameter):
                     if isinstance(v, np.ndarray) and string_safe_arrays:
                         v = v.tolist()
                     return v
+                elif isinstance(quantity, distl.BaseDistlObject):
+                    if self.in_solar_units:
+                        v = quantity.to_solar()
+                    else:
+                        v = quantity.to_si()
+                    return v
                 elif isinstance(quantity, str):
                     return '\'{}\''.format(quantity)
                 else:
                     return quantity
 
-            def _value(var, string_safe_arrays=False):
+            def _value(var, string_safe_arrays=False, use_distribution=None, needs_builtin=False):
+                if use_distribution:
+                    param = var.get_parameter()
+                    dist = param.get_distribution(use_distribution, follow_constraints=False)
+
+                    if dist is not None:
+                        if needs_builtin:
+                            return _single_value(dist)
+                        else:
+                            # will we need to force distribution_uniqueids to be included in the json?
+                            return "distl_from_json('{}')".format(_single_value(dist).to_json(exclude=['label_latex', 'labels_latex', 'label', 'labels']))
+
                 if var.get_parameter() != self.constrained_parameter:
                     return _single_value(var.get_quantity(t=t), string_safe_arrays)
                 else:
                     return _single_value(var.get_quantity(), string_safe_arrays)
 
-            return {var.safe_label if safe_label else var.user_label: _value(var, string_safe_arrays) for var in vars}
+            return {var.safe_label if safe_label else var.user_label: _value(var, string_safe_arrays, use_distribution, needs_builtin) for var in vars}
 
         eq = self.get_value()
 
-        if _use_sympy and not eq_needs_builtin(eq):
+        if _use_sympy and not eq_needs_builtin(eq) and not use_distribution:
             values = get_values(self._vars+self._addl_vars, safe_label=True)
             values['I'] = 1 # CHEATING MAGIC
             # just to be safe, let's reinitialize the sympy vars
@@ -9422,16 +11418,20 @@ class ConstraintParameter(Parameter):
             # order here matters - self.get_value() will update the user_labels
             # to be the current unique twigs
             #print "***", eq, values
-
-
-            if eq_needs_builtin(eq):
+            # if use_distribution:
+            #     values = get_values(self._vars+self._addl_vars, safe_label=False, string_safe_arrays=True, use_distribution=use_distribution)
+            #     print("***", values)
+            #     return
+            needs_builtin_or_math = eq_needs_builtin(eq)
+            if needs_builtin_or_math or use_distribution:
                 # the else (which works for np arrays) does not work for the built-in funcs
                 # this means that we can't currently support the built-in funcs WITH arrays
+                needs_builtin = eq_needs_builtin(eq, include_math=False)
 
-                values = get_values(self._vars+self._addl_vars, safe_label=False, string_safe_arrays=True)
+                values = get_values(self._vars+self._addl_vars, safe_label=False, string_safe_arrays=True, use_distribution=use_distribution, needs_builtin=needs_builtin)
 
                 # cannot do from builtin import *
-                for func in _constraint_builtin_funcs:
+                for func in _constraint_builtin_funcs + _constraint_math_funcs:
                     # I should be shot for doing this...
                     # in order for eval to work, the builtin functions need
                     # to be imported at the top-level, but I don't really want
@@ -9444,7 +11444,29 @@ class ConstraintParameter(Parameter):
                     # these require passing the bundle
                     # values['b'] = self._bundle
 
-                value = eval(eq.format(**values))
+                if needs_builtin and use_distribution:
+                    # need to parse {} in eq and get values in correct order as args (including non {}, like 1)
+                    # need to access callable func from eq
+                    funcname = eq.split("(")[0]
+                    argnames = eq.split("(")[1].split(")")[0].split(", ")
+                    args = []
+                    for argname in argnames:
+                        if argname[0] == "{":
+                            args.append(values.get(argname[1:-1]))
+                        else:
+                            args.append(float(argname) if "." in argname else int(argname))
+
+                    hist_samples = None
+                    vectorized = False
+                    if 'pot' in funcname or 'fillout_factor' in funcname:
+                        # these are particularly expensive, so we'll only use 1000 samples in the underlying histogram by default
+                        hist_samples = 1000
+                        vectorized = False
+                    if funcname[:2] == 't0':
+                        vectorized = True
+                    value = distl.function(locals().get(funcname), args, vectorized=vectorized, hist_samples=hist_samples)
+                else:
+                    value = eval(eq.format(**values))
 
                 if value is None:
                     if suppress_error:
@@ -9453,23 +11475,24 @@ class ConstraintParameter(Parameter):
                     else:
                         raise ValueError("constraint returned None")
                 else:
-                    try:
-                        value = float(value)
-                    except TypeError as err:
+                    if use_distribution is None:
                         try:
-                            value = np.asarray(value)
-                        except:
+                            value = float(value)
+                        except TypeError as err:
+                            try:
+                                value = np.asarray(value)
+                            except:
+                                if suppress_error:
+                                    value = np.nan
+                                    logger.error("{} constraint raised the following error: {}".format(self.twig, str(err)))
+                                else:
+                                    raise
+                        except ValueError as err:
                             if suppress_error:
                                 value = np.nan
                                 logger.error("{} constraint raised the following error: {}".format(self.twig, str(err)))
                             else:
                                 raise
-                    except ValueError as err:
-                        if suppress_error:
-                            value = np.nan
-                            logger.error("{} constraint raised the following error: {}".format(self.twig, str(err)))
-                        else:
-                            raise
 
 
 
@@ -9508,16 +11531,26 @@ class ConstraintParameter(Parameter):
         # let's assume the math was correct to give SI and we want units stored in self.default_units
 
         if self.default_unit is not None:
-            if self.in_solar_units:
-                convert_scale = u.to_solar(self.default_unit)
+            if isinstance(value, distl.BaseDistlObject):
+                if value.unit is None:
+                    if self.in_solar_units:
+                        value.unit = distl._distl._physical_types_to_solar.get(self.default_unit.physical_type)
+                    else:
+                        value.unit = distl._distl._physical_types_to_si.get(self.default_unit.physical_type)
+
+                value = value.to(self.default_unit)
             else:
-                convert_scale = self.default_unit.to_system(u.si)[0].scale
-            #value = float(value/convert_scale) * self.default_unit
-            value = value/convert_scale * self.default_unit
+                if self.in_solar_units:
+                    convert_scale = u.to_solar(self.default_unit)
+                else:
+                    convert_scale = self.default_unit.to_system(u.si)[0].scale
+                #value = float(value/convert_scale) * self.default_unit
+                value = value/convert_scale * self.default_unit
 
 
         return value
 
+    @send_if_client
     def flip_for(self, twig=None, expression=None, **kwargs):
         """
         Flip the constraint expression to solve for for any of the parameters
@@ -9602,7 +11635,7 @@ class ConstraintParameter(Parameter):
         self._kind = newly_constrained_param.kind
 
         # self._value, self._vars = self._parse_expr(rhs)
-        # self.set_value(rhs, skip_history=True)
+        # self.set_value(rhs)
 
         if len(addl_vars):
             # then the vars may have changed (esinw,ecosw, for example)
@@ -9625,7 +11658,7 @@ class ConstraintParameter(Parameter):
         self._value = str(expression)
 
 
-        #self.set_value(str(expression), skip_history=True)
+        #self.set_value(str(expression))
         # reset the default_unit so that set_default_unit doesn't complain
         # about incompatible units
         self._default_unit = None
@@ -9633,177 +11666,8 @@ class ConstraintParameter(Parameter):
 
         self._update_bookkeeping()
 
-        self._add_history(redo_func='flip_constraint', redo_kwargs={'expression': expression, 'uniqueid': newly_constrained_param.uniqueid}, undo_func='flip_constraint', undo_kwargs={'expression': _orig_expression, 'uniqueid': currently_constrained_param.uniqueid})
-
-
-class HistoryParameter(Parameter):
-    def __init__(self, bundle, redo_func, redo_kwargs, undo_func, undo_kwargs, **kwargs):
-        """
-        see <phoebe.parameters.Parameter.__init__>
-
-        This Parameter should never be created manually, but instead handled
-        by the <phoebe.frontend.bundle.Bundle>.
-
-        Arguments
-        -----------
-        * `bundle`
-        * `redo_func`
-        * `redo_kwargs`
-        * `undo_func`
-        * `undo_kwargs`
-        """
-        dump = kwargs.pop('qualifier', None)
-        kwargs['context'] = 'history'
-        super(HistoryParameter, self).__init__(qualifier='history', **kwargs)
-
-        # usually its the bundle's job to attach param._bundle after the
-        # creation of a parameter.  But in this case, having access to the
-        # bundle is necessary in order to check if function names are valid
-        # methods of the bundle
-        self._bundle = bundle
-
-        # if a function itself is passed instead of the string name, convert
-        if hasattr(redo_func, '__call__'):
-            redo_func = redo_func.__name__
-        if hasattr(undo_func, '__call__'):
-            undo_func = undo_func.__name__
-
-        # check to make sure the funcs are valid methods of the bundle
-        if not hasattr(self._bundle, redo_func):
-            raise ValueError("bundle does not have '{}' method".format(redo_func))
-        if not hasattr(self._bundle, undo_func):
-            raise ValueError("bundle does not have '{}' method".format(undo_func))
-
-        self._redo_func = redo_func
-        self._redo_kwargs = redo_kwargs
-        self._undo_func = undo_func
-        self._undo_kwargs = undo_kwargs
-
-        self._affected_params = []
-
-
-        # TODO: how can we hold other parameters affect (ie. if the user calls set_value('incl', 80) and there is a constraint on asini that changes a... how do we log that here)
-
-        self._dict_fields_other = ['redo_func', 'redo_kwargs', 'undo_func', 'undo_kwargs', 'advanced']
-        self._dict_fields = _meta_fields_all + self._dict_fields_other
-
-    def __repr__(self):
-        """
-        """
-        return "<HistoryParameter: {} | keys: {}>".format(self.history, ', '.join(self._dict_fields_other))
-
-    def __str__(self):
-        """
-        """
-        # TODO: fill in str representation
-        return "{}\nredo: {}\nundo: {}".format(self.history, self.redo_str, self.undo_str)
-
-    def to_string_short(self):
-        """
-        An abbreviated string representation of the <phoebe.parameters.HistoryParameter>.
-
-        See also:
-        * <phoebe.parameters.Parameter.to_string>
-
-        Returns
-        ----------
-        * (string)
-        """
-        # this is what will be printed when in a PS (ie bundle.get_history())
-        return "redo: {}, undo: {}".format(self.redo_str, self.undo_str)
-
-    @property
-    def undo_str(self):
-        """
-        """
-        undo_kwargs = self.undo_kwargs
-        if undo_kwargs is not None:
-            return "{}({})".format(self.undo_func, ", ".join("{}={}".format(k,v) for k,v in undo_kwargs.items()))
-        else:
-            return "no longer undoable"
-
-    @property
-    def redo_str(self):
-        """
-        """
-        redo_kwargs = self.redo_kwargs
-        if redo_kwargs is not None:
-            return "{}({})".format(self.redo_func, ", ".join("{}={}".format(k,v) for k,v in redo_kwargs.items()))
-        else:
-            return "no longer redoable"
-
-    @property
-    def redo_func(self):
-        """
-        """
-        return self._redo_func
-
-    @property
-    def redo_kwargs(self):
-        """
-        """
-        _redo_kwargs = deepcopy(self._redo_kwargs)
-        if 'uniqueid' in _redo_kwargs.keys():
-            uniqueid = _redo_kwargs.pop('uniqueid')
-            try:
-                _redo_kwargs['twig'] = self._bundle.get_parameter(uniqueid=uniqueid).uniquetwig
-            except ValueError:
-                # then the uniqueid is no longer available and we can no longer undo this item
-                return None
-        return _redo_kwargs
-
-    @property
-    def undo_func(self):
-        """
-        """
-        return self._undo_func
-
-    @property
-    def undo_kwargs(self):
-        """
-        """
-        _undo_kwargs = deepcopy(self._undo_kwargs)
-        if 'uniqueid' in _undo_kwargs.keys():
-            uniqueid = _undo_kwargs.pop('uniqueid')
-            try:
-                _undo_kwargs['twig'] = self._bundle.get_parameter(uniqueid=uniqueid).uniquetwig
-            except ValueError:
-                # then the uniqeuid is no longer available and we can no longer undo this item
-                return None
-        return _undo_kwargs
-
-    @property
-    def affected_params(self):
-        """
-        """
-        return self.get_affected_params
-
-    def get_affected_params(self, return_twigs=False):
-        """
-        """
-        raise NotImplementedError
-        if return_twigs:
-            return [self._bundle.get_parameter(uniqueid=uniqueid).uniquetwig]
-        else:
-            return [self._bundle.get_parameter(uniqueid=uniqueid)]
-
-    def redo(self):
-        """
-        """
-        if self.redo_kwargs is None:
-            # TODO: logger message explaining no longer redoable
-            return
-        # TODO: logger message
-        return getattr(self._bundle, self._redo_func)(**self._redo_kwargs)
-
-    def undo(self):
-        """
-        """
-        if self.undo_kwargs is None:
-            # TODO: logger message explaining no longer undoable
-            return
-        # TODO: logger message
-        return getattr(self._bundle, self._undo_func)(**self._undo_kwargs)
+        if self._bundle is not None and not kwargs.get('from_flip_bundle_constraint', False):
+            self._bundle._handle_fitparameters_selecttwigparams(return_changes=False)
 
 
 class JobParameter(Parameter):
@@ -9816,6 +11680,7 @@ class JobParameter(Parameter):
         see <phoebe.parameters.Parameter.__init__>
         """
         _qualifier = kwargs.pop('qualifier', None)
+        kwargs.setdefault('readonly', True)
         super(JobParameter, self).__init__(qualifier='detached_job', **kwargs)
 
         self._bundle = b
@@ -9830,10 +11695,11 @@ class JobParameter(Parameter):
         self._script_fname = os.path.join(location, '_{}.py'.format(self.uniqueid))
         self._results_fname = os.path.join(location, '_{}.out'.format(self.uniqueid))
         self._err_fname = os.path.join(location, '_{}.err'.format(self.uniqueid))
+        self._kill_fname = self._results_fname + '.kill'
 
         # TODO: add a description?
 
-        self._dict_fields_other = ['description', 'value', 'server_status', 'location', 'status_method', 'retrieve_method', 'uniqueid', 'advanced']
+        self._dict_fields_other = ['description', 'value', 'server_status', 'location', 'status_method', 'retrieve_method', 'uniqueid', 'readonly', 'advanced', 'latexfmt']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     def __str__(self):
@@ -9842,7 +11708,6 @@ class JobParameter(Parameter):
         # TODO: implement a nice(r) string representation
         return "qualifier: {}\nstatus: {}".format(self.qualifier, self.status)
 
-    #@update_if_client # get_status will make API call if JobParam points to a server
     def get_value(self, **kwargs):
         """
         JobParameter doesn't really have a value, but for the sake of Parameter
@@ -9954,30 +11819,35 @@ class JobParameter(Parameter):
             if not _can_requests:
                 raise ImportError("requests module required for external jobs")
 
-            if self._value in ['complete']:
-                # then we have no need to bother checking again
-                status = self._value
-            else:
-                url = self._server_status
-                logger.info("checking job status on server from {}".format(url))
-                # "{}/{}/parameters/{}".format(server, bundleid, self.uniqueid)
-                r = requests.get(url, timeout=5)
-                try:
-                    rjson = r.json()
-                except ValueError:
-                    # TODO: better exception here - perhaps look for the status code from the response?
-                    status = self._value
-                else:
-                    status = rjson['data']['attributes']['value']
+            raise NotImplementedError()
+            # if self._value in ['complete']:
+            #     # then we have no need to bother checking again
+            #     status = self._value
+            # else:
+            #     url = self._server_status
+            #     logger.info("checking job status on server from {}".format(url))
+            #     # "{}/{}/parameters/{}".format(server, bundleid, self.uniqueid)
+            #     r = requests.get(url, timeout=5)
+            #     try:
+            #         rjson = r.json()
+            #     except ValueError:
+            #         # TODO: better exception here - perhaps look for the status code from the response?
+            #         status = self._value
+            #     else:
+            #         status = rjson['data']['attributes']['value']
 
         else:
 
             if self.status_method == 'exists':
-                if self._value == 'error':
+                if self._value in ['error', 'killed', 'loaded']:
                     # then error was already detected and we've already done cleanup
-                    status = 'error'
+                    status = self._value
                 elif os.path.isfile(self._results_fname):
                     status = 'complete'
+                elif os.path.isfile(self._kill_fname):
+                    status = 'killed'
+                elif os.path.isfile(self._results_fname+'.progress'):
+                    status = 'progress'
                 elif os.path.isfile(self._err_fname) and os.stat(self._err_fname).st_size > 0:
                     # some warnings from other packages can be set to stderr
                     # so we need to make sure the last line is actually from
@@ -9988,9 +11858,9 @@ class JobParameter(Parameter):
                     if 'Error' in msg.split()[0]:
                         status = 'error'
                     else:
-                        status = 'unknown'
+                        status = 'running'
                 else:
-                    status = 'unknown'
+                    status = 'running'
             else:
                 raise NotImplementedError
 
@@ -10005,10 +11875,39 @@ class JobParameter(Parameter):
         [NOT IMPLEMENTED]
         """
         # now the file with the model should be retrievable from self._result_fname
-        result_ps = ParameterSet.open(self._results_fname)
-        return result_ps
+        if 'progress' in self._value:
+            fname = self._results_fname + '.progress'
+        else:
+            fname = self._results_fname
 
-    def attach(self, wait=True, sleep=5, cleanup=True):
+        try:
+            ret_ps = ParameterSet.open(fname)
+        except Exception as err:
+            if 'progress' in self._value:
+                return None
+            else:
+                raise
+        else:
+            return ret_ps
+
+    def _cleanup(self):
+        try:
+            os.remove(self._script_fname)
+        except: pass
+        try:
+            os.remove(self._results_fname)
+        except: pass
+        try:
+            os.remove(self._err_fname)
+        except: pass
+        try:
+            os.remove(self._results_fname+".progress")
+        except: pass
+        try:
+            os.remove(self._kill_fname)
+        except: pass
+
+    def attach(self, wait=True, sleep=5, cleanup=True, return_changes=False):
         """
         Attach the results from a <phoebe.parameters.JobParameter> to the
         <phoebe.frontend.bundle.Bundle>.  If the status is not yet reported as
@@ -10021,8 +11920,10 @@ class JobParameter(Parameter):
         * `sleep` (int, optional, default=5): number of seconds to sleep between
             status checks.  See <phoebe.parameters.JobParameter.get_status>.
             Only applicable if `wait` is True.
-        * `cleanup` (bool, optional, default=True): whether to delete this
-            parameter and any temporary files once the results are loaded.
+        * `cleanup` (bool, optional, default=True): whether to delete any
+            temporary files once the results are loaded.
+        * `return_changes` (bool, optional, default=False): whether to include
+            changed/removed parameters in the returned ParameterSet.
 
         Returns
         ---------
@@ -10037,72 +11938,142 @@ class JobParameter(Parameter):
         if not self._bundle:
             raise ValueError("can only attach a job if attached to a bundle")
 
-        #if self._value == 'loaded':
-        #    raise ValueError("results have already been loaded")
         status = self.get_status()
-        if not wait and status not in ['complete', 'error']:
+        if not wait and status not in ['complete', 'error', 'progress']:
             if status in ['loaded']:
                 logger.info("job already loaded")
-                return self._bundle.get_model(self.model)
+                if self.context == 'model':
+                    return self._bundle.get_model(self.model)
+                elif self.context == 'solution':
+                    return self._bundle.get_solution(self.solution)
+                else:
+                    raise NotImplementedError("attaching for context='{}' not implemented".format(self.context))
             else:
                 logger.info("current status: {}, check again or use wait=True".format(status))
                 return self
 
-
-        while self.get_status() not in ['complete', 'loaded', 'error']:
-            # TODO: any way we can not make 2 calls to self.status here?
-            logger.info("current status: {}, trying again in {}s".format(self.get_status(), sleep))
-            time.sleep(sleep)
+        if wait:
+            while self.get_status() not in ['complete', 'loaded', 'error']:
+                # TODO: any way we can not make 2 calls to self.status here?
+                logger.info("current status: {}, trying again in {}s".format(self.get_status(), sleep))
+                time.sleep(sleep)
 
         if self._server_status is not None and not _is_server:
             if not _can_requests:
                 raise ImportError("requests module required for external jobs")
-            # then we are no longer attached as a client to this bundle on
-            # the server, so we need to just pull the results manually
-            url = self._server_status
-            logger.info("pulling job results from server from {}".format(url))
-            # "{}/{}/parameters/{}".format(server, bundleid, self.uniqueid)
-            r = requests.get(url, timeout=5)
-            rjson = r.json()
 
-            # status should already be complete because of while loop above,
-            # but could always check the following:
-            # rjson['value']['attributes']['value'] == 'complete'
-
-            # TODO: server needs to sideload results once complete
-            newparams = rjson['included']
-            self._bundle._attach_param_from_server(newparams)
+            raise NotImplementedError()
+            # # then we are no longer attached as a client to this bundle on
+            # # the server, so we need to just pull the results manually
+            # url = self._server_status
+            # logger.info("pulling job results from server from {}".format(url))
+            # # "{}/{}/parameters/{}".format(server, bundleid, self.uniqueid)
+            # r = requests.get(url, timeout=5)
+            # rjson = r.json()
+            #
+            # # status should already be complete because of while loop above,
+            # # but could always check the following:
+            # # rjson['value']['attributes']['value'] == 'complete'
+            #
+            # # TODO: server needs to sideload results once complete
+            # newparams = rjson['included']
+            # self._bundle._attach_param_from_server(newparams)
 
         elif self.status == 'error':
             ferr = open(self._err_fname, 'r')
-            msg = ferr.readlines()[-1]
+            lines = ferr.readlines()
             ferr.close()
 
             if cleanup:
-                os.remove(self._script_fname)
-                os.remove(self._err_fname)
+                self._cleanup()
 
             self._value = 'error'
 
-            raise RuntimeError("compute job failed with error: {}".format(msg))
+            print("ERROR: full error message: {}".format(lines))
+            logger.error("full error message: {}".format(lines))
+            raise RuntimeError("job failed with error: {}".format(lines[-1]))
         else:
             logger.info("current status: {}, pulling job results".format(self.status))
-            result_ps = self._retrieve_results()
+            ret_ps = self._retrieve_results()
 
-            # now we need to attach result_ps to self._bundle
+            if ret_ps is None and 'progress' in self._value:
+                # then we just want to update the progress value from the progress-file
+                # but don't have anything to actually load
+                f = open(self._results_fname + '.progress', 'r')
+                progress_str = f.readlines()[0]
+                f.close()
+
+                try:
+                    progress = np.round(float(progress_str.strip()), 2)
+                except:
+                    return ParameterSet([])
+                else:
+                    self._value = 'progress:{}%'.format(progress)
+                    return ParameterSet([self])
+
+
+            # now we need to attach ret_ps to self._bundle
             # TODO: is creating metawargs here necessary?  Shouldn't the params already be tagged?
-            metawargs = {'compute': str(result_ps.compute), 'model': str(result_ps.model), 'context': 'model'}
-            self._bundle._attach_params(result_ps, **metawargs)
+            if self.context == 'model':
+                metawargs = {'compute': str(ret_ps.compute), 'model': str(ret_ps.model), 'context': 'model'}
+            elif self.context == 'solution':
+                metawargs = {'solver': str(ret_ps.solver), 'solution': str(ret_ps.solution), 'context': 'solution'}
+            else:
+                raise NotImplementedError("attaching for context='{}' not implemented".format(self.context))
 
-            if cleanup:
-                os.remove(self._script_fname)
-                os.remove(self._results_fname)
-                os.remove(self._err_fname)
+            if 'progress' in self._value:
+                if ret_ps.get_value(qualifier='progress', default=0, **_skip_filter_checks) == self._bundle.get_value(qualifier='progress', default=100, check_visible=False, check_advanced=False, **metawargs):
+                    # then we have nothing new to load, so let's not bother attaching and overwriting with the exact same thing
+                    return ParameterSet([])
+                elif 'progress' in ret_ps.qualifiers:
+                    self._value = 'progress:{}%'.format(np.round(ret_ps.get_value(qualifier='progress'), 2))
 
-            self._value = 'loaded'
 
-            # TODO: add history?
+            ret_changes = self._bundle._attach_params(ret_ps, overwrite=True, return_changes=return_changes, **metawargs)
+            if return_changes:
+                ret_changes += [self]
 
-            self._bundle._handle_model_selectparams()
+            if cleanup and self._value in ['complete', 'loaded', 'error', 'killed']:
+                self._cleanup()
 
-            return self._bundle.filter(model=self.model)
+            if 'progress' not in self._value:
+                self._value = 'loaded'
+
+            if self.context == 'model':
+                # TODO: check logic for do_create_fig_params
+                ret_changes += self._bundle._run_compute_changes(ret_ps, return_changes=return_changes, do_create_fig_params=True)
+
+            elif self.context == 'solution':
+                ret_changes += self._bundle._run_solver_changes(ret_ps, return_changes=return_changes)
+
+            else:
+                raise NotImplementedError("attaching for context='{}' not implemented".format(self.context))
+
+            if return_changes:
+                return ret_ps + ret_changes
+
+            return ret_ps
+
+    def kill(self, cleanup=True, return_changes=False):
+        """
+        Send a termination signal to the external thread running a
+        <phoebe.parameters.JobParameter>
+
+        Arguments
+        ---------
+        * `cleanup` (bool, optional, default=True): whether to wait for the
+            thread to terminate and then call <phoebe.parameters.JobParameter.attach>
+            with `cleanup=True` and `wait=True`.
+        * `return_changes` (bool, optional, default=False): whether to include
+            changed/removed parameters in the returned ParameterSet.
+
+        Returns
+        ---------
+
+
+        """
+        f = open(self._kill_fname, 'w')
+        f.write('kill')
+        f.close()
+        if cleanup:
+            return self.attach(wait=True, cleanup=True)

@@ -57,7 +57,7 @@ class Completer:
         with a __getattr__ hook is evaluated.
 
         """
-        
+
         def _method_or_attr(thisobject, item):
             # decide whether to append a '(' to the end of the attr based
             # on whether its callable
@@ -65,7 +65,7 @@ class Completer:
                 return item + '('
             else:
                 return item
-            
+
         tb_compl_commands = {
                         '.': {},
                         '[': {},
@@ -93,16 +93,17 @@ class Completer:
                         '.get_compute(': {'context': 'compute'},
                         '.remove_compute(': {'context': 'compute'},
                         '.run_compute(': {'context': 'compute'},
-                        '.get_prior(': {'context': 'prior'},  # TODO: remove_prior, run_prior, enable_prior, disable_prior
-                        '.get_fitting(': {'context': 'fitting'},
-                        '.remove_fitting(': {'context': 'fitting'},
-                        '.run_fitting(': {'context': 'fitting'},
-                        '.get_posterior(': {'context': 'posterior'},  # TODO: remove_posterior, draw_from_posterior
-                        '.get_feedback(': {'context': 'feedback'},
-                        '.remove_feedback(': {'context': 'feedback'},
+                        '.get_distribution(': {'context': 'distribution'},
+                        '.sample_distribution(': {'context': 'distribution'},
+                        '.remove_distribution(': {'context': 'distribution'},
+                        '.get_solver(': {'context': 'solver'},
+                        '.remove_solver(': {'context': 'solver'},
+                        '.run_solver(': {'context': 'solver'},
+                        '.get_solution(': {'context': 'solution'},
+                        '.remove_solution(': {'context': 'solution'},
                         # TODO: plots, plugins
                         }
-        
+
         expr = None
         for cmd,filter_kwargs in tb_compl_commands.items():
             if cmd in text:
@@ -123,26 +124,25 @@ class Completer:
                         stringchar = attr[0]
                         attr = attr[1:]
                     break
-        
+
         if expr is None:
             # then we haven't found a match
             return []
-        
+
         try:
             thisobject = eval(expr, self.namespace)
         except Exception:
             return []
-        
+
         if cmd == '.':
             # then we're looking for attributes of thisobject (PS or bundle) that start with attr
             words = [_method_or_attr(thisobject, item) for item in dir(thisobject) if item[:len(attr)] == attr]
         else:
             # then we're looking to autocomplete the twig attr for thisobject (PS or bundle)
             words = thisobject.filter_or_get(attr, autocomplete=True, **filter_kwargs)
-        
+
         matches = []
         n = len(attr)
         for word in words:
             matches.append('{}{}{}{}'.format(expr,cmd,stringchar,word))
         return matches
-

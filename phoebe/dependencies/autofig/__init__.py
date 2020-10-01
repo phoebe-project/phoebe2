@@ -1,4 +1,4 @@
-__version__ = '1.1.0'
+__version__ = '1.2.0'
 
 import os as _os
 import sys as _sys
@@ -12,7 +12,10 @@ if 'DISPLAY' not in _os.environ.keys() and _sys.platform not in ['win32','cygwin
 elif hasattr(_sys, 'real_prefix'):
     # then we're likely in a virtualenv.  Our best bet is to use the 'TkAgg'
     # backend, but this will require python-tk to be installed on the system
-    _matplotlib.use('TkAgg')
+    try:
+        _matplotlib.use('Agg')
+    except:
+        _matplotlib.use('TkAgg')
 
 from .call import Plot, Mesh
 from .axes import Axes
@@ -92,6 +95,29 @@ def plot(*args, **kwargs):
     * the return from <Figure.plot>
     """
     return gcf().plot(*args, **kwargs)
+
+def fill_between(*args, **kwargs):
+    """
+    Add a new <autofig.call.FillBetween> call to the current <autofig.figure.Figure>.
+
+    See also:
+
+    * <autofig.gcf>
+    * <autofig.figure.Figure.fill_between>
+    * <autofig.call.FillBetween.__init__>
+
+    Arguments
+    -----------
+    * `*args`: all arguments are passed on to <autofig.figure.Figure.fill_between>,
+        most of which are then passed on to <autofig.call.FillBetween.__init__>.
+    * `**kwargs`: all keyword arguments are passed on to <autofig.figure.Figure.fill_between>,
+        most of which are then passed on to <autofig.call.FillBetween.__init__>.
+
+    Returns
+    ---------
+    * the return from <Figure.fill_between>
+    """
+    return gcf().fill_between(*args, **kwargs)
 
 def mesh(*args, **kwargs):
     """

@@ -5,7 +5,7 @@ import os
 
 from distutils.version import LooseVersion
 
-__version__ = '1.1.0'
+__version__ = '1.2.0'
 version = __version__
 
 # allow isinstance(obj, nparray.ndarray) to be similar to numpy
@@ -90,6 +90,37 @@ def linspace(start, stop, num, endpoint=True, unit=None):
     return _wrappers.Linspace(start, stop, num, endpoint, unit)
 
 linspace.__doc__ = __docprefix__ + "\n".join([l.lstrip() for l in linspace.__doc__.split("\n")]) + __docsep__ + np.linspace.__doc__.replace("&gt;", ">")
+
+def invspace(start, stop, num, endpoint=True, unit=None):
+    """
+    Evenly sampled numbers in inverted space.  This is equivalent to:
+
+    ```py
+    1./linspace(1./start, 1./stop, num, endpoint, unit)
+    ```
+
+    See also:
+
+    * <nparray.linspace>
+
+    Arguments
+    ------------
+    * `start` (int or float): the starting point of the sequence.
+    * `stop` (int or float): the ending point of the sequence, unless `endpoint`
+        is set to False.  In that case, the sequence consists of all but the
+        last of ``num + 1`` evenly spaced samples, so that `stop` is excluded.
+        Note that the step size changes when `endpoint` is False.
+    * `num` (int): number of samples to generate.
+    * `endpoint` (bool, optional, default=True): If True, `stop` is the last
+        sample. Otherwise, it is not included.
+    * `unit` (astropy unit or string, optional, default=None): unit
+        corresponding to the passed values.
+
+    Returns
+    -----------
+    * <Invspace>
+    """
+    return _wrappers.Invspace(start, stop, num, endpoint, unit)
 
 def logspace(start, stop, num, endpoint=True, base=10.0, unit=None):
     """
@@ -335,8 +366,12 @@ def from_dict(d):
     if 'nparray' not in d.keys():
         raise ValueError("input dictionary missing 'nparray' entry")
 
-    classname = d.pop('nparray').title()
-    return getattr(_wrappers, classname)(**d)
+    classname = d.get('nparray').title()
+    # instead of popping npdarray (which would happen in memory and make that json
+    # unloadable again), we'll do a dictionary comprehension.  If this causes
+    # performance issues, we could instead accept and ignore nparray as
+    # a keyword argument to __init__
+    return getattr(_wrappers, classname)(**{k:v for k,v in d.items() if k!='nparray'})
 
 def from_json(j):
     """

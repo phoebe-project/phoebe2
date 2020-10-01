@@ -1,14 +1,17 @@
 import logging
 
 import sys
-if sys.version_info[0] == 3:
-  unicode = str
+
+import numpy as np
+
+_skip_filter_checks = {'check_default': False, 'check_visible': False}
+
+import logging
+logger = logging.getLogger("UTILS")
+logger.addHandler(logging.NullHandler())
 
 def _bytes(s):
-    if sys.version_info[0] == 3:
-        return bytes(s, 'utf-8')
-    else:
-        return bytes(s)
+    return bytes(s, 'utf-8')
 
 def get_basic_logger(clevel='WARNING',flevel='DEBUG',
                      style="default",filename=None,filemode='w'):
@@ -154,8 +157,6 @@ def parse_json(pairs):
         if isinstance(item, bytes):
             # return item.decode('utf-8')
             return _bytes(item)
-        elif sys.version_info[0] == 2 and isinstance(item, unicode):
-            return item.encode('utf-8')
         else:
             return item
 
@@ -172,3 +173,79 @@ def parse_json(pairs):
 
         new_pairs.append((key, value))
     return dict(new_pairs)
+
+def phase_mask_inds(phases, mask_phases):
+    def _individual_mask(phases, mask):
+        # move mask onto range (-0.5, 0.5)
+        def _map(m):
+            if m < -0.5:
+                return _map(m+1)
+            if m > 0.5:
+                return _map(m-1)
+            return m
+
+        mask = [_map(m) for m in mask]
+
+        does_wrap = mask[0] > mask[1]
+
+        if does_wrap:
+            return np.logical_or(phases > mask[0], phases < mask[1])
+        else:
+            return np.logical_and(phases >= mask[0], phases <= mask[1])
+
+    if mask_phases is None:
+        return np.isfinite(phases)
+
+    masks = [_individual_mask(phases, m) for m in mask_phases]
+    if len(masks) == 0:
+        inds = np.isfinite(phases)
+    elif len(masks) == 1:
+        inds = masks[0]
+    else:
+        inds = np.logical_or(*masks)
+
+    return inds
+
+
+def _get_masked_times(b, dataset, mask_phases, mask_t0, return_times_phases=False):
+    # concatenate for the case of datasets (like RVs) with times in multiple components
+    times = np.unique(np.concatenate([time_param.get_value() for time_param in b.filter(qualifier='times', dataset=dataset, **_skip_filter_checks).to_list()]))
+    phases = b.to_phases(times, t0=mask_t0)
+    masked_times = times[phase_mask_inds(phases, mask_phases)]
+    if return_times_phases:
+        return masked_times, times, phases
+    return masked_times
+
+def _get_masked_compute_times(b, dataset, mask_phases, mask_t0, is_time_dependent, times=None, phases=None):
+    # for compute_times/phases we can't just mask because we need to make
+    # sure we "surround" each of the observation datapoints
+    if times is None:
+        times = np.unique(np.concatenate([time_param.get_value() for time_param in b.filter(qualifier='times', dataset=dataset, unit='d', **_skip_filter_checks).to_list()]))
+    if phases is None:
+        phases = b.to_phases(times, t0=mask_t0)
+
+    compute_times = b.get_value(qualifier='compute_times', dataset=dataset, context='dataset', unit='d', **_skip_filter_checks)
+
+    if mask_phases is None:
+        return compute_times
+
+    compute_phases = b.to_phases(compute_times, t0=mask_t0)
+
+    indices = []
+
+    def _phase_diff(ph1, ph2):
+        # need to account for phase-wrapping when finding the nearest two points
+        return min([abs(ph1-ph2), abs(ph1+1-ph2), abs(ph1-1-ph2)])
+
+    if is_time_dependent:
+        times_masked = times[phase_mask_inds(phases, mask_phases)]
+
+        for tm in times_masked:
+            indices += list(abs(compute_times-tm).argsort()[:2])
+    else:
+        phases_masked = phases[phase_mask_inds(phases, mask_phases)]
+
+        for phm in phases_masked:
+            indices += list(np.array([_phase_diff(cph, phm) for cph in compute_phases]).argsort()[:2])
+
+    return compute_times[list(set(indices))]

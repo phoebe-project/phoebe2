@@ -272,13 +272,18 @@ class Figure(object):
             ax.add_call(call)
             self._calls.append(call)
 
-    def _get_backend_object(self, fig=None):
+    def _get_backend_object(self, fig=None, naxes=1):
         if fig is None:
             if self._backend_object:
                 fig = self._backend_object
             else:
                 fig = plt.gcf()
                 fig.clf()
+
+                rows, cols = _axes._determine_grid(naxes)
+                fig.set_figwidth(8*cols)
+                fig.set_figheight(6*rows)
+
                 self._backend_artists = []
 
         self._backend_object = fig
@@ -295,6 +300,7 @@ class Figure(object):
         See also:
 
         * <autofig.figure.Figure.calls>
+        * <autofig.figure.Figure.fill_betweens>
         * <autofig.figure.Figure.meshes>
 
         Returns
@@ -357,6 +363,76 @@ class Figure(object):
                              show=show, save=save)
 
     @property
+    def fill_betweens(self):
+        """
+        Access all children <autofig.call.FillBetween>s of the <autofig.figure.Figure>.
+
+        See also:
+
+        * <autofig.figure.Figure.calls>
+        * <autofig.figure.Figure.plots>
+        * <autofig.figure.Figure.meshes>
+
+        Returns
+        -------------
+        * <autofig.call.CallGroup> of all <autofig.call.FillBetween> objects
+        """
+        calls = [c for c in self._calls if isinstance(c, _call.FillBetween)]
+        return _call.CallGroup(calls)
+
+    def fill_between(self, *args, **kwargs):
+        """
+        Add a new <autofig.call.FillBetween> to the <autofig.figure.Figure>.
+
+        See also:
+
+        * <autofig.call.FillBetween.__init__>
+
+        Arguments
+        ----------
+        * `*args`: all positional arguments are passed on to
+            <autofig.call.FillBetween.__init__> to initialize the new
+            <autofig.call.FillBetween>.
+        * `tight_layout` (bool, optional, default=True): passed to
+            <autofig.figure.Figure.draw> if `show` or `save`.  Whether to draw
+            with the `tight_layout` option.
+        * `draw_title` (bool, optional, default=True): passed to
+            <autofig.figure.Figure.draw> if `show` or `save`.  Whether to draw
+            the title on the matplotlib axes.
+        * `subplot_grid` (None or tuple, optional, default=None): passed to
+            <autofig.figure.Figure.draw> if `show` or `save`.  Override the
+            subplot locations.
+        * `show` (bool, optional, default=False): whether to immediately
+            draw and show the resulting matplotlib figure.  If True,
+            <autofig.figure.Figure.draw> will be called.
+        * `save` (False or string, optional, default=False): the filename
+            to save the resulting matplotlib figure, or False to not save.
+            If not False, <autofig.figure.Figure.draw> will be called.
+        * `**kwargs`: additional keyword arguments are passed on to
+            <autofig.call.FillBetween.__init__> to initialize the new
+            <autofig.call.FillBetween>.
+        """
+
+        tight_layout = kwargs.pop('tight_layout', True)
+        draw_sidebars = kwargs.pop('draw_sidebars', True)
+        draw_title = kwargs.pop('draw_title', True)
+        subplot_grid = kwargs.pop('subplot_grid', None)
+
+        show = kwargs.pop('show', False)
+        save = kwargs.pop('save', False)
+
+        call = _call.FillBetween(*args, **kwargs)
+        self.add_call(call)
+
+        if show or save:
+            self.reset_draw()
+            return self.draw(tight_layout=tight_layout,
+                             draw_sidebars=draw_sidebars,
+                             draw_title=draw_title,
+                             subplot_grid=subplot_grid,
+                             show=show, save=save)
+
+    @property
     def meshes(self):
         """
         Access all children <autofig.call.Mesh>es of the <autofig.figure.Figure>.
@@ -365,6 +441,7 @@ class Figure(object):
 
         * <autofig.figure.Figure.calls>
         * <autofig.figure.Figure.plots>
+        * <autofig.figure.Figure.fill_betweens>
 
         Returns
         -------------
@@ -433,7 +510,7 @@ class Figure(object):
         """
         # TODO: figure options like figsize, etc
 
-        fig = self._get_backend_object()
+        fig = self._get_backend_object(naxes=len(self.axes))
         fig.clf()
 
     def draw(self, fig=None, i=None, calls=None,
@@ -505,7 +582,7 @@ class Figure(object):
 
             self.save(save_afig, renders=[render])
 
-        fig = self._get_backend_object(fig)
+        fig = self._get_backend_object(fig, naxes=len(self.axes))
         callbacks._connect_to_autofig(self, fig)
         callbacks._connect_to_autofig(self, fig.canvas)
 

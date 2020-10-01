@@ -55,9 +55,8 @@ def test_binary(plot=False):
         print("max lc atol {}: rtol: {}".format(np.max(phoebe2_val_lc - phoebe1_val_lc), np.max((phoebe2_val_lc - phoebe1_val_lc)/phoebe1_val_lc)))
         print("max rv1 atol: {} rtol: {}".format(np.max(phoebe2_val_rv1 - phoebe1_val_rv1), np.max((phoebe2_val_rv1 - phoebe1_val_rv1)/phoebe1_val_rv1)))
         print("max rv2 atol: {} rtol: {}".format(np.max(phoebe2_val_rv2 - phoebe1_val_rv2), np.max((phoebe2_val_rv2 - phoebe1_val_rv2)/phoebe1_val_rv2)))
-
-        cb.plot(dataset='lc01', show=True)
-        cb.plot(dataset='rv01', show=True)
+        cb.plot(dataset='lc01', legend=True, show=True)
+        cb.plot(dataset='rv01', legend=True, show=True)
 
     assert(np.allclose(phoebe2_val_lc, phoebe1_val_lc, rtol=7e-3, atol=0.))
     # note we can't use relative tolerances because those blow up near 0, so
