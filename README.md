@@ -1,4 +1,4 @@
-PHOEBE 2.2
+PHOEBE 2.3
 ------------------------
 
 <p align="center"><a href="http://phoebe-project.org"><img src="./images/logo_blue.svg" alt="PHOEBE logo" width="160px" align="center"/></a></p>
@@ -64,7 +64,7 @@ To install PHOEBE 2 from the source site-wide, go to the `phoebe2/` directory an
     python3 setup.py build
     sudo python3 setup.py install
 
-Note that as of the 2.3 release, PHOEBE requires Python 3.6 or later.  For further details on pre-requisites consult the [PHOEBE project webpage](http://phoebe-project.org/install/2.2).
+Note that as of the 2.3 release, PHOEBE requires Python 3.6 or later.  For further details on pre-requisites consult the [PHOEBE project webpage](http://phoebe-project.org/install/2.3).
 
 
 GETTING STARTED
@@ -78,7 +78,7 @@ PHOEBE 2 has a fairly steep learning curve. To start PHOEBE from python, issue:
 
 As of the 2.3 release, PHOEBE also includes a desktop and web client user-interface which is installed independently of the python package here.  See the [phoebe2-ui repository](https://github.com/phoebe-project/phoebe2-ui) and [phoebe-project.org/clients](http://phoebe-project.org/clients) for more details.
 
-To understand how to use PHOEBE, please consult the [tutorials, scripts and manuals](http://phoebe-project.org/docs/2.2/) hosted on the PHOEBE webpage.
+To understand how to use PHOEBE, please consult the [tutorials, scripts and manuals](http://phoebe-project.org/docs/2.3/) hosted on the PHOEBE webpage.
 
 
 CHANGELOG
