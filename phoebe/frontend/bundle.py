@@ -3537,7 +3537,7 @@ class Bundle(ParameterSet):
                         check = libphoebe.ld_check(_bytes(ld_func), np.asarray(ld_coeffs), strict=True)
                         if not check:
                             report.add_item(self,
-                                            'ld_coeffs_bol={} result in limb-brightening.  Use with caution.'.format(ld_coeffs),
+                                            'ld_coeffs_bol={} result in limb-brightening which is not allowed for irradiation.'.format(ld_coeffs),
                                             [self.get_parameter(qualifier='ld_func_bol', component=component, context='component', **_skip_filter_checks),
                                              self.get_parameter(qualifier='ld_coeffs_bol', component=component, context='component', **_skip_filter_checks)
                                             ],
