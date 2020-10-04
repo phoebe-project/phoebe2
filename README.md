@@ -84,6 +84,10 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.3.2 - manifest to include readme hotfix
+
+* manually include README.md in MANIFEST.in to avoid build errors from pip
+
 ### 2.3.1 - pip install hotfix
 
 * removes m2r as an (unlisted) build-dependency.  m2r is only required to build the submission to submit to pypi, but is not required to install or run phoebe locally.
