@@ -84,7 +84,7 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
-### 2.3.2 - manifest to include readme hotfix (\#2)
+### 2.3.2 - manifest to include readme hotfix
 
 * manually include README.md in MANIFEST.in to avoid build errors from pip
 
