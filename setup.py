@@ -335,9 +335,15 @@ def _env_variable_bool(key, default):
 
 # numpy distutils does not support passing long_description_content_type
 # so we'll have to manually convert to rst and strip out the html in the header
-import m2r
-long_description_s = m2r.parse_from_file("README.md").split('\n')
-long_description = "\n".join(long_description_s[long_description_s.index("INTRODUCTION"):])
+# but we also don't want to have to make m2r a hard dependency for installation
+try:
+    import m2r
+except ImportError:
+    with open('README.md', 'r') as fh:
+        long_description = fh.read()
+else:
+    long_description_s = m2r.parse_from_file("README.md").split('\n')
+    long_description = "\n".join(long_description_s[long_description_s.index("INTRODUCTION"):])
 
 setup (name = 'phoebe',
        version = 'devel',
@@ -361,7 +367,7 @@ setup (name = 'phoebe',
             'Programming Language :: Python :: 3 :: Only',
         ],
        python_requires='>=3.6, <4',
-       download_url = 'https://github.com/phoebe-project/phoebe2/tarball/2.3.0',
+       download_url = 'https://github.com/phoebe-project/phoebe2/tarball/2.3.2',
        packages = ['phoebe', 'phoebe.parameters', 'phoebe.parameters.solver', 'phoebe.parameters.figure', 'phoebe.frontend', 'phoebe.constraints', 'phoebe.dynamics', 'phoebe.distortions', 'phoebe.algorithms', 'phoebe.atmospheres', 'phoebe.backend', 'phoebe.solverbackends', 'phoebe.solverbackends.ebai', 'phoebe.utils', 'phoebe.helpers', 'phoebe.pool', 'phoebe.dependencies', 'phoebe.dependencies.autofig', 'phoebe.dependencies.nparray', 'phoebe.dependencies.distl', 'phoebe.dependencies.unitsiau2015'],
        install_requires=['numpy>=1.12','scipy>=1.2','astropy>=1.0', 'corner', 'pytest', 'requests', 'python-socketio[client]']+['flask', 'flask-cors', 'flask-socketio', 'gevent-websocket'],
        package_data={'phoebe.atmospheres':['tables/wd/*', 'tables/passbands/*'],
