@@ -25,6 +25,12 @@ def test_latexrepr(verbose=False):
             print("param: {}".format(param.twig))
         param.latextwig
 
+    b = phoebe.default_star()
+    for param in b.to_list():
+        if verbose:
+            print("param: {}".format(param.twig))
+        param.latextwig
+
     return b
 
 if __name__ == '__main__':
