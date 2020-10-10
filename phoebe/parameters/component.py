@@ -296,10 +296,10 @@ def envelope(component, **kwargs):
     # params += [FloatParameter(qualifier='frac_lost_bol', value=kwargs.get('frac_lost_bol', 1.0), default_unit=u.dimensionless_unscaled, limits=(0.0, 1.0), description='ratio of incident bolometric light that is lost/ignored')]
 
 
-    params += [FloatParameter(qualifier='fillout_factor', latexfmt=r'\mathrm{{FF}}_\mathrm{{ {component}} }}', value=kwargs.get('fillout_factor', 0.5), default_unit=u.dimensionless_unscaled, limits=(0.0,1.0), description='Fillout-factor of the envelope')]
-    params += [FloatParameter(qualifier='pot', latexfmt=r'\Omega_\mathrm{{ {component}} }}', value=kwargs.get('pot', 3.5), default_unit=u.dimensionless_unscaled, limits=(0.0,None), description='Potential of the envelope (from the primary component\'s reference)')]
-    params += [FloatParameter(qualifier='pot_min', latexfmt=r'\Omega_\mathrm{{ min,  {component}} }}', value=kwargs.get('pot_min', 3.5), default_unit=u.dimensionless_unscaled, limits=(0.0,None), description='Critical (minimum) value of the potential to remain a contact')]
-    params += [FloatParameter(qualifier='pot_max', latexfmt=r'\Omega_\mathrm{{ max, {component}} }}', value=kwargs.get('pot_max', 3.5), default_unit=u.dimensionless_unscaled, limits=(0.0,None), description='Critical (maximum) value of the potential to remain a contact')]
+    params += [FloatParameter(qualifier='fillout_factor', latexfmt=r'\mathrm{{FF}}_\mathrm{{ {component} }}', value=kwargs.get('fillout_factor', 0.5), default_unit=u.dimensionless_unscaled, limits=(0.0,1.0), description='Fillout-factor of the envelope')]
+    params += [FloatParameter(qualifier='pot', latexfmt=r'\Omega_\mathrm{{ {component} }}', value=kwargs.get('pot', 3.5), default_unit=u.dimensionless_unscaled, limits=(0.0,None), description='Potential of the envelope (from the primary component\'s reference)')]
+    params += [FloatParameter(qualifier='pot_min', latexfmt=r'\Omega_\mathrm{{ min,  {component} }}', value=kwargs.get('pot_min', 3.5), default_unit=u.dimensionless_unscaled, limits=(0.0,None), description='Critical (minimum) value of the potential to remain a contact')]
+    params += [FloatParameter(qualifier='pot_max', latexfmt=r'\Omega_\mathrm{{ max, {component} }}', value=kwargs.get('pot_max', 3.5), default_unit=u.dimensionless_unscaled, limits=(0.0,None), description='Critical (maximum) value of the potential to remain a contact')]
     # params += [FloatParameter(qualifier='intens_coeff1', value=kwargs.get('intens_coeff1', 1.0), default_unit=u.dimensionless_unscaled, description='')]
     # params += [FloatParameter(qualifier='intens_coeff2', value=kwargs.get('intens_coeff2', 1.0), default_unit=u.dimensionless_unscaled, description='')]
     # params += [FloatParameter(qualifier='intens_coeff3', value=kwargs.get('intens_coeff3', 1.0), default_unit=u.dimensionless_unscaled, description='')]
