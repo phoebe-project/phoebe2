@@ -259,10 +259,10 @@ def _get_combined_lc(b, datasets, combine, phase_component=None, mask=True, norm
         # NOTE: input sigmas are ignored
         sigmas_binned, phase_edges, binnumber = binned_statistic(phases, fluxes, statistic='std', bins=phase_bin)
         counts_binned, phase_edges, binnumber = binned_statistic(phases, fluxes, statistic='count', bins=phase_bin)
-        counts_single_inds = np.where(counts_binned==0)[0]
-        for i in np.where(counts_binned==0)[0]:
-            # need to replace the sigma entry with the original observational sigma
-            sigmas_binned[i] = sigmas[np.argmin(abs(phases-phase_edges[i]))]
+
+        if min(counts_binned) <= 1:
+            logger.warning("phase-binning resulted in bin(s) with <=1 entries, ignoring sigmas as cannot determine per-bin sigmas.")
+            sigmas_binned = np.full_like(fluxes_binned, fill_value=np.nan)
 
         phases_binned = (phase_edges[1:] + phase_edges[:-1]) / 2.
 
@@ -270,7 +270,7 @@ def _get_combined_lc(b, datasets, combine, phase_component=None, mask=True, norm
 
         # NOTE: times array won't be the same size! (but we want the original
         # times array for t0_near_times in lc_geometry)
-        return times, phases_binned[~nans_inds], fluxes_binned[~nans_inds], sigmas_binned[~nans_inds]
+        return times, phases_binned[~nans_inds], fluxes_binned[~nans_inds], sigmas_binned[~nans_inds] if sigmas_binned is not None else None
 
     elif phase_sorted:
         # binning would phase-sort anyways
@@ -350,9 +350,9 @@ def _get_combined_rv(b, datasets, components, phase_component=None, mask=True, n
         sigmas_binned, phase_edges, binnumber = binned_statistic(phases, rvs, statistic='std', bins=phase_bin)
         counts_binned, phase_edges, binnumber = binned_statistic(phases, fluxes, statistic='count', bins=phase_bin)
         counts_single_inds = np.where(counts_binned==0)[0]
-        for i in np.where(counts_binned==0)[0]:
-            # need to replace the sigma entry with the original observational sigma
-            sigmas_binned[i] = sigmas[np.argmin(abs(phases-phase_edges[i]))]
+        if min(counts_binned) <= 1:
+            logger.warning("phase-binning resulted in bin(s) with <=1 entries, ignoring sigmas as cannot determine per-bin sigmas.")
+            sigmas_binned = np.full_like(fluxes_binned, fill_value=np.nan)
 
         phases_binned = (phase_edges[1:] + phase_edges[:-1]) / 2.
 
@@ -622,7 +622,7 @@ class Lc_GeometryBackend(BaseSolverBackend):
                    {'qualifier': 'orbit', 'value': orbit},
                    {'qualifier': 'input_phases', 'value': phases},
                    {'qualifier': 'input_fluxes', 'value': fluxes},
-                   {'qualifier': 'input_sigmas', 'value': sigmas},
+                   {'qualifier': 'input_sigmas', 'value': sigmas if not np.all(np.isnan(sigmas)) else []},
                    {'qualifier': 'fitted_uniqueids', 'value': fitted_uniqueids},
                    {'qualifier': 'fitted_twigs', 'value': fitted_twigs},
                    {'qualifier': 'fitted_values', 'value': fitted_values},
@@ -1074,7 +1074,7 @@ class EbaiBackend(BaseSolverBackend):
         return [[{'qualifier': 'orbit', 'value': orbit},
                  {'qualifier': 'input_phases', 'value': ((phases-pshift+0.5) % 1) - 0.5},
                  {'qualifier': 'input_fluxes', 'value': fluxes},
-                 {'qualifier': 'input_sigmas', 'value': sigmas},
+                 {'qualifier': 'input_sigmas', 'value': sigmas if sigmas is not None else np.full_like(fluxes, fill_value=np.nan)},
                  {'qualifier': 'ebai_phases', 'value': ebai_phases},
                  {'qualifier': 'ebai_fluxes', 'value': ebai_fluxes},
                  {'qualifier': 'fitted_uniqueids', 'value': fitted_uniqueids},
