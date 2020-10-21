@@ -17,7 +17,7 @@ PHOEBE 2.3
   <a href="https://ui.adsabs.harvard.edu/abs/2016ApJS..227...29P"><img src="https://img.shields.io/badge/ApJS-Prsa+2016-lightgrey.svg"/></a>
   <a href="https://ui.adsabs.harvard.edu/abs/2018ApJS..237...26H"><img src="https://img.shields.io/badge/ApJS-Horvat+2018-lightgrey.svg"/></a>
   <a href="https://ui.adsabs.harvard.edu/abs/2020ApJS..247...63J"><img src="https://img.shields.io/badge/ApJS-Jones+2020-lightgrey.svg"/></a>
-  <a href="https://ui.adsabs.harvard.edu/abs/2020arXiv200616951C"><img src="https://img.shields.io/badge/ApJS-Conroy+2020-lightgrey.svg"/></a>
+  <a href="https://ui.adsabs.harvard.edu/abs/2020ApJS..250...34C/"><img src="https://img.shields.io/badge/ApJS-Conroy+2020-lightgrey.svg"/></a>
 </p>
 
 <p align="center">
