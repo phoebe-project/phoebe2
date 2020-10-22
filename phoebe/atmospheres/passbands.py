@@ -2615,12 +2615,6 @@ class Passband:
 
         return Inorm
 
-    def _Inorm_phoenix(self, Teff, logg, abun, photon_weighted=False):
-        req = np.vstack((Teff, logg, abun)).T
-        Inorm = libphoebe.interp(req, self._phoenix_axes, 10**self._phoenix_photon_grid if photon_weighted else 10**self._phoenix_energy_grid).T[0]
-
-        return Inorm
-
     def _log10_Imu_ck2004(self, Teff, logg, abun, mu, photon_weighted=False):
         if not hasattr(Teff, '__iter__'):
             req = np.array(((Teff, logg, abun, mu),))
