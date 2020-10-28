@@ -10959,7 +10959,7 @@ class Bundle(ParameterSet):
 
         # handle case where solver is not provided
         if solver is None:
-            solvers = self.get_solver(check_default=False, check_visible=False, **kwargs).solvers
+            solvers = self.get_solver(check_default=False, check_visible=False, **{k:v for k,v in kwargs.items() if k in ['kind', 'solver']}).solvers
             if len(solvers)==0:
                 raise ValueError("no solvers attached.  Call add_solver first")
             if len(solvers)==1:
