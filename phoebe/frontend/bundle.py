@@ -7502,7 +7502,7 @@ class Bundle(ParameterSet):
             parameters_uniqueids = parameters.uniqueids
 
 
-            dc, uniqueids = self.get_distribution_collection(twig=twig, keys='uniqueid', set_labels=set_labels, parameters=None, allow_non_dc=False, **kwargs)
+            dc, uniqueids = self.get_distribution_collection(twig=twig, keys='uniqueid', set_labels=set_labels, parameters=None, allow_non_dc=False, **{k:v for k,v in kwargs.items() if k not in ['allow_non_dc', 'set_labels']})
 
             # first filter through the distributions already in dc
             ret_dists = [dc.dists[i] for i,uniqueid in enumerate(uniqueids) if uniqueid in parameters_uniqueids]
