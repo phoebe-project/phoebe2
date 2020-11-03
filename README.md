@@ -84,6 +84,12 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.3.4 - passband/extinction hotfix
+
+* fixed Gordon extinction coefficient calculation in line with erratum http://dx.doi.org/10.1088/0004-637X/705/2/1320.
+* added check to require updating affected-passbands (versions at tables.phoebe-project.org have been updated)
+* removed duplicate Passband methods causing ld/ldint passband computations to fail
+
 ### 2.3.3 - latex representation hotfix
 
 * fix the latex representation string for `fillout_factor`, `pot`, `pot_min`,
