@@ -231,6 +231,31 @@ class Passband:
             self.version = 1.0
         return('Passband: %s:%s\nVersion:  %1.1f\nProvides: %s' % (self.pbset, self.pbname, self.version, self.content))
 
+    def on_updated_ptf(self, ptf, wlunits=u.AA, oversampling=1, ptf_order=3):
+        """
+        When passband transmission function is updated, this function updates
+        all related meta-fields in the passband structure. It does *not* update
+        any tables, only the header information.
+        """
+
+        ptf_table = np.loadtxt(ptf).T
+        ptf_table[0] = ptf_table[0]*wlunits.to(u.m)
+        self.ptf_table = {'wl': np.array(ptf_table[0]), 'fl': np.array(ptf_table[1])}
+
+        self.wl = np.linspace(self.ptf_table['wl'][0], self.ptf_table['wl'][-1], oversampling*len(self.ptf_table['wl']))
+
+        self.ptf_order = ptf_order
+        self.ptf_func = interpolate.splrep(self.ptf_table['wl'], self.ptf_table['fl'], s=0, k=ptf_order)
+        self.ptf = lambda wl: interpolate.splev(wl, self.ptf_func)
+        self.ptf_area = interpolate.splint(self.wl[0], self.wl[-1], self.ptf_func, 0)
+
+        # Spline fit to the photon-weighted passband transmission function table:
+        self.ptf_photon_func = interpolate.splrep(self.ptf_table['wl'], self.ptf_table['fl']*self.ptf_table['wl'], s=0, k=ptf_order)
+        self.ptf_photon = lambda wl: interpolate.splev(wl, self.ptf_photon_func)
+        self.ptf_photon_area = interpolate.splint(self.wl[0], self.wl[-1], self.ptf_photon_func, 0)
+
+        return
+
     def save(self, archive, overwrite=True, update_timestamp=True, history_entry=''):
         """
         Saves the passband file in the fits format.
@@ -2587,12 +2612,6 @@ class Passband:
     def _Inorm_blended(self, Teff, logg, abun, photon_weighted=False):
         req = np.vstack((Teff, logg, abun)).T
         Inorm = 10**libphoebe.interp(req, self._blended_axes, self._blended_photon_grid if photon_weighted else self._blended_energy_grid).T[0]
-
-        return Inorm
-
-    def _Inorm_phoenix(self, Teff, logg, abun, photon_weighted=False):
-        req = np.vstack((Teff, logg, abun)).T
-        Inorm = libphoebe.interp(req, self._phoenix_axes, 10**self._phoenix_photon_grid if photon_weighted else 10**self._phoenix_energy_grid).T[0]
 
         return Inorm
 
