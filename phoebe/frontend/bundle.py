@@ -3391,6 +3391,15 @@ class Bundle(ParameterSet):
 
             missing_pb_content = []
 
+            if pb_needs_ext and pb in ['Stromgren:u', 'Johnson:U', 'SDSS:u', 'SDSS:uprime']:
+                # need to check for bugfix in coefficients from 2.3.4 release
+                installed_timestamp = installed_pbs.get(pb, {}).get('timestamp', None)
+                if _timestamp_to_dt(installed_timestamp) < _timestamp_to_dt("Mon Nov 2 00:00:00 2020"):
+                    report.add_item(self,
+                                    "'{}' passband ({}) with extinction needs to be updated for fixed UV extinction coefficients.  Run phoebe.list_passband_online_history('{}') to get a list of available changes and phoebe.update_passband('{}') or phoebe.update_all_passbands() to update.".format(pb, pbparam.twig, pb, pb),
+                                    [pbparam, self.get_parameter(qualifier='ebv', context='system', **_skip_filter_checks)],
+                                    True, 'run_compute')
+
             # NOTE: atms are not attached to datasets, but per-compute and per-component
             for atmparam in self.filter(qualifier='atm', kind='phoebe', compute=computes, **_skip_filter_checks).to_list() + self.filter(qualifier='ld_coeffs_source').to_list():
 
