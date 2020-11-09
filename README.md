@@ -84,6 +84,10 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.3.5 - lp run_checks fix
+
+* fix length comparison of flux_densities and wavelengths during run_checks
+
 ### 2.3.4 - passband/extinction hotfix
 
 * fixed Gordon extinction coefficient calculation in line with erratum http://dx.doi.org/10.1088/0004-637X/705/2/1320.

@@ -3196,8 +3196,9 @@ class Bundle(ParameterSet):
                                 [param, tparam],
                                 True, ['system', 'run_compute'])
 
-            if param.qualifier in ['flux_densities'] and shape[0] > 0 and shape[0] != self.get_value(qualifier='wavelengths', dataset=param.dataset, component=param.component, time=param.time, context='dataset', **_skip_filter_checks).shape[0]:
-                wparam = self.get_parameter(qualifier='wavelengths', dataset=param.dataset, component=param.component, time=param.time, context='dataset', **_skip_filter_checks)
+            if param.qualifier in ['flux_densities'] and shape[0] > 0 and shape[0] != self.get_value(qualifier='wavelengths', dataset=param.dataset, component=param.component,  context='dataset', **_skip_filter_checks).shape[0]:
+                # NOTE: flux_densities is time-dependent, but wavelengths is not
+                wparam = self.get_parameter(qualifier='wavelengths', dataset=param.dataset, component=param.component, context='dataset', **_skip_filter_checks)
                 report.add_item(self,
                                 "{}@{}@{} must be of same length as {}@{}".format(param.twig, wparam.twig),
                                 [param, wparam],
