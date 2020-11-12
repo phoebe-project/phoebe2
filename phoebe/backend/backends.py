@@ -991,6 +991,9 @@ class PhoebeBackend(BaseBackendByTime):
             primary_mesh.update_columns(teffs=new_teffs1)
             secondary_mesh.update_columns(teffs=new_teffs2)
 
+            system.bodies[0]._halves[0].save_as_standard_mesh(primary_mesh)
+            system.bodies[0]._halves[1].save_as_standard_mesh(secondary_mesh)
+
         system.populate_observables(t0, ['lc' for dataset in datasets], datasets, ignore_effects=True)
 
 
@@ -1087,22 +1090,23 @@ class PhoebeBackend(BaseBackendByTime):
             logger.debug("rank:{}/{} PhoebeBackend._run_single_time: calling system.update_positions at time={}".format(mpi.myrank, mpi.nprocs, time))
             system.update_positions(time, xi, yi, zi, vxi, vyi, vzi, ethetai, elongani, eincli, ds=di, Fs=Fi)
 
-            # TEMPERATURE SMOOTHING FOR CONTACTS
-            if i == 0:
-                smoothing_enabled = b.get_value(qualifier='smoothing_enabled', context='component', **_skip_filter_checks)
-                if smoothing_enabled:
-                    smoothing_factor = b.get_value(qualifier='smoothing_factor', context='component', **_skip_filter_checks)
-                    primary_mesh, secondary_mesh = system.bodies[0].meshes.values()
-                    coords1 = primary_mesh.roche_coords_for_computations
-                    teffs1 = primary_mesh.teffs
-                    coords2 = secondary_mesh.roche_coords_for_computations
-                    teffs2 = secondary_mesh.teffs
+            #TEMPERATURE SMOOTHING FOR CONTACTS
+            # if i == 0:
+            # smoothing_enabled = b.get_value(qualifier='smoothing_enabled', context='component', **_skip_filter_checks)
+            # if smoothing_enabled:
+            #     smoothing_factor = b.get_value(qualifier='smoothing_factor', context='component', **_skip_filter_checks)
+            #     primary_mesh, secondary_mesh = system.bodies[0].meshes.values()
+            #     coords1 = primary_mesh.roche_coords_for_computations
+            #     teffs1 = primary_mesh.teffs
+            #     coords2 = secondary_mesh.roche_coords_for_computations
+            #     teffs2 = secondary_mesh.teffs
 
-                    new_teffs1, new_teffs2 = contacts_smoothing.smooth_teffs(np.array(coords1), np.array(teffs1), 
-                                                                            np.array(coords2), np.array(teffs2), 
-                                                                            w=smoothing_factor, cutoff=0.)
-                    primary_mesh.update_columns(teffs=new_teffs1)
-                    secondary_mesh.update_columns(teffs=new_teffs2)
+            #     new_teffs1, new_teffs2 = contacts_smoothing.smooth_teffs(np.array(coords1), np.array(teffs1), 
+            #                                                             np.array(coords2), np.array(teffs2), 
+            #                                                             w=smoothing_factor, cutoff=0.1)
+            #     primary_mesh.update_columns(teffs=new_teffs1)
+            #     secondary_mesh.update_columns(teffs=new_teffs2)
+            
             # Now we need to determine which triangles are visible and handle subdivision
             # NOTE: this should come after populate_observables so that each subdivided triangle
             # will have identical local quantities.  The only downside to this is that we can't
