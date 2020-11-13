@@ -1581,22 +1581,27 @@ class Star(Body):
         if mesh is None:
             mesh = self.mesh
 
-        # Now we can compute the local temperatures.
-        # see PHOEBE Legacy scientific reference eq 5.23
-        teffs = self.instantaneous_tpole*mesh.gravs.for_computations**0.25
+        if hasattr(self, 'smoothed_teffs'):
+            teffs = self.smoothed_teffs
+            # print("teffs.median", np.median(teffs))
+        else:
 
-        if not ignore_effects:
-            for feature in self.features:
-                if feature.proto_coords:
+            # Now we can compute the local temperatures.
+            # see PHOEBE Legacy scientific reference eq 5.23
+            teffs = self.instantaneous_tpole*mesh.gravs.for_computations**0.25
 
-                    if self.__class__.__name__ == 'Star_roche_envelope_half' and self.ind_self != self.ind_self_vel:
-                        # then this is the secondary half of a contact envelope
-                        roche_coords_for_computations = np.array([1.0, 0.0, 0.0]) - mesh.roche_coords_for_computations
+            if not ignore_effects:
+                for feature in self.features:
+                    if feature.proto_coords:
+
+                        if self.__class__.__name__ == 'Star_roche_envelope_half' and self.ind_self != self.ind_self_vel:
+                            # then this is the secondary half of a contact envelope
+                            roche_coords_for_computations = np.array([1.0, 0.0, 0.0]) - mesh.roche_coords_for_computations
+                        else:
+                            roche_coords_for_computations = mesh.roche_coords_for_computations
+                        teffs = feature.process_teffs(teffs, roche_coords_for_computations, s=self.polar_direction_xyz, t=self.time)
                     else:
-                        roche_coords_for_computations = mesh.roche_coords_for_computations
-                    teffs = feature.process_teffs(teffs, roche_coords_for_computations, s=self.polar_direction_xyz, t=self.time)
-                else:
-                    teffs = feature.process_teffs(teffs, mesh.coords_for_computations, s=self.polar_direction_xyz, t=self.time)
+                        teffs = feature.process_teffs(teffs, mesh.coords_for_computations, s=self.polar_direction_xyz, t=self.time)
 
         mesh.update_columns(teffs=teffs)
 
@@ -3379,7 +3384,7 @@ class Pulsation(Feature):
 #             cond = coords_all[:,0] <= 1-cutoff
 #         else:
 #             raise ValueError
-            
+
 #         if plot:
 #             import matplotlib.pyplot as plt
 #             fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(10,5))
@@ -3391,7 +3396,7 @@ class Pulsation(Feature):
 #             axes[1].set_ylabel('teff')
 #             fig.tight_layout()
 #             plt.show()
-        
+
 #         return coords_all[cond], teffs_all[cond]
 
 
@@ -3401,10 +3406,10 @@ class Pulsation(Feature):
 
 #         distances = [dist(p1, p2) for p1, p2 in combinations(coords_neck, 2)]
 #         min_dist = np.min(distances[distances != 0])
-        
+
 #         if direction == 'x':
-#             cond = (coords_neck[:,1] >= -0.2*min_dist) & (coords_neck[:,1] <= 0.2*min_dist) 
-        
+#             cond = (coords_neck[:,1] >= -0.2*min_dist) & (coords_neck[:,1] <= 0.2*min_dist)
+
 #         elif direction == 'y':
 
 #             if component == 1:
@@ -3412,13 +3417,13 @@ class Pulsation(Feature):
 
 #             elif component == 2:
 #                 cond = coords_neck[:,0] >= 1-cutoff-0.15*min_dist
-                
+
 #             else:
 #                 raise ValueError
-                
+
 #         else:
 #             raise ValueError
-            
+
 #         if plot:
 #             import matplotlib.pyplot as plt
 #             if direction == 'x':
@@ -3427,7 +3432,7 @@ class Pulsation(Feature):
 #             elif direction == 'y':
 #                 plt.scatter(coords_neck[cond][:,1], teffs_neck[cond])
 #                 plt.show()
-                
+
 
 #         return coords_neck[cond], teffs_neck[cond]
 
@@ -3440,39 +3445,39 @@ class Pulsation(Feature):
 #         min_dist1 = np.min(distances1[distances1 != 0])
 #         distances2 = [dist(p1, p2) for p1, p2 in combinations(coords2, 2)]
 #         min_dist2 = np.min(distances2[distances2 != 0])
-        
+
 #         x_neck = np.average((coords1[:,0].max(), coords2[:,0].min()))
 #         amplitude_1 = teffs1.max()
 #         amplitude_2 = teffs2.max()
-        
+
 #         teffs_neck1 = teffs1[coords1[:,0] >= coords1[:,0].max() - 0.25*min_dist1]
 #         teffs_neck2 = teffs2[coords2[:,0] <= coords2[:,0].min() + 0.25*min_dist2]
-        
+
 #         teff1 = np.average(teffs_neck1)
 #         teff2 = np.average(teffs_neck2)
 #         tavg = w*teff1 + (1-w)*teff2
 #         if tavg > teffs2.max():
 #             print('Warning: Tavg > Teff2, setting new temperature to 1 percent of Teff2 max. %i > %i' % (int(tavg), int(teffs2.max())))
 #             tavg = teffs2.max() - 0.01*teffs2.max()
-        
+
 #         return x_neck, tavg
-    
-    
+
+
 #     @staticmethod
 #     def _compute_sigmax(Tavg, x, x0, offset, amplitude):
 #         return ((-1)*(x-x0)**2/np.log((Tavg-offset)/amplitude))**0.5
-        
+
 
 #     @staticmethod
 #     def _fit_sigma_amplitude(coords, teffs, offset, cutoff=0, direction='y', component=1, plot=False):
-        
+
 #         def gaussian_1d(x, sigma):
 #             a = 1./sigma**2
 #             g = offset + amplitude * np.exp(- (a * ((x - x0) ** 2)))
 #             return g
 
 #         from scipy.optimize import curve_fit
-        
+
 #         if direction == 'y':
 #             coord_ind = 1
 #             x0 = 0.
@@ -3486,26 +3491,26 @@ class Pulsation(Feature):
 #                 raise ValueError
 #         else:
 #             raise ValueError
-        
+
 #         amplitude = teffs.max() - offset
 #         sigma_0 = 0.5
-#         result = curve_fit(gaussian_1d, 
-#                 xdata=coords[:,coord_ind], 
-#                 ydata=teffs, 
-#                 p0=(0.5,), 
+#         result = curve_fit(gaussian_1d,
+#                 xdata=coords[:,coord_ind],
+#                 ydata=teffs,
+#                 p0=(0.5,),
 #                 bounds=[0.01,1000])
-        
+
 #         sigma = result[0]
 #         model = gaussian_1d(coords[:,coord_ind], sigma)
-        
+
 #         if plot:
 #             import matplotlib.pyplot as plt
 #             plt.scatter(coords[:,coord_ind], teffs)
 #             plt.scatter(coords[:,coord_ind], model)
 #             plt.show()
-        
+
 #         return sigma, amplitude, model
-        
+
 
 #     @staticmethod
 #     def _compute_twoD_Gaussian(coords, sigma_x, sigma_y, amplitude, cutoff=0, offset=0, component=1):
@@ -3526,24 +3531,24 @@ class Pulsation(Feature):
 #         sigma_x1 = self._compute_sigmax(Tavg, x_neck, x0=0+self._cutoff, offset=offset, amplitude=teffs_neck_1.max())
 #         sigma_x2 = self._compute_sigmax(Tavg, x_neck, x0=1-self._cutoff, offset=offset, amplitude=teffs_neck_2.max())
 
-#         coords_fit_y1, teffs_fit_y1 = self._isolate_sigma_fitting_regions(coords_neck_1, teffs_neck_1, direction='y', cutoff=self._cutoff, 
+#         coords_fit_y1, teffs_fit_y1 = self._isolate_sigma_fitting_regions(coords_neck_1, teffs_neck_1, direction='y', cutoff=self._cutoff,
 #                                                                             component=1, plot=False)
 #         coords_fit_y2, teffs_fit_y2 = self._isolate_sigma_fitting_regions(coords_neck_2, teffs_neck_2, direction='y', cutoff=self._cutoff,
 #                                                                             component=2, plot=False)
 
-#         sigma_y1, amplitude_y1, model_y1 = self._fit_sigma_amplitude(coords_fit_y1, teffs_fit_y1, offset, direction='y', 
+#         sigma_y1, amplitude_y1, model_y1 = self._fit_sigma_amplitude(coords_fit_y1, teffs_fit_y1, offset, direction='y',
 #                                                                             component=1, plot=False)
-#         sigma_y2, amplitude_y2, model_y2 = self._fit_sigma_amplitude(coords_fit_y2, teffs_fit_y2, offset, direction='y', 
+#         sigma_y2, amplitude_y2, model_y2 = self._fit_sigma_amplitude(coords_fit_y2, teffs_fit_y2, offset, direction='y',
 #                                                                             component=2, plot=False)
 
-#         new_teffs1 = self. _compute_twoD_Gaussian(coords_neck_1, sigma_x1, sigma_y1, teffs_neck_1.max(), 
+#         new_teffs1 = self. _compute_twoD_Gaussian(coords_neck_1, sigma_x1, sigma_y1, teffs_neck_1.max(),
 #                                                     cutoff=self._cutoff, offset=offset, component=1)
-#         new_teffs2 = self._compute_twoD_Gaussian(coords_neck_2, sigma_x2, sigma_y2, teffs_neck_2.max(), 
+#         new_teffs2 = self._compute_twoD_Gaussian(coords_neck_2, sigma_x2, sigma_y2, teffs_neck_2.max(),
 #                                                     cutoff=self._cutoff, offset=offset, component=2)
 
 #         return new_teffs1, new_teffs2
 
-        
+
 #     @property
 #     def proto_coords(self):
 #         """
