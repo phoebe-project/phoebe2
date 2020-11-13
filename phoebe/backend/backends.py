@@ -984,17 +984,17 @@ class PhoebeBackend(BaseBackendByTime):
         #     teffs1 = primary_mesh.teffs
         #     coords2 = secondary_mesh.roche_coords_for_computations
         #     teffs2 = secondary_mesh.teffs
-        #
+        
         #     new_teffs1, new_teffs2 = contacts_smoothing.smooth_teffs(np.array(coords1), np.array(teffs1),
         #                                                             np.array(coords2), np.array(teffs2),
-        #                                                             w=smoothing_factor, cutoff=0.1)
-        #     # primary_mesh.update_columns(teffs=new_teffs1)
-        #     # secondary_mesh.update_columns(teffs=new_teffs2)
-        #
-        #     # system.bodies[0]._halves[0].save_as_standard_mesh(primary_mesh)
-        #     # system.bodies[0]._halves[1].save_as_standard_mesh(secondary_mesh)
-        #     system.bodies[0]._halves[0].smoothed_teffs = new_teffs1
-        #     system.bodies[0]._halves[1].smoothed_teffs = new_teffs2
+        #                                                             w=smoothing_factor, cutoff=0.0)
+            # primary_mesh.update_columns(teffs=new_teffs1)
+            # secondary_mesh.update_columns(teffs=new_teffs2)
+        
+            # system.bodies[0]._halves[0].save_as_standard_mesh(primary_mesh)
+            # system.bodies[0]._halves[1].save_as_standard_mesh(secondary_mesh)
+            # system.bodies[0]._halves[0].smoothed_teffs = new_teffs1
+            # system.bodies[0]._halves[1].smoothed_teffs = new_teffs2
 
         system.populate_observables(t0, ['lc' for dataset in datasets], datasets, ignore_effects=True)
 
@@ -1104,7 +1104,7 @@ class PhoebeBackend(BaseBackendByTime):
 
                 new_teffs1, new_teffs2 = contacts_smoothing.smooth_teffs(np.array(coords1), np.array(teffs1),
                                                                         np.array(coords2), np.array(teffs2),
-                                                                        w=smoothing_factor, cutoff=0.1)
+                                                                        w=smoothing_factor, cutoff=0.)
                 # primary_mesh.update_columns(teffs=new_teffs1)
                 # secondary_mesh.update_columns(teffs=new_teffs2)
 

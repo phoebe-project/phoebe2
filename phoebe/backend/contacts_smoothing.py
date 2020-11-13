@@ -76,7 +76,7 @@ def _compute_new_teff_at_neck(coords1, teffs1, coords2, teffs2, w=0.5, offset=0.
     teffs_neck1 = teffs1[coords1[:,0] >= coords1[:,0].max() - 0.25*min_dist1]
     teffs_neck2 = teffs2[coords2[:,0] <= coords2[:,0].min() + 0.25*min_dist2]
     
-    teff1 = np.average(teffs_neck1)
+    teff1 = np.max(teffs2)#np.average(teffs_neck1)
     teff2 = np.average(teffs_neck2)
     tavg = w*teff1 + (1-w)*teff2
     if tavg > teffs2.max():
