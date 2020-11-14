@@ -172,19 +172,27 @@ def gaussian_smoothing(xyz1, teffs1, xyz2, teffs2, w=0.5, cutoff=0., offset=0.):
     return teffs1, teffs2
 
 
-def lateral_transfer(t2s, teffs2, lat=0.22, power=0.25):
+def lateral_transfer(t2s, teffs2, mixing_power=0.5, teff_factor=1.):
+    x2s = t2s[:,0]
+    y2s = t2s[:,1]
     z2s = t2s[:,2]
-    lat = 0.15
-    power = 0.75
+
+    y2s_neck = y2s[x2s<1]
+    z2s_neck = z2s[x2s<1]
+    rs_neck = (y2s_neck**2+z2s_neck**2)**0.5
+    lat = np.min(rs_neck)
+    print('mixing latitude = ', lat)
+    # lat = 0.15
+    # power = 0.75
     filt = (z2s>-lat) & (z2s<lat)
-    c = (lat-np.abs(z2s[filt]))**power
-    teffs2[filt] *= 1+0.3*c/c.max()  
+    c = (lat-np.abs(z2s[filt]))**mixing_power
+    teffs2[filt] *= 1+teff_factor*c/c.max()  
 
     return teffs2
 
-def isotropic_transfer(t2s, teffs2):
+def isotropic_transfer(t2s, teffs2, mixing_power=0.5, teff_factor=1.):
     d2s = np.sqrt(t2s[:,0]*t2s[:,0] + t2s[:,1]*t2s[:,1] + t2s[:,2]*t2s[:,2])
-    teffs2 *= 1+0.4*(1-((d2s-d2s.min())/(d2s.max()-d2s.min()))**0.5)
+    teffs2 *= 1+teff_factor*(1-((d2s-d2s.min())/(d2s.max()-d2s.min()))**mixing_power)
 
     return teffs2
 
@@ -202,15 +210,15 @@ def spotty_transfer(t2s, teffs2):
     return teffs2
 
 
-def smooth_teffs(xyz1, teffs1, xyz2, teffs2, smoothing_method='lateral'):
+def smooth_teffs(xyz1, teffs1, xyz2, teffs2, mixing_method='lateral', mixing_power=0.5, teff_factor=1.):
 
-    if smoothing_method == 'lateral':
-        teffs2 = lateral_transfer(xyz2, teffs2)
+    if mixing_method == 'lateral':
+        teffs2 = lateral_transfer(xyz2, teffs2, mixing_power, teff_factor)
 
-    elif smoothing_method == 'isotropic':
-        teffs2 = isotropic_transfer(xyz2, teffs2)
+    elif mixing_method == 'isotropic':
+        teffs2 = isotropic_transfer(xyz2, teffs2, mixing_power, teff_factor)
 
-    elif smoothing_method == 'spotty':
+    elif mixing_method == 'spotty':
         teffs2 = spotty_transfer(xyz2, teffs2)
     
     else:
