@@ -181,7 +181,7 @@ def lateral_transfer(t2s, teffs2, mixing_power=0.5, teff_factor=1.):
     z2s_neck = z2s[x2s<1]
     rs_neck = (y2s_neck**2+z2s_neck**2)**0.5
     lat = np.min(rs_neck)
-    print('mixing latitude = ', lat)
+    # print('mixing latitude = ', lat)
     # lat = 0.15
     # power = 0.75
     filt = (z2s>-lat) & (z2s<lat)
