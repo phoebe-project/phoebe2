@@ -3714,6 +3714,7 @@ class Bundle(ParameterSet):
             gps = self.filter(kind='gaussian_process', context='feature', **_skip_filter_checks).features
             compute_enabled_gps = self.filter(qualifier='enabled', feature=gps, value=True, **_skip_filter_checks).features
             compute_enabled_datasets = self.filter(qualifier='enabled', dataset=self.datasets, value=True, **_skip_filter_checks).datasets
+            compute_enabled_datasets_with_gps = [ds for ds in self.filter(qualifier='enabed', feature=gps, value=True, **_skip_filter_checks).datasets if ds in compute_enabled_datasets]
 
             # per-compute hierarchy checks
             if len(self.hierarchy.get_envelopes()):
@@ -3795,7 +3796,7 @@ class Bundle(ParameterSet):
             # check for time-dependency issues with GPs
             if len(compute_enabled_gps):
                 # then if we're using compute_times/phases, compute_times must cover the range of the dataset times
-                for dataset in compute_enabled_datasets:
+                for dataset in compute_enabled_datasets_with_gps:
                     compute_times = self.get_value(qualifier='compute_times', dataset=dataset, context='dataset', unit=u.d, **_skip_filter_checks)
                     if len(compute_times):
                         for time_param in self.filter(qualifier='times', dataset=dataset, context='dataset', check_visible=True).to_list():
@@ -3820,7 +3821,6 @@ class Bundle(ParameterSet):
                                                  time_param]+self.filter(qualifier='enabled', feature=compute_enabled_gps, **_skip_filter_checks).to_list()+addl_parameters,
                                                  False, 'run_compute')
 
-
                     ds_ps = self.get_dataset(dataset=dataset, **_skip_filter_checks)
                     xqualifier = {'lp': 'wavelength'}.get(ds_ps.kind, 'times')
                     yqualifier = {'lp': 'flux_densities', 'rv': 'rvs', 'lc': 'fluxes'}.get(ds_ps.kind)
@@ -3833,7 +3833,8 @@ class Bundle(ParameterSet):
                         ds_x = ds_ps.get_value(qualifier=xqualifier, component=ds_comp, **_skip_filter_checks)
                         ds_y = ds_ps.get_value(qualifier=yqualifier, component=ds_comp, **_skip_filter_checks)
                         ds_sigmas = ds_ps.get_value(qualifier='sigmas', component=ds_comp, **_skip_filter_checks)
-                        if len(ds_sigmas) != len(ds_x) or len(ds_y) != len(ds_x) or not len(ds_x):
+                        # NOTE: if we're supporting GPs on RVs, we should only require at least ONE component to have len(ds_x)
+                        if len(ds_sigmas) != len(ds_x) or len(ds_y) != len(ds_x) or (ds_ps.kind in ['lc'] and not len(ds_x)):
                             report.add_item(self,
                                             "gaussian process requires observational data and sigmas",
                                             ds_ps.filter(qualifier=[xqualifier, yqualifier, 'sigmas'], component=ds_comp, **_skip_filter_checks).to_list()+
