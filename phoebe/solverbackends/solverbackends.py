@@ -1764,6 +1764,7 @@ class _ScipyOptimizeBaseBackend(BaseSolverBackend):
         compute_kwargs = {k:v for k,v in kwargs.items() if k in b.get_compute(compute=compute, **_skip_filter_checks).qualifiers}
 
         options = {k:v for k,v in kwargs.items() if k in self.valid_options}
+        print(options)
 
         def _progressbar(xi):
             global _minimize_iter
