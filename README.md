@@ -17,7 +17,7 @@ PHOEBE 2.3
   <a href="https://ui.adsabs.harvard.edu/abs/2016ApJS..227...29P"><img src="https://img.shields.io/badge/ApJS-Prsa+2016-lightgrey.svg"/></a>
   <a href="https://ui.adsabs.harvard.edu/abs/2018ApJS..237...26H"><img src="https://img.shields.io/badge/ApJS-Horvat+2018-lightgrey.svg"/></a>
   <a href="https://ui.adsabs.harvard.edu/abs/2020ApJS..247...63J"><img src="https://img.shields.io/badge/ApJS-Jones+2020-lightgrey.svg"/></a>
-  <a href="https://ui.adsabs.harvard.edu/abs/2020arXiv200616951C"><img src="https://img.shields.io/badge/ApJS-Conroy+2020-lightgrey.svg"/></a>
+  <a href="https://ui.adsabs.harvard.edu/abs/2020ApJS..250...34C/"><img src="https://img.shields.io/badge/ApJS-Conroy+2020-lightgrey.svg"/></a>
 </p>
 
 <p align="center">
@@ -32,7 +32,7 @@ PHOEBE stands for PHysics Of Eclipsing BinariEs. PHOEBE is pronounced [fee-bee](
 
 PHOEBE 2 is a rewrite of the original PHOEBE code. For most up-to-date information please refer to the PHOEBE project webpage: [http://phoebe-project.org](http://phoebe-project.org)
 
-PHOEBE 2.0 is described by the release paper published in the Astrophysical Journal Supplement, [Prša et al. (2016, ApJS 227, 29)](https://ui.adsabs.harvard.edu/#abs/2016ApJS..227...29P).  The addition of support for misaligned stars in version 2.1 is described in [Horvat et al. (2018, ApJS 237, 26)](https://ui.adsabs.harvard.edu/#abs/2018ApJS..237...26H).  Interstellar extinction and support for Python 3 was added in version 2.2 and described in [Jones et al. (2020, ApJS 247, 63)](https://ui.adsabs.harvard.edu/abs/2020ApJS..247...63J).  Inclusion of a general framework for solving the inverse problem as well as support for the [web and desktop clients](http://phoebe-project.org/clients) was introduced in version 2.3 as described in [Conroy et al. (2020, in press)](https://ui.adsabs.harvard.edu/abs/2020arXiv200616951C), which also removes support for Python 2.
+PHOEBE 2.0 is described by the release paper published in the Astrophysical Journal Supplement, [Prša et al. (2016, ApJS 227, 29)](https://ui.adsabs.harvard.edu/#abs/2016ApJS..227...29P).  The addition of support for misaligned stars in version 2.1 is described in [Horvat et al. (2018, ApJS 237, 26)](https://ui.adsabs.harvard.edu/#abs/2018ApJS..237...26H).  Interstellar extinction and support for Python 3 was added in version 2.2 and described in [Jones et al. (2020, ApJS 247, 63)](https://ui.adsabs.harvard.edu/abs/2020ApJS..247...63J).  Inclusion of a general framework for solving the inverse problem as well as support for the [web and desktop clients](http://phoebe-project.org/clients) was introduced in version 2.3 as described in [Conroy et al. (2020, ApJS 250, 34)](https://ui.adsabs.harvard.edu/abs/2020ApJS..250...34C), which also removes support for Python 2.
 
 PHOEBE 2 is released under the [GNU General Public License v3](https://www.gnu.org/licenses/gpl-3.0.en.html).
 
@@ -83,6 +83,24 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 
 CHANGELOG
 ----------
+### 2.3.6 - GP run_checks fix
+
+* fix check for presence of observational data during run_checks to only consider datasets with attached gaussian processes (GPs)
+
+### 2.3.5 - lp run_checks fix
+
+* fix length comparison of flux_densities and wavelengths during run_checks
+
+### 2.3.4 - passband/extinction hotfix
+
+* fixed Gordon extinction coefficient calculation in line with erratum http://dx.doi.org/10.1088/0004-637X/705/2/1320.
+* added check to require updating affected-passbands (versions at tables.phoebe-project.org have been updated)
+* removed duplicate Passband methods causing ld/ldint passband computations to fail
+
+### 2.3.3 - latex representation hotfix
+
+* fix the latex representation string for `fillout_factor`, `pot`, `pot_min`,
+  and `pot_max` parameters in a contact binary.
 
 ### 2.3.2 - manifest to include readme hotfix
 

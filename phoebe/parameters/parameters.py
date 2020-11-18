@@ -6641,7 +6641,7 @@ class Parameter(object):
         """
         if self._latexfmt is not None:
             d = self.meta
-            if d.get('component', None) is not None:
+            if d.get('component', None) not in [None, '_default']:
                 parent = self._bundle.hierarchy.get_parent_of(d.get('component'))
                 children = self._bundle.hierarchy.get_children_of(d.get('component'))
 
@@ -6656,17 +6656,17 @@ class Parameter(object):
                     elif p.feature is not None:
                         latex_reprs[p.feature] = p.get_value()
 
-                if d.get('component', None) is not None:
+                if d.get('component', None) not in [None, '_default']:
                     d['component'] = latex_reprs.get(d.get('component'), d.get('component'))
                     if parent is not None:
                         d['parent'] = latex_reprs.get(parent, parent)
                     for i,child in enumerate(children):
                         d['children{}'.format(i)] = latex_reprs.get(child, child)
 
-                if d.get('dataset', None) is not None:
+                if d.get('dataset', None) not in [None, '_default']:
                     d['dataset'] = latex_reprs.get(d.get('dataset'), d.get('dataset'))
 
-                if d.get('feature', None) is not None:
+                if d.get('feature', None) not in [None, '_default']:
                     d['feature'] = latex_reprs.get(d.get('feature'), d.get('feature'))
 
             return r'$'+self._latexfmt.format(**d)+'$'
