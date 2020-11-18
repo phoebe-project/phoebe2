@@ -4607,7 +4607,7 @@ class Bundle(ParameterSet):
                          'Prsa et al. (2016)': 'https://ui.adsabs.harvard.edu/abs/2016ApJS..227...29P',
                          'Horvat et al. (2018)': 'https://ui.adsabs.harvard.edu/abs/2016ApJS..227...29P',
                          'Jones et al. (2020)': 'https://ui.adsabs.harvard.edu/abs/2020ApJS..247...63J',
-                         'Conroy et al. (2020, submitted)': 'http://phoebe-project.org/publications/2020Conroy+',  # TODO: update with ads link
+                         'Conroy et al. (2020)': 'https://ui.adsabs.harvard.edu/abs/2020ApJS..250...34C',
                          'Castelli & Kurucz (2004)': 'https://ui.adsabs.harvard.edu/abs/2004astro.ph..5087C',
                          'Husser et al. (2013)': 'https://ui.adsabs.harvard.edu/abs/2013A&A...553A...6H',
                          'numpy/scipy': 'https://www.scipy.org/citing.html',
