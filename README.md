@@ -83,6 +83,11 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 
 CHANGELOG
 ----------
+
+### 2.3.7 - kwargs errors fix
+
+* fix small bugs that could raise errors when passing some filter kwargs to `run_solver` or `sample_distribution_collection`
+
 ### 2.3.6 - GP run_checks fix
 
 * fix check for presence of observational data during run_checks to only consider datasets with attached gaussian processes (GPs)
