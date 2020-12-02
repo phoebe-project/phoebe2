@@ -4607,7 +4607,7 @@ class Bundle(ParameterSet):
                          'Prsa et al. (2016)': 'https://ui.adsabs.harvard.edu/abs/2016ApJS..227...29P',
                          'Horvat et al. (2018)': 'https://ui.adsabs.harvard.edu/abs/2016ApJS..227...29P',
                          'Jones et al. (2020)': 'https://ui.adsabs.harvard.edu/abs/2020ApJS..247...63J',
-                         'Conroy et al. (2020, submitted)': 'http://phoebe-project.org/publications/2020Conroy+',  # TODO: update with ads link
+                         'Conroy et al. (2020)': 'https://ui.adsabs.harvard.edu/abs/2020ApJS..250...34C',
                          'Castelli & Kurucz (2004)': 'https://ui.adsabs.harvard.edu/abs/2004astro.ph..5087C',
                          'Husser et al. (2013)': 'https://ui.adsabs.harvard.edu/abs/2013A&A...553A...6H',
                          'numpy/scipy': 'https://www.scipy.org/citing.html',
@@ -7502,7 +7502,7 @@ class Bundle(ParameterSet):
             parameters_uniqueids = parameters.uniqueids
 
 
-            dc, uniqueids = self.get_distribution_collection(twig=twig, keys='uniqueid', set_labels=set_labels, parameters=None, allow_non_dc=False, **kwargs)
+            dc, uniqueids = self.get_distribution_collection(twig=twig, keys='uniqueid', set_labels=set_labels, parameters=None, allow_non_dc=False, **{k:v for k,v in kwargs.items() if k not in ['allow_non_dc', 'set_labels']})
 
             # first filter through the distributions already in dc
             ret_dists = [dc.dists[i] for i,uniqueid in enumerate(uniqueids) if uniqueid in parameters_uniqueids]
@@ -10959,7 +10959,7 @@ class Bundle(ParameterSet):
 
         # handle case where solver is not provided
         if solver is None:
-            solvers = self.get_solver(check_default=False, check_visible=False, **kwargs).solvers
+            solvers = self.get_solver(check_default=False, check_visible=False, **{k:v for k,v in kwargs.items() if k in ['kind', 'solver']}).solvers
             if len(solvers)==0:
                 raise ValueError("no solvers attached.  Call add_solver first")
             if len(solvers)==1:
