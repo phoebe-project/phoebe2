@@ -7917,7 +7917,7 @@ class Bundle(ParameterSet):
         """
         plot_kwargs = {}
         for k in list(kwargs.keys()):
-            if k in ['plot_uncertainties', 'labels']:
+            if k in ['plot_uncertainties', 'label', 'xlabel']:
                 plot_kwargs[k] = kwargs.pop(k)
         dc, _ = self.get_distribution_collection(twig=twig, set_labels=set_labels, keys='uniqueid', parameters=parameters, **kwargs)
         return dc.plot(show=show, **plot_kwargs)
