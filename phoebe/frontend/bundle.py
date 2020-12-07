@@ -3626,7 +3626,7 @@ class Bundle(ParameterSet):
                         report.add_item(self,
                                         'passband={} does not support ld_coeffs_source={}.  Either change ld_coeffs_source@{}@{} or ld_mode@{}@{}'.format(pb, ld_coeffs_source, component, dataset, component, dataset),
                                         [dataset_ps.get_parameter(qualifier='ld_coeffs_source', component=component, **_skip_filter_checks),
-                                         dataset_ps.get_parameter(qualifier='ld_mode', component=component **_skip_filter_checks)
+                                         dataset_ps.get_parameter(qualifier='ld_mode', component=component, **_skip_filter_checks)
                                         ],
                                         True, 'run_compute')
 
