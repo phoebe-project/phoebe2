@@ -84,6 +84,11 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.3.8 - plotting exclusion fix
+
+* fix bug where datasets were excluded from plotting if not in any models
+* fix syntax error in run_checks
+
 ### 2.3.7 - kwargs errors fix
 
 * fix small bugs that could raise errors when passing some filter kwargs to `run_solver` or `sample_distribution_collection`

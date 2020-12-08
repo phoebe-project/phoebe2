@@ -3907,7 +3907,8 @@ class ParameterSet(object):
             for dataset in ps.filter(dataset=kwargs.get('dataset', filter_kwargs.get('dataset', None)), **_skip_filter_checks).datasets:
                 # print("*** dataset loop, context={}, dataset={}".format(ps.context, dataset))
                 # print("*** dataset loop filter_kwargs['model']={}, kwargs['model']={}".format(filter_kwargs.get('model', None), kwargs.get('model', None)))
-                if dataset not in self._bundle.filter(model=kwargs.get('model', filter_kwargs.get('model', None)), context='model', **_skip_filter_checks).datasets:
+                filter_model = kwargs.get('model', filter_kwargs.get('model', None))
+                if filter_model is not None and dataset not in self._bundle.filter(model=filter_model, context='model', **_skip_filter_checks).datasets:
                     # in cases where a dataset is disabled for a certain model, we shouldn't
                     # try to plot the observations when model was provided
                     continue
