@@ -27,16 +27,9 @@ import shutil
 import json
 import time
 
-
-try:
-    # For Python 3.0 and later
-    from urllib.request import urlopen, urlretrieve
-    from urllib.error import URLError, HTTPError
-
-except ImportError:
-    # Fall back to Python 2's urllib, urllib2
-    from urllib import urlretrieve
-    from urllib2 import urlopen, URLError, HTTPError
+# NOTE: python3 only
+from urllib.request import urlopen, urlretrieve
+from urllib.error import URLError, HTTPError
 
 from phoebe.utils import parse_json
 
@@ -3239,7 +3232,15 @@ def list_passband_online_history(passband, since_installed=True):
         logger.warning(msg)
         return {str(time.ctime()): "could not retrieve history entries"}
     else:
-        all_history = json.loads(resp.read().decode('utf-8'), object_pairs_hook=parse_json).get('passband_history', {}).get(passband, {})
+        try:
+            all_history = json.loads(resp.read().decode('utf-8'), object_pairs_hook=parse_json).get('passband_history', {}).get(passband, {})
+        except Exception as err:
+            msg = "Parsing response from online passbands at {} failed.".format(_url_tables_server)
+            msg += " Original error from json.loads: {} {}".format(err.__class__.__name__, str(err))
+
+            logger.warning(msg)
+            return {str(time.ctime()): "could not parse history entries"}
+
         if since_installed:
             installed_timestamp = _timestamp_to_dt(_pbtable.get(passband, {}).get('timestamp', None))
             return {k:v for k,v in all_history.items() if installed_timestamp < _timestamp_to_dt(k)} if installed_timestamp is not None else all_history
@@ -3618,7 +3619,28 @@ def list_online_passbands(refresh=False, full_dict=False, skip_keys=[]):
                     else:
                         return []
             else:
-                _online_passbands = json.loads(resp.read().decode('utf-8'), object_pairs_hook=parse_json)['passbands_list']
+                try:
+                    _online_passbands = json.loads(resp.read().decode('utf-8'), object_pairs_hook=parse_json)['passbands_list']
+                except Exception as err:
+                    _online_passband_failedtries += 1
+                    msg = "Parsing response from online passbands at {} failed.".format(_url_tables_server)
+                    msg += " Original error from json.loads: {} {}".format(err.__class__.__name__, str(err))
+
+                    logger.warning("(Attempt {} of 3): ".format(_online_passband_failedtries)+msg)
+
+                    if _online_passband_failedtries == 1:
+                        print(msg)
+
+                    if _online_passbands is not None:
+                        if full_dict:
+                            return {k:_dict_without_keys(v, skip_keys) for k,v in _online_passbands.items()}
+                        else:
+                            return list(_online_passbands.keys())
+                    else:
+                        if full_dict:
+                            return {}
+                        else:
+                            return []
 
     if full_dict:
         return {k:_dict_without_keys(v, skip_keys) for k,v in _online_passbands.items()}
