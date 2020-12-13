@@ -27,16 +27,9 @@ import shutil
 import json
 import time
 
-
-try:
-    # For Python 3.0 and later
-    from urllib.request import urlopen, urlretrieve
-    from urllib.error import URLError, HTTPError
-
-except ImportError:
-    # Fall back to Python 2's urllib, urllib2
-    from urllib import urlretrieve
-    from urllib2 import urlopen, URLError, HTTPError
+# NOTE: python3 only
+from urllib.request import urlopen, urlretrieve
+from urllib.error import URLError, HTTPError
 
 from phoebe.utils import parse_json
 
@@ -61,6 +54,7 @@ _pbtable = {}
 
 _initialized = False
 _online_passbands = {}
+_online_passband_failedtries = 0
 
 _pbdir_global = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tables/passbands'))+'/'
 
@@ -3238,7 +3232,15 @@ def list_passband_online_history(passband, since_installed=True):
         logger.warning(msg)
         return {str(time.ctime()): "could not retrieve history entries"}
     else:
-        all_history = json.loads(resp.read().decode('utf-8'), object_pairs_hook=parse_json).get('passband_history', {}).get(passband, {})
+        try:
+            all_history = json.loads(resp.read().decode('utf-8'), object_pairs_hook=parse_json).get('passband_history', {}).get(passband, {})
+        except Exception as err:
+            msg = "Parsing response from online passbands at {} failed.".format(_url_tables_server)
+            msg += " Original error from json.loads: {} {}".format(err.__class__.__name__, str(err))
+
+            logger.warning(msg)
+            return {str(time.ctime()): "could not parse history entries"}
+
         if since_installed:
             installed_timestamp = _timestamp_to_dt(_pbtable.get(passband, {}).get('timestamp', None))
             return {k:v for k,v in all_history.items() if installed_timestamp < _timestamp_to_dt(k)} if installed_timestamp is not None else all_history
@@ -3586,30 +3588,59 @@ def list_online_passbands(refresh=False, full_dict=False, skip_keys=[]):
     * (list of strings or dictionary, depending on `full_dict`)
     """
     global _online_passbands
+    global _online_passband_failedtries
     if os.getenv('PHOEBE_ENABLE_ONLINE_PASSBANDS', 'TRUE').upper() == 'TRUE' and (len(_online_passbands.keys())==0 or refresh):
-
-        url = '{}/pbs/list?phoebe_version={}'.format(_url_tables_server, phoebe_version)
-
-        try:
-            resp = urlopen(url, timeout=3)
-        except Exception as err:
-            msg = "connection to online passbands at {} could not be established.  Check your internet connection or try again later.  If the problem persists and you're using a Mac, you may need to update openssl (see http://phoebe-project.org/help/faq).".format(_url_tables_server)
-            msg += " Original error from urlopen: {} {}".format(err.__class__.__name__, str(err))
-
+        if _online_passband_failedtries >= 3 and not refresh:
+            msg = "Online passbands unavailable (reached max tries).  Pass refresh=True to force another attempt."
             logger.warning(msg)
-
-            if _online_passbands is not None:
-                if full_dict:
-                    return {k:_dict_without_keys(v, skip_keys) for k,v in _online_passbands.items()}
-                else:
-                    return list(_online_passbands.keys())
-            else:
-                if full_dict:
-                    return {}
-                else:
-                    return []
         else:
-            _online_passbands = json.loads(resp.read().decode('utf-8'), object_pairs_hook=parse_json)['passbands_list']
+            url = '{}/pbs/list?phoebe_version={}'.format(_url_tables_server, phoebe_version)
+
+            try:
+                resp = urlopen(url, timeout=3)
+            except Exception as err:
+                _online_passband_failedtries += 1
+                msg = "Connection to online passbands at {} could not be established.  Check your internet connection or try again later (can manually call phoebe.list_online_passbands(refresh=True) to retry).  If the problem persists and you're using a Mac, you may need to update openssl (see http://phoebe-project.org/help/faq).".format(_url_tables_server, _online_passband_failedtries)
+                msg += " Original error from urlopen: {} {}".format(err.__class__.__name__, str(err))
+
+                logger.warning("(Attempt {} of 3): ".format(_online_passband_failedtries)+msg)
+                # also print in case logger hasn't been initialized yet
+                if _online_passband_failedtries == 1:
+                    print(msg)
+
+                if _online_passbands is not None:
+                    if full_dict:
+                        return {k:_dict_without_keys(v, skip_keys) for k,v in _online_passbands.items()}
+                    else:
+                        return list(_online_passbands.keys())
+                else:
+                    if full_dict:
+                        return {}
+                    else:
+                        return []
+            else:
+                try:
+                    _online_passbands = json.loads(resp.read().decode('utf-8'), object_pairs_hook=parse_json)['passbands_list']
+                except Exception as err:
+                    _online_passband_failedtries += 1
+                    msg = "Parsing response from online passbands at {} failed.".format(_url_tables_server)
+                    msg += " Original error from json.loads: {} {}".format(err.__class__.__name__, str(err))
+
+                    logger.warning("(Attempt {} of 3): ".format(_online_passband_failedtries)+msg)
+
+                    if _online_passband_failedtries == 1:
+                        print(msg)
+
+                    if _online_passbands is not None:
+                        if full_dict:
+                            return {k:_dict_without_keys(v, skip_keys) for k,v in _online_passbands.items()}
+                        else:
+                            return list(_online_passbands.keys())
+                    else:
+                        if full_dict:
+                            return {}
+                        else:
+                            return []
 
     if full_dict:
         return {k:_dict_without_keys(v, skip_keys) for k,v in _online_passbands.items()}
