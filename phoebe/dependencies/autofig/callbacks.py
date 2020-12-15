@@ -205,13 +205,12 @@ def update_sizes(artist, call, run_callback=False):
 
         return
 
-    if hasattr(artist.axes.figure.canvas, '_af_callbacks'):
-        artist.axes.figure.canvas._af_callbacks.connect('update_sizes', artist, 'resize_event', callback_canvas)
+    artist.axes.figure.canvas._af_callbacks.connect('update_sizes', artist, 'resize_event', callback_canvas)
 
-        # we want to link to a zoom event on the axes.  In the case of a sidebar,
-        # this should be the "parent" axes rather than the sidebar axes
-        call.axes._backend_object._af_callbacks.connect('update_sizes', artist, 'xlim_changed', callback_axes)
-        call.axes._backend_object._af_callbacks.connect('update_sizes', artist, 'ylim_changed', callback_axes)
+    # we want to link to a zoom event on the axes.  In the case of a sidebar,
+    # this should be the "parent" axes rather than the sidebar axes
+    call.axes._backend_object._af_callbacks.connect('update_sizes', artist, 'xlim_changed', callback_axes)
+    call.axes._backend_object._af_callbacks.connect('update_sizes', artist, 'ylim_changed', callback_axes)
 
     # make sure the sizes are updated to start.  This feels a bit like overkill,
     # but when saving to an image, we can't be sure that any of the above
