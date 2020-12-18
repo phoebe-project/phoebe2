@@ -272,10 +272,12 @@ class Figure(object):
             ax.add_call(call)
             self._calls.append(call)
 
-    def _get_backend_object(self, fig=None, naxes=1):
+    def _get_backend_object(self, fig=None, ax=None, naxes=1):
         if fig is None:
             if self._backend_object:
                 fig = self._backend_object
+            elif ax is not None:
+                fig = ax.figure
             else:
                 fig = plt.gcf()
                 fig.clf()
@@ -513,7 +515,7 @@ class Figure(object):
         fig = self._get_backend_object(naxes=len(self.axes))
         fig.clf()
 
-    def draw(self, fig=None, i=None, calls=None,
+    def draw(self, fig=None, ax=None, i=None, calls=None,
              tight_layout=True,
              draw_sidebars=True,
              draw_title=True,
@@ -536,7 +538,11 @@ class Figure(object):
         Arguments
         ------------
         * `fig` (matplotlib figure or None, optional, default=None): matplotlib
-            figure instances to use during drawing.
+            figure instance to use during drawing.
+        * `ax` (matplotlib axes or None, optional, default=None): matplotlib
+            axes instance to use during drawing.  Will raise error if more than
+            one axes object exists for this figure or if both `fig` and `ax` are
+            provided.
         * `i` (float or None, optional, default=None): passed on to
             <autofig.axes.Axes.draw> for all <autofig.axes.Axes> in
             <autofig.figure.Figure.axes>.
@@ -571,6 +577,11 @@ class Figure(object):
         ----------
         * ([matplotlib Figure](https://matplotlib.org/api/_as_gen/matplotlib.figure.Figure.html#matplotlib.figure.Figure)): the matplotlib figure object.
         """
+        if fig is not None and ax is not None:
+            raise ValueError("cannot pass both fig and ax")
+
+        if ax is not None and len(self.axes) > 1:
+            raise ValueError("figure has more than one axes, cannot pass ax.  Call ax.draw or pass figure instead.")
 
         if save_afig:
             render = {'render': 'draw'}
@@ -582,17 +593,19 @@ class Figure(object):
 
             self.save(save_afig, renders=[render])
 
-        fig = self._get_backend_object(fig, naxes=len(self.axes))
+        fig = self._get_backend_object(fig, ax=ax, naxes=len(self.axes))
         callbacks._connect_to_autofig(self, fig)
         callbacks._connect_to_autofig(self, fig.canvas)
 
-        if calls is None:
+        if calls is None and ax is None:
             # then we need to reset the backend figure.  This is especially
             # important when passing draw(i=something)
             fig.clf()
 
         for axesi in self.axes:
-            if axesi._backend_object not in fig.axes:
+            if ax is not None:
+                ax = ax
+            elif axesi._backend_object not in fig.axes:
                 # then axes doesn't have a subplot yet.  Adding one will also
                 # shift the location of all axes already drawn/created.
                 ax = axesi.append_subplot(fig=fig, subplot_grid=subplot_grid)
@@ -623,7 +636,9 @@ class Figure(object):
 
         if show:
             # TODO: allow top-level option for whether to block or not?
-            if not common._inline:
+            if ax is not None:
+                plt.show(fig)
+            elif not common._inline:
                 plt.show()  # <-- blocking
                 # fig.show()  #<-- not blocking
 

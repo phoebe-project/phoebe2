@@ -5262,11 +5262,21 @@ class ParameterSet(object):
 
         * `fig` (matplotlib figure, optional): figure to use for plotting.  If
             not provided, will use `plt.gcf()`.  Ignored unless `save`, `show`,
-            or `animate`.
+            or `animate`.  Will raise error if `ax` is also provided.  Can only
+            be applied if one of the following is True: `show`, `save`, `draw`,
+            or `animate` (or will raise an error otherwise).
+        * `ax` (matplotlib axes, optional): axes to use for plotting.  If not
+            provided, axes will be created automatically within `fig`.  Ignored
+            unless `save`, `show`, or `animate`.  Will raise error if the plot
+            call requests drawing to multiple axes or if `fig` is also provided.
+            Can only be applied if one of the following is True: `show`, `save`,
+            `draw`, or `animate` (or will raise an error otherwise).
 
         * `save` (string, optional, default=False): filename to save the
             figure (or False to not save).
         * `show` (bool, optional, default=False): whether to show the plot
+        * `draw` (bool, optional, default=False): whether to draw (but not
+            necessarily show) the plot.
 
         * `animate` (bool, optional, default=False): whether to animate the figure.
         * `interval` (int, optional, default=100): time in ms between each
@@ -5332,14 +5342,21 @@ class ParameterSet(object):
 
         # since we used the args trick above, all other options have to be in kwargs
         fig = kwargs.pop('fig', None)
+        ax = kwargs.pop('ax', None)
+        if fig is not None and ax is not None:
+            raise ValueError("cannot pass both fig and ax")
         save = kwargs.pop('save', False)
         show = kwargs.pop('show', False)
+        draw = kwargs.pop('draw', False)
         tight_layout = kwargs.pop('tight_layout', False)
         draw_sidebars = kwargs.pop('draw_sidebars', False)
         draw_title = kwargs.pop('draw_title', False)
         subplot_grid = kwargs.pop('subplot_grid', None)
         animate = kwargs.pop('animate', False)
         animate_callback = kwargs.pop('animate_callback', None)
+
+        if (fig is not None or ax is not None) and not (save or show or draw or animate):
+            raise ValueError("cannot pass fig or ax without save, show, draw, or animate.")
 
         if kwargs.get('projection', '2d') == '3d' and kwargs.get('ec', None) =='face':
             raise ValueError("projection='3d' and ec='face' do not work together.  Consider ec='none' instead.")
@@ -5511,11 +5528,11 @@ class ParameterSet(object):
             raise
 
 
-        if save or show or animate:
+        if save or show or draw or animate:
             # NOTE: time, times, will all be included in kwargs
             try:
-                return self._show_or_save(save, show, animate,
-                                          fig=fig,
+                return self._show_or_save(save, show, draw, animate,
+                                          fig=fig, ax=ax,
                                           draw_sidebars=draw_sidebars,
                                           draw_title=draw_title,
                                           tight_layout=tight_layout,
@@ -5538,8 +5555,8 @@ class ParameterSet(object):
 
             return afig, fig
 
-    def _show_or_save(self, save, show, animate,
-                      fig=None,
+    def _show_or_save(self, save, show, draw, animate,
+                      fig=None, ax=None,
                       draw_sidebars=True,
                       draw_title=True,
                       tight_layout=False,
@@ -5548,9 +5565,19 @@ class ParameterSet(object):
         """
         Draw/animate and show and/or save a autofig plot
         """
-        if animate and not show and not save:
+        if animate and not show and not save and not draw:
             logger.warning("setting show to True since animate=True and save not provided")
             show = True
+
+        if fig is not None and ax is not None:
+            raise ValueError("cannot pass both fig and ax")
+
+        afig = self.gcf()
+        if not len(afig.axes):
+            raise ValueError("Nothing could be found to plot.  Check all arguments.")
+        if ax is not None and len(afig.axes) > 1:
+            raise ValueError("autofig is requesting to plot to multiple axes but ax is provided.  Either filter further to draw to a single axes or pass fig instead of ax.")
+
 
         if animate:
             # prefer times over time
@@ -5590,14 +5617,10 @@ class ParameterSet(object):
                                          subplot_grid=subplot_grid,
                                          animate_callback=animate_callback,
                                          interval=interval,
-                                         fig=fig,
+                                         fig=fig, ax=ax,
                                          save=save,
                                          show=show,
                                          save_kwargs=save_kwargs)
-
-            afig = self.gcf()
-            if not len(afig.axes):
-                raise ValueError("Nothing could be found to plot.  Check all arguments.")
 
             # clear the autofig figure
             self.clf()
@@ -5626,18 +5649,13 @@ class ParameterSet(object):
             #         else:
             #             time.append(t)
 
-            afig = self.gcf()
-            if not len(afig.axes):
-                raise ValueError("Nothing could be found to plot.  Check all arguments.")
-
-
             logger.info("calling autofig.draw(i={}, draw_sidebars={}, draw_title={}, tight_layout={}, save={}, show={})".format(time, draw_sidebars, draw_title, tight_layout, save, show))
             fig = afig.draw(i=time,
                             draw_sidebars=draw_sidebars,
                             draw_title=draw_title,
                             tight_layout=tight_layout,
                             subplot_grid=subplot_grid,
-                            fig=fig,
+                            fig=fig, ax=ax,
                             save=save, show=show)
 
             # clear the figure so next call will start over and future shows will work
@@ -5646,12 +5664,60 @@ class ParameterSet(object):
             return afig, fig
 
 
+    def draw(self, **kwargs):
+        """
+        Draw the plot (but do not necesarily show or save).
+
+        See also:
+        * <phoebe.parameters.ParameterSet.plot>
+        * <phoebe.parameters.ParameterSet.show>
+        * <phoebe.parameters.ParameterSet.savefig>
+        * <phoebe.parameters.ParameterSet.gcf>
+        * <phoebe.parameters.ParameterSet.clf>
+
+        Arguments
+        ----------
+        * `show` (bool, optional, default=False): whether to show the plot
+        * `save` (False/string, optional, default=False): filename to save the
+            figure (or False to not save).
+        * `animate` (bool, optional, default=False): whether to animate the figure.
+        * `fig` (matplotlib figure, optional): figure to use for plotting.  If
+            not provided, will use `plt.gcf()`.  Ignored unless `save`, `show`,
+            or `animate`.  Will raise error if `ax` is also provided.
+        * `ax` (matplotlib axes, optional): axes to use for plotting.  If not
+            provided, axes will be created automatically within `fig`.  Ignored
+            unless `save`, `show`, or `animate`.  Will raise error if the plot
+            call requests drawing to multiple axes or if `fig` is also provided.
+        * `draw_sidebars` (bool, optional, default=True): whether to include
+            any applicable sidebars (colorbar, sizebar, etc).
+        * `draw_title` (bool, optional, default=True): whether to draw axes
+            titles.
+        * `subplot_grid` (tuple, optional, default=None): override the subplot
+            grid used (see [autofig tutorial on subplots](https://github.com/kecnry/autofig/blob/1.0.0/tutorials/subplot_positioning.ipynb)
+            for more details).
+        * `time` (float, optional): time to use for plotting/animating.
+        * `times` (list/array, optional): times to use for animating (will
+            override any value sent to `time`).
+        * `save_kwargs` (dict, optional): any kwargs necessary to pass on to
+            save (only applicable if `animate=True`).
+
+        Returns
+        --------
+        * (autofig figure, matplotlib figure)
+        """
+        kwargs.setdefault('show', False)
+        kwargs.setdefault('save', False)
+        kwargs.setdefault('draw', True)
+        kwargs.setdefault('animate', False)
+        return self._show_or_save(**kwargs)
+
     def show(self, **kwargs):
         """
         Draw and show the plot.
 
         See also:
         * <phoebe.parameters.ParameterSet.plot>
+        * <phoebe.parameters.ParameterSet.draw>
         * <phoebe.parameters.ParameterSet.savefig>
         * <phoebe.parameters.ParameterSet.gcf>
         * <phoebe.parameters.ParameterSet.clf>
@@ -5663,8 +5729,12 @@ class ParameterSet(object):
             figure (or False to not save).
         * `animate` (bool, optional, default=False): whether to animate the figure.
         * `fig` (matplotlib figure, optional): figure to use for plotting.  If
-            not provided, will use plt.gcf().  Ignored unless `save`, `show`,
-            or `animate`.
+            not provided, will use `plt.gcf()`.  Ignored unless `save`, `show`,
+            or `animate`.  Will raise error if `ax` is also provided.
+        * `ax` (matplotlib axes, optional): axes to use for plotting.  If not
+            provided, axes will be created automatically within `fig`.  Ignored
+            unless `save`, `show`, or `animate`.  Will raise error if the plot
+            call requests drawing to multiple axes or if `fig` is also provided.
         * `draw_sidebars` (bool, optional, default=True): whether to include
             any applicable sidebars (colorbar, sizebar, etc).
         * `draw_title` (bool, optional, default=True): whether to draw axes
@@ -5684,6 +5754,7 @@ class ParameterSet(object):
         """
         kwargs.setdefault('show', True)
         kwargs.setdefault('save', False)
+        kwargs.setdefault('draw', False)
         kwargs.setdefault('animate', False)
         return self._show_or_save(**kwargs)
 
@@ -5694,6 +5765,7 @@ class ParameterSet(object):
         See also:
         * <phoebe.parameters.ParameterSet.plot>
         * <phoebe.parameters.ParameterSet.show>
+        * <phoebe.parameters.ParameterSet.draw>
         * <phoebe.parameters.ParameterSet.gcf>
         * <phoebe.parameters.ParameterSet.clf>
 
@@ -5703,8 +5775,12 @@ class ParameterSet(object):
         * `show` (bool, optional, default=False): whether to show the plot
         * `animate` (bool, optional, default=False): whether to animate the figure.
         * `fig` (matplotlib figure, optional): figure to use for plotting.  If
-            not provided, will use plt.gcf().  Ignored unless `save`, `show`,
-            or `animate`.
+            not provided, will use `plt.gcf()`.  Ignored unless `save`, `show`,
+            or `animate`.  Will raise error if `ax` is also provided.
+        * `ax` (matplotlib axes, optional): axes to use for plotting.  If not
+            provided, axes will be created automatically within `fig`.  Ignored
+            unless `save`, `show`, or `animate`.  Will raise error if the plot
+            call requests drawing to multiple axes or if `fig` is also provided.
         * `draw_sidebars` (bool, optional, default=True): whether to include
             any applicable sidebars (colorbar, sizebar, etc).
         * `draw_title` (bool, optional, default=True): whether to draw axes
@@ -5725,6 +5801,7 @@ class ParameterSet(object):
         filename = os.path.expanduser(filename)
         kwargs.setdefault('show', False)
         kwargs.setdefault('save', filename)
+        kwargs.setdefault('draw', False)
         kwargs.setdefault('animate', False)
         return self._show_or_save(**kwargs)
 
