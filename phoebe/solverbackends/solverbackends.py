@@ -12,6 +12,7 @@ import phoebe.parameters as _parameters
 import phoebe.frontend.bundle
 from phoebe import u, c
 from phoebe import conf, mpi
+from phoebe.parameters.parameters import _extract_index_from_string
 from phoebe.backend.backends import _simplify_error_message
 from phoebe.utils import phase_mask_inds
 from phoebe.dependencies import nparray
@@ -125,7 +126,10 @@ def _lnprobability(sampled_values, b, params_uniqueids, compute,
     if sampled_values is not False:
         for uniqueid, value in zip(params_uniqueids, sampled_values):
             try:
-                b.set_value(uniqueid=uniqueid, value=value, run_checks=False, run_constraints=False, **_skip_filter_checks)
+                if '[' in uniqueid:
+                    b.get_parameter(uniqueid=uniqueid.split('[')[0], **_skip_filter_checks).set_index_value(index=int(float(uniqueid.split('[')[1][:-1])), value=value, run_checks=False, run_constraints=False)
+                else:
+                    b.set_value(uniqueid=uniqueid, value=value, run_checks=False, run_constraints=False, **_skip_filter_checks)
             except ValueError as err:
                 logger.warning("received error while setting values: {}. lnprobability=-inf".format(err))
                 return _return(-np.inf, str(err))
@@ -1742,22 +1746,25 @@ class _ScipyOptimizeBaseBackend(BaseSolverBackend):
         params_twigs = []
         p0 = []
         fitted_units = []
-        for twig in fit_parameters:
+        for twig_orig in fit_parameters:
+            twig, index = _extract_index_from_string(twig_orig)
             p = b.get_parameter(twig=twig, context=['component', 'dataset', 'feature', 'system'], **_skip_filter_checks)
-            params_uniqueids.append(p.uniqueid)
-            params_twigs.append(p.twig)
-            p0.append(p.get_value())
+            params_uniqueids.append(p.uniqueid if index is None else p.uniqueid+'[{}]'.format(index))
+            params_twigs.append(p.twig if index is None else twig_orig)
+            p0.append(p.get_value() if index is None else p.get_value()[index])
             fitted_units.append(p.get_default_unit().to_string())
 
         # now override from initial values
         fitted_params_ps = b.filter(uniqueid=params_uniqueids, **_skip_filter_checks)
-        for twig,v in initial_values.items():
+        for twig_orig, v in initial_values.items():
+            twig, index = _extract_index_from_string(twig_orig)
             p = fitted_params_ps.get_parameter(twig=twig, **_skip_filter_checks)
-            if p.uniqueid in params_uniqueids:
-                index = params_uniqueids.index(p.uniqueid)
+            uniqueid = p.uniqueid if index is None else p.uniqueid+'[{}]'.format(index)
+            if uniqueid in params_uniqueids:
+                p_ind = params_uniqueids.index(p.uniqueid)
                 if hasattr(v, 'unit'):
                     v = v.to(fitted_units[index]).value
-                p0[index] = v
+                p0[p_ind] = v
             else:
                 logger.warning("ignoring {}={} in initial_values as was not found in fit_parameters".format(twig, value))
 

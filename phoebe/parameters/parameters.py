@@ -429,6 +429,19 @@ def _value_for_constraint(item, constraintparam=None):
     else:
         return item.si.value
 
+def _extract_index_from_string(s):
+    if s is None:
+        return s, None
+    index = None
+    if '[' in s and ']' in s:
+        ind0 = s.index('[')
+        ind1 = s.index(']')
+        index = int(float(s[ind0+1:ind1]))
+        s = s[:ind0] + s[ind1+1:]
+    if '[' in s or ']' in s:
+        raise ValueError("could not succesfully extract single index")
+
+    return s, index
 
 def parameter_from_json(dictionary, bundle=None):
     """Load a single parameter from a JSON dictionary.
@@ -3152,13 +3165,28 @@ class ParameterSet(object):
             if not len(self.filter(twig=twig, **kwargs)):
                 return default
 
+        twig, index = _extract_index_from_string(twig)
+        if kwargs.get('qualifier', None):
+            kwargs['qualifier'], index = _extract_index_from_string(kwargs.get('qualifier'))
+
         param = self.get_parameter(twig=twig, **kwargs)
 
         # if hasattr(param, 'default_unit'):
         # This breaks for constraint parameters
         if isinstance(param, FloatParameter) or\
                 isinstance(param,FloatArrayParameter):
-            return param.get_value(unit=unit, t=t, **kwargs)
+
+            if index is not None:
+                if isinstance(param, FloatArrayParameter):
+                    return param.get_value(unit=unit, t=t, **kwargs)[index]
+                else:
+                    raise ValueError("indices only supported for FloatArrayParameter")
+            else:
+                return param.get_value(unit=unit, t=t, **kwargs)
+
+
+        if index is not None:
+            raise ValueError("indices only supported for FloatArrayParameter")
 
         return param.get_value(**kwargs)
 
@@ -7999,12 +8027,13 @@ class SelectParameter(Parameter):
 
 class SelectTwigParameter(SelectParameter):
     @staticmethod
-    def _match_twig(value, choice):
+    def _match_twig(value, valueindex, choice):
+        choice, choiceindex = _extract_index_from_string(choice)
         if '@' in value:
             value = value.split('@')
         if '@' in choice:
             choice = choice.split('@')
-        return np.all([vs in choice for vs in value])
+        return np.all([vs in choice for vs in value]) and (valueindex is None or valueindex == choiceindex)
 
     def valid_selection(self, value):
         """
@@ -8034,11 +8063,13 @@ class SelectTwigParameter(SelectParameter):
         if super(SelectTwigParameter, self).valid_selection(value):
             return True
 
+        value, index = _extract_index_from_string(value)
+
         twigsplit = value.split('@')
 
         # need to do special twig matching
         for choice in self.choices:
-            if self._match_twig(twigsplit, choice):
+            if self._match_twig(twigsplit, index, choice):
                 return True
 
         return False
@@ -8075,13 +8106,14 @@ class SelectTwigParameter(SelectParameter):
 
         selection = []
         for v in self.get_value(**kwargs):
+            v, index = _extract_index_from_string(v)
             vsplit = v.split('@')
             for choice in self.choices:
                 if v==choice and choice not in selection and len(choice):
                     selection.append(choice)
                 elif _fnmatch(choice, v) and choice not in selection and len(choice):
                     selection.append(choice)
-                elif self._match_twig(vsplit, choice) and choice not in selection and len(choice):
+                elif self._match_twig(vsplit, index, choice) and choice not in selection and len(choice):
                     selection.append(choice)
 
 

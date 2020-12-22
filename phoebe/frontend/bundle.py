@@ -34,7 +34,7 @@ from phoebe.parameters import solver as _solver
 from phoebe.parameters import constraint as _constraint
 from phoebe.parameters import feature as _feature
 from phoebe.parameters import figure as _figure
-from phoebe.parameters.parameters import _uniqueid, _clientid, _return_ps
+from phoebe.parameters.parameters import _uniqueid, _clientid, _return_ps, _extract_index_from_string
 from phoebe.backend import backends, mesh
 from phoebe.backend import universe as _universe
 from phoebe.solverbackends import solverbackends as _solverbackends
@@ -2121,8 +2121,16 @@ class Bundle(ParameterSet):
             return affected_params
 
         # TODO: should we also check to make sure p.component in [None]+self.hierarchy.get_components()?  If so, we'll need to call this method in set_hierarchy as well.
-
-        choices = self.get_adjustable_parameters(exclude_constrained=False, check_visible=False).twigs
+        choices = []
+        for p in self.get_adjustable_parameters(exclude_constrained=False, check_visible=False).to_list():
+            if p.__class__.__name__ == 'FloatParameter':
+                choices.append(p.twig)
+            elif p.__class__.__name__ == 'FloatArrayParameter':
+                for i in range(len(p.get_value())):
+                    choices.append(p.qualifier+'['+str(i)+']'+'@'+'@'.join(p.twig.split('@')[1:]))
+            else:
+                raise NotImplementedError()
+        # choices = self.get_adjustable_parameters(exclude_constrained=False, check_visible=False).twigs
         for param in params:
             choices_changed = False
             if return_changes and choices != param._choices:
@@ -2725,7 +2733,7 @@ class Bundle(ParameterSet):
         # parameters that can be fitted are only in the component or dataset context,
         # must be float parameters and must not be constrained (and must be visible)
         ps = self.filter(context=['component', 'dataset', 'system', 'feature'], check_visible=check_visible, check_default=True)
-        return ParameterSet([p for p in ps.to_list() if p.__class__.__name__=='FloatParameter' and (not exclude_constrained or not len(p.constrained_by))])
+        return ParameterSet([p for p in ps.to_list() if p.__class__.__name__ in ['FloatParameter', 'FloatArrayParameter'] and (not exclude_constrained or not len(p.constrained_by))])
 
 
     def get_system(self, twig=None, **kwargs):
@@ -4152,7 +4160,23 @@ class Bundle(ParameterSet):
                                     True, 'run_solver')
 
                 for twig in fit_parameters:
+                    twig, index = _extract_index_from_string(twig)
                     fit_parameter = adjustable_parameters.get_parameter(twig=twig, **_skip_filter_checks)
+                    if index is not None:
+                        if fit_parameter.__class__.__name__ != 'FloatArrayParameter':
+                            report.add_item(self,
+                                            "fit_parameters entry {} does not accept index".format(twig),
+                                            [solver_ps.get_parameter(qualifier='fit_parameters', **_skip_filter_checks)
+                                            ]+addl_parameters,
+                                            True, 'run_solver')
+
+                        elif index > len(fit_parameter.get_value()):
+                            report.add_item(self,
+                                            "fit_parameters entry {} with length {} index {} out-of-bounds".format(twig, len(fit_parameter.get_value()), index),
+                                            [solver_ps.get_parameter(qualifier='fit_parameters', **_skip_filter_checks)
+                                            ]+addl_parameters,
+                                            True, 'run_solver')
+
                     if len(fit_parameter.constrained_by):
                         report.add_item(self,
                                         "fit_parameters contains the constrained parameter '{}'".format(twig),
@@ -4406,7 +4430,7 @@ class Bundle(ParameterSet):
 
                 if not kwargs.get('trial_run', False):
                     for adopt_uniqueid in adopt_uniqueids:
-                        adopt_param = self.get_parameter(uniqueid=adopt_uniqueid, **_skip_filter_checks)
+                        adopt_param = self.get_parameter(uniqueid=adopt_uniqueid.split('[')[0], **_skip_filter_checks)
                         if len(adopt_param.constrained_by):
                             constrained_by_ps = ParameterSet(adopt_param.constrained_by)
                             validsolvefor = [v for v in _constraint._validsolvefor.get(adopt_param.is_constraint.constraint_func, []) if adopt_param.qualifier not in v]
@@ -11567,26 +11591,31 @@ class Bundle(ParameterSet):
         adopt_parameters = solution_ps.get_value(qualifier='adopt_parameters', adopt_parameters=kwargs.get('adopt_parameters', kwargs.get('parameters', None)), expand=True, **_skip_filter_checks)
         fitted_uniqueids = solution_ps.get_value(qualifier='fitted_uniqueids', **_skip_filter_checks)
         fitted_twigs = solution_ps.get_value(qualifier='fitted_twigs', **_skip_filter_checks)
+        # NOTE: all of these could have twig[index] notation
 
         b_uniqueids = self.uniqueids
 
         adoptable_ps = self.get_adjustable_parameters(exclude_constrained=False) + self.filter(qualifier='mask_phases', context='dataset', **_skip_filter_checks)
-        if np.all([uniqueid in b_uniqueids for uniqueid in fitted_uniqueids]):
-            fitted_ps = adoptable_ps.filter(uniqueid=list(fitted_uniqueids), **_skip_filter_checks)
+        if np.all([uniqueid.split('[')[0] in b_uniqueids for uniqueid in fitted_uniqueids]):
+            fitted_ps = adoptable_ps.filter(uniqueid=[uniqueid.split('[')[0] for uniqueid in fitted_uniqueids], **_skip_filter_checks)
         else:
             logger.warning("not all uniqueids in fitted_uniqueids@{}@solution are still valid.  Falling back on twigs.  Save and load same bundle to prevent this extra cost.".format(solution_ps.solution))
-            fitted_ps = adoptable_ps.filter(twig=fitted_twigs.tolist(), **_skip_filter_checks)
+            fitted_ps = adoptable_ps.filter(twig=[t.split('[')[0] for t in fitted_twigs.tolist()], **_skip_filter_checks)
 
         adopt_uniqueids = []
-        for adopt_twig in adopt_parameters:
+        for adopt_twig_orig in adopt_parameters:
+            adopt_twig, index = _extract_index_from_string(adopt_twig_orig)
             fitted_ps_filtered = fitted_ps.filter(twig=adopt_twig, **_skip_filter_checks)
             if len(fitted_ps_filtered) == 1:
-                adopt_uniqueids.append(fitted_ps_filtered.get_parameter(**_skip_filter_checks).uniqueid)
+                puid = fitted_ps_filtered.get_parameter(**_skip_filter_checks).uniqueid
+                adopt_uniqueids.append(puid if index is None else puid+'[{}]'.format(index))
             elif len(fitted_ps_filtered) > 1:
                 raise ValueError("multiple valid matches found for adopt_parameter='{}'".format(adopt_twig))
 
         adopt_inds = [fitted_uniqueids.tolist().index(uniqueid) for uniqueid in adopt_uniqueids]
 
+        # adopt_inds (index of the parameter in all fitted_* lists)
+        # adopt_uniqueids (uniqueid to find the parameter, including [index])
         return adopt_inds, adopt_uniqueids
 
     def adopt_solution(self, solution=None,
@@ -11679,7 +11708,7 @@ class Bundle(ParameterSet):
 
         adopt_inds, adopt_uniqueids = self._get_adopt_inds_uniqueids(solution_ps, adopt_parameters=adopt_parameters)
         if not len(adopt_inds):
-            raise ValueError('no parameters selected by adopt_parameters')
+            raise ValueError('no (valid) parameters selected by adopt_parameters')
 
         fitted_units = solution_ps.get_value(qualifier='fitted_units', **_skip_filter_checks)
 
@@ -11701,6 +11730,7 @@ class Bundle(ParameterSet):
         if adopt_values and not trial_run:
             # check to make sure no constraint issues
             for uniqueid in adopt_uniqueids:
+                uniqueid, index = _extract_index_from_string(uniqueid)
                 param = self.get_parameter(uniqueid=uniqueid, **_skip_filter_checks)
                 if len(param.constrained_by):
                     constrained_by_ps = ParameterSet(param.constrained_by)
@@ -11722,6 +11752,7 @@ class Bundle(ParameterSet):
             dist, _ = self.get_distribution_collection(solution=solution, **{k:v for k,v in kwargs.items() if k in solution_ps.qualifiers})
 
             for i, uniqueid in enumerate(adopt_uniqueids):
+                uniqueid, index = _extract_index_from_string(uniqueid)
                 if adopt_distributions:
                     ps = self.add_distribution(uniqueid=uniqueid, value=dist.slice(i), distribution=distribution, auto_add_figure=kwargs.get('auto_add_figure', None), check_label=distribution is not None)
                 if adopt_values:
@@ -11761,15 +11792,27 @@ class Bundle(ParameterSet):
                     fitted_values[mask_phases_ind] = [ph-phase_shift for ph in [ecl_ph for ecl_ph in fitted_values[mask_phases_ind]]]
 
             for uniqueid, value, unit in zip(adopt_uniqueids, fitted_values[adopt_inds], fitted_units[adopt_inds]):
+                uniqueid, index = _extract_index_from_string(uniqueid)
                 if adopt_distributions:
                     dist = _distl.delta(value, unit=unit)
                     ps = self.add_distribution(uniqueid=uniqueid, value=dist, distribution=distribution, auto_add_figure=kwargs.get('auto_add_figure', None), check_label=distribution is not None)
                 if adopt_values:
                     param = self.get_parameter(uniqueid=uniqueid, **_skip_filter_checks)
                     if trial_run:
-                        param = param.copy()
-                    changed_params.append(param)
-                    param.set_value(value, unit=unit, force=trial_run)
+                        # NOTE: we can't compare uniqueids here since the copy will create a new one
+                        if param.twig in [p.twig for p in changed_params]:
+                            # then we've already made the copy, so let's grab it
+                            param = changed_params[[p.twig for p in changed_params].index(param.twig)]
+                        else:
+                            param = param.copy()
+                            changed_params.append(param)
+                    else:
+                        changed_params.append(param)
+
+                    if index is not None:
+                        param.set_index_value(index, value, unit=unit, force=trial_run)
+                    else:
+                        param.set_value(value, unit=unit, force=trial_run)
 
 
         changed_params += self.run_delayed_constraints()
