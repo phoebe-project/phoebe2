@@ -6998,7 +6998,9 @@ class Bundle(ParameterSet):
 
         if isinstance(twig, Parameter):
             ref_params = [twig]
+            index_orig = None
         else:
+            twig, index_orig = _extract_index_from_string(twig)
             ref_params = self.get_adjustable_parameters(exclude_constrained=False).filter(twig=twig, check_visible=False, **{k:v for k,v in kwargs.items() if k not in ['distribution']}).to_list()
 
         dist_params = []
@@ -7015,16 +7017,28 @@ class Bundle(ParameterSet):
                 if k in parameters._contexts:
                     metawargs.setdefault(k,v)
 
-            dist_param = DistributionParameter(bundle=self, qualifier=ref_param.qualifier, value=value_, description='distribution for the referenced parameter', **metawargs)
+            if ref_param.__class__.__name__ == 'FloatArrayParameter' and index_orig is None:
+                # then we need to iterate over the length
+                indexes = range(len(ref_param.get_value()))
+            else:
+                indexes = [index_orig]
 
-            dist_param_existing_ps = self.filter(qualifier=dist_param.qualifier, check_visible=False, check_default=False, **metawargs)
-            if len(dist_param_existing_ps):
-                if kwargs.get('overwrite_individual', False):
-                    overwrite_ps += self.remove_parameters_all(uniqueid=dist_param_existing_ps.uniqueids)
-                else:
-                    raise ValueError("parameter is already referenced by distribution = '{}'".format(kwargs['distribution']))
+            for index in indexes:
+                dist_param_qualifier = ref_param.qualifier if index is None else '{}[{}]'.format(ref_param.qualifier, index)
+                dist_param = DistributionParameter(bundle=self,
+                                                   qualifier=dist_param_qualifier,
+                                                   value=value_,
+                                                   description='distribution for the referenced parameter',
+                                                   **metawargs)
 
-            dist_params += [dist_param]
+                dist_param_existing_ps = self.filter(qualifier=dist_param_qualifier, check_visible=False, check_default=False, **metawargs)
+                if len(dist_param_existing_ps):
+                    if kwargs.get('overwrite_individual', False):
+                        overwrite_ps += self.remove_parameters_all(uniqueid=dist_param_existing_ps.uniqueids)
+                    else:
+                        raise ValueError("parameter is already referenced by distribution = '{}'".format(kwargs['distribution']))
+
+                dist_params += [dist_param]
 
         if not len(dist_params):
             return ParameterSet([])
@@ -7180,7 +7194,7 @@ class Bundle(ParameterSet):
         adjustable_params_ps = self.get_adjustable_parameters(exclude_constrained=False)
 
         # then we need to check for any conflicts FIRST, before adding any distributions
-        already_exists = []
+        already_exists = []  # list of twigs
         no_matches = []
         multiple_matches = []
         for dist_dict in dist_dicts:
@@ -7585,7 +7599,6 @@ class Bundle(ParameterSet):
         ret_keys = []
         uid_dist_dict = {}
         uniqueids = []
-        # print("*** get_distribution_collection distribution_filters={}, combine={}, include_constrained={}, to_univariates={}, to_uniforms={}".format(distribution_filters, combine, include_constrained, to_univariates, to_uniforms))
         for dist_filter in distribution_filters:
             # TODO: if * in list, need to expand (currently forbidden with error in get_distribution)
             if 'solution' in dist_filter.keys():
@@ -7677,17 +7690,22 @@ class Bundle(ParameterSet):
                 # print("*** get_distribution_collection distribution dist_filter={}".format(dist_filter))
                 dist_ps = self.get_distribution(distribution=dist_filter['distribution'], **_skip_filter_checks)
                 for dist_param in dist_ps.to_list():
+                    qualifier, index = _extract_index_from_string(dist_param.qualifier)
                     ref_param = dist_param.get_referenced_parameter()
-                    uid = ref_param.uniqueid
+                    uid = ref_param.uniqueid if index is None else '{}[{}]'.format(ref_param.uniqueid, index)
                     if not include_constrained and len(ref_param.constrained_by):
                         continue
                     if uid not in uniqueids:
                         k = getattr(ref_param, keys)
                         if k in uid_dist_dict.keys():
                             raise ValueError("keys='{}' does not result in unique entries for each item".format(keys))
+                        if keys=='qualifier' and index is not None:
+                            k += str(index)
+                        elif keys=='twig' and index is not None:
+                            k = '{}[{}]@{}'.format(k.split('@')[0], index, '@'.join(k.split('@')[1:]))
 
                         uid_dist_dict[uid] = _to_dist(dist_param.get_value(), to_univariates, to_uniforms)
-                        uniqueids.append(ref_param.uniqueid)
+                        uniqueids.append(uid)
                         ret_keys.append(k)
                     elif combine.lower() == 'first':
                         logger.warning("ignoring distribution on {} with distribution='{}' as distribution existed on an earlier distribution which takes precedence.".format(ref_param.twig, dist_filter['distribution']))
@@ -7708,8 +7726,15 @@ class Bundle(ParameterSet):
                         raise NotImplementedError("combine='{}' not supported".format(combine))
 
                     if set_labels:
-                        uid_dist_dict[uid].label =  "@".join([getattr(ref_param, k) for k in ['qualifier', 'component', 'dataset'] if getattr(ref_param, k) is not None])
-                        uid_dist_dict[uid].label_latex =  ref_param.latextwig.replace("$", "") if ref_param._latexfmt is not None else None
+                        uid_dist_dict[uid].label = "@".join([getattr(ref_param, k) for k in ['qualifier', 'component', 'dataset'] if getattr(ref_param, k) is not None])
+
+                        if index is not None:
+                            uid_dist_dict[uid].label = '{}[{}]@{}'.format(uid_dist_dict[uid].label.split('@')[0], index, '@'.join(uid_dist_dict[uid].label.split('@')[1:]))
+                            uid_dist_dict[uid].label_latex = ref_param.latextwig.replace("$", "")+"[{}]".format(index) if ref_param._latexfmt is not None else None
+                        else:
+                            uid_dist_dict[uid].label_latex =  ref_param.latextwig.replace("$", "") if ref_param._latexfmt is not None else None
+
+
 
             else:
                 raise NotImplementedError("could not parse filter for distribution {}".format(dist_filter))

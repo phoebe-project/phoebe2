@@ -2744,6 +2744,9 @@ class ParameterSet(object):
         method = None
         if twig is not None:
             _user_twig = _deepcopy(twig)
+
+            twig, index = _extract_index_from_string(twig)
+
             twigsplit = twig.split('@')
             if twigsplit[0] == 'value':
                 twig = '@'.join(twigsplit[1:])
@@ -2782,11 +2785,17 @@ class ParameterSet(object):
                     twigautocomplete = twigsplit[-1]
                     twigsplit = twigsplit[:-1]
 
+            def _twigmatch(twig, ti, index):
+                if index is None:
+                    return ti in twig.split('@')
+                else:
+                    return ti in twig.split('@') or '{}[{}]'.format(ti, index) in twig.split('@')
+
             for ti in twigsplit:
                 # TODO: need to fix repeating twigs (ie
                 # period@period@period@period still matches and causes problems
                 # with the tabcomplete)
-                params = [pi for pi in params if ti in pi.twig.split('@') or _fnmatch(pi.twig, ti)]
+                params = [pi for pi in params if _twigmatch(pi.twig, ti, index) or _fnmatch(pi.twig, ti)]
 
             if autocomplete:
                 # we want to provide options for what twigautomplete
@@ -8530,8 +8539,9 @@ class DistributionParameter(Parameter):
         ----------
         * <phoebe.parameters.Parameter> object
         """
+        qualifier, index = _extract_index_from_string(self.qualifier)
         return self._bundle.exclude(context=['distribution', 'constraint'],
-                                    check_visible=False).get_parameter(qualifier=self.qualifier,
+                                    check_visible=False).get_parameter(qualifier=qualifier,
                                           check_visible=False,
                                           **{k:v for k,v in self.meta.items() if k in _contexts and k not in ['context', 'distribution']})
 
@@ -8584,7 +8594,11 @@ class DistributionParameter(Parameter):
             else:
                 value = self.get_referenced_parameter().get_value()
 
-            dist.value = value
+            qualifier, index = _extract_index_from_string(self.qualifier)
+            if index is None:
+                dist.value = value
+            else:
+                dist.value = value[index]
 
         return dist
 

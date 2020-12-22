@@ -230,6 +230,7 @@ def star(component, **kwargs):
 
 
     params += [FloatArrayParameter(visible_if='ld_mode_bol:manual', qualifier='ld_coeffs_bol',
+                                   latexfmt=r'\mathrm{{ ldc }}_\mathrm{{ bol, {component} }}',
                                    value=kwargs.get('ld_coeffs_bol', [0.5, 0.5]),
                                    default_unit=u.dimensionless_unscaled,
                                    required_shape=[None],

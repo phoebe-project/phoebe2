@@ -449,6 +449,7 @@ null
 null
 ],
 "copy_for": false,
+"latexfmt": "\\mathrm{{ ldc }}_\\mathrm{{ bol, {component} }}",
 "Class": "FloatArrayParameter"
 },
 {
@@ -802,11 +803,11 @@ null
 "context": "compute",
 "description": "Atmosphere table",
 "choices": [
-"extern_planckint",
 "phoenix",
-"ck2004",
+"extern_atmx",
 "blackbody",
-"extern_atmx"
+"ck2004",
+"extern_planckint"
 ],
 "value": "ck2004",
 "copy_for": {
@@ -958,11 +959,11 @@ null
 "context": "compute",
 "description": "Atmosphere table",
 "choices": [
-"extern_planckint",
 "phoenix",
-"ck2004",
+"extern_atmx",
 "blackbody",
-"extern_atmx"
+"ck2004",
+"extern_planckint"
 ],
 "value": "ck2004",
 "copy_for": false,
@@ -1073,7 +1074,7 @@ null
 "qualifier": "phoebe_version",
 "context": "setting",
 "description": "Version of PHOEBE",
-"value": "2.3.2",
+"value": "2.3.10",
 "copy_for": false,
 "readonly": true,
 "advanced": true,
