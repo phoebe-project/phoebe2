@@ -7591,6 +7591,15 @@ class Bundle(ParameterSet):
 
             return dist
 
+        def _get_key(ref_param, keys, index=None):
+            k = getattr(ref_param, keys)
+            if index is not None:
+                if keys=='twig':
+                    k = '{}[{}]@{}'.format(k.split('@')[0], index, '@'.join(k.split('@')[1:]))
+                else:
+                    k += '[{}]'.format(index)
+            return k
+
         ret_dists = []
         ret_keys = []
         uid_dist_dict = {}
@@ -7637,7 +7646,8 @@ class Bundle(ParameterSet):
 
                     for fitted_value, fitted_unit, fitted_uniqueid in zip(fitted_values[adopt_inds], fitted_units[adopt_inds], adopt_uniqueids):
                         param = self.get_parameter(uniqueid=fitted_uniqueid, **_skip_filter_checks)
-                        ret_keys += [getattr(param, keys)]
+                        _, index = _extract_index_from_string(fitted_uniqueid)
+                        ret_keys += [_get_key(param, keys, index)]
                         if kwargs.get('return_dc', True):
                             ret_dists += [_distl.delta(fitted_value, unit=fitted_unit, label=_corner_twig(param, use_tex=False), label_latex=_corner_twig(param, use_tex=True))]
 
@@ -7673,7 +7683,7 @@ class Bundle(ParameterSet):
                 else:
                     raise NotImplementedError("distributions_convert='{}' not supported".format(distributions_convert))
 
-                ret_keys += [getattr(self.get_parameter(uniqueid=uniqueid, **_skip_filter_checks), keys) for uniqueid in adopt_uniqueids]
+                ret_keys += [_get_key(self.get_parameter(uniqueid=uniqueid, **_skip_filter_checks), keys, index) for uniqueid, index in zip(*_extract_index_from_string(adopt_uniqueids))]
 
                 if len(distribution_filters) == 1 and kwargs.get('allow_non_dc', True):
                     # then try to avoid slicing since we don't have to combine with anything else
@@ -7693,15 +7703,9 @@ class Bundle(ParameterSet):
                     if not include_constrained and len(ref_param.constrained_by):
                         continue
                     if uid not in uniqueids:
-                        k = getattr(ref_param, keys)
+                        k = _get_key(ref_param, keys, index)
                         if k in uid_dist_dict.keys():
                             raise ValueError("keys='{}' does not result in unique entries for each item".format(keys))
-
-                        if index is not None:
-                            if keys=='twig':
-                                k = '{}[{}]@{}'.format(k.split('@')[0], index, '@'.join(k.split('@')[1:]))
-                            else:
-                                k += '[{}]'.format(index)
 
                         uid_dist_dict[uid] = _to_dist(dist_param.get_value(), to_univariates, to_uniforms)
                         uniqueids.append(uid)

@@ -35,7 +35,6 @@ else:
 
 try:
     import dynesty
-    import pickle
 except ImportError:
     _use_dynesty = False
 else:
@@ -379,6 +378,13 @@ def _get_combined_rv(b, datasets, components, phase_component=None, mask=True, n
 
 
     return times, phases, rvs, sigmas
+
+def _to_twig_with_index(twig, index):
+    if index is None:
+        return twig
+    else:
+        return '{}[{}]@{}'.format(twig.split('@')[0], index, '@'.join(twig.split('@')[1:]))
+
 
 class BaseSolverBackend(object):
     def __init__(self):
@@ -1324,11 +1330,6 @@ class EmceeBackend(BaseSolverBackend):
                 start_iteration = continued_lnprobabilities.shape[0]
 
             params_uniqueids_and_indices = [_extract_index_from_string(uid) for uid in params_uniqueids]
-            def _to_twig_with_index(twig, index):
-                if index is None:
-                    return twig
-                else:
-                    return '{}[{}]@{}'.format(twig.split('@')[0], index, '@'.join(twig.split('@')[1:]))
             params_twigs = [_to_twig_with_index(b.get_parameter(uniqueid=uniqueid, **_skip_filter_checks).twig, index) for uniqueid, index in params_uniqueids_and_indices]
 
             esargs['pool'] = pool
@@ -1447,7 +1448,7 @@ class DynestyBackend(BaseSolverBackend):
         # check whether emcee is installed
 
         if not _use_dynesty:
-            raise ImportError("could not import dynesty, pickle")
+            raise ImportError("could not import dynesty")
 
         solver_ps = b.get_solver(solver=solver, **_skip_filter_checks)
         if not len(solver_ps.get_value(qualifier='priors', init_from=kwargs.get('priors', None))):
@@ -1610,7 +1611,9 @@ class DynestyBackend(BaseSolverBackend):
             wrap_central_values = _wrap_central_values(b, priors_dc, params_uniqueids)
 
             params_units = [dist.unit.to_string() for dist in priors_dc.dists]
-            params_twigs = [b.get_parameter(uniqueid=uniqueid, **_skip_filter_checks).twig for uniqueid in params_uniqueids]
+
+            params_uniqueids_and_indices = [_extract_index_from_string(uid) for uid in params_uniqueids]
+            params_twigs = [_to_twig_with_index(b.get_parameter(uniqueid=uniqueid, **_skip_filter_checks).twig, index) for uniqueid, index in params_uniqueids_and_indices]
 
             # NOTE: in dynesty we draw from the priors and pass the prior-transforms,
             # but do NOT include the lnprior term in lnlikelihood, so we pass
