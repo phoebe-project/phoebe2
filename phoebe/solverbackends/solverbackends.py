@@ -67,10 +67,11 @@ _skip_filter_checks = {'check_default': False, 'check_visible': False}
 
 def _wrap_central_values(b, dc, uniqueids):
     ret = {}
-    for dist, uniqueid in zip(dc.dists, uniqueids):
+    for dist, uniqueid_orig in zip(dc.dists, uniqueids):
+        uniqueid, index = _extract_index_from_string(uniqueid_orig)
         param = b.get_parameter(uniqueid=uniqueid, **_skip_filter_checks)
         if param.default_unit.physical_type == 'angle':
-            ret[uniqueid] = dist.median()
+            ret[uniqueid_orig] = dist.median()
     return ret
 
 def _bsolver(b, solver, compute, distributions, wrap_central_values={}):
@@ -125,9 +126,10 @@ def _lnprobability(sampled_values, b, params_uniqueids, compute,
     b._within_solver = True
     if sampled_values is not False:
         for uniqueid, value in zip(params_uniqueids, sampled_values):
+            uniqueid, index = _extract_index_from_string(uniqueid)
             try:
-                if '[' in uniqueid:
-                    b.get_parameter(uniqueid=uniqueid.split('[')[0], **_skip_filter_checks).set_index_value(index=int(float(uniqueid.split('[')[1][:-1])), value=value, run_checks=False, run_constraints=False)
+                if index is not None:
+                    b.get_parameter(uniqueid=uniqueid, **_skip_filter_checks).set_index_value(index=index, value=value, run_checks=False, run_constraints=False)
                 else:
                     b.set_value(uniqueid=uniqueid, value=value, run_checks=False, run_constraints=False, **_skip_filter_checks)
             except ValueError as err:
@@ -1321,7 +1323,13 @@ class EmceeBackend(BaseSolverBackend):
 
                 start_iteration = continued_lnprobabilities.shape[0]
 
-            params_twigs = [b.get_parameter(uniqueid=uniqueid, **_skip_filter_checks).twig for uniqueid in params_uniqueids]
+            params_uniqueids_and_indices = [_extract_index_from_string(uid) for uid in params_uniqueids]
+            def _to_twig_with_index(twig, index):
+                if index is None:
+                    return twig
+                else:
+                    return '{}[{}]@{}'.format(twig.split('@')[0], index, '@'.join(twig.split('@')[1:]))
+            params_twigs = [_to_twig_with_index(b.get_parameter(uniqueid=uniqueid, **_skip_filter_checks).twig, index) for uniqueid, index in params_uniqueids_and_indices]
 
             esargs['pool'] = pool
             esargs['nwalkers'] = nwalkers

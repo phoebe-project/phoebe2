@@ -432,6 +432,9 @@ def _value_for_constraint(item, constraintparam=None):
 def _extract_index_from_string(s):
     if s is None:
         return s, None
+    if isinstance(s, list):
+        all = [_extract_index_from_string(si) for si in s]
+        return [a[0] for a in all], [a[1] for a in all]
     index = None
     if '[' in s and ']' in s:
         ind0 = s.index('[')
@@ -442,6 +445,26 @@ def _extract_index_from_string(s):
         raise ValueError("could not succesfully extract single index")
 
     return s, index
+
+def _corner_twig(param, use_tex=True, index=None):
+    if use_tex and param._latexfmt is not None:
+        if index is None:
+            return param.latextwig
+        else:
+            return "$"+param.latextwig.replace("$", "")+"[{}]".format(index)+"$"
+    if param.context == 'system':
+        return param.qualifier
+    else:
+        if index is None:
+            return '{}@{}'.format(param.qualifier, getattr(param, param.context))
+        else:
+            return '{}[{}]@{}'.format(param.qualifier, index, getattr(param, param.context))
+
+def _corner_label(param, index=None):
+    if param.default_unit.to_string():
+        return '{} [{}]'.format(_corner_twig(param, index=index), param.default_unit)
+    return _corner_twig(param, index=index)
+
 
 def parameter_from_json(dictionary, bundle=None):
     """Load a single parameter from a JSON dictionary.
@@ -2667,6 +2690,7 @@ class ParameterSet(object):
 
         if kwargs.get('uniqueid', None) is not None:
             check_visible = False
+            kwargs['uniqueid'], _ = _extract_index_from_string(kwargs.get('uniqueid'))
 
         time = kwargs.get('time', None)
         if hasattr(time, '__iter__') and not isinstance(time, str):
@@ -4069,19 +4093,6 @@ class ParameterSet(object):
                     logger.warning("assuming you meant '{}error' instead of '{}errors'".format(d,d))
                     kwargs['{}error'.format(d)] = kwargs.pop('{}errors'.format(d))
 
-        def _corner_twig(param, use_tex=True):
-            if use_tex and param._latexfmt is not None:
-                return param.latextwig
-            if param.context == 'system':
-                return param.qualifier
-            else:
-                return '{}@{}'.format(param.qualifier, getattr(param, param.context))
-
-        def _corner_label(param):
-            if param.default_unit.to_string():
-                return '{} [{}]'.format(_corner_twig(param), param.default_unit)
-            return _corner_twig(param)
-
         def _handle_mask(ps, array, **kwargs):
             mask_enabled = ps.get_value(qualifier='mask_enabled', mask_enabled=kwargs.get('mask_enabled', None), default=False, **_skip_filter_checks)
             if not mask_enabled:
@@ -4583,14 +4594,18 @@ class ParameterSet(object):
             kwargs['plot_package'] = 'corner'
             kwargs['data'] = ps.get_value(qualifier='samples', default=[], **_skip_filter_checks)
 
-            try:
-                param_list = [self._bundle.get_parameter(uniqueid=uniqueid, **_skip_filter_checks) for uniqueid in ps.get_value(qualifier='sampled_uniqueids', **_skip_filter_checks)]
-            except:
-                logger.warning("could not match to sampled_uniqueids, falling back on sampled_twigs")
-                param_list = [self._bundle.get_parameter(twig=twig, **_skip_filter_checks) for twig in ps.get_value(qualifier='sampled_twigs', **_skip_filter_checks)]
 
             # TODO: use units from fitted_units instead of parameter?
-            kwargs['labels'] = [_corner_label(param) for param in param_list]
+
+            try:
+                params_uniqueids_and_indices = [_extract_index_from_string(uid) for uid in ps.get_value(qualifier='sampled_uniqueids', **_skip_filter_checks)]
+                param_list = [self._bundle.get_parameter(uniqueid=uniqueid, **_skip_filter_checks) for uniqueid, index in params_uniqueids_and_indices]
+                kwargs['labels'] = [_corner_label(param, uid_and_index[1]) for param, uid_and_index in zip(param_list, param_uniqueids_and_indices)]
+            except:
+                logger.warning("could not match to sampled_uniqueids, falling back on sampled_twigs")
+                params_twigs_and_indices = [_extract_index_from_string(twig) for twig in ps.get_value(qualifier='sampled_twigs', **_skip_filter_checks)]
+                param_list = [self._bundle.get_parameter(twig=twig, **_skip_filter_checks) for twig, index in params_twigs_and_indices]
+                kwargs['labels'] = [_corner_label(param, twig_and_index[1]) for param, twig_and_index in zip(param_list, param_twigs_and_indices)]
 
             if kwargs.get('style') == 'failed':
                 kwargs.setdefault('plot_uncertainties', False)
@@ -4862,17 +4877,41 @@ class ParameterSet(object):
                     # fitted_twigs = self._bundle.get_value(qualifier='fitted_twigs', context='solution', solution=ps.solution, **_skip_filter_checks)
                     fitted_units = self._bundle.get_value(qualifier='fitted_units', context='solution', solution=ps.solution, **_skip_filter_checks)
                     fitted_ps = self._bundle.filter(uniqueid=list(adopt_uniqueids), **_skip_filter_checks)
-
                     lnprobabilities_proc, samples_proc = _helpers.process_mcmc_chains(lnprobabilities, samples, burnin, thin, lnprob_cutoff, adopt_inds, flatten=False)
 
                     # samples [niters, nwalkers, parameter]
-                    ys = kwargs.get('y', fitted_ps.filter(uniquied=list(adopt_uniqueids), **_skip_filter_checks).twigs)
-                    if isinstance(ys, str):
-                        ys = [ys]
-                    yparams = fitted_ps.filter(twig=ys, **_skip_filter_checks)
+                    # allow user override of which parameter(s) to include
+                    # but in order to handle the possibility of indexes in array parameters
+                    # we need to find the matches in adopt_uniqueids which includes the index
+                    if kwargs.get('y', None):
+                        y = kwargs.get('y')
+                        if isinstance(ys, str):
+                            ys = [ys]
 
-                    for yparam in yparams.to_list():
-                        parameter_ind = list(adopt_uniqueids).index(yparam.uniqueid)
+                        # ys are currently assumed to twigs (with or without indices)
+                        # we need a list of uniqueids, including indices when necessary
+                        def _uniqueids_for_y(fitted_ps, twig=None):
+                            y, index = _extract_index_from_string(y)
+                            p = fitted_ps.get_parameter(twig=y, **_skip_filter_checks)
+                            if index is None:
+                                if p.__class__.__name__ == 'FloatArrayParameter':
+                                    return ['{}[{}]'.format(p.uniqueid, i) for i in range(len(p.get_value()))]
+                                else:
+                                    return [p.uniqueid]
+                            else:
+                                return ['{}[{}]'.format(p.uniqueid, index)]
+
+                        plot_uniqueids = []
+                        for y in ys:
+                            plot_uniqueids += _uniqueids_for_y(fitted_ps, y)
+
+                    else:
+                        plot_uniqueids = adopt_uniqueids
+
+                    for plot_uniqueid in plot_uniqueids:
+                        parameter_ind = list(adopt_uniqueids).index(plot_uniqueid)
+                        _, index = _extract_index_from_string(plot_uniqueid)
+                        yparam = fitted_ps.get_parameter(uniqueid=plot_uniqueid, **_skip_filter_checks)
 
                         for walker_ind in range(samples_proc.shape[1]):
                             kwargs = _deepcopy(kwargs)
@@ -4884,7 +4923,7 @@ class ParameterSet(object):
                             kwargs['xlabel'] = 'iteration (burnin={}, thin={}, lnprob_cutoff={})'.format(burnin, thin, lnprob_cutoff)
 
                             kwargs['y'] = samples_y
-                            kwargs['ylabel'] = _corner_twig(yparam)
+                            kwargs['ylabel'] = _corner_twig(yparam, index=index)
                             # TODO: use fitted_units instead?
                             kwargs['yunit'] = fitted_units[parameter_ind]
                             return_ += [kwargs]

@@ -34,7 +34,7 @@ from phoebe.parameters import solver as _solver
 from phoebe.parameters import constraint as _constraint
 from phoebe.parameters import feature as _feature
 from phoebe.parameters import figure as _figure
-from phoebe.parameters.parameters import _uniqueid, _clientid, _return_ps, _extract_index_from_string
+from phoebe.parameters.parameters import _uniqueid, _clientid, _return_ps, _extract_index_from_string, _corner_twig, _corner_label
 from phoebe.backend import backends, mesh
 from phoebe.backend import universe as _universe
 from phoebe.solverbackends import solverbackends as _solverbackends
@@ -106,19 +106,6 @@ def _get_add_func(mod, func, return_none_if_not_found=False):
         raise ValueError("could not find callable function in {}.{}"
                          .format(mod, func))
 
-
-def _corner_twig(param, use_tex=True):
-    if use_tex and param._latexfmt is not None:
-        return param.latextwig
-    if param.context == 'system':
-        return param.qualifier
-    else:
-        return '{}@{}'.format(param.qualifier, getattr(param, param.context))
-
-# def _corner_label(param):
-#     if param.default_unit.to_string():
-#         return '{} [{}]'.format(_corner_twig(param), param.default_unit)
-#     return _corner_twig(param)
 
 class RunChecksItem(object):
     def __init__(self, b, message, param_uniqueids=[], fail=True, affects_methods=[]):
@@ -7003,6 +6990,13 @@ class Bundle(ParameterSet):
             index_orig = None
         else:
             twig, index_orig = _extract_index_from_string(twig)
+            if kwargs.get('uniqueid'):
+                kwargs['uniqueid'], index_uniqueid = _extract_index_from_string(kwargs.get('uniqueid'))
+                if index_orig is not None and index_uniqueid != index_orig:
+                    raise ValueError("conflicting indices found!")
+                elif index_uniqueid is not None:
+                    index_orig = index_uniqueid
+
             ref_params = self.get_adjustable_parameters(exclude_constrained=False).filter(twig=twig, check_visible=False, **{k:v for k,v in kwargs.items() if k not in ['distribution']}).to_list()
 
         dist_params = []
@@ -7654,8 +7648,9 @@ class Bundle(ParameterSet):
                 distributions_convert = solution_ps.get_value(qualifier='distributions_convert', distributions_convert=kwargs.get('distributions_convert', None), **_skip_filter_checks)
                 distributions_bins = solution_ps.get_value(qualifier='distributions_bins', distributions_bins=kwargs.get('distributions_bins', None), **_skip_filter_checks)
 
-                labels = [_corner_twig(self.get_parameter(uniqueid=uniqueid, **_skip_filter_checks), use_tex=False) for uniqueid in adopt_uniqueids]
-                labels_latex = [_corner_twig(self.get_parameter(uniqueid=uniqueid, **_skip_filter_checks), use_tex=True) for uniqueid in adopt_uniqueids]
+                adopt_uniqueids_with_indexes = [_extract_index_from_string(uid) for uid in adopt_uniqueids]
+                labels = [_corner_twig(self.get_parameter(uniqueid=uniqueid, **_skip_filter_checks), use_tex=False, index=index) for uniqueid, index in adopt_uniqueids_with_indexes]
+                labels_latex = [_corner_twig(self.get_parameter(uniqueid=uniqueid, **_skip_filter_checks), use_tex=True, index=index) for uniqueid, index in adopt_uniqueids_with_indexes]
                 dist_samples = _distl.mvsamples(samples,
                                                 weights=weights,
                                                 units=[u.Unit(unit) for unit in fitted_units[adopt_inds]],
@@ -7701,10 +7696,12 @@ class Bundle(ParameterSet):
                         k = getattr(ref_param, keys)
                         if k in uid_dist_dict.keys():
                             raise ValueError("keys='{}' does not result in unique entries for each item".format(keys))
-                        if keys=='qualifier' and index is not None:
-                            k += str(index)
-                        elif keys=='twig' and index is not None:
-                            k = '{}[{}]@{}'.format(k.split('@')[0], index, '@'.join(k.split('@')[1:]))
+
+                        if index is not None:
+                            if keys=='twig':
+                                k = '{}[{}]@{}'.format(k.split('@')[0], index, '@'.join(k.split('@')[1:]))
+                            else:
+                                k += '[{}]'.format(index)
 
                         uid_dist_dict[uid] = _to_dist(dist_param.get_value(), to_univariates, to_uniforms)
                         uniqueids.append(uid)
@@ -11734,6 +11731,7 @@ class Bundle(ParameterSet):
 
 
         adopt_inds, adopt_uniqueids = self._get_adopt_inds_uniqueids(solution_ps, adopt_parameters=adopt_parameters)
+        # NOTE: adopt_uniqueids now includes [index] notation, if applicable
         if not len(adopt_inds):
             raise ValueError('no (valid) parameters selected by adopt_parameters')
 
@@ -11778,17 +11776,27 @@ class Bundle(ParameterSet):
         if solver_kind in ['emcee', 'dynesty']:
             dist, _ = self.get_distribution_collection(solution=solution, **{k:v for k,v in kwargs.items() if k in solution_ps.qualifiers})
 
-            for i, uniqueid in enumerate(adopt_uniqueids):
-                uniqueid, index = _extract_index_from_string(uniqueid)
+            for i, uniqueid_orig in enumerate(adopt_uniqueids):
+                uniqueid, index = _extract_index_from_string(uniqueid_orig)
                 if adopt_distributions:
-                    ps = self.add_distribution(uniqueid=uniqueid, value=dist.slice(i), distribution=distribution, auto_add_figure=kwargs.get('auto_add_figure', None), check_label=distribution is not None)
+                    ps = self.add_distribution(uniqueid=uniqueid_orig, value=dist.slice(i), distribution=distribution, auto_add_figure=kwargs.get('auto_add_figure', None), check_label=distribution is not None)
                 if adopt_values:
                     param = self.get_parameter(uniqueid=uniqueid, **_skip_filter_checks)
                     # TODO: what to do if constrained?
                     if trial_run:
-                        param = param.copy()
-                    param.set_value(value=dist.slice(i).mean(), unit=dist.slice(i).unit)
-                    changed_params.append(param)
+                        if param.twig in [p.twig for p in changed_params]:
+                            # then we've already made the copy, so let's grab it
+                            param = changed_params[[p.twig for p in changed_params].index(param.twig)]
+                        else:
+                            param = param.copy()
+                            changed_params.append(param)
+                    else:
+                        changed_params.append(param)
+
+                    if index is None:
+                        param.set_value(value=dist.slice(i).mean(), unit=dist.slice(i).unit)
+                    else:
+                        param.set_index_value(index=index, value=dist.slice(i).mean(), unit=dist.slice(i).unit)
 
         else:
             fitted_values = solution_ps.get_value(qualifier='fitted_values', **_skip_filter_checks)
