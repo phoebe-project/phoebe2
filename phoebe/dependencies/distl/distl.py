@@ -3230,10 +3230,11 @@ class BaseMultivariateDistribution(BaseDistribution):
         ---------
         * `dimension` (string or int, optional, default=None): choose a single
             dimension to plot.
-        * `label` (string, optional, default=None): override the label on the
+        * `label` (string or list, optional, default=None): override the label on the
             x-axis.  If not provided or None, will use <<class>.label>.  Will
             only be used if `show=True`.  Unit will automatically be appended.
-            Will be ignored if `xlabel` is provided.
+            Will be ignored if `xlabel` is provided.  If `dimension` is provided,
+            must be a string, otherwise a list with length <<class>.ndimensions>.
         * `unit` (astropy.unit, optional, default=None): units to use along
             the x-axis.  Astropy must be installed.  If `samples` is provided,
             the passed values will be assumed to be in the correct units.
@@ -3243,8 +3244,9 @@ class BaseMultivariateDistribution(BaseDistribution):
             computed before changing units, so `wrap_at` must be provided
             according to <<class>.unit> not `unit`.  Will be ignored
             if `samples` is provided.
-        * `xlabel` (string, optional, default=None): override the label on the
-            x-axis without appending the unit.  Will override `label`.
+        * `xlabel` (string or list, optional, default=None): override the label on the
+            x-axis without appending the unit.  Will override `label`.  If `dimension` is provided,
+            must be a string, otherwise a list with length <<class>.ndimensions>.
         * `samples` (array, optional, default=None): plot specific sampled
             values instead of calling <<class>.sample> internally.  Will override
             `size`.
@@ -3271,9 +3273,13 @@ class BaseMultivariateDistribution(BaseDistribution):
             # Perhaps we should bin and then wrap?  Or bin before wrapping and get a guess at the
             # appropriate bins
             label = kwargs.pop('label', self.labels[dimension] if self.labels is not None else None)
+            if not isinstance(label, str):
+                raise TypeError("label must be of type string if dimension is provided")
             unit = kwargs.pop('unit', self.units[dimension] if self.units is not None else None)
             wrap_at = kwargs.pop('wrap_at', self.wrap_ats[dimension] if self.wrap_ats is not None else None)
             xlabel = kwargs.pop('xlabel', self._xlabel(dimension, unit=unit, label=label))
+            if not isinstance(xlabel, str):
+                raise TypeError("xlabel must be of type string if dimension is provided")
 
             samples = kwargs.pop('samples', None)
             if samples is None:
@@ -3287,6 +3293,12 @@ class BaseMultivariateDistribution(BaseDistribution):
 
 
             plot_uncertainties = kwargs.pop('plot_uncertainties', True)
+            labels = kwargs.pop('label', self.labels if self.labels is not None else [None]*self.ndimensions)
+            if len(labels) != self.ndimensions:
+                raise ValueError("label must have length {}".format(self.ndimensions))
+            xlabels = kwargs.pop('xlabel', [self._xlabel(dim, label=l) for dim,l in zip(range(self.ndimensions), labels)])
+            if len(xlabels) != self.ndimensions:
+                raise ValueError("xlabel must have length {}".format(self.ndimensions))
             if plot_uncertainties:
                 if plot_uncertainties is True:
                     plot_uncertainties = [1, 2, 3]
@@ -3300,9 +3312,10 @@ class BaseMultivariateDistribution(BaseDistribution):
                 kwargs.setdefault('levels', [1-_np.exp(-s**2 / 2.) for s in (1,2,3)])
 
             fig = corner.corner(self.sample(size=int(size), cache_sample=False),
-                                 labels=[self._xlabel(dim) for dim in range(self.ndimensions)],
+                                 labels=xlabels,
                                  quantiles=kwargs.pop('quantiles', None),
                                  levels=kwargs.pop('levels', None),
+                                 show_titles=False,
                                  **kwargs)
 
 
@@ -4249,6 +4262,7 @@ class DistributionCollection(BaseDistlObject):
                              range=kwargs.pop('range', [_range(dist) for dist in self.dists]),
                              quantiles=kwargs.pop('quantiles', None),
                              levels=kwargs.pop('levels', None),
+                             show_titles=False,
                              **kwargs)
 
         if plot_uncertainties:
@@ -7730,7 +7744,11 @@ class MVSamplesSlice(BaseMultivariateSliceDistribution):
 
     @property
     def weights(self):
-        return self.multivariate.weights[:, self.dimension] if self.multivariate.weights is not None else None
+        if self.multivariate.weights is None:
+            return None
+        if len(self.multivariate.weights.shape) == 1:
+            return self.multivariate.weights
+        return self.multivariate.weights[:, self.dimension]
 
     @property
     def bw_method(self):
