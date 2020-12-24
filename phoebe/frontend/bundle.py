@@ -4255,6 +4255,16 @@ class Bundle(ParameterSet):
                                             +addl_parameters,
                                              True, 'run_solver')
 
+                        _, index = _extract_index_from_string(distribution_param.qualifier)
+                        if index:
+                            if index >= len(ref_param.get_value()):
+                                report.add_item(self,
+                                                "{}@{} in init_from@{} references an index ({}) that is out of range for {}".format(distribution_param.qualifier, dist_or_solution, solver, index, ref_param.twig),
+                                                [solver_ps.get_parameter(qualifier='init_from', **_skip_filter_checks)]
+                                                +[ref_param, distribution_param]
+                                                +addl_parameters,
+                                                True, 'run_solver')
+
                 elif dist_or_solution in self.solutions:
                     solution_ps = self.get_solution(solution=dist_or_solution, **_skip_filter_checks)
                     fitted_uniqueids = solution_ps.get_value(qualifier='fitted_uniqueids', **_skip_filter_checks)
@@ -4286,6 +4296,20 @@ class Bundle(ParameterSet):
                 else:
                     raise ValueError("{} could not be found in distributions or solutions".format(dist_or_solution))
 
+            priors = self.get_value(qualifier='priors', solver=solver, context='solver', init_from=kwargs.get('priors', None), default=[], expand=True, **_skip_filter_checks)
+            for dist in priors:
+                for distribution_param in self.filter(distribution=dist, context='distribution', **_skip_filter_checks).to_list():
+                    ref_param = distribution_param.get_referenced_parameter()
+
+                    _, index = _extract_index_from_string(distribution_param.qualifier)
+                    if index:
+                        if index >= len(ref_param.get_value()):
+                            report.add_item(self,
+                                            "{}@{} in priors@{} references an index ({}) that is out of range for {}".format(distribution_param.qualifier, dist, solver, index, ref_param.twig),
+                                            [solver_ps.get_parameter(qualifier='priors', **_skip_filter_checks)]
+                                            +[ref_param, distribution_param]
+                                            +addl_parameters,
+                                            True, 'run_solver')
 
             ## warning if fitting a parameter that affects phasing but mask_phases is enabled
             if fit_ps is not None:
