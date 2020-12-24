@@ -3473,14 +3473,12 @@ class Bundle(ParameterSet):
         def ld_coeffs_len(ld_func, ld_coeffs):
             # current choices for ld_func are:
             # ['uniform', 'linear', 'logarithmic', 'quadratic', 'square_root', 'power', 'claret', 'hillen', 'prsa']
-            if ld_func in ['linear'] and (ld_coeffs is None or len(ld_coeffs)==1):
-                return True,
-            elif ld_func in ['logarithmic', 'square_root', 'quadratic'] and (ld_coeffs is None or len(ld_coeffs)==2):
-                return True,
-            elif ld_func in ['power'] and (ld_coeffs is None or len(ld_coeffs)==4):
+            expected_lengths = {'linear': 1, 'logarithmic': 2, 'square_root': 2, 'quadratic': 2, 'power': 4}
+
+            if ld_coeffs is None or len(ld_coeffs) == expected_lengths.get(ld_func):
                 return True,
             else:
-                return False, "ld_coeffs={} wrong length for ld_func='{}'.".format(ld_coeffs, ld_func)
+                return False, "ld_coeffs={} wrong length (expecting length {} instead of {}) for ld_func='{}'.".format(ld_coeffs, expected_lengths.get(ld_func), len(ld_coeffs), ld_func)
 
         irrad_enabled = kwargs.get('irrad_method', True) != 'none' and np.any([p.get_value()!='none' for p in self.filter(qualifier='irrad_method', compute=computes, **kwargs).to_list()])
         for component in hier_stars:
@@ -3529,26 +3527,26 @@ class Bundle(ParameterSet):
                                         ],
                                         True, 'run_compute')
 
-
-                    check = libphoebe.ld_check(_bytes(ld_func), np.asarray(ld_coeffs), strict=False)
-                    if not check:
-                        report.add_item(self,
-                                        'ld_coeffs_bol={} not compatible for ld_func_bol=\'{}\'.'.format(ld_coeffs, ld_func),
-                                        [self.get_parameter(qualifier='ld_func_bol', component=component, context='component', **_skip_filter_checks),
-                                         self.get_parameter(qualifier='ld_coeffs_bol', component=component, context='component', **_skip_filter_checks)
-                                        ],
-                                        True, 'run_compute')
-
                     else:
-                        # only need to do the strict check if the non-strict checks passes
-                        check = libphoebe.ld_check(_bytes(ld_func), np.asarray(ld_coeffs), strict=True)
+                        check = libphoebe.ld_check(_bytes(ld_func), np.asarray(ld_coeffs), strict=False)
                         if not check:
                             report.add_item(self,
-                                            'ld_coeffs_bol={} result in limb-brightening which is not allowed for irradiation.'.format(ld_coeffs),
+                                            'ld_coeffs_bol={} not compatible for ld_func_bol=\'{}\'.'.format(ld_coeffs, ld_func),
                                             [self.get_parameter(qualifier='ld_func_bol', component=component, context='component', **_skip_filter_checks),
                                              self.get_parameter(qualifier='ld_coeffs_bol', component=component, context='component', **_skip_filter_checks)
                                             ],
                                             True, 'run_compute')
+
+                        else:
+                            # only need to do the strict check if the non-strict checks passes
+                            check = libphoebe.ld_check(_bytes(ld_func), np.asarray(ld_coeffs), strict=True)
+                            if not check:
+                                report.add_item(self,
+                                                'ld_coeffs_bol={} result in limb-brightening which is not allowed for irradiation.'.format(ld_coeffs),
+                                                [self.get_parameter(qualifier='ld_func_bol', component=component, context='component', **_skip_filter_checks),
+                                                 self.get_parameter(qualifier='ld_coeffs_bol', component=component, context='component', **_skip_filter_checks)
+                                                ],
+                                                True, 'run_compute')
 
                 for compute in computes:
                     if self.get_compute(compute, **_skip_filter_checks).kind in ['legacy'] and ld_func not in ['linear', 'logarithmic', 'square_root']:
@@ -3638,25 +3636,26 @@ class Bundle(ParameterSet):
                                         ],
                                         True, 'run_compute')
 
-                    check = libphoebe.ld_check(_bytes(ld_func), np.asarray(ld_coeffs), strict=False)
-                    if not check:
-                        report.add_item(self,
-                                        'ld_coeffs={} not compatible for ld_func=\'{}\'.'.format(ld_coeffs, ld_func),
-                                        [dataset_ps.get_parameter(qualifier='ld_func', component=component, **_skip_filter_checks),
-                                         dataset_ps.get_parameter(qualifier='ld_coeffs', component=component, **_skip_filter_checks)
-                                        ],
-                                        True, 'run_compute')
-
                     else:
-                        # only need to do the strict check if the non-strict checks passes
-                        check = libphoebe.ld_check(_bytes(ld_func), np.asarray(ld_coeffs), strict=True)
+                        check = libphoebe.ld_check(_bytes(ld_func), np.asarray(ld_coeffs), strict=False)
                         if not check:
                             report.add_item(self,
-                                            'ld_coeffs={} result in limb-brightening.  Use with caution.'.format(ld_coeffs),
+                                            'ld_coeffs={} not compatible for ld_func=\'{}\'.'.format(ld_coeffs, ld_func),
                                             [dataset_ps.get_parameter(qualifier='ld_func', component=component, **_skip_filter_checks),
                                              dataset_ps.get_parameter(qualifier='ld_coeffs', component=component, **_skip_filter_checks)
-                                             ],
-                                             False, 'run_compute')
+                                            ],
+                                            True, 'run_compute')
+
+                        else:
+                            # only need to do the strict check if the non-strict checks passes
+                            check = libphoebe.ld_check(_bytes(ld_func), np.asarray(ld_coeffs), strict=True)
+                            if not check:
+                                report.add_item(self,
+                                                'ld_coeffs={} result in limb-brightening.  Use with caution.'.format(ld_coeffs),
+                                                [dataset_ps.get_parameter(qualifier='ld_func', component=component, **_skip_filter_checks),
+                                                 dataset_ps.get_parameter(qualifier='ld_coeffs', component=component, **_skip_filter_checks)
+                                                 ],
+                                                 False, 'run_compute')
 
                 else:
                     raise NotImplementedError("checks for ld_mode='{}' not implemented".format(ld_mode))
