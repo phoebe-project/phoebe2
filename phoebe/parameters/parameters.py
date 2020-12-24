@@ -8639,7 +8639,10 @@ class DistributionParameter(Parameter):
             if index is None:
                 dist.value = value
             else:
-                dist.value = value[index]
+                if len(value) <= index:
+                    dist.value = np.nan
+                else:
+                    dist.value = value[index]
 
         return dist
 
