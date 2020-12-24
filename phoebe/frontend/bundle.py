@@ -4158,7 +4158,7 @@ class Bundle(ParameterSet):
                                             ]+addl_parameters,
                                             True, 'run_solver')
 
-                        elif index > len(fit_parameter.get_value()):
+                        elif index >= len(fit_parameter.get_value()):
                             report.add_item(self,
                                             "fit_parameters entry {} with length {} index {} out-of-bounds".format(twig, len(fit_parameter.get_value()), index),
                                             [solver_ps.get_parameter(qualifier='fit_parameters', **_skip_filter_checks)

@@ -8026,8 +8026,10 @@ class SelectParameter(Parameter):
         changed = len(rename.keys())
 
         if remove_not_valid:
+            value_orig = value
+            value = [v for v in value if self.valid_selection(v)]
             self.set_value(value, run_checks=False, ignore_readonly=True)
-            return changed or self.remove_not_valid_selections()
+            return changed or len(value_orig) != len(value)
 
         else:
             if np.any([not self.is_valid_selection(v) for v in value]):
@@ -9522,6 +9524,12 @@ class FloatParameter(Parameter):
         if run_checks and self._bundle:
             report = self._bundle.run_checks(allow_skip_constraints=True, raise_logger_warning=True)
 
+        # make any necessary updates to choices
+        # skip_update_choices (as a hidden kwarg) exists so that the server can
+        # handle this externally and return the changes to the clients
+        if self._bundle is not None and not kwargs.get('skip_update_choices', False):
+            if self.qualifier in ['ld_coeffs', 'ld_coeffs_bol']:
+                self._bundle._handle_fitparameters_selecttwigparams()
 
 class FloatArrayParameter(FloatParameter):
     def __init__(self, *args, **kwargs):
@@ -12066,7 +12074,6 @@ class JobParameter(Parameter):
             # self._bundle._attach_param_from_server(newparams)
 
         elif self.status == 'error':
-            ferr = open(self._err_fname, 'r')
             lines = ferr.readlines()
             ferr.close()
 
