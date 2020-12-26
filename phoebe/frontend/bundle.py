@@ -4175,8 +4175,8 @@ class Bundle(ParameterSet):
 
             # need check_visible in case hidden by continue_from
             elif 'init_from' in solver_ps.qualifiers:
-                continue_from = solver_ps.get_value(qualifier='continue_from', continue_from=kwargs.get('continue_from', None), default='', **_skip_filter_checks)
-                if len(continue_from):
+                continue_from = solver_ps.get_value(qualifier='continue_from', continue_from=kwargs.get('continue_from', None), default='None', **_skip_filter_checks)
+                if continue_from.lower() != 'none':
                     _, init_from_uniqueids = self.get_distribution_collection(solution=continue_from, keys='uniqueid', return_dc=False)
                 else:
                     _, init_from_uniqueids = self.get_distribution_collection(kwargs.get('init_from', 'init_from@{}'.format(solver)), keys='uniqueid', return_dc=False)
