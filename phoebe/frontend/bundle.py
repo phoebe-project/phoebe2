@@ -2720,6 +2720,7 @@ class Bundle(ParameterSet):
         # parameters that can be fitted are only in the component or dataset context,
         # must be float parameters and must not be constrained (and must be visible)
         excluded_qualifiers = ['times', 'sigmas', 'fluxes', 'rvs', 'wavelengths', 'flux_densities']
+        excluded_qualifiers += ['compute_times', 'compute_phases']
         excluded_qualifiers += ['ra', 'dec', 't0']
         ps = self.filter(context=['component', 'dataset', 'system', 'feature'], check_visible=check_visible, check_default=True)
         return ParameterSet([p for p in ps.to_list() if p.__class__.__name__ in ['FloatParameter', 'FloatArrayParameter'] and not p.readonly and p.qualifier not in excluded_qualifiers and (not exclude_constrained or not len(p.constrained_by))])
