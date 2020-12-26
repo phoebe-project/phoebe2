@@ -4173,8 +4173,13 @@ class Bundle(ParameterSet):
                 fit_ps = adjustable_parameters.filter(twig=fit_parameters, **_skip_filter_checks)
 
 
+            # need check_visible in case hidden by continue_from
             elif 'init_from' in solver_ps.qualifiers:
-                _, init_from_uniqueids = self.get_distribution_collection(kwargs.get('init_from', 'init_from@{}'.format(solver)), keys='uniqueid', return_dc=False)
+                continue_from = solver_ps.get_value(qualifier='continue_from', continue_from=kwargs.get('continue_from', None), default='', **_skip_filter_checks)
+                if len(continue_from):
+                    _, init_from_uniqueids = self.get_distribution_collection(solution=continue_from, keys='uniqueid', return_dc=False)
+                else:
+                    _, init_from_uniqueids = self.get_distribution_collection(kwargs.get('init_from', 'init_from@{}'.format(solver)), keys='uniqueid', return_dc=False)
 
                 if not len(init_from_uniqueids):
                     report.add_item(self,
