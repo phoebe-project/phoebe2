@@ -92,9 +92,9 @@ def emcee(**kwargs):
     * `nwalkers` (int, optional, default=16): only appicable if `continue_from`
         is 'None'.  Number of walkers.
     * `niters` (int, optional, default=100): Number of iterations.
-    * `burnin_factor` (float, optional, default=2): factor of max(autocorr_time)
+    * `burnin_factor` (float, optional, default=2): factor of max(autocorr_times)
         to apply for burnin (burnin not applied until adopting the solution)
-    * `thin_factor` (float, optional, default=0.5): factor of min(autocorr_time)
+    * `thin_factor` (float, optional, default=0.5): factor of min(autocorr_times)
         to apply for thinning (thinning not applied until adopting the solution)
     * `progress_every_niters` (int, optional, default=0): Save the progress of
         the solution every n iterations.  The solution can only be recovered
@@ -130,8 +130,8 @@ def emcee(**kwargs):
     params += [IntParameter(visible_if='continue_from:None', qualifier='nwalkers', value=kwargs.get('nwalkers', 16), limits=(1,1e5), description='Number of walkers')]
     params += [IntParameter(qualifier='niters', value=kwargs.get('niters', 100), limits=(1,1e12), description='Number of iterations')]
 
-    params += [FloatParameter(qualifier='burnin_factor', value=kwargs.get('burnin_factor', 2), default_unit=u.dimensionless_unscaled, limits=(1, 1000), description='factor of max(autocorr_time) to apply for burnin (burnin not applied until adopting the solution)')]
-    params += [FloatParameter(qualifier='thin_factor', value=kwargs.get('thin_factor', 0.5), default_unit=u.dimensionless_unscaled, limits=(0.001, 1000), description='factor of min(autocorr_time) to apply for thinning (thinning not applied until adopting the solution)')]
+    params += [FloatParameter(qualifier='burnin_factor', value=kwargs.get('burnin_factor', 2), default_unit=u.dimensionless_unscaled, limits=(1, 1000), description='factor of max(autocorr_times) to apply for burnin (burnin not applied until adopting the solution)')]
+    params += [FloatParameter(qualifier='thin_factor', value=kwargs.get('thin_factor', 0.5), default_unit=u.dimensionless_unscaled, limits=(0.001, 1000), description='factor of min(autocorr_times) to apply for thinning (thinning not applied until adopting the solution)')]
 
     params += [IntParameter(qualifier='progress_every_niters', value=kwargs.get('progress_every_niters', 0), limits=(0,1e6), description='save the progress of the solution every n iterations.  The solution can only be recovered from an early termination by loading the bundle from a saved file and then calling b.import_solution(filename).  The filename of the saved file will default to solution.ps.progress within run_solver, or the output filename provided to export_solver suffixed with .progress.  If using detach=True within run_solver, attach job will load the progress and allow re-attaching until the job is completed.  If 0 will not save and will only return after completion.')]
 

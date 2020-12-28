@@ -1260,7 +1260,9 @@ class Star(Body):
         datasets_intens = [ds for ds in b.filter(kind=['lc', 'rv', 'lp'], context='dataset').datasets if ds != '_default']
         datasets_lp = [ds for ds in b.filter(kind='lp', context='dataset', **_skip_filter_checks).datasets if ds != '_default']
         atm_override = kwargs.pop('atm', None)
-        atm = b.get_value(qualifier='atm', compute=compute, component=component, atm=atm_override, **_skip_filter_checks) if compute is not None else 'ck2004'
+        if isinstance(atm_override, dict):
+            atm_override = atm_override.get(component, None)
+        atm = b.get_value(qualifier='atm', compute=compute, component=component, atm=atm_override, **_skip_filter_checks) if compute is not None else atm_override if atm_override is not None else 'ck2004'
         passband_override = kwargs.pop('passband', None)
         passband = {ds: b.get_value(qualifier='passband', dataset=ds, passband=passband_override, **_skip_filter_checks) for ds in datasets_intens}
         intens_weighting_override = kwargs.pop('intens_weighting', None)
