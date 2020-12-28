@@ -84,6 +84,10 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.3.12 - plot univariate distributions latex label fix
+
+* fix bug in the latex labels on plots when converting from multivariate to univariate distributions.
+
 ### 2.3.11 - continue_from run_checks fix
 
 * fix bug where run_checks raised an error for an empty init_from if continue_from was set.
@@ -349,4 +353,4 @@ an envelope were being raised before all constraints could resolve successfully.
 QUESTIONS? SUGGESTIONS? CONCERNS?
 ---------------------------------
 
-Contact us! Issues and feature requests should be submitted directly through GitHub's issue tracker. Two mailing lists are dedicated for discussion, either on user level ([phoebe-discuss@lists.sourceforge.net](mailto:phoebe-discuss@lists.sourceforge.net)) or on the developer level ([phoebe-devel@lists.sourceforge.net](mailto:phoebe-devel@lists.sourceforge.net)). We are eager to hear from you, so do not hesitate to contact us!
+Contact us! Issues and feature requests should be submitted directly through GitHub's [issue tracker](https://github.com/phoebe-project/phoebe2/issues).  Additional questions or feature requests should be submitted via [GitHub PHOEBE2 discussions](https://github.com/phoebe-project/phoebe2/discussions) or [GitHub PHOEBE2-UI discussions](https://github.com/phoebe-project/phoebe2-ui/discussions). We are eager to hear from you, so do not hesitate to [contact us](http://phoebe-project.org/help/contact)!
