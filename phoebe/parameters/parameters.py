@@ -2268,34 +2268,61 @@ class ParameterSet(object):
         twig = key
 
         method = None
+        mkwargs = {}
+        if 'index' in kwargs.keys():
+            mkwargs['index'] = kwargs.pop('index')
+        twig, index = _extract_index_from_string(twig)
         twigsplit = re.findall(r"[\w']+", twig)
         if twigsplit[0] == 'value':
             twig = '@'.join(twigsplit[1:])
-            method = 'set_value'
+            if index is not None:
+                method = 'set_index_value'
+                mkwargs = {'index': index}
+            else:
+                method = 'set_value'
+            mkwargs['value'] = value
+
         elif twigsplit[0] == 'quantity':
             twig = '@'.join(twigsplit[1:])
-            method = 'set_quantity'
+            if index is not None:
+                raise ValueError("index notation not supported for {}".format(twigsplit[0]))
+                # method = 'set_index_quantity'
+                # mkwargs = {'index': index}
+            else:
+                method = 'set_quantity'
+
+            mkwargs['value'] = value
+
+
         elif twigsplit[0] in ['unit', 'default_unit']:
             twig = '@'.join(twigsplit[1:])
+            if index is not None:
+                raise ValueError("index notation not supported for {}".format(twigsplit[0]))
             method = 'set_default_unit'
+
+            mkwargs['unit'] = value
+
         elif twigsplit[0] in ['timederiv']:
             twig = '@'.join(twigsplit[1:])
+            if index is not None:
+                raise ValueError("index notation not supported for {}".format(twigsplit[0]))
             method = 'set_timederiv'
         elif twigsplit[0] in ['description']:
             raise KeyError("cannot set {} of {}".format(twigsplit[0], '@'.join(twigsplit[1:])))
 
+
         if self._bundle is not None and self._bundle.get_setting('dict_set_all').get_value() and len(self.filter(twig=twig, **kwargs)) > 1:
             # then we need to loop through all the returned parameters and call set on them
             for param in self.filter(twig=twig, **kwargs).to_list():
-                self.set('{}@{}'.format(method, param.twig) if method is not None else param.twig, value)
+                self.set('{}@{}'.format(method, param.twig) if method is not None else param.twig, **mkwargs)
         else:
 
             if method is None:
-                return self.set_value(twig=twig, value=value, **kwargs)
+                return self.set_value(twig=twig, value=value, **mkwargs)
             else:
                 param = self.get_parameter(twig=twig, **kwargs)
 
-                return getattr(param, method)(value)
+                return getattr(param, method)(**mkwargs)
 
     def __getitem__(self, key):
         """
@@ -2637,11 +2664,13 @@ class ParameterSet(object):
             of the results is exactly 1 and `force_ps=False`, otherwise the
             resulting <phoebe.parameters.ParameterSet>.
         """
-        def _return(params, force_ps, method=None):
+        def _return(params, force_ps, method=None, index=None):
             if len(params) == 1 and not force_ps:
                 # then just return the parameter itself
                 if method is None:
                     return params[0]
+                elif index is not None:
+                    return getattr(params[0], method)()[index]
                 else:
                     return getattr(params[0], method)()
 
@@ -2766,6 +2795,7 @@ class ParameterSet(object):
 
         # now do twig matching
         method = None
+        mindex = None
         if twig is not None:
             _user_twig = _deepcopy(twig)
 
@@ -2775,9 +2805,11 @@ class ParameterSet(object):
             if twigsplit[0] == 'value':
                 twig = '@'.join(twigsplit[1:])
                 method = 'get_value'
+                mindex = index
             elif twigsplit[0] == 'quantity':
                 twig = '@'.join(twigsplit[1:])
                 method = 'get_quantity'
+                mindex = index
             elif twigsplit[0] in ['unit', 'default_unit']:
                 twig = '@'.join(twigsplit[1:])
                 method = 'get_default_unit'
@@ -2836,7 +2868,7 @@ class ParameterSet(object):
                                 options.append(completed_twig)
                 return options
 
-        return _return(params, force_ps, method)
+        return _return(params, force_ps, method, mindex)
 
     def exclude(self, twig=None, check_visible=True, check_default=True, **kwargs):
         """
