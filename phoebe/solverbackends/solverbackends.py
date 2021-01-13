@@ -1027,6 +1027,13 @@ class EbaiBackend(BaseSolverBackend):
 
         times, phases, fluxes, sigmas = _get_combined_lc(b, lc_datasets, lc_combine, phase_component=orbit, mask=True, normalize=True, phase_sorted=True, phase_bin=phase_bin)
 
+        teffratio_param = orbit_ps.get_parameter(qualifier='teffratio', **_skip_filter_checks)
+        requivsumfrac_param = orbit_ps.get_parameter(qualifier='requivsumfrac', **_skip_filter_checks)
+        esinw_param = orbit_ps.get_parameter(qualifier='esinw', **_skip_filter_checks)
+        ecosw_param = orbit_ps.get_parameter(qualifier='ecosw', **_skip_filter_checks)
+        incl_param = orbit_ps.get_parameter(qualifier='incl', **_skip_filter_checks)
+        t0_supconj_param = orbit_ps.get_parameter(qualifier='t0_supconj', **_skip_filter_checks)
+
         # TODO: cleanup this logic a bit
         lc_geom_dict = lc_geometry.estimate_eclipse_positions_widths(phases, fluxes)
         if np.max(lc_geom_dict.get('ecl_widths', [])) > 0.25:
@@ -1049,17 +1056,10 @@ class EbaiBackend(BaseSolverBackend):
             ebai_fluxes /= ebai_fluxes.max()
 
             # update to t0_supconj based on pshift
-            t0_supconj_param = orbit_ps.get_parameter(qualifier='t0_supconj', **_skip_filter_checks)
             t0_supconj = t0_supconj_param.get_value(unit=u.d) + (pshift * orbit_ps.get_value(qualifier='period', unit=u.d, **_skip_filter_checks))
 
             # run ebai on polyfit sampled fluxes
             teffratio, requivsumfrac, esinw, ecosw, sini = ebai_forward(ebai_fluxes)
-
-        teffratio_param = orbit_ps.get_parameter(qualifier='teffratio', **_skip_filter_checks)
-        requivsumfrac_param = orbit_ps.get_parameter(qualifier='requivsumfrac', **_skip_filter_checks)
-        esinw_param = orbit_ps.get_parameter(qualifier='esinw', **_skip_filter_checks)
-        ecosw_param = orbit_ps.get_parameter(qualifier='ecosw', **_skip_filter_checks)
-        incl_param = orbit_ps.get_parameter(qualifier='incl', **_skip_filter_checks)
 
         fitted_params = [t0_supconj_param, teffratio_param, requivsumfrac_param, esinw_param, ecosw_param, incl_param]
         fitted_uniqueids = [p.uniqueid for p in fitted_params]
