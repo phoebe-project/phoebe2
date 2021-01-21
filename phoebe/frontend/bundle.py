@@ -11570,7 +11570,7 @@ class Bundle(ParameterSet):
     def _get_adopt_inds_uniqueids(self, solution_ps, **kwargs):
 
         adopt_parameters = solution_ps.get_value(qualifier='adopt_parameters', adopt_parameters=kwargs.get('adopt_parameters', kwargs.get('parameters', None)), expand=True, **_skip_filter_checks)
-        fitted_uniqueids = solution_ps.get_value(qualifier='fitted_uniqueids', **_skip_filter_checks)
+        fitted_uniqueids = solution_ps.get_value(qualifier='fitted_uniqueids', **_skip_filter_checks).tolist()
         fitted_twigs = solution_ps.get_value(qualifier='fitted_twigs', **_skip_filter_checks)
 
         b_uniqueids = self.uniqueids
@@ -11581,6 +11581,7 @@ class Bundle(ParameterSet):
         else:
             logger.warning("not all uniqueids in fitted_uniqueids@{}@solution are still valid.  Falling back on twigs.  Save and load same bundle to prevent this extra cost.".format(solution_ps.solution))
             fitted_ps = adoptable_ps.filter(twig=fitted_twigs.tolist(), **_skip_filter_checks)
+            fitted_uniqueids = [fitted_ps.get_parameter(twig=fitted_twig, **_skip_filter_checks).uniqueid for fitted_twig in fitted_twigs]
 
         adopt_uniqueids = []
         for adopt_twig in adopt_parameters:
@@ -11590,7 +11591,7 @@ class Bundle(ParameterSet):
             elif len(fitted_ps_filtered) > 1:
                 raise ValueError("multiple valid matches found for adopt_parameter='{}'".format(adopt_twig))
 
-        adopt_inds = [fitted_uniqueids.tolist().index(uniqueid) for uniqueid in adopt_uniqueids]
+        adopt_inds = [fitted_uniqueids.index(uniqueid) for uniqueid in adopt_uniqueids]
 
         return adopt_inds, adopt_uniqueids
 
