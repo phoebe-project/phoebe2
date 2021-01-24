@@ -84,6 +84,10 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.3.15 - alternate backends with l3_frac and dataset-scaled fix
+
+* fix bug in applying l3_frac within dataset scaling (pblum_mode='dataset-scaled') when using alternate backends.
+
 ### 2.3.14 - import_solution with uniqueid mismatch fix
 
 * fix bug where falling back on twigs when importing a solution on a different bundle failed.  It is still suggested to save the bundle and import solutions on the bundle used when calling export_solver.
