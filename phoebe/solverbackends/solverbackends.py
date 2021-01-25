@@ -1729,10 +1729,6 @@ class _ScipyOptimizeBaseBackend(BaseSolverBackend):
         return kwargs, _parameters.ParameterSet(solution_params)
 
     def run_worker(self, b, solver, compute, **kwargs):
-        if mpi.within_mpirun:
-            raise NotImplementedError("mpi support for scipy.optimize not yet implemented")
-            # TODO: we need to tell the workers to join the pool for time-parallelization?
-
         fit_parameters = kwargs.get('fit_parameters') # list of twigs
         initial_values = kwargs.get('initial_values') # dictionary
         priors = kwargs.get('priors')
