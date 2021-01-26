@@ -84,6 +84,10 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.3.16 - rv_geometry with different lengths fix
+
+* fixes estimator.rv_geometry when primary and secondary component have different times.
+
 ### 2.3.15 - alternate backends with l3_frac and dataset-scaled fix
 
 * fix bug in applying l3_frac within dataset scaling (pblum_mode='dataset-scaled') when using alternate backends.
