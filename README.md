@@ -84,6 +84,10 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.3.17 - optimizer MPI fix
+
+* enables optimization (per-time or per-dataset) for optimizers.
+
 ### 2.3.16 - rv_geometry with different lengths fix
 
 * fixes estimator.rv_geometry when primary and secondary component have different times.
