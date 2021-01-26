@@ -376,6 +376,7 @@ def _get_combined_rv(b, datasets, components, phase_component=None, mask=True, n
 
 class BaseSolverBackend(object):
     def __init__(self):
+        self._allow_mpi = True
         return
 
     @property
@@ -498,7 +499,7 @@ class BaseSolverBackend(object):
         logger.debug("rank:{}/{} calling get_packet_and_solution".format(mpi.myrank, mpi.nprocs))
         packet, solution_ps = self.get_packet_and_solution(b, solver, compute=compute, **kwargs)
 
-        if mpi.enabled:
+        if mpi.enabled and self._allow_mpi:
             # broadcast the packet to ALL workers
             logger.debug("rank:{}/{} broadcasting to all workers".format(mpi.myrank, mpi.nprocs))
             mpi.comm.bcast(packet, root=0)
@@ -1698,6 +1699,10 @@ class _ScipyOptimizeBaseBackend(BaseSolverBackend):
     * <phoebe.frontend.bundle.Bundle.add_solver>
     * <phoebe.frontend.bundle.Bundle.run_solver>
     """
+    def __init__(self):
+        super(_ScipyOptimizeBaseBackend, self).__init__()
+        self._allow_mpi = False
+
     def run_checks(self, b, solver, compute, **kwargs):
         solver_ps = b.get_solver(solver=solver, **_skip_filter_checks)
         if not len(solver_ps.get_value(qualifier='fit_parameters', fit_parameters=kwargs.get('fit_parameters', None), expand=True)):
