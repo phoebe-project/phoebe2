@@ -1729,6 +1729,16 @@ class _ScipyOptimizeBaseBackend(BaseSolverBackend):
         return kwargs, _parameters.ParameterSet(solution_params)
 
     def run_worker(self, b, solver, compute, **kwargs):
+        if mpi.within_mpirun:
+            is_master = mpi.myrank == 0
+        else:
+            is_master = True
+
+        if not is_master:
+            # rejoin the pool to get per-time or per-dataset parallelization by
+            # backends that support that
+            return
+
         fit_parameters = kwargs.get('fit_parameters') # list of twigs
         initial_values = kwargs.get('initial_values') # dictionary
         priors = kwargs.get('priors')
