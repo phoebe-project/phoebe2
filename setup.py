@@ -1,4 +1,4 @@
-2.3.16"""
+"""
 Environment variables while manually building/installing:
 
 PHOEBE_SKIP_SCRIPTS=TRUE: will not install phoebe-server and phoebe-autofig executables (removing the following dependencies: flask, flask-cors, flask-socketio, gevent-websocket)
