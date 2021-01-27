@@ -7554,53 +7554,6 @@ class Bundle(ParameterSet):
         ------------
         * distl.DistributionCollection, list of `keys`
         """
-        if parameters is not None:
-            if isinstance(parameters, ParameterSet):
-                pass
-            elif isinstance(parameters, dict):
-                parameters = self.get_adjustable_parameters(exclude_constrained=False).filter(**parameters)
-            else:
-                parameters = self.get_adjustable_parameters(exclude_constrained=False).filter(parameters)
-
-            parameters_uniqueids = parameters.uniqueids
-
-
-            dc, uniqueids = self.get_distribution_collection(twig=twig, keys='uniqueid', set_labels=set_labels, parameters=None, allow_non_dc=False, **{k:v for k,v in kwargs.items() if k not in ['allow_non_dc', 'set_labels']})
-
-            # first filter through the distributions already in dc
-            ret_dists = [dc.dists[i] for i,uniqueid in enumerate(uniqueids) if uniqueid in parameters_uniqueids]
-            ret_keys = [getattr(self.get_parameter(uniqueid=uniqueid, **_skip_filter_checks), keys) for uniqueid in parameters_uniqueids if uniqueid in parameters_uniqueids]
-
-            # now we need to get any that weren't included in dc
-            new_params = [self.get_parameter(uniqueid=uniqueid, **_skip_filter_checks) for uniqueid in parameters_uniqueids if uniqueid not in uniqueids]
-            ret_dists += [param.get_distribution(distribution=dc, distribution_uniqueids=uniqueids) for param in new_params]
-            ret_keys += [getattr(param, keys) for param in new_params]
-            # TODO: do we need to set labels on the newly added dists?
-
-            if kwargs.get('return_dc', True):
-                dc = _distl.DistributionCollection(*ret_dists)
-            else:
-                dc = None
-
-            return dc, ret_keys
-
-
-
-        if 'distribution_filters' not in kwargs.keys():
-            distribution_filters, combine, include_constrained, to_univariates, to_uniforms = self._distribution_collection_defaults(twig=twig, **kwargs)
-        else:
-            # INTERNAL USE ONLY, probably
-            distribution_filters = kwargs.get('distribution_filters')
-            combine = kwargs.get('combine', 'first')
-            include_constrained = kwargs.get('include_constrained', True)
-            to_univariates = kwargs.get('to_univariates', False)
-            to_uniforms = kwargs.get('to_uniforms', False)
-
-        # NOTE: in python3 we could do this with booleans and nonlocal variables,
-        # but for python2 support we can only fake it by mutating a dictionary.
-        # https://stackoverflow.com/questions/3190706/nonlocal-keyword-in-python-2-x
-        raised = {'univariate': False, 'uniform': False}
-
         def _to_dist(dist, to_univariates=False, to_uniform=False):
             if isinstance(dist, _distl.BaseAroundGenerator):
                 # freeze to the current value
@@ -7628,6 +7581,60 @@ class Bundle(ParameterSet):
                 else:
                     k += '[{}]'.format(index)
             return k
+
+        if parameters is not None:
+            parameters_indices = None
+            if isinstance(parameters, ParameterSet):
+                pass
+            elif isinstance(parameters, dict):
+                parameters = self.get_adjustable_parameters(exclude_constrained=False).filter(**parameters)
+            else:
+                parameters, parameters_indices = _extract_index_from_string(parameters)
+                parameters = self.get_adjustable_parameters(exclude_constrained=False).filter(parameters)
+
+            parameters_uniqueids = parameters.uniqueids #parameters_uniqueids_indices[:,0]
+            parameters_uniqueids_with_indices = ["{}[{}]".format(uniqueid, index) for uniqueid,index in zip(parameters_uniqueids, parameters_indices)]
+
+            # now we'll get all AVAILABLE distributions that could match...
+            # any remaining items will need to be propagated or return a delta distribution
+            available_dc, available_uniqueids = self.get_distribution_collection(twig=twig, keys='uniqueid', set_labels=set_labels, parameters=None, allow_non_dc=False, **{k:v for k,v in kwargs.items() if k not in ['allow_non_dc', 'set_labels']})
+            available_uniqueids, available_indices = _extract_index_from_string(available_uniqueids)
+            available_uniqueids_with_indices = ["{}[{}]".format(uniqueid, index) for uniqueid,index in zip(available_uniqueids, available_indices)]
+
+            # first filter through the distributions already in dc
+            ret_dists = [available_dc.dists[i] for i,uniqueid_with_index in enumerate(available_uniqueids_with_indices) if uniqueid_with_index in parameters_uniqueids_with_indices]
+            ret_keys = [_get_key(self.get_parameter(uniqueid=uniqueid_with_index.split('[')[0], **_skip_filter_checks), keys, index) for uniqueid_with_index, index in zip(available_uniqueids_with_indices, available_indices) if uniqueid_with_index in parameters_uniqueids_with_indices]
+
+            # now we need to get any that weren't included in dc
+            new_params = [self.get_parameter(uniqueid=uniqueid_with_index.split('[')[0], **_skip_filter_checks) for uniqueid_with_index in parameters_uniqueids_with_indices if uniqueid_with_index not in available_uniqueids_with_indices]
+            new_indices = [index for index, uniqueid_with_index in zip(parameters_indices, parameters_uniqueids_with_indices) if uniqueid_with_index not in available_uniqueids_with_indices]
+            ret_dists += [param.get_distribution(distribution=available_dc, distribution_uniqueids=available_uniqueids) for param in new_params]
+            ret_keys += [_get_key(param, keys, index) for param,index in zip(new_params,new_indices)]
+            # TODO: do we need to set labels on the newly added dists?
+
+            if kwargs.get('return_dc', True):
+                dc = _distl.DistributionCollection(*ret_dists)
+            else:
+                dc = None
+
+            return dc, ret_keys
+
+
+
+        if 'distribution_filters' not in kwargs.keys():
+            distribution_filters, combine, include_constrained, to_univariates, to_uniforms = self._distribution_collection_defaults(twig=twig, **kwargs)
+        else:
+            # INTERNAL USE ONLY, probably
+            distribution_filters = kwargs.get('distribution_filters')
+            combine = kwargs.get('combine', 'first')
+            include_constrained = kwargs.get('include_constrained', True)
+            to_univariates = kwargs.get('to_univariates', False)
+            to_uniforms = kwargs.get('to_uniforms', False)
+
+        # NOTE: in python3 we could do this with booleans and nonlocal variables,
+        # but for python2 support we can only fake it by mutating a dictionary.
+        # https://stackoverflow.com/questions/3190706/nonlocal-keyword-in-python-2-x
+        raised = {'univariate': False, 'uniform': False}
 
         ret_dists = []
         ret_keys = []
