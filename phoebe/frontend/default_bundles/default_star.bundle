@@ -804,10 +804,10 @@ null
 "description": "Atmosphere table",
 "choices": [
 "phoenix",
-"extern_atmx",
+"extern_planckint",
 "blackbody",
 "ck2004",
-"extern_planckint"
+"extern_atmx"
 ],
 "value": "ck2004",
 "copy_for": {
@@ -960,10 +960,10 @@ null
 "description": "Atmosphere table",
 "choices": [
 "phoenix",
-"extern_atmx",
+"extern_planckint",
 "blackbody",
 "ck2004",
-"extern_planckint"
+"extern_atmx"
 ],
 "value": "ck2004",
 "copy_for": false,
@@ -1074,7 +1074,7 @@ null
 "qualifier": "phoebe_version",
 "context": "setting",
 "description": "Version of PHOEBE",
-"value": "2.3.10",
+"value": "2.3.17",
 "copy_for": false,
 "readonly": true,
 "advanced": true,
