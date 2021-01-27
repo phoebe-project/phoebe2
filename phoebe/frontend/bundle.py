@@ -8838,7 +8838,7 @@ class Bundle(ParameterSet):
             if ld_mode == 'interp':
                 logger.debug("skipping computing ld_coeffs{} for {}@{} because ld_mode{}='interp'".format(bol_suffix, ldcs_param.dataset, ldcs_param.component, bol_suffix))
             elif ld_mode == 'manual':
-                ld_coeffs_manual = self.get_value(qualifier='ld_coeffs{}'.format(bol_suffix), dataset=ldcs_param.dataset, component=ldcs_param.component, **_skip_filter_checks)
+                ld_coeffs_manual = self.get_value(qualifier='ld_coeffs{}'.format(bol_suffix), dataset=ldcs_param.dataset, component=ldcs_param.component, context='dataset', **_skip_filter_checks)
                 ld_coeffs_ret["{}@{}@{}".format('ld_coeffs{}'.format(bol_suffix), ldcs_param.component, 'component' if is_bol else ldcs_param.dataset)] = ld_coeffs_manual
                 continue
             elif ld_mode == 'lookup':
@@ -8883,7 +8883,7 @@ class Bundle(ParameterSet):
 
                 ld_coeffs_ret["ld_coeffs{}@{}@{}".format(bol_suffix, ldcs_param.component, 'component' if is_bol else ldcs_param.dataset)] = ld_coeffs
                 if set_value:
-                    self.set_value(qualifier='ld_coeffs{}'.format(bol_suffix), component=ldcs_param.component, dataset=ldcs_param.dataset, check_visible=False, value=ld_coeffs)
+                    self.set_value(qualifier='ld_coeffs{}'.format(bol_suffix), component=ldcs_param.component, dataset=ldcs_param.dataset, context='dataset', check_visible=False, value=ld_coeffs)
             else:
                 raise NotImplementedError("compute_ld_coeffs not implemented for ld_mode{}='{}'".format(bol_suffix, ld_mode))
 
