@@ -91,7 +91,10 @@ def _get_add_func(mod, func, return_none_if_not_found=False):
     if isinstance(func, str) and "." in func:
         # allow recursive submodule access
         # example: mod=solver, func='samplers.emcee'
-        return _get_add_func(getattr(mod, func.split('.')[0]), ".".join(func.split('.')[1:]), return_none_if_not_found=return_none_if_not_found)
+        if hasattr(mod, func.split('.')[0]):
+            return _get_add_func(getattr(mod, func.split('.')[0]), ".".join(func.split('.')[1:]), return_none_if_not_found=return_none_if_not_found)
+        else:
+            func = None
 
     if isinstance(func, str) and hasattr(mod, func):
         func = getattr(mod, func)
@@ -6469,9 +6472,21 @@ class Bundle(ParameterSet):
         * <phoebe.parameters.constraint.fillout_factor> (contact only)
         * <phoebe.parameters.constraint.requiv_to_pot> (contact only)
 
+        To add a custom constraint, pass the left-hand side (as a <phoebe.parameters.FloatParameter>)
+        and the right-hand side (as a <phoebe.parameters.ConstraintParameter>).
+        For example:
+
+        ```
+        lhs = b.get_parameter(qualifier='teff', component='secondary')
+        rhs = 0.6 * b.get_parameter(qualifier='teff', component='primary')
+        b.add_constraint(lhs, rhs)
+        ```
+
         Arguments
         ------------
         * `*args`: positional arguments can be any one of the following:
+            * lhs (left-hand side parameter) and rhs (right-hand side parameter or
+                ConstraintParameter) of a custom constraint.
             * valid string representation of a constraint
             * callable function (possibly in <phoebe.parameters.constraint>)
                 followed by arguments that return a valid string representation
