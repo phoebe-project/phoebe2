@@ -2407,12 +2407,12 @@ class EllcBackend(BaseBackendByDataset):
 
         # NOTE: domdt is listed in ellc as deg/anomalistic period, but as deg/sidereal period in the fortran source (which agrees with comparisons)
         # NOTE: this does NOT need to be iterative, because the original dperdt is in deg/d and independent of period
-        logger.debug("dperdt (rad/d): ", domdt_rad)
+        logger.debug("dperdt (rad/d): {}".format(domdt_rad))
         period_sid = comp_ps.get_value(qualifier='period', component=orbitref, unit=u.d, **_skip_filter_checks)
         # NOTE: period_sidereal does not need to be corrected from t0@system -> t0_supconj because ellc does not support dpdt
-        logger.debug("period_sidereal(t0@system,t0_ref,dpdt=0): ", period_sid)
+        logger.debug("period_sidereal(t0@system,t0_ref,dpdt=0): {}".format(period_sid))
         domdt = comp_ps.get_value(qualifier='dperdt', component=orbitref, unit=u.deg/u.d, **_skip_filter_checks) * period_sid
-        logger.debug("dperdt (deg/d * period_sidereal): ", domdt)
+        logger.debug("dperdt (deg/d * period_sidereal): {}".format(domdt))
 
         f_c = np.sqrt(ecc) * np.cos(w)
         f_s = np.sqrt(ecc) * np.sin(w)

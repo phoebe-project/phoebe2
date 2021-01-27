@@ -1893,7 +1893,14 @@ class BaseUnivariateDistribution(BaseDistribution):
         The latex label of the distribution object. When not None, this is used for
         the x-label when plotting (see <<class>.plot>).
         """
-        return r"$"+self._label_latex+"$" if self._label_latex is not None else self.label
+        if self._label_latex is not None:
+            if "$" not in self._label_latex:
+                return r"$"+self._label_latex+"$"
+            if "$$" in self._label_latex:
+                return self._label_latex.replace("$$", "$")
+            return self._label_latex
+        else:
+            return self.label
 
     @label_latex.setter
     def label_latex(self, label_latex):
@@ -3527,7 +3534,14 @@ class BaseMultivariateSliceDistribution(BaseUnivariateDistribution):
         -------------
         * string or None
         """
-        return r"$"+self._label_latex+"$" if self._label_latex is not None else self.multivariate.labels_latex[self.dimension] if self.multivariate.labels_latex is not None else None
+        if self._label_latex is not None:
+            if "$" not in self._label_latex:
+                return r"$"+self._label_latex+"$"
+            if "$$" in self._label_latex:
+                return self._label_latex.replace("$$", "$")
+            return self._label_latex
+        else:
+            return self.label
 
     @label_latex.setter
     def label_latex(self, label_latex):
@@ -7744,7 +7758,11 @@ class MVSamplesSlice(BaseMultivariateSliceDistribution):
 
     @property
     def weights(self):
-        return self.multivariate.weights[:, self.dimension] if self.multivariate.weights is not None else None
+        if self.multivariate.weights is None:
+            return None
+        if len(self.multivariate.weights.shape) == 1:
+            return self.multivariate.weights
+        return self.multivariate.weights[:, self.dimension]
 
     @property
     def bw_method(self):
@@ -7998,6 +8016,8 @@ class BaseAroundGenerator(BaseDistlObject):
         if self._label_latex is not None:
             if "$" not in self._label_latex:
                 return r"$"+self._label_latex+"$"
+            if "$$" in self._label_latex:
+                return self._label_latex.replace("$$", "$")
             return self._label_latex
         else:
             return self.label

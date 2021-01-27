@@ -376,6 +376,7 @@ def _get_combined_rv(b, datasets, components, phase_component=None, mask=True, n
 
 class BaseSolverBackend(object):
     def __init__(self):
+        self._allow_mpi = True
         return
 
     @property
@@ -498,7 +499,7 @@ class BaseSolverBackend(object):
         logger.debug("rank:{}/{} calling get_packet_and_solution".format(mpi.myrank, mpi.nprocs))
         packet, solution_ps = self.get_packet_and_solution(b, solver, compute=compute, **kwargs)
 
-        if mpi.enabled:
+        if mpi.enabled and self._allow_mpi:
             # broadcast the packet to ALL workers
             logger.debug("rank:{}/{} broadcasting to all workers".format(mpi.myrank, mpi.nprocs))
             mpi.comm.bcast(packet, root=0)
@@ -1027,6 +1028,13 @@ class EbaiBackend(BaseSolverBackend):
 
         times, phases, fluxes, sigmas = _get_combined_lc(b, lc_datasets, lc_combine, phase_component=orbit, mask=True, normalize=True, phase_sorted=True, phase_bin=phase_bin)
 
+        teffratio_param = orbit_ps.get_parameter(qualifier='teffratio', **_skip_filter_checks)
+        requivsumfrac_param = orbit_ps.get_parameter(qualifier='requivsumfrac', **_skip_filter_checks)
+        esinw_param = orbit_ps.get_parameter(qualifier='esinw', **_skip_filter_checks)
+        ecosw_param = orbit_ps.get_parameter(qualifier='ecosw', **_skip_filter_checks)
+        incl_param = orbit_ps.get_parameter(qualifier='incl', **_skip_filter_checks)
+        t0_supconj_param = orbit_ps.get_parameter(qualifier='t0_supconj', **_skip_filter_checks)
+
         # TODO: cleanup this logic a bit
         lc_geom_dict = lc_geometry.estimate_eclipse_positions_widths(phases, fluxes)
         if np.max(lc_geom_dict.get('ecl_widths', [])) > 0.25:
@@ -1049,17 +1057,10 @@ class EbaiBackend(BaseSolverBackend):
             ebai_fluxes /= ebai_fluxes.max()
 
             # update to t0_supconj based on pshift
-            t0_supconj_param = orbit_ps.get_parameter(qualifier='t0_supconj', **_skip_filter_checks)
             t0_supconj = t0_supconj_param.get_value(unit=u.d) + (pshift * orbit_ps.get_value(qualifier='period', unit=u.d, **_skip_filter_checks))
 
             # run ebai on polyfit sampled fluxes
             teffratio, requivsumfrac, esinw, ecosw, sini = ebai_forward(ebai_fluxes)
-
-        teffratio_param = orbit_ps.get_parameter(qualifier='teffratio', **_skip_filter_checks)
-        requivsumfrac_param = orbit_ps.get_parameter(qualifier='requivsumfrac', **_skip_filter_checks)
-        esinw_param = orbit_ps.get_parameter(qualifier='esinw', **_skip_filter_checks)
-        ecosw_param = orbit_ps.get_parameter(qualifier='ecosw', **_skip_filter_checks)
-        incl_param = orbit_ps.get_parameter(qualifier='incl', **_skip_filter_checks)
 
         fitted_params = [t0_supconj_param, teffratio_param, requivsumfrac_param, esinw_param, ecosw_param, incl_param]
         fitted_uniqueids = [p.uniqueid for p in fitted_params]
@@ -1698,6 +1699,10 @@ class _ScipyOptimizeBaseBackend(BaseSolverBackend):
     * <phoebe.frontend.bundle.Bundle.add_solver>
     * <phoebe.frontend.bundle.Bundle.run_solver>
     """
+    def __init__(self):
+        super(_ScipyOptimizeBaseBackend, self).__init__()
+        self._allow_mpi = False
+
     def run_checks(self, b, solver, compute, **kwargs):
         solver_ps = b.get_solver(solver=solver, **_skip_filter_checks)
         if not len(solver_ps.get_value(qualifier='fit_parameters', fit_parameters=kwargs.get('fit_parameters', None), expand=True)):
@@ -1730,8 +1735,14 @@ class _ScipyOptimizeBaseBackend(BaseSolverBackend):
 
     def run_worker(self, b, solver, compute, **kwargs):
         if mpi.within_mpirun:
-            raise NotImplementedError("mpi support for scipy.optimize not yet implemented")
-            # TODO: we need to tell the workers to join the pool for time-parallelization?
+            is_master = mpi.myrank == 0
+        else:
+            is_master = True
+
+        if not is_master:
+            # rejoin the pool to get per-time or per-dataset parallelization by
+            # backends that support that
+            return
 
         fit_parameters = kwargs.get('fit_parameters') # list of twigs
         initial_values = kwargs.get('initial_values') # dictionary

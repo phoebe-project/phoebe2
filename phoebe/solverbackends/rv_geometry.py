@@ -31,10 +31,50 @@ def smooth_rv(rvdata):
  
     return np.array([rvdata[:,0], rv_smooth, rvdata[:,2]]).T
 
+def interpolate_rvs(rv1data, rv2data):
 
-def estimate_q(rv1data, rv2data, vgamma=None):
-    rv1max = max(rv1data[:,1])
-    rv2min = rv2data[:,1][rv1data[:,1]==rv1max]
+    phases1, rvs1 = rv1data[:,0], rv1data[:,1]
+    phases2, rvs2 = rv2data[:,0], rv2data[:,1]
+    # find the min and max phases of both arrays
+    ph1_min, ph1_max = phases1.min(), phases1.max()
+    ph2_min, ph2_max = phases2.min(), phases2.max()
+
+    # determine the overlapping region
+    ph_min = max([ph1_min, ph2_min])
+    ph_max = min([ph1_max, ph2_max])
+
+    # filter the rv arrays to only include the overlapping regions
+    # interpolate in the array that covers more phases
+
+    cond1 = (ph_min <= phases1) & (phases1 <= ph_max)
+    cond2 = (ph_min <= phases2) & (phases2 <= ph_max)
+
+    ph1_new, rvs1_new = phases1[cond1], rvs1[cond1]
+    ph2_new, rvs2_new = phases2[cond2], rvs2[cond2]
+
+    if len(ph1_new) > len(ph2_new):
+        # interpolate rv2 in ph1 phases
+        rv2_interp = interp1d(ph2_new, rvs2_new)
+        rvs2_new = rv2_interp(ph1_new)
+    else:
+        # interpolate rv1 in ph2 phases
+        rv1_interp = interp1d(ph1_new, rvs1_new)
+        rvs1_new = rv1_interp(ph2_new)
+
+    return rvs1_new, rvs2_new
+    
+
+def estimate_q(rv1data, rv2data, vgamma=None, tol=1e-8):
+    if len(rv1data) != len(rv2data):
+        rvs1, rvs2 = interpolate_rvs(rv1data, rv2data)
+    elif (np.abs(rv1data[:,0] - rv2data[:,0]) > 1e-8).any():
+        rvs1, rvs2 = interpolate_rvs(rv1data, rv2data)
+    else:
+        rvs1 = rv1data[:,1]
+        rvs2 = rv2data[:,1]
+
+    rv1max = max(rvs1)
+    rv2min = rvs2[rvs1 ==rv1max]
 #     rv2max = max(rv2data[:,1])
     if vgamma is None:
         return np.abs(rv1max/rv2min)
@@ -43,7 +83,15 @@ def estimate_q(rv1data, rv2data, vgamma=None):
 
 
 def estimate_vgamma(rv1data, rv2data, q=1.):
-    return np.mean(rv1data[:,1]+q*rv2data[:,1])/(1+q)
+    if len(rv1data) != len(rv2data):
+        rvs1, rvs2 = interpolate_rvs(rv1data, rv2data)
+    elif (np.abs(rv1data[:,0] - rv2data[:,0]) > 1e-8).any():
+        rvs1, rvs2 = interpolate_rvs(rv1data, rv2data)
+    else:
+        rvs1 = rv1data[:,1]
+        rvs2 = rv2data[:,1]
+
+    return np.mean(rvs1+q*rvs2)/(1+q)
 
 
 def estimate_q_vgamma(rv1data, rv2data, maxiter=10):
