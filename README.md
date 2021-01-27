@@ -86,7 +86,7 @@ CHANGELOG
 
 ### 2.3.17 - optimizer MPI fix
 
-* enables optimization (per-time or per-dataset) for optimizers.
+* enables parallelization (per-time or per-dataset) for optimizers.
 
 ### 2.3.16 - rv_geometry with different lengths fix
 
