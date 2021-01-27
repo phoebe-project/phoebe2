@@ -84,6 +84,34 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.3.17 - optimizer MPI fix
+
+* enables parallelization (per-time or per-dataset) for optimizers.
+
+### 2.3.16 - rv_geometry with different lengths fix
+
+* fixes estimator.rv_geometry when primary and secondary component have different times.
+
+### 2.3.15 - alternate backends with l3_frac and dataset-scaled fix
+
+* fix bug in applying l3_frac within dataset scaling (pblum_mode='dataset-scaled') when using alternate backends.
+
+### 2.3.14 - import_solution with uniqueid mismatch fix
+
+* fix bug where falling back on twigs when importing a solution on a different bundle failed.  It is still suggested to save the bundle and import solutions on the bundle used when calling export_solver.
+
+### 2.3.13 - estimator.ebai with wide eclipse fix
+
+* fix bug that raised internal error when running ebai on an eclipse with width larger than 0.25 in phase.  Note that these systems will still return nans as ebai is not well-suited to these systems, but the internal error will no longer occur.
+
+### 2.3.12 - plot univariate distributions latex label fix
+
+* fix bug in the latex labels on plots when converting from multivariate to univariate distributions.
+
+### 2.3.11 - continue_from run_checks fix
+
+* fix bug where run_checks raised an error for an empty init_from if continue_from was set.
+
 ### 2.3.10 - alternate backend atm fix
 
 * fix bug where atm parameter was ignored during passband luminosity scaling while using an alternate backend, resulting in an atmosphere out-of-bounds error in some situations.
@@ -345,4 +373,4 @@ an envelope were being raised before all constraints could resolve successfully.
 QUESTIONS? SUGGESTIONS? CONCERNS?
 ---------------------------------
 
-Contact us! Issues and feature requests should be submitted directly through GitHub's issue tracker. Two mailing lists are dedicated for discussion, either on user level ([phoebe-discuss@lists.sourceforge.net](mailto:phoebe-discuss@lists.sourceforge.net)) or on the developer level ([phoebe-devel@lists.sourceforge.net](mailto:phoebe-devel@lists.sourceforge.net)). We are eager to hear from you, so do not hesitate to contact us!
+Contact us! Issues and feature requests should be submitted directly through GitHub's [issue tracker](https://github.com/phoebe-project/phoebe2/issues).  Additional questions or feature requests should be submitted via [GitHub PHOEBE2 discussions](https://github.com/phoebe-project/phoebe2/discussions) or [GitHub PHOEBE2-UI discussions](https://github.com/phoebe-project/phoebe2-ui/discussions). We are eager to hear from you, so do not hesitate to [contact us](http://phoebe-project.org/help/contact)!

@@ -4186,8 +4186,13 @@ class Bundle(ParameterSet):
                 fit_ps = adjustable_parameters.filter(twig=fit_parameters, **_skip_filter_checks)
 
 
+            # need check_visible in case hidden by continue_from
             elif 'init_from' in solver_ps.qualifiers:
-                _, init_from_uniqueids = self.get_distribution_collection(kwargs.get('init_from', 'init_from@{}'.format(solver)), keys='uniqueid', return_dc=False)
+                continue_from = solver_ps.get_value(qualifier='continue_from', continue_from=kwargs.get('continue_from', None), default='None', **_skip_filter_checks)
+                if continue_from.lower() != 'none':
+                    _, init_from_uniqueids = self.get_distribution_collection(solution=continue_from, keys='uniqueid', return_dc=False)
+                else:
+                    _, init_from_uniqueids = self.get_distribution_collection(kwargs.get('init_from', 'init_from@{}'.format(solver)), keys='uniqueid', return_dc=False)
 
                 if not len(init_from_uniqueids):
                     report.add_item(self,
@@ -10289,10 +10294,21 @@ class Bundle(ParameterSet):
                                 ml_params.set_value(qualifier='times', dataset=ds, value=times_ds, ignore_readonly=True, **_skip_filter_checks)
                                 ml_params.set_value(qualifier='fluxes', dataset=ds, value=fluxes, ignore_readonly=True, **_skip_filter_checks)
 
+                # handle scaling to absolute fluxes as necessary for alternate backends
+                # NOTE: this must happen BEFORE dataset-scaling as that scaling assumes absolute fluxes
+                for flux_param in ml_params.filter(qualifier='fluxes', kind='lc', **_skip_filter_checks).to_list():
+                    fluxes = flux_param.get_value(unit=u.W/u.m**2)
+                    if computeparams.kind not in ['phoebe', 'legacy']:
+                        # then we need to scale the "normalized" fluxes to pbflux first
+                        fluxes *= pbfluxes.get(flux_param.dataset)
+                        # otherwise fluxes are already correctly scaled by passing
+                        # relative pblums or pblums_scale to the respective backend
+
+                        flux_param.set_value(fluxes, ignore_readonly=True)
+
                 # handle flux scaling for any pblum_mode == 'dataset-scaled'
                 # or for any dataset in which pblum_mode == 'dataset-coupled' and pblum_dataset points to a 'dataset-scaled' dataset
                 datasets_dsscaled = []
-
                 coupled_datasets = self.filter(qualifier='pblum_mode', dataset=ml_params.datasets, value='dataset-coupled', **_skip_filter_checks).datasets
                 for pblum_mode_param in self.filter(qualifier='pblum_mode', dataset=ml_params.datasets, value='dataset-scaled', **_skip_filter_checks).to_list():
                     this_dsscale_datasets = [pblum_mode_param.dataset] + self.filter(qualifier='pblum_dataset', dataset=coupled_datasets, value=pblum_mode_param.dataset, **_skip_filter_checks).datasets
@@ -10347,7 +10363,6 @@ class Bundle(ParameterSet):
                         # use values in this namespace rather than passing directly
                         return _scale_fluxes(fluxes, scale_factor, l3_fracs, l3_pblum_abs_sums, l3_fluxes)
 
-                    # TODO: can we skip this if sigmas don't exist?
                     logger.debug("calling curve_fit with estimated scale_factor={}".format(scale_factor_approx))
                     popt, pcov = cfit(_scale_fluxes_cfit, model_fluxess_interp, ds_fluxess, p0=(scale_factor_approx), sigma=ds_sigmass)
                     scale_factor = popt[0]
@@ -10372,17 +10387,6 @@ class Bundle(ParameterSet):
 
                         flux_param.set_value(qualifier='fluxes', value=syn_fluxes, ignore_readonly=True)
 
-                        # scale_factor is currently the factor between the native backend fluxes
-                        # and those scaled to the dataset.  For backends to natively give absolute
-                        # fluxes, this can then be applied to luminosities.  But for those that
-                        # do not give absolute fluxes, we need to estimate that as well (in other
-                        # words estimate the scaling factor between absolute and the backend as well)
-                        if computeparams.kind in ['ellc', 'jktebop']:
-                            logger.info("estimating absolute flux for compute='{}', dataset='{}' to apply to flux_scale".format(computeparams.compute, flux_param.dataset))
-                            system, pblums_abs, pblums_scale, pblums_rel, pbfluxes = self.compute_pblums(compute=computeparams.compute, dataset=flux_param.dataset, pblum_abs=True, ret_structured_dicts=True, skip_checks=True, **kwargs)
-                            pbflux_abs_est = np.sum(np.asarray(list(pblums_abs.get(flux_param.dataset).values()))/(4*np.pi))
-                            scale_factor /= pbflux_abs_est
-
                         ml_addl_params += [FloatParameter(qualifier='flux_scale', dataset=dataset, value=scale_factor, readonly=True, default_unit=u.dimensionless_unscaled, description='scaling applied to fluxes (intensities/luminosities) due to dataset-scaling')]
 
                         for mesh_param in ml_params.filter(kind='mesh', **_skip_filter_checks).to_list():
@@ -10390,7 +10394,8 @@ class Bundle(ParameterSet):
                                 logger.debug("applying scale_factor={} to {} parameter in mesh".format(scale_factor, mesh_param.qualifier))
                                 mesh_param.set_value(mesh_param.get_value()*scale_factor, ignore_readonly=True)
 
-                # handle flux scaling based on pbflux, distance, l3
+                # handle flux scaling based on distance and l3
+                # NOTE: this must happen AFTER dataset scaling
                 distance = self.get_value(qualifier='distance', context='system', unit=u.m, **_skip_filter_checks)
                 for flux_param in ml_params.filter(qualifier='fluxes', kind='lc', **_skip_filter_checks).to_list():
                     dataset = flux_param.dataset
@@ -10400,12 +10405,6 @@ class Bundle(ParameterSet):
                         continue
 
                     fluxes = flux_param.get_value(unit=u.W/u.m**2)
-                    if computeparams.kind not in ['phoebe', 'legacy']:
-                        # then we need to scale the "normalized" fluxes to pbflux first
-                        fluxes *= pbfluxes.get(dataset)
-                    # otherwise fluxes are already correctly scaled by passing
-                    # relative pblums or pblums_scale to the respective backend
-
                     fluxes = fluxes/distance**2 + l3s.get(dataset)
 
                     flux_param.set_value(fluxes, ignore_readonly=True)
