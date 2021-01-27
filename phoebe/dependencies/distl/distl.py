@@ -3279,7 +3279,7 @@ class BaseMultivariateDistribution(BaseDistribution):
             # TODO: wrapping can sometimes cause annoying things with bins due to a large datagap.
             # Perhaps we should bin and then wrap?  Or bin before wrapping and get a guess at the
             # appropriate bins
-            label = kwargs.pop('label', self.labels[dimension] if self.labels is not None else None)
+            label = kwargs.pop('label', self.labels_latex[dimension] if self.labels_latex is not None else None)
             if not isinstance(label, str):
                 raise TypeError("label must be of type string if dimension is provided")
             unit = kwargs.pop('unit', self.units[dimension] if self.units is not None else None)
@@ -3300,7 +3300,7 @@ class BaseMultivariateDistribution(BaseDistribution):
 
 
             plot_uncertainties = kwargs.pop('plot_uncertainties', True)
-            labels = kwargs.pop('label', self.labels if self.labels is not None else [None]*self.ndimensions)
+            labels = kwargs.pop('label', self.labels_latex if self.labels_latex is not None else [None]*self.ndimensions)
             if len(labels) != self.ndimensions:
                 raise ValueError("label must have length {}".format(self.ndimensions))
             xlabels = kwargs.pop('xlabel', [self._xlabel(dim, label=l) for dim,l in zip(range(self.ndimensions), labels)])
@@ -3534,12 +3534,15 @@ class BaseMultivariateSliceDistribution(BaseUnivariateDistribution):
         -------------
         * string or None
         """
-        if self._label_latex is not None:
-            if "$" not in self._label_latex:
-                return r"$"+self._label_latex+"$"
-            if "$$" in self._label_latex:
-                return self._label_latex.replace("$$", "$")
-            return self._label_latex
+        _label_latex = self._label_latex if self._label_latex is not None else self.multivariate._labels_latex[self.dimension] if self.multivariate._labels_latex is not None else None
+
+
+        if _label_latex is not None:
+            if "$" not in _label_latex:
+                return r"$"+_label_latex+"$"
+            if "$$" in _label_latex:
+                return _label_latex.replace("$$", "$")
+            return _label_latex
         else:
             return self.label
 

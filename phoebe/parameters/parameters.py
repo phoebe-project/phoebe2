@@ -460,10 +460,10 @@ def _corner_twig(param, use_tex=True, index=None):
         else:
             return '{}[{}]@{}'.format(param.qualifier, index, getattr(param, param.context))
 
-def _corner_label(param, index=None):
+def _corner_label(param, index=None, use_tex=True):
     if param.default_unit.to_string():
-        return '{} [{}]'.format(_corner_twig(param, index=index), param.default_unit)
-    return _corner_twig(param, index=index)
+        return '{} [{}]'.format(_corner_twig(param, use_tex=use_tex, index=index), param.default_unit)
+    return _corner_twig(param, use_tex=use_tex, index=index)
 
 
 def parameter_from_json(dictionary, bundle=None):
@@ -4955,7 +4955,7 @@ class ParameterSet(object):
                             kwargs['xlabel'] = 'iteration (burnin={}, thin={}, lnprob_cutoff={})'.format(burnin, thin, lnprob_cutoff)
 
                             kwargs['y'] = samples_y
-                            kwargs['ylabel'] = _corner_twig(yparam, index=index)
+                            kwargs['ylabel'] = _corner_label(yparam, index=index)
                             # TODO: use fitted_units instead?
                             kwargs['yunit'] = fitted_units[parameter_ind]
                             return_ += [kwargs]
