@@ -84,6 +84,10 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.3.18 - estimator.ebai with wide eclipse fix (attempt 2)
+
+* actually fixes bug (see 2.3.13) that raised internal error when running ebai on an eclipse with width larger than 0.25 in phase.  Note that these systems will still return nans as ebai is not well-suited to these systems, but the internal error will no longer occur.
+
 ### 2.3.17 - optimizer MPI fix
 
 * enables parallelization (per-time or per-dataset) for optimizers.
@@ -102,7 +106,7 @@ CHANGELOG
 
 ### 2.3.13 - estimator.ebai with wide eclipse fix
 
-* fix bug that raised internal error when running ebai on an eclipse with width larger than 0.25 in phase.  Note that these systems will still return nans as ebai is not well-suited to these systems, but the internal error will no longer occur.
+* fix bug (but not really - see 2.3.18) that raised internal error when running ebai on an eclipse with width larger than 0.25 in phase.  Note that these systems will still return nans as ebai is not well-suited to these systems, but the internal error will no longer occur.  
 
 ### 2.3.12 - plot univariate distributions latex label fix
 
