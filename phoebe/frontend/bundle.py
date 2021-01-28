@@ -8883,7 +8883,7 @@ class Bundle(ParameterSet):
 
                 ld_coeffs_ret["ld_coeffs{}@{}@{}".format(bol_suffix, ldcs_param.component, 'component' if is_bol else ldcs_param.dataset)] = ld_coeffs
                 if set_value:
-                    self.set_value(qualifier='ld_coeffs{}'.format(bol_suffix), component=ldcs_param.component, dataset=ldcs_param.dataset, context='dataset', check_visible=False, value=ld_coeffs)
+                    self.set_value(qualifier='ld_coeffs{}'.format(bol_suffix), component=ldcs_param.component, dataset=ldcs_param.dataset, context='component' if bol_suffix else 'dataset', check_visible=False, value=ld_coeffs)
             else:
                 raise NotImplementedError("compute_ld_coeffs not implemented for ld_mode{}='{}'".format(bol_suffix, ld_mode))
 
