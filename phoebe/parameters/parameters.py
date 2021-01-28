@@ -3233,6 +3233,8 @@ class ParameterSet(object):
         twig, index = _extract_index_from_string(twig)
         if kwargs.get('qualifier', None):
             kwargs['qualifier'], index = _extract_index_from_string(kwargs.get('qualifier'))
+        if kwargs.get('uniqueid', None):
+            kwargs['uniqueid'], index = _extract_index_from_string(kwargs.get('uniqueid'))
 
         param = self.get_parameter(twig=twig, **kwargs)
 

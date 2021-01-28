@@ -8172,7 +8172,7 @@ class Bundle(ParameterSet):
         # any that were composite set by the user, not via or/and when
         # combining).
 
-        # print("{} .logpdf(values={})".format(dc.distributions, values))
+        # print("{} .logpdf(values={})".format(dc.dists, values))
         return dc.logpdf(values, as_univariates=True)
 
     @send_if_client
