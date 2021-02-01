@@ -3310,8 +3310,18 @@ def update_passband_available(passband, history_dict=False):
     elif online_timestamp is None:
         return _return(passband, False)
 
-    elif _timestamp_to_dt(installed_timestamp) < _timestamp_to_dt(online_timestamp):
-        return _return(passband, True)
+    else:
+        try:
+            installed_timestamp_dt = _timestamp_to_dt(installed_timestamp)
+            online_timestamp_dt = _timestamp_to_dt(online_timestamp)
+        except Exception as err:
+            msg = "failed to convert passband timestamps, so cannot determine if updates are available.  To disable online passbands entirely, set the environment variable PHOEBE_ENABLE_ONLINE_PASSBANDS=FALSE.  Check tables.phoebe-project.org manually for updates.  Original error: {}".format(err)
+            print("ERROR: {}".format(msg))
+            logger.error(msg)
+            return _return(passband, False)
+        else:
+            if installed_timestamp_dt < online_timestamp_dt:
+                return _return(passband, True)
 
     return _return(passband, False)
 
