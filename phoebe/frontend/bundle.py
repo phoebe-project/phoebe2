@@ -1286,6 +1286,64 @@ class Bundle(ParameterSet):
 
         #return io.pass_to_legacy(self, filename, compute=compute)
 
+    def export_mesh_obj(self, filename, coordinates='uvw', model=None, dataset=None, component=None, time=None):
+        """
+        Export a mesh (or multiple meshes) from a model to an OBJ file.
+        Note that this includes no color information.
+
+        All meshes (in the `model` context) matching the filter will be exported.
+
+        Arguments
+        -------------
+        * `filename`: filename of the .obj file to write
+        * `coordinates` (string, optional, default='uvw'): whether to export
+            using 'uvw' or 'xyz' coordinates.
+        * `model` (string, optional, default=None): model to use when filtering
+            for meshes.
+        * `dataset` (string, optional, default=None): dataset to use when filtering
+            for meshes.
+        * `component` (string, optional, default=None): component to use when
+            filtering for meshes.
+        * `time` (string/float, optional, default=None): time to use when filtering
+            for meshes.
+
+        Returns
+        -----------
+        * (string) `filename`
+        """
+
+        if coordinates == 'uvw':
+            qualifier = 'uvw_elements'
+        elif coordinates == 'xyz':
+            qualifier = 'xyz_elements'
+        else:
+            raise ValueError("coordinates must be uvw or xzy")
+
+        elements_params = self.filter(qualifier=qualifier,
+                                      dataset=dataset,
+                                      time=time,
+                                      model=model,
+                                      component=component,
+                                      context='model',
+                                      **_skip_filter_checks)
+
+        f = open(filename, 'w')
+        f.write("# OBJ file created by PHOEBE\n\n")
+
+        t = 0
+        for element_param in elements_params.to_list():
+            for triangle in element_param.get_value():
+                for vertex in triangle:
+                    f.write("v {} {} {} 0.5 0.3 0.8\n".format(*vertex))
+                f.write("f {} {} {}\n".format(3*t+1, 3*t+2, 3*t+3))
+                t+=1
+
+        f.close()
+        return filename
+
+
+
+
 
     def _test_server(self, server='http://localhost:5555', wait_for_server=False):
         """
