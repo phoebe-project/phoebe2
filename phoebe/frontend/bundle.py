@@ -1286,18 +1286,27 @@ class Bundle(ParameterSet):
 
         #return io.pass_to_legacy(self, filename, compute=compute)
 
-    def export_mesh_obj(self, filename, coordinates='uvw', model=None, dataset=None, component=None, time=None):
+    def export_mesh(self, filename, format=None, coordinates='uvw', model=None, dataset=None, component=None, time=None):
         """
-        Export a mesh (or multiple meshes) from a model to an OBJ file.
-        Note that this includes no color information.
+        Export a mesh (or multiple meshes) from a model to a supported 3D object
+        format.  Note that these includes no color information.
 
         All meshes (in the `model` context) matching the filter will be exported.
 
         Arguments
         -------------
-        * `filename`: filename of the .obj file to write
+        * `filename` (string): filename of the output file (will overwrite if
+            already exists)
+        * `format` (string, optional, default=None): format to use.  Supports
+            'obj' and 'stl'.  If not provided or none, will default based on
+            extension of `filename` or raise a ValueError.  `numpy-stl` package
+            required for `format='stl'`.
         * `coordinates` (string, optional, default='uvw'): whether to export
-            using 'uvw' or 'xyz' coordinates.
+            using 'uvw' or 'xyz' coordinates.  Only meshes that have the chosen
+            coordinate system exposed will be included in the filter (via
+            qualifier='uvw_elements' or 'xyz_elements').  See the `coordinates`
+            parameter in the mesh dataset to choose which are exposed when calling
+            <phoebe.frontend.bundle.Bundle.run_compute>.
         * `model` (string, optional, default=None): model to use when filtering
             for meshes.
         * `dataset` (string, optional, default=None): dataset to use when filtering
@@ -1312,12 +1321,15 @@ class Bundle(ParameterSet):
         * (string) `filename`
         """
 
+        if format is None:
+            format = filename.split('.')[-1]
+
         if coordinates == 'uvw':
             qualifier = 'uvw_elements'
         elif coordinates == 'xyz':
             qualifier = 'xyz_elements'
         else:
-            raise ValueError("coordinates must be uvw or xzy")
+            raise ValueError("coordinates must be uvw (plane-of-sky) or xzy (roche)")
 
         elements_params = self.filter(qualifier=qualifier,
                                       dataset=dataset,
@@ -1327,23 +1339,38 @@ class Bundle(ParameterSet):
                                       context='model',
                                       **_skip_filter_checks)
 
-        f = open(filename, 'w')
-        f.write("# OBJ file created by PHOEBE\n\n")
+        if format == 'obj':
+            f = open(filename, 'w')
+            f.write("# OBJ file created by PHOEBE\n\n")
 
-        t = 0
-        for element_param in elements_params.to_list():
-            for triangle in element_param.get_value():
-                for vertex in triangle:
-                    f.write("v {} {} {} 0.5 0.3 0.8\n".format(*vertex))
-                f.write("f {} {} {}\n".format(3*t+1, 3*t+2, 3*t+3))
-                t+=1
+            t = 0
+            for element_param in elements_params.to_list():
+                for triangle in element_param.get_value():
+                    # TODO: optimize this by not repeating vertices btwn triangles?
+                    for vertex in triangle:
+                        f.write("v {} {} {} 0.5 0.3 0.8\n".format(*vertex))
+                    f.write("f {} {} {}\n".format(3*t+1, 3*t+2, 3*t+3))
+                    t+=1
 
-        f.close()
+            f.close()
+        elif format == 'stl':
+            try:
+                from stl import mesh as _stl_mesh
+            except ImportError:
+                raise ImportError("install numpy-stl package to export to stl format")
+
+            # stl implementation adapted from Michael Abdul-Masih
+            faces = np.concatenate([element_param.get_value() for element_param in elements_params.to_list()])
+
+            cube = _stl_mesh.Mesh(np.zeros(faces.shape[0], dtype=_stl_mesh.Mesh.dtype))
+            cube.vectors = faces
+
+            cube.save(filename)
+
+        else:
+            raise ValueError("format of {} not implemented.  Must be one obj or stl.")
+
         return filename
-
-
-
-
 
     def _test_server(self, server='http://localhost:5555', wait_for_server=False):
         """
