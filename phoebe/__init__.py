@@ -16,7 +16,7 @@ Available environment variables:
 
 """
 
-__version__ = '2.3.17'
+__version__ = '2.3.19'
 
 import os as _os
 import sys as _sys
@@ -946,10 +946,11 @@ def list_available_solvers(devel=False):
     """
     return _get_phoebe_funcs(solver, devel=devel)
 
-for pb in list_all_update_passbands_available():
-    msg = 'passband "{}" has a newer version available.  Run phoebe.list_passband_online_history("{}") to get a list of available changes and phoebe.update_passband("{}") or phoebe.update_all_passbands() to update.'.format(pb, pb, pb)
-    # NOTE: we'll print since the logger hasn't been initialized yet.
-    print('PHOEBE: {}'.format(msg))
+if _env_variable_bool('PHOEBE_ENABLE_ONLINE_PASSBANDS', 'TRUE'):
+    for pb in list_all_update_passbands_available():
+        msg = 'passband "{}" has a newer version available.  Run phoebe.list_passband_online_history("{}") to get a list of available changes and phoebe.update_passband("{}") or phoebe.update_all_passbands() to update.'.format(pb, pb, pb)
+        # NOTE: we'll print since the logger hasn't been initialized yet.
+        print('PHOEBE: {}'.format(msg))
 
 # delete things we don't want exposed to the user at the top-level
 # NOTE: we need _sys for reset_settings, that's why its __sys

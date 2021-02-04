@@ -1051,12 +1051,15 @@ class EbaiBackend(BaseSolverBackend):
         lc_geom_dict = lc_geometry.estimate_eclipse_positions_widths(phases, fluxes)
         if np.max(lc_geom_dict.get('ecl_widths', [])) > 0.25:
             logger.warning("ebai: eclipse width over 0.25 detected.  Returning all nans")
+            pshift = 0.0
             t0_supconj = np.nan
             teffratio = np.nan
             requivsumfrac = np.nan
             esinw = np.nan
             ecosw = np.nan
             sini = np.nan
+            ebai_phases = []
+            ebai_fluxes = []
         else:
             ecl_positions = lc_geom_dict.get('ecl_positions')
             # assume primary is close to zero?
