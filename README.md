@@ -84,6 +84,12 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.3.19 - passbands update available datetime string parsing bugfix
+
+* some systems fail to parse common datetime strings, resulting in inability to import phoebe when checking for available passband updates.  This now prints and logs an error message, but does not prevent import.
+* checking for available passband updates on import now correctly respects the PHOEBE_ENABLE_ONLINE_PASSBANDS environment variable.
+* failed online passbands connection error messages are now only included in the log once (per processor) to avoid spamming the log (but are shown by default when manually calling phoebe.list_online_passbands).
+
 ### 2.3.18 - estimator.ebai with wide eclipse fix (attempt 2)
 
 * actually fixes bug (see 2.3.13) that raised internal error when running ebai on an eclipse with width larger than 0.25 in phase.  Note that these systems will still return nans as ebai is not well-suited to these systems, but the internal error will no longer occur.

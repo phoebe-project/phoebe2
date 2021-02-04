@@ -2974,7 +2974,7 @@ def _init_passbands(refresh=False, query_online=True, passband_directories=None)
         # load information from online passbands first so that any that are
         # available locally will override
         if query_online:
-            online_passbands = list_online_passbands(full_dict=True, refresh=refresh)
+            online_passbands = list_online_passbands(full_dict=True, refresh=refresh, repeat_errors=False)
             for pb, info in online_passbands.items():
                 _pbtable[pb] = {'fname': None, 'atms': info['atms'], 'atms_ld': info.get('atms_ld', ['ck2004']), 'pb': None}
 
@@ -3160,7 +3160,7 @@ def download_passband(passband, content=None, local=True, gzipped=None):
         <phoebe.atmospheres.passbands.list_online_passbands>.
     * IOError: if internet connection fails.
     """
-    if passband not in list_online_passbands():
+    if passband not in list_online_passbands(repeat_errors=False):
         raise ValueError("passband '{}' not available".format(passband))
 
     if content is None:
@@ -3218,7 +3218,7 @@ def list_passband_online_history(passband, since_installed=True):
     ----------
     * (dict): dictionary with timestamps as keys and messages and values.
     """
-    if passband not in list_online_passbands():
+    if passband not in list_online_passbands(repeat_errors=False):
         raise ValueError("'{}' passband not availabe online".format(passband))
 
     url = '{}/pbs/history/{}?phoebe_version={}'.format(_url_tables_server, passband, phoebe_version)
@@ -3293,7 +3293,7 @@ def update_passband_available(passband, history_dict=False):
             else:
                 return False
 
-    if passband not in list_online_passbands():
+    if passband not in list_online_passbands(repeat_errors=False):
         logger.warning("{} not available in online passbands".format(passband))
         return _return(passband, False)
 
@@ -3310,8 +3310,18 @@ def update_passband_available(passband, history_dict=False):
     elif online_timestamp is None:
         return _return(passband, False)
 
-    elif _timestamp_to_dt(installed_timestamp) < _timestamp_to_dt(online_timestamp):
-        return _return(passband, True)
+    else:
+        try:
+            installed_timestamp_dt = _timestamp_to_dt(installed_timestamp)
+            online_timestamp_dt = _timestamp_to_dt(online_timestamp)
+        except Exception as err:
+            msg = "failed to convert passband timestamps, so cannot determine if updates are available.  To disable online passbands entirely, set the environment variable PHOEBE_ENABLE_ONLINE_PASSBANDS=FALSE.  Check tables.phoebe-project.org manually for updates.  Original error: {}".format(err)
+            print("ERROR: {}".format(msg))
+            logger.error(msg)
+            return _return(passband, False)
+        else:
+            if installed_timestamp_dt < online_timestamp_dt:
+                return _return(passband, True)
 
     return _return(passband, False)
 
@@ -3513,7 +3523,7 @@ def list_passbands(refresh=False, full_dict=False, skip_keys=[]):
     * (list of strings or dictionary, depending on `full_dict`)
     """
     if full_dict:
-        d = list_online_passbands(refresh, True, skip_keys=skip_keys)
+        d = list_online_passbands(refresh, True, skip_keys=skip_keys, repeat_errors=False)
         for k in d.keys():
             if 'installed' not in skip_keys:
                 d[k]['installed'] = False
@@ -3524,7 +3534,7 @@ def list_passbands(refresh=False, full_dict=False, skip_keys=[]):
                 d[k]['installed'] = True
         return d
     else:
-        return list(set(list_installed_passbands(refresh) + list_online_passbands(refresh)))
+        return list(set(list_installed_passbands(refresh) + list_online_passbands(refresh, repeat_errors=False)))
 
 def list_installed_passbands(refresh=False, full_dict=False, skip_keys=[]):
     """
@@ -3562,7 +3572,7 @@ def list_installed_passbands(refresh=False, full_dict=False, skip_keys=[]):
     else:
         return [k for k,v in _pbtable.items() if v['fname'] is not None]
 
-def list_online_passbands(refresh=False, full_dict=False, skip_keys=[]):
+def list_online_passbands(refresh=False, full_dict=False, skip_keys=[], repeat_errors=True):
     """
     For convenience, this function is available at the top-level as
     <phoebe.list_online_passbands> as well as
@@ -3582,6 +3592,10 @@ def list_online_passbands(refresh=False, full_dict=False, skip_keys=[]):
         of names.
     * `skip_keys` (list, optional, default=[]): keys to exclude from the returned
         dictionary.  Only applicable if `full_dict` is True.
+    * `repeat_errors` (bool, optional, default=True): whether to continue to show
+        errors if online passbands are unavailable.  (Internally this is passed
+        as False so that the error message does not spam the log, but defaults
+        to True so if calling manually the error message is shown).
 
     Returns
     --------
@@ -3591,8 +3605,10 @@ def list_online_passbands(refresh=False, full_dict=False, skip_keys=[]):
     global _online_passband_failedtries
     if os.getenv('PHOEBE_ENABLE_ONLINE_PASSBANDS', 'TRUE').upper() == 'TRUE' and (len(_online_passbands.keys())==0 or refresh):
         if _online_passband_failedtries >= 3 and not refresh:
-            msg = "Online passbands unavailable (reached max tries).  Pass refresh=True to force another attempt."
-            logger.warning(msg)
+            if ((_online_passband_failedtries >= 3 and repeat_errors) or (_online_passband_failedtries==3)):
+                msg = "Online passbands unavailable (reached max tries).  Pass refresh=True to force another attempt or repeat_errors=False to avoid showing this message."
+                logger.warning(msg)
+            _online_passband_failedtries += 1
         else:
             url = '{}/pbs/list?phoebe_version={}'.format(_url_tables_server, phoebe_version)
 
@@ -3627,7 +3643,7 @@ def list_online_passbands(refresh=False, full_dict=False, skip_keys=[]):
                     msg += " Original error from json.loads: {} {}".format(err.__class__.__name__, str(err))
 
                     logger.warning("(Attempt {} of 3): ".format(_online_passband_failedtries)+msg)
-
+                    # also print in case logger hasn't been initialized yet
                     if _online_passband_failedtries == 1:
                         print(msg)
 
@@ -3726,7 +3742,7 @@ def get_passband(passband, content=None, reload=False, update_if_necessary=False
         # then we need to make sure all the required content are met in the local version
         content_installed = _pbtable[passband]['content']
         timestamp_installed = _pbtable[passband]['timestamp']
-        online_content = list_online_passbands(full_dict=True).get(passband, {}).get('content', [])
+        online_content = list_online_passbands(full_dict=True, repeat_errors=False).get(passband, {}).get('content', [])
 
         if content == 'all':
             content = online_content
@@ -3745,7 +3761,7 @@ def get_passband(passband, content=None, reload=False, update_if_necessary=False
 
         if content is not None and not np.all([c in content_installed for c in content]):
             # then we can update without prompting if the timestamps match
-            timestamp_online = list_online_passbands(full_dict=True).get(passband, {}).get('timestamp', None)
+            timestamp_online = list_online_passbands(full_dict=True, repeat_errors=False).get(passband, {}).get('timestamp', None)
             if timestamp_online is not None and (update_if_necessary or timestamp_installed == timestamp_online):
                 download_passband(passband, content=content, local=download_local, gzipped=download_gzipped)
             else:
@@ -3757,10 +3773,10 @@ def get_passband(passband, content=None, reload=False, update_if_necessary=False
             pass
     elif os.getenv('PHOEBE_ENABLE_ONLINE_PASSBANDS', 'TRUE').upper() == 'TRUE':
         # then we need to download, if available online
-        if passband in list_online_passbands():
+        if passband in list_online_passbands(repeat_errors=False):
             download_passband(passband, content=content, local=download_local, gzipped=download_gzipped)
         else:
-            raise ValueError("passband: {} not found. Try one of: {} (local) or {} (available for download)".format(passband, list_installed_passbands(), list_online_passbands()))
+            raise ValueError("passband: {} not found. Try one of: {} (local) or {} (available for download)".format(passband, list_installed_passbands(), list_online_passbands(repeat_errors=False)))
 
     else:
         raise ValueError("passband {} not installed locally and online passbands is disabled.".format(passband))
