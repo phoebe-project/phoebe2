@@ -9747,6 +9747,7 @@ class Bundle(ParameterSet):
             f.write("b.filter(context='model', model=model_ps.model, check_visible=False).save(sys.argv[0]+'.out', incl_uniqueid=True)\n")
             out_fname = script_fname+'.out'
 
+        f.write("\n# NOTE: this script only includes parameters needed to call the requested run_compute, edit manually with caution!\n")
         f.close()
 
         return script_fname, out_fname
@@ -11041,6 +11042,7 @@ class Bundle(ParameterSet):
             f.write("b.filter(context='solution', solution=solution_ps.solution, check_visible=False).save(sys.argv[0]+'.out', incl_uniqueid=True)\n")
             out_fname = script_fname+'.out'
 
+        f.write("\n# NOTE: this script only includes parameters needed to call the requested run_solver, edit manually with caution!\n")
         f.close()
 
         return script_fname, out_fname
