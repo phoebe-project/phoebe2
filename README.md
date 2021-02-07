@@ -84,6 +84,13 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.3.20 - legacy passband bugfix
+
+* now correctly maps passbands when using the legacy backend (only affects TESS and Tycho)
+* falls back on PHOEBE atmospheres when needing to compute pblums internally for flux scaling prior to calling legacy backend
+* export_compute/export_solver: add commment warning against manually editing script
+* fixes typo which raised error when rescaling passband-dependent mesh columns
+
 ### 2.3.19 - passbands update available datetime string parsing bugfix
 
 * some systems fail to parse common datetime strings, resulting in inability to import phoebe when checking for available passband updates.  This now prints and logs an error message, but does not prevent import.
