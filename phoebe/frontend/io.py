@@ -30,6 +30,10 @@ logger.addHandler(logging.NullHandler())
 
 _skip_filter_checks = {'check_default': False, 'check_visible': False}
 
+_default_passband_map_1to2 = {'TESS:default': 'TESS:T', 'Tycho:BT': 'Tycho:B', 'Tycho:VT': 'Tycho:V'}
+_default_passband_map_2to1 = {v:k for k,v in _default_passband_map_1to2.items()}
+
+
 def _is_file(obj):
     return isinstance(obj, _IOBase) or obj.__class__.__name__ in ['FileStorage']
 
@@ -958,7 +962,6 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True,
             if len(d) > 0:
 
                 if d['qualifier'] == 'passband':
-                    _default_passband_map = {'TESS:default': 'TESS:T', 'Tycho:BT': 'Tycho:B', 'Tycho:VT': 'Tycho:V'}
                     d['value'] = passband_map.get(d['value'], _default_passband_map.get(d['value'], d['value']))
 
                     if d['value'] not in choices:
@@ -1254,11 +1257,14 @@ def par_value(param, index=None, **kwargs):
 
             ptype='boolean'
 
-        if d['qualifier'] == 'ld_func' or d['qualifier'] == 'ld_func_bol':
+        elif d['qualifier'] == 'ld_func' or d['qualifier'] == 'ld_func_bol':
 
             ldlaws_2to1= {'linear':'Linear cosine law', 'logarithmic':'Logarithmic law', 'square_root':'Square root law'}
             val = ldlaws_2to1[val[0]]
             val = ['"'+str(val)+'"']
+
+        elif d['qualifier'] == 'passband':
+            val = [_default_passband_map_2to1.get(val[0], val[0])]
 
     elif isinstance(param, phb.parameters.BoolParameter):
 
