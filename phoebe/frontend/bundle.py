@@ -8807,7 +8807,7 @@ class Bundle(ParameterSet):
             # as phoebe may not support all the same distortion_methods for these backends
             kwargs.setdefault('distortion_method', 'roche')
 
-            atm_backend = {component: self.get_value(qualifier='atm', component=component, compute=compute, atm=kwargs.get('atm', None), default='ck2004', **_skip_filter_checks) for component in self.hierarchy.get_stars()}
+            atm_backend = {component: self.get_value(qualifier='atm', component=component, compute=compute, atm=kwargs.get('atm', kwargs.get('atms', {}).get(component, None)), default='ck2004', **_skip_filter_checks) for component in self.hierarchy.get_stars()}
             kwargs.setdefault('atm', atm_backend)
 
         # temporarily disable interactive_checks, check_default, and check_visible
@@ -9131,6 +9131,16 @@ class Bundle(ParameterSet):
                     # even though it isn't requested to be returned
                     pblum_datasets.append(ref_dataset)
 
+        atms = {}
+        for component in valid_components:
+            atm = compute_ps.get_value(qualifier='atm', component=component, atm=kwargs.get('atm', None), **_skip_filter_checks)
+            if atm == 'extern_planckint':
+                atm = 'blackbody'
+            elif atm == 'extern_atmx':
+                atm = 'ck2004'
+
+            atms[component] = atm
+
         # preparation depending on method before looping over datasets/components
         if pblum_method == 'phoebe':
             # we'll need to make sure we've done any necessary interpolation if
@@ -9138,7 +9148,7 @@ class Bundle(ParameterSet):
             if not kwargs.get('skip_compute_ld_coeffs', False):
                 self.compute_ld_coeffs(compute=compute, set_value=True, skip_checks=True, **{k:v for k,v in kwargs.items() if k not in ['ret_structured_dicts', 'pblum_mode', 'pblum_method', 'skip_checks']})
             # TODO: make sure this accepts all compute parameter overrides (distortion_method, etc)
-            system = kwargs.get('system', self._compute_intrinsic_system_at_t0(compute=compute, datasets=pblum_datasets, **kwargs))
+            system = kwargs.get('system', self._compute_intrinsic_system_at_t0(compute=compute, datasets=pblum_datasets, atms=atms, **kwargs))
             logger.debug("computing observables with ignore_effects=True for {}".format(pblum_datasets))
             system.populate_observables(t0, ['lc'], pblum_datasets, ignore_effects=True)
         elif pblum_method == 'stefan-boltzmann':
@@ -9146,16 +9156,6 @@ class Bundle(ParameterSet):
             teffs = {component: self.get_value(qualifier='teff', component=component, context='component', unit='K', **_skip_filter_checks) for component in valid_components}
             loggs = {component: self.get_value(qualifier='logg', component=component, context='component', **_skip_filter_checks) for component in valid_components}
             abuns = {component: self.get_value(qualifier='abun', component=component, context='component', **_skip_filter_checks) for component in valid_components}
-
-            atms = {}
-            for component in valid_components:
-                atm = compute_ps.get_value(qualifier='atm', component=component, atm=kwargs.get('atm', None), **_skip_filter_checks)
-                if atm == 'extern_planckint':
-                    atm = 'blackbody'
-                elif atm == 'extern_atmx':
-                    atm = 'ck2004'
-
-                atms[component] = atm
 
             system = None
 
