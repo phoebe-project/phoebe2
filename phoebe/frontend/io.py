@@ -962,7 +962,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True,
             if len(d) > 0:
 
                 if d['qualifier'] == 'passband':
-                    d['value'] = passband_map.get(d['value'], _default_passband_map.get(d['value'], d['value']))
+                    d['value'] = passband_map.get(d['value'], _default_passband_map_1to2.get(d['value'], d['value']))
 
                     if d['value'] not in choices:
                         if ignore_errors:
