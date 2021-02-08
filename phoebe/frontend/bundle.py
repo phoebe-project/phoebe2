@@ -8847,7 +8847,7 @@ class Bundle(ParameterSet):
                 if is_bol:
                     passband = 'Bolometric:900-40000'
                 else:
-                    passband = self.get_value(qualifier='passband', dataset=ldcs_param.dataset, context='passband', **_skip_filter_checks)
+                    passband = self.get_value(qualifier='passband', dataset=ldcs_param.dataset, context='dataset', **_skip_filter_checks)
 
                 atm = self.get_value(qualifier='atm', compute=compute, component=ldcs_param.component, default='ck2004', atm=kwargs.get('atm', None), **_skip_filter_checks)
 
