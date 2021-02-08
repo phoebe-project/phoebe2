@@ -9132,7 +9132,8 @@ class Bundle(ParameterSet):
                     pblum_datasets.append(ref_dataset)
 
         atms = {}
-        for component in valid_components:
+        # note here that we aren't including the envelopes as they don't have atm parameters
+        for component in self.hierarchy.get_stars():
             atm = compute_ps.get_value(qualifier='atm', component=component, atm=kwargs.get('atm', None), **_skip_filter_checks)
             if atm == 'extern_planckint':
                 atm = 'blackbody'
