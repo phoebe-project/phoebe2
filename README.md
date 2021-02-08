@@ -88,6 +88,7 @@ CHANGELOG
 
 * now correctly maps passbands when using the legacy backend (only affects TESS and Tycho)
 * falls back on PHOEBE atmospheres when needing to compute pblums internally for flux scaling prior to calling legacy backend
+* from_legacy bugfix in parsing linear limb-darkening coefficients
 * export_compute/export_solver: add commment warning against manually editing script
 * fixes typo which raised error when rescaling passband-dependent mesh columns
 
