@@ -1156,8 +1156,8 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True,
         eb.flip_constraint('requiv@primary', solve_for='pot@contact_envelope')
     if 'Linear' in ldlaw:
 
-        ldcos = eb.filter(qualifier='ld_coeffs', **_skip_filter_checks)
-        ldcosbol = eb.filter(qualifier='ld_coeffs_bol', **_skip_filter_checks)
+        ldcos = eb.filter(qualifier='ld_coeffs', **_skip_filter_checks).to_list()
+        ldcosbol = eb.filter(qualifier='ld_coeffs_bol', **_skip_filter_checks).to_list()
         for x in range(len(ldcos)):
             val = ldcos[x].value[0]
             ldcos[x].set_value(np.array([val]))
