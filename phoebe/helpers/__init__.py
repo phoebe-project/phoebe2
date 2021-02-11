@@ -2,7 +2,6 @@ import numpy as np
 from copy import deepcopy as _deepcopy
 
 from phoebe import u
-from phoebe.dependencies.distl.distl import _physical_types_to_si, _physical_types_to_solar
 
 try:
     import dynesty as _dynesty
