@@ -1,6 +1,9 @@
 import numpy as np
 from copy import deepcopy as _deepcopy
 
+from phoebe import u
+from phoebe.dependencies.distl.distl import _physical_types_to_si, _physical_types_to_solar
+
 try:
     import dynesty as _dynesty
 except ImportError:
@@ -286,3 +289,30 @@ def get_dynesty_object(nlive, niter, ncall, eff,
                                     logwt=logwt, logl=logl, logvol=logvol, logz=logz, logzerr=logzerr,
                                     information=information, bound_iter=bound_iter,
                                     samples_bound=samples_bound, scale=scale)
+
+def get_unit_in_system(original_unit, system):
+    """
+    Convert a unit into a given system (either 'si' or 'solar')
+
+    Arguments
+    -----------------
+    * `original_unit` (astropy unit object or string): the original unit
+    * `system` (string): whether to convert to 'si' or 'solar' units
+
+    Returns
+    -----------------
+    * unit
+    """
+    if isinstance(original_unit, str):
+        original_unit = u.Unit(original_unit)
+
+    if system.lower() == 'si':
+        if original_unit.physical_type not in _physical_types_to_si.keys():
+            raise ValueError("cannot convert {} to {}".format(original_unit, system))
+        return u.Unit(u._physical_types_to_si.get(u._get_physical_type(original_unit)))
+    elif system.lower() == 'solar':
+        if original_unit.physical_type not in _physical_types_to_solar.keys():
+            raise ValueError("cannot convert {} to {}".format(original_unit, system))
+        return u._physical_types_to_solar.get(u._get_physical_type(original_unit))
+    else:
+        raise NotImplementedError("system must be 'si' or 'solar'")

@@ -8725,7 +8725,10 @@ class FloatParameter(Parameter):
         # TODO: check to make sure isinstance(unit, astropy.u.Unit)
         # TODO: check to make sure can convert from current default unit (if exists)
         if isinstance(unit, str):
-          unit = u.Unit(unit)
+            if unit.lower() in ['solar', 'si'] and self._default_unit is not None:
+                unit = _helpers.get_unit_in_system(self._default_unit, unit)
+            else:
+                unit = u.Unit(unit)
         elif unit is None:
             unit = u.dimensionless_unscaled
 
@@ -9225,10 +9228,8 @@ class FloatParameter(Parameter):
 
         # TODO: check to see if this is still necessary
         if isinstance(unit, str):
-            if unit == 'solar':
-                unit = u._physical_types_to_solar.get(u._get_physical_type(self.default_unit))
-            elif unit in ['si', 'SI']:
-                unit = u._physical_types_to_si.get(u._get_physical_type(self.default_unit))
+            if unit.lower() in ['solar', 'si']:
+                unit = _helpers.get_unit_in_system(self.default_unit, unit)
             else:
                 # we need to do this to make sure we get PHOEBE's version of
                 # the unit instead of astropy's
@@ -9365,8 +9366,10 @@ class FloatParameter(Parameter):
         value, unit = self._check_value(value, unit)
 
         if isinstance(unit, str):
-            # print "*** converting string to unit"
-            unit = u.Unit(unit)  # should raise error if not a recognized unit
+            if unit.lower() in ['solar', 'si']:
+                unit = _helpers.get_unit_in_system(self.default_unit, unit)
+            else:
+                unit = u.Unit(unit)  # should raise error if not a recognized unit
         elif unit is not None and not _is_unit(unit):
             raise TypeError("unit must be an phoebe.u.Unit or None, got {}".format(unit))
 
@@ -11113,7 +11116,10 @@ class ConstraintParameter(Parameter):
         """
         # TODO: check to make sure can convert from current default unit (if exists)
         if isinstance(unit, str):
-            unit = u.Unit(unit)
+            if unit.lower() in ['solar', 'si']:
+                unit = _helpers.get_unit_in_system(self.default_unit, unit)
+            else:
+                unit = u.Unit(unit)
 
         if not _is_unit(unit):
             raise TypeError("unit must be a Unit")
