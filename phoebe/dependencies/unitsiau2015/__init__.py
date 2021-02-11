@@ -128,6 +128,8 @@ a function for that.
 TODO: eventually consider adopting this as a "base" unit
 """
 _physical_types_to_solar = {'length': 'solRad',
+                            'area': 'solRad2',
+                            'volume': 'solRad3',
                             'mass': 'solMass',
                             'temperature': 'solTeff',
                             'power': 'solLum',
@@ -138,6 +140,8 @@ _physical_types_to_solar = {'length': 'solRad',
                             'dimensionless': ''}
 
 _physical_types_to_si = {'length': 'm',
+                         'area': 'm2',
+                         'volume': 'm3',
                             'mass': 'kg',
                             'temperature': 'K',
                             'power': 'W',
