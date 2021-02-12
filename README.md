@@ -84,7 +84,7 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
-### 2.3.20 - estimators phase-bin bugfix
+### 2.3.21 - estimators phase-bin bugfix
 
 * fix bug resulting in a nanslice error when phase_bin is enabled within estimators resulting in a single entry in any given bin.  Now, sigmas will be ignored within the estimator in these cases with a warning in the logger.
 
