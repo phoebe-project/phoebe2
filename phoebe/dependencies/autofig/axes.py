@@ -1673,6 +1673,8 @@ class AxDimension(AxArray):
                     continue
                 if not hasattr(call, self.direction):
                     continue
+                if np.all(np.isnan(call.y.value)):
+                    continue
 
                 if kind=='fixed':
                     error = cd.get_error(None, unit=self.unit, linebreak=False, sort_by_indep=False)
