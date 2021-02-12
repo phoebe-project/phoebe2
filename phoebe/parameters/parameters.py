@@ -4607,7 +4607,7 @@ class ParameterSet(object):
             kwargs['x'] = phases
             kwargs['xlabel'] = 'phase'
             kwargs['y'] = fluxes
-            kwargs['yerror'] = sigmas
+            kwargs['yerror'] = sigmas if len(sigmas) else None
             kwargs['ylabel'] = 'flux (normalized)'
             kwargs['marker'] = '.'
             kwargs['linestyle'] = 'None'
@@ -4667,7 +4667,7 @@ class ParameterSet(object):
                 kwargss[i]['x'] = phases
                 kwargss[i+2]['x'] = analytic_phases
                 kwargss[i]['y'] = input_rvs
-                kwargss[i]['yerror'] = input_sigmas
+                kwargss[i]['yerror'] = input_sigmas if len(input_sigmas) else None
                 kwargss[i+2]['y'] = analytic_rvs
                 kwargss[i]['marker'] = '.'
                 kwargss[i+2]['marker'] = 'None'
@@ -4699,7 +4699,7 @@ class ParameterSet(object):
             kwargss[1]['x'] = ebai_phases
             kwargss[0]['y'] = input_fluxes
             kwargss[1]['y'] = ebai_fluxes
-            kwargss[0]['yerror'] = input_sigmas
+            kwargss[0]['yerror'] = input_sigmas if len(input_sigmas) else None
             kwargss[0]['z'] = 0.0
             kwargss[1]['z'] = 1.0  # force ebai model on top of data
             kwargss[0]['marker'] = '.'
