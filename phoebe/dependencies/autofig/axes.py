@@ -1673,8 +1673,6 @@ class AxDimension(AxArray):
                     continue
                 if not hasattr(call, self.direction):
                     continue
-                if np.all(np.isnan(call.y.value)):
-                    continue
 
                 if kind=='fixed':
                     error = cd.get_error(None, unit=self.unit, linebreak=False, sort_by_indep=False)
@@ -1690,6 +1688,11 @@ class AxDimension(AxArray):
                     continue
 
                 array_flat = array.flatten() if isinstance(array, np.ndarray) else array
+
+                if np.all(np.isnan(array)):
+                    # then we would get a nanslice error below, and shouldn't
+                    # consider this call in the determination of automatic limits
+                    continue
 
                 if error is None:
                     error = np.zeros_like(array_flat)
