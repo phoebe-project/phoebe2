@@ -6,6 +6,7 @@ from scipy import interpolate as _interpolate
 from scipy import integrate as _integrate
 import json as _json
 import sys as _sys
+import importlib as _importlib
 from collections import OrderedDict
 from distutils.version import StrictVersion
 
@@ -121,6 +122,13 @@ def from_dict(d):
     # a keyword argument to __init__
     args = d.get('args', None)
     kwargs = {k:v for k,v in d.items() if k not in ['distl', 'distl.version', 'args']}
+    if classname == 'Function':
+        kwargs['args'] = args
+        args = None
+        if isinstance(kwargs["func"], str):
+            m = _importlib.import_module(".".join(kwargs["func"].split(".")[:-1]))
+            kwargs["func"] = getattr(m, kwargs["func"].split(".")[-1])
+
     if args is not None:
         dist = getattr(_sys.modules[__name__], classname)(*args, **kwargs)
     else:
@@ -576,6 +584,7 @@ class BaseDistlObject(object):
         --------
         * string
         """
+        _ = kwargs.pop("export_func_as_path")
         return _json.dumps(self.to_dict(exclude=kwargs.pop('exclude', [])), ensure_ascii=True, **kwargs)
 
     def to_file(self, filename, **kwargs):
@@ -674,6 +683,8 @@ class BaseDistribution(BaseDistlObject):
         elif _all_in_types((self, other), (BaseUnivariateDistribution, BaseMultivariateSliceDistribution)):
             return Composite("__mul__", (self, other))
         elif isinstance(other, float) or isinstance(other, int):
+            if other == 1.0:
+                return self.copy()
             return self.__mul__(Delta(other))
         else:
             raise TypeError("cannot multiply {} by type {}".format(self.__class__.__name__, type(other)))
@@ -2003,7 +2014,7 @@ class BaseUnivariateDistribution(BaseDistribution):
         new_dist *= factor
         return new_dist
 
-    def to_si(self):
+    def to_si(self, strip_units=False):
         """
         Convert to SI units.
 
@@ -2011,15 +2022,27 @@ class BaseUnivariateDistribution(BaseDistribution):
 
         * <<class>.to>
         * <<class>.to_solar>
+
+        Arguments
+        ------------
+        * `strip_units` (bool, optional, default=False): whether to strip the
+            units from the returned object
+
+        Returns
+        -------------
+        * distribution object
         """
         physical_type = self.unit.physical_type
 
         if physical_type not in _physical_types_to_si.keys():
             raise NotImplementedError("cannot convert object with physical_type={} to SI units".format(physical_type))
 
-        return self.to(_units.Unit(_physical_types_to_si.get(physical_type)))
+        new = self.to(_units.Unit(_physical_types_to_si.get(physical_type)))
+        if strip_units:
+            new.unit = None
+        return new
 
-    def to_solar(self):
+    def to_solar(self, strip_units=False):
         """
         Convert to solar units.
 
@@ -2027,13 +2050,25 @@ class BaseUnivariateDistribution(BaseDistribution):
 
         * <<class>.to>
         * <<class>.to_si>
+
+        Arguments
+        ------------
+        * `strip_units` (bool, optional, default=False): whether to strip the
+            units from the returned object
+
+        Returns
+        -------------
+        * distribution object
         """
         physical_type = self.unit.physical_type
 
         if physical_type not in _physical_types_to_solar.keys():
             raise NotImplementedError("cannot convert object with physical_type={} to solar units".format(physical_type))
 
-        return self.to(_units.Unit(_physical_types_to_solar.get(physical_type)))
+        new = self.to(_units.Unit(_physical_types_to_solar.get(physical_type)))
+        if strip_units:
+            new.unit = None
+        return new
 
     ### CONVENIENCE METHODS FOR SAMPLING/WRAPPING/PLOTTING
 
@@ -4831,6 +4866,38 @@ class Composite(BaseUnivariateDistribution):
         """
         return self.to_histogram(N=N, bins=bins, range=range).to_uniform(sigma=sigma)
 
+
+    def to_dict(self, export_func_as_path=False, **kwargs):
+        def _handle_composite_export_func_as_path(d):
+            for i,dist in enumerate(d['dists']):
+                if 'dists' in dist.keys():
+                    d['dists'][i] = _handle_composite_export_func_as_path(d['dists'][i])
+                if 'func' in dist.keys():
+                    d['dists'][i]['func'] = ".".join([dist['func'].__module__, dist['func'].__name__])
+            return d
+
+
+        d = super(Composite, self).to_dict(**kwargs)
+        if export_func_as_path:
+            d = _handle_composite_export_func_as_path(d)
+        return d
+
+    def to_json(self, export_func_as_path=False, **kwargs):
+        """
+
+        """
+        return _json.dumps(self.to_dict(export_func_as_path=export_func_as_path, exclude=kwargs.pop('exclude', [])), ensure_ascii=True, **kwargs)
+
+    def to_file(self, filename, export_func_as_path=False, **kwargs):
+        """
+
+        """
+        f = open(filename, 'w')
+        f.write(self.to_json(export_func_as_path=export_func_as_path, **kwargs))
+        f.close()
+        return filename
+
+
 class Function(BaseUnivariateDistribution):
     """
     A function distribution consisting of some callable function along with
@@ -5172,15 +5239,25 @@ class Function(BaseUnivariateDistribution):
 
         return super(Function, self).plot_sample(*args, **kwargs)
 
-    def to_json(self, **kwargs):
+    def to_dict(self, export_func_as_path=False, **kwargs):
+        d = super(Function, self).to_dict(**kwargs)
+        if export_func_as_path:
+            d['func'] = ".".join([d['func'].__module__, d['func'].__name__])
+        return d
+
+
+    def to_json(self, export_func_as_path=False, **kwargs):
         """
         json is not supported for <Function> distributions as the <Function.func>
         object must be stored via dill.  See <Function.to_dict> or <Function.to_file>.
         """
-        raise NotImplementedError("to_json is not supported for Function distributions.  See to_dict or to_file instead")
+        if export_func_as_path:
+            return _json.dumps(self.to_dict(export_func_as_path=True, exclude=kwargs.pop('exclude', [])), ensure_ascii=True, **kwargs)
+        else:
+            raise NotImplementedError("to_json is not supported for Function distributions, unless export_func_as_path=True.  See to_dict or to_file instead")
 
 
-    def to_file(self, filename, **kwargs):
+    def to_file(self, filename, export_func_as_path=False, **kwargs):
         """
         Save the distribution object to a file using dill.
 
@@ -5197,12 +5274,18 @@ class Function(BaseUnivariateDistribution):
         --------
         * string: the filename
         """
+        if export_func_as_path:
+            f = open(filename, 'w')
+            f.write(self.to_json(export_func_as_path=True, **kwargs))
+            f.close()
+            return filename
+
         if _has_dill:
             f = open(filename, 'wb')
             f.write(_dill.dumps(self))
             f.close()
         else:
-            raise ImportError("to_file for Function distributions requires the 'dill' package")
+            raise ImportError("to_file for Function distributions requires the 'dill' package or `export_func_as_path=True`")
         return filename
 
     def to_gaussian(self, N=1000, bins=10, range=None):
@@ -5908,7 +5991,11 @@ class Delta(BaseUnivariateDistribution):
 
         if (isinstance(other, float) or isinstance(other, int)):
             dist = self.copy()
+            if other == 1.0:
+                return dist
             dist.loc *= other
+            if dist.label is not None:
+                dist.label = "({}) * {}".format(dist.label, other)
             return dist
 
         return super(Delta, self).__mul__(other)
@@ -5920,6 +6007,8 @@ class Delta(BaseUnivariateDistribution):
         if (isinstance(other, float) or isinstance(other, int)):
             dist = self.copy()
             dist.loc **= other
+            if dist.unit is not None:
+                dist.unit **= other
             return dist
 
         return super(Delta, self).__pow__(other)
@@ -5941,7 +6030,11 @@ class Delta(BaseUnivariateDistribution):
 
         if (isinstance(other, float) or isinstance(other, int)):
             dist = self.copy()
+            if other == 0.0:
+                return dist
             dist.loc += other
+            if dist.label is not None:
+                dist.label = "({}) + {}".format(dist.label, other)
             return dist
 
         return super(Delta, self).__add__(other)
@@ -6091,8 +6184,12 @@ class Gaussian(BaseUnivariateDistribution):
 
         if (isinstance(other, float) or isinstance(other, int)):
             dist = self.copy()
+            if other == 1.0:
+                return dist
             dist.loc *= other
             dist.scale *= other
+            if dist.label is not None:
+                dist.label = "({}) * {}".format(dist.label, other)
             return dist
 
         return super(Gaussian, self).__mul__(other)
@@ -6105,6 +6202,8 @@ class Gaussian(BaseUnivariateDistribution):
             dist = self.copy()
             dist.loc **= other
             dist.scale **= other
+            if dist.unit is not None:
+                dist.unit **= other
             return dist
 
         return super(Gaussian, self).__pow__(other)
@@ -6127,7 +6226,11 @@ class Gaussian(BaseUnivariateDistribution):
 
         if (isinstance(other, float) or isinstance(other, int)):
             dist = self.copy()
+            if other == 0.0:
+                return dist
             dist.loc += other
+            if dist.label is not None:
+                dist.label = "({}) + {}".format(dist.label, other)
             return dist
 
         return super(Gaussian, self).__add__(other)
@@ -6290,8 +6393,12 @@ class Uniform(BaseUnivariateDistribution):
 
         if (isinstance(other, float) or isinstance(other, int)):
             dist = self.copy()
+            if other == 1.0:
+                return dist
             dist.low *= other
             dist.high *= other
+            if dist.label is not None:
+                dist.label = "({}) * {}".format(dist.label, other)
             return dist
 
         return super(Uniform, self).__mul__(other)
@@ -6302,8 +6409,14 @@ class Uniform(BaseUnivariateDistribution):
 
         if (isinstance(other, float) or isinstance(other, int)):
             dist = self.copy()
+            if other == 1:
+                return dist
             dist.low **= other
             dist.high **= other
+            if dist.unit is not None:
+                dist.unit **= other
+            if dist.label is not None:
+                dist.label = "({}) ** {}".format(dist.label, other)
             return dist
 
         return super(Uniform, self).__pow__(other)
@@ -6327,8 +6440,12 @@ class Uniform(BaseUnivariateDistribution):
 
         if (isinstance(other, float) or isinstance(other, int)):
             dist = self.copy()
+            if other == 0.0:
+                return dist
             dist.low += other
             dist.high += other
+            if dist.label is not None:
+                dist.label = "({}) + {}".format(dist.label, other)
             return dist
         # elif isinstance(other, Uniform):
             ## NOTE: this does not seem to be true as we should get a trapezoid if sampling separately
@@ -8081,7 +8198,7 @@ class BaseAroundGenerator(BaseDistlObject):
         new_dist *= factor
         return new_dist
 
-    def to_si(self):
+    def to_si(self, strip_units=False):
         """
         Convert to SI units.
 
@@ -8089,15 +8206,27 @@ class BaseAroundGenerator(BaseDistlObject):
 
         * <<class>.to>
         * <<class>.to_solar>
+
+        Arguments
+        ------------
+        * `strip_units` (bool, optional, default=False): whether to strip the
+            units from the returned object
+
+        Returns
+        -------------
+        * distribution object
         """
         physical_type = self.unit.physical_type
 
         if physical_type not in _physical_types_to_si.keys():
             raise NotImplementedError("cannot convert object with physical_type={} to SI units".format(physical_type))
 
-        return self.to(_units.Unit(_physical_types_to_si.get(physical_type)))
+        new = self.to(_units.Unit(_physical_types_to_si.get(physical_type)))
+        if strip_units:
+            new.unit = None
+        return new
 
-    def to_solar(self):
+    def to_solar(self, strip_units=False):
         """
         Convert to solar units.
 
@@ -8105,14 +8234,25 @@ class BaseAroundGenerator(BaseDistlObject):
 
         * <<class>.to>
         * <<class>.to_si>
+
+        Arguments
+        ------------
+        * `strip_units` (bool, optional, default=False): whether to strip the
+            units from the returned object
+
+        Returns
+        -------------
+        * distribution object
         """
         physical_type = self.unit.physical_type
 
         if physical_type not in _physical_types_to_solar.keys():
             raise NotImplementedError("cannot convert object with physical_type={} to solar units".format(physical_type))
 
-        return self.to(_units.Unit(_physical_types_to_solar.get(physical_type)))
-
+        new = self.to(_units.Unit(_physical_types_to_solar.get(physical_type)))
+        if strip_units:
+            new.unit = None
+        return new
 
     ### CONVENIENCE METHODS FOR SAMPLING/WRAPPING/PLOTTING
 
