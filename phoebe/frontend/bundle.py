@@ -7911,6 +7911,11 @@ class Bundle(ParameterSet):
             with the full list being passed to the 2D contours.  So to plot
             1-, 2-, and 3-sigma uncertainties in the contours but quote 3-sigma
             uncertainties in the title and histograms, pass `[3,1,2]`.
+        * `sample_size` (int, optional, default=None): number of samples to draw for
+            the underlying distribution.  Defaults to 1e5 for most cases, or 1e3
+            for expensive function calls.  If propagating through non-analytic
+            constraints, setting a lower `sample_size` will significantly speed up
+            plotting time.  Passed to distl as `size` argument
         * `show` (boolean, optional, default=False): whether to call show on the
             resulting figure object
         * `**kwargs`: all additional keyword arguments are passed directly to
@@ -7924,6 +7929,8 @@ class Bundle(ParameterSet):
         for k in list(kwargs.keys()):
             if k in ['plot_uncertainties']:
                 plot_kwargs[k] = kwargs.pop(k)
+            elif k == 'sample_size':
+                plot_kwargs['size'] = kwargs.pop('sample_size')
         dc, _ = self.get_distribution_collection(twig=twig, set_labels=set_labels, keys='uniqueid', parameters=parameters, **kwargs)
         return dc.plot(show=show, **plot_kwargs)
 
