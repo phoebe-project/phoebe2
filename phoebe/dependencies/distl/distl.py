@@ -290,8 +290,8 @@ def _format_uncertainties_asymmetric(labels, labels_latex, units, qs_per_dim):
     s = ""
 
     for label, label_latex, unit, qs in zip(labels, labels_latex, units, qs_per_dim):
-        # we'll round to 1 significant digits in whichever uncertainty direction has the best precision
-        ndigits = int(_np.ceil(_np.max(-1*_np.log10([qs[2]-qs[1], qs[1]-qs[0]]))))
+        # we'll round to 1 (extra) significant digits in whichever uncertainty direction has the best precision
+        ndigits = int(_np.ceil(_np.max(-1*_np.log10([qs[2]-qs[1], qs[1]-qs[0]]))))+1
 
         if isinstance(unit, str):
             unit = _units.Unit(unit)
@@ -318,11 +318,11 @@ def _format_uncertainties_symmetric(labels, labels_latex, units, values_per_dim,
     s = ""
 
     for label, label_latex, unit, value, sigma in zip(labels, labels_latex, units, values_per_dim, sigmas_per_dim):
-        # we'll round to 1 significant digits in whichever uncertainty direction has the best precision
+        # we'll round to 1 (extra) significant digits in whichever uncertainty direction has the best precision
         if sigma == 0:
-            ndigits = int(-1*_np.log10(value))
+            ndigits = int(-1*_np.log10(value))+1
         else:
-            ndigits = int(_np.ceil(-1*_np.log10(sigma)))
+            ndigits = int(_np.ceil(-1*_np.log10(sigma)))+1
 
         if isinstance(unit, str):
             unit = _units.Unit(unit)
