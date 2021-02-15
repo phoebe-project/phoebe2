@@ -4280,6 +4280,23 @@ class Bundle(ParameterSet):
                     raise ValueError("{} could not be found in distributions or solutions".format(dist_or_solution))
 
 
+            priors = self.get_value(qualifier='priors', solver=solver, context='solver', priors=kwargs.get('priors', None), default=[], expand=True, **_skip_filter_checks)
+            offending_parameters = []
+            for dist_or_solution in priors:
+                if dist_or_solution in self.distributions:
+                    for distribution_param in self.filter(distribution=dist_or_solution, context='distribution', **_skip_filter_checks).to_list():
+                        if 'Around' in distribution_param.get_value().__class__.__name__:
+                            offending_parameters.append(distribution_param)
+
+            if len(offending_parameters):
+                report.add_item(self,
+                                "priors@{} includes \"around\" distributions.  Note that the central values of these distributions will update to the current face-values of the parameters (use with caution for priors)".format(solver),
+                                [solver_ps.get_parameter(qualifier='priors', **_skip_filter_checks)]
+                                +offending_parameters
+                                +addl_parameters,
+                                False, 'run_solver')
+
+
             ## warning if fitting a parameter that affects phasing but mask_phases is enabled
             if fit_ps is not None:
                 fit_parameters_ephemeris = fit_ps.filter(qualifier=['period', 'per0', 't0*'], context='component', component=self.hierarchy.get_top(), **_skip_filter_checks)
