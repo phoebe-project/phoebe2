@@ -3264,7 +3264,7 @@ class BaseMultivariateDistribution(BaseDistribution):
             return sample
 
     def _xlabel(self, dimension, unit=None, label=None):
-        label = label if label is not None else self.labels_latex[dimension] # will fallback on self.labels[dimension]
+        label = label if label is not None else self.labels_latex[dimension] if self.labels_latex is not None else None # will fallback on self.labels[dimension]
         l = 'value' if label is None else label
         if _has_astropy and self.units is not None and self.units[dimension] is not None and self.units[dimension] not in [_units.dimensionless_unscaled]:
             l += ' ({})'.format(unit._repr_latex_()  if unit is not None else self.units[dimension]._repr_latex_())
