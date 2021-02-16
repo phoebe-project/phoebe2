@@ -2942,6 +2942,8 @@ class ParameterSet(object):
         # TODO: check to see if protected (required by a current constraint or
         # by a backend)
         param._bundle = None
+        if param.__class__.__name__ == 'ConstraintParameter':
+            param._remove_bookkeeping()
         self._params = [p for p in self._params if p.uniqueid != param.uniqueid]
 
     def remove_parameter(self, twig=None, **kwargs):
@@ -3006,6 +3008,8 @@ class ParameterSet(object):
 
         for param in params.to_list():
             param._bundle = None
+            if param.__class__.__name__ == 'ConstraintParameter':
+                param._remove_bookkeeping()
 
         removed_ids = [p.uniqueid for p in params.to_list()]
         self._params = [p for p in self._params if p.uniqueid not in removed_ids]
