@@ -1286,7 +1286,7 @@ class Bundle(ParameterSet):
 
         #return io.pass_to_legacy(self, filename, compute=compute)
 
-    def export_mesh(self, filename, format=None, coordinates='uvw', model=None, dataset=None, component=None, time=None):
+    def export_mesh(self, filename, format=None, coordinates='uvw', invert_normals=False, model=None, dataset=None, component=None, time=None):
         """
         Export a mesh (or multiple meshes) from a model to a supported 3D object
         format.  Note that these includes no color information.
@@ -1307,6 +1307,8 @@ class Bundle(ParameterSet):
             qualifier='uvw_elements' or 'xyz_elements').  See the `coordinates`
             parameter in the mesh dataset to choose which are exposed when calling
             <phoebe.frontend.bundle.Bundle.run_compute>.
+        * `invert_normals` (bool, optional, default=False): whether to invert
+            triangle normals
         * `model` (string, optional, default=None): model to use when filtering
             for meshes.
         * `dataset` (string, optional, default=None): dataset to use when filtering
@@ -1349,7 +1351,10 @@ class Bundle(ParameterSet):
                     # TODO: optimize this by not repeating vertices btwn triangles?
                     for vertex in triangle:
                         f.write("v {} {} {} 0.5 0.3 0.8\n".format(*vertex))
-                    f.write("f {} {} {}\n".format(3*t+1, 3*t+2, 3*t+3))
+                    if invert_normals:
+                        f.write("f {} {} {}\n".format(3*t+3, 3*t+2, 3*t+1))
+                    else:
+                        f.write("f {} {} {}\n".format(3*t+1, 3*t+2, 3*t+3))
                     t+=1
 
             f.close()
