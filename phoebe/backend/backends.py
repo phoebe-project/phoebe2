@@ -2630,7 +2630,7 @@ class EllcBackend(BaseBackendByDataset):
             if flux_weighted and (heat_1 is not None or heat_2 is not None):
                 raise NotImplementedError("ellc cannot compute flux-weighted RVs with irradiation")
 
-            if flux_weighted and period == 1.0: # add VersionCheck once bug fixed (https://github.com/pmaxted/ellc/issues/4)
+            if flux_weighted and period_anom == 1.0: # add VersionCheck once bug fixed (https://github.com/pmaxted/ellc/issues/4)
                 logger.warning("ellc does not allow period=1.0 with flux_weighted RVs (see  https://github.com/pmaxted/ellc/issues/4).  Overriding period to 1.0+1e-6 for {}@{}".format(info['component'], info['dataset']))
                 period += 1e-6
             # enable once exptime for RVs is supported in PHOEBE
@@ -2640,6 +2640,9 @@ class EllcBackend(BaseBackendByDataset):
 
             lambda_1 = kwargs.get('lambda_1')
             lambda_2 = kwargs.get('lambda_2')
+
+            vsini_1 = (2*np.pi*radius_1*(a*u.solRad)*np.sin((incl*u.deg).to(u.rad))/((period_anom*u.d)/rotfac_1)).to(u.km/u.s)
+            vsini_2 = (2*np.pi*radius_2*(a*u.solRad)*np.sin((incl*u.deg).to(u.rad))/((period_anom*u.d)/rotfac_2)).to(u.km/u.s)
 
             rv_kwargs = dict(t_obs=info['times'],
                              radius_1=radius_1, radius_2=radius_2,
@@ -2659,7 +2662,7 @@ class EllcBackend(BaseBackendByDataset):
                              bfac_1=None, bfac_2=None,
                              heat_1=heat_1, heat_2=heat_2,
                              lambda_1=lambda_1, lambda_2=lambda_2,
-                             vsini_1=0., vsini_2=0.,
+                             vsini_1=vsini_1.value, vsini_2=vsini_2.value,
                              t_exp=t_exp, n_int=n_int,
                              grid_1=grid_1, grid_2=grid_2,
                              shape_1=shape_1, shape_2=shape_2,
