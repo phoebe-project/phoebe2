@@ -84,6 +84,10 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.3.23 - ellc flux-weighted RV vsini bugfix
+
+* compute vsini from syncpar and pass to RV to enable Rossiter-McLaughlin effect when rv_method='flux-weighted'.
+
 ### 2.3.22 - trace plotting nanslice bugfix
 
 * fix bug in plotting MCMC trace plots when any given chain is all nans.
