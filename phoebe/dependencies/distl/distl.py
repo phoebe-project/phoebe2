@@ -5194,7 +5194,7 @@ class Function(BaseUnivariateDistribution):
         """
         def _arg_as_float(arg, size, seed, cache_sample):
             if isinstance(arg, BaseDistribution):
-                return arg.sample(size=size, seed=seed, cache_sample=cache_sample, as_quantity=False)
+                return arg.sample(size=size, seed=seed, cache_sample=cache_sample)
             return arg
 
         args = [_arg_as_float(arg, size, seed, cache_sample) for arg in self.args]
