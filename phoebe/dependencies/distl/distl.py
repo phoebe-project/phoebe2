@@ -7,6 +7,8 @@ from scipy import integrate as _integrate
 import json as _json
 import sys as _sys
 import importlib as _importlib
+import random as _random
+import string as _string
 from collections import OrderedDict
 from distutils.version import StrictVersion
 
@@ -84,6 +86,11 @@ _physical_types_to_si = {'length': 'm',
                             'angle': 'rad',
                             'angular speed': 'rad/s',
                             'dimensionless': ''}
+
+def _uniqueid(n=20):
+    return ''.join(_random.SystemRandom().choice(
+                   _string.ascii_uppercase +_string.ascii_lowercase)
+                   for _ in range(n))
 
 ########################## LOAD/SAVE FUNCTIONS #################################
 
@@ -532,6 +539,9 @@ def _kde_pdf_cdf_ppf_callables(samples, weights):
 
 class BaseDistlObject(object):
     def __init__(self, **kwargs):
+        self._uniqueid = kwargs.pop('uniqueid', None)
+        if self._uniqueid is None:
+            self._uniqueid = _uniqueid()
         self._descriptors = kwargs.pop('descriptors', list(kwargs.keys()))
 
         for k,v in kwargs.items():
@@ -539,15 +549,32 @@ class BaseDistlObject(object):
 
     ### COPYING
 
+    @property
+    def uniqueid(self):
+        """
+        Access the internal uniqueid of the object used to determine whether
+        two distributions should be linked when sampling.  See <<class>.copy>
+        and <<class>.deepcopy> for more details.
+
+        Returns
+        -----------
+        * (str): the internal uniqueid
+        """
+        return self._uniqueid
+
     def __copy__(self):
         return self.__class__(**{k:v for k,v in self.to_dict().items() if k not in ['distl', 'distl.version']})
 
     def __deepcopy__(self, memo):
-        return self.__copy__()
+        return self.__class__(**{k:v for k,v in self.to_dict().items() if k not in ['distl', 'distl.version', 'uniqueid']})
+
 
     def copy(self):
         """
-        Make a copy of the distribution object.
+        Make a copy of the distribution object.  When sampled together via
+        a <DistributionCollection> or <CompositeDistribution>, both copies
+        will be sampled simultaneously and remain linked.  To break this link,
+        use <<class>>.deepcopy> instead.
 
         Returns
         ---------
@@ -555,14 +582,20 @@ class BaseDistlObject(object):
         """
         return self.__copy__()
 
-    ### IO
+    def deepcopy(self):
+        """
+        Make an independent copy of the distribution object.  When sampled together
+        via a <DistributionCollection> or <CompositeDistribution>, the copies
+        will be sampled independently rather than linked.  To retain this link,
+        use <<class>.copy> instead.
 
-    @property
-    def hash(self):
+        Returns
+        ----------
+        * a copy of the distribution object
         """
-        """
-        # return hash(frozenset({k:v for k,v in self.to_dict().items() if k not in ['dimension']}))
-        return hash(str({k:v for k,v in self.to_dict().items()}))
+        return self.__deepcopy__(None)
+
+    ### IO
 
     def to_json(self, **kwargs):
         """
@@ -624,7 +657,7 @@ class BaseDistribution(BaseDistlObject):
 
     * <BaseDistribution.__init__>
     """
-    def __init__(self, dist_constructor_func, dist_constructor_argnames, **kwargs):
+    def __init__(self, dist_constructor_func, dist_constructor_argnames, uniqueid=None, **kwargs):
         """
         BaseDistribution is the parent class for all distributions and should
         not be used directly by the user.
@@ -640,7 +673,7 @@ class BaseDistribution(BaseDistlObject):
         self._dist_constructor_object_cache = None
         self._parents_with_constructor_object_cache = []
 
-        super(BaseDistribution, self).__init__(**kwargs)
+        super(BaseDistribution, self).__init__(uniqueid=uniqueid, **kwargs)
 
     ### REPRESENTATIONS
 
@@ -1863,6 +1896,7 @@ class BaseUnivariateDistribution(BaseDistribution):
         d = {k: _json_safe(getattr(self, k), exclude=exclude) for k in self._descriptors}
         d['distl'] = self.__class__.__name__
         d['distl.version'] = __version__
+        d['uniqueid'] = self.uniqueid
         if self.unit is not None:
             d['unit'] = str(self.unit.to_string())
         if self.label is not None:
@@ -2706,7 +2740,7 @@ class BaseUnivariateDistribution(BaseDistribution):
             shape defined by `size`.
         """
         if isinstance(seed, dict):
-            seed = seed.get(self.hash, None)
+            seed = seed.get(self.uniqueid, None)
 
         if seed is not None:
             _np.random.seed(seed)
@@ -2862,6 +2896,7 @@ class BaseMultivariateDistribution(BaseDistribution):
         d = {k:_json_safe(getattr(self,k), exclude=exclude) for k in self._descriptors}
         d['distl'] = self.__class__.__name__
         d['distl.version'] = __version__
+        d['uniqueid'] = self.uniqueid
         if self.units is not None and 'units':
             d['units'] = [u.to_string() if u is not None else None for u in self.units]
         if self.labels is not None and 'labels':
@@ -3245,7 +3280,7 @@ class BaseMultivariateDistribution(BaseDistribution):
         # TODO: add support for per-dimension unit, wrap_at, as_quantity (and pass in to_mvhistogram)
         # TODO: add support for seed
         if isinstance(seed, dict):
-            seed = seed.get(self.hash, None)
+            seed = seed.get(self.uniqueid, None)
 
         if seed is not None:
             _np.random.seed(seed)
@@ -3396,7 +3431,10 @@ class BaseMultivariateDistribution(BaseDistribution):
 
 
 class BaseMultivariateSliceDistribution(BaseUnivariateDistribution):
-    def __init__(self, multivariate, dimension, unit=None, label=None, label_latex=None, wrap_at=None):
+    def __init__(self, multivariate, dimension, unit=None,
+                 label=None, label_latex=None, wrap_at=None,
+                 uniqueid=None):
+
         self._dist_constructor_object_cache = None
         self._parents_with_constructor_object_cache = []
 
@@ -3412,9 +3450,8 @@ class BaseMultivariateSliceDistribution(BaseUnivariateDistribution):
             raise TypeError("multivariate must be of type BaseMultivariateDistribution")
 
         self._multivariate = multivariate
+        self._uniqueid = uniqueid if uniqueid is not None else _uniqueid()
         self.dimension = dimension
-
-
 
     def __repr__(self):
         descriptors = " ".join(["{}={}".format(k,getattr(self.multivariate,k)) for k in self.multivariate._descriptors])
@@ -3456,6 +3493,7 @@ class BaseMultivariateSliceDistribution(BaseUnivariateDistribution):
         d = {}
         d['distl'] = self.__class__.__name__
         d['distl.version'] = __version__
+        d['uniqueid'] = self.uniqueid
         d['multivariate'] = self.multivariate.to_dict(exclude=exclude)
         d['dimension'] = self.dimension
         if self._unit is not None and 'unit':
@@ -3483,15 +3521,14 @@ class BaseMultivariateSliceDistribution(BaseUnivariateDistribution):
         return self._multivariate
 
     @property
-    def hash(self):
-        return self.multivariate.hash
+    def uniqueid(self):
+        return self.multivariate.uniqueid
 
     @property
-    def hash_slice(self):
+    def uniqueid_slice(self):
         """
         """
-        # return hash(frozenset({k:v for k,v in self.to_dict().items() if k not in ['dimension']}))
-        return hash(str({k:v for k,v in self.to_dict().items()}))
+        return self._uniqueid
 
     @property
     def unit(self):
@@ -3740,13 +3777,18 @@ class DistributionCollection(BaseDistlObject):
     <DistributionCollection> allows sampling from multiple distribution objects
     simultaneously, respecting all underlying covariances whenever possible.
     """
-    def __init__(self, *dists):
+    def __init__(self, *dists, **kwargs):
         if isinstance(dists, BaseDistribution):
             dists = [dists]
 
         self.dists = dists
 
         self._cached_sample = None
+
+        self._uniqueid = kwargs.pop('uniqueid', _uniqueid())
+
+        if len(kwargs.keys()):
+            raise ValueError("DistributionCollection does not accept kwargs: {}".format(kwargs.keys))
 
     def to_dict(self, exclude=[]):
         """
@@ -3772,6 +3814,7 @@ class DistributionCollection(BaseDistlObject):
         d = {}
         d['distl'] = self.__class__.__name__
         d['distl.version'] = __version__
+        d['uniqueid'] = self.uniqueid
         d['args'] = [distribution.to_dict(exclude=exclude) for distribution in self.dists]
 
         if exclude:
@@ -3921,27 +3964,27 @@ class DistributionCollection(BaseDistlObject):
             take_dimensions = not as_univariates and isinstance(dist_orig, BaseMultivariateSliceDistribution)
 
 
-            hash = dist_orig.hash_slice if isinstance(dist_orig, BaseMultivariateSliceDistribution) and not take_dimensions else dist_orig.hash
-            # print("***", dist_orig.label, hash)
-            if hash not in dists_dict.keys():
-                dists_dict[hash] = d
-                values_dict[hash] = [v]
+            uniqueid = dist_orig.uniqueid_slice if isinstance(dist_orig, BaseMultivariateSliceDistribution) and not take_dimensions else dist_orig.uniqueid
+            # print("***", dist_orig.label, uniqueid)
+            if uniqueid not in dists_dict.keys():
+                dists_dict[uniqueid] = d
+                values_dict[uniqueid] = [v]
                 if take_dimensions:
-                    dims_dict[hash] = [dist_orig.dimension]
+                    dims_dict[uniqueid] = [dist_orig.dimension]
             elif not isinstance(dist_orig, BaseMultivariateSliceDistribution):
                 # duplicate entry
-                if values_dict[hash][0] != v:
+                if values_dict[uniqueid][0] != v:
                     raise ValueError("All passed values for {} must be identical".format(d if d.label is None else d.label))
             else:
-                values_dict[hash].append(v)
+                values_dict[uniqueid].append(v)
                 if take_dimensions:
-                    dims_dict[hash].append(dist_orig.dimension)
+                    dims_dict[uniqueid].append(dist_orig.dimension)
 
-        for hash, dims in dims_dict.items():
-            dists_dict[hash] = dists_dict[hash].take_dimensions(dims)
+        for uniqueid, dims in dims_dict.items():
+            dists_dict[uniqueid] = dists_dict[uniqueid].take_dimensions(dims)
 
 
-        return {dists_dict.get(hash): values_dict.get(hash) if len(values_dict.get(hash)) > 1 else values_dict.get(hash)[0] for hash in values_dict.keys()}
+        return {dists_dict.get(uniqueid): values_dict.get(uniqueid) if len(values_dict.get(uniqueid)) > 1 else values_dict.get(uniqueid)[0] for uniqueid in values_dict.keys()}
 
     def pdf(self, values=None, as_univariates=False):
         """
@@ -4171,9 +4214,9 @@ class DistributionCollection(BaseDistlObject):
         but applied to distributions of the same underlying multivariate distribution
         automatically.
 
-        For each unique <BaseDistribution.hash> in the distributions in `dists` a
+        For each unique <BaseDistribution.uniqueid> in the distributions in `dists` a
         random seed will be generated and applied to <BaseDistribution.sample>
-        for all distributionis in `dists` which share that same hash value.  By doing
+        for all distributionis in `dists` which share that same uniqueid value.  By doing
         so, any <BaseMultivariateDistribution> which samples from the same underlying
         multivariate distribution (but for a different
         <BaseMultivariateDistribution.dimension>), will be correctly sampled to account
@@ -4210,7 +4253,7 @@ class DistributionCollection(BaseDistlObject):
             seeds = {}
 
         for i,dist in enumerate(self.dists_unpacked):
-            seeds.setdefault(dist.hash, get_random_seed()[i])
+            seeds.setdefault(dist.uniqueid, get_random_seed()[i])
 
         sample_kwargs = {k:v for k,v in kwargs.items() if k not in ['seeds']}
         # print("*** seeds: {}, sample_kwargs: {}".format(seeds, sample_kwargs))
@@ -4447,7 +4490,8 @@ class Composite(BaseUnivariateDistribution):
         will be used when converting to a <Histogram>.
 
     """
-    def __init__(self, math, dists, unit=None, label=None, label_latex=None, wrap_at=None):
+    def __init__(self, math, dists, unit=None, label=None, label_latex=None,
+                 wrap_at=None, uniqueid=None):
         """
         Create a <Composite> distribution from other distribution(s).
 
@@ -4482,7 +4526,8 @@ class Composite(BaseUnivariateDistribution):
         self.math = math
         super(Composite, self).__init__(unit, label, label_latex, wrap_at,
                                         None, None,
-                                        math=math, dists=dists)
+                                        math=math, dists=dists,
+                                        uniqueid=uniqueid)
 
         if label is None and _np.all([dist.label is not None for dist in dists]):
             if len(self.dists) == 1:
@@ -4590,13 +4635,13 @@ class Composite(BaseUnivariateDistribution):
             return " {} ".format(_math_symbols.get(self.math, self.math)).join(_subdist_str(d) for d in dists)
 
     @property
-    def hash(self):
+    def uniqueid(self):
         """
         """
         # NOTE (IMPORTANT): then we are going to "forget" these when
         # nesting CompositeDistributions
-        # return super(CompositeDistribution, self).hash()
-        return ",".join([str(d.hash) for d in self.dists])
+        # return super(CompositeDistribution, self).uniqueid()
+        return ",".join([str(d.uniqueid) for d in self.dists])
 
     ### SAMPLE CACHING
 
@@ -4755,7 +4800,7 @@ class Composite(BaseUnivariateDistribution):
             will use the value from <<class>.wrap_at>.  Note: wrapping is
             computed before changing units, so `wrap_at` must be provided
             according to <<class>.unit> not `unit`.
-        * `seed` (dict, optional, default={}): seeds (as hash: seed pairs) to
+        * `seed` (dict, optional, default={}): seeds (as uniqueid: seed pairs) to
             pass to underlying distributions.
         * `as_univariate` (bool, optional, default=False): whether to draw from
             the flattend <<class>.pdf> rather than from the children distributions.
@@ -4935,7 +4980,9 @@ class Function(BaseUnivariateDistribution):
       thereby losing all covariances.
 
     """
-    def __init__(self, func, args, kwargs, vectorized=True, hist_samples=None, unit=None, label=None, label_latex=None, wrap_at=None):
+    def __init__(self, func, args, kwargs, vectorized=True, hist_samples=None,
+                 unit=None, label=None, label_latex=None, wrap_at=None,
+                 uniqueid=None):
         """
         Create a <Function> distribution from two other distributions.
 
@@ -4977,7 +5024,10 @@ class Function(BaseUnivariateDistribution):
         """
         super(Function, self).__init__(unit, label, label_latex, wrap_at,
                                         None, None,
-                                        func=func, args=args, kwargs=kwargs, vectorized=vectorized, hist_samples=hist_samples)
+                                        func=func, args=args, kwargs=kwargs,
+                                        vectorized=vectorized,
+                                        hist_samples=hist_samples,
+                                        uniqueid=uniqueid)
 
         if label is None:
             def _label(arg):
@@ -5136,7 +5186,7 @@ class Function(BaseUnivariateDistribution):
         -----------
         * `size` (int or tuple or None, optional, default=None): size/shape of the
             resulting array.
-        * `seed` (dict, optional, default={}): seeds (as hash: seed pairs) to
+        * `seed` (dict, optional, default={}): seeds (as uniqueid: seed pairs) to
             pass to underlying distributions.
         * `cache_sample` (bool, optional, default=False): whether to override the
             existing <<class>.cached_sample>.
@@ -5195,7 +5245,7 @@ class Function(BaseUnivariateDistribution):
             will use the value from <<class>.wrap_at>.  Note: wrapping is
             computed before changing units, so `wrap_at` must be provided
             according to <<class>.unit> not `unit`.
-        * `seed` (dict, optional, default={}): seeds (as hash: seed pairs) to
+        * `seed` (dict, optional, default={}): seeds (as uniqueid: seed pairs) to
             pass to underlying distributions.
         * `cache_sample` (bool, optional, default=True): whether to override the
             existing <<class>.cached_sample>.
@@ -5355,7 +5405,9 @@ class Histogram(BaseUnivariateDistribution):
     Histogram distribtuion from the data array itself, see
     <distl.histogram_from_data> or <Histogram.from_data>.
     """
-    def __init__(self, bins, density, unit=None, label=None, label_latex=None, wrap_at=None):
+    def __init__(self, bins, density, unit=None,
+                 label=None, label_latex=None, wrap_at=None,
+                 uniqueid=None):
         """
         Create a <Histogram> distribution from bins and density.
 
@@ -5391,7 +5443,8 @@ class Histogram(BaseUnivariateDistribution):
         """
         super(Histogram, self).__init__(unit, label, label_latex, wrap_at,
                                         _stats.rv_histogram, ('density', 'bins'),
-                                        bins=bins, density=density)
+                                        bins=bins, density=density,
+                                        uniqueid=uniqueid)
 
     @property
     def bins(self):
@@ -5522,7 +5575,9 @@ class Samples(BaseUnivariateDistribution):
     rely on a KDE with <Samples.samples>, <Samples.weights>, and <Samples.bw_method>.
     See https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.gaussian_kde.html
     """
-    def __init__(self, samples, weights=None, bw_method=None, unit=None, label=None, label_latex=None, wrap_at=None):
+    def __init__(self, samples, weights=None, bw_method=None, unit=None,
+                 label=None, label_latex=None, wrap_at=None,
+                 uniqueid=None):
         """
         Create a <Samples> distribution from samples.
 
@@ -5563,7 +5618,9 @@ class Samples(BaseUnivariateDistribution):
 
         super(Samples, self).__init__(unit, label, label_latex, wrap_at,
                                       _stats.gaussian_kde, ('samples', 'bw_method') if StrictVersion(_scipy_version) < StrictVersion("1.2.0") else ('samples', 'bw_method', 'weights'),
-                                      samples=samples, weights=weights, bw_method=bw_method)
+                                      samples=samples, weights=weights,
+                                      bw_method=bw_method,
+                                      uniqueid=uniqueid)
 
     @property
     def nsamples(self):
@@ -5927,7 +5984,7 @@ class Samples(BaseUnivariateDistribution):
             shape defined by `size`.
         """
         if isinstance(seed, dict):
-            seed = seed.get(self.hash, None)
+            seed = seed.get(self.uniqueid, None)
 
         if seed is not None:
             _np.random.seed(seed)
@@ -5949,7 +6006,9 @@ class Delta(BaseUnivariateDistribution):
 
     Can be created from the top-level via the <distl.delta> convenience function.
     """
-    def __init__(self, loc=0.0, unit=None, label=None, label_latex=None, wrap_at=None):
+    def __init__(self, loc=0.0, unit=None,
+                 label=None, label_latex=None, wrap_at=None,
+                 uniqueid=None):
         """
         Create a <Delta> distribution.
 
@@ -5977,7 +6036,8 @@ class Delta(BaseUnivariateDistribution):
         """
         super(Delta, self).__init__(unit, label, label_latex, wrap_at,
                                     _stats_custom.delta, ('loc',),
-                                    loc=loc)
+                                    loc=loc,
+                                    uniqueid=uniqueid)
 
     @property
     def loc(self):
@@ -6126,7 +6186,9 @@ class Gaussian(BaseUnivariateDistribution):
     Can be created from the top-level via the <distl.gaussian> or
     <distl.normal> convenience functions.
     """
-    def __init__(self, loc=0.0, scale=1.0, unit=None, label=None, label_latex=None, wrap_at=None):
+    def __init__(self, loc=0.0, scale=1.0, unit=None,
+                 label=None, label_latex=None, wrap_at=None,
+                 uniqueid=None):
         """
         Create a <Gaussian> distribution.
 
@@ -6157,7 +6219,8 @@ class Gaussian(BaseUnivariateDistribution):
         """
         super(Gaussian, self).__init__(unit, label, label_latex, wrap_at,
                                        _stats.norm, ('loc', 'scale'),
-                                       loc=loc, scale=scale)
+                                       loc=loc, scale=scale,
+                                       uniqueid=uniqueid)
 
 
     @property
@@ -6314,7 +6377,9 @@ class Uniform(BaseUnivariateDistribution):
     Can be created from the top-level via the <distl.uniform> or
     <distl.boxcar> convenience functions.
     """
-    def __init__(self, low=0.0, high=1.0, unit=None, label=None, label_latex=None, wrap_at=None):
+    def __init__(self, low=0.0, high=1.0, unit=None,
+                 label=None, label_latex=None, wrap_at=None,
+                 uniqueid=None):
         """
         Create a <Uniform> distribution.
 
@@ -6345,7 +6410,8 @@ class Uniform(BaseUnivariateDistribution):
         """
         super(Uniform, self).__init__(unit, label, label_latex, wrap_at,
                                        _stats.uniform, ('low', 'width'),
-                                       low=low, high=high)
+                                       low=low, high=high,
+                                       uniqueid=uniqueid)
 
         if high < low:
             wrap_at = self.get_wrap_at()
@@ -6522,7 +6588,7 @@ class Uniform(BaseUnivariateDistribution):
 
 class MVGaussian(BaseMultivariateDistribution):
     def __init__(self, mean=0.0, cov=1.0, allow_singular=False,
-                 units=None, labels=None, labels_latex=None, wrap_ats=None):
+                 units=None, labels=None, labels_latex=None, wrap_ats=None, uniqueid=None):
         """
         A Multivariate Gaussian distribution uses [scipy.stats.multivariate_normal](https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.multivariate_normal.html)
         to sample values from a multivariate gaussian/normal function.
@@ -6558,7 +6624,8 @@ class MVGaussian(BaseMultivariateDistribution):
         """
         super(MVGaussian, self).__init__(units, labels, labels_latex, wrap_ats,
                                          _stats.multivariate_normal, ('mean', 'cov', 'allow_singular'),
-                                         mean=mean, cov=cov, allow_singular=allow_singular)
+                                         mean=mean, cov=cov, allow_singular=allow_singular,
+                                         uniqueid=uniqueid)
 
 
     @property
@@ -6875,7 +6942,8 @@ class MVHistogram(BaseMultivariateDistribution):
     on that sample.
 
     """
-    def __init__(self, bins, density, units=None, labels=None, labels_latex=None, wrap_ats=None):
+    def __init__(self, bins, density, units=None, labels=None, labels_latex=None,
+                 wrap_ats=None, uniqueid=None):
         """
         Create an <MVHistogram> distribution from bins and density.
 
@@ -6907,7 +6975,8 @@ class MVHistogram(BaseMultivariateDistribution):
         """
         super(MVHistogram, self).__init__(units, labels, labels_latex, wrap_ats,
                                           None, None,
-                                          bins=bins, density=density)
+                                          bins=bins, density=density,
+                                          uniqueid=uniqueid)
 
     @property
     def bins(self):
@@ -7144,7 +7213,7 @@ class MVHistogram(BaseMultivariateDistribution):
         #     density = self.density
 
         if isinstance(seed, dict):
-            seed = seed.get(self.hash, None)
+            seed = seed.get(self.uniqueid, None)
 
         if seed is not None:
             _np.random.seed(seed)
@@ -7400,7 +7469,9 @@ class MVSamples(BaseMultivariateDistribution):
     See https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.gaussian_kde.html
 
     """
-    def __init__(self, samples, weights=None, bw_method=None, units=None, labels=None, labels_latex=None, wrap_ats=None):
+    def __init__(self, samples, weights=None, bw_method=None, units=None,
+                 labels=None, labels_latex=None, wrap_ats=None,
+                 uniqueid=None):
         """
         Create an <MVSamples> distribution from samples (eg. chains from MCMC).
 
@@ -7437,7 +7508,8 @@ class MVSamples(BaseMultivariateDistribution):
         """
         super(MVSamples, self).__init__(units, labels, labels_latex, wrap_ats,
                                         _stats.gaussian_kde, ('samples', 'bw_method') if StrictVersion(_scipy_version) < StrictVersion("1.2.0") else ('samples', 'bw_method', 'weights'),
-                                        samples=samples, weights=weights, bw_method=bw_method)
+                                        samples=samples, weights=weights, bw_method=bw_method,
+                                        uniqueid=uniqueid)
 
     @property
     def samples(self):
@@ -7624,7 +7696,7 @@ class MVSamples(BaseMultivariateDistribution):
         """
 
         if isinstance(seed, dict):
-            seed = seed.get(self.hash, None)
+            seed = seed.get(self.uniqueid, None)
 
         if seed is not None:
             _np.random.seed(seed)
@@ -7924,7 +7996,9 @@ class MVSamplesSlice(BaseMultivariateSliceDistribution):
 ############################# GENERATORS ######################################
 
 class BaseAroundGenerator(BaseDistlObject):
-    def __init__(self, value=None, unit=None, label=None, label_latex=None, wrap_at=None, **kwargs):
+    def __init__(self, value=None, unit=None,
+                 label=None, label_latex=None, wrap_at=None,
+                 **kwargs):
         self.value = value
         self.unit = unit
         self.label = label
@@ -8080,6 +8154,7 @@ class BaseAroundGenerator(BaseDistlObject):
         d = {k: _json_safe(getattr(self, k), exclude=exclude) for k in self._descriptors}
         d['distl'] = self.__class__.__name__
         d['distl.version'] = __version__
+        d['uniqueid'] = self.uniqueid
         if self.value is not None and 'value':
             d['value'] = self.value
         if self.unit is not None and 'unit':
@@ -8341,7 +8416,9 @@ class Uniform_Around(BaseAroundGenerator):
     ```
 
     """
-    def __init__(self, width, value=None, unit=None, label=None, label_latex=None, wrap_at=None):
+    def __init__(self, width, value=None, unit=None,
+                 label=None, label_latex=None, wrap_at=None,
+                 uniqueid=None):
         """
         Create a <Uniform_Around> object which, when called, will resolve
         to a <Uniform> object around a given central value.
@@ -8370,7 +8447,7 @@ class Uniform_Around(BaseAroundGenerator):
         -----------
         * a <Uniform_Around> object.
         """
-        super(Uniform_Around, self).__init__(value, unit, label, label_latex, wrap_at, width=width)
+        super(Uniform_Around, self).__init__(value, unit, label, label_latex, wrap_at, width=width, uniqueid=uniqueid)
 
     def __create_distl__(self, value, unit, label, label_latex, wrap_at):
         return Uniform(value-self._width/2, value+self._width/2, unit, label, label_latex, wrap_at)
@@ -8424,7 +8501,8 @@ class Delta_Around(BaseAroundGenerator):
     ```
 
     """
-    def __init__(self, value=None, unit=None, label=None, label_latex=None, wrap_at=None):
+    def __init__(self, value=None, unit=None, label=None, label_latex=None,
+                 wrap_at=None, unique=None):
         """
         Create a <Delta_Around> object which, when called, will resolve
         to a <Delta> object around a given central value.
@@ -8451,7 +8529,7 @@ class Delta_Around(BaseAroundGenerator):
         --------
         * a <Delta> object
         """
-        super(Delta_Around, self).__init__(value, unit, label, label_latex, wrap_at)
+        super(Delta_Around, self).__init__(value, unit, label, label_latex, wrap_at, uniqueid=uniqueid)
 
     def __create_distl__(self, value, unit, label, label_latex, wrap_at):
         return Delta(value, unit, label, label_latex, wrap_at)
@@ -8494,7 +8572,8 @@ class Gaussian_Around(BaseAroundGenerator):
     ```
 
     """
-    def __init__(self, scale, value=None, unit=None, label=None, label_latex=None, wrap_at=None):
+    def __init__(self, scale, value=None, unit=None, label=None, label_latex=None,
+                 wrap_at=None, uniqueid=None):
         """
         Create a <Gaussian_Around> object which, when called, will resolve
         to a <Gaussian> object around a given central value.
@@ -8522,7 +8601,7 @@ class Gaussian_Around(BaseAroundGenerator):
         --------
         * a <Gaussian_Around> object
         """
-        super(Gaussian_Around, self).__init__(value, unit, label, label_latex, wrap_at, scale=scale)
+        super(Gaussian_Around, self).__init__(value, unit, label, label_latex, wrap_at, scale=scale, uniqueid=uniqueid)
 
     def __create_distl__(self, value, unit, label, label_latex, wrap_at):
         return Gaussian(value, self._scale, unit, label, label_latex, wrap_at)
