@@ -4194,7 +4194,7 @@ class Bundle(ParameterSet):
                 fit_ps = None
 
 
-            if solver_kind in ['emcee']:
+            if solver_kind in ['emcee'] and solver_ps.get_value(qualifier='continue_from', continue_from=kwargs.get('continue_from', None), **_skip_filter_checks) == 'None':
                 # check to make sure twice as many params as walkers
                 nwalkers = solver_ps.get_value(qualifier='nwalkers', nwalkers=kwargs.get('nwalkers', None), **_skip_filter_checks)
 
