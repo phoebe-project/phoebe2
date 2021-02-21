@@ -84,6 +84,12 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.3.24 - emcee continue_from bugfix
+
+* skip nwalkers vs number of parameters check when continue_from is set
+* fallback on twigs when original uniqueids not available (when attempting to continue from a solution loaded into a new bundle, for example)
+* wrapping rules for angle parameters fallback on median of last iteration in the available chain when uniqueids do not match as the initializing distribution likely does not exist anymore
+
 ### 2.3.23 - ellc flux-weighted RV vsini bugfix
 
 * compute vsini from syncpar and pass to RV to enable Rossiter-McLaughlin effect when rv_method='flux-weighted'.
