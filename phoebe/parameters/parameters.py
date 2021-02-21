@@ -8942,7 +8942,8 @@ class FloatParameter(Parameter):
 
     def get_distribution(self, distribution=None, follow_constraints=True,
                               resolve_around_distributions=False,
-                              distribution_uniqueids=None):
+                              distribution_uniqueids=None,
+                              delta_if_none=False):
         """
         Access the distribution object corresponding to this parameter
         tagged with distribution=`distribution`.  To access the
@@ -8984,6 +8985,9 @@ class FloatParameter(Parameter):
             (from <phoebe.frontend.bundle.Bundle.get_distribution_collection>)
             is necessary to slice appropriately.  If `distribution` is not a
             DistributionCollection, `distribution_uniqueids` is ignored.
+        * `delta_if_none` (bool, optional, default=False): whether to return
+            a delta distribution around the parameter face-value if no distribution
+            is found.
 
         Returns
         ----------
@@ -9057,7 +9061,7 @@ class FloatParameter(Parameter):
                                                       check_visible=False,
                                                       **{k:v for k,v in self.meta.items() if k in _contexts and k not in ['context', 'distribution']}).get_value()
                 except ValueError:
-                    return None
+                    dist = None
             elif isinstance(distribution, distl._distl.DistributionCollection):
                 if distribution_uniqueids is None:
                     if hasattr(distribution, 'distribution_uniqueids'):
@@ -9073,7 +9077,10 @@ class FloatParameter(Parameter):
 
 
         if dist is None:
-            return None
+            if delta_if_none:
+                dist = distl.delta(self.get_value())
+            else:
+                return None
 
         if isinstance(dist, distl.BaseAroundGenerator):
             if resolve_around_distributions:
