@@ -7721,7 +7721,7 @@ class Bundle(ParameterSet):
 
         return dc, ret_keys
 
-    def sample_distribution_collection(self, twig=None, N=None,
+    def sample_distribution_collection(self, twig=None, sample_size=None,
                                        as_quantity=False,
                                        set_value=False, keys='twig',
                                        parameters=None,
@@ -7748,9 +7748,9 @@ class Bundle(ParameterSet):
             `twig` and `**kwargs` must result in either a single supported
             parameter in a solver ParameterSet, or a ParameterSet of distribution
             parameters.
-        * `N` (int, optional, default=None): number of samples to draw from
+        * `sample_size` (int, optional, default=None): number of samples to draw from
             each distribution.  Note that this must be None if `set_value` is
-            set to True.
+            set to True. **NOTE**: prior to 2.3.25, this argument was name `N`.
         * `combine`: (str, optional) how to combine multiple distributions for the same parameter.
             first: ignore duplicate entries and take the first entry.
             and: combine duplicate entries via AND logic, dropping covariances.
@@ -7808,8 +7808,15 @@ class Bundle(ParameterSet):
         * ValueError: if `set_value` is True and `include_constrained` is True
             (as parameters that are constrained cannot adopt the sampled values)
         """
-        if N is not None and set_value:
-            raise ValueError("cannot use set_value and N together")
+        # backwards compatibility before change from N to sample_size
+        N = kwargs.pop('N', None)
+        if N is not None:
+            if sample_size is not None:
+                raise ValueError("cannot pass both N and sample_size (sample_size replaces N)")
+            sample_size = N
+
+        if sample_size is not None and set_value:
+            raise ValueError("cannot use set_value and sample_size together")
 
         if 'distribution_filters' not in kwargs.keys():
             distribution_filters, combine, include_constrained, to_univariates, to_uniforms = self._distribution_collection_defaults(twig=twig, **kwargs)
@@ -7838,11 +7845,11 @@ class Bundle(ParameterSet):
                                                          allow_non_dc=False)
 
         if isinstance(dc, _distl._distl.DistributionCollection) and np.all([isinstance(dist, _distl._distl.Delta) for dist in dc.dists]):
-            if N is not None and N > 1:
-                logger.warning("all distributions are delta, using N=1 instead of N={}".format(N))
+            if sample_size is not None and sample_size > 1:
+                logger.warning("all distributions are delta, using sample_size=1 instead of sample_size={}".format(sample_size))
                 N = 1
 
-        sampled_values = dc.sample(size=N).T
+        sampled_values = dc.sample(size=sample_size).T
 
         ret = {}
         changed_params = []
