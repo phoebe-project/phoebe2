@@ -7532,7 +7532,7 @@ class Bundle(ParameterSet):
 
             # now we need to get any that weren't included in dc
             new_params = [self.get_parameter(uniqueid=uniqueid, **_skip_filter_checks) for uniqueid in parameters_uniqueids if uniqueid not in uniqueids]
-            ret_dists += [param.get_distribution(distribution=dc, distribution_uniqueids=uniqueids) for param in new_params]
+            ret_dists += [param.get_distribution(distribution=dc, distribution_uniqueids=uniqueids, delta_if_none=True) for param in new_params]
             ret_keys += [getattr(param, keys) for param in new_params]
             # TODO: do we need to set labels on the newly added dists?
 
