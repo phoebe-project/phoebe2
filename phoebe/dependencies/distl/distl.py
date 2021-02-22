@@ -6,6 +6,9 @@ from scipy import interpolate as _interpolate
 from scipy import integrate as _integrate
 import json as _json
 import sys as _sys
+import importlib as _importlib
+import random as _random
+import string as _string
 from collections import OrderedDict
 from distutils.version import StrictVersion
 
@@ -84,6 +87,11 @@ _physical_types_to_si = {'length': 'm',
                             'angular speed': 'rad/s',
                             'dimensionless': ''}
 
+def _uniqueid(n=20):
+    return ''.join(_random.SystemRandom().choice(
+                   _string.ascii_uppercase +_string.ascii_lowercase)
+                   for _ in range(n))
+
 ########################## LOAD/SAVE FUNCTIONS #################################
 
 
@@ -121,6 +129,13 @@ def from_dict(d):
     # a keyword argument to __init__
     args = d.get('args', None)
     kwargs = {k:v for k,v in d.items() if k not in ['distl', 'distl.version', 'args']}
+    if classname == 'Function':
+        kwargs['args'] = args
+        args = None
+        if isinstance(kwargs["func"], str):
+            m = _importlib.import_module(".".join(kwargs["func"].split(".")[:-1]))
+            kwargs["func"] = getattr(m, kwargs["func"].split(".")[-1])
+
     if args is not None:
         dist = getattr(_sys.modules[__name__], classname)(*args, **kwargs)
     else:
@@ -282,8 +297,8 @@ def _format_uncertainties_asymmetric(labels, labels_latex, units, qs_per_dim):
     s = ""
 
     for label, label_latex, unit, qs in zip(labels, labels_latex, units, qs_per_dim):
-        # we'll round to 1 significant digits in whichever uncertainty direction has the best precision
-        ndigits = int(_np.ceil(_np.max(-1*_np.log10([qs[2]-qs[1], qs[1]-qs[0]]))))
+        # we'll round to 1 (extra) significant digits in whichever uncertainty direction has the best precision
+        ndigits = int(_np.ceil(_np.max(-1*_np.log10([qs[2]-qs[1], qs[1]-qs[0]]))))+1
 
         if isinstance(unit, str):
             unit = _units.Unit(unit)
@@ -310,11 +325,11 @@ def _format_uncertainties_symmetric(labels, labels_latex, units, values_per_dim,
     s = ""
 
     for label, label_latex, unit, value, sigma in zip(labels, labels_latex, units, values_per_dim, sigmas_per_dim):
-        # we'll round to 1 significant digits in whichever uncertainty direction has the best precision
+        # we'll round to 1 (extra) significant digits in whichever uncertainty direction has the best precision
         if sigma == 0:
-            ndigits = int(-1*_np.log10(value))
+            ndigits = int(-1*_np.log10(value))+1
         else:
-            ndigits = int(_np.ceil(-1*_np.log10(sigma)))
+            ndigits = int(_np.ceil(-1*_np.log10(sigma)))+1
 
         if isinstance(unit, str):
             unit = _units.Unit(unit)
@@ -524,6 +539,9 @@ def _kde_pdf_cdf_ppf_callables(samples, weights):
 
 class BaseDistlObject(object):
     def __init__(self, **kwargs):
+        self._uniqueid = kwargs.pop('uniqueid', None)
+        if self._uniqueid is None:
+            self._uniqueid = _uniqueid()
         self._descriptors = kwargs.pop('descriptors', list(kwargs.keys()))
 
         for k,v in kwargs.items():
@@ -531,15 +549,32 @@ class BaseDistlObject(object):
 
     ### COPYING
 
+    @property
+    def uniqueid(self):
+        """
+        Access the internal uniqueid of the object used to determine whether
+        two distributions should be linked when sampling.  See <<class>.copy>
+        and <<class>.deepcopy> for more details.
+
+        Returns
+        -----------
+        * (str): the internal uniqueid
+        """
+        return self._uniqueid
+
     def __copy__(self):
         return self.__class__(**{k:v for k,v in self.to_dict().items() if k not in ['distl', 'distl.version']})
 
     def __deepcopy__(self, memo):
-        return self.__copy__()
+        return self.__class__(**{k:v for k,v in self.to_dict().items() if k not in ['distl', 'distl.version', 'uniqueid']})
+
 
     def copy(self):
         """
-        Make a copy of the distribution object.
+        Make a copy of the distribution object.  When sampled together via
+        a <DistributionCollection> or <CompositeDistribution>, both copies
+        will be sampled simultaneously and remain linked.  To break this link,
+        use <<class>>.deepcopy> instead.
 
         Returns
         ---------
@@ -547,14 +582,20 @@ class BaseDistlObject(object):
         """
         return self.__copy__()
 
-    ### IO
+    def deepcopy(self):
+        """
+        Make an independent copy of the distribution object.  When sampled together
+        via a <DistributionCollection> or <CompositeDistribution>, the copies
+        will be sampled independently rather than linked.  To retain this link,
+        use <<class>.copy> instead.
 
-    @property
-    def hash(self):
+        Returns
+        ----------
+        * a copy of the distribution object
         """
-        """
-        # return hash(frozenset({k:v for k,v in self.to_dict().items() if k not in ['dimension']}))
-        return hash(str({k:v for k,v in self.to_dict().items()}))
+        return self.__deepcopy__(None)
+
+    ### IO
 
     def to_json(self, **kwargs):
         """
@@ -576,6 +617,7 @@ class BaseDistlObject(object):
         --------
         * string
         """
+        _ = kwargs.pop("export_func_as_path", None)
         return _json.dumps(self.to_dict(exclude=kwargs.pop('exclude', [])), ensure_ascii=True, **kwargs)
 
     def to_file(self, filename, **kwargs):
@@ -615,7 +657,7 @@ class BaseDistribution(BaseDistlObject):
 
     * <BaseDistribution.__init__>
     """
-    def __init__(self, dist_constructor_func, dist_constructor_argnames, **kwargs):
+    def __init__(self, dist_constructor_func, dist_constructor_argnames, uniqueid=None, **kwargs):
         """
         BaseDistribution is the parent class for all distributions and should
         not be used directly by the user.
@@ -631,7 +673,7 @@ class BaseDistribution(BaseDistlObject):
         self._dist_constructor_object_cache = None
         self._parents_with_constructor_object_cache = []
 
-        super(BaseDistribution, self).__init__(**kwargs)
+        super(BaseDistribution, self).__init__(uniqueid=uniqueid, **kwargs)
 
     ### REPRESENTATIONS
 
@@ -674,6 +716,8 @@ class BaseDistribution(BaseDistlObject):
         elif _all_in_types((self, other), (BaseUnivariateDistribution, BaseMultivariateSliceDistribution)):
             return Composite("__mul__", (self, other))
         elif isinstance(other, float) or isinstance(other, int):
+            if other == 1.0:
+                return self.copy()
             return self.__mul__(Delta(other))
         else:
             raise TypeError("cannot multiply {} by type {}".format(self.__class__.__name__, type(other)))
@@ -1852,6 +1896,7 @@ class BaseUnivariateDistribution(BaseDistribution):
         d = {k: _json_safe(getattr(self, k), exclude=exclude) for k in self._descriptors}
         d['distl'] = self.__class__.__name__
         d['distl.version'] = __version__
+        d['uniqueid'] = self.uniqueid
         if self.unit is not None:
             d['unit'] = str(self.unit.to_string())
         if self.label is not None:
@@ -1961,7 +2006,7 @@ class BaseUnivariateDistribution(BaseDistribution):
         else:
             return value.value
 
-    def to(self, unit):
+    def to(self, unit, strip_units=False):
         """
         Convert to different units.  This creates a copy and returns the
         new distribution with the new units.  Astropy is required in order to
@@ -1978,6 +2023,8 @@ class BaseUnivariateDistribution(BaseDistribution):
         * `unit` (astropy.unit object): unit to use in the new distribution.
             The current units (see <<class>.unit>) must be able to
             convert to the requested units.
+        * `strip_units` (bool, optional, default=False): whether to strip the
+            units from the returned object
 
         Returns
         ------------
@@ -1990,6 +2037,8 @@ class BaseUnivariateDistribution(BaseDistribution):
         if not _has_astropy:
             raise ImportError("astropy required to handle units")
 
+        _label = self.label
+
         if self.unit is None or self.unit in [_units.dimensionless_unscaled]:
             # then we'll just adopt the units without applying any scaling
             factor = 1.0
@@ -2001,9 +2050,16 @@ class BaseUnivariateDistribution(BaseDistribution):
         if new_dist.wrap_at is not None and new_dist.wrap_at is not False:
             new_dist.wrap_at *= factor
         new_dist *= factor
+
+        if strip_units:
+            new_dist.unit = None
+
+        # make sure label doesn't include the math
+        new_dist.label = _label
+
         return new_dist
 
-    def to_si(self):
+    def to_si(self, strip_units=False):
         """
         Convert to SI units.
 
@@ -2011,15 +2067,24 @@ class BaseUnivariateDistribution(BaseDistribution):
 
         * <<class>.to>
         * <<class>.to_solar>
+
+        Arguments
+        ------------
+        * `strip_units` (bool, optional, default=False): whether to strip the
+            units from the returned object
+
+        Returns
+        -------------
+        * distribution object
         """
         physical_type = self.unit.physical_type
 
         if physical_type not in _physical_types_to_si.keys():
             raise NotImplementedError("cannot convert object with physical_type={} to SI units".format(physical_type))
 
-        return self.to(_units.Unit(_physical_types_to_si.get(physical_type)))
+        return self.to(_units.Unit(_physical_types_to_si.get(physical_type)), strip_units=strip_units)
 
-    def to_solar(self):
+    def to_solar(self, strip_units=False):
         """
         Convert to solar units.
 
@@ -2027,13 +2092,23 @@ class BaseUnivariateDistribution(BaseDistribution):
 
         * <<class>.to>
         * <<class>.to_si>
+
+        Arguments
+        ------------
+        * `strip_units` (bool, optional, default=False): whether to strip the
+            units from the returned object
+
+        Returns
+        -------------
+        * distribution object
         """
         physical_type = self.unit.physical_type
 
         if physical_type not in _physical_types_to_solar.keys():
             raise NotImplementedError("cannot convert object with physical_type={} to solar units".format(physical_type))
 
-        return self.to(_units.Unit(_physical_types_to_solar.get(physical_type)))
+        return self.to(_units.Unit(_physical_types_to_solar.get(physical_type)), strip_units=strip_units)
+
 
     ### CONVENIENCE METHODS FOR SAMPLING/WRAPPING/PLOTTING
 
@@ -2665,7 +2740,7 @@ class BaseUnivariateDistribution(BaseDistribution):
             shape defined by `size`.
         """
         if isinstance(seed, dict):
-            seed = seed.get(self.hash, None)
+            seed = seed.get(self.uniqueid, None)
 
         if seed is not None:
             _np.random.seed(seed)
@@ -2821,6 +2896,7 @@ class BaseMultivariateDistribution(BaseDistribution):
         d = {k:_json_safe(getattr(self,k), exclude=exclude) for k in self._descriptors}
         d['distl'] = self.__class__.__name__
         d['distl.version'] = __version__
+        d['uniqueid'] = self.uniqueid
         if self.units is not None and 'units':
             d['units'] = [u.to_string() if u is not None else None for u in self.units]
         if self.labels is not None and 'labels':
@@ -3204,7 +3280,7 @@ class BaseMultivariateDistribution(BaseDistribution):
         # TODO: add support for per-dimension unit, wrap_at, as_quantity (and pass in to_mvhistogram)
         # TODO: add support for seed
         if isinstance(seed, dict):
-            seed = seed.get(self.hash, None)
+            seed = seed.get(self.uniqueid, None)
 
         if seed is not None:
             _np.random.seed(seed)
@@ -3223,7 +3299,7 @@ class BaseMultivariateDistribution(BaseDistribution):
             return sample
 
     def _xlabel(self, dimension, unit=None, label=None):
-        label = label if label is not None else self.labels_latex[dimension] # will fallback on self.labels[dimension]
+        label = label if label is not None else self.labels_latex[dimension] if self.labels_latex is not None else None # will fallback on self.labels[dimension]
         l = 'value' if label is None else label
         if _has_astropy and self.units is not None and self.units[dimension] is not None and self.units[dimension] not in [_units.dimensionless_unscaled]:
             l += ' ({})'.format(unit._repr_latex_()  if unit is not None else self.units[dimension]._repr_latex_())
@@ -3368,7 +3444,10 @@ class BaseMultivariateDistribution(BaseDistribution):
 
 
 class BaseMultivariateSliceDistribution(BaseUnivariateDistribution):
-    def __init__(self, multivariate, dimension, unit=None, label=None, label_latex=None, wrap_at=None):
+    def __init__(self, multivariate, dimension, unit=None,
+                 label=None, label_latex=None, wrap_at=None,
+                 uniqueid=None):
+
         self._dist_constructor_object_cache = None
         self._parents_with_constructor_object_cache = []
 
@@ -3384,9 +3463,8 @@ class BaseMultivariateSliceDistribution(BaseUnivariateDistribution):
             raise TypeError("multivariate must be of type BaseMultivariateDistribution")
 
         self._multivariate = multivariate
+        self._uniqueid = uniqueid if uniqueid is not None else _uniqueid()
         self.dimension = dimension
-
-
 
     def __repr__(self):
         descriptors = " ".join(["{}={}".format(k,getattr(self.multivariate,k)) for k in self.multivariate._descriptors])
@@ -3428,6 +3506,7 @@ class BaseMultivariateSliceDistribution(BaseUnivariateDistribution):
         d = {}
         d['distl'] = self.__class__.__name__
         d['distl.version'] = __version__
+        d['uniqueid'] = self.uniqueid
         d['multivariate'] = self.multivariate.to_dict(exclude=exclude)
         d['dimension'] = self.dimension
         if self._unit is not None and 'unit':
@@ -3455,15 +3534,14 @@ class BaseMultivariateSliceDistribution(BaseUnivariateDistribution):
         return self._multivariate
 
     @property
-    def hash(self):
-        return self.multivariate.hash
+    def uniqueid(self):
+        return self.multivariate.uniqueid
 
     @property
-    def hash_slice(self):
+    def uniqueid_slice(self):
         """
         """
-        # return hash(frozenset({k:v for k,v in self.to_dict().items() if k not in ['dimension']}))
-        return hash(str({k:v for k,v in self.to_dict().items()}))
+        return self._uniqueid
 
     @property
     def unit(self):
@@ -3715,13 +3793,18 @@ class DistributionCollection(BaseDistlObject):
     <DistributionCollection> allows sampling from multiple distribution objects
     simultaneously, respecting all underlying covariances whenever possible.
     """
-    def __init__(self, *dists):
+    def __init__(self, *dists, **kwargs):
         if isinstance(dists, BaseDistribution):
             dists = [dists]
 
         self.dists = dists
 
         self._cached_sample = None
+
+        self._uniqueid = kwargs.pop('uniqueid', _uniqueid())
+
+        if len(kwargs.keys()):
+            raise ValueError("DistributionCollection does not accept kwargs: {}".format(kwargs.keys))
 
     def to_dict(self, exclude=[]):
         """
@@ -3747,6 +3830,7 @@ class DistributionCollection(BaseDistlObject):
         d = {}
         d['distl'] = self.__class__.__name__
         d['distl.version'] = __version__
+        d['uniqueid'] = self.uniqueid
         d['args'] = [distribution.to_dict(exclude=exclude) for distribution in self.dists]
 
         if exclude:
@@ -3896,27 +3980,27 @@ class DistributionCollection(BaseDistlObject):
             take_dimensions = not as_univariates and isinstance(dist_orig, BaseMultivariateSliceDistribution)
 
 
-            hash = dist_orig.hash_slice if isinstance(dist_orig, BaseMultivariateSliceDistribution) and not take_dimensions else dist_orig.hash
-            # print("***", dist_orig.label, hash)
-            if hash not in dists_dict.keys():
-                dists_dict[hash] = d
-                values_dict[hash] = [v]
+            uniqueid = dist_orig.uniqueid_slice if isinstance(dist_orig, BaseMultivariateSliceDistribution) and not take_dimensions else dist_orig.uniqueid
+            # print("***", dist_orig.label, uniqueid)
+            if uniqueid not in dists_dict.keys():
+                dists_dict[uniqueid] = d
+                values_dict[uniqueid] = [v]
                 if take_dimensions:
-                    dims_dict[hash] = [dist_orig.dimension]
+                    dims_dict[uniqueid] = [dist_orig.dimension]
             elif not isinstance(dist_orig, BaseMultivariateSliceDistribution):
                 # duplicate entry
-                if values_dict[hash][0] != v:
+                if values_dict[uniqueid][0] != v:
                     raise ValueError("All passed values for {} must be identical".format(d if d.label is None else d.label))
             else:
-                values_dict[hash].append(v)
+                values_dict[uniqueid].append(v)
                 if take_dimensions:
-                    dims_dict[hash].append(dist_orig.dimension)
+                    dims_dict[uniqueid].append(dist_orig.dimension)
 
-        for hash, dims in dims_dict.items():
-            dists_dict[hash] = dists_dict[hash].take_dimensions(dims)
+        for uniqueid, dims in dims_dict.items():
+            dists_dict[uniqueid] = dists_dict[uniqueid].take_dimensions(dims)
 
 
-        return {dists_dict.get(hash): values_dict.get(hash) if len(values_dict.get(hash)) > 1 else values_dict.get(hash)[0] for hash in values_dict.keys()}
+        return {dists_dict.get(uniqueid): values_dict.get(uniqueid) if len(values_dict.get(uniqueid)) > 1 else values_dict.get(uniqueid)[0] for uniqueid in values_dict.keys()}
 
     def pdf(self, values=None, as_univariates=False):
         """
@@ -4146,9 +4230,9 @@ class DistributionCollection(BaseDistlObject):
         but applied to distributions of the same underlying multivariate distribution
         automatically.
 
-        For each unique <BaseDistribution.hash> in the distributions in `dists` a
+        For each unique <BaseDistribution.uniqueid> in the distributions in `dists` a
         random seed will be generated and applied to <BaseDistribution.sample>
-        for all distributionis in `dists` which share that same hash value.  By doing
+        for all distributionis in `dists` which share that same uniqueid value.  By doing
         so, any <BaseMultivariateDistribution> which samples from the same underlying
         multivariate distribution (but for a different
         <BaseMultivariateDistribution.dimension>), will be correctly sampled to account
@@ -4185,7 +4269,7 @@ class DistributionCollection(BaseDistlObject):
             seeds = {}
 
         for i,dist in enumerate(self.dists_unpacked):
-            seeds.setdefault(dist.hash, get_random_seed()[i])
+            seeds.setdefault(dist.uniqueid, get_random_seed()[i])
 
         sample_kwargs = {k:v for k,v in kwargs.items() if k not in ['seeds']}
         # print("*** seeds: {}, sample_kwargs: {}".format(seeds, sample_kwargs))
@@ -4423,7 +4507,8 @@ class Composite(BaseUnivariateDistribution):
         will be used when converting to a <Histogram>.
 
     """
-    def __init__(self, math, dists, unit=None, label=None, label_latex=None, wrap_at=None):
+    def __init__(self, math, dists, unit=None, label=None, label_latex=None,
+                 wrap_at=None, uniqueid=None):
         """
         Create a <Composite> distribution from other distribution(s).
 
@@ -4458,7 +4543,8 @@ class Composite(BaseUnivariateDistribution):
         self.math = math
         super(Composite, self).__init__(unit, label, label_latex, wrap_at,
                                         None, None,
-                                        math=math, dists=dists)
+                                        math=math, dists=dists,
+                                        uniqueid=uniqueid)
 
         if label is None and _np.all([dist.label is not None for dist in dists]):
             if len(self.dists) == 1:
@@ -4566,13 +4652,13 @@ class Composite(BaseUnivariateDistribution):
             return " {} ".format(_math_symbols.get(self.math, self.math)).join(_subdist_str(d) for d in dists)
 
     @property
-    def hash(self):
+    def uniqueid(self):
         """
         """
         # NOTE (IMPORTANT): then we are going to "forget" these when
         # nesting CompositeDistributions
-        # return super(CompositeDistribution, self).hash()
-        return ",".join([str(d.hash) for d in self.dists])
+        # return super(CompositeDistribution, self).uniqueid()
+        return ",".join([str(d.uniqueid) for d in self.dists])
 
     ### SAMPLE CACHING
 
@@ -4731,7 +4817,7 @@ class Composite(BaseUnivariateDistribution):
             will use the value from <<class>.wrap_at>.  Note: wrapping is
             computed before changing units, so `wrap_at` must be provided
             according to <<class>.unit> not `unit`.
-        * `seed` (dict, optional, default={}): seeds (as hash: seed pairs) to
+        * `seed` (dict, optional, default={}): seeds (as uniqueid: seed pairs) to
             pass to underlying distributions.
         * `as_univariate` (bool, optional, default=False): whether to draw from
             the flattend <<class>.pdf> rather than from the children distributions.
@@ -4848,6 +4934,38 @@ class Composite(BaseUnivariateDistribution):
         """
         return self.to_histogram(N=N, bins=bins, range=range).to_uniform(sigma=sigma)
 
+
+    def to_dict(self, export_func_as_path=False, **kwargs):
+        def _handle_composite_export_func_as_path(d):
+            for i,dist in enumerate(d['dists']):
+                if 'dists' in dist.keys():
+                    d['dists'][i] = _handle_composite_export_func_as_path(d['dists'][i])
+                if 'func' in dist.keys():
+                    d['dists'][i]['func'] = ".".join([dist['func'].__module__, dist['func'].__name__])
+            return d
+
+
+        d = super(Composite, self).to_dict(**kwargs)
+        if export_func_as_path:
+            d = _handle_composite_export_func_as_path(d)
+        return d
+
+    def to_json(self, export_func_as_path=False, **kwargs):
+        """
+
+        """
+        return _json.dumps(self.to_dict(export_func_as_path=export_func_as_path, exclude=kwargs.pop('exclude', [])), ensure_ascii=True, **kwargs)
+
+    def to_file(self, filename, export_func_as_path=False, **kwargs):
+        """
+
+        """
+        f = open(filename, 'w')
+        f.write(self.to_json(export_func_as_path=export_func_as_path, **kwargs))
+        f.close()
+        return filename
+
+
 class Function(BaseUnivariateDistribution):
     """
     A function distribution consisting of some callable function along with
@@ -4879,7 +4997,9 @@ class Function(BaseUnivariateDistribution):
       thereby losing all covariances.
 
     """
-    def __init__(self, func, args, kwargs, vectorized=True, hist_samples=None, unit=None, label=None, label_latex=None, wrap_at=None):
+    def __init__(self, func, args, kwargs, vectorized=True, hist_samples=None,
+                 unit=None, label=None, label_latex=None, wrap_at=None,
+                 uniqueid=None):
         """
         Create a <Function> distribution from two other distributions.
 
@@ -4921,7 +5041,10 @@ class Function(BaseUnivariateDistribution):
         """
         super(Function, self).__init__(unit, label, label_latex, wrap_at,
                                         None, None,
-                                        func=func, args=args, kwargs=kwargs, vectorized=vectorized, hist_samples=hist_samples)
+                                        func=func, args=args, kwargs=kwargs,
+                                        vectorized=vectorized,
+                                        hist_samples=hist_samples,
+                                        uniqueid=uniqueid)
 
         if label is None:
             def _label(arg):
@@ -4946,6 +5069,17 @@ class Function(BaseUnivariateDistribution):
             if isinstance(arg, BaseDistribution):
                 arg._parents_with_constructor_object_cache.append(self)
 
+        self._dc = None
+
+    @property
+    def uniqueid(self):
+        """
+        """
+        # NOTE (IMPORTANT): then we are going to "forget" these when
+        # nesting CompositeDistributions
+        # return super(CompositeDistribution, self).uniqueid()
+        return ",".join([str(d.uniqueid) for d in self.dists])
+
     @property
     def func(self):
         """
@@ -4968,12 +5102,31 @@ class Function(BaseUnivariateDistribution):
         """
         return self._args
 
+    @property
+    def args_as_dists(self):
+        """
+        <Function.args> but with all floats replaced with <Delta> distributions.
+        """
+        return [a if isinstance(a, BaseDistribution) else Delta(a) for a in self._args]
+
     @args.setter
     def args(self, value):
         value = is_list_of_dists_or_floats(value)
 
         self._args = value
         self._dist_constructor_object_clear_cache()
+        self._dc = None
+
+    @property
+    def dists(self):
+        """
+        Access the distribution entries in <Function.args> and <Function.kwargs>.
+
+        See also:
+        * <Function.args_as_dists>
+        * <Function.kwargs_as_dists>
+        """
+        return [d for d in self.args if isinstance(d, BaseDistribution)] + [d for d in self.kwargs.values() if isinstance(d, BaseDistribution)]
 
     @property
     def kwargs(self):
@@ -4981,6 +5134,18 @@ class Function(BaseUnivariateDistribution):
         kwargs to pass to <Function.func>.  Each item can be a float or Distribution object.
         """
         return self._kwargs
+
+    @property
+    def kwargs_as_dists(self):
+        """
+        <Function.kwargs> but with all floats replaced with <Delta> distributions.
+        """
+        def _to_dist(v):
+            if isinstance(v, BaseDistribution):
+                return v
+            return Delta(v)
+
+        return {k: _to_dist(v) for k,v in self._kwargs.items()}
 
     @kwargs.setter
     def kwargs(self, value):
@@ -4993,6 +5158,16 @@ class Function(BaseUnivariateDistribution):
 
         self._kwargs = value
         self._dist_constructor_object_clear_cache()
+        self._dc = None
+
+    @property
+    def dc(self):
+        """
+        Access the <DistributionCollection> containing all <Function.args_as_dists> and <Function.kwargs_as_dists>
+        """
+        if self._dc is None:
+            self._dc = DistributionCollection(*self.args_as_dists+list(self.kwargs_as_dists.values()))
+        return self._dc
 
     @property
     def vectorized(self):
@@ -5045,18 +5220,11 @@ class Function(BaseUnivariateDistribution):
     ### SAMPLE CACHING
 
     @property
-    def dists(self):
-        """
-        Access the distribution entries in <Function.args> and <Function.kwargs>.
-        """
-        return [d for d in self.args if isinstance(d, BaseDistribution)] + [d for d in self.kwargs.values() if isinstance(d, BaseDistribution)]
-
-    @property
     def cached_sample_children(self):
         return _np.asarray([d.cached_sample for d in self.dists])
 
     def clear_cached_sample(self):
-        super(Composite, self).clear_cached_sample()
+        super(Function, self).clear_cached_sample()
         for d in self.dists:
             d.clear_cached_sample()
 
@@ -5080,24 +5248,33 @@ class Function(BaseUnivariateDistribution):
         -----------
         * `size` (int or tuple or None, optional, default=None): size/shape of the
             resulting array.
-        * `seed` (dict, optional, default={}): seeds (as hash: seed pairs) to
+        * `seed` (dict, optional, default={}): seeds (as uniqueid: seed pairs) to
             pass to underlying distributions.
         * `cache_sample` (bool, optional, default=False): whether to override the
             existing <<class>.cached_sample>.
 
         """
-        def _arg_as_float(arg, size, seed, cache_sample):
-            if isinstance(arg, BaseDistribution):
-                return arg.sample(size=size, seed=seed, cache_sample=cache_sample, as_quantity=False)
-            return arg
+        # in order to handle possible uniqueid overlaps, we need to sample all
+        # args and kwargs simultaneously through a DistributionCollection
 
-        args = [_arg_as_float(arg, size, seed, cache_sample) for arg in self.args]
-        kwargs = {k: _arg_as_float(v, size, seed, cache_sample) for k,v in self.kwargs.items()}
+        # TODO: can we cache this DistributionCollection itself?
+        samples = self.dc.sample(seeds=seed, size=size, cache_sample=cache_sample)
+
+        # samples is now of shape size,len(args)+len(kwargs)
+        if size is None:
+            args = samples[:len(self.args)]
+            kwargs_list = samples[len(self.args):]
+        else:
+            args = samples[:,:len(self.args)].T
+            kwargs_list = samples[:,len(self.args):].T
+        kwargs = {k: v for k,v in zip(self.kwargs.keys(), kwargs_list)}
         return args, kwargs
 
+
     def _sample_from_children(self, func, args, kwargs, vectorized, seed={}, size=None, cache_sample=True, skip_fail=False):
+        args, kwargs = self.sample_args_kwargs(size, seed, cache_sample)
+
         if size is None or vectorized:
-            args, kwargs = self.sample_args_kwargs(size, seed, cache_sample)
             try:
                 return func(*args, **kwargs)
             except:
@@ -5107,8 +5284,9 @@ class Function(BaseUnivariateDistribution):
                     return self._sample_from_children(func, args, kwargs, vectorized, seed, size, cache_sample, skip_fail)
                 raise
         else:
-            # TODO: can we be smarter here at all?  Do we need to make sure size is an int?
-            return _np.asarray([self._sample_from_children(func, args, kwargs, vectorized, seed, size=None, cache_sample=False, skip_fail=True) for n in range(size)])
+            # NOTE: we have to increment the incoming seed otherwise each sample in the list comprehension will be the same
+            # unfortunately this will break any expected correlation if this FunctionDistribution is nested in any parent DistributionCollection, Fuction, or Composite distribution
+            return _np.asarray([func(*argsi, **{k:v[i] for k,v in kwargs.items()}) for i, argsi in enumerate(args.T)])
 
 
     def sample(self, size=None, unit=None, as_quantity=False, wrap_at=None, seed={}, cache_sample=True):
@@ -5139,7 +5317,7 @@ class Function(BaseUnivariateDistribution):
             will use the value from <<class>.wrap_at>.  Note: wrapping is
             computed before changing units, so `wrap_at` must be provided
             according to <<class>.unit> not `unit`.
-        * `seed` (dict, optional, default={}): seeds (as hash: seed pairs) to
+        * `seed` (dict, optional, default={}): seeds (as uniqueid: seed pairs) to
             pass to underlying distributions.
         * `cache_sample` (bool, optional, default=True): whether to override the
             existing <<class>.cached_sample>.
@@ -5149,7 +5327,6 @@ class Function(BaseUnivariateDistribution):
         * float or array: float if `size=None`, otherwise a numpy array with
             shape defined by `size`.
         """
-
         sample = self._sample_from_children(self.func, self.args, self.kwargs, self.vectorized, size=size, seed=seed, cache_sample=cache_sample)
 
         if isinstance(sample, _units.Quantity):
@@ -5189,15 +5366,25 @@ class Function(BaseUnivariateDistribution):
 
         return super(Function, self).plot_sample(*args, **kwargs)
 
-    def to_json(self, **kwargs):
+    def to_dict(self, export_func_as_path=False, **kwargs):
+        d = super(Function, self).to_dict(**kwargs)
+        if export_func_as_path:
+            d['func'] = ".".join([d['func'].__module__, d['func'].__name__])
+        return d
+
+
+    def to_json(self, export_func_as_path=False, **kwargs):
         """
         json is not supported for <Function> distributions as the <Function.func>
         object must be stored via dill.  See <Function.to_dict> or <Function.to_file>.
         """
-        raise NotImplementedError("to_json is not supported for Function distributions.  See to_dict or to_file instead")
+        if export_func_as_path:
+            return _json.dumps(self.to_dict(export_func_as_path=True, exclude=kwargs.pop('exclude', [])), ensure_ascii=True, **kwargs)
+        else:
+            raise NotImplementedError("to_json is not supported for Function distributions, unless export_func_as_path=True.  See to_dict or to_file instead")
 
 
-    def to_file(self, filename, **kwargs):
+    def to_file(self, filename, export_func_as_path=False, **kwargs):
         """
         Save the distribution object to a file using dill.
 
@@ -5214,12 +5401,18 @@ class Function(BaseUnivariateDistribution):
         --------
         * string: the filename
         """
+        if export_func_as_path:
+            f = open(filename, 'w')
+            f.write(self.to_json(export_func_as_path=True, **kwargs))
+            f.close()
+            return filename
+
         if _has_dill:
             f = open(filename, 'wb')
             f.write(_dill.dumps(self))
             f.close()
         else:
-            raise ImportError("to_file for Function distributions requires the 'dill' package")
+            raise ImportError("to_file for Function distributions requires the 'dill' package or `export_func_as_path=True`")
         return filename
 
     def to_gaussian(self, N=1000, bins=10, range=None):
@@ -5283,7 +5476,9 @@ class Histogram(BaseUnivariateDistribution):
     Histogram distribtuion from the data array itself, see
     <distl.histogram_from_data> or <Histogram.from_data>.
     """
-    def __init__(self, bins, density, unit=None, label=None, label_latex=None, wrap_at=None):
+    def __init__(self, bins, density, unit=None,
+                 label=None, label_latex=None, wrap_at=None,
+                 uniqueid=None):
         """
         Create a <Histogram> distribution from bins and density.
 
@@ -5319,7 +5514,8 @@ class Histogram(BaseUnivariateDistribution):
         """
         super(Histogram, self).__init__(unit, label, label_latex, wrap_at,
                                         _stats.rv_histogram, ('density', 'bins'),
-                                        bins=bins, density=density)
+                                        bins=bins, density=density,
+                                        uniqueid=uniqueid)
 
     @property
     def bins(self):
@@ -5450,7 +5646,9 @@ class Samples(BaseUnivariateDistribution):
     rely on a KDE with <Samples.samples>, <Samples.weights>, and <Samples.bw_method>.
     See https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.gaussian_kde.html
     """
-    def __init__(self, samples, weights=None, bw_method=None, unit=None, label=None, label_latex=None, wrap_at=None):
+    def __init__(self, samples, weights=None, bw_method=None, unit=None,
+                 label=None, label_latex=None, wrap_at=None,
+                 uniqueid=None):
         """
         Create a <Samples> distribution from samples.
 
@@ -5491,7 +5689,9 @@ class Samples(BaseUnivariateDistribution):
 
         super(Samples, self).__init__(unit, label, label_latex, wrap_at,
                                       _stats.gaussian_kde, ('samples', 'bw_method') if StrictVersion(_scipy_version) < StrictVersion("1.2.0") else ('samples', 'bw_method', 'weights'),
-                                      samples=samples, weights=weights, bw_method=bw_method)
+                                      samples=samples, weights=weights,
+                                      bw_method=bw_method,
+                                      uniqueid=uniqueid)
 
     @property
     def nsamples(self):
@@ -5855,7 +6055,7 @@ class Samples(BaseUnivariateDistribution):
             shape defined by `size`.
         """
         if isinstance(seed, dict):
-            seed = seed.get(self.hash, None)
+            seed = seed.get(self.uniqueid, None)
 
         if seed is not None:
             _np.random.seed(seed)
@@ -5877,7 +6077,9 @@ class Delta(BaseUnivariateDistribution):
 
     Can be created from the top-level via the <distl.delta> convenience function.
     """
-    def __init__(self, loc=0.0, unit=None, label=None, label_latex=None, wrap_at=None):
+    def __init__(self, loc=0.0, unit=None,
+                 label=None, label_latex=None, wrap_at=None,
+                 uniqueid=None):
         """
         Create a <Delta> distribution.
 
@@ -5905,7 +6107,8 @@ class Delta(BaseUnivariateDistribution):
         """
         super(Delta, self).__init__(unit, label, label_latex, wrap_at,
                                     _stats_custom.delta, ('loc',),
-                                    loc=loc)
+                                    loc=loc,
+                                    uniqueid=uniqueid)
 
     @property
     def loc(self):
@@ -5925,7 +6128,11 @@ class Delta(BaseUnivariateDistribution):
 
         if (isinstance(other, float) or isinstance(other, int)):
             dist = self.copy()
+            if other == 1.0:
+                return dist
             dist.loc *= other
+            if dist.label is not None:
+                dist.label = "({}) * {}".format(dist.label, other)
             return dist
 
         return super(Delta, self).__mul__(other)
@@ -5937,6 +6144,8 @@ class Delta(BaseUnivariateDistribution):
         if (isinstance(other, float) or isinstance(other, int)):
             dist = self.copy()
             dist.loc **= other
+            if dist.unit is not None:
+                dist.unit **= other
             return dist
 
         return super(Delta, self).__pow__(other)
@@ -5958,7 +6167,11 @@ class Delta(BaseUnivariateDistribution):
 
         if (isinstance(other, float) or isinstance(other, int)):
             dist = self.copy()
+            if other == 0.0:
+                return dist
             dist.loc += other
+            if dist.label is not None:
+                dist.label = "({}) + {}".format(dist.label, other)
             return dist
 
         return super(Delta, self).__add__(other)
@@ -6044,7 +6257,9 @@ class Gaussian(BaseUnivariateDistribution):
     Can be created from the top-level via the <distl.gaussian> or
     <distl.normal> convenience functions.
     """
-    def __init__(self, loc=0.0, scale=1.0, unit=None, label=None, label_latex=None, wrap_at=None):
+    def __init__(self, loc=0.0, scale=1.0, unit=None,
+                 label=None, label_latex=None, wrap_at=None,
+                 uniqueid=None):
         """
         Create a <Gaussian> distribution.
 
@@ -6075,7 +6290,8 @@ class Gaussian(BaseUnivariateDistribution):
         """
         super(Gaussian, self).__init__(unit, label, label_latex, wrap_at,
                                        _stats.norm, ('loc', 'scale'),
-                                       loc=loc, scale=scale)
+                                       loc=loc, scale=scale,
+                                       uniqueid=uniqueid)
 
 
     @property
@@ -6108,8 +6324,12 @@ class Gaussian(BaseUnivariateDistribution):
 
         if (isinstance(other, float) or isinstance(other, int)):
             dist = self.copy()
+            if other == 1.0:
+                return dist
             dist.loc *= other
             dist.scale *= other
+            if dist.label is not None:
+                dist.label = "({}) * {}".format(dist.label, other)
             return dist
 
         return super(Gaussian, self).__mul__(other)
@@ -6122,6 +6342,8 @@ class Gaussian(BaseUnivariateDistribution):
             dist = self.copy()
             dist.loc **= other
             dist.scale **= other
+            if dist.unit is not None:
+                dist.unit **= other
             return dist
 
         return super(Gaussian, self).__pow__(other)
@@ -6144,7 +6366,11 @@ class Gaussian(BaseUnivariateDistribution):
 
         if (isinstance(other, float) or isinstance(other, int)):
             dist = self.copy()
+            if other == 0.0:
+                return dist
             dist.loc += other
+            if dist.label is not None:
+                dist.label = "({}) + {}".format(dist.label, other)
             return dist
 
         return super(Gaussian, self).__add__(other)
@@ -6222,7 +6448,9 @@ class Uniform(BaseUnivariateDistribution):
     Can be created from the top-level via the <distl.uniform> or
     <distl.boxcar> convenience functions.
     """
-    def __init__(self, low=0.0, high=1.0, unit=None, label=None, label_latex=None, wrap_at=None):
+    def __init__(self, low=0.0, high=1.0, unit=None,
+                 label=None, label_latex=None, wrap_at=None,
+                 uniqueid=None):
         """
         Create a <Uniform> distribution.
 
@@ -6253,7 +6481,8 @@ class Uniform(BaseUnivariateDistribution):
         """
         super(Uniform, self).__init__(unit, label, label_latex, wrap_at,
                                        _stats.uniform, ('low', 'width'),
-                                       low=low, high=high)
+                                       low=low, high=high,
+                                       uniqueid=uniqueid)
 
         if high < low:
             wrap_at = self.get_wrap_at()
@@ -6307,8 +6536,12 @@ class Uniform(BaseUnivariateDistribution):
 
         if (isinstance(other, float) or isinstance(other, int)):
             dist = self.copy()
+            if other == 1.0:
+                return dist
             dist.low *= other
             dist.high *= other
+            if dist.label is not None:
+                dist.label = "({}) * {}".format(dist.label, other)
             return dist
 
         return super(Uniform, self).__mul__(other)
@@ -6319,8 +6552,14 @@ class Uniform(BaseUnivariateDistribution):
 
         if (isinstance(other, float) or isinstance(other, int)):
             dist = self.copy()
+            if other == 1:
+                return dist
             dist.low **= other
             dist.high **= other
+            if dist.unit is not None:
+                dist.unit **= other
+            if dist.label is not None:
+                dist.label = "({}) ** {}".format(dist.label, other)
             return dist
 
         return super(Uniform, self).__pow__(other)
@@ -6344,8 +6583,12 @@ class Uniform(BaseUnivariateDistribution):
 
         if (isinstance(other, float) or isinstance(other, int)):
             dist = self.copy()
+            if other == 0.0:
+                return dist
             dist.low += other
             dist.high += other
+            if dist.label is not None:
+                dist.label = "({}) + {}".format(dist.label, other)
             return dist
         # elif isinstance(other, Uniform):
             ## NOTE: this does not seem to be true as we should get a trapezoid if sampling separately
@@ -6416,7 +6659,7 @@ class Uniform(BaseUnivariateDistribution):
 
 class MVGaussian(BaseMultivariateDistribution):
     def __init__(self, mean=0.0, cov=1.0, allow_singular=False,
-                 units=None, labels=None, labels_latex=None, wrap_ats=None):
+                 units=None, labels=None, labels_latex=None, wrap_ats=None, uniqueid=None):
         """
         A Multivariate Gaussian distribution uses [scipy.stats.multivariate_normal](https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.multivariate_normal.html)
         to sample values from a multivariate gaussian/normal function.
@@ -6452,7 +6695,8 @@ class MVGaussian(BaseMultivariateDistribution):
         """
         super(MVGaussian, self).__init__(units, labels, labels_latex, wrap_ats,
                                          _stats.multivariate_normal, ('mean', 'cov', 'allow_singular'),
-                                         mean=mean, cov=cov, allow_singular=allow_singular)
+                                         mean=mean, cov=cov, allow_singular=allow_singular,
+                                         uniqueid=uniqueid)
 
 
     @property
@@ -6769,7 +7013,8 @@ class MVHistogram(BaseMultivariateDistribution):
     on that sample.
 
     """
-    def __init__(self, bins, density, units=None, labels=None, labels_latex=None, wrap_ats=None):
+    def __init__(self, bins, density, units=None, labels=None, labels_latex=None,
+                 wrap_ats=None, uniqueid=None):
         """
         Create an <MVHistogram> distribution from bins and density.
 
@@ -6801,7 +7046,8 @@ class MVHistogram(BaseMultivariateDistribution):
         """
         super(MVHistogram, self).__init__(units, labels, labels_latex, wrap_ats,
                                           None, None,
-                                          bins=bins, density=density)
+                                          bins=bins, density=density,
+                                          uniqueid=uniqueid)
 
     @property
     def bins(self):
@@ -7038,7 +7284,7 @@ class MVHistogram(BaseMultivariateDistribution):
         #     density = self.density
 
         if isinstance(seed, dict):
-            seed = seed.get(self.hash, None)
+            seed = seed.get(self.uniqueid, None)
 
         if seed is not None:
             _np.random.seed(seed)
@@ -7294,7 +7540,9 @@ class MVSamples(BaseMultivariateDistribution):
     See https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.gaussian_kde.html
 
     """
-    def __init__(self, samples, weights=None, bw_method=None, units=None, labels=None, labels_latex=None, wrap_ats=None):
+    def __init__(self, samples, weights=None, bw_method=None, units=None,
+                 labels=None, labels_latex=None, wrap_ats=None,
+                 uniqueid=None):
         """
         Create an <MVSamples> distribution from samples (eg. chains from MCMC).
 
@@ -7331,7 +7579,8 @@ class MVSamples(BaseMultivariateDistribution):
         """
         super(MVSamples, self).__init__(units, labels, labels_latex, wrap_ats,
                                         _stats.gaussian_kde, ('samples', 'bw_method') if StrictVersion(_scipy_version) < StrictVersion("1.2.0") else ('samples', 'bw_method', 'weights'),
-                                        samples=samples, weights=weights, bw_method=bw_method)
+                                        samples=samples, weights=weights, bw_method=bw_method,
+                                        uniqueid=uniqueid)
 
     @property
     def samples(self):
@@ -7518,7 +7767,7 @@ class MVSamples(BaseMultivariateDistribution):
         """
 
         if isinstance(seed, dict):
-            seed = seed.get(self.hash, None)
+            seed = seed.get(self.uniqueid, None)
 
         if seed is not None:
             _np.random.seed(seed)
@@ -7818,7 +8067,9 @@ class MVSamplesSlice(BaseMultivariateSliceDistribution):
 ############################# GENERATORS ######################################
 
 class BaseAroundGenerator(BaseDistlObject):
-    def __init__(self, value=None, unit=None, label=None, label_latex=None, wrap_at=None, **kwargs):
+    def __init__(self, value=None, unit=None,
+                 label=None, label_latex=None, wrap_at=None,
+                 **kwargs):
         self.value = value
         self.unit = unit
         self.label = label
@@ -7974,6 +8225,7 @@ class BaseAroundGenerator(BaseDistlObject):
         d = {k: _json_safe(getattr(self, k), exclude=exclude) for k in self._descriptors}
         d['distl'] = self.__class__.__name__
         d['distl.version'] = __version__
+        d['uniqueid'] = self.uniqueid
         if self.value is not None and 'value':
             d['value'] = self.value
         if self.unit is not None and 'unit':
@@ -8056,7 +8308,7 @@ class BaseAroundGenerator(BaseDistlObject):
         self._unit = unit
 
 
-    def to(self, unit):
+    def to(self, unit, strip_units=False):
         """
         Convert to different units.  This creates a copy and returns the
         new distribution with the new units.  Astropy is required in order to
@@ -8073,6 +8325,8 @@ class BaseAroundGenerator(BaseDistlObject):
         * `unit` (astropy.unit object): unit to use in the new distribution.
             The current units (see <<class>.unit>) must be able to
             convert to the requested units.
+        * `strip_units` (bool, optional, default=False): whether to strip the
+            units from the returned object
 
         Returns
         ------------
@@ -8085,6 +8339,8 @@ class BaseAroundGenerator(BaseDistlObject):
         if not _has_astropy:
             raise ImportError("astropy required to handle units")
 
+        _label = self.label
+
         if self.unit is None or self.unit in [_units.dimensionless_unscaled]:
             # then we'll just adopt the units without applying any scaling
             factor = 1.0
@@ -8096,9 +8352,16 @@ class BaseAroundGenerator(BaseDistlObject):
         if new_dist.wrap_at is not None and new_dist.wrap_at is not False:
             new_dist.wrap_at *= factor
         new_dist *= factor
+
+        if strip_units:
+            new_dist.unit = None
+
+        # make sure the label doesn't include math
+        new_dist.label = _label
+
         return new_dist
 
-    def to_si(self):
+    def to_si(self, strip_units=False):
         """
         Convert to SI units.
 
@@ -8106,15 +8369,24 @@ class BaseAroundGenerator(BaseDistlObject):
 
         * <<class>.to>
         * <<class>.to_solar>
+
+        Arguments
+        ------------
+        * `strip_units` (bool, optional, default=False): whether to strip the
+            units from the returned object
+
+        Returns
+        -------------
+        * distribution object
         """
         physical_type = self.unit.physical_type
 
         if physical_type not in _physical_types_to_si.keys():
             raise NotImplementedError("cannot convert object with physical_type={} to SI units".format(physical_type))
 
-        return self.to(_units.Unit(_physical_types_to_si.get(physical_type)))
+        return self.to(_units.Unit(_physical_types_to_si.get(physical_type)), strip_units=strip_units)
 
-    def to_solar(self):
+    def to_solar(self, strip_units=False):
         """
         Convert to solar units.
 
@@ -8122,13 +8394,22 @@ class BaseAroundGenerator(BaseDistlObject):
 
         * <<class>.to>
         * <<class>.to_si>
+
+        Arguments
+        ------------
+        * `strip_units` (bool, optional, default=False): whether to strip the
+            units from the returned object
+
+        Returns
+        -------------
+        * distribution object
         """
         physical_type = self.unit.physical_type
 
         if physical_type not in _physical_types_to_solar.keys():
             raise NotImplementedError("cannot convert object with physical_type={} to solar units".format(physical_type))
 
-        return self.to(_units.Unit(_physical_types_to_solar.get(physical_type)))
+        return self.to(_units.Unit(_physical_types_to_solar.get(physical_type)), strip_units=strip_units)
 
 
     ### CONVENIENCE METHODS FOR SAMPLING/WRAPPING/PLOTTING
@@ -8206,7 +8487,9 @@ class Uniform_Around(BaseAroundGenerator):
     ```
 
     """
-    def __init__(self, width, value=None, unit=None, label=None, label_latex=None, wrap_at=None):
+    def __init__(self, width, value=None, unit=None,
+                 label=None, label_latex=None, wrap_at=None,
+                 uniqueid=None):
         """
         Create a <Uniform_Around> object which, when called, will resolve
         to a <Uniform> object around a given central value.
@@ -8235,7 +8518,7 @@ class Uniform_Around(BaseAroundGenerator):
         -----------
         * a <Uniform_Around> object.
         """
-        super(Uniform_Around, self).__init__(value, unit, label, label_latex, wrap_at, width=width)
+        super(Uniform_Around, self).__init__(value, unit, label, label_latex, wrap_at, width=width, uniqueid=uniqueid)
 
     def __create_distl__(self, value, unit, label, label_latex, wrap_at):
         return Uniform(value-self._width/2, value+self._width/2, unit, label, label_latex, wrap_at)
@@ -8289,7 +8572,8 @@ class Delta_Around(BaseAroundGenerator):
     ```
 
     """
-    def __init__(self, value=None, unit=None, label=None, label_latex=None, wrap_at=None):
+    def __init__(self, value=None, unit=None, label=None, label_latex=None,
+                 wrap_at=None, uniqueid=None):
         """
         Create a <Delta_Around> object which, when called, will resolve
         to a <Delta> object around a given central value.
@@ -8316,7 +8600,7 @@ class Delta_Around(BaseAroundGenerator):
         --------
         * a <Delta> object
         """
-        super(Delta_Around, self).__init__(value, unit, label, label_latex, wrap_at)
+        super(Delta_Around, self).__init__(value, unit, label, label_latex, wrap_at, uniqueid=uniqueid)
 
     def __create_distl__(self, value, unit, label, label_latex, wrap_at):
         return Delta(value, unit, label, label_latex, wrap_at)
@@ -8359,7 +8643,8 @@ class Gaussian_Around(BaseAroundGenerator):
     ```
 
     """
-    def __init__(self, scale, value=None, unit=None, label=None, label_latex=None, wrap_at=None):
+    def __init__(self, scale, value=None, unit=None, label=None, label_latex=None,
+                 wrap_at=None, uniqueid=None):
         """
         Create a <Gaussian_Around> object which, when called, will resolve
         to a <Gaussian> object around a given central value.
@@ -8387,7 +8672,7 @@ class Gaussian_Around(BaseAroundGenerator):
         --------
         * a <Gaussian_Around> object
         """
-        super(Gaussian_Around, self).__init__(value, unit, label, label_latex, wrap_at, scale=scale)
+        super(Gaussian_Around, self).__init__(value, unit, label, label_latex, wrap_at, scale=scale, uniqueid=uniqueid)
 
     def __create_distl__(self, value, unit, label, label_latex, wrap_at):
         return Gaussian(value, self._scale, unit, label, label_latex, wrap_at)

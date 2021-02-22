@@ -72,7 +72,7 @@ def find_eclipse(phases, fluxes):
     phase_min = phases[np.nanargmin(fluxes)]
     ph_cross = phases[fluxes - np.nanmedian(fluxes) > 0]
     # this part looks really complicated but it really only accounts for eclipses split
-    # between the edges of the phase range - if a left/right edge is not found, we look for 
+    # between the edges of the phase range - if a left/right edge is not found, we look for
     # it in the phases on the other end of the range
     # we then mirror the value back on the side of the eclipse position for easier width computation
     try:
@@ -87,7 +87,7 @@ def find_eclipse(phases, fluxes):
     except:
         arg_edge_right = np.argmin(np.abs((phase_min-1)-ph_cross[ph_cross>(phase_min-1)]))
         edge_right = ph_cross[ph_cross>(phase_min-1)][arg_edge_right]+1
-                            
+
     return phase_min, edge_left, edge_right
 
 
@@ -96,7 +96,7 @@ def estimate_eclipse_positions_widths(phases, fluxes, diagnose_init=False):
     fluxes_sec = fluxes.copy()
     fluxes_sec[((phases > edge1l) & (phases < edge1r)) | ((phases > edge1l+1) | (phases < edge1r-1))] = np.nan
     pos2, edge2l, edge2r = find_eclipse(phases, fluxes_sec)
-    
+
 
     if diagnose_init:
         import matplotlib.pyplot as plt
@@ -111,7 +111,7 @@ def estimate_eclipse_positions_widths(phases, fluxes, diagnose_init=False):
             plt.axvline(x=x, c='g', ls=ls)
 
     return {'ecl_positions': [pos1, pos2], 'ecl_widths': [edge1r-edge1l, edge2r-edge2l]}
-                
+
 # FITTING
 
 def lnlike(y, yerr, ymodel):
@@ -201,6 +201,11 @@ def compute_twoGaussian_models_BIC(models, phases, fluxes, sigmas):
 
 def fit_lc(phases, fluxes, sigmas):
 
+    if np.any(sigmas <= 0.0):
+        raise ValueError("sigmas cannot be <= 0.0")
+    if np.all(np.isnan(sigmas)):
+        sigmas = None
+
     fits = fit_twoGaussian_models(phases, fluxes, sigmas)
     models = compute_twoGaussian_models(fits, phases)
     bics = compute_twoGaussian_models_BIC(models, phases, fluxes, sigmas)
@@ -212,6 +217,8 @@ def fit_lc(phases, fluxes, sigmas):
             'CG12E1': ['C', 'mu1', 'd1', 'sigma1', 'mu2', 'd2', 'sigma2', 'Aell'],
             'CG12E2': ['C', 'mu1', 'd1', 'sigma1', 'mu2', 'd2', 'sigma2', 'Aell']}
 
+    if np.all(np.isnan(list(bics.values()))):
+        raise ValueError("all two gaussian models failed, please report this issue.")
     best_fit = list(models.keys())[np.nanargmax(list(bics.values()))]
     return {'fits':fits, 'models':models, 'bics':bics, 'best_fit':best_fit, 'model_parameters': params}
 
@@ -339,11 +346,11 @@ def compute_eclipse_params(phases, fluxes, sigmas, fit_result=None, diagnose=Fal
         lines.append(ax.axvline(x=ecl2_l, c='#FF702F', lw=2, ls='--'))
         lines.append(ax.axvline(x=ecl2_r, c='#FF702F', lw=2, ls='--'))
         drs = []
-        for l,label in zip(lines,['pos1', 'pos2', 'ecl1_l', 'ecl1_r', 'ecl2_l', 'ecl2_r']):   
+        for l,label in zip(lines,['pos1', 'pos2', 'ecl1_l', 'ecl1_r', 'ecl2_l', 'ecl2_r']):
             dr = DraggableLine(l)
             dr.label = label
-            dr.connect()   
-            drs.append(dr) 
+            dr.connect()
+            drs.append(dr)
         ax.legend()
         plt.show(block=True)
 
@@ -355,7 +362,7 @@ def compute_eclipse_params(phases, fluxes, sigmas, fit_result=None, diagnose=Fal
         ecl1_r = drs[3].point.get_xdata()[0]
         ecl2_l = drs[4].point.get_xdata()[0]
         ecl2_r = drs[5].point.get_xdata()[0]
-        
+
         eclipse_edges = [ecl1_l, ecl1_r, ecl2_l, ecl2_r]
 
 
@@ -399,7 +406,7 @@ def ecc_w_from_geometry(sep, pwidth, swidth):
     if np.isnan(sep) or np.isnan(pwidth) or np.isnan(swidth):
         logger.warning('Cannot esimate eccentricty and argument of periastron: incomplete geometry information')
         return 0., pi/2
-        
+
     # computation fails if sep<0, so we need to adjust for it here.
     if sep < 0:
         sep = 1+sep

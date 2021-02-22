@@ -4693,7 +4693,7 @@ class ParameterSet(object):
             kwargs['x'] = phases
             kwargs['xlabel'] = 'phase'
             kwargs['y'] = fluxes
-            kwargs['yerror'] = sigmas
+            kwargs['yerror'] = sigmas if len(sigmas) else None
             kwargs['ylabel'] = 'flux (normalized)'
             kwargs['marker'] = '.'
             kwargs['linestyle'] = 'None'
@@ -4753,7 +4753,7 @@ class ParameterSet(object):
                 kwargss[i]['x'] = phases
                 kwargss[i+2]['x'] = analytic_phases
                 kwargss[i]['y'] = input_rvs
-                kwargss[i]['yerror'] = input_sigmas
+                kwargss[i]['yerror'] = input_sigmas if len(input_sigmas) else None
                 kwargss[i+2]['y'] = analytic_rvs
                 kwargss[i]['marker'] = '.'
                 kwargss[i+2]['marker'] = 'None'
@@ -4785,7 +4785,7 @@ class ParameterSet(object):
             kwargss[1]['x'] = ebai_phases
             kwargss[0]['y'] = input_fluxes
             kwargss[1]['y'] = ebai_fluxes
-            kwargss[0]['yerror'] = input_sigmas
+            kwargss[0]['yerror'] = input_sigmas if len(input_sigmas) else None
             kwargss[0]['z'] = 0.0
             kwargss[1]['z'] = 1.0  # force ebai model on top of data
             kwargss[0]['marker'] = '.'
@@ -9066,7 +9066,8 @@ class FloatParameter(Parameter):
 
     def get_distribution(self, distribution=None, follow_constraints=True,
                               resolve_around_distributions=False,
-                              distribution_uniqueids=None):
+                              distribution_uniqueids=None,
+                              delta_if_none=False):
         """
         Access the distribution object corresponding to this parameter
         tagged with distribution=`distribution`.  To access the
@@ -9108,6 +9109,9 @@ class FloatParameter(Parameter):
             (from <phoebe.frontend.bundle.Bundle.get_distribution_collection>)
             is necessary to slice appropriately.  If `distribution` is not a
             DistributionCollection, `distribution_uniqueids` is ignored.
+        * `delta_if_none` (bool, optional, default=False): whether to return
+            a delta distribution around the parameter face-value if no distribution
+            is found.
 
         Returns
         ----------
@@ -9133,6 +9137,7 @@ class FloatParameter(Parameter):
             distribution, distribution_uniqueids = self._bundle.get_distribution_collection(distribution, keys='uniqueid', allow_non_dc=False)
 
         dist = None
+        # print("*** {}.get_distribution len(self.constrained_by)={}".format(self.twig, len(self.constrained_by)))
         if follow_constraints and len(self.constrained_by):
             # then this is a constrained parameter, so we want to propagate
             # any distributions through the constraint and return a CompositeDistribution
@@ -9162,7 +9167,7 @@ class FloatParameter(Parameter):
                 # for subsequent calls here
                 distribution.distribution_uniqueids = distribution_uniqueids
 
-            dist = self.is_constraint.get_result(use_distribution=distribution)
+            dist = self.is_constraint.get_result(use_distribution=distribution, distribution_uniqueids=distribution_uniqueids)
 
             if not isinstance(dist, distl._distl.BaseDistlObject):
                 # then the constraint returned a value, which means none of the
@@ -9180,7 +9185,7 @@ class FloatParameter(Parameter):
                                                       check_visible=False,
                                                       **{k:v for k,v in self.meta.items() if k in _contexts and k not in ['context', 'distribution']}).get_value()
                 except ValueError:
-                    return None
+                    dist = None
             elif isinstance(distribution, distl._distl.DistributionCollection):
                 if distribution_uniqueids is None:
                     if hasattr(distribution, 'distribution_uniqueids'):
@@ -9196,7 +9201,10 @@ class FloatParameter(Parameter):
 
 
         if dist is None:
-            return None
+            if delta_if_none:
+                dist = distl.delta(self.get_value())
+            else:
+                return None
 
         if isinstance(dist, distl.BaseAroundGenerator):
             if resolve_around_distributions:
@@ -9204,13 +9212,12 @@ class FloatParameter(Parameter):
             else:
                 dist.value = self.get_value()
 
-        if dist.label is None:
-            if hasattr(self, self.context):
-                dist.label = '{}@{}'.format(self.qualifier, getattr(self, self.context))
-            else:
-                dist.label = '{}@{}'.format(self.qualifier, self.context)
-            if self._latexfmt is not None:
-                dist.label_latex = self.latextwig.replace("$", "")
+        if hasattr(self, self.context):
+            dist.label = '{}@{}'.format(self.qualifier, getattr(self, self.context))
+        else:
+            dist.label = '{}@{}'.format(self.qualifier, self.context)
+        if self._latexfmt is not None:
+            dist.label_latex = self.latextwig.replace("$", "")
 
         return dist
 
@@ -11456,12 +11463,25 @@ class ConstraintParameter(Parameter):
         """
         return self.get_result()
 
-    def get_result(self, t=None, use_distribution=None, suppress_error=True):
+    def get_result(self, t=None, use_distribution=None,
+                   suppress_error=True, distribution_uniqueids=None):
         """
         Get the current value (as a quantity) of the result of the expression
         of this <phoebe.parameters.ConstraintParameter>.
 
         This is identical to <phoebe.parameters.ConstraintParameter.result>.
+
+        Arguments
+        -----------
+        * `t` (int or float, optional, default=None): time at which to compute the
+            result of the constraint.
+        * `use_distribution` (str or None or DistrubutionCollection, optional, default=None):
+            label of the distribution collection to propagate through the constraints.
+            In general, its easiest to pass `parameters` to <phoebe.frontend.bundle.get_distribution_collection>,
+            <phoebe.frontend.bundle.plot_distribution_collection>, etc.
+        * `suppress_error` (bool, optional, default=True):
+        * `distribution_uniqueids` (list, optional, default=None): must be provided
+            if `use_distribution` is a DistributionCollection.
 
         Returns
         --------
@@ -11503,9 +11523,9 @@ class ConstraintParameter(Parameter):
                     return v
                 elif isinstance(quantity, distl.BaseDistlObject):
                     if self.in_solar_units:
-                        v = quantity.to_solar()
+                        v = quantity.to_solar(strip_units=True)
                     else:
-                        v = quantity.to_si()
+                        v = quantity.to_si(strip_units=True)
                     return v
                 elif isinstance(quantity, str):
                     return '\'{}\''.format(quantity)
@@ -11513,18 +11533,21 @@ class ConstraintParameter(Parameter):
                     return quantity
 
             def _value(var, string_safe_arrays=False, use_distribution=None, needs_builtin=False):
-                if use_distribution:
-                    param = var.get_parameter()
-                    dist = param.get_distribution(use_distribution, follow_constraints=False)
+                param = var.get_parameter()
 
+                if use_distribution and param != self.constrained_parameter:
+                    # print("\n\n*** {}.get_result param={}".format(self.twig, param.twig))
+                    dist = param.get_distribution(use_distribution, distribution_uniqueids=distribution_uniqueids, follow_constraints=True)
+
+                    # print("*** dist={}".format(dist))
                     if dist is not None:
                         if needs_builtin:
                             return _single_value(dist)
                         else:
                             # will we need to force distribution_uniqueids to be included in the json?
-                            return "distl_from_json('{}')".format(_single_value(dist).to_json(exclude=['label_latex', 'labels_latex', 'label', 'labels']))
+                            return "distl_from_json('{}')".format(_single_value(dist).to_json(export_func_as_path=True, exclude=['label_latex', 'labels_latex']))
 
-                if var.get_parameter() != self.constrained_parameter:
+                if param != self.constrained_parameter:
                     return _single_value(var.get_quantity(t=t), string_safe_arrays)
                 else:
                     return _single_value(var.get_quantity(), string_safe_arrays)
@@ -11559,8 +11582,6 @@ class ConstraintParameter(Parameter):
                 # this means that we can't currently support the built-in funcs WITH arrays
                 needs_builtin = eq_needs_builtin(eq, include_math=False)
 
-                values = get_values(self._vars+self._addl_vars, safe_label=False, string_safe_arrays=True, use_distribution=use_distribution, needs_builtin=needs_builtin)
-
                 # cannot do from builtin import *
                 for func in _constraint_builtin_funcs + _constraint_math_funcs:
                     # I should be shot for doing this...
@@ -11574,6 +11595,8 @@ class ConstraintParameter(Parameter):
                 # if eq.split('(')[0] in ['times_to_phases', 'phases_to_times']:
                     # these require passing the bundle
                     # values['b'] = self._bundle
+
+                values = get_values([v for v in self._vars+self._addl_vars if v.user_label in eq], safe_label=False, string_safe_arrays=True, use_distribution=use_distribution, needs_builtin=needs_builtin)
 
                 if needs_builtin and use_distribution:
                     # need to parse {} in eq and get values in correct order as args (including non {}, like 1)
@@ -11589,7 +11612,7 @@ class ConstraintParameter(Parameter):
 
                     hist_samples = None
                     vectorized = False
-                    if 'pot' in funcname or 'fillout_factor' in funcname:
+                    if 'pot' in funcname or 'fillout_factor' in funcname or 'requiv_L1' in funcname:
                         # these are particularly expensive, so we'll only use 1000 samples in the underlying histogram by default
                         hist_samples = 1000
                         vectorized = False
@@ -11597,6 +11620,7 @@ class ConstraintParameter(Parameter):
                         vectorized = True
                     value = distl.function(locals().get(funcname), args, vectorized=vectorized, hist_samples=hist_samples)
                 else:
+                    # print("\n\n\n*** eval eq={} values={}".format(eq, values))
                     value = eval(eq.format(**values))
 
                 if value is None:
@@ -11669,6 +11693,7 @@ class ConstraintParameter(Parameter):
                     else:
                         value.unit = distl._distl._physical_types_to_si.get(self.default_unit.physical_type)
 
+                # TODO: should we skip this when calling internally and ask for it directly in solar/si?
                 value = value.to(self.default_unit)
             else:
                 if self.in_solar_units:

@@ -1016,9 +1016,11 @@ def keplers_third_law_hierarchical(b, orbit1, orbit2, solve_for=None, **kwargs):
     # NOTE: orbit1 is the outer, so we need to check orbit2... which will
     # be the OPPOSITE component as that of the mass we're solving for
     if hier.get_primary_or_secondary(orbit2_ps.component) == 'primary':
-        qthing1 = 1.0+q1
+        # NOTE: 1.0 must be on the right for distribution math to behave
+        qthing1 = q1+1.0
     else:
-        qthing1 = 1.0+1./q1
+        # NOTE: 1.0 must be on the right for distribution math to behave
+        qthing1 = 1./q1+1.0
 
     if solve_for in [None, sma1]:
         lhs = sma1
@@ -1681,9 +1683,11 @@ def mass(b, component, solve_for=None, **kwargs):
     G.keep_in_solar_units = True
 
     if hier.get_primary_or_secondary(component) == 'primary':
-        qthing = 1.0+q
+        # NOTE: 1.0 must be on the right for distribution math to behave
+        qthing = q+1.0
     else:
-        qthing = 1.0+1./q
+        # NOTE: 1.0 must be on the right for distribution math to behave
+        qthing = 1./q+1.0
 
     if solve_for in [None, mass]:
         lhs = mass
@@ -1833,9 +1837,11 @@ def comp_sma(b, component, solve_for=None, **kwargs):
     # it should be changed there as well.
 
     if hier.get_primary_or_secondary(component) == 'primary':
-        qthing = (1. + 1./q)
+        # NOTE: 1.0 must be on the right for distribution math to behave
+        qthing = (1./q + 1.0)
     else:
-        qthing = (1. + q)
+        # NOTE: 1.0 must be on the right for distribution math to behave
+        qthing = (q + 1.0)
 
 
     if solve_for in [None, compsma]:
@@ -1912,9 +1918,10 @@ def comp_asini(b, component, solve_for=None, **kwargs):
     # it should be changed there as well.
 
     if hier.get_primary_or_secondary(component) == 'primary':
-        qthing = (1. + 1./q)
+        # NOTE: 1.0 must be on the right for distribution math to behave
+        qthing = (1./q + 1.0)
     else:
-        qthing = (1. + q)
+        qthing = (q + 1.0)
 
 
     if solve_for in [None, compasini]:

@@ -84,6 +84,22 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.3.22 - trace plotting nanslice bugfix
+
+* fix bug in plotting MCMC trace plots when any given chain is all nans.
+
+### 2.3.21 - estimators phase-bin bugfix
+
+* fix bug resulting in a nanslice error when phase_bin is enabled within estimators resulting in a single entry in any given bin.  Now, sigmas will be ignored within the estimator in these cases with a warning in the logger.
+
+### 2.3.20 - legacy passband bugfix
+
+* now correctly maps passbands when using the legacy backend (only affects TESS and Tycho)
+* falls back on PHOEBE atmospheres when needing to compute pblums internally for flux scaling prior to calling legacy backend
+* from_legacy bugfix in parsing linear limb-darkening coefficients
+* export_compute/export_solver: add commment warning against manually editing script
+* fixes typo which raised error when rescaling passband-dependent mesh columns
+
 ### 2.3.19 - passbands update available datetime string parsing bugfix
 
 * some systems fail to parse common datetime strings, resulting in inability to import phoebe when checking for available passband updates.  This now prints and logs an error message, but does not prevent import.
