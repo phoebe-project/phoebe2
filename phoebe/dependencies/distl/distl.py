@@ -617,7 +617,7 @@ class BaseDistlObject(object):
         --------
         * string
         """
-        _ = kwargs.pop("export_func_as_path")
+        _ = kwargs.pop("export_func_as_path", None)
         return _json.dumps(self.to_dict(exclude=kwargs.pop('exclude', [])), ensure_ascii=True, **kwargs)
 
     def to_file(self, filename, **kwargs):
@@ -5052,6 +5052,17 @@ class Function(BaseUnivariateDistribution):
             if isinstance(arg, BaseDistribution):
                 arg._parents_with_constructor_object_cache.append(self)
 
+        self._dc = None
+
+    @property
+    def uniqueid(self):
+        """
+        """
+        # NOTE (IMPORTANT): then we are going to "forget" these when
+        # nesting CompositeDistributions
+        # return super(CompositeDistribution, self).uniqueid()
+        return ",".join([str(d.uniqueid) for d in self.dists])
+
     @property
     def func(self):
         """
@@ -5074,12 +5085,31 @@ class Function(BaseUnivariateDistribution):
         """
         return self._args
 
+    @property
+    def args_as_dists(self):
+        """
+        <Function.args> but with all floats replaced with <Delta> distributions.
+        """
+        return [a if isinstance(a, BaseDistribution) else Delta(a) for a in self._args]
+
     @args.setter
     def args(self, value):
         value = is_list_of_dists_or_floats(value)
 
         self._args = value
         self._dist_constructor_object_clear_cache()
+        self._dc = None
+
+    @property
+    def dists(self):
+        """
+        Access the distribution entries in <Function.args> and <Function.kwargs>.
+
+        See also:
+        * <Function.args_as_dists>
+        * <Function.kwargs_as_dists>
+        """
+        return [d for d in self.args if isinstance(d, BaseDistribution)] + [d for d in self.kwargs.values() if isinstance(d, BaseDistribution)]
 
     @property
     def kwargs(self):
@@ -5087,6 +5117,18 @@ class Function(BaseUnivariateDistribution):
         kwargs to pass to <Function.func>.  Each item can be a float or Distribution object.
         """
         return self._kwargs
+
+    @property
+    def kwargs_as_dists(self):
+        """
+        <Function.kwargs> but with all floats replaced with <Delta> distributions.
+        """
+        def _to_dist(v):
+            if isinstance(v, BaseDistribution):
+                return v
+            return Delta(v)
+
+        return {k: _to_dist(v) for k,v in self._kwargs.items()}
 
     @kwargs.setter
     def kwargs(self, value):
@@ -5099,6 +5141,16 @@ class Function(BaseUnivariateDistribution):
 
         self._kwargs = value
         self._dist_constructor_object_clear_cache()
+        self._dc = None
+
+    @property
+    def dc(self):
+        """
+        Access the <DistributionCollection> containing all <Function.args_as_dists> and <Function.kwargs_as_dists>
+        """
+        if self._dc is None:
+            self._dc = DistributionCollection(*self.args_as_dists+list(self.kwargs_as_dists.values()))
+        return self._dc
 
     @property
     def vectorized(self):
@@ -5151,18 +5203,11 @@ class Function(BaseUnivariateDistribution):
     ### SAMPLE CACHING
 
     @property
-    def dists(self):
-        """
-        Access the distribution entries in <Function.args> and <Function.kwargs>.
-        """
-        return [d for d in self.args if isinstance(d, BaseDistribution)] + [d for d in self.kwargs.values() if isinstance(d, BaseDistribution)]
-
-    @property
     def cached_sample_children(self):
         return _np.asarray([d.cached_sample for d in self.dists])
 
     def clear_cached_sample(self):
-        super(Composite, self).clear_cached_sample()
+        super(Function, self).clear_cached_sample()
         for d in self.dists:
             d.clear_cached_sample()
 
@@ -5192,18 +5237,27 @@ class Function(BaseUnivariateDistribution):
             existing <<class>.cached_sample>.
 
         """
-        def _arg_as_float(arg, size, seed, cache_sample):
-            if isinstance(arg, BaseDistribution):
-                return arg.sample(size=size, seed=seed, cache_sample=cache_sample)
-            return arg
+        # in order to handle possible uniqueid overlaps, we need to sample all
+        # args and kwargs simultaneously through a DistributionCollection
 
-        args = [_arg_as_float(arg, size, seed, cache_sample) for arg in self.args]
-        kwargs = {k: _arg_as_float(v, size, seed, cache_sample) for k,v in self.kwargs.items()}
+        # TODO: can we cache this DistributionCollection itself?
+        samples = self.dc.sample(seeds=seed, size=size, cache_sample=cache_sample)
+
+        # samples is now of shape size,len(args)+len(kwargs)
+        if size is None:
+            args = samples[:len(self.args)]
+            kwargs_list = samples[len(self.args):]
+        else:
+            args = samples[:,:len(self.args)].T
+            kwargs_list = samples[:,len(self.args):].T
+        kwargs = {k: v for k,v in zip(self.kwargs.keys(), kwargs_list)}
         return args, kwargs
 
+
     def _sample_from_children(self, func, args, kwargs, vectorized, seed={}, size=None, cache_sample=True, skip_fail=False):
+        args, kwargs = self.sample_args_kwargs(size, seed, cache_sample)
+
         if size is None or vectorized:
-            args, kwargs = self.sample_args_kwargs(size, seed, cache_sample)
             try:
                 return func(*args, **kwargs)
             except:
@@ -5213,8 +5267,9 @@ class Function(BaseUnivariateDistribution):
                     return self._sample_from_children(func, args, kwargs, vectorized, seed, size, cache_sample, skip_fail)
                 raise
         else:
-            # TODO: can we be smarter here at all?  Do we need to make sure size is an int?
-            return _np.asarray([self._sample_from_children(func, args, kwargs, vectorized, seed, size=None, cache_sample=False, skip_fail=True) for n in range(size)])
+            # NOTE: we have to increment the incoming seed otherwise each sample in the list comprehension will be the same
+            # unfortunately this will break any expected correlation if this FunctionDistribution is nested in any parent DistributionCollection, Fuction, or Composite distribution
+            return _np.asarray([func(*argsi, **{k:v[i] for k,v in kwargs.items()}) for i, argsi in enumerate(args.T)])
 
 
     def sample(self, size=None, unit=None, as_quantity=False, wrap_at=None, seed={}, cache_sample=True):
@@ -5255,7 +5310,6 @@ class Function(BaseUnivariateDistribution):
         * float or array: float if `size=None`, otherwise a numpy array with
             shape defined by `size`.
         """
-
         sample = self._sample_from_children(self.func, self.args, self.kwargs, self.vectorized, size=size, seed=seed, cache_sample=cache_sample)
 
         if isinstance(sample, _units.Quantity):
@@ -8502,7 +8556,7 @@ class Delta_Around(BaseAroundGenerator):
 
     """
     def __init__(self, value=None, unit=None, label=None, label_latex=None,
-                 wrap_at=None, unique=None):
+                 wrap_at=None, uniqueid=None):
         """
         Create a <Delta_Around> object which, when called, will resolve
         to a <Delta> object around a given central value.
