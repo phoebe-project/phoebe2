@@ -84,6 +84,15 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.3.25 - distribution propagation bugfix
+
+* updates distl to 0.2.0 release which includes support for retaining simultaneous sampling between copies of the same underyling distribution, increased precision on latex formatting of uncertainties, and maintaining labels during unit conversion.
+* fix propagating distl distribution objects through constraints to arbitrary depth.
+* update Kepler's third law constraint to be distl-friendly (1+q becomes q+1).
+* parameter.get_distribution: new argument `delta_if_none` to allow returning a delta function.  This is now the default behavior from within b.get/plot_distribution_collection
+* b.sample_distribution_collection: rename `N` argument to `sample_size` (but with backwards compatibility support for `N`).
+* run_checks_solver now includes a warning if priors contain "around" distributions.
+
 ### 2.3.24 - emcee continue_from bugfix
 
 * skip nwalkers vs number of parameters check when continue_from is set
