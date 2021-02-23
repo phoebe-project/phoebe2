@@ -84,6 +84,33 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.3.25 - distribution propagation bugfix
+
+* updates distl to 0.2.0 release which includes support for retaining simultaneous sampling between copies of the same underyling distribution, increased precision on latex formatting of uncertainties, and maintaining labels during unit conversion.
+* fix propagating distl distribution objects through constraints to arbitrary depth.
+* update Kepler's third law constraint to be distl-friendly (1+q becomes q+1).
+* parameter.get_distribution: new argument `delta_if_none` to allow returning a delta function.  This is now the default behavior from within b.get/plot_distribution_collection
+* b.sample_distribution_collection: rename `N` argument to `sample_size` (but with backwards compatibility support for `N`).
+* run_checks_solver now includes a warning if priors contain "around" distributions.
+
+### 2.3.24 - emcee continue_from bugfix
+
+* skip nwalkers vs number of parameters check when continue_from is set
+* fallback on twigs when original uniqueids not available (when attempting to continue from a solution loaded into a new bundle, for example)
+* wrapping rules for angle parameters fallback on median of last iteration in the available chain when uniqueids do not match as the initializing distribution likely does not exist anymore
+
+### 2.3.23 - ellc flux-weighted RV vsini bugfix
+
+* compute vsini from syncpar and pass to RV to enable Rossiter-McLaughlin effect when rv_method='flux-weighted'.
+
+### 2.3.22 - trace plotting nanslice bugfix
+
+* fix bug in plotting MCMC trace plots when any given chain is all nans.
+
+### 2.3.21 - estimators phase-bin bugfix
+
+* fix bug resulting in a nanslice error when phase_bin is enabled within estimators resulting in a single entry in any given bin.  Now, sigmas will be ignored within the estimator in these cases with a warning in the logger.
+
 ### 2.3.20 - legacy passband bugfix
 
 * now correctly maps passbands when using the legacy backend (only affects TESS and Tycho)

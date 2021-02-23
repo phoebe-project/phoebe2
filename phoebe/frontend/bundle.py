@@ -4284,7 +4284,7 @@ class Bundle(ParameterSet):
                 fit_ps = None
 
 
-            if solver_kind in ['emcee']:
+            if solver_kind in ['emcee'] and solver_ps.get_value(qualifier='continue_from', continue_from=kwargs.get('continue_from', None), **_skip_filter_checks) == 'None':
                 # check to make sure twice as many params as walkers
                 nwalkers = solver_ps.get_value(qualifier='nwalkers', nwalkers=kwargs.get('nwalkers', None), **_skip_filter_checks)
 
@@ -4368,6 +4368,23 @@ class Bundle(ParameterSet):
 
                 else:
                     raise ValueError("{} could not be found in distributions or solutions".format(dist_or_solution))
+
+
+            priors = self.get_value(qualifier='priors', solver=solver, context='solver', priors=kwargs.get('priors', None), default=[], expand=True, **_skip_filter_checks)
+            offending_parameters = []
+            for dist_or_solution in priors:
+                if dist_or_solution in self.distributions:
+                    for distribution_param in self.filter(distribution=dist_or_solution, context='distribution', **_skip_filter_checks).to_list():
+                        if 'Around' in distribution_param.get_value().__class__.__name__:
+                            offending_parameters.append(distribution_param)
+
+            if len(offending_parameters):
+                report.add_item(self,
+                                "priors@{} includes \"around\" distributions.  Note that the central values of these distributions will update to the current face-values of the parameters (use with caution for priors)".format(solver),
+                                [solver_ps.get_parameter(qualifier='priors', **_skip_filter_checks)]
+                                +offending_parameters
+                                +addl_parameters,
+                                False, 'run_solver')
 
 
             ## warning if fitting a parameter that affects phasing but mask_phases is enabled
@@ -7605,7 +7622,7 @@ class Bundle(ParameterSet):
 
             # now we need to get any that weren't included in dc
             new_params = [self.get_parameter(uniqueid=uniqueid, **_skip_filter_checks) for uniqueid in parameters_uniqueids if uniqueid not in uniqueids]
-            ret_dists += [param.get_distribution(distribution=dc, distribution_uniqueids=uniqueids) for param in new_params]
+            ret_dists += [param.get_distribution(distribution=dc, distribution_uniqueids=uniqueids, delta_if_none=True) for param in new_params]
             ret_keys += [getattr(param, keys) for param in new_params]
             # TODO: do we need to set labels on the newly added dists?
 
@@ -7794,7 +7811,7 @@ class Bundle(ParameterSet):
 
         return dc, ret_keys
 
-    def sample_distribution_collection(self, twig=None, N=None,
+    def sample_distribution_collection(self, twig=None, sample_size=None,
                                        as_quantity=False,
                                        set_value=False, keys='twig',
                                        parameters=None,
@@ -7821,9 +7838,9 @@ class Bundle(ParameterSet):
             `twig` and `**kwargs` must result in either a single supported
             parameter in a solver ParameterSet, or a ParameterSet of distribution
             parameters.
-        * `N` (int, optional, default=None): number of samples to draw from
+        * `sample_size` (int, optional, default=None): number of samples to draw from
             each distribution.  Note that this must be None if `set_value` is
-            set to True.
+            set to True. **NOTE**: prior to 2.3.25, this argument was name `N`.
         * `combine`: (str, optional) how to combine multiple distributions for the same parameter.
             first: ignore duplicate entries and take the first entry.
             and: combine duplicate entries via AND logic, dropping covariances.
@@ -7881,8 +7898,15 @@ class Bundle(ParameterSet):
         * ValueError: if `set_value` is True and `include_constrained` is True
             (as parameters that are constrained cannot adopt the sampled values)
         """
-        if N is not None and set_value:
-            raise ValueError("cannot use set_value and N together")
+        # backwards compatibility before change from N to sample_size
+        N = kwargs.pop('N', None)
+        if N is not None:
+            if sample_size is not None:
+                raise ValueError("cannot pass both N and sample_size (sample_size replaces N)")
+            sample_size = N
+
+        if sample_size is not None and set_value:
+            raise ValueError("cannot use set_value and sample_size together")
 
         if 'distribution_filters' not in kwargs.keys():
             distribution_filters, combine, include_constrained, to_univariates, to_uniforms = self._distribution_collection_defaults(twig=twig, **kwargs)
@@ -7911,11 +7935,11 @@ class Bundle(ParameterSet):
                                                          allow_non_dc=False)
 
         if isinstance(dc, _distl._distl.DistributionCollection) and np.all([isinstance(dist, _distl._distl.Delta) for dist in dc.dists]):
-            if N is not None and N > 1:
-                logger.warning("all distributions are delta, using N=1 instead of N={}".format(N))
+            if sample_size is not None and sample_size > 1:
+                logger.warning("all distributions are delta, using sample_size=1 instead of sample_size={}".format(sample_size))
                 N = 1
 
-        sampled_values = dc.sample(size=N).T
+        sampled_values = dc.sample(size=sample_size).T
 
         ret = {}
         changed_params = []
@@ -8001,6 +8025,11 @@ class Bundle(ParameterSet):
             with the full list being passed to the 2D contours.  So to plot
             1-, 2-, and 3-sigma uncertainties in the contours but quote 3-sigma
             uncertainties in the title and histograms, pass `[3,1,2]`.
+        * `sample_size` (int, optional, default=None): number of samples to draw for
+            the underlying distribution.  Defaults to 1e5 for most cases, or 1e3
+            for expensive function calls.  If propagating through non-analytic
+            constraints, setting a lower `sample_size` will significantly speed up
+            plotting time.  Passed to distl as `size` argument
         * `show` (boolean, optional, default=False): whether to call show on the
             resulting figure object
         * `**kwargs`: all additional keyword arguments are passed directly to
@@ -8014,6 +8043,8 @@ class Bundle(ParameterSet):
         for k in list(kwargs.keys()):
             if k in ['plot_uncertainties', 'label', 'xlabel']:
                 plot_kwargs[k] = kwargs.pop(k)
+            elif k == 'sample_size':
+                plot_kwargs['size'] = kwargs.pop('sample_size')
         dc, _ = self.get_distribution_collection(twig=twig, set_labels=set_labels, keys='uniqueid', parameters=parameters, **kwargs)
         return dc.plot(show=show, **plot_kwargs)
 
