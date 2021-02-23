@@ -1306,6 +1306,32 @@ class EmceeBackend(BaseSolverBackend):
                 continue_from_ps = kwargs.get('continue_from_ps', b.filter(context='solution', solution=continue_from, **_skip_filter_checks))
                 wrap_central_values = continue_from_ps.get_value(qualifier='wrap_central_values', **_skip_filter_checks)
                 params_uniqueids = continue_from_ps.get_value(qualifier='fitted_uniqueids', **_skip_filter_checks)
+
+                if not np.all([uniqueid in b.uniqueids for uniqueid in params_uniqueids]):
+                    logger.info("continue_from uniqueid matches not found, falling back on twigs")
+                    params_twigs = continue_from_ps.get_value(qualifier='fitted_twigs', **_skip_filter_checks)
+                    original_params_uniqueids = params_uniqueids
+                    params_uniqueids = [b.get_parameter(twig=twig, **_skip_filter_checks).uniqueid for twig in params_twigs]
+
+                    if np.all([uniqueid in original_params_uniqueids for uniqueid in wrap_central_values.keys()]):
+                        # then we can successfully map the old uniqueids to new uniqueids... otherwise the following
+                        # if statement will trigger re-creating the wrapping rules
+                        wrap_central_values = {params_uniqueids[original_params_uniqueids.index(k)]: v for k,v in wrap_central_values.items()}
+
+                if not np.all([uniqueid in b.uniqueids for uniqueid in wrap_central_values.keys()]):
+                    # this really shouldn't happen... but if the bundle was
+                    # re-created, then we probably don't even have the original
+                    # distributions.... so we're forced using the samples from the solution
+                    logger.warning("wrap_central_values uniqueid matches not found, recreating wrapping rules based on last samples")
+                    samples_last_iter = continue_from_ps.get_value(qualifier='samples', **_skip_filter_checks)[-1, :, :]
+                    wrap_central_values = {}
+                    for i, uniqueid in enumerate(params_uniqueids):
+
+                        param = b.get_parameter(uniqueid=uniqueid, **_skip_filter_checks)
+                        if param.default_unit.physical_type == 'angle':
+                            samples_this_param = samples_last_iter[:, i]
+                            wrap_central_values[uniqueid] = np.median(samples_this_param)
+
                 params_units = continue_from_ps.get_value(qualifier='fitted_units', **_skip_filter_checks)
                 continued_samples = continue_from_ps.get_value(qualifier='samples', **_skip_filter_checks)
                 expose_failed = 'failed_samples' in continue_from_ps.qualifiers
