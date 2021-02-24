@@ -84,6 +84,10 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.3.27 - add_compute/solver overwrite bugfix
+
+* fixes bug where passing overwrite to add_compute or add_solver raised an error if run_compute/run_solver already created a model/solution tagged with that same label.
+
 ### 2.3.26 - multiprocessing bugfix
 
 * allows disabling multiprocessing (or lowering the number of available processors).  Multiprocessing is used by default when not within MPI and when calling `run_compute` with `sample_from` or `run_solver` with solvers that support parallelization.  Some installations of multiprocessing on Mac may cause issues, in which case you can now for PHOEBE to run in serial mode.
