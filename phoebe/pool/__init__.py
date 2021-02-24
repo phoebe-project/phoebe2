@@ -19,3 +19,4 @@ _VERBOSE = 5
 
 from .multipool import MultiPool
 from .mpi import MPIPool
+from .serial import SerialPool
