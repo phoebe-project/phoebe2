@@ -11,6 +11,7 @@ Available environment variables:
 * PHOEBE_UPDATE_PASSBAND_IGNORE_VERSION=TRUE/FALSE (update passbands that need new content even if the online version is newer than the installed version.  Defaults to False.)
 * PHOEBE_ENABLE_MPI=TRUE/FALSE (whether to use internal parallelization: defaults to True if within mpirun, otherwise False, can override in python with phoebe.mpi.on() and phoebe.mpi.off())
 * PHOEBE_MPI_NPROCS=INT (number of procs to spawn in mpi is enabled but not running within mpirun: defaults to 4, only applicable if not within mpirun and PHOEBE_ENABLE_MPI=TRUE or phoebe.mpi.on() called, can override in python by passing nprocs to phoebe.mpi.on() or by setting phoebe.mpi.nprocs)
+* PHOEBE_MULTIPROC_NPROCS=INT (number of proces to use within multiprocessing.  Multiprocessing is used for solver that support it and when sampling over a distribution in run_compute if MPI is not in use.  Set to 0 to disable multiprocessing and force serial.  Defaults to number of CPUs available.)
 * PHOEBE_PBDIR (directory to search for passbands, in addition to phoebe.list_passband_directories())
 * PHOEBE_DEVEL=TRUE/FALSE enable developer mode by default
 
@@ -21,6 +22,7 @@ __version__ = '2.3.25'
 import os as _os
 import sys as _sys
 import inspect as _inspect
+import multiprocessing as _multiprocessing
 import atexit
 import re
 
@@ -45,6 +47,15 @@ def _env_variable_string_or_list(key, default):
 
 def _env_variable_int(key, default):
     value = _os.getenv(key, default)
+
+    return int(value)
+
+def _env_variable_int_or_none(key, default):
+    value = _os.getenv(key, default)
+    if value is None or isinstance(value, str) and value.lower()=='none':
+        return None
+    if isinstance(value, str):
+        value = float(value)
     return int(value)
 
 def _env_variable_bool(key, default):
@@ -239,6 +250,7 @@ class Settings(object):
 
         self._update_passband_ignore_version = _env_variable_bool('PHOEBE_UPDATE_PASSBAND_IGNORE_VERSION', False)
 
+        self._multiprocessing_nprocs = _env_variable_int_or_none('PHOEBE_MULTIPROC_NPROCS', None)
         self._progressbars = True
 
         # And we'll require explicitly setting developer mode on
@@ -320,6 +332,27 @@ class Settings(object):
 
     def update_passband_ignore_version_on(self):
         self._update_passband_ignore_version = False
+
+    def multiprocessing_off(self):
+        self._multiprocessing_nprocs = 0
+
+    def multiprocessing_on(self):
+        self._multiprocessing_nprocs = None
+
+    def multiprocessing_set_nprocs(self, value):
+        if not isinstance(value, int):
+            return TypeError("must be integer")
+        if value > _multiprocessing.cpu_count():
+            return ValueError("only {} CPUs available".format(value))
+        elif value < 0:
+            return ValueError("nprocs must be >= 0")
+        self._multiprocessing_nprocs = value
+
+    @property
+    def multiprocessing_nprocs(self):
+        if self._multiprocessing_nprocs is None:
+            return _multiprocessing.cpu_count()
+        return self._multiprocessing_nprocs
 
     def progressbars_on(self):
         self._progressbars = True
@@ -728,6 +761,78 @@ def mpi_off():
     * <phoebe.mpi_on>
     """
     mpi.off()
+
+def multiprocessing_on():
+    """
+    **NEW IN 2.3.26**
+
+    Enable multiprocessing to use all CPUs available (this is the state by default).
+    MPI will always take preference over multiprocessing.  See <phoebe.mpi_on>
+    and <phoebe.mpi_off>.
+
+    Multiprocessing is used by
+    <phoebe.frontend.bundle.Bundle.run_solver> (for some solvers) and
+    <phoebe.frontend.bundle.Bundle.run_compute> when `sample_from` is used.
+
+    See also:
+    * <phoebe.multiprocessing_off>
+    * <phoebe.multiprocessing_get_nprocs>
+    * <phoebe.multiprocessing_set_nprocs>
+    """
+    conf.multiprocessing_on()
+
+def multiprocessing_off():
+    """
+    **NEW IN 2.3.26**
+
+    Disable multiprocessing and force serial mode (if MPI is also off: see
+    <phoebe.mpi_on> and <phoebe.mpi_off>).
+
+    See also:
+    * <phoebe.multiprocessing_on>
+    * <phoebe.multiprocessing_get_nprocs>
+    * <phoebe.multiprocessing_set_nprocs>
+    """
+    conf.multiprocessing_off()
+
+def multiprocessing_get_nprocs():
+    """
+    **NEW IN 2.3.26**
+
+    Get the number of processors used within multiprocessing.
+
+    MPI will always take preference over multiprocessing.  See <phoebe.mpi_on>
+    and <phoebe.mpi_off>.
+
+    Multiprocessing is used by
+    <phoebe.frontend.bundle.Bundle.run_solver> (for some solvers) and
+    <phoebe.frontend.bundle.Bundle.run_compute> when `sample_from` is used.
+
+    See also:
+    * <phoebe.multiprocessing_on>
+    * <phoebe.multiprocessing_off>
+    * <phoebe.multiprocessing_set_nprocs>
+    """
+    return conf.multiprocessing_nprocs
+
+def multiprocessing_set_nprocs(nprocs):
+    """
+    **NEW IN 2.3.26**
+
+    Set a custom number of processors to use within multiprocessing.
+    MPI will always take preference over multiprocessing.  See <phoebe.mpi_on>
+    and <phoebe.mpi_off>.
+
+    Multiprocessing is used by
+    <phoebe.frontend.bundle.Bundle.run_solver> (for some solvers) and
+    <phoebe.frontend.bundle.Bundle.run_compute> when `sample_from` is used.
+
+    See also:
+    * <phoebe.multiprocessing_on>
+    * <phoebe.multiprocessing_off>
+    * <phoebe.multiprocessing_get_nprocs>
+    """
+    conf.multiprocessing_set_nprocs(nprocs)
 
 def progressbars_on():
     """
