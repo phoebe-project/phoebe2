@@ -694,11 +694,16 @@ class SampleOverModel(object):
         #self.run_checks(b, compute, times, **kwargs)
 
         if mpi.within_mpirun:
+            logger.info("run_compute sample_from using MPI")
             pool = _pool.MPIPool()
             is_master = pool.is_master()
+        elif conf.multiprocessing_nprocs==0:
+            logger.info("run_compute sample_from: serial mode")
+            pool = _pool.SerialPool()
+            is_master = True
         else:
-            pool = _pool.MultiPool()
-            # pool = schwimmbad.SerialPool()
+            logger.info("run_compute sample_from using MPI with {} procs".format(conf.multiprocessing_nprocs))
+            pool = _pool.MultiPool(processes=conf._multiprocessing_nprocs)
             is_master = True
 
         # temporarily disable MPI within run_compute to disabled parallelizing
