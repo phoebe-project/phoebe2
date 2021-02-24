@@ -84,6 +84,11 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.3.26 - multiprocessing bugfix
+
+* allows disabling multiprocessing (or lowering the number of available processors).  Multiprocessing is used by default when not within MPI and when calling `run_compute` with `sample_from` or `run_solver` with solvers that support parallelization.  Some installations of multiprocessing on Mac may cause issues, in which case you can now for PHOEBE to run in serial mode.
+* this introduces new `phoebe.multiprocessing_off()`, `phoebe.multiprocessing_on()`, `phoebe.multiprocessing_get_nprocs()`, and `phoebe.multiprocessing_set_nprocs(n)` functions, but the default behavior remains unchanged.
+
 ### 2.3.25 - distribution propagation bugfix
 
 * updates distl to 0.2.0 release which includes support for retaining simultaneous sampling between copies of the same underyling distribution, increased precision on latex formatting of uncertainties, and maintaining labels during unit conversion.
