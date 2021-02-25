@@ -4150,13 +4150,6 @@ class Bundle(ParameterSet):
                                                 +addl_parameters,
                                                 True, 'run_solver')
 
-                        if len(sigmas) != len(times):
-                            report.add_item(self,
-                                            "sigmas and times must be of same length",
-                                            self.filter(qualifier=['times', 'sigmas'], dataset=dataset, component=component, context='dataset', **_skip_filter_checks)
-                                            +addl_parameters,
-                                            True, 'run_solver')
-
                         if np.any(np.isnan(sigmas)):
                             report.add_item(self,
                                             "sigmas cannot contain any nans",
