@@ -3564,6 +3564,9 @@ class ParameterSet(object):
         else:
             # TODO: lp compared for a given time interpolating in wavelength?
             # NOTE: add to documentation if adding support for other datasets
+
+            # TODO: anything not supported here should be excluded from the
+            # bexcl in fitting in solverbackends._bsolver
             raise NotImplementedError("calculate_residuals not implemented for dataset with kind='{}' (model={}, dataset={}, component={})".format(dataset_kind, model, dataset, component))
 
 
