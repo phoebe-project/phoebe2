@@ -352,6 +352,7 @@ null
 1.0
 ],
 "copy_for": false,
+"latexfmt": "\\Beta_{{ \\mathrm{{bol}}, \\mathrm{{ {component} }} }}",
 "Class": "FloatParameter"
 },
 {
@@ -367,6 +368,7 @@ null
 1.0
 ],
 "copy_for": false,
+"latexfmt": "A_{{ \\mathrm{{bol}}, \\mathrm{{ {component} }} }}",
 "Class": "FloatParameter"
 },
 {
@@ -424,8 +426,8 @@ null
 "description": "Source for bolometric limb darkening coefficients (used only for irradiation; 'auto' to interpolate from the applicable table according to the 'atm' parameter, or the name of a specific atmosphere table)",
 "choices": [
 "auto",
-"ck2004",
-"phoenix"
+"phoenix",
+"ck2004"
 ],
 "value": "auto",
 "visible_if": "ld_mode_bol:lookup",
@@ -697,6 +699,7 @@ null
 1.0
 ],
 "copy_for": false,
+"latexfmt": "\\Beta_{{ \\mathrm{{bol}}, \\mathrm{{ {component} }} }}",
 "Class": "FloatParameter"
 },
 {
@@ -712,6 +715,7 @@ null
 1.0
 ],
 "copy_for": false,
+"latexfmt": "A_{{ \\mathrm{{bol}}, \\mathrm{{ {component} }} }}",
 "Class": "FloatParameter"
 },
 {
@@ -769,8 +773,8 @@ null
 "description": "Source for bolometric limb darkening coefficients (used only for irradiation; 'auto' to interpolate from the applicable table according to the 'atm' parameter, or the name of a specific atmosphere table)",
 "choices": [
 "auto",
-"ck2004",
-"phoenix"
+"phoenix",
+"ck2004"
 ],
 "value": "auto",
 "visible_if": "ld_mode_bol:lookup",
@@ -2118,10 +2122,10 @@ null
 "context": "compute",
 "description": "Atmosphere table",
 "choices": [
-"blackbody",
+"ck2004",
 "extern_planckint",
 "extern_atmx",
-"ck2004",
+"blackbody",
 "phoenix"
 ],
 "value": "ck2004",
@@ -2354,10 +2358,10 @@ null
 "context": "compute",
 "description": "Atmosphere table",
 "choices": [
-"blackbody",
+"ck2004",
 "extern_planckint",
 "extern_atmx",
-"ck2004",
+"blackbody",
 "phoenix"
 ],
 "value": "ck2004",
@@ -2372,10 +2376,10 @@ null
 "context": "compute",
 "description": "Atmosphere table",
 "choices": [
-"blackbody",
+"ck2004",
 "extern_planckint",
 "extern_atmx",
-"ck2004",
+"blackbody",
 "phoenix"
 ],
 "value": "ck2004",
@@ -2582,7 +2586,7 @@ null
 "qualifier": "phoebe_version",
 "context": "setting",
 "description": "Version of PHOEBE",
-"value": "2.3.22",
+"value": "devel",
 "copy_for": false,
 "readonly": true,
 "advanced": true,
