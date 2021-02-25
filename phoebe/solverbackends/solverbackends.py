@@ -110,10 +110,17 @@ def _lnprobability(sampled_values, b, params_uniqueids, compute,
                 # then emcee is in serial mode, run_compute is within mpi
                 failed_samples_buffer.append(msg_tuple)
             else:
-                # then emcee is using MPI so we need to pass the messages
-                # through the MPI pool
-                comm = _MPI.COMM_WORLD
-                comm.ssend(msg_tuple, 0, tag=99999999)
+                try:
+                    # then emcee is using MPI so we need to pass the messages
+                    # through the MPI pool
+                    comm = _MPI.COMM_WORLD
+                except NameError:
+                    # then we're using a Serial Pool - this is an ugly way
+                    # to detect this though... would it be better to pass another
+                    # argument through everything or to set another global variable?
+                    failed_samples_buffer.append(msg_tuple)
+                else:
+                    comm.ssend(msg_tuple, 0, tag=99999999)
 
         return lnprob
 
@@ -1212,6 +1219,7 @@ class EmceeBackend(BaseSolverBackend):
         # from our own waiting loop in phoebe's __init__.py and subscribe them
         # to emcee's pool.
         if mpi.within_mpirun:
+            logger.info("emcee: using MPI pool")
             # TODO: decide whether to use MPI for emcee (via pool) or pass None
             # to allow per-model parallelization
             global failed_samples_buffer
@@ -1249,10 +1257,17 @@ class EmceeBackend(BaseSolverBackend):
                 mpi._enabled = False
 
 
-        else:
-            logger.info("using multiprocessing pool for emcee")
+        elif conf.multiprocessing_nprocs==0:
+            logger.info("emcee: using serial mode")
 
-            pool = _pool.MultiPool()
+            pool = _pool.SerialPool()
+            failed_samples_buffer = []
+            is_master = True
+
+        else:
+            logger.info("emcee: using multiprocessing pool with {} procs".format(conf.multiprocessing_nprocs))
+
+            pool = _pool.MultiPool(processes=conf._multiprocessing_nprocs)
             failed_samples_buffer = multiprocessing.Manager().list()
             is_master = True
 
@@ -1583,7 +1598,7 @@ class DynestyBackend(BaseSolverBackend):
         # from our own waiting loop in phoebe's __init__.py and subscribe them
         # to emcee's pool.
         if mpi.within_mpirun:
-            logger.info("using MPI pool for dynesty")
+            logger.info("dynesty: using MPI pool")
 
             global failed_samples_buffer
             failed_samples_buffer = []
@@ -1607,10 +1622,17 @@ class DynestyBackend(BaseSolverBackend):
             mpi._within_mpirun = False
             mpi._enabled = False
 
-        else:
-            logger.info("using multiprocessing pool for dynesty")
+        elif conf.multiprocessing_nprocs==0:
+            logger.info("dynesty: using serial mode")
 
-            pool = _pool.MultiPool()
+            pool = _pool.SerialPool()
+            failed_samples_buffer = []
+            is_master = True
+
+        else:
+            logger.info("dynesty: using multiprocessing pool with {} procs".format(conf.multiprocessing_nprocs))
+
+            pool = _pool.MultiPool(processes=conf._multiprocessing_nprocs)
             failed_samples_buffer = multiprocessing.Manager().list()
             is_master = True
 
@@ -1955,10 +1977,16 @@ class Differential_EvolutionBackend(BaseSolverBackend):
             return (dist.low, dist.high)
 
         if mpi.within_mpirun:
+            logger.info("DifferentialEvolution: using MPI pool")
             pool = _pool.MPIPool()
             is_master = pool.is_master()
+        elif conf.multiprocessing_nprocs==0:
+            logger.info("DifferentialEvolution: using serial mode")
+            pool = _pool.SerialPool()
+            is_master = True
         else:
-            pool = _pool.MultiPool()
+            logger.info("DifferentialEvolution: using multiprocessing pool with {} procs".format(conf.multiprocessing_nprocs))
+            pool = _pool.MultiPool(processes=conf._multiprocessing_nprocs)
             is_master = True
 
         # temporarily disable MPI within run_compute to disabled parallelizing
