@@ -7066,7 +7066,7 @@ class Bundle(ParameterSet):
             if value is None:
                 value_ = _distl.delta(ref_param.get_value())
             else:
-                value_ = _deepcopy(value)
+                value_ = value
 
             metawargs = {'context': 'distribution',
                          'distribution': kwargs['distribution']}
@@ -7082,9 +7082,11 @@ class Bundle(ParameterSet):
 
             for index in indexes:
                 dist_param_qualifier = ref_param.qualifier if index is None else '{}[{}]'.format(ref_param.qualifier, index)
+                # note: we'll always deepcopy here to avoid any linking between
+                # user-provided distributions (unless provided as a multivariate)
                 dist_param = DistributionParameter(bundle=self,
                                                    qualifier=dist_param_qualifier,
-                                                   value=value_,
+                                                   value=value_.deepcopy(),
                                                    description='distribution for the referenced parameter',
                                                    **metawargs)
 
@@ -7284,7 +7286,7 @@ class Bundle(ParameterSet):
         for dist_dict in dist_dicts:
             if not isinstance(dist_dict, dict):
                 raise TypeError("each item in values must be a dictionary")
-            kwargs.setdefault('value', value)
+            dist_dict.setdefault('value', value)
 
             for k,v in kwargs.items():
                 if k in ['uniqueid'] + list(self.meta.keys()):

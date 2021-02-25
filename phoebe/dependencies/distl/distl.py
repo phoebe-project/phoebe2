@@ -3990,6 +3990,10 @@ class DistributionCollection(BaseDistlObject):
             elif not isinstance(dist_orig, BaseMultivariateSliceDistribution):
                 # duplicate entry
                 if values_dict[uniqueid][0] != v:
+                    print("*** uniqueids", values_dict.keys())
+                    print("*** uniqueid", uniqueid)
+                    print("*** values_dict[uniqueid]", values_dict[uniqueid])
+                    print("***", type(values_dict[uniqueid][0]), values_dict[uniqueid][0], type(v), v)
                     raise ValueError("All passed values for {} must be identical".format(d if d.label is None else d.label))
             else:
                 values_dict[uniqueid].append(v)
