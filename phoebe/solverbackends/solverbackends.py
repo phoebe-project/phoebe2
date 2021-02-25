@@ -83,6 +83,10 @@ def _bsolver(b, solver, compute, distributions, wrap_central_values={}):
         bexcl.remove_parameters_all(solver=[f for f in b.solvers if f!=solver and solver is not None], **_skip_filter_checks)
     bexcl.remove_parameters_all(distribution=[d for d in b.distributions if d not in distributions], **_skip_filter_checks)
 
+    # any dataset type supported for fitting needs to NOT be excluded here and
+    # also implemented in parameters.ParameterSet.calculate_residuals
+    bexcl.remove_parameters_all(kind=['orb', 'mesh', 'lp'])
+
     # set face-values to be central values for any angle parameters in init_from
     for uniqueid, value in wrap_central_values.items():
         # TODO: what to do if continue_from was used but constraint has since been flipped?

@@ -4114,6 +4114,51 @@ class Bundle(ParameterSet):
                                                 params,
                                                 True, ['run_solver'])
 
+                # dataset column checks
+                lc_datasets = self.filter(dataset=self.filter(qualifier='enabled', value=True, compute=compute, context='compute', **_skip_filter_checks).datasets, kind='lc', context='dataset', **_skip_filter_checks).datasets
+                rv_datasets = self.filter(dataset=self.filter(qualifier='enabled', value=True, compute=compute, context='compute', **_skip_filter_checks).datasets, kind='rv', context='dataset', **_skip_filter_checks).datasets
+
+                for dataset in lc_datasets+rv_datasets:
+                    for time_param in self.filter(qualifier='times', dataset=dataset, context='dataset', **_skip_filter_checks).to_list():
+                        component = time_param.component
+                        times = time_param.get_value()
+
+                        if np.any(np.isnan(times)):
+                            report.add_item(self,
+                                            "times cannot contain any nans",
+                                            self.filter(qualifier=['times'], dataset=dataset, component=component, context='dataset', **_skip_filter_checks)
+                                            +addl_parameters,
+                                            True, 'run_solver')
+
+                        sigmas = self.get_value(qualifier='sigmas', dataset=dataset, component=component, context='dataset', **_skip_filter_checks)
+
+                        if time_param.kind == 'lc':
+                            fluxes = self.get_value(qualifier='fluxes', dataset=dataset, component=component, context='dataset', **_skip_filter_checks)
+                            if np.any(np.isnan(fluxes)):
+                                report.add_item(self,
+                                                "fluxes cannot contain any nans",
+                                                self.filter(qualifier=['fluxes'], dataset=dataset, component=component, context='dataset', **_skip_filter_checks)
+                                                +addl_parameters,
+                                                True, 'run_solver')
+
+                        elif time_param.kind == 'rv':
+                            rvs = self.get_value(qualifier='rvs', dataset=dataset, component=component, context='dataset', **_skip_filter_checks)
+                            if np.any(np.isnan(rvs)):
+                                report.add_item(self,
+                                                "rvs cannot contain any nans",
+                                                self.filter(qualifier=['rvs'], dataset=dataset, component=component, context='dataset', **_skip_filter_checks)
+                                                +addl_parameters,
+                                                True, 'run_solver')
+
+                        if np.any(np.isnan(sigmas)):
+                            report.add_item(self,
+                                            "sigmas cannot contain any nans",
+                                            self.filter(qualifier=['sigmas'], dataset=dataset, component=component, context='dataset', **_skip_filter_checks)
+                                            +addl_parameters,
+                                            True, 'run_solver')
+
+
+
             if 'lc_datasets' in solver_ps.qualifiers:
                 lc_datasets = solver_ps.get_value(qualifier='lc_datasets', lc_datasets=kwargs.get('lc_datasets', None), expand=True, **_skip_filter_checks)
                 if not len(lc_datasets):
