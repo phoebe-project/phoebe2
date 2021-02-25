@@ -84,6 +84,11 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.3.28 - solver checks bugfix
+
+* excludes datasets not supported in fitting (mesh, orb, lp, etc) from forward-model within inverse solvers.
+* run_checks_solver now checks for nans in dataset arrays.
+
 ### 2.3.27 - add_compute/solver overwrite bugfix
 
 * fixes bug where passing overwrite to add_compute or add_solver raised an error if run_compute/run_solver already created a model/solution tagged with that same label.
