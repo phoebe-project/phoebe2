@@ -429,6 +429,42 @@ def _value_for_constraint(item, constraintparam=None):
     else:
         return item.si.value
 
+def _extract_index_from_string(s):
+    if s is None:
+        return s, None
+    if isinstance(s, list):
+        all = [_extract_index_from_string(si) for si in s]
+        return [a[0] for a in all], [a[1] for a in all]
+    index = None
+    if '[' in s and ']' in s:
+        ind0 = s.index('[')
+        ind1 = s.index(']')
+        index = int(float(s[ind0+1:ind1]))
+        s = s[:ind0] + s[ind1+1:]
+    if '[' in s or ']' in s:
+        raise ValueError("could not succesfully extract single index")
+
+    return s, index
+
+def _corner_twig(param, use_tex=True, index=None):
+    if use_tex and param._latexfmt is not None:
+        if index is None:
+            return param.latextwig
+        else:
+            return "$"+param.latextwig.replace("$", "")+"[{}]".format(index)+"$"
+    if param.context == 'system':
+        return param.qualifier
+    else:
+        if index is None:
+            return '{}@{}'.format(param.qualifier, getattr(param, param.context))
+        else:
+            return '{}[{}]@{}'.format(param.qualifier, index, getattr(param, param.context))
+
+def _corner_label(param, index=None, use_tex=True):
+    if param.default_unit.to_string():
+        return '{} [{}]'.format(_corner_twig(param, use_tex=use_tex, index=index), param.default_unit)
+    return _corner_twig(param, use_tex=use_tex, index=index)
+
 
 def parameter_from_json(dictionary, bundle=None):
     """Load a single parameter from a JSON dictionary.
@@ -2232,34 +2268,61 @@ class ParameterSet(object):
         twig = key
 
         method = None
+        mkwargs = {}
+        if 'index' in kwargs.keys():
+            mkwargs['index'] = kwargs.pop('index')
+        twig, index = _extract_index_from_string(twig)
         twigsplit = re.findall(r"[\w']+", twig)
         if twigsplit[0] == 'value':
             twig = '@'.join(twigsplit[1:])
-            method = 'set_value'
+            if index is not None:
+                method = 'set_index_value'
+                mkwargs = {'index': index}
+            else:
+                method = 'set_value'
+            mkwargs['value'] = value
+
         elif twigsplit[0] == 'quantity':
             twig = '@'.join(twigsplit[1:])
-            method = 'set_quantity'
+            if index is not None:
+                raise ValueError("index notation not supported for {}".format(twigsplit[0]))
+                # method = 'set_index_quantity'
+                # mkwargs = {'index': index}
+            else:
+                method = 'set_quantity'
+
+            mkwargs['value'] = value
+
+
         elif twigsplit[0] in ['unit', 'default_unit']:
             twig = '@'.join(twigsplit[1:])
+            if index is not None:
+                raise ValueError("index notation not supported for {}".format(twigsplit[0]))
             method = 'set_default_unit'
+
+            mkwargs['unit'] = value
+
         elif twigsplit[0] in ['timederiv']:
             twig = '@'.join(twigsplit[1:])
+            if index is not None:
+                raise ValueError("index notation not supported for {}".format(twigsplit[0]))
             method = 'set_timederiv'
         elif twigsplit[0] in ['description']:
             raise KeyError("cannot set {} of {}".format(twigsplit[0], '@'.join(twigsplit[1:])))
 
+
         if self._bundle is not None and self._bundle.get_setting('dict_set_all').get_value() and len(self.filter(twig=twig, **kwargs)) > 1:
             # then we need to loop through all the returned parameters and call set on them
             for param in self.filter(twig=twig, **kwargs).to_list():
-                self.set('{}@{}'.format(method, param.twig) if method is not None else param.twig, value)
+                self.set('{}@{}'.format(method, param.twig) if method is not None else param.twig, **mkwargs)
         else:
 
             if method is None:
-                return self.set_value(twig=twig, value=value, **kwargs)
+                return self.set_value(twig=twig, value=value, **mkwargs)
             else:
                 param = self.get_parameter(twig=twig, **kwargs)
 
-                return getattr(param, method)(value)
+                return getattr(param, method)(**mkwargs)
 
     def __getitem__(self, key):
         """
@@ -2601,11 +2664,13 @@ class ParameterSet(object):
             of the results is exactly 1 and `force_ps=False`, otherwise the
             resulting <phoebe.parameters.ParameterSet>.
         """
-        def _return(params, force_ps, method=None):
+        def _return(params, force_ps, method=None, index=None):
             if len(params) == 1 and not force_ps:
                 # then just return the parameter itself
                 if method is None:
                     return params[0]
+                elif index is not None:
+                    return getattr(params[0], method)()[index]
                 else:
                     return getattr(params[0], method)()
 
@@ -2654,6 +2719,7 @@ class ParameterSet(object):
 
         if kwargs.get('uniqueid', None) is not None:
             check_visible = False
+            kwargs['uniqueid'], _ = _extract_index_from_string(kwargs.get('uniqueid'))
 
         time = kwargs.get('time', None)
         if hasattr(time, '__iter__') and not isinstance(time, str):
@@ -2729,15 +2795,21 @@ class ParameterSet(object):
 
         # now do twig matching
         method = None
+        mindex = None
         if twig is not None:
             _user_twig = _deepcopy(twig)
+
+            twig, index = _extract_index_from_string(twig)
+
             twigsplit = twig.split('@')
             if twigsplit[0] == 'value':
                 twig = '@'.join(twigsplit[1:])
                 method = 'get_value'
+                mindex = index
             elif twigsplit[0] == 'quantity':
                 twig = '@'.join(twigsplit[1:])
                 method = 'get_quantity'
+                mindex = index
             elif twigsplit[0] in ['unit', 'default_unit']:
                 twig = '@'.join(twigsplit[1:])
                 method = 'get_default_unit'
@@ -2769,11 +2841,17 @@ class ParameterSet(object):
                     twigautocomplete = twigsplit[-1]
                     twigsplit = twigsplit[:-1]
 
+            def _twigmatch(twig, ti, index):
+                if index is None:
+                    return ti in twig.split('@')
+                else:
+                    return ti in twig.split('@') or '{}[{}]'.format(ti, index) in twig.split('@')
+
             for ti in twigsplit:
                 # TODO: need to fix repeating twigs (ie
                 # period@period@period@period still matches and causes problems
                 # with the tabcomplete)
-                params = [pi for pi in params if ti in pi.twig.split('@') or _fnmatch(pi.twig, ti)]
+                params = [pi for pi in params if _twigmatch(pi.twig, ti, index) or _fnmatch(pi.twig, ti)]
 
             if autocomplete:
                 # we want to provide options for what twigautomplete
@@ -2790,7 +2868,7 @@ class ParameterSet(object):
                                 options.append(completed_twig)
                 return options
 
-        return _return(params, force_ps, method)
+        return _return(params, force_ps, method, mindex)
 
     def exclude(self, twig=None, check_visible=True, check_default=True, **kwargs):
         """
@@ -3152,13 +3230,30 @@ class ParameterSet(object):
             if not len(self.filter(twig=twig, **kwargs)):
                 return default
 
+        twig, index = _extract_index_from_string(twig)
+        if kwargs.get('qualifier', None):
+            kwargs['qualifier'], index = _extract_index_from_string(kwargs.get('qualifier'))
+        if kwargs.get('uniqueid', None):
+            kwargs['uniqueid'], index = _extract_index_from_string(kwargs.get('uniqueid'))
+
         param = self.get_parameter(twig=twig, **kwargs)
 
         # if hasattr(param, 'default_unit'):
         # This breaks for constraint parameters
         if isinstance(param, FloatParameter) or\
                 isinstance(param,FloatArrayParameter):
-            return param.get_value(unit=unit, t=t, **kwargs)
+
+            if index is not None:
+                if isinstance(param, FloatArrayParameter):
+                    return param.get_value(unit=unit, t=t, **kwargs)[index]
+                else:
+                    raise ValueError("indices only supported for FloatArrayParameter")
+            else:
+                return param.get_value(unit=unit, t=t, **kwargs)
+
+
+        if index is not None:
+            raise ValueError("indices only supported for FloatArrayParameter")
 
         return param.get_value(**kwargs)
 
@@ -4035,19 +4130,6 @@ class ParameterSet(object):
                     logger.warning("assuming you meant '{}error' instead of '{}errors'".format(d,d))
                     kwargs['{}error'.format(d)] = kwargs.pop('{}errors'.format(d))
 
-        def _corner_twig(param, use_tex=True):
-            if use_tex and param._latexfmt is not None:
-                return param.latextwig
-            if param.context == 'system':
-                return param.qualifier
-            else:
-                return '{}@{}'.format(param.qualifier, getattr(param, param.context))
-
-        def _corner_label(param):
-            if param.default_unit.to_string():
-                return '{} [{}]'.format(_corner_twig(param), param.default_unit)
-            return _corner_twig(param)
-
         def _handle_mask(ps, array, **kwargs):
             mask_enabled = ps.get_value(qualifier='mask_enabled', mask_enabled=kwargs.get('mask_enabled', None), default=False, **_skip_filter_checks)
             if not mask_enabled:
@@ -4549,14 +4631,18 @@ class ParameterSet(object):
             kwargs['plot_package'] = 'corner'
             kwargs['data'] = ps.get_value(qualifier='samples', default=[], **_skip_filter_checks)
 
-            try:
-                param_list = [self._bundle.get_parameter(uniqueid=uniqueid, **_skip_filter_checks) for uniqueid in ps.get_value(qualifier='sampled_uniqueids', **_skip_filter_checks)]
-            except:
-                logger.warning("could not match to sampled_uniqueids, falling back on sampled_twigs")
-                param_list = [self._bundle.get_parameter(twig=twig, **_skip_filter_checks) for twig in ps.get_value(qualifier='sampled_twigs', **_skip_filter_checks)]
 
             # TODO: use units from fitted_units instead of parameter?
-            kwargs['labels'] = [_corner_label(param) for param in param_list]
+
+            try:
+                params_uniqueids_and_indices = [_extract_index_from_string(uid) for uid in ps.get_value(qualifier='sampled_uniqueids', **_skip_filter_checks)]
+                param_list = [self._bundle.get_parameter(uniqueid=uniqueid, **_skip_filter_checks) for uniqueid, index in params_uniqueids_and_indices]
+                kwargs['labels'] = [_corner_label(param, uid_and_index[1]) for param, uid_and_index in zip(param_list, param_uniqueids_and_indices)]
+            except:
+                logger.warning("could not match to sampled_uniqueids, falling back on sampled_twigs")
+                params_twigs_and_indices = [_extract_index_from_string(twig) for twig in ps.get_value(qualifier='sampled_twigs', **_skip_filter_checks)]
+                param_list = [self._bundle.get_parameter(twig=twig, **_skip_filter_checks) for twig, index in params_twigs_and_indices]
+                kwargs['labels'] = [_corner_label(param, twig_and_index[1]) for param, twig_and_index in zip(param_list, param_twigs_and_indices)]
 
             if kwargs.get('style') == 'failed':
                 kwargs.setdefault('plot_uncertainties', False)
@@ -4828,17 +4914,41 @@ class ParameterSet(object):
                     # fitted_twigs = self._bundle.get_value(qualifier='fitted_twigs', context='solution', solution=ps.solution, **_skip_filter_checks)
                     fitted_units = self._bundle.get_value(qualifier='fitted_units', context='solution', solution=ps.solution, **_skip_filter_checks)
                     fitted_ps = self._bundle.filter(uniqueid=list(adopt_uniqueids), **_skip_filter_checks)
-
                     lnprobabilities_proc, samples_proc = _helpers.process_mcmc_chains(lnprobabilities, samples, burnin, thin, lnprob_cutoff, adopt_inds, flatten=False)
 
                     # samples [niters, nwalkers, parameter]
-                    ys = kwargs.get('y', fitted_ps.filter(uniquied=list(adopt_uniqueids), **_skip_filter_checks).twigs)
-                    if isinstance(ys, str):
-                        ys = [ys]
-                    yparams = fitted_ps.filter(twig=ys, **_skip_filter_checks)
+                    # allow user override of which parameter(s) to include
+                    # but in order to handle the possibility of indexes in array parameters
+                    # we need to find the matches in adopt_uniqueids which includes the index
+                    if kwargs.get('y', None):
+                        y = kwargs.get('y')
+                        if isinstance(ys, str):
+                            ys = [ys]
 
-                    for yparam in yparams.to_list():
-                        parameter_ind = list(adopt_uniqueids).index(yparam.uniqueid)
+                        # ys are currently assumed to twigs (with or without indices)
+                        # we need a list of uniqueids, including indices when necessary
+                        def _uniqueids_for_y(fitted_ps, twig=None):
+                            y, index = _extract_index_from_string(y)
+                            p = fitted_ps.get_parameter(twig=y, **_skip_filter_checks)
+                            if index is None:
+                                if p.__class__.__name__ == 'FloatArrayParameter':
+                                    return ['{}[{}]'.format(p.uniqueid, i) for i in range(len(p.get_value()))]
+                                else:
+                                    return [p.uniqueid]
+                            else:
+                                return ['{}[{}]'.format(p.uniqueid, index)]
+
+                        plot_uniqueids = []
+                        for y in ys:
+                            plot_uniqueids += _uniqueids_for_y(fitted_ps, y)
+
+                    else:
+                        plot_uniqueids = adopt_uniqueids
+
+                    for plot_uniqueid in plot_uniqueids:
+                        parameter_ind = list(adopt_uniqueids).index(plot_uniqueid)
+                        _, index = _extract_index_from_string(plot_uniqueid)
+                        yparam = fitted_ps.get_parameter(uniqueid=plot_uniqueid, **_skip_filter_checks)
 
                         for walker_ind in range(samples_proc.shape[1]):
                             kwargs = _deepcopy(kwargs)
@@ -4850,7 +4960,7 @@ class ParameterSet(object):
                             kwargs['xlabel'] = 'iteration (burnin={}, thin={}, lnprob_cutoff={})'.format(burnin, thin, lnprob_cutoff)
 
                             kwargs['y'] = samples_y
-                            kwargs['ylabel'] = _corner_twig(yparam)
+                            kwargs['ylabel'] = _corner_label(yparam, index=index)
                             # TODO: use fitted_units instead?
                             kwargs['yunit'] = fitted_units[parameter_ind]
                             return_ += [kwargs]
@@ -7953,8 +8063,10 @@ class SelectParameter(Parameter):
         changed = len(rename.keys())
 
         if remove_not_valid:
+            value_orig = value
+            value = [v for v in value if self.valid_selection(v)]
             self.set_value(value, run_checks=False, ignore_readonly=True)
-            return changed or self.remove_not_valid_selections()
+            return changed or len(value_orig) != len(value)
 
         else:
             if np.any([not self.is_valid_selection(v) for v in value]):
@@ -8002,12 +8114,13 @@ class SelectParameter(Parameter):
 
 class SelectTwigParameter(SelectParameter):
     @staticmethod
-    def _match_twig(value, choice):
+    def _match_twig(value, valueindex, choice):
+        choice, choiceindex = _extract_index_from_string(choice)
         if '@' in value:
             value = value.split('@')
         if '@' in choice:
             choice = choice.split('@')
-        return np.all([vs in choice for vs in value])
+        return np.all([vs in choice for vs in value]) and (valueindex is None or valueindex == choiceindex)
 
     def valid_selection(self, value):
         """
@@ -8037,11 +8150,13 @@ class SelectTwigParameter(SelectParameter):
         if super(SelectTwigParameter, self).valid_selection(value):
             return True
 
+        value, index = _extract_index_from_string(value)
+
         twigsplit = value.split('@')
 
         # need to do special twig matching
         for choice in self.choices:
-            if self._match_twig(twigsplit, choice):
+            if self._match_twig(twigsplit, index, choice):
                 return True
 
         return False
@@ -8078,13 +8193,14 @@ class SelectTwigParameter(SelectParameter):
 
         selection = []
         for v in self.get_value(**kwargs):
+            v, index = _extract_index_from_string(v)
             vsplit = v.split('@')
             for choice in self.choices:
                 if v==choice and choice not in selection and len(choice):
                     selection.append(choice)
                 elif _fnmatch(choice, v) and choice not in selection and len(choice):
                     selection.append(choice)
-                elif self._match_twig(vsplit, choice) and choice not in selection and len(choice):
+                elif self._match_twig(vsplit, index, choice) and choice not in selection and len(choice):
                     selection.append(choice)
 
 
@@ -8501,8 +8617,9 @@ class DistributionParameter(Parameter):
         ----------
         * <phoebe.parameters.Parameter> object
         """
+        qualifier, index = _extract_index_from_string(self.qualifier)
         return self._bundle.exclude(context=['distribution', 'constraint'],
-                                    check_visible=False).get_parameter(qualifier=self.qualifier,
+                                    check_visible=False).get_parameter(qualifier=qualifier,
                                           check_visible=False,
                                           **{k:v for k,v in self.meta.items() if k in _contexts and k not in ['context', 'distribution']})
 
@@ -8555,7 +8672,14 @@ class DistributionParameter(Parameter):
             else:
                 value = self.get_referenced_parameter().get_value()
 
-            dist.value = value
+            qualifier, index = _extract_index_from_string(self.qualifier)
+            if index is None:
+                dist.value = value
+            else:
+                if len(value) <= index:
+                    dist.value = np.nan
+                else:
+                    dist.value = value[index]
 
         return dist
 
@@ -9447,6 +9571,12 @@ class FloatParameter(Parameter):
         if run_checks and self._bundle:
             report = self._bundle.run_checks(allow_skip_constraints=True, raise_logger_warning=True)
 
+        # make any necessary updates to choices
+        # skip_update_choices (as a hidden kwarg) exists so that the server can
+        # handle this externally and return the changes to the clients
+        if self._bundle is not None and not kwargs.get('skip_update_choices', False):
+            if self.qualifier in ['ld_coeffs', 'ld_coeffs_bol']:
+                self._bundle._handle_fitparameters_selecttwigparams()
 
 class FloatArrayParameter(FloatParameter):
     def __init__(self, *args, **kwargs):
@@ -11170,7 +11300,7 @@ class ConstraintParameter(Parameter):
         self._remove_bookkeeping()
         # logger.debug("ConstraintParameter {} _update_bookkeeping".format(self.twig))
         for param in self.vars.to_list():
-            if param.qualifier == self.qualifier and param.component == self.component:
+            if param.qualifier == self.qualifier and param.component == self.component and param.dataset == self.dataset:
                 # then this is the currently constrained parameter
                 param._is_constraint = self.uniqueid
                 if self.uniqueid in param._in_constraints:
@@ -11181,7 +11311,7 @@ class ConstraintParameter(Parameter):
                     param._in_constraints.append(self.uniqueid)
 
         for param in self.addl_vars.to_list():
-            if param.qualifier == self.qualifier and param.component == self.component:
+            if param.qualifier == self.qualifier and param.component == self.component and param.dataset == self.dataset:
                 # then this is the currently constrained parameter
                 param._is_constraint = self.uniqueid
 
@@ -12009,7 +12139,6 @@ class JobParameter(Parameter):
             # self._bundle._attach_param_from_server(newparams)
 
         elif self.status == 'error':
-            ferr = open(self._err_fname, 'r')
             lines = ferr.readlines()
             ferr.close()
 

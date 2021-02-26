@@ -88,6 +88,8 @@ def _simplify_error_message(msg):
         msg = 'atm out-of-bounds during compute_pblums'
     elif 'Atmosphere parameters out of bounds' in msg:
         msg = 'atm out-of-bounds'
+    elif 'not compatible for ld_func' in msg:
+        msg = 'ld_coeffs and ld_func incompatible'
     return msg
 
 def _needs_mesh(b, dataset, kind, component, compute):

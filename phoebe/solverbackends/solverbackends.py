@@ -12,6 +12,7 @@ import phoebe.parameters as _parameters
 import phoebe.frontend.bundle
 from phoebe import u, c
 from phoebe import conf, mpi
+from phoebe.parameters.parameters import _extract_index_from_string
 from phoebe.backend.backends import _simplify_error_message
 from phoebe.utils import phase_mask_inds
 from phoebe.dependencies import nparray
@@ -34,7 +35,6 @@ else:
 
 try:
     import dynesty
-    import pickle
 except ImportError:
     _use_dynesty = False
 else:
@@ -66,10 +66,11 @@ _skip_filter_checks = {'check_default': False, 'check_visible': False}
 
 def _wrap_central_values(b, dc, uniqueids):
     ret = {}
-    for dist, uniqueid in zip(dc.dists, uniqueids):
+    for dist, uniqueid_orig in zip(dc.dists, uniqueids):
+        uniqueid, index = _extract_index_from_string(uniqueid_orig)
         param = b.get_parameter(uniqueid=uniqueid, **_skip_filter_checks)
         if param.default_unit.physical_type == 'angle':
-            ret[uniqueid] = dist.median()
+            ret[uniqueid_orig] = dist.median()
     return ret
 
 def _bsolver(b, solver, compute, distributions, wrap_central_values={}):
@@ -135,8 +136,12 @@ def _lnprobability(sampled_values, b, params_uniqueids, compute,
     b._within_solver = True
     if sampled_values is not False:
         for uniqueid, value in zip(params_uniqueids, sampled_values):
+            uniqueid, index = _extract_index_from_string(uniqueid)
             try:
-                b.set_value(uniqueid=uniqueid, value=value, run_checks=False, run_constraints=False, **_skip_filter_checks)
+                if index is not None:
+                    b.get_parameter(uniqueid=uniqueid, **_skip_filter_checks).set_index_value(index=index, value=value, run_checks=False, run_constraints=False)
+                else:
+                    b.set_value(uniqueid=uniqueid, value=value, run_checks=False, run_constraints=False, **_skip_filter_checks)
             except ValueError as err:
                 logger.warning("received error while setting values: {}. lnprobability=-inf".format(err))
                 return _return(-np.inf, str(err))
@@ -384,6 +389,13 @@ def _get_combined_rv(b, datasets, components, phase_component=None, mask=True, n
 
 
     return times, phases, rvs, sigmas
+
+def _to_twig_with_index(twig, index):
+    if index is None:
+        return twig
+    else:
+        return '{}[{}]@{}'.format(twig.split('@')[0], index, '@'.join(twig.split('@')[1:]))
+
 
 class BaseSolverBackend(object):
     def __init__(self):
@@ -1366,7 +1378,8 @@ class EmceeBackend(BaseSolverBackend):
 
                 start_iteration = continued_lnprobabilities.shape[0]
 
-            params_twigs = [b.get_parameter(uniqueid=uniqueid, **_skip_filter_checks).twig for uniqueid in params_uniqueids]
+            params_uniqueids_and_indices = [_extract_index_from_string(uid) for uid in params_uniqueids]
+            params_twigs = [_to_twig_with_index(b.get_parameter(uniqueid=uniqueid, **_skip_filter_checks).twig, index) for uniqueid, index in params_uniqueids_and_indices]
 
             esargs['pool'] = pool
             esargs['nwalkers'] = nwalkers
@@ -1484,7 +1497,7 @@ class DynestyBackend(BaseSolverBackend):
         # check whether emcee is installed
 
         if not _use_dynesty:
-            raise ImportError("could not import dynesty, pickle")
+            raise ImportError("could not import dynesty")
 
         solver_ps = b.get_solver(solver=solver, **_skip_filter_checks)
         if not len(solver_ps.get_value(qualifier='priors', init_from=kwargs.get('priors', None))):
@@ -1654,7 +1667,9 @@ class DynestyBackend(BaseSolverBackend):
             wrap_central_values = _wrap_central_values(b, priors_dc, params_uniqueids)
 
             params_units = [dist.unit.to_string() for dist in priors_dc.dists]
-            params_twigs = [b.get_parameter(uniqueid=uniqueid, **_skip_filter_checks).twig for uniqueid in params_uniqueids]
+
+            params_uniqueids_and_indices = [_extract_index_from_string(uid) for uid in params_uniqueids]
+            params_twigs = [_to_twig_with_index(b.get_parameter(uniqueid=uniqueid, **_skip_filter_checks).twig, index) for uniqueid, index in params_uniqueids_and_indices]
 
             # NOTE: in dynesty we draw from the priors and pass the prior-transforms,
             # but do NOT include the lnprior term in lnlikelihood, so we pass
@@ -1808,22 +1823,25 @@ class _ScipyOptimizeBaseBackend(BaseSolverBackend):
         params_twigs = []
         p0 = []
         fitted_units = []
-        for twig in fit_parameters:
+        for twig_orig in fit_parameters:
+            twig, index = _extract_index_from_string(twig_orig)
             p = b.get_parameter(twig=twig, context=['component', 'dataset', 'feature', 'system'], **_skip_filter_checks)
-            params_uniqueids.append(p.uniqueid)
-            params_twigs.append(p.twig)
-            p0.append(p.get_value())
+            params_uniqueids.append(p.uniqueid if index is None else p.uniqueid+'[{}]'.format(index))
+            params_twigs.append(p.twig if index is None else twig_orig)
+            p0.append(p.get_value() if index is None else p.get_value()[index])
             fitted_units.append(p.get_default_unit().to_string())
 
         # now override from initial values
         fitted_params_ps = b.filter(uniqueid=params_uniqueids, **_skip_filter_checks)
-        for twig,v in initial_values.items():
+        for twig_orig, v in initial_values.items():
+            twig, index = _extract_index_from_string(twig_orig)
             p = fitted_params_ps.get_parameter(twig=twig, **_skip_filter_checks)
-            if p.uniqueid in params_uniqueids:
-                index = params_uniqueids.index(p.uniqueid)
+            uniqueid = p.uniqueid if index is None else p.uniqueid+'[{}]'.format(index)
+            if uniqueid in params_uniqueids:
+                p_ind = params_uniqueids.index(p.uniqueid)
                 if hasattr(v, 'unit'):
                     v = v.to(fitted_units[index]).value
-                p0[index] = v
+                p0[p_ind] = v
             else:
                 logger.warning("ignoring {}={} in initial_values as was not found in fit_parameters".format(twig, value))
 

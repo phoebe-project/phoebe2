@@ -1465,7 +1465,7 @@ def set_value(msg):
 
     try:
         # TODO: handle getting nparray objects (probably as json strings)
-        b.set_value_all(**msg)
+        b.set_value_all(skip_update_choices=True, **msg)
         ps_constraints = b.run_delayed_constraints()
     except Exception as err:
         if app._verbose:
@@ -1494,6 +1494,10 @@ def set_value(msg):
 
         # we need to also include parameters in which the visibility has changed
         ps_list += [p for p in b.to_list(check_visible=False, check_default=False, check_advanced=False) if p.is_visible!=is_visible_before.get(p.uniqueid, None)]
+
+        # and need to handle any necessary changes to choices
+        if 'ld_coeffs' in ps_filter.qualifiers or 'ld_coeffs_bol' in ps_filter.qualifiers:
+            ps_list += b._handle_fitparameters_selecttwigparams(return_changes=True)
 
         param_list = sorted([_param_json_overview(param) for param in ps_list], key=lambda p: p['qualifier'])
         param_dict = OrderedDict((p.pop('uniqueid'), p) for p in param_list)

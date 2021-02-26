@@ -424,8 +424,8 @@ null
 "description": "Source for bolometric limb darkening coefficients (used only for irradiation; 'auto' to interpolate from the applicable table according to the 'atm' parameter, or the name of a specific atmosphere table)",
 "choices": [
 "auto",
-"ck2004",
-"phoenix"
+"phoenix",
+"ck2004"
 ],
 "value": "auto",
 "visible_if": "ld_mode_bol:lookup",
@@ -449,6 +449,7 @@ null
 null
 ],
 "copy_for": false,
+"latexfmt": "\\mathrm{{ ldc }}_\\mathrm{{ bol, {component} }}",
 "Class": "FloatArrayParameter"
 },
 {
@@ -769,8 +770,8 @@ null
 "description": "Source for bolometric limb darkening coefficients (used only for irradiation; 'auto' to interpolate from the applicable table according to the 'atm' parameter, or the name of a specific atmosphere table)",
 "choices": [
 "auto",
-"ck2004",
-"phoenix"
+"phoenix",
+"ck2004"
 ],
 "value": "auto",
 "visible_if": "ld_mode_bol:lookup",
@@ -794,6 +795,7 @@ null
 null
 ],
 "copy_for": false,
+"latexfmt": "\\mathrm{{ ldc }}_\\mathrm{{ bol, {component} }}",
 "Class": "FloatArrayParameter"
 },
 {
@@ -1927,11 +1929,11 @@ null
 "context": "compute",
 "description": "Atmosphere table",
 "choices": [
+"phoenix",
 "blackbody",
 "extern_planckint",
 "extern_atmx",
-"ck2004",
-"phoenix"
+"ck2004"
 ],
 "value": "ck2004",
 "copy_for": {
@@ -2132,11 +2134,11 @@ null
 "context": "compute",
 "description": "Atmosphere table",
 "choices": [
+"phoenix",
 "blackbody",
 "extern_planckint",
 "extern_atmx",
-"ck2004",
-"phoenix"
+"ck2004"
 ],
 "value": "ck2004",
 "copy_for": false,
@@ -2150,11 +2152,11 @@ null
 "context": "compute",
 "description": "Atmosphere table",
 "choices": [
+"phoenix",
 "blackbody",
 "extern_planckint",
 "extern_atmx",
-"ck2004",
-"phoenix"
+"ck2004"
 ],
 "value": "ck2004",
 "copy_for": false,
@@ -2350,7 +2352,7 @@ null
 "qualifier": "phoebe_version",
 "context": "setting",
 "description": "Version of PHOEBE",
-"value": "2.3.22",
+"value": "2.3.30",
 "copy_for": false,
 "readonly": true,
 "advanced": true,
