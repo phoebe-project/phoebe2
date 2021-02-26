@@ -11728,6 +11728,7 @@ class Bundle(ParameterSet):
                           self._default_label('dists',
                                               **{'context': 'distribution'}))
         distribution = kwargs.pop('distribution')
+        distribution_overwrite_all = kwargs.pop('distribution_overwrite_all', False)
 
         solution_ps = self.get_solution(solution=solution, **kwargs)
         solver_kind = solution_ps.kind
@@ -11798,7 +11799,7 @@ class Bundle(ParameterSet):
                 self.get_parameter(uniqueid=constrained_uniqueid, **_skip_filter_checks).is_constraint.flip_for(uniqueid=solve_for_uniqueid)
 
         if solver_kind in ['emcee', 'dynesty']:
-            dist, _ = self.get_distribution_collection(solution=solution, **{k:v for k,v in kwargs.items() if k in solution_ps.qualifiers})
+            dist, _ = self.get_distribution_collection(solution=solution, context='solution', **{k:v for k,v in kwargs.items() if k in solution_ps.qualifiers})
 
             for i, uniqueid in enumerate(adopt_uniqueids):
                 if adopt_distributions:

@@ -84,6 +84,11 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.3.29 - adopt_solution bugfix
+
+* do not require passing solution to adopt_solution (when adopting distributions) if only one solution exists
+* fix distribution_overwrite_all not defined error
+
 ### 2.3.28 - solver checks bugfix
 
 * excludes datasets not supported in fitting (mesh, orb, lp, etc) from forward-model within inverse solvers.
