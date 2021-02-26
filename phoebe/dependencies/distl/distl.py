@@ -3313,11 +3313,10 @@ class BaseMultivariateDistribution(BaseDistribution):
         ---------
         * `dimension` (string or int, optional, default=None): choose a single
             dimension to plot.
-        * `label` (string or list, optional, default=None): override the label on the
+        * `label` (string, optional, default=None): override the label on the
             x-axis.  If not provided or None, will use <<class>.label>.  Will
             only be used if `show=True`.  Unit will automatically be appended.
-            Will be ignored if `xlabel` is provided.  If `dimension` is provided,
-            must be a string, otherwise a list with length <<class>.ndimensions>.
+            Will be ignored if `xlabel` is provided.
         * `unit` (astropy.unit, optional, default=None): units to use along
             the x-axis.  Astropy must be installed.  If `samples` is provided,
             the passed values will be assumed to be in the correct units.
@@ -3327,9 +3326,8 @@ class BaseMultivariateDistribution(BaseDistribution):
             computed before changing units, so `wrap_at` must be provided
             according to <<class>.unit> not `unit`.  Will be ignored
             if `samples` is provided.
-        * `xlabel` (string or list, optional, default=None): override the label on the
-            x-axis without appending the unit.  Will override `label`.  If `dimension` is provided,
-            must be a string, otherwise a list with length <<class>.ndimensions>.
+        * `xlabel` (string, optional, default=None): override the label on the
+            x-axis without appending the unit.  Will override `label`.
         * `samples` (array, optional, default=None): plot specific sampled
             values instead of calling <<class>.sample> internally.  Will override
             `size`.
@@ -3355,14 +3353,10 @@ class BaseMultivariateDistribution(BaseDistribution):
             # TODO: wrapping can sometimes cause annoying things with bins due to a large datagap.
             # Perhaps we should bin and then wrap?  Or bin before wrapping and get a guess at the
             # appropriate bins
-            label = kwargs.pop('label', self.labels_latex[dimension] if self.labels_latex is not None else None)
-            if not isinstance(label, str):
-                raise TypeError("label must be of type string if dimension is provided")
+            label = kwargs.pop('label', self.labels[dimension] if self.labels is not None else None)
             unit = kwargs.pop('unit', self.units[dimension] if self.units is not None else None)
             wrap_at = kwargs.pop('wrap_at', self.wrap_ats[dimension] if self.wrap_ats is not None else None)
             xlabel = kwargs.pop('xlabel', self._xlabel(dimension, unit=unit, label=label))
-            if not isinstance(xlabel, str):
-                raise TypeError("xlabel must be of type string if dimension is provided")
 
             samples = kwargs.pop('samples', None)
             if samples is None:
@@ -3376,12 +3370,6 @@ class BaseMultivariateDistribution(BaseDistribution):
 
 
             plot_uncertainties = kwargs.pop('plot_uncertainties', True)
-            labels = kwargs.pop('label', self.labels_latex if self.labels_latex is not None else [None]*self.ndimensions)
-            if len(labels) != self.ndimensions:
-                raise ValueError("label must have length {}".format(self.ndimensions))
-            xlabels = kwargs.pop('xlabel', [self._xlabel(dim, label=l) for dim,l in zip(range(self.ndimensions), labels)])
-            if len(xlabels) != self.ndimensions:
-                raise ValueError("xlabel must have length {}".format(self.ndimensions))
             if plot_uncertainties:
                 if plot_uncertainties is True:
                     plot_uncertainties = [1, 2, 3]
@@ -3395,10 +3383,9 @@ class BaseMultivariateDistribution(BaseDistribution):
                 kwargs.setdefault('levels', [1-_np.exp(-s**2 / 2.) for s in (1,2,3)])
 
             fig = corner.corner(self.sample(size=int(size), cache_sample=False),
-                                 labels=xlabels,
+                                 labels=[self._xlabel(dim) for dim in range(self.ndimensions)],
                                  quantiles=kwargs.pop('quantiles', None),
                                  levels=kwargs.pop('levels', None),
-                                 show_titles=False,
                                  **kwargs)
 
 
@@ -3612,15 +3599,12 @@ class BaseMultivariateSliceDistribution(BaseUnivariateDistribution):
         -------------
         * string or None
         """
-        _label_latex = self._label_latex if self._label_latex is not None else self.multivariate._labels_latex[self.dimension] if self.multivariate._labels_latex is not None else None
-
-
-        if _label_latex is not None:
-            if "$" not in _label_latex:
-                return r"$"+_label_latex+"$"
-            if "$$" in _label_latex:
-                return _label_latex.replace("$$", "$")
-            return _label_latex
+        if self._label_latex is not None:
+            if "$" not in self._label_latex:
+                return r"$"+self._label_latex+"$"
+            if "$$" in self._label_latex:
+                return self._label_latex.replace("$$", "$")
+            return self._label_latex
         else:
             return self.label
 
@@ -3990,10 +3974,6 @@ class DistributionCollection(BaseDistlObject):
             elif not isinstance(dist_orig, BaseMultivariateSliceDistribution):
                 # duplicate entry
                 if values_dict[uniqueid][0] != v:
-                    print("*** uniqueids", values_dict.keys())
-                    print("*** uniqueid", uniqueid)
-                    print("*** values_dict[uniqueid]", values_dict[uniqueid])
-                    print("***", type(values_dict[uniqueid][0]), values_dict[uniqueid][0], type(v), v)
                     raise ValueError("All passed values for {} must be identical".format(d if d.label is None else d.label))
             else:
                 values_dict[uniqueid].append(v)
@@ -4367,7 +4347,6 @@ class DistributionCollection(BaseDistlObject):
                              range=kwargs.pop('range', [_range(dist) for dist in self.dists]),
                              quantiles=kwargs.pop('quantiles', None),
                              levels=kwargs.pop('levels', None),
-                             show_titles=False,
                              **kwargs)
 
         if plot_uncertainties:
