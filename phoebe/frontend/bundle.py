@@ -11798,7 +11798,7 @@ class Bundle(ParameterSet):
                 self.get_parameter(uniqueid=constrained_uniqueid, **_skip_filter_checks).is_constraint.flip_for(uniqueid=solve_for_uniqueid)
 
         if solver_kind in ['emcee', 'dynesty']:
-            dist, _ = self.get_distribution_collection(solution=solution, **{k:v for k,v in kwargs.items() if k in solution_ps.qualifiers})
+            dist, _ = self.get_distribution_collection(solution=solution, context='solution', **{k:v for k,v in kwargs.items() if k in solution_ps.qualifiers})
 
             for i, uniqueid in enumerate(adopt_uniqueids):
                 if adopt_distributions:
