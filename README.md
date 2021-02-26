@@ -84,6 +84,11 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.3.30 - ld_coeffs fitting bugfix
+
+* all fitting ld_coeffs.  Each coefficient is referenced by index and can be fit or have distributions attached independently.  See [tutorial](http://phoebe-project.org/docs/latest/tutorials/fitting_ld_coeffs) for more details.
+* also fixes support for [custom constraints](http://phoebe-project.org/docs/latest/tutorials/constraints_custom) which can be used to link ld_coeffs between datasets of the same passband, for example.
+
 ### 2.3.29 - adopt_solution bugfix
 
 * do not require passing solution to adopt_solution (when adopting distributions) if only one solution exists
