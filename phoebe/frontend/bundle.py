@@ -11728,6 +11728,7 @@ class Bundle(ParameterSet):
                           self._default_label('dists',
                                               **{'context': 'distribution'}))
         distribution = kwargs.pop('distribution')
+        distribution_overwrite_all = kwargs.pop('distribution_overwrite_all', False)
 
         solution_ps = self.get_solution(solution=solution, **kwargs)
         solver_kind = solution_ps.kind
