@@ -8206,7 +8206,8 @@ class Bundle(ParameterSet):
         * `include_constrained` (bool, optional): whether to
             include constrained parameters.  Defaults to False if `twig` and
             `**kwargs` point to distributions, otherwise will default to the
-            value necessary for the solver backend.
+            value necessary for the solver backend.  Will likely want to use
+            True if `distribution` are priors.
         * `to_univariates` (bool, optional): whether to convert any multivariate
             distributions to univariates before adding to the collection.  Defaults
             to False if `twig` and `**kwargs` point to distributions, otherwise
