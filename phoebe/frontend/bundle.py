@@ -8203,11 +8203,8 @@ class Bundle(ParameterSet):
             Defaults to 'first' if `twig` and `**kwargs` point to distributions,
             otherwise will default to the value of the relevant parameter in the
             solver options.
-        * `include_constrained` (bool, optional): whether to
-            include constrained parameters.  Defaults to False if `twig` and
-            `**kwargs` point to distributions, otherwise will default to the
-            value necessary for the solver backend.  Will likely want to use
-            True if `distribution` are priors.
+        * `include_constrained` (bool, optional, default=True): whether to
+            include constrained parameters.
         * `to_univariates` (bool, optional): whether to convert any multivariate
             distributions to univariates before adding to the collection.  Defaults
             to False if `twig` and `**kwargs` point to distributions, otherwise
@@ -8238,6 +8235,7 @@ class Bundle(ParameterSet):
         # also have attached distributions?
 
         kwargs['keys'] = 'uniqueid'
+        kwargs.setdefault('include_constrained', True)
         dc, uniqueids = self.get_distribution_collection(twig=twig,
                                                          **kwargs)
 
