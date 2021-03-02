@@ -45,7 +45,7 @@ except ImportError:
 else:
     _has_dill = True
 
-__version__ = '0.2.0'
+__version__ = '0.3.0'
 version = __version__
 
 _math_symbols = {'__mul__': '*', '__add__': '+', '__sub__': '-',
@@ -3958,7 +3958,7 @@ class DistributionCollection(BaseDistlObject):
             if not as_univariates and isinstance(dist_orig, BaseMultivariateSliceDistribution):
                 d = dist_orig.multivariate
             else:
-                d = dist_orig
+                d = dist_orig  #.to_univariate()?
 
             # if as_univariates then we want MVSlices with the same parent MV to be treated separately
             take_dimensions = not as_univariates and isinstance(dist_orig, BaseMultivariateSliceDistribution)
@@ -4044,7 +4044,7 @@ class DistributionCollection(BaseDistlObject):
             samples are available, a ValueError will be raised.
         * `as_univariates` (bool, optional, default=False): whether `values` corresponds
             to the passed distributions (<DistributionCollection.distributions>)
-            or the underlying unpacked distributions (<DistributionCollection.distributions_unpacked>).
+            or the underlying unpacked distributions (<DistributionCollection.dists_unpacked>).
             If the former (`as_univariates=False`), covariances will be respected
             from any underlying multivariate distributions.  If the latter
             (`as_univariates=True`) covariances will be ignored.
@@ -7535,7 +7535,7 @@ class MVSamples(BaseMultivariateDistribution):
 
         Arguments
         --------------
-        * `samples` (np.array object with shape (nsamples, <MVSamples.ndimensions>)):
+        * `samples` (np.array object with shape (<MVSamples.nsamples>, <MVSamples.ndimensions>)):
             the samples.
         * `weights` (np.array object with shape (nsamples) or None, optional, default=None):
             weights for each entry in `samples`.  NOTE: only supported with scipy
@@ -7560,6 +7560,8 @@ class MVSamples(BaseMultivariateDistribution):
         --------
         * an <MVSamples> object
         """
+        # NOTE: the passed samples need to be transposed, so see the override
+        # in dist_constructor_args
         super(MVSamples, self).__init__(units, labels, labels_latex, wrap_ats,
                                         _stats.gaussian_kde, ('samples', 'bw_method') if StrictVersion(_scipy_version) < StrictVersion("1.2.0") else ('samples', 'bw_method', 'weights'),
                                         samples=samples, weights=weights, bw_method=bw_method,
@@ -7580,7 +7582,7 @@ class MVSamples(BaseMultivariateDistribution):
     @property
     def weights(self):
         """
-        weights for each entry in <Samples.samples>
+        weights for each sample in <Samples.samples> (nsamples)
         """
         return self._weights
 
@@ -7607,6 +7609,25 @@ class MVSamples(BaseMultivariateDistribution):
             return
         self._bw_method = is_float(value)
         self._dist_constructor_object_clear_cache()
+
+    @property
+    def dist_constructor_args(self):
+        """
+        Return the arguments to pass to the the underlying distribution
+        constructor (often the scipy.stats random variable generator function)
+
+        <MVSamples.samples> is transposed before passing on to gaussian_kde
+
+        See also:
+
+        * <<class>.dist_constructor_func>
+        * <<class>.dist_constructor_object>
+
+        Returns
+        -------
+        * tuple
+        """
+        return [getattr(self, a).T if a=='samples' else getattr(self,a) for a in self.dist_constructor_argnames]
 
     @property
     def ndimensions(self):
@@ -7928,7 +7949,8 @@ class MVSamples(BaseMultivariateDistribution):
         Arguments
         -----------
         * `N` (int, optional, default=1e6): number of samples to use for
-            the histogram.
+            the histogram.  If N>=<MVSamples.nsamples>, <MVSamples.samples>
+            will be passed directly.
         * `bins` (int, optional, default=15): number of bins to use for the
             histogram.
         * `range` (tuple or None): range to use for the histogram.
@@ -7938,7 +7960,7 @@ class MVSamples(BaseMultivariateDistribution):
         * an <MVHistogram> object
         """
         # TODO: if sample is updated to take wrap_at/wrap_ats... pass wrap_at=False here
-        return MVHistogram.from_data(self.sample(size=int(N), cache_sample=False),
+        return MVHistogram.from_data(self.samples if N >= self.nsamples else self.sample(size=int(N), cache_sample=False),
                                      bins=bins, range=range,
                                      units=self.units,
                                      labels=self.labels, labels_latex=self._labels_latex,
@@ -8014,6 +8036,18 @@ class MVSamplesSlice(BaseMultivariateSliceDistribution):
         See <Samples.ppf>
         """
         return Samples(samples=self.samples, weights=self.weights, bw_method=self.bw_method, unit=self.unit).ppf(q, unit=unit, as_quantity=as_quantity, wrap_at=wrap_at)
+
+    # def pdf(self, x, unit=None, as_quantity=False, wrap_at=None):
+    #     """
+    #     See <Samples.pdf>
+    #     """
+    #     return Samples(samples=self.samples, weights=self.weights, bw_method=self.bw_method, unit=self.unit).pdf(x, unit=unit, as_quantity=as_quantity, wrap_at=wrap_at)
+    #
+    # def logpdf(self, x, unit=None, as_quantity=False, wrap_at=None):
+    #     """
+    #     See <Samples.logpdf>
+    #     """
+    #     return Samples(samples=self.samples, weights=self.weights, bw_method=self.bw_method, unit=self.unit).logpdf(x, unit=unit, as_quantity=as_quantity, wrap_at=wrap_at)
 
     def interval(self, alpha, unit=None, as_quantity=False, wrap_at=None):
         """
