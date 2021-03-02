@@ -8179,6 +8179,10 @@ class Bundle(ParameterSet):
         lnpriors, and if the distribution collection refers to 'posteriors'
         (or a solution), then this is effectively lnposteriors.
 
+        This will attempt to compute the log-probability respecting covariances,
+        but will fallback on dropping covariances if necessary, with a message
+        raise in the error <phoebe.logger>.
+
         Only parameters (or distribution parameters) included in the ParameterSet
         (after filtering with `**kwargs`) will be included in the summed
         log-probability.
@@ -8243,15 +8247,11 @@ class Bundle(ParameterSet):
 
         values = [self.get_value(uniqueid=uid, unit=dist.unit, **_skip_filter_checks) for uid, dist in zip(uniqueids, dc.dists)]
 
-        # TODO: need to think about the as_univariate here... if we do
-        # include_constrained=False we shouldn't have to worry about math.
-        # But either way, we'll need to use dc.distributions_unpacked and
-        # somehow get the corresponding uniqueids (and go "up-the-tree" for
-        # any that were composite set by the user, not via or/and when
-        # combining).
-
-        # print("{} .logpdf(values={})".format(dc.dists, values))
-        return dc.logpdf(values, as_univariates=True)
+        try:
+            return dc.logpdf(values, as_univariates=False)
+        except Exception as e:
+            logger.error("calculate_pdf({}, **{}) failed with as_univariates=False, falling back on as_univariates=True (covariances will be dropped in any multivariate distributions).  Original error: {}".format(twig, kwargs, e))
+            return dc.logpdf(values, as_univariates=True)
 
     @send_if_client
     def add_figure(self, kind, return_changes=False, **kwargs):
