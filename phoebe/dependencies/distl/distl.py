@@ -3255,7 +3255,8 @@ class BaseMultivariateDistribution(BaseDistribution):
         else:
             return qs_per_dim
 
-    def sample(self, size=None, dimension=None, seed=None, cache_sample=True):
+    def sample(self, size=None, dimension=None, seed=None, cache_sample=True,
+               unit=None, as_quantity=False):
         """
         Sample from the distribution.
 
@@ -3270,12 +3271,17 @@ class BaseMultivariateDistribution(BaseDistribution):
             prior to sampling.
         * `cache_sample` (bool, optional, default=True): whether to override the
             existing <<class>.cached_sample>.
+        * `unit` (None): NOT YET IMPLEMENTED will raise error if not None
+        * `as_quantity` (False): NOT YET IMPLEMENTED will raise error if not False
 
         Returns
         ---------
         * float or array: float if `size=None`, otherwise a numpy array with
             shape defined by `size`.
         """
+
+        if unit is not None or as_quantity:
+            raise NotImplementedError("unit and quantities not yet supported for multivariate distributions")
 
         # TODO: add support for per-dimension unit, wrap_at, as_quantity (and pass in to_mvhistogram)
         # TODO: add support for seed
@@ -3714,14 +3720,16 @@ class BaseMultivariateSliceDistribution(BaseUnivariateDistribution):
 
     ### SAMPLING & PLOTTING
 
-    def sample(self, size=None, wrap_at=None, seed=None, cache_sample=True):
+    def sample(self, size=None, wrap_at=None, seed=None, cache_sample=True,
+               unit=None, as_quantity=False):
         """
         Sample the underlying <<class>.multivariate> distribution in the dimension
         defined in <<class>.dimension>.
         """
 
         # TODO: support unit, wrap_at, as_quantity
-        return self.multivariate.sample(size=size, seed=seed, dimension=self.dimension, cache_sample=cache_sample)
+        return self.multivariate.sample(size=size, seed=seed, dimension=self.dimension, cache_sample=cache_sample,
+                                        unit=unit, as_quantity=as_quantity)
 
     def plot_sample(self, *args, **kwargs):
         if hasattr(self, 'bins'):
@@ -7245,7 +7253,8 @@ class MVHistogram(BaseMultivariateDistribution):
                            labels=[self.labels[d] for d in dimensions] if self.labels is not None else None,
                            wrap_ats=[self.wrap_ats[d] for d in dimensions] if self.wrap_ats is not None else None)
 
-    def sample(self, size=None, dimension=None, seed=None, cache_sample=True):
+    def sample(self, size=None, dimension=None, seed=None, cache_sample=True,
+               unit=None, as_quantity=False):
         """
 
         Arguments
@@ -7256,6 +7265,8 @@ class MVHistogram(BaseMultivariateDistribution):
             prior to sampling.
         * `cache_sample` (bool, optional, default=True): whether to override the
             existing <<class>.cached_sample>.
+        * `unit` (None): NOT YET IMPLEMENTED will raise error if not None
+        * `as_quantity` (False): NOT YET IMPLEMENTED will raise error if not False
 
         """
         # if dimension is not None:
@@ -7265,6 +7276,10 @@ class MVHistogram(BaseMultivariateDistribution):
         # else:
         #     bins = self.bins
         #     density = self.density
+
+        if unit is not None or as_quantity:
+            raise NotImplementedError("unit and quantities not yet supported for multivariate distributions")
+
 
         if isinstance(seed, dict):
             seed = seed.get(self.uniqueid, None)
@@ -7754,7 +7769,8 @@ class MVSamples(BaseMultivariateDistribution):
         # TODO: manual implementation
         raise NotImplementedError()
 
-    def sample(self, size=None, dimension=None, seed=None, cache_sample=True):
+    def sample(self, size=None, dimension=None, seed=None, cache_sample=True,
+               unit=None, as_quantity=False):
         """
         Sample from the  samples (<MVSamples.samples> if <MVSamples.weights>
         is not provided, otherwise <MVSamples.samples_weighted>)
@@ -7767,8 +7783,15 @@ class MVSamples(BaseMultivariateDistribution):
             prior to sampling.
         * `cache_sample` (bool, optional, default=True): whether to override the
             existing <<class>.cached_sample>.
+        * `unit` (None): NOT YET IMPLEMENTED will raise error if not None
+        * `as_quantity` (False): NOT YET IMPLEMENTED will raise error if not False
+
 
         """
+
+        if unit is not None or as_quantity:
+            raise NotImplementedError("unit and quantities not yet supported for multivariate distributions")
+
 
         if isinstance(seed, dict):
             seed = seed.get(self.uniqueid, None)
