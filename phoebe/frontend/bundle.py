@@ -4529,8 +4529,9 @@ class Bundle(ParameterSet):
 
                             else:
                                 report.add_item(self,
-                                                "{} is currently constrained but cannot automatically temporarily flip as solve_for has several options ({}).  Flip the constraint manually first, or remove {} from adopt_parameters.".format(adopt_param.twig, ", ".join([p.twig for p in adopt_param.constrained_by]), adopt_param.twig),
+                                                "{} is currently constrained but cannot automatically temporarily flip as solve_for has several options ({}).  Flip the constraint manually first, set adopt_values=False, or remove {} from adopt_parameters.".format(adopt_param.twig, ", ".join([p.twig for p in adopt_param.constrained_by]), adopt_param.twig),
                                                 [solution_ps.get_parameter(qualifier='adopt_parameters', **_skip_filter_checks),
+                                                 solution_ps.get_parameter(qualifier='adopt_values', **_skip_filter_checks),
                                                  adopt_param.is_constraint
                                                 ]+addl_parameters,
                                                 True, 'adopt_solution')
