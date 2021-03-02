@@ -9996,7 +9996,7 @@ class Bundle(ParameterSet):
 
         """
         model, computes, datasets, do_create_fig_params, changed_params, overwrite_ps, kwargs = self._prepare_compute(compute, model, dataset, **kwargs)
-        script_fname, out_fname = self._write_export_compute_script(script_fname, out_fname, compute, model, dataset, do_create_fig_params, import_from_older, log_level, kwargs)
+        script_fname, out_fname = self._write_export_compute_script(script_fname, out_fname, computes, model, dataset, do_create_fig_params, import_from_older, log_level, kwargs)
 
         if pause:
             input("* optional:  call b.save(...) to save the bundle to disk, you can then safely close the active python session and recover the bundle with phoebe.load(...)\n"+
