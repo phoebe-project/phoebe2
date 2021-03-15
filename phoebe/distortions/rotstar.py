@@ -23,10 +23,10 @@ def rotfreq_to_omega(rotfreq, scale=c.R_sun.si.value, solar_units=False):
     * float
     """
     if solar_units:
-        omega = rotfreq / (2*np.pi) / np.sqrt(c.GM_sun.to(u.solRad**3/u.d**2).value/scale**3)
+        omega = rotfreq / np.sqrt(M_star * c.GM_sun.to(u.solRad**3/u.d**2).value/scale**3)
     else:
         # then SI units
-        omega = rotfreq / (2*np.pi) / np.sqrt(c.GM_sun.value/scale**3)
+        omega = rotfreq / np.sqrt(c.GM_sun.value/scale**3)
 
     # print "*** rotstar.rotfreq_to_omega", rotfreq, scale, solar_units, omega
 
