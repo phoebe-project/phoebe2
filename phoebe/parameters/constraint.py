@@ -2026,8 +2026,7 @@ def requiv_detached_max(b, component, solve_for=None, **kwargs):
         constraint should be built.
     * `solve_for` (<phoebe.parameters.Parameter>, optional, default=None): if
         'requiv_max' should not be the derived/constrained parameter, provide which
-        other parameter should be derived (ie 'q', 'syncpar', 'ecc', 'sma'
-        'incl@star', 'long_an@star', 'incl@orbit', 'long_an@orbit').
+        other parameter should be derived.
 
     Returns
     ----------
@@ -2077,6 +2076,87 @@ def requiv_detached_max(b, component, solve_for=None, **kwargs):
                               hier.get_primary_or_secondary(component, return_ind=True))
     else:
         raise NotImplementedError("requiv_detached_max can only be solved for requiv_max")
+
+    return lhs, rhs, [], {'component': component}
+
+_validsolvefor['requiv_single_max'] = ['requiv_max']
+def requiv_single_max(b, component, solve_for=None, **kwargs):
+    """
+    Create a constraint to determine the critical value of requiv for a single
+    star.
+
+    **NEW IN 2.3.31**
+
+    This constraint is automatically created and attached for all single stars
+    via <phoebe.frontend.bundle.Bundle.set_hierarchy>.
+
+    This is usually passed as an argument to
+     <phoebe.frontend.bundle.Bundle.add_constraint> as
+     `b.add_constraint('requiv_single_max', component='primary')`, where `component` is
+     one of <phoebe.parameters.HierarchyParameter.get_stars>.
+
+    Arguments
+    -----------
+    * `b` (<phoebe.frontend.bundle.Bundle>): the Bundle
+    * `component` (string): the label of the orbit or component in which this
+        constraint should be built.
+    * `solve_for` (<phoebe.parameters.Parameter>, optional, default=None): if
+        'requiv_max' should not be the derived/constrained parameter, provide which
+        other parameter should be derived.
+
+    Returns
+    ----------
+    * (<phoebe.parameters.Parameter>, <phoebe.parameters.ConstraintParameter>, list):
+        lhs (Parameter), rhs (ConstraintParameter), addl_params (list of additional
+        parameters that may be included in the constraint), kwargs (dict of
+        keyword arguments that were passed to this function).
+
+    Raises
+    --------
+    * NotImplementedError: if the value of `solve_for` is not implemented.
+    """
+
+    hier = b.get_hierarchy()
+    if not len(hier.get_value()):
+        # TODO: change to custom error type to catch in bundle.add_component
+        # TODO: check whether the problem is 0 hierarchies or more than 1
+        raise NotImplementedError("constraint for requiv_single_max requires hierarchy")
+
+
+    component_ps = _get_system_ps(b, component)
+    parentorbit = hier.get_parent_of(component)
+
+    if parentorbit is not None:
+        raise ValueError("cannot constrain requiv_single_max unless hierarchy is for a single star")
+
+    requiv_max = component_ps.get_parameter(qualifier='requiv_max', **_skip_filter_checks)
+    period = component_ps.get_parameter(qualifier='period', **_skip_filter_checks)
+    mass = component_ps.get_parameter(qualifier='mass', **_skip_filter_checks)
+    G = c.G.to('solRad3/(solMass d2)').value
+
+    if solve_for in [None, requiv_max]:
+        lhs = requiv_max
+
+        # from Michael:
+        # Balancing gravitational and centrifugal force gives:
+        # GM = r_equator * v_crit**2
+        # Replacing v_crit with omega*r_equator gives:
+        # GM = r_equator**3 * omega**2
+        # Replacing r_equator with 3/2*r_pole gives:
+        # GM = (3/2 * r_pole)**3 * omega**2
+        # Rearanging gives:
+        # r_pole = 2/3 * (GM/omega**2)**(1/3)
+        # Replacing omega with 2pi/P:
+        # r_pole = 2/3 * (GM (P/86400)**2)**(1/3)
+        # Once we have r_pole, we can convert to r_equiv via:
+        # r_equiv = r_pole * 1.222328515155075
+        # which is only valid at critical rotation.
+
+        # at critical rotation, r_equiv is 1.222328515155075 times larger than r_pole
+        rhs = 1.222328515155075 * 2./3 * (G * mass * (period/(2*np.pi))**2 )**(1./3)
+
+    else:
+        raise NotImplementedError("requiv_single_max can only be solved for requiv_max")
 
     return lhs, rhs, [], {'component': component}
 

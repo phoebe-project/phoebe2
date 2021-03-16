@@ -2453,8 +2453,23 @@ class Bundle(ParameterSet):
 
         for component in self.hierarchy.get_stars():
             if len(starrefs)==1:
-                pass
-                # we'll do the potential constraint either way
+                logger.debug('re-creating requiv_single_max (single star) constraint for {}'.format(component))
+                if len(self.filter(context='constraint',
+                                   constraint_func='requiv_single_max',
+                                   component=component,
+                                   **_skip_filter_checks)):
+                    constraint_param = self.get_constraint(constraint_func='requiv_single_max',
+                                                           component=component,
+                                                           **_skip_filter_checks)
+                    self.remove_constraint(constraint_func='requiv_single_max',
+                                           component=component,
+                                           **_skip_filter_checks)
+                    self.add_constraint(constraint.requiv_single_max, component,
+                                        solve_for=constraint_param.constrained_parameter.uniquetwig,
+                                        constraint=constraint_param.constraint)
+                else:
+                    self.add_constraint(constraint.requiv_single_max, component,
+                                        constraint=self._default_label('requiv_max', context='constraint'))
             else:
                 logger.debug('re-creating mass constraint for {}'.format(component))
                 # TODO: will this cause problems if the constraint has been flipped?
@@ -3003,72 +3018,71 @@ class Bundle(ParameterSet):
                                     False, ['system', 'run_compute'])
 
 
-                # ignore the single star case
-                if parent:
-                    # contact systems MUST by synchronous
-                    if hier.is_contact_binary(component):
-                        if self.get_value(qualifier='syncpar', component=component, context='component', **_skip_filter_checks) != 1.0:
-                            report.add_item(self,
-                                            "contact binaries must be synchronous, but syncpar@{}!=1".format(component),
-                                            [self.get_parameter(qualifier='syncpar', component=component, context='component', **_skip_filter_checks)],
-                                            True, ['system', 'run_compute'])
+                # contact systems MUST by synchronous
+                if hier.is_contact_binary(component):
+                    if self.get_value(qualifier='syncpar', component=component, context='component', **_skip_filter_checks) != 1.0:
+                        report.add_item(self,
+                                        "contact binaries must be synchronous, but syncpar@{}!=1".format(component),
+                                        [self.get_parameter(qualifier='syncpar', component=component, context='component', **_skip_filter_checks)],
+                                        True, ['system', 'run_compute'])
 
-                        if self.get_value(qualifier='ecc', component=parent, context='component', **_skip_filter_checks) != 0.0:
-                            # TODO: this can result in duplicate entries in the report
-                            report.add_item(self,
-                                            "contact binaries must be circular, but ecc@{}!=0".format(parent),
-                                            [self.get_parameter(qualifier='ecc', component=parent, context='component', **_skip_filter_checks)],
-                                            True, ['system', 'run_compute'])
+                    if self.get_value(qualifier='ecc', component=parent, context='component', **_skip_filter_checks) != 0.0:
+                        # TODO: this can result in duplicate entries in the report
+                        report.add_item(self,
+                                        "contact binaries must be circular, but ecc@{}!=0".format(parent),
+                                        [self.get_parameter(qualifier='ecc', component=parent, context='component', **_skip_filter_checks)],
+                                        True, ['system', 'run_compute'])
 
-                        if self.get_value(qualifier='pitch', component=component, context='component', **_skip_filter_checks) != 0.0:
-                            report.add_item(self,
-                                            'contact binaries must be aligned, but pitch@{}!=0.  Try b.set_value(qualifier=\'pitch\', component=\'{}\' value=0.0, check_visible=False) to align.'.format(component, component),
-                                            [self.get_parameter(qualifier='pitch', component=component, context='component', **_skip_filter_checks)],
-                                            True, ['system', 'run_compute'])
+                    if self.get_value(qualifier='pitch', component=component, context='component', **_skip_filter_checks) != 0.0:
+                        report.add_item(self,
+                                        'contact binaries must be aligned, but pitch@{}!=0.  Try b.set_value(qualifier=\'pitch\', component=\'{}\' value=0.0, check_visible=False) to align.'.format(component, component),
+                                        [self.get_parameter(qualifier='pitch', component=component, context='component', **_skip_filter_checks)],
+                                        True, ['system', 'run_compute'])
 
-                        if self.get_value(qualifier='yaw', component=component, context='component', **_skip_filter_checks) != 0.0:
-                            report.add_item(self,
-                                            'contact binaries must be aligned, but yaw@{}!=0.  Try b.set_value(qualifier=\'yaw\', component=\'{}\', value=0.0, check_visible=False) to align.'.format(component, component),
-                                            [self.get_parameter(qualifier='yaw', component=component, context='component', **_skip_filter_checks)],
-                                            True, ['system', 'run_compute'])
+                    if self.get_value(qualifier='yaw', component=component, context='component', **_skip_filter_checks) != 0.0:
+                        report.add_item(self,
+                                        'contact binaries must be aligned, but yaw@{}!=0.  Try b.set_value(qualifier=\'yaw\', component=\'{}\', value=0.0, check_visible=False) to align.'.format(component, component),
+                                        [self.get_parameter(qualifier='yaw', component=component, context='component', **_skip_filter_checks)],
+                                        True, ['system', 'run_compute'])
 
-                    # MUST NOT be overflowing at PERIASTRON (d=1-ecc, etheta=0)
+                # MUST NOT be overflowing at PERIASTRON (d=1-ecc, etheta=0)
 
-                    requiv = comp_ps.get_value(qualifier='requiv', unit=u.solRad, **_skip_filter_checks)
-                    requiv_max = comp_ps.get_value(qualifier='requiv_max', unit=u.solRad, **_skip_filter_checks)
+                requiv = comp_ps.get_value(qualifier='requiv', unit=u.solRad, **_skip_filter_checks)
+                requiv_max = comp_ps.get_value(qualifier='requiv_max', unit=u.solRad, **_skip_filter_checks)
 
 
 
-                    if hier.is_contact_binary(component):
-                        requiv_min = comp_ps.get_value(qualifier='requiv_min')
+                if hier.is_contact_binary(component):
+                    requiv_min = comp_ps.get_value(qualifier='requiv_min')
 
-                        if np.isnan(requiv) or requiv > requiv_max:
-                            report.add_item(self,
-                                            '{} is overflowing at L2/L3 (requiv={}, requiv_min={}, requiv_max={})'.format(component, requiv, requiv_min, requiv_max),
-                                            [comp_ps.get_parameter(qualifier='requiv', **_skip_filter_checks),
-                                             comp_ps.get_parameter(qualifier='requiv_max', **_skip_filter_checks),
-                                             parent_ps.get_parameter(qualifier='sma', **_skip_filter_checks)],
-                                            True, ['system', 'run_compute'])
+                    if np.isnan(requiv) or requiv > requiv_max:
+                        report.add_item(self,
+                                        '{} is overflowing at L2/L3 (requiv={}, requiv_min={}, requiv_max={})'.format(component, requiv, requiv_min, requiv_max),
+                                        [comp_ps.get_parameter(qualifier='requiv', **_skip_filter_checks),
+                                         comp_ps.get_parameter(qualifier='requiv_max', **_skip_filter_checks),
+                                         parent_ps.get_parameter(qualifier='sma', **_skip_filter_checks)],
+                                        True, ['system', 'run_compute'])
 
-                        if np.isnan(requiv) or requiv <= requiv_min:
-                            report.add_item(self,
-                                            '{} is underflowing at L1 and not a contact system (requiv={}, requiv_min={}, requiv_max={})'.format(component, requiv, requiv_min, requiv_max),
-                                            [comp_ps.get_parameter(qualifier='requiv', **_skip_filter_checks),
-                                             comp_ps.get_parameter(qualifier='requiv_min', **_skip_filter_checks),
-                                             parent_ps.get_parameter(qualifier='sma', **_skip_filter_checks)],
-                                            True, ['system', 'run_compute'])
+                    if np.isnan(requiv) or requiv <= requiv_min:
+                        report.add_item(self,
+                                        '{} is underflowing at L1 and not a contact system (requiv={}, requiv_min={}, requiv_max={})'.format(component, requiv, requiv_min, requiv_max),
+                                        [comp_ps.get_parameter(qualifier='requiv', **_skip_filter_checks),
+                                         comp_ps.get_parameter(qualifier='requiv_min', **_skip_filter_checks),
+                                         parent_ps.get_parameter(qualifier='sma', **_skip_filter_checks)],
+                                        True, ['system', 'run_compute'])
 
-                        elif requiv <= requiv_min * 1.001:
-                            report.add_item(self,
-                                            'requiv@{} is too close to requiv_min (within 0.1% of critical).  Use detached/semidetached model instead.'.format(component),
-                                            [comp_ps.get_parameter(qualifier='requiv', **_skip_filter_checks),
-                                             comp_ps.get_parameter(qualifier='requiv_min', **_skip_filter_checks),
-                                             parent_ps.get_parameter(qualifier='sma', **_skip_filter_checks),
-                                             hier],
-                                            True, ['system', 'run_compute'])
+                    elif requiv <= requiv_min * 1.001:
+                        report.add_item(self,
+                                        'requiv@{} is too close to requiv_min (within 0.1% of critical).  Use detached/semidetached model instead.'.format(component),
+                                        [comp_ps.get_parameter(qualifier='requiv', **_skip_filter_checks),
+                                         comp_ps.get_parameter(qualifier='requiv_min', **_skip_filter_checks),
+                                         parent_ps.get_parameter(qualifier='sma', **_skip_filter_checks),
+                                         hier],
+                                        True, ['system', 'run_compute'])
 
-                    else:
-                        if requiv > requiv_max:
+                else:
+                    if requiv > requiv_max:
+                        if parent:
                             params = [comp_ps.get_parameter(qualifier='requiv', **_skip_filter_checks),
                                      comp_ps.get_parameter(qualifier='requiv_max', **_skip_filter_checks),
                                      parent_ps.get_parameter(qualifier='sma', **_skip_filter_checks)]
@@ -3081,6 +3095,13 @@ class Bundle(ParameterSet):
 
                             report.add_item(self,
                                             '{} is overflowing at periastron (requiv={}, requiv_max={}).  Use contact model if overflowing is desired.'.format(component, requiv, requiv_max),
+                                            params,
+                                            True, ['system', 'run_compute'])
+                        else:
+                            params = comp_ps.filter(qualifier=['requiv', 'requiv_max', 'mass', 'period'], **_skip_filter_checks)
+
+                            report.add_item(self,
+                                            '{} is beyond critical rotation (requiv={}, requiv_max={}).'.format(component, requiv, requiv_max),
                                             params,
                                             True, ['system', 'run_compute'])
 
