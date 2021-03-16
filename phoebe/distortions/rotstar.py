@@ -9,26 +9,26 @@ def rotfreq_to_omega(rotfreq, M_star, scale=c.R_sun.si.value, solar_units=False)
     """
     Translate from rotation frequency `rotfreq` to `omega`.
 
-    NOTE: everything MUST be in consistent units according to `solar_units` bool
+    NOTE: everything MUST be in consistent units according to `solar_units`.
 
     Arguments
     ----------
-    * `rotfreq`
+    * `rotfreq` (float): rotation frequency of the star in cycles/day or cycles/s
+        (see `solar_units`)
+    * `M_star` (float): **NEW IN 2.3.31** mass of the star (see `solar_units` for units)
     * `scale` (float, optional, default=c.R_sun.si.value)
-    * `solar_units` (bool, optional, default=False): whether `scale` is provided
-        in solar units or SI.
+    * `solar_units` (bool, optional, default=False): whether `rotfreq`, `M_star`,
+        and `scale` are provided in solar units (instead of SI).
 
     Returns
     ---------
     * float
     """
     if solar_units:
-        omega = rotfreq / np.sqrt(M_star * c.GM_sun.to(u.solRad**3/u.d**2).value/scale**3)
+        omega = rotfreq / np.sqrt(M_star * c.G.to(u.solRad**3/(u.solMass*u.d**2)).value/scale**3)
     else:
         # then SI units
-        omega = rotfreq / np.sqrt(c.GM_sun.value/scale**3)
-
-    # print "*** rotstar.rotfreq_to_omega", rotfreq, scale, solar_units, omega
+        omega = rotfreq / np.sqrt(M_star * c.G.value/scale**3)
 
     return omega
 
