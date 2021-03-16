@@ -1322,7 +1322,8 @@ class Bundle(ParameterSet):
                                              raise_logger_warning=True, raise_error=True,
                                              run_checks_system=True)
 
-        filename = os.path.expanduser(filename)
+        if filename is not None:
+            filename = os.path.expanduser(filename)
 
         computeparams = self.get_compute(compute=compute, kind='ellc')
 
