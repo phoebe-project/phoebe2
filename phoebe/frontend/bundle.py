@@ -1286,6 +1286,53 @@ class Bundle(ParameterSet):
 
         #return io.pass_to_legacy(self, filename, compute=compute)
 
+    def export_ellc(self, filename=None, compute=None, skip_checks=False, **kwargs):
+        """
+        Export a script to run the system in `ellc`.
+
+        See <phoebe.compute.ellc> for more details about `ellc`.
+
+        Arguments
+        ------------
+        * `filename` (string, optional, default=None): if provided, will write
+            the script to a file.  If not provided or None, the dictionary is
+            still returned as explained below.
+        * `compute` (string, optional, default=None): label of the `ellc` compute
+            options.
+        * `skip_checks` (bool, optional, default=False): whether to skip calling
+            <phoebe.frontend.bundle.Bundle.run_checks_compute> before exporting.
+            NOTE: some unexpected errors could occur for systems which do not
+            pass checks.
+
+        Returns
+        -----------
+        * (dict) dictionary with dataset twigs as keys and dictionaries as values.
+            The inner-dictionaries expose both "function" and "kwargs".  To run
+            ellc from the returned inner-dictionary, call
+            `getattr(ellc, dict.get('function'))(**dict.get('kwargs'))``.
+            Note that the user is responsible for extracting the correct index
+            from the RVs in this case (see <phoebe.frontend.bundle.Bundle.get_hierarchy>
+            and <phoebe.parameters.HierarchyParameter.get_primary_or_secondary>).
+            If `filename` is provided, the full script is also written to a file.
+        """
+        self.run_delayed_constraints()
+
+        if not skip_checks:
+            report = self.run_checks_compute(compute=compute, allow_skip_constraints=False,
+                                             raise_logger_warning=True, raise_error=True,
+                                             run_checks_system=True)
+
+        filename = os.path.expanduser(filename)
+
+        computeparams = self.get_compute(compute=compute, kind='ellc')
+
+        system, pblums_abs, pblums_scale, pblums_rel, pbfluxes = self.compute_pblums(compute=compute, ret_structured_dicts=True, skip_checks=True, **{k:v for k,v in kwargs.items() if k in computeparams.qualifiers})
+        # l3s = self.compute_l3s(compute=compute, use_pbfluxes=pbfluxes, ret_structured_dicts=True, skip_checks=True, skip_compute_ld_coeffs=True, **{k:v for k,v in kwargs.items() if k in computeparams.qualifiers})
+
+        dataset_this_compute = computeparams.filter(qualifier='enabled', value=True, **_skip_filter_checks).datasets
+
+        return backends.EllcBackend().export(self, filename, compute, pblums=pblums_rel, dataset=dataset_this_compute, times=None)
+
     def export_mesh(self, filename, format=None, coordinates='uvw', invert_normals=False, model=None, dataset=None, component=None, time=None):
         """
         Export a mesh (or multiple meshes) from a model to a supported 3D object

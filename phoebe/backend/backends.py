@@ -18,6 +18,7 @@ from phoebe.atmospheres import passbands
 from phoebe.distortions  import roche
 from phoebe.frontend import io
 import phoebe.frontend.bundle
+from phoebe.dependencies.nparray.nparray import Array as _nparrayArray
 from phoebe import u, c
 from phoebe import conf, mpi
 from phoebe import pool as _pool
@@ -2503,7 +2504,51 @@ class EllcBackend(BaseBackendByDataset):
                     heat_1=heat_1, heat_2=heat_2,
                     lambda_1=lambda_1, lambda_2=lambda_2,
                     spots_1=spots_1, spots_2=spots_2,
-                    pblums=kwargs.get('pblums'))
+                    pblums=kwargs.get('pblums', {}))
+
+    def export(self, b, filename, compute, pblums, dataset, times):
+        infolist, new_syns = _extract_from_bundle(b, compute=compute,
+                                                  dataset=dataset,
+                                                  times=times, by_time=False)
+
+        setup_kwargs = self._worker_setup(b, compute, infolist, pblums=pblums)
+
+        if filename is not None:
+            f = open(filename, 'w')
+            f.write('import ellc\n\n')
+            # f.write('from phoebe.dependencies import nparray\n\n')
+
+        def _format_value(v):
+            # if isinstance(v, _nparrayArray):
+            #     return "nparray.from_dict({})".format(v.to_dict())
+            if hasattr(v, 'tolist'):
+                return v.tolist()
+            if isinstance(v, str):
+                return "\'{}\'".format(v)
+            return v
+
+        ret_dict = {}
+        for info in infolist:
+
+            ellc_kwargs = self._run_single_dataset(b, info, return_dict_only=True, **setup_kwargs)
+
+            ret_dict[info['dataset'] if info['kind'] == 'lc' else "{}@{}".format(info['dataset'], info['component'])] = {'function': info['kind'], 'kwargs': ellc_kwargs}
+            if filename is not None:
+                f.write("# dataset=\'{}\'\n".format(info['dataset']))
+
+                if info['kind'] == 'lc':
+                    f.write("fluxes_{} = ellc.lc({})\n\n".format(info['dataset'],
+                                                                 ", ".join(["{}={}".format(k,_format_value(v)) for k,v in ellc_kwargs.items()])))
+                else:
+                    f.write("rvs_{}_{} = ellc.rvs({})[{}]\n\n".format(info['dataset'], info['component'],
+                                                                      ", ".join(["{}={}".format(k,_format_value(v)) for k,v in ellc_kwargs.items()]),
+                                                                      b.hierarchy.get_primary_or_secondary(info['component'], return_ind=True)-1))
+
+
+        if filename is not None:
+            f.close()
+        return ret_dict
+
 
     def _run_single_dataset(self, b, info, **kwargs):
         """
@@ -2566,7 +2611,7 @@ class EllcBackend(BaseBackendByDataset):
         ld_2 = _ellc_ld_func.get(ds_ps.get_value(qualifier='ld_func', component=starrefs[1], **_skip_filter_checks))
         ldc_2 = ds_ps.get_value(qualifier='ld_coeffs', component=starrefs[1], **_skip_filter_checks)
 
-        pblums = kwargs.get('pblums').get(info['dataset'])
+        pblums = kwargs.get('pblums', {}).get(info['dataset'], {})
         sbratio = (pblums.get(starrefs[1])/b.get_value(qualifier='requiv', component=starrefs[1], context='component', unit=u.solRad, **_skip_filter_checks)**2)/(pblums.get(starrefs[0])/b.get_value(qualifier='requiv', component=starrefs[0], context='component', unit=u.solRad, **_skip_filter_checks)**2)
 
         if info['kind'] == 'lc':
@@ -2607,6 +2652,9 @@ class EllcBackend(BaseBackendByDataset):
                              spots_1=spots_1, spots_2=spots_2,
                              exact_grav=exact_grav,
                              verbose=1)
+
+            if kwargs.get('return_dict_only', False):
+                return lc_kwargs
 
             logger.info("calling ellc.lc for dataset='{}'".format(info['dataset']))
             logger.debug("ellc.lc(**{})".format(lc_kwargs))
@@ -2678,6 +2726,9 @@ class EllcBackend(BaseBackendByDataset):
                              spots_1=spots_1, spots_2=spots_2,
                              flux_weighted=flux_weighted,
                              verbose=1)
+
+            if kwargs.get('return_dict_only', False):
+                return rv_kwargs
 
             logger.info("calling ellc.rv for dataset='{}'".format(info['dataset']))
             logger.debug("ellc.rv(**{})".format(rv_kwargs))
