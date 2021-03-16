@@ -5,7 +5,7 @@ from phoebe import c, u
 import libphoebe
 
 
-def rotfreq_to_omega(rotfreq, scale=c.R_sun.si.value, solar_units=False):
+def rotfreq_to_omega(rotfreq, M_star, scale=c.R_sun.si.value, solar_units=False):
     """
     Translate from rotation frequency `rotfreq` to `omega`.
 
