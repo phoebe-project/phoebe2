@@ -11193,13 +11193,18 @@ class Bundle(ParameterSet):
         exclude_contexts = ['model', 'figure']
         continue_from = self.get_value(qualifier='continue_from', solver=solver, continue_from=kwargs.get('continue_from', None), default='')
         exclude_solutions = [sol for sol in self.solutions if sol!=continue_from]
+        exclude_solvers = [s for s in self.solvers if s!=solver]
+        solver_ps = self.get_solver(solver=solver, **_skip_filter_checks)
+        needed_distributions_qualifiers = ['init_from', 'priors', 'bounds']
+        needed_distributions = list(np.concatenate([solver_ps.get_value(qualifier=q, check_visible=False, default=[], **{q: kwargs.get(q, None)}) for q in needed_distributions_qualifiers]))
+        exclude_distributions = [d for d in self.distributions if d not in needed_distributions]
         if 'continue_from_ps' in kwargs.keys():
             b = self.copy()
             b._attach_params(kwargs.pop('continue_from_ps').exclude(qualifier='detached_job', **_skip_filter_checks).copy())
         else:
             b = self
 
-        f.write("bdict = json.loads(\"\"\"{}\"\"\", object_pairs_hook=phoebe.utils.parse_json)\n".format(json.dumps(b.exclude(context=exclude_contexts, **_skip_filter_checks).exclude(solution=exclude_solutions, **_skip_filter_checks).to_json(incl_uniqueid=True, exclude=['description', 'advanced', 'readonly', 'copy_for', 'latexfmt', 'labels_latex', 'label_latex']))))
+        f.write("bdict = json.loads(\"\"\"{}\"\"\", object_pairs_hook=phoebe.utils.parse_json)\n".format(json.dumps(b.exclude(context=exclude_contexts, **_skip_filter_checks).exclude(solution=exclude_solutions, **_skip_filter_checks).exclude(solver=exclude_solvers, **_skip_filter_checks).exclude(distribution=exclude_distributions, **_skip_filter_checks).to_json(incl_uniqueid=True, exclude=['description', 'advanced', 'readonly', 'copy_for', 'latexfmt', 'labels_latex', 'label_latex']))))
         f.write("b = phoebe.open(bdict, import_from_older={})\n".format(import_from_older))
         solver_kwargs = list(kwargs.items())+[('solver', solver), ('solution', str(solution))]
         solver_kwargs_string = ','.join(["{}={}".format(k,"\'{}\'".format(str(v)) if isinstance(v, str) else v) for k,v in solver_kwargs])
