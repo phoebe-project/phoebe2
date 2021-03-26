@@ -699,7 +699,7 @@ class SampleOverModel(object):
             logger.info("run_compute sample_from using MPI")
             pool = _pool.MPIPool()
             is_master = pool.is_master()
-        elif conf.multiprocessing_nprocs==0:
+        elif conf.multiprocessing_nprocs==0 or b.get_value(qualifier='sample_num', compute=compute, sample_num=kwargs.get('sample_num', None), **_skip_filter_checks) == 1:
             logger.info("run_compute sample_from: serial mode")
             pool = _pool.SerialPool()
             is_master = True
