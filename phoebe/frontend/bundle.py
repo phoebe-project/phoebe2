@@ -9840,6 +9840,10 @@ class Bundle(ParameterSet):
                 raise ValueError("cannot apply both solution and sample_from")
             else:
                 logger.warning("applying passed solution ({}) to sample_from".format(kwargs.get('solution')))
+                if 'sample_num' not in kwargs.keys() and not self.get_value(qualifier='adopt_distributions', solution=kwargs.get('solution'), default=False, **_skip_filter_checks):
+                    logger.warning("defaulting sample_num=1 since adopt_distributions@{}=False".format(kwargs.get('solution')))
+                    kwargs['sample_num'] = 1
+
                 kwargs['sample_from'] = kwargs.pop('solution')
 
         # any kwargs that were used just to filter for get_compute should  be
