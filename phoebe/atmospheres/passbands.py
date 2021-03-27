@@ -200,7 +200,8 @@ class Passband:
         self.ptf_table = {'wl': np.array(ptf_table[0]), 'fl': np.array(ptf_table[1])}
 
         # Working (optionally oversampled) wavelength array:
-        self.wl = np.linspace(self.ptf_table['wl'][0], self.ptf_table['wl'][-1], oversampling*len(self.ptf_table['wl']))
+        self.wl_oversampling = oversampling
+        self.wl = np.linspace(self.ptf_table['wl'][0], self.ptf_table['wl'][-1], self.wl_oversampling*len(self.ptf_table['wl']))
 
         # Spline fit to the energy-weighted passband transmission function table:
         self.ptf_order = ptf_order
@@ -236,7 +237,8 @@ class Passband:
         ptf_table[0] = ptf_table[0]*wlunits.to(u.m)
         self.ptf_table = {'wl': np.array(ptf_table[0]), 'fl': np.array(ptf_table[1])}
 
-        self.wl = np.linspace(self.ptf_table['wl'][0], self.ptf_table['wl'][-1], oversampling*len(self.ptf_table['wl']))
+        self.wl_oversampling = oversampling
+        self.wl = np.linspace(self.ptf_table['wl'][0], self.ptf_table['wl'][-1], self.wl_oversampling*len(self.ptf_table['wl']))
 
         self.ptf_order = ptf_order
         self.ptf_func = interpolate.splrep(self.ptf_table['wl'], self.ptf_table['fl'], s=0, k=ptf_order)
@@ -276,6 +278,7 @@ class Passband:
         header['PBNAME'] = self.pbname
         header['EFFWL'] = self.effwl
         header['CALIBRTD'] = self.calibrated
+        header['WLOVSMPL'] = self.wl_oversampling
         header['VERSION'] = self.version
         header['COMMENTS'] = self.comments
         header['REFERENC'] = self.reference
@@ -427,6 +430,7 @@ class Passband:
             self.pbname = header['pbname']
             self.effwl = header['effwl']
             self.calibrated = header['calibrtd']
+            self.wl_oversampling = header.get('wlovsmpl', 1)
             self.comments = header['comments']
             self.reference = header['referenc']
             self.ptf_order = header['ptforder']
@@ -436,15 +440,14 @@ class Passband:
             self.content = eval(header['content'], {'__builtins__':None}, {})
 
             try:
-                history = ''.join(header['HISTORY']).split('-END-')
+                history = ''.join([l.ljust(72) if '-END-' not in l else l for l in header['HISTORY']]).split('-END-')
             except KeyError:
                 history = []
 
             self.history = {h.split(': ')[0]: ': '.join(h.split(': ')[1:]) for h in history if len(h.split(': ')) > 1}
 
             self.ptf_table = hdul['ptftable'].data
-            # FIXME: initial oversampling parameter not accounted for here:
-            self.wl = np.linspace(self.ptf_table['wl'][0], self.ptf_table['wl'][-1], len(self.ptf_table['wl']))
+            self.wl = np.linspace(self.ptf_table['wl'][0], self.ptf_table['wl'][-1], int(self.wl_oversampling*len(self.ptf_table['wl'])))
 
             # Rebuild ptf() and photon_ptf() functions:
             self.ptf_func = interpolate.splrep(self.ptf_table['wl'], self.ptf_table['fl'], s=0, k=self.ptf_order)
