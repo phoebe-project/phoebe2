@@ -443,6 +443,8 @@ class Passband:
             self.history = {h.split(': ')[0]: ': '.join(h.split(': ')[1:]) for h in history if len(h.split(': ')) > 1}
 
             self.ptf_table = hdul['ptftable'].data
+            # FIXME: initial oversampling parameter not accounted for here:
+            self.wl = np.linspace(self.ptf_table['wl'][0], self.ptf_table['wl'][-1], len(self.ptf_table['wl']))
 
             # Rebuild ptf() and photon_ptf() functions:
             self.ptf_func = interpolate.splrep(self.ptf_table['wl'], self.ptf_table['fl'], s=0, k=self.ptf_order)
@@ -1801,10 +1803,10 @@ class Passband:
         # self._ck2004_boosting_energy_grid = np.nan*np.ones((len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), len(self._ck2004_intensity_axes[3]), 1))
         # self._ck2004_boosting_photon_grid = np.nan*np.ones((len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), len(self._ck2004_intensity_axes[3]), 1))
 
-        # Set the limb (mu=0) to 0; in log this actually means
-        # flux=1W/m2, but for all practical purposes that is still 0.
-        self._ck2004_Imu_energy_grid[:,:,:,0,:] = 0.0
-        self._ck2004_Imu_photon_grid[:,:,:,0,:] = 0.0
+        # Set the limb (mu=0) to 0; in log this formally means flux density=1W/m3, but compared to ~10 that is
+        # the typical table[:,:,:,1,:] value, for all practical purposes that is still 0.
+        self._ck2004_Imu_energy_grid[:,:,:,0,:][~np.isnan(self._ck2004_Imu_energy_grid[:,:,:,1,:])] = 0.0
+        self._ck2004_Imu_photon_grid[:,:,:,0,:][~np.isnan(self._ck2004_Imu_photon_grid[:,:,:,1,:])] = 0.0
         # self._ck2004_boosting_energy_grid[:,:,:,0,:] = 0.0
         # self._ck2004_boosting_photon_grid[:,:,:,0,:] = 0.0
 
@@ -1946,15 +1948,17 @@ class Passband:
         self._phoenix_intensity_axes = (np.unique(Teff), np.unique(logg), np.unique(abun), np.unique(mu))
         self._phoenix_Imu_energy_grid = np.nan*np.ones((len(self._phoenix_intensity_axes[0]), len(self._phoenix_intensity_axes[1]), len(self._phoenix_intensity_axes[2]), len(self._phoenix_intensity_axes[3]), 1))
         self._phoenix_Imu_photon_grid = np.nan*np.ones((len(self._phoenix_intensity_axes[0]), len(self._phoenix_intensity_axes[1]), len(self._phoenix_intensity_axes[2]), len(self._phoenix_intensity_axes[3]), 1))
-        # self._ck2004_boosting_energy_grid = np.nan*np.ones((len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), len(self._ck2004_intensity_axes[3]), 1))
-        # self._ck2004_boosting_photon_grid = np.nan*np.ones((len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), len(self._ck2004_intensity_axes[3]), 1))
+        # self._ck2004_phoenix_energy_grid = np.nan*np.ones((len(self._phoenix_intensity_axes[0]), len(self._phoenix_intensity_axes[1]), len(self._phoenix_intensity_axes[2]), len(self._phoenix_intensity_axes[3]), 1))
+        # self._ck2004_phoenix_photon_grid = np.nan*np.ones((len(self._phoenix_intensity_axes[0]), len(self._phoenix_intensity_axes[1]), len(self._phoenix_intensity_axes[2]), len(self._phoenix_intensity_axes[3]), 1))
 
-        # Set the limb (mu=0) to 0; in log this actually means
-        # flux=1W/m2, but for all practical purposes that is still 0.
-        # self._ck2004_Imu_energy_grid[:,:,:,0,:] = 0.0
-        # self._ck2004_Imu_photon_grid[:,:,:,0,:] = 0.0
-        # self._ck2004_boosting_energy_grid[:,:,:,0,:] = 0.0
-        # self._ck2004_boosting_photon_grid[:,:,:,0,:] = 0.0
+        # By design, mu=0 for phoenix atmospheres does not correspond to I=0; but to make this consistent with
+        # the plane-parallel ck2004 atmospheres, we set the limb (mu=0) to 0; in log this formally means flux
+        # density=1W/m3, but compared to ~10 that is the typical table[:,:,:,1,:] value, for all practical
+        # purposes that is still 0.
+        self._phoenix_Imu_energy_grid[:,:,:,0,:][~np.isnan(self._phoenix_Imu_energy_grid[:,:,:,1,:])] = 0.0
+        self._phoenix_Imu_photon_grid[:,:,:,0,:][~np.isnan(self._phoenix_Imu_photon_grid[:,:,:,1,:])] = 0.0
+        # self._phoenix_boosting_energy_grid[:,:,:,0,:] = 0.0
+        # self._phoenix_boosting_photon_grid[:,:,:,0,:] = 0.0
 
         for i, Imu in enumerate(ImuE):
             self._phoenix_Imu_energy_grid[Teff[int(i/len(mu))] == self._phoenix_intensity_axes[0], logg[int(i/len(mu))] == self._phoenix_intensity_axes[1], abun[int(i/len(mu))] == self._phoenix_intensity_axes[2], mu[i%len(mu)] == self._phoenix_intensity_axes[3], 0] = Imu
