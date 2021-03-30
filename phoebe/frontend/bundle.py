@@ -11173,7 +11173,7 @@ class Bundle(ParameterSet):
         return solver, solution, compute, solver_ps
 
 
-    def _write_export_solver_script(self, script_fname, out_fname, solver, solution, continue_if_exists, import_from_older, log_level, kwargs):
+    def _write_export_solver_script(self, script_fname, out_fname, solver, solution, autocontinue, import_from_older, log_level, kwargs):
         """
         """
         f = open(script_fname, 'w')
@@ -11210,9 +11210,9 @@ class Bundle(ParameterSet):
         else:
             f.write("out_fname={}\n".format(out_fname))
 
-        if continue_if_exists:
+        if autocontinue:
             if 'continue_from' not in self.get_solver(solver=solver).qualifiers:
-                raise ValueError("continue_from is not a parameter in solver='{}', cannot use continue_if_exists".format(solver))
+                raise ValueError("continue_from is not a parameter in solver='{}', cannot use autocontinue".format(solver))
             f.write("if os.path.isfile(out_fname):\n")
             f.write("    b.import_solution(out_fname, solution='progress', overwrite=True)\n")
             f.write("    b.set_value(qualifier='continue_from', solver='{}', value='progress')\n".format(solver))
@@ -11231,7 +11231,7 @@ class Bundle(ParameterSet):
     def export_solver(self, script_fname, out_fname=None,
                       solver=None, solution=None,
                       pause=False,
-                      continue_if_exists=False,
+                      autocontinue=False,
                       import_from_older=False,
                       log_level=None,
                       **kwargs):
@@ -11259,13 +11259,13 @@ class Bundle(ParameterSet):
             with instructions for running the exported script and calling
             <phoebe.frontend.bundle.Bundle.import_solution>.  Particularly
             useful if running in an interactive notebook or a script.
-        * `continue_if_exists` (bool, optional, default=False): override `continue_from`
+        * `autocontinue` (bool, optional, default=False): override `continue_from`
             in `solver` to continue from `out_fname` (or `script_fname`.out or
             .progress files) if those files exist.  This is useful to set to True
             and then resubmit the same script if not converged (although care should
             be taken to ensure multiple scripts aren't reading/writing from the
             same filenames).  `continue_from` must be a parameter in `solver` options,
-            or an error will be raised if `continue_if_exists=True`
+            or an error will be raised if `autocontinue=True`
         * `import_from_older` (boolean, optional, default=False): whether to allow
             the script to run on a newer version of PHOEBE.  If True and executing
             the outputed script (`script_fname`) on a newer version of PHOEBE,
@@ -11293,7 +11293,7 @@ class Bundle(ParameterSet):
 
         """
         solver, solution, compute, solver_ps = self._prepare_solver(solver, solution, **kwargs)
-        script_fname, out_fname = self._write_export_solver_script(script_fname, out_fname, solver, solution, continue_if_exists, import_from_older, log_level, kwargs)
+        script_fname, out_fname = self._write_export_solver_script(script_fname, out_fname, solver, solution, autocontinue, import_from_older, log_level, kwargs)
 
         if pause:
             input("* optional:  call b.save(...) to save the bundle to disk, you can then safely close the active python session and recover the bundle with phoebe.load(...)\n"+
