@@ -11173,7 +11173,7 @@ class Bundle(ParameterSet):
         return solver, solution, compute, solver_ps
 
 
-    def _write_export_solver_script(self, script_fname, out_fname, solver, solution, import_from_older, log_level, kwargs):
+    def _write_export_solver_script(self, script_fname, out_fname, solver, solution, continue_if_exists, import_from_older, log_level, kwargs):
         """
         """
         f = open(script_fname, 'w')
@@ -11203,14 +11203,25 @@ class Bundle(ParameterSet):
             f.write(code)
             kwargs['custom_lnprobability_callable'] = custom_lnprobability_callable.__name__
 
-        if out_fname is not None:
-            f.write("solution_ps = b.run_solver(out_fname='{}', {})\n".format(out_fname, solver_kwargs_string))
-            f.write("b.filter(context='solution', solution=solution_ps.solution, check_visible=False).save('{}', incl_uniqueid=True)\n".format(out_fname))
-        else:
+        if out_fname is None:
             f.write("import sys\n")
-            f.write("solution_ps = b.run_solver(out_fname=sys.argv[0]+'.out', {})\n".format(solver_kwargs_string))
-            f.write("b.filter(context='solution', solution=solution_ps.solution, check_visible=False).save(sys.argv[0]+'.out', incl_uniqueid=True)\n")
+            f.write("out_fname=sys.argv[0]+'.out'\n")
             out_fname = script_fname+'.out'
+        else:
+            f.write("out_fname={}\n".format(out_fname))
+
+        if continue_if_exists:
+            if 'continue_from' not in self.get_solver(solver=solver).qualifiers:
+                raise ValueError("continue_from is not a parameter in solver='{}', cannot use continue_if_exists".format(solver))
+            f.write("if os.path.isfile(out_fname):\n")
+            f.write("    b.import_solution(out_fname, solution='progress', overwrite=True)\n")
+            f.write("    b.set_value(qualifier='continue_from', solver='{}', value='progress')\n".format(solver))
+            f.write("elif os.path.isfile(out_fname+'.progress'):\n")
+            f.write("    b.import_solution(out_fname+'.progress', solution='progress', overwrite=True)\n")
+            f.write("    b.set_value(qualifier='continue_from', solver='{}', value='progress')\n".format(solver))
+
+        f.write("solution_ps = b.run_solver(out_fname=out_fname, {})\n".format(solver_kwargs_string))
+        f.write("b.filter(context='solution', solution=solution_ps.solution, check_visible=False).save(out_fname, incl_uniqueid=True)\n")
 
         f.write("\n# NOTE: this script only includes parameters needed to call the requested run_solver, edit manually with caution!\n")
         f.close()
@@ -11220,6 +11231,7 @@ class Bundle(ParameterSet):
     def export_solver(self, script_fname, out_fname=None,
                       solver=None, solution=None,
                       pause=False,
+                      continue_if_exists=False,
                       import_from_older=False,
                       log_level=None,
                       **kwargs):
@@ -11247,6 +11259,13 @@ class Bundle(ParameterSet):
             with instructions for running the exported script and calling
             <phoebe.frontend.bundle.Bundle.import_solution>.  Particularly
             useful if running in an interactive notebook or a script.
+        * `continue_if_exists` (bool, optional, default=False): override `continue_from`
+            in `solver` to continue from `out_fname` (or `script_fname`.out or
+            .progress files) if those files exist.  This is useful to set to True
+            and then resubmit the same script if not converged (although care should
+            be taken to ensure multiple scripts aren't reading/writing from the
+            same filenames).  `continue_from` must be a parameter in `solver` options,
+            or an error will be raised if `continue_if_exists=True`
         * `import_from_older` (boolean, optional, default=False): whether to allow
             the script to run on a newer version of PHOEBE.  If True and executing
             the outputed script (`script_fname`) on a newer version of PHOEBE,
@@ -11274,7 +11293,7 @@ class Bundle(ParameterSet):
 
         """
         solver, solution, compute, solver_ps = self._prepare_solver(solver, solution, **kwargs)
-        script_fname, out_fname = self._write_export_solver_script(script_fname, out_fname, solver, solution, import_from_older, log_level, kwargs)
+        script_fname, out_fname = self._write_export_solver_script(script_fname, out_fname, solver, solution, continue_if_exists, import_from_older, log_level, kwargs)
 
         if pause:
             input("* optional:  call b.save(...) to save the bundle to disk, you can then safely close the active python session and recover the bundle with phoebe.load(...)\n"+
@@ -11668,7 +11687,7 @@ class Bundle(ParameterSet):
             out_fname = "_{}.out".format(jobid)
             err_fname = "_{}.err".format(jobid)
             kill_fname = "_{}.kill".format(jobid)
-            script_fname, out_fname = self._write_export_solver_script(script_fname, out_fname, solver, solution, False, None, kwargs)
+            script_fname, out_fname = self._write_export_solver_script(script_fname, out_fname, solver, solution, False, False, None, kwargs)
 
             script_fname = os.path.abspath(script_fname)
             cmd = mpi.detach_cmd.format(script_fname)
