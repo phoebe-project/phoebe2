@@ -2093,7 +2093,7 @@ class Differential_EvolutionBackend(BaseSolverBackend):
             params = []
             fitted_units = []
             for twig in fit_parameters:
-                p = b.get_parameter(twig=twig, context=['component', 'dataset'], **_skip_filter_checks)
+                p = b.get_parameter(twig=twig, context=['component', 'dataset', 'feature', 'system'], **_skip_filter_checks)
                 params.append(p)
                 params_uniqueids.append(p.uniqueid)
                 params_twigs.append(p.twig)
