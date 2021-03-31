@@ -84,6 +84,9 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.3.33 - constrained and multivariate priors bugfix
+
+
 ### 2.3.32 - phoebe-server bugfix
 
 * fixes version of flask-socketio dependency to remain compatible with desktop client
