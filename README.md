@@ -84,6 +84,11 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.3.32 - phoebe-server bugfix
+
+* fixes version of flask-socketio dependency to remain compatible with desktop client
+* ensures path and query string are casted to string
+
 ### 2.3.31 - SB1 with compute_times bugfix
 
 * fixes fitting radial velocities where only one component has observations (SB1 system) and compute_times are provided.
