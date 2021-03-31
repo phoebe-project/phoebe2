@@ -160,7 +160,7 @@ def _lnprobability(sampled_values, b, params_uniqueids, compute,
         logger.warning("received error while running constraints: {}. lnprobability=-inf".format(err))
         return _return(-np.inf, str(err))
 
-    lnpriors = b.calculate_lnp(distribution=priors, combine=priors_combine)
+    lnpriors = b.calculate_lnp(distribution=priors, combine=priors_combine, include_constrained=True)
     if not np.isfinite(lnpriors):
         # no point in calculating the model then
         return _return(-np.inf, 'lnpriors = -inf')

@@ -4529,8 +4529,9 @@ class Bundle(ParameterSet):
 
                             else:
                                 report.add_item(self,
-                                                "{} is currently constrained but cannot automatically temporarily flip as solve_for has several options ({}).  Flip the constraint manually first, or remove {} from adopt_parameters.".format(adopt_param.twig, ", ".join([p.twig for p in adopt_param.constrained_by]), adopt_param.twig),
+                                                "{} is currently constrained but cannot automatically temporarily flip as solve_for has several options ({}).  Flip the constraint manually first, set adopt_values=False, or remove {} from adopt_parameters.".format(adopt_param.twig, ", ".join([p.twig for p in adopt_param.constrained_by]), adopt_param.twig),
                                                 [solution_ps.get_parameter(qualifier='adopt_parameters', **_skip_filter_checks),
+                                                 solution_ps.get_parameter(qualifier='adopt_values', **_skip_filter_checks),
                                                  adopt_param.is_constraint
                                                 ]+addl_parameters,
                                                 True, 'adopt_solution')
@@ -8178,6 +8179,10 @@ class Bundle(ParameterSet):
         lnpriors, and if the distribution collection refers to 'posteriors'
         (or a solution), then this is effectively lnposteriors.
 
+        This will attempt to compute the log-probability respecting covariances,
+        but will fallback on dropping covariances if necessary, with a message
+        raise in the error <phoebe.logger>.
+
         Only parameters (or distribution parameters) included in the ParameterSet
         (after filtering with `**kwargs`) will be included in the summed
         log-probability.
@@ -8203,10 +8208,8 @@ class Bundle(ParameterSet):
             Defaults to 'first' if `twig` and `**kwargs` point to distributions,
             otherwise will default to the value of the relevant parameter in the
             solver options.
-        * `include_constrained` (bool, optional): whether to
-            include constrained parameters.  Defaults to False if `twig` and
-            `**kwargs` point to distributions, otherwise will default to the
-            value necessary for the solver backend.
+        * `include_constrained` (bool, optional, default=True): whether to
+            include constrained parameters.
         * `to_univariates` (bool, optional): whether to convert any multivariate
             distributions to univariates before adding to the collection.  Defaults
             to False if `twig` and `**kwargs` point to distributions, otherwise
@@ -8237,21 +8240,23 @@ class Bundle(ParameterSet):
         # also have attached distributions?
 
         kwargs['keys'] = 'uniqueid'
+        kwargs.setdefault('include_constrained', True)
         dc, uniqueids = self.get_distribution_collection(twig=twig,
                                                          **kwargs)
 
+        # uniqueids needs to correspond to dc.dists_unpacked, not dc.dists
+        if len(dc.dists_unpacked) != len(uniqueids):
+            ps = self.exclude(context=['distribution', 'constraint'], **_skip_filter_checks)
+            values = [ps.get_value(twig=dist.label, unit=dist.unit, **_skip_filter_checks) for dist in dc.dists_unpacked]
+        else:
+            # then we can do the faster lookup by uniqueid
+            values = [self.get_value(uniqueid=uid, unit=dist.unit, **_skip_filter_checks) for uid, dist in zip(uniqueids, dc.dists_unpacked)]
 
-        values = [self.get_value(uniqueid=uid, unit=dist.unit, **_skip_filter_checks) for uid, dist in zip(uniqueids, dc.dists)]
-
-        # TODO: need to think about the as_univariate here... if we do
-        # include_constrained=False we shouldn't have to worry about math.
-        # But either way, we'll need to use dc.distributions_unpacked and
-        # somehow get the corresponding uniqueids (and go "up-the-tree" for
-        # any that were composite set by the user, not via or/and when
-        # combining).
-
-        # print("{} .logpdf(values={})".format(dc.dists, values))
-        return dc.logpdf(values, as_univariates=True)
+        try:
+            return dc.logpdf(values, as_univariates=False)
+        except Exception as e:
+            logger.error("calculate_pdf({}, **{}) failed with as_univariates=False, falling back on as_univariates=True (covariances will be dropped in any multivariate distributions).  Original error: {}".format(twig, kwargs, e))
+            return dc.logpdf(values, as_univariates=True)
 
     @send_if_client
     def add_figure(self, kind, return_changes=False, **kwargs):
@@ -9840,6 +9845,10 @@ class Bundle(ParameterSet):
                 raise ValueError("cannot apply both solution and sample_from")
             else:
                 logger.warning("applying passed solution ({}) to sample_from".format(kwargs.get('solution')))
+                if 'sample_num' not in kwargs.keys() and not self.get_value(qualifier='adopt_distributions', solution=kwargs.get('solution'), default=False, **_skip_filter_checks):
+                    logger.warning("defaulting sample_num=1 since adopt_distributions@{}=False".format(kwargs.get('solution')))
+                    kwargs['sample_num'] = 1
+
                 kwargs['sample_from'] = kwargs.pop('solution')
 
         # any kwargs that were used just to filter for get_compute should  be
@@ -9996,7 +10005,7 @@ class Bundle(ParameterSet):
 
         """
         model, computes, datasets, do_create_fig_params, changed_params, overwrite_ps, kwargs = self._prepare_compute(compute, model, dataset, **kwargs)
-        script_fname, out_fname = self._write_export_compute_script(script_fname, out_fname, compute, model, dataset, do_create_fig_params, import_from_older, log_level, kwargs)
+        script_fname, out_fname = self._write_export_compute_script(script_fname, out_fname, computes, model, dataset, do_create_fig_params, import_from_older, log_level, kwargs)
 
         if pause:
             input("* optional:  call b.save(...) to save the bundle to disk, you can then safely close the active python session and recover the bundle with phoebe.load(...)\n"+
@@ -11180,7 +11189,7 @@ class Bundle(ParameterSet):
         return solver, solution, compute, solver_ps
 
 
-    def _write_export_solver_script(self, script_fname, out_fname, solver, solution, import_from_older, log_level, kwargs):
+    def _write_export_solver_script(self, script_fname, out_fname, solver, solution, autocontinue, import_from_older, log_level, kwargs):
         """
         """
         f = open(script_fname, 'w')
@@ -11193,13 +11202,18 @@ class Bundle(ParameterSet):
         exclude_contexts = ['model', 'figure']
         continue_from = self.get_value(qualifier='continue_from', solver=solver, continue_from=kwargs.get('continue_from', None), default='')
         exclude_solutions = [sol for sol in self.solutions if sol!=continue_from]
+        exclude_solvers = [s for s in self.solvers if s!=solver]
+        solver_ps = self.get_solver(solver=solver, **_skip_filter_checks)
+        needed_distributions_qualifiers = ['init_from', 'priors', 'bounds']
+        needed_distributions = list(np.concatenate([solver_ps.get_value(qualifier=q, check_visible=False, default=[], **{q: kwargs.get(q, None)}) for q in needed_distributions_qualifiers]))
+        exclude_distributions = [d for d in self.distributions if d not in needed_distributions]
         if 'continue_from_ps' in kwargs.keys():
             b = self.copy()
             b._attach_params(kwargs.pop('continue_from_ps').exclude(qualifier='detached_job', **_skip_filter_checks).copy())
         else:
             b = self
 
-        f.write("bdict = json.loads(\"\"\"{}\"\"\", object_pairs_hook=phoebe.utils.parse_json)\n".format(json.dumps(b.exclude(context=exclude_contexts, **_skip_filter_checks).exclude(solution=exclude_solutions, **_skip_filter_checks).to_json(incl_uniqueid=True, exclude=['description', 'advanced', 'readonly', 'copy_for', 'latexfmt', 'labels_latex', 'label_latex']))))
+        f.write("bdict = json.loads(\"\"\"{}\"\"\", object_pairs_hook=phoebe.utils.parse_json)\n".format(json.dumps(b.exclude(context=exclude_contexts, **_skip_filter_checks).exclude(solution=exclude_solutions, **_skip_filter_checks).exclude(solver=exclude_solvers, **_skip_filter_checks).exclude(distribution=exclude_distributions, **_skip_filter_checks).to_json(incl_uniqueid=True, exclude=['description', 'advanced', 'readonly', 'copy_for', 'latexfmt', 'labels_latex', 'label_latex']))))
         f.write("b = phoebe.open(bdict, import_from_older={})\n".format(import_from_older))
         solver_kwargs = list(kwargs.items())+[('solver', solver), ('solution', str(solution))]
         solver_kwargs_string = ','.join(["{}={}".format(k,"\'{}\'".format(str(v)) if isinstance(v, str) else v) for k,v in solver_kwargs])
@@ -11210,14 +11224,25 @@ class Bundle(ParameterSet):
             f.write(code)
             kwargs['custom_lnprobability_callable'] = custom_lnprobability_callable.__name__
 
-        if out_fname is not None:
-            f.write("solution_ps = b.run_solver(out_fname='{}', {})\n".format(out_fname, solver_kwargs_string))
-            f.write("b.filter(context='solution', solution=solution_ps.solution, check_visible=False).save('{}', incl_uniqueid=True)\n".format(out_fname))
-        else:
+        if out_fname is None:
             f.write("import sys\n")
-            f.write("solution_ps = b.run_solver(out_fname=sys.argv[0]+'.out', {})\n".format(solver_kwargs_string))
-            f.write("b.filter(context='solution', solution=solution_ps.solution, check_visible=False).save(sys.argv[0]+'.out', incl_uniqueid=True)\n")
+            f.write("out_fname=sys.argv[0]+'.out'\n")
             out_fname = script_fname+'.out'
+        else:
+            f.write("out_fname='{}'\n".format(out_fname))
+
+        if autocontinue:
+            if 'continue_from' not in self.get_solver(solver=solver).qualifiers:
+                raise ValueError("continue_from is not a parameter in solver='{}', cannot use autocontinue".format(solver))
+            f.write("if os.path.isfile(out_fname):\n")
+            f.write("    b.import_solution(out_fname, solution='progress', overwrite=True)\n")
+            f.write("    b.set_value(qualifier='continue_from', solver='{}', value='progress')\n".format(solver))
+            f.write("elif os.path.isfile(out_fname+'.progress'):\n")
+            f.write("    b.import_solution(out_fname+'.progress', solution='progress', overwrite=True)\n")
+            f.write("    b.set_value(qualifier='continue_from', solver='{}', value='progress')\n".format(solver))
+
+        f.write("solution_ps = b.run_solver(out_fname=out_fname, {})\n".format(solver_kwargs_string))
+        f.write("b.filter(context='solution', solution=solution_ps.solution, check_visible=False).save(out_fname, incl_uniqueid=True)\n")
 
         f.write("\n# NOTE: this script only includes parameters needed to call the requested run_solver, edit manually with caution!\n")
         f.close()
@@ -11227,6 +11252,7 @@ class Bundle(ParameterSet):
     def export_solver(self, script_fname, out_fname=None,
                       solver=None, solution=None,
                       pause=False,
+                      autocontinue=False,
                       import_from_older=False,
                       log_level=None,
                       **kwargs):
@@ -11254,6 +11280,13 @@ class Bundle(ParameterSet):
             with instructions for running the exported script and calling
             <phoebe.frontend.bundle.Bundle.import_solution>.  Particularly
             useful if running in an interactive notebook or a script.
+        * `autocontinue` (bool, optional, default=False): override `continue_from`
+            in `solver` to continue from `out_fname` (or `script_fname`.out or
+            .progress files) if those files exist.  This is useful to set to True
+            and then resubmit the same script if not converged (although care should
+            be taken to ensure multiple scripts aren't reading/writing from the
+            same filenames).  `continue_from` must be a parameter in `solver` options,
+            or an error will be raised if `autocontinue=True`
         * `import_from_older` (boolean, optional, default=False): whether to allow
             the script to run on a newer version of PHOEBE.  If True and executing
             the outputed script (`script_fname`) on a newer version of PHOEBE,
@@ -11281,7 +11314,7 @@ class Bundle(ParameterSet):
 
         """
         solver, solution, compute, solver_ps = self._prepare_solver(solver, solution, **kwargs)
-        script_fname, out_fname = self._write_export_solver_script(script_fname, out_fname, solver, solution, import_from_older, log_level, kwargs)
+        script_fname, out_fname = self._write_export_solver_script(script_fname, out_fname, solver, solution, autocontinue, import_from_older, log_level, kwargs)
 
         if pause:
             input("* optional:  call b.save(...) to save the bundle to disk, you can then safely close the active python session and recover the bundle with phoebe.load(...)\n"+
@@ -11675,7 +11708,7 @@ class Bundle(ParameterSet):
             out_fname = "_{}.out".format(jobid)
             err_fname = "_{}.err".format(jobid)
             kill_fname = "_{}.kill".format(jobid)
-            script_fname, out_fname = self._write_export_solver_script(script_fname, out_fname, solver, solution, False, None, kwargs)
+            script_fname, out_fname = self._write_export_solver_script(script_fname, out_fname, solver, solution, False, False, None, kwargs)
 
             script_fname = os.path.abspath(script_fname)
             cmd = mpi.detach_cmd.format(script_fname)
