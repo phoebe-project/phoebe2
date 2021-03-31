@@ -84,6 +84,50 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.3.33 - constrained and multivariate priors bugfix
+
+* fixes handling of multivariate distributions as priors
+* run_compute sample_from: use serial mode when sample_num is 1
+* run_compute when passing solution instead of sample_from, default to sample_num=1 if adopt_distributions is False
+* export_solver: exclude unneeded distributions/solutions from the exported script to optimize filesize
+* export_solver: adds (undocumented until 2.4 release) support for autocontinue
+* export_compute: do not require explicitly passing compute if only one exists matching the filter
+* calculate_lnp: include_constrained now defaults to True
+
+### 2.3.32 - phoebe-server bugfix
+
+* fixes version of flask-socketio dependency to remain compatible with desktop client
+* ensures path and query string are cast to string
+
+### 2.3.31 - SB1 with compute_times bugfix
+
+* fixes fitting radial velocities where only one component has observations (SB1 system) and compute_times are provided.
+* compute_residuals now returns an empty array when the corresponding times_array is empty, instead of raising an error
+
+### 2.3.30 - ld_coeffs fitting bugfix
+
+* all fitting ld_coeffs.  Each coefficient is referenced by index and can be fit or have distributions attached independently.  See [tutorial](http://phoebe-project.org/docs/latest/tutorials/fitting_ld_coeffs) for more details.
+* also fixes support for [custom constraints](http://phoebe-project.org/docs/latest/tutorials/constraints_custom) which can be used to link ld_coeffs between datasets of the same passband, for example.
+
+### 2.3.29 - adopt_solution bugfix
+
+* do not require passing solution to adopt_solution (when adopting distributions) if only one solution exists
+* fix distribution_overwrite_all not defined error
+
+### 2.3.28 - solver checks bugfix
+
+* excludes datasets not supported in fitting (mesh, orb, lp, etc) from forward-model within inverse solvers.
+* run_checks_solver now checks for nans in dataset arrays.
+
+### 2.3.27 - add_compute/solver overwrite bugfix
+
+* fixes bug where passing overwrite to add_compute or add_solver raised an error if run_compute/run_solver already created a model/solution tagged with that same label.
+
+### 2.3.26 - multiprocessing bugfix
+
+* allows disabling multiprocessing (or lowering the number of available processors).  Multiprocessing is used by default when not within MPI and when calling `run_compute` with `sample_from` or `run_solver` with solvers that support parallelization.  Some installations of multiprocessing on Mac may cause issues, in which case you can now for PHOEBE to run in serial mode.
+* this introduces new `phoebe.multiprocessing_off()`, `phoebe.multiprocessing_on()`, `phoebe.multiprocessing_get_nprocs()`, and `phoebe.multiprocessing_set_nprocs(n)` functions, but the default behavior remains unchanged.
+
 ### 2.3.25 - distribution propagation bugfix
 
 * updates distl to 0.2.0 release which includes support for retaining simultaneous sampling between copies of the same underyling distribution, increased precision on latex formatting of uncertainties, and maintaining labels during unit conversion.

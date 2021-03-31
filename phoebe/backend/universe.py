@@ -1276,7 +1276,7 @@ class Star(Body):
         ld_func_override = kwargs.pop('ld_func', None)
         ld_func = {ds: b.get_value(qualifier='ld_func', dataset=ds, component=component, ld_func=ld_func_override, **_skip_filter_checks) for ds in datasets_intens}
         ld_coeffs_override = kwargs.pop('ld_coeffs', None)
-        ld_coeffs = {ds: b.get_value(qualifier='ld_coeffs', dataset=ds, component=component, ld_coeffs=ld_coeffs_override, **_skip_filter_checks) for ds in datasets_intens}
+        ld_coeffs = {ds: b.get_value(qualifier='ld_coeffs', dataset=ds, component=component, context='dataset', ld_coeffs=ld_coeffs_override, **_skip_filter_checks) for ds in datasets_intens}
         ld_coeffs_source_override = kwargs.pop('ld_coeffs_source', None)
         ld_coeffs_source = {ds: b.get_value(qualifier='ld_coeffs_source', dataset=ds, component=component, ld_coeffs_source=ld_coeffs_source_override, **_skip_filter_checks) for ds in datasets_intens}
         ld_func_bol_override = kwargs.pop('ld_func_bol', None)

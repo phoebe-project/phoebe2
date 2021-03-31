@@ -451,6 +451,7 @@ null
 null
 ],
 "copy_for": false,
+"latexfmt": "\\mathrm{{ ldc }}_\\mathrm{{ bol, {component} }}",
 "Class": "FloatArrayParameter"
 },
 {
@@ -804,11 +805,11 @@ null
 "context": "compute",
 "description": "Atmosphere table",
 "choices": [
-"ck2004",
-"extern_planckint",
-"extern_atmx",
 "blackbody",
-"phoenix"
+"extern_planckint",
+"ck2004",
+"phoenix",
+"extern_atmx"
 ],
 "value": "ck2004",
 "copy_for": {
@@ -960,11 +961,11 @@ null
 "context": "compute",
 "description": "Atmosphere table",
 "choices": [
-"ck2004",
-"extern_planckint",
-"extern_atmx",
 "blackbody",
-"phoenix"
+"extern_planckint",
+"ck2004",
+"phoenix",
+"extern_atmx"
 ],
 "value": "ck2004",
 "copy_for": false,

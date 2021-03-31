@@ -1,7 +1,7 @@
 import numpy as np
 #from numpy import sin, cos, tan, arcsin, arccos, arctan, sqrt
 
-from phoebe.parameters.parameters import ParameterSet, ConstraintParameter, FloatParameter
+from phoebe.parameters.parameters import ParameterSet, ConstraintParameter, FloatParameter, FloatArrayParameter
 from phoebe.constraints.expression import ConstraintVar
 from phoebe import u, c
 
@@ -270,17 +270,21 @@ def custom(b, *args, **kwargs):
     :raise NotImplementedError: because it isn't
     """
 
-    raise NotImplementedError("custom constraints not yet supported")
+    if len(args) != 2:
+        raise ValueError("custom constraint takes two arguments: lhs (parameter), rhs (parameter or constraint parameter)")
 
-    # TODO: handle parsing different types of input
+    lhs, rhs = args
 
-    # create parameters
-    #~ params = []
-    # TODO: fix this to also accept constraint objects for lhs
-    #~ params += [TwigParameter(b, qualifier='solve_for', value=lhs.uniquetwig, description='which parameter should be constrained by the others')]
-    #~ params += [ConstraintParameter(b, qualifier='expression', value=rhs, description='expression that determines the constraint')]
+    if not isinstance(lhs, FloatParameter):
+        raise TypeError("lhs (args[0]) must be a FloatParameter")
+    if isinstance(rhs, FloatParameter):
+        rhs = 1*rhs
+    elif isinstance(rhs, str):
+        rhs = ConstraintParameter(rhs)
+    elif not isinstance(rhs, ConstraintParameter):
+        raise TypeError("rhs (args[1]) must be a ConstraintParameter")
 
-    #~ return ParameterSet(params)
+    return lhs, rhs, [], {}
 
 #}
 #{ Intra-orbit constraints

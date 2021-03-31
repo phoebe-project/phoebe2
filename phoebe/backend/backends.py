@@ -89,6 +89,8 @@ def _simplify_error_message(msg):
         msg = 'atm out-of-bounds during compute_pblums'
     elif 'Atmosphere parameters out of bounds' in msg:
         msg = 'atm out-of-bounds'
+    elif 'not compatible for ld_func' in msg:
+        msg = 'ld_coeffs and ld_func incompatible'
     return msg
 
 def _needs_mesh(b, dataset, kind, component, compute):
@@ -695,11 +697,16 @@ class SampleOverModel(object):
         #self.run_checks(b, compute, times, **kwargs)
 
         if mpi.within_mpirun:
+            logger.info("run_compute sample_from using MPI")
             pool = _pool.MPIPool()
             is_master = pool.is_master()
+        elif conf.multiprocessing_nprocs==0 or b.get_value(qualifier='sample_num', compute=compute, sample_num=kwargs.get('sample_num', None), **_skip_filter_checks) == 1:
+            logger.info("run_compute sample_from: serial mode")
+            pool = _pool.SerialPool()
+            is_master = True
         else:
-            pool = _pool.MultiPool()
-            # pool = schwimmbad.SerialPool()
+            logger.info("run_compute sample_from using MPI with {} procs".format(conf.multiprocessing_nprocs))
+            pool = _pool.MultiPool(processes=conf._multiprocessing_nprocs)
             is_master = True
 
         # temporarily disable MPI within run_compute to disabled parallelizing

@@ -192,6 +192,7 @@ def lc(syn=False, as_ps=True, is_lc=True, **kwargs):
                                    advanced=True,
                                    description='Source for limb darkening coefficients (\'auto\' to interpolate from the applicable table according to the \'atm\' parameter, or the name of a specific atmosphere table)')]
         params += [FloatArrayParameter(visible_if='ld_mode:manual', qualifier='ld_coeffs',
+                                       latexfmt=r'\mathrm{{ ldc }}_\mathrm{{ {dataset}, {component} }}',
                                        copy_for={'kind': ['star'], 'component': '*'}, component='_default',
                                        value=kwargs.get('ld_coeffs', [0.5, 0.5]), default_unit=u.dimensionless_unscaled,
                                        required_shape=[None],

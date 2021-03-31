@@ -12,6 +12,7 @@ import phoebe.parameters as _parameters
 import phoebe.frontend.bundle
 from phoebe import u, c
 from phoebe import conf, mpi
+from phoebe.parameters.parameters import _extract_index_from_string
 from phoebe.backend.backends import _simplify_error_message
 from phoebe.utils import phase_mask_inds
 from phoebe.dependencies import nparray
@@ -34,7 +35,6 @@ else:
 
 try:
     import dynesty
-    import pickle
 except ImportError:
     _use_dynesty = False
 else:
@@ -66,10 +66,11 @@ _skip_filter_checks = {'check_default': False, 'check_visible': False}
 
 def _wrap_central_values(b, dc, uniqueids):
     ret = {}
-    for dist, uniqueid in zip(dc.dists, uniqueids):
+    for dist, uniqueid_orig in zip(dc.dists, uniqueids):
+        uniqueid, index = _extract_index_from_string(uniqueid_orig)
         param = b.get_parameter(uniqueid=uniqueid, **_skip_filter_checks)
         if param.default_unit.physical_type == 'angle':
-            ret[uniqueid] = dist.median()
+            ret[uniqueid_orig] = dist.median()
     return ret
 
 def _bsolver(b, solver, compute, distributions, wrap_central_values={}):
@@ -81,6 +82,10 @@ def _bsolver(b, solver, compute, distributions, wrap_central_values={}):
     if len(b.solvers) > 1:
         bexcl.remove_parameters_all(solver=[f for f in b.solvers if f!=solver and solver is not None], **_skip_filter_checks)
     bexcl.remove_parameters_all(distribution=[d for d in b.distributions if d not in distributions], **_skip_filter_checks)
+
+    # any dataset type supported for fitting needs to NOT be excluded here and
+    # also implemented in parameters.ParameterSet.calculate_residuals
+    bexcl.remove_parameters_all(kind=['orb', 'mesh', 'lp'])
 
     # set face-values to be central values for any angle parameters in init_from
     for uniqueid, value in wrap_central_values.items():
@@ -109,10 +114,17 @@ def _lnprobability(sampled_values, b, params_uniqueids, compute,
                 # then emcee is in serial mode, run_compute is within mpi
                 failed_samples_buffer.append(msg_tuple)
             else:
-                # then emcee is using MPI so we need to pass the messages
-                # through the MPI pool
-                comm = _MPI.COMM_WORLD
-                comm.ssend(msg_tuple, 0, tag=99999999)
+                try:
+                    # then emcee is using MPI so we need to pass the messages
+                    # through the MPI pool
+                    comm = _MPI.COMM_WORLD
+                except NameError:
+                    # then we're using a Serial Pool - this is an ugly way
+                    # to detect this though... would it be better to pass another
+                    # argument through everything or to set another global variable?
+                    failed_samples_buffer.append(msg_tuple)
+                else:
+                    comm.ssend(msg_tuple, 0, tag=99999999)
 
         return lnprob
 
@@ -124,8 +136,12 @@ def _lnprobability(sampled_values, b, params_uniqueids, compute,
     b._within_solver = True
     if sampled_values is not False:
         for uniqueid, value in zip(params_uniqueids, sampled_values):
+            uniqueid, index = _extract_index_from_string(uniqueid)
             try:
-                b.set_value(uniqueid=uniqueid, value=value, run_checks=False, run_constraints=False, **_skip_filter_checks)
+                if index is not None:
+                    b.get_parameter(uniqueid=uniqueid, **_skip_filter_checks).set_index_value(index=index, value=value, run_checks=False, run_constraints=False)
+                else:
+                    b.set_value(uniqueid=uniqueid, value=value, run_checks=False, run_constraints=False, **_skip_filter_checks)
             except ValueError as err:
                 logger.warning("received error while setting values: {}. lnprobability=-inf".format(err))
                 return _return(-np.inf, str(err))
@@ -144,7 +160,7 @@ def _lnprobability(sampled_values, b, params_uniqueids, compute,
         logger.warning("received error while running constraints: {}. lnprobability=-inf".format(err))
         return _return(-np.inf, str(err))
 
-    lnpriors = b.calculate_lnp(distribution=priors, combine=priors_combine)
+    lnpriors = b.calculate_lnp(distribution=priors, combine=priors_combine, include_constrained=True)
     if not np.isfinite(lnpriors):
         # no point in calculating the model then
         return _return(-np.inf, 'lnpriors = -inf')
@@ -373,6 +389,13 @@ def _get_combined_rv(b, datasets, components, phase_component=None, mask=True, n
 
 
     return times, phases, rvs, sigmas
+
+def _to_twig_with_index(twig, index):
+    if index is None:
+        return twig
+    else:
+        return '{}[{}]@{}'.format(twig.split('@')[0], index, '@'.join(twig.split('@')[1:]))
+
 
 class BaseSolverBackend(object):
     def __init__(self):
@@ -1200,6 +1223,7 @@ class EmceeBackend(BaseSolverBackend):
         # from our own waiting loop in phoebe's __init__.py and subscribe them
         # to emcee's pool.
         if mpi.within_mpirun:
+            logger.info("emcee: using MPI pool")
             # TODO: decide whether to use MPI for emcee (via pool) or pass None
             # to allow per-model parallelization
             global failed_samples_buffer
@@ -1237,10 +1261,17 @@ class EmceeBackend(BaseSolverBackend):
                 mpi._enabled = False
 
 
-        else:
-            logger.info("using multiprocessing pool for emcee")
+        elif conf.multiprocessing_nprocs==0:
+            logger.info("emcee: using serial mode")
 
-            pool = _pool.MultiPool()
+            pool = _pool.SerialPool()
+            failed_samples_buffer = []
+            is_master = True
+
+        else:
+            logger.info("emcee: using multiprocessing pool with {} procs".format(conf.multiprocessing_nprocs))
+
+            pool = _pool.MultiPool(processes=conf._multiprocessing_nprocs)
             failed_samples_buffer = multiprocessing.Manager().list()
             is_master = True
 
@@ -1347,7 +1378,8 @@ class EmceeBackend(BaseSolverBackend):
 
                 start_iteration = continued_lnprobabilities.shape[0]
 
-            params_twigs = [b.get_parameter(uniqueid=uniqueid, **_skip_filter_checks).twig for uniqueid in params_uniqueids]
+            params_uniqueids_and_indices = [_extract_index_from_string(uid) for uid in params_uniqueids]
+            params_twigs = [_to_twig_with_index(b.get_parameter(uniqueid=uniqueid, **_skip_filter_checks).twig, index) for uniqueid, index in params_uniqueids_and_indices]
 
             esargs['pool'] = pool
             esargs['nwalkers'] = nwalkers
@@ -1465,7 +1497,7 @@ class DynestyBackend(BaseSolverBackend):
         # check whether emcee is installed
 
         if not _use_dynesty:
-            raise ImportError("could not import dynesty, pickle")
+            raise ImportError("could not import dynesty")
 
         solver_ps = b.get_solver(solver=solver, **_skip_filter_checks)
         if not len(solver_ps.get_value(qualifier='priors', init_from=kwargs.get('priors', None))):
@@ -1570,7 +1602,7 @@ class DynestyBackend(BaseSolverBackend):
         # from our own waiting loop in phoebe's __init__.py and subscribe them
         # to emcee's pool.
         if mpi.within_mpirun:
-            logger.info("using MPI pool for dynesty")
+            logger.info("dynesty: using MPI pool")
 
             global failed_samples_buffer
             failed_samples_buffer = []
@@ -1594,10 +1626,17 @@ class DynestyBackend(BaseSolverBackend):
             mpi._within_mpirun = False
             mpi._enabled = False
 
-        else:
-            logger.info("using multiprocessing pool for dynesty")
+        elif conf.multiprocessing_nprocs==0:
+            logger.info("dynesty: using serial mode")
 
-            pool = _pool.MultiPool()
+            pool = _pool.SerialPool()
+            failed_samples_buffer = []
+            is_master = True
+
+        else:
+            logger.info("dynesty: using multiprocessing pool with {} procs".format(conf.multiprocessing_nprocs))
+
+            pool = _pool.MultiPool(processes=conf._multiprocessing_nprocs)
             failed_samples_buffer = multiprocessing.Manager().list()
             is_master = True
 
@@ -1628,7 +1667,9 @@ class DynestyBackend(BaseSolverBackend):
             wrap_central_values = _wrap_central_values(b, priors_dc, params_uniqueids)
 
             params_units = [dist.unit.to_string() for dist in priors_dc.dists]
-            params_twigs = [b.get_parameter(uniqueid=uniqueid, **_skip_filter_checks).twig for uniqueid in params_uniqueids]
+
+            params_uniqueids_and_indices = [_extract_index_from_string(uid) for uid in params_uniqueids]
+            params_twigs = [_to_twig_with_index(b.get_parameter(uniqueid=uniqueid, **_skip_filter_checks).twig, index) for uniqueid, index in params_uniqueids_and_indices]
 
             # NOTE: in dynesty we draw from the priors and pass the prior-transforms,
             # but do NOT include the lnprior term in lnlikelihood, so we pass
@@ -1782,22 +1823,25 @@ class _ScipyOptimizeBaseBackend(BaseSolverBackend):
         params_twigs = []
         p0 = []
         fitted_units = []
-        for twig in fit_parameters:
+        for twig_orig in fit_parameters:
+            twig, index = _extract_index_from_string(twig_orig)
             p = b.get_parameter(twig=twig, context=['component', 'dataset', 'feature', 'system'], **_skip_filter_checks)
-            params_uniqueids.append(p.uniqueid)
-            params_twigs.append(p.twig)
-            p0.append(p.get_value())
+            params_uniqueids.append(p.uniqueid if index is None else p.uniqueid+'[{}]'.format(index))
+            params_twigs.append(p.twig if index is None else twig_orig)
+            p0.append(p.get_value() if index is None else p.get_value()[index])
             fitted_units.append(p.get_default_unit().to_string())
 
         # now override from initial values
         fitted_params_ps = b.filter(uniqueid=params_uniqueids, **_skip_filter_checks)
-        for twig,v in initial_values.items():
+        for twig_orig, v in initial_values.items():
+            twig, index = _extract_index_from_string(twig_orig)
             p = fitted_params_ps.get_parameter(twig=twig, **_skip_filter_checks)
-            if p.uniqueid in params_uniqueids:
-                index = params_uniqueids.index(p.uniqueid)
+            uniqueid = p.uniqueid if index is None else p.uniqueid+'[{}]'.format(index)
+            if uniqueid in params_uniqueids:
+                p_ind = params_uniqueids.index(p.uniqueid)
                 if hasattr(v, 'unit'):
                     v = v.to(fitted_units[index]).value
-                p0[index] = v
+                p0[p_ind] = v
             else:
                 logger.warning("ignoring {}={} in initial_values as was not found in fit_parameters".format(twig, value))
 
@@ -1937,10 +1981,16 @@ class Differential_EvolutionBackend(BaseSolverBackend):
             return (dist.low, dist.high)
 
         if mpi.within_mpirun:
+            logger.info("DifferentialEvolution: using MPI pool")
             pool = _pool.MPIPool()
             is_master = pool.is_master()
+        elif conf.multiprocessing_nprocs==0:
+            logger.info("DifferentialEvolution: using serial mode")
+            pool = _pool.SerialPool()
+            is_master = True
         else:
-            pool = _pool.MultiPool()
+            logger.info("DifferentialEvolution: using multiprocessing pool with {} procs".format(conf.multiprocessing_nprocs))
+            pool = _pool.MultiPool(processes=conf._multiprocessing_nprocs)
             is_master = True
 
         # temporarily disable MPI within run_compute to disabled parallelizing
