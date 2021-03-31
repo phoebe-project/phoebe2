@@ -11208,7 +11208,7 @@ class Bundle(ParameterSet):
             f.write("out_fname=sys.argv[0]+'.out'\n")
             out_fname = script_fname+'.out'
         else:
-            f.write("out_fname={}\n".format(out_fname))
+            f.write("out_fname='{}'\n".format(out_fname))
 
         if autocontinue:
             if 'continue_from' not in self.get_solver(solver=solver).qualifiers:
