@@ -86,6 +86,12 @@ CHANGELOG
 
 ### 2.3.33 - constrained and multivariate priors bugfix
 
+* fixes handling of multivariate distributions as priors
+* run_compute sample_from: use serial mode when sample_num is 1
+* run_compute when passing solution instead of sample_from, default to sample_num=1 if adopt_distributions is False
+* export_solver: exclude unneeded distributions/solutions from the exported script to optimize filesize
+* export_compute: do not require explicitly passing compute if only one exists matching the filter
+* calculate_lnp: include_constrained now defaults to True
 
 ### 2.3.32 - phoebe-server bugfix
 
