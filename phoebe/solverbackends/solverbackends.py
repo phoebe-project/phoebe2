@@ -1329,7 +1329,7 @@ class EmceeBackend(BaseSolverBackend):
                 if not np.all([uniqueid in b.uniqueids for uniqueid in params_uniqueids]):
                     logger.info("continue_from uniqueid matches not found, falling back on twigs")
                     params_twigs = continue_from_ps.get_value(qualifier='fitted_twigs', **_skip_filter_checks)
-                    original_params_uniqueids = params_uniqueids
+                    original_params_uniqueids = list(params_uniqueids)
                     params_uniqueids = [b.get_parameter(twig=twig, **_skip_filter_checks).uniqueid for twig in params_twigs]
 
                     if np.all([uniqueid in original_params_uniqueids for uniqueid in wrap_central_values.keys()]):
