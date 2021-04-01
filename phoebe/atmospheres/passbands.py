@@ -78,6 +78,57 @@ _pbdir_env = os.getenv('PHOEBE_PBDIR', None)
 def _dict_without_keys(d, skip_keys=[]):
     return {k:v for k,v in d.items() if k not in skip_keys}
 
+def ndpolate(x, N, lo, hi, fv):
+    """
+    @x: vector(s) of interest
+    @N: dimension of the interpolation space
+    @lo: N-dimensional vector of lower knot values
+    @hi: N-dimensional vector of upper knot values
+    @fv: (2^N)-dimensional vector of function values at knots
+
+    Linear interpolation or extrapolation in N dimensions. The fv array is modified so
+    make sure you pass a copy if you need to reuse it.
+    """
+
+    powers = [2**k for k in range(N+1)]
+
+    n = np.empty((powers[N], N))
+
+    for i in range(N):
+        for j in range(powers[N]):
+            n[j,i] = lo[i] + (int(j/powers[i]) % 2) * (hi[i]-lo[i])
+    
+    for i in range(N):
+        for j in range(powers[N-i-1]):
+            fv[j] += (x[N-i-1]-n[j,N-i-1])/(n[j+powers[N-i-1],N-i-1]-n[j,N-i-1])*(fv[j+powers[N-i-1]]-fv[j])
+
+    return fv[0]
+
+def interpolate_all_directions(entry):
+    N = len(entry)
+    interpolants = []
+    for D in range(N, 0, -1): # sub-dimensions
+        for d in range(int(binomial(N, D))): # combinations per sub-dimension
+            slc = [slice(max(0, entry[k]-1), min(entry[k]+2, len(axes[k])), 2) for k in range(N)]
+            mask = np.ones(N, dtype=bool)
+
+            for l in range(N-D): # projected axes
+                slc[(d+l)%N] = slice(entry[(d+l)%N], entry[(d+l)%N]+1)
+                mask[(d+l)%N] = False
+
+            fv = ints[tuple(slc)].reshape(-1, 1)
+            if len(fv) != 2**mask.sum(): # missing vertices, cannot calculate
+                continue
+
+            x = np.array([axes[k][entry[k]] for k in range(N)])[mask]
+            lo = np.array([axes[k][max(0,entry[k]-1)] for k in range(N)])[mask]
+            hi = np.array([axes[k][min(entry[k]+1,len(axes[k])-1)] for k in range(N)])[mask]
+            fv = ints[tuple(slc)].copy().reshape(-1, 1)
+                
+            interpolants.append(ndpolate(x, D, lo, hi, fv))
+
+    return np.array(interpolants)
+
 class Passband:
     def __init__(self, ptf=None, pbset='Johnson', pbname='V', effwl=5500.0,
                  wlunits=u.AA, calibrated=False, reference='', version=1.0,
@@ -3827,8 +3878,6 @@ def Inorm_bol_bb(Teff=5772., logg=4.43, abun=0.0, atm='blackbody', photon_weight
     --------
     * ValueError: if `atm` is anything other than `'blackbody'`.
     """
-    # TODO: the docs say errors will be raised if photon_weighted is not False
-    # but this doesn't seem to be the case.
 
     if atm != 'blackbody':
         raise ValueError('atmosphere must be set to blackbody for Inorm_bol_bb.')
@@ -3858,14 +3907,14 @@ if __name__ == '__main__':
         wlunits=u.m,
         calibrated=True,
         reference='Flat response to simulate bolometric throughput',
-        version=2.0,
+        version=1.0,
         comments=''
     )
 
     pb.compute_blackbody_response()
 
-    pb.compute_ck2004_response(path='tables/ck2004fits', verbose=True)
-    pb.compute_ck2004_intensities(path='tables/ck2004fits', verbose=True)
+    pb.compute_ck2004_response(path='tables/ck2004', verbose=True)
+    pb.compute_ck2004_intensities(path='tables/ck2004', verbose=True)
     pb.compute_ck2004_ldcoeffs()
     pb.compute_ck2004_ldints()
 
