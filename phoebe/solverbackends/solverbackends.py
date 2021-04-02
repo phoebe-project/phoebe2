@@ -1075,7 +1075,13 @@ class EbaiBackend(BaseSolverBackend):
             ecl_positions = lc_geom_dict.get('ecl_positions')
             # assume primary is close to zero?
             pshift = ecl_positions[np.argmin(abs(np.array(ecl_positions)))]
-            fit_result = lc_geometry.fit_lc(phases-pshift, fluxes, sigmas)
+            phases_shifted = phases-pshift 
+            phases_shifted[phases_shifted > 0.5] = phases_shifted[phases_shifted>0.5]-1.
+            phases_shifted[phases_shifted < -0.5] = phases_shifted[phases_shifted<-0.5]+1.
+            s=np.argsort(phases_shifted)
+            
+            fit_result = lc_geometry.fit_lc(phases_shifted[s], fluxes[s], sigmas[s])
+            best_fit = fit_result['best_fit']
             best_fit = fit_result['best_fit']
             ebai_phases = np.linspace(-0.5,0.5,201)
             ebai_fluxes = getattr(lc_geometry, 'const' if best_fit=='C' else best_fit.lower())(ebai_phases, *fit_result['fits'][best_fit][0])
