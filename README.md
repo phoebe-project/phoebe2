@@ -84,6 +84,11 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.3.34 - ebai and continue_from bugfix
+
+* ebai: map phases onto -0.5,0.5 interval after computing phase-shift and sending to ebai
+* emcee: cast fitted_uniqueids to list when applying wrap indices for continue_from
+
 ### 2.3.33 - constrained and multivariate priors bugfix
 
 * fixes handling of multivariate distributions as priors
