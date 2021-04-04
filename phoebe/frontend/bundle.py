@@ -8034,7 +8034,7 @@ class Bundle(ParameterSet):
             parameters.
         * `sample_size` (int, optional, default=None): number of samples to draw from
             each distribution.  Note that this must be None if `set_value` is
-            set to True. **NOTE**: prior to 2.3.25, this argument was name `N`.
+            set to True. **NOTE**: prior to 2.3.25, this argument was named `N`.
         * `combine`: (str, optional) how to combine multiple distributions for the same parameter.
             first: ignore duplicate entries and take the first entry.
             and: combine duplicate entries via AND logic, dropping covariances.
