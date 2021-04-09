@@ -144,7 +144,7 @@ null
 "kind": "star",
 "context": "component",
 "description": "Critical (maximum) value of the equivalent radius for the given morphology",
-"value": 10.0,
+"value": 3.4292622920441116,
 "default_unit": "solRad",
 "limits": [
 0.0,
@@ -424,8 +424,8 @@ null
 "description": "Source for bolometric limb darkening coefficients (used only for irradiation; 'auto' to interpolate from the applicable table according to the 'atm' parameter, or the name of a specific atmosphere table)",
 "choices": [
 "auto",
-"phoenix",
-"ck2004"
+"ck2004",
+"phoenix"
 ],
 "value": "auto",
 "visible_if": "ld_mode_bol:lookup",
@@ -522,6 +522,22 @@ null
 "value": "1.000000 - {irrad_frac_refl_bol@starA@component}",
 "default_unit": "",
 "constraint_func": "irrad_frac",
+"constraint_kwargs": {
+"component": "starA"
+},
+"constraint_addl_vars": [],
+"in_solar_units": true,
+"Class": "ConstraintParameter"
+},
+{
+"qualifier": "requiv_max",
+"component": "starA",
+"kind": "star",
+"context": "constraint",
+"description": "expression that determines the constraint",
+"value": "0.814886 * (((2942.206218 * {mass@starA@component}) * (({period@starA@component} / 6.283185) ** 2.000000)) ** 0.333333)",
+"default_unit": "solRad",
+"constraint_func": "requiv_single_max",
 "constraint_kwargs": {
 "component": "starA"
 },
@@ -803,11 +819,11 @@ null
 "context": "compute",
 "description": "Atmosphere table",
 "choices": [
+"ck2004",
 "phoenix",
-"blackbody",
 "extern_planckint",
 "extern_atmx",
-"ck2004"
+"blackbody"
 ],
 "value": "ck2004",
 "copy_for": {
@@ -959,11 +975,11 @@ null
 "context": "compute",
 "description": "Atmosphere table",
 "choices": [
+"ck2004",
 "phoenix",
-"blackbody",
 "extern_planckint",
 "extern_atmx",
-"ck2004"
+"blackbody"
 ],
 "value": "ck2004",
 "copy_for": false,
