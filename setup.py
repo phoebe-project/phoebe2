@@ -346,8 +346,8 @@ else:
     long_description = "\n".join(long_description_s[long_description_s.index("INTRODUCTION"):])
 
 setup (name = 'phoebe',
-       version = '2.3.30',
-       description = 'PHOEBE 2.3.30',
+       version = '2.3.34',
+       description = 'PHOEBE 2.3.34',
        long_description=long_description,
        author = 'PHOEBE development team',
        author_email = 'phoebe-devel@lists.sourceforge.net',
@@ -367,9 +367,9 @@ setup (name = 'phoebe',
             'Programming Language :: Python :: 3 :: Only',
         ],
        python_requires='>=3.6, <4',
-       download_url = 'https://github.com/phoebe-project/phoebe2/tarball/2.3.30',
+       download_url = 'https://github.com/phoebe-project/phoebe2/tarball/2.3.34',
        packages = ['phoebe', 'phoebe.parameters', 'phoebe.parameters.solver', 'phoebe.parameters.figure', 'phoebe.frontend', 'phoebe.constraints', 'phoebe.dynamics', 'phoebe.distortions', 'phoebe.algorithms', 'phoebe.atmospheres', 'phoebe.backend', 'phoebe.solverbackends', 'phoebe.solverbackends.ebai', 'phoebe.utils', 'phoebe.helpers', 'phoebe.pool', 'phoebe.dependencies', 'phoebe.dependencies.autofig', 'phoebe.dependencies.nparray', 'phoebe.dependencies.distl', 'phoebe.dependencies.unitsiau2015'],
-       install_requires=['numpy>=1.12','scipy>=1.2','astropy>=1.0', 'corner', 'pytest', 'requests', 'python-socketio[client]']+['flask', 'flask-cors', 'flask-socketio', 'gevent-websocket'],
+       install_requires=['numpy>=1.12','scipy>=1.2','astropy>=1.0', 'corner', 'pytest', 'requests', 'python-socketio[client]']+['flask', 'flask-cors', 'flask-socketio==4.3.*', 'gevent-websocket'],
        package_data={'phoebe.atmospheres':['tables/wd/*', 'tables/passbands/*'],
                      'phoebe.frontend':['default_bundles/*.bundle'],
                      'phoebe.solverbackends.ebai': ['*.data', '*.weights']

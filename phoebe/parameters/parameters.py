@@ -3672,7 +3672,17 @@ class ParameterSet(object):
         # NOTE: this should automatically handle interpolating in phases, if necessary
         times = dataset_ps.get_value(qualifier='times', component=component, **_skip_filter_checks)
         if not len(times):
-            raise ValueError("no times in the dataset: {}@{}".format(dataset, component))
+            residuals = np.array([])
+            interp_model = np.array([])
+
+            if as_quantity:
+                residuals *= dataset_param.default_unit
+                interp_model *= dataset_param.default_unit
+
+            if return_interp_model:
+                return residuals, interp_model
+            else:
+                return residuals
 
         mask_enabled = dataset_ps.get_value(qualifier='mask_enabled', default=False, mask_enabled=mask_enabled, **_skip_filter_checks)
         if mask_enabled:

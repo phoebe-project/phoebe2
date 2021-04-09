@@ -160,7 +160,7 @@ def _lnprobability(sampled_values, b, params_uniqueids, compute,
         logger.warning("received error while running constraints: {}. lnprobability=-inf".format(err))
         return _return(-np.inf, str(err))
 
-    lnpriors = b.calculate_lnp(distribution=priors, combine=priors_combine)
+    lnpriors = b.calculate_lnp(distribution=priors, combine=priors_combine, include_constrained=True)
     if not np.isfinite(lnpriors):
         # no point in calculating the model then
         return _return(-np.inf, 'lnpriors = -inf')
@@ -1075,7 +1075,13 @@ class EbaiBackend(BaseSolverBackend):
             ecl_positions = lc_geom_dict.get('ecl_positions')
             # assume primary is close to zero?
             pshift = ecl_positions[np.argmin(abs(np.array(ecl_positions)))]
-            fit_result = lc_geometry.fit_lc(phases-pshift, fluxes, sigmas)
+            phases_shifted = phases-pshift 
+            phases_shifted[phases_shifted > 0.5] = phases_shifted[phases_shifted>0.5]-1.
+            phases_shifted[phases_shifted < -0.5] = phases_shifted[phases_shifted<-0.5]+1.
+            s=np.argsort(phases_shifted)
+            
+            fit_result = lc_geometry.fit_lc(phases_shifted[s], fluxes[s], sigmas[s])
+            best_fit = fit_result['best_fit']
             best_fit = fit_result['best_fit']
             ebai_phases = np.linspace(-0.5,0.5,201)
             ebai_fluxes = getattr(lc_geometry, 'const' if best_fit=='C' else best_fit.lower())(ebai_phases, *fit_result['fits'][best_fit][0])
@@ -1329,7 +1335,7 @@ class EmceeBackend(BaseSolverBackend):
                 if not np.all([uniqueid in b.uniqueids for uniqueid in params_uniqueids]):
                     logger.info("continue_from uniqueid matches not found, falling back on twigs")
                     params_twigs = continue_from_ps.get_value(qualifier='fitted_twigs', **_skip_filter_checks)
-                    original_params_uniqueids = params_uniqueids
+                    original_params_uniqueids = list(params_uniqueids)
                     params_uniqueids = [b.get_parameter(twig=twig, **_skip_filter_checks).uniqueid for twig in params_twigs]
 
                     if np.all([uniqueid in original_params_uniqueids for uniqueid in wrap_central_values.keys()]):
