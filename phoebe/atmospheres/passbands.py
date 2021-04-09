@@ -15,6 +15,7 @@ from astropy.table import Table
 import numpy as np
 from scipy import interpolate, integrate
 from scipy.optimize import curve_fit as cfit
+from scipy.spatial import KDTree
 from datetime import datetime
 import marshal
 import pickle
@@ -97,8 +98,6 @@ def ndpolate(x, N, lo, hi, fv):
     for i in range(N):
         for j in range(powers[N]):
             n[j,i] = lo[i] + (int(j/powers[i]) % 2) * (hi[i]-lo[i])
-
-    n = [lo[i] + (int(j/powers[i]) % 2) * (hi[i]-lo[i]) for j in range(powers[N]) for i in range(N)]
 
     for i in range(N):
         for j in range(powers[N-i-1]):
@@ -269,6 +268,9 @@ class Passband:
 
         # Initialize (empty) history:
         self.history = {}
+
+        # Initialize (empty) nearest neighbor search trees:
+        self.nntree = dict()
 
     def __repr__(self):
         return '<Passband: %s:%s>' % (self.pbset, self.pbname)
@@ -479,6 +481,8 @@ class Passband:
 
             self.history = {h.split(': ')[0]: ': '.join(h.split(': ')[1:]) for h in history if len(h.split(': ')) > 1}
 
+            self.nntree = dict()
+
             self.ptf_table = hdul['ptftable'].data
             self.wl = np.linspace(self.ptf_table['wl'][0], self.ptf_table['wl'][-1], int(self.wl_oversampling*len(self.ptf_table['wl'])))
 
@@ -487,9 +491,6 @@ class Passband:
             self.ptf = lambda wl: interpolate.splev(wl, self.ptf_func)
             self.ptf_photon_func = interpolate.splrep(self.ptf_table['wl'], self.ptf_table['fl']*self.ptf_table['wl'], s=0, k=self.ptf_order)
             self.ptf_photon = lambda wl: interpolate.splev(wl, self.ptf_photon_func)
-
-            # Rebuild nearest neighbor search trees:
-            # self.search_tree = {}
 
             if load_content:
                 if 'extern_planckint:Inorm' in self.content or 'extern_atmx:Inorm' in self.content:
@@ -516,6 +517,11 @@ class Passband:
                     self._ck2004_Imu_energy_grid = hdul['ckfegrid'].data
                     self._ck2004_Imu_photon_grid = hdul['ckfpgrid'].data
 
+                    # Rebuild the table of non-null indices for the nearest neighbor lookup:
+                    self._ck2004_indices = np.argwhere(~np.isnan(self._ck2004_Imu_photon_grid[...,-1,:]))
+                    non_nan_vertices = np.array([ [self._ck2004_intensity_axes[i][self._ck2004_indices[k][i]] for i in range(len(self._ck2004_intensity_axes)-1)] for k in range(len(self._ck2004_indices))])
+                    self.nntree['ck2004'] = KDTree(non_nan_vertices, copy_data=True)
+
                 if 'ck2004:ld' in self.content:
                     self._ck2004_ld_energy_grid = hdul['cklegrid'].data
                     self._ck2004_ld_photon_grid = hdul['cklpgrid'].data
@@ -533,6 +539,11 @@ class Passband:
                     self._phoenix_intensity_axes = (np.array(list(hdul['ph_teffs'].data['teff'])), np.array(list(hdul['ph_loggs'].data['logg'])), np.array(list(hdul['ph_abuns'].data['abun'])), np.array(list(hdul['ph_mus'].data['mu'])))
                     self._phoenix_Imu_energy_grid = hdul['phfegrid'].data
                     self._phoenix_Imu_photon_grid = hdul['phfpgrid'].data
+
+                    # Rebuild the table of non-null indices for the nearest neighbor lookup:
+                    self._phoenix_indices = np.argwhere(~np.isnan(self._phoenix_Imu_photon_grid[...,-1,:]))
+                    non_nan_vertices = np.array([ [self._phoenix_intensity_axes[i][self._phoenix_indices[k][i]] for i in range(len(self._phoenix_intensity_axes)-1)] for k in range(len(self._phoenix_indices))])
+                    self.nntree['phoenix'] = KDTree(non_nan_vertices, copy_data=True)
 
                 if 'phoenix:ld' in self.content:
                     self._phoenix_ld_energy_grid = hdul['phlegrid'].data
@@ -693,22 +704,303 @@ class Passband:
         if 'blackbody:Inorm' not in self.content:
             self.content.append('blackbody:Inorm')
 
-    def impute_atmosphere_grid(self, grid):
+    def compute_ck2004_intensities(self, path, particular=None, verbose=True):
         """
-        This function imputes the passed atmosphere grid by linear N-D interpolation.
-        As grid is passed by reference, it is not necessary to re-assign the table to
-        the return value of this function; the return value is provided for convenience
-        only, but the grid is changed in place.
+        Computes direction-dependent passband intensities using Castelli & Kurucz (2004)
+        model atmospheres.
+
+        Arguments
+        -----------
+        * `path` (string): path to the directory with SEDs in FITS format.
+        * `particular` (string, optional, default=None): particular file in
+            `path` to be processed; if None, all files in the directory are
+            processed.
+        * `verbose` (bool, optional, default=True): set to True to display
+            progress in the terminal.
         """
 
-        valid_mask = ~np.isnan(grid[...,0])
-        coords = np.array(np.nonzero(valid_mask)).T
-        values = grid[valid_mask][:,0]
-        it = interpolate.LinearNDInterpolator(coords, values, fill_value=0)
-        filled = it(list(np.ndindex(grid[...,0].shape))).reshape(grid[...,0].shape)
-        filled[filled==0] = np.nan
-        grid[...,0] = filled
-        return grid
+        if verbose:
+            print('Computing Castelli & Kurucz (2004) specific passband intensities for {self.pbset}:{self.pbname}.')
+
+        models = glob.glob(path+'/*fits')
+        Nmodels = len(models)
+
+        mus = np.array([0., 0.001, 0.002, 0.003, 0.005, 0.01 , 0.015, 0.02 , 0.025, 0.03, 0.035, 0.04, 0.045, 0.05, 0.06, 0.07, 0.08, 0.09, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.])
+
+        Teff, logg, abun = np.empty(Nmodels), np.empty(Nmodels), np.empty(Nmodels)
+
+        ImuE, ImuP = np.empty(Nmodels*len(mus)), np.empty(Nmodels*len(mus))
+        # boostingE, boostingP = np.empty(Nmodels), np.empty(Nmodels)
+
+        wavelengths = np.arange(900., 39999.501, 0.5)/1e10 # AA -> m
+
+        keep = (wavelengths >= self.ptf_table['wl'][0]) & (wavelengths <= self.ptf_table['wl'][-1])
+        wl = wavelengths[keep]
+        dwl = wl[1]-wl[0]
+
+        for i, model in enumerate(models):
+            with fits.open(model) as hdu:
+                intensities = hdu[0].data*1e7 # erg/s/cm^2/A -> W/m^3
+
+                # trim the spectrum to passband wavelength coverage:
+                intensities = intensities[:,keep]
+
+            model = model[model.rfind('/')+1:] # get relative pathname
+            Teff[i] = float(model[1:6])
+            logg[i] = float(model[7:9])/10
+            abun[i] = float(model[10:12])/10 * (-1 if model[9] == 'M' else 1)
+
+            flE = self.ptf(wl)*intensities
+            flEint = flE.sum(axis=1)
+
+            flP = wl*flE
+            flPint = flP.sum(axis=1)
+
+            ImuE[i*len(mus):(i+1)*len(mus)] = np.log10(flEint)-np.log10(self.ptf_area)+np.log10(dwl)        # energy-weighted intensity
+            ImuP[i*len(mus):(i+1)*len(mus)] = np.log10(flPint)-np.log10(self.ptf_photon_area)+np.log10(dwl) # photon-weighted intensity
+
+            if verbose:
+                sys.stdout.write('\r' + '%0.0f%% done.' % (100*float(i+1)/len(models)))
+                sys.stdout.flush()                
+
+        if verbose:
+            print('')
+
+            # for cmi, cmu in enumerate(mus):
+            #     fl = intensities[cmi,:]
+
+                # make a log-scale copy for boosting and fit a Legendre
+                # polynomial to the Imu envelope by way of sigma clipping;
+                # then compute a Legendre series derivative to get the
+                # boosting index; we only take positive fluxes to keep the
+                # log well defined.
+
+                # lnwl = np.log(wl[fl > 0])
+                # lnfl = np.log(fl[fl > 0]) + 5*lnwl
+
+                # First Legendre fit to the data:
+                # envelope = np.polynomial.legendre.legfit(lnwl, lnfl, 5)
+                # continuum = np.polynomial.legendre.legval(lnwl, envelope)
+                # diff = lnfl-continuum
+                # sigma = np.std(diff)
+                # clipped = (diff > -sigma)
+
+                # Sigma clip to get the continuum:
+                # while True:
+                #     Npts = clipped.sum()
+                #     envelope = np.polynomial.legendre.legfit(lnwl[clipped], lnfl[clipped], 5)
+                #     continuum = np.polynomial.legendre.legval(lnwl, envelope)
+                #     diff = lnfl-continuum
+
+                    # clipping will sometimes unclip already clipped points
+                    # because the fit is slightly different, which can lead
+                    # to infinite loops. To prevent that, we never allow
+                    # clipped points to be resurrected, which is achieved
+                    # by the following bitwise condition (array comparison):
+                #     clipped = clipped & (diff > -sigma)
+
+                #     if clipped.sum() == Npts:
+                #         break
+
+                # derivative = np.polynomial.legendre.legder(envelope, 1)
+                # boosting_index = np.polynomial.legendre.legval(lnwl, derivative)
+
+                # calculate energy (E) and photon (P) weighted fluxes and
+                # their integrals.
+
+                # calculate mean boosting coefficient and use it to get
+                # boosting factors for energy (E) and photon (P) weighted
+                # fluxes.
+
+                # boostE = (flE[fl > 0]*boosting_index).sum()/flEint
+                # boostP = (flP[fl > 0]*boosting_index).sum()/flPint
+                # boostingE[i] = boostE
+                # boostingP[i] = boostP
+
+        self._ck2004_intensity_axes = (np.unique(Teff), np.unique(logg), np.unique(abun), np.unique(mus))
+        self._ck2004_Imu_energy_grid = np.nan*np.ones((len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), len(self._ck2004_intensity_axes[3]), 1))
+        self._ck2004_Imu_photon_grid = np.nan*np.ones((len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), len(self._ck2004_intensity_axes[3]), 1))
+        # self._ck2004_boosting_energy_grid = np.nan*np.ones((len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), len(self._ck2004_intensity_axes[3]), 1))
+        # self._ck2004_boosting_photon_grid = np.nan*np.ones((len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), len(self._ck2004_intensity_axes[3]), 1))
+
+        # Set the limb (mu=0) to 0; in log this formally means flux density=1W/m3, but compared to ~10 that is
+        # the typical table[:,:,:,1,:] value, for all practical purposes that is still 0.
+        self._ck2004_Imu_energy_grid[:,:,:,0,:][~np.isnan(self._ck2004_Imu_energy_grid[:,:,:,1,:])] = 0.0
+        self._ck2004_Imu_photon_grid[:,:,:,0,:][~np.isnan(self._ck2004_Imu_photon_grid[:,:,:,1,:])] = 0.0
+        # self._ck2004_boosting_energy_grid[:,:,:,0,:] = 0.0
+        # self._ck2004_boosting_photon_grid[:,:,:,0,:] = 0.0
+
+        for i, Imu in enumerate(ImuE):
+            self._ck2004_Imu_energy_grid[Teff[int(i/len(mus))] == self._ck2004_intensity_axes[0], logg[int(i/len(mus))] == self._ck2004_intensity_axes[1], abun[int(i/len(mus))] == self._ck2004_intensity_axes[2], mus[i%len(mus)] == self._ck2004_intensity_axes[3], 0] = Imu
+        for i, Imu in enumerate(ImuP):
+            self._ck2004_Imu_photon_grid[Teff[int(i/len(mus))] == self._ck2004_intensity_axes[0], logg[int(i/len(mus))] == self._ck2004_intensity_axes[1], abun[int(i/len(mus))] == self._ck2004_intensity_axes[2], mus[i%len(mus)] == self._ck2004_intensity_axes[3], 0] = Imu
+        # for i, Bavg in enumerate(boostingE):
+        #     self._ck2004_boosting_energy_grid[Teff[i] == self._ck2004_intensity_axes[0], logg[i] == self._ck2004_intensity_axes[1], abun[i] == self._ck2004_intensity_axes[2], mu[i] == self._ck2004_intensity_axes[3], 0] = Bavg
+        # for i, Bavg in enumerate(boostingP):
+        #     self._ck2004_boosting_photon_grid[Teff[i] == self._ck2004_intensity_axes[0], logg[i] == self._ck2004_intensity_axes[1], abun[i] == self._ck2004_intensity_axes[2], mu[i] == self._ck2004_intensity_axes[3], 0] = Bavg
+
+        # Build the table of non-null indices for the nearest neighbor lookup:
+        self._ck2004_indices = np.argwhere(~np.isnan(self._ck2004_Imu_photon_grid[...,-1,:]))
+        non_nan_vertices = np.array([ [self._ck2004_intensity_axes[i][self._ck2004_indices[k][i]] for i in range(len(self._ck2004_intensity_axes)-1)] for k in range(len(self._ck2004_indices))])
+        self.nntree['ck2004'] = KDTree(non_nan_vertices, copy_data=True)
+
+        if 'ck2004:Imu' not in self.content:
+            self.content.append('ck2004:Imu')
+
+    def compute_phoenix_intensities(self, path, particular=None, verbose=False):
+        """
+        Computes direction-dependent passband intensities using spherical
+        PHOENIX (Husser et al. 2013) model atmospheres.
+
+        Arguments
+        -----------
+        * `path` (string): path to the directory with SEDs in FITS format.
+        * `particular` (string, optional, default=None): particular file in
+            `path` to be processed; if None, all files in the directory are
+            processed.
+        * `verbose` (bool, optional, default=False): set to True to display
+            progress in the terminal.
+        """
+
+        if verbose:
+            print('Computing PHOENIX (Husser et al. 2013) specific passband intensities for %s:%s.' % (self.pbset, self.pbname))
+
+        models = glob.glob(path+'/*fits')
+        Nmodels = len(models)
+
+        # the values of mu are hard-coded to the ck2004 values for 1-to-1 comparison:
+        mu = np.array([0., 0.001, 0.002, 0.003, 0.005, 0.01 , 0.015, 0.02 , 0.025, 0.03, 0.035, 0.04, 0.045, 0.05, 0.06, 0.07, 0.08, 0.09, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.])
+
+        Teff, logg, abun = np.empty(Nmodels), np.empty(Nmodels), np.empty(Nmodels)
+
+        ImuE, ImuP = np.empty(Nmodels*len(mu)), np.empty(Nmodels*len(mu))
+        # boostingE, boostingP = np.empty(Nmodels), np.empty(Nmodels)
+
+        wavelengths = np.arange(500., 26000.)/1e10 # AA -> m
+        keep = (wavelengths >= self.ptf_table['wl'][0]) & (wavelengths <= self.ptf_table['wl'][-1])
+        wl = wavelengths[keep]
+        dwl = wl[1]-wl[0]
+
+        for i, model in enumerate(models):
+            with fits.open(model) as hdu:
+                mus = hdu[1].data
+                intensities = hdu[0].data*1e-1
+
+                # trim the spectrum at passband limits:
+                intensities = intensities[:,keep]
+
+            model = model[model.rfind('/')+1:] # get relative pathname
+            Teff[i] = float(model[3:8])
+            logg[i] = float(model[9:13])
+            abun[i] = float(model[13:17])
+
+            flE = self.ptf(wl)*intensities
+            flEint = flE.sum(axis=1)
+            flEint = self._rescale_phoenix_intensities(mu, mus, flEint)
+
+            flP = wl*flE
+            flPint = flP.sum(axis=1)
+            flPint = self._rescale_phoenix_intensities(mu, mus, flPint)
+
+            ImuE[i*len(mu):(i+1)*len(mu)] = np.log10(flEint/self.ptf_area*dwl)        # energy-weighted intensity
+            ImuP[i*len(mu):(i+1)*len(mu)] = np.log10(flPint/self.ptf_photon_area*dwl) # photon-weighted intensity
+
+            if verbose:
+                sys.stdout.write('\r' + '%0.0f%% done.' % (100*float(i+1)/len(models)))
+                sys.stdout.flush()
+
+        if verbose:
+            print('')
+
+            # for cmi, cmu in enumerate(mus):
+            #     fl = intensities[cmi,:]
+
+                # make a log-scale copy for boosting and fit a Legendre
+                # polynomial to the Imu envelope by way of sigma clipping;
+                # then compute a Legendre series derivative to get the
+                # boosting index; we only take positive fluxes to keep the
+                # log well defined.
+
+                # lnwl = np.log(wl[fl > 0])
+                # lnfl = np.log(fl[fl > 0]) + 5*lnwl
+
+                # First Legendre fit to the data:
+                # envelope = np.polynomial.legendre.legfit(lnwl, lnfl, 5)
+                # continuum = np.polynomial.legendre.legval(lnwl, envelope)
+                # diff = lnfl-continuum
+                # sigma = np.std(diff)
+                # clipped = (diff > -sigma)
+
+                # Sigma clip to get the continuum:
+                # while True:
+                #     Npts = clipped.sum()
+                #     envelope = np.polynomial.legendre.legfit(lnwl[clipped], lnfl[clipped], 5)
+                #     continuum = np.polynomial.legendre.legval(lnwl, envelope)
+                #     diff = lnfl-continuum
+
+                    # clipping will sometimes unclip already clipped points
+                    # because the fit is slightly different, which can lead
+                    # to infinite loops. To prevent that, we never allow
+                    # clipped points to be resurrected, which is achieved
+                    # by the following bitwise condition (array comparison):
+                #     clipped = clipped & (diff > -sigma)
+
+                #     if clipped.sum() == Npts:
+                #         break
+
+                # derivative = np.polynomial.legendre.legder(envelope, 1)
+                # boosting_index = np.polynomial.legendre.legval(lnwl, derivative)
+
+                # calculate energy (E) and photon (P) weighted fluxes and
+                # their integrals.
+
+                # calculate mean boosting coefficient and use it to get
+                # boosting factors for energy (E) and photon (P) weighted
+                # fluxes.
+
+                # boostE = (flE[fl > 0]*boosting_index).sum()/flEint
+                # boostP = (flP[fl > 0]*boosting_index).sum()/flPint
+                # boostingE[i] = boostE
+                # boostingP[i] = boostP
+
+
+
+        # Store axes (Teff, logg, abun, mu) and the full grid of Imu,
+        # with nans where the grid isn't complete. Imu-s come in two
+        # flavors: energy-weighted intensities and photon-weighted
+        # intensities, based on the detector used.
+
+        self._phoenix_intensity_axes = (np.unique(Teff), np.unique(logg), np.unique(abun), np.unique(mu))
+        self._phoenix_Imu_energy_grid = np.nan*np.ones((len(self._phoenix_intensity_axes[0]), len(self._phoenix_intensity_axes[1]), len(self._phoenix_intensity_axes[2]), len(self._phoenix_intensity_axes[3]), 1))
+        self._phoenix_Imu_photon_grid = np.nan*np.ones((len(self._phoenix_intensity_axes[0]), len(self._phoenix_intensity_axes[1]), len(self._phoenix_intensity_axes[2]), len(self._phoenix_intensity_axes[3]), 1))
+        # self._ck2004_phoenix_energy_grid = np.nan*np.ones((len(self._phoenix_intensity_axes[0]), len(self._phoenix_intensity_axes[1]), len(self._phoenix_intensity_axes[2]), len(self._phoenix_intensity_axes[3]), 1))
+        # self._ck2004_phoenix_photon_grid = np.nan*np.ones((len(self._phoenix_intensity_axes[0]), len(self._phoenix_intensity_axes[1]), len(self._phoenix_intensity_axes[2]), len(self._phoenix_intensity_axes[3]), 1))
+
+        # By design, mu=0 for phoenix atmospheres does not correspond to I=0; but to make this consistent with
+        # the plane-parallel ck2004 atmospheres, we set the limb (mu=0) to 0; in log this formally means flux
+        # density=1W/m3, but compared to ~10 that is the typical table[:,:,:,1,:] value, for all practical
+        # purposes that is still 0.
+        self._phoenix_Imu_energy_grid[:,:,:,0,:][~np.isnan(self._phoenix_Imu_energy_grid[:,:,:,1,:])] = 0.0
+        self._phoenix_Imu_photon_grid[:,:,:,0,:][~np.isnan(self._phoenix_Imu_photon_grid[:,:,:,1,:])] = 0.0
+        # self._phoenix_boosting_energy_grid[:,:,:,0,:] = 0.0
+        # self._phoenix_boosting_photon_grid[:,:,:,0,:] = 0.0
+
+        for i, Imu in enumerate(ImuE):
+            self._phoenix_Imu_energy_grid[Teff[int(i/len(mu))] == self._phoenix_intensity_axes[0], logg[int(i/len(mu))] == self._phoenix_intensity_axes[1], abun[int(i/len(mu))] == self._phoenix_intensity_axes[2], mu[i%len(mu)] == self._phoenix_intensity_axes[3], 0] = Imu
+        for i, Imu in enumerate(ImuP):
+            self._phoenix_Imu_photon_grid[Teff[int(i/len(mu))] == self._phoenix_intensity_axes[0], logg[int(i/len(mu))] == self._phoenix_intensity_axes[1], abun[int(i/len(mu))] == self._phoenix_intensity_axes[2], mu[i%len(mu)] == self._phoenix_intensity_axes[3], 0] = Imu
+        # for i, Bavg in enumerate(boostingE):
+        #     self._ck2004_boosting_energy_grid[Teff[i] == self._ck2004_intensity_axes[0], logg[i] == self._ck2004_intensity_axes[1], abun[i] == self._ck2004_intensity_axes[2], mu[i] == self._ck2004_intensity_axes[3], 0] = Bavg
+        # for i, Bavg in enumerate(boostingP):
+        #     self._ck2004_boosting_photon_grid[Teff[i] == self._ck2004_intensity_axes[0], logg[i] == self._ck2004_intensity_axes[1], abun[i] == self._ck2004_intensity_axes[2], mu[i] == self._ck2004_intensity_axes[3], 0] = Bavg
+
+        # Build the table of non-null indices for the nearest neighbor lookup:
+        self._phoenix_indices = np.argwhere(~np.isnan(self._phoenix_Imu_photon_grid[...,-1,:]))
+        non_nan_vertices = np.array([ [self._phoenix_intensity_axes[i][self._phoenix_indices[k][i]] for i in range(len(self._phoenix_intensity_axes)-1)] for k in range(len(self._phoenix_indices))])
+        self.nntree['phoenix'] = KDTree(non_nan_vertices, copy_data=True)
+
+        if 'phoenix:Imu' not in self.content:
+            self.content.append('phoenix:Imu')
 
     def compute_bb_reddening(self, Teffs=None, Ebv=None, Rv=None, verbose=False):
         """
@@ -1058,296 +1350,6 @@ class Passband:
         # interpolate intensities in user-provided mus
         intensity_interp = interpolate.interp1d(mus_norm, intensity_phoenix)
         return intensity_interp(mu_interp)
-
-    def compute_ck2004_intensities(self, path, particular=None, verbose=False):
-        """
-        Computes direction-dependent passband intensities using Castelli & Kurucz (2004)
-        model atmospheres.
-
-        Arguments
-        -----------
-        * `path` (string): path to the directory with SEDs in FITS format.
-        * `particular` (string, optional, default=None): particular file in
-            `path` to be processed; if None, all files in the directory are
-            processed.
-        * `verbose` (bool, optional, default=False): set to True to display
-            progress in the terminal.
-        """
-
-        if verbose:
-            print('Computing Castelli & Kurucz (2004) specific passband intensities for %s:%s.' % (self.pbset, self.pbname))
-
-        models = glob.glob(path+'/*fits')
-        Nmodels = len(models)
-
-        mus = np.array([0., 0.001, 0.002, 0.003, 0.005, 0.01 , 0.015, 0.02 , 0.025, 0.03, 0.035, 0.04, 0.045, 0.05, 0.06, 0.07, 0.08, 0.09, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.])
-
-        Teff, logg, abun = np.empty(Nmodels), np.empty(Nmodels), np.empty(Nmodels)
-
-        ImuE, ImuP = np.empty(Nmodels*len(mus)), np.empty(Nmodels*len(mus))
-        # boostingE, boostingP = np.empty(Nmodels), np.empty(Nmodels)
-
-        wavelengths = np.arange(900., 39999.501, 0.5)/1e10 # AA -> m
-
-        keep = (wavelengths >= self.ptf_table['wl'][0]) & (wavelengths <= self.ptf_table['wl'][-1])
-        wl = wavelengths[keep]
-        dwl = wl[1]-wl[0]
-
-        for i, model in enumerate(models):
-            with fits.open(model) as hdu:
-                intensities = hdu[0].data*1e7 # erg/s/cm^2/A -> W/m^3
-                # FIXME: the line below is not needed when atm gets updated:
-                intensities[0,:] = np.ones(len(wavelengths))
-
-                # trim the spectrum at passband limits:
-                intensities = intensities[:,keep]
-
-            model = model[model.rfind('/')+1:] # get relative pathname
-            Teff[i] = float(model[1:6])
-            logg[i] = float(model[7:9])/10
-            abun[i] = float(model[10:12])/10 * (-1 if model[9] == 'M' else 1)
-
-            flE = self.ptf(wl)*intensities
-            flEint = flE.sum(axis=1)
-
-            flP = wl*flE
-            flPint = flP.sum(axis=1)
-
-            ImuE[i*len(mus):(i+1)*len(mus)] = np.log10(flEint/self.ptf_area*dwl)        # energy-weighted intensity
-            ImuP[i*len(mus):(i+1)*len(mus)] = np.log10(flPint/self.ptf_photon_area*dwl) # photon-weighted intensity
-
-            if verbose:
-                sys.stdout.write('\r' + '%0.0f%% done.' % (100*float(i+1)/len(models)))
-                sys.stdout.flush()
-
-        if verbose:
-            print('')
-
-            # for cmi, cmu in enumerate(mus):
-            #     fl = intensities[cmi,:]
-
-                # make a log-scale copy for boosting and fit a Legendre
-                # polynomial to the Imu envelope by way of sigma clipping;
-                # then compute a Legendre series derivative to get the
-                # boosting index; we only take positive fluxes to keep the
-                # log well defined.
-
-                # lnwl = np.log(wl[fl > 0])
-                # lnfl = np.log(fl[fl > 0]) + 5*lnwl
-
-                # First Legendre fit to the data:
-                # envelope = np.polynomial.legendre.legfit(lnwl, lnfl, 5)
-                # continuum = np.polynomial.legendre.legval(lnwl, envelope)
-                # diff = lnfl-continuum
-                # sigma = np.std(diff)
-                # clipped = (diff > -sigma)
-
-                # Sigma clip to get the continuum:
-                # while True:
-                #     Npts = clipped.sum()
-                #     envelope = np.polynomial.legendre.legfit(lnwl[clipped], lnfl[clipped], 5)
-                #     continuum = np.polynomial.legendre.legval(lnwl, envelope)
-                #     diff = lnfl-continuum
-
-                    # clipping will sometimes unclip already clipped points
-                    # because the fit is slightly different, which can lead
-                    # to infinite loops. To prevent that, we never allow
-                    # clipped points to be resurrected, which is achieved
-                    # by the following bitwise condition (array comparison):
-                #     clipped = clipped & (diff > -sigma)
-
-                #     if clipped.sum() == Npts:
-                #         break
-
-                # derivative = np.polynomial.legendre.legder(envelope, 1)
-                # boosting_index = np.polynomial.legendre.legval(lnwl, derivative)
-
-                # calculate energy (E) and photon (P) weighted fluxes and
-                # their integrals.
-
-                # calculate mean boosting coefficient and use it to get
-                # boosting factors for energy (E) and photon (P) weighted
-                # fluxes.
-
-                # boostE = (flE[fl > 0]*boosting_index).sum()/flEint
-                # boostP = (flP[fl > 0]*boosting_index).sum()/flPint
-                # boostingE[i] = boostE
-                # boostingP[i] = boostP
-
-        self._ck2004_intensity_axes = (np.unique(Teff), np.unique(logg), np.unique(abun), np.unique(mus))
-        self._ck2004_Imu_energy_grid = np.nan*np.ones((len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), len(self._ck2004_intensity_axes[3]), 1))
-        self._ck2004_Imu_photon_grid = np.nan*np.ones((len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), len(self._ck2004_intensity_axes[3]), 1))
-        # self._ck2004_boosting_energy_grid = np.nan*np.ones((len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), len(self._ck2004_intensity_axes[3]), 1))
-        # self._ck2004_boosting_photon_grid = np.nan*np.ones((len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), len(self._ck2004_intensity_axes[3]), 1))
-
-        # Set the limb (mu=0) to 0; in log this formally means flux density=1W/m3, but compared to ~10 that is
-        # the typical table[:,:,:,1,:] value, for all practical purposes that is still 0.
-        self._ck2004_Imu_energy_grid[:,:,:,0,:][~np.isnan(self._ck2004_Imu_energy_grid[:,:,:,1,:])] = 0.0
-        self._ck2004_Imu_photon_grid[:,:,:,0,:][~np.isnan(self._ck2004_Imu_photon_grid[:,:,:,1,:])] = 0.0
-        # self._ck2004_boosting_energy_grid[:,:,:,0,:] = 0.0
-        # self._ck2004_boosting_photon_grid[:,:,:,0,:] = 0.0
-
-        for i, Imu in enumerate(ImuE):
-            self._ck2004_Imu_energy_grid[Teff[int(i/len(mus))] == self._ck2004_intensity_axes[0], logg[int(i/len(mus))] == self._ck2004_intensity_axes[1], abun[int(i/len(mus))] == self._ck2004_intensity_axes[2], mus[i%len(mus)] == self._ck2004_intensity_axes[3], 0] = Imu
-        for i, Imu in enumerate(ImuP):
-            self._ck2004_Imu_photon_grid[Teff[int(i/len(mus))] == self._ck2004_intensity_axes[0], logg[int(i/len(mus))] == self._ck2004_intensity_axes[1], abun[int(i/len(mus))] == self._ck2004_intensity_axes[2], mus[i%len(mus)] == self._ck2004_intensity_axes[3], 0] = Imu
-        # for i, Bavg in enumerate(boostingE):
-        #     self._ck2004_boosting_energy_grid[Teff[i] == self._ck2004_intensity_axes[0], logg[i] == self._ck2004_intensity_axes[1], abun[i] == self._ck2004_intensity_axes[2], mu[i] == self._ck2004_intensity_axes[3], 0] = Bavg
-        # for i, Bavg in enumerate(boostingP):
-        #     self._ck2004_boosting_photon_grid[Teff[i] == self._ck2004_intensity_axes[0], logg[i] == self._ck2004_intensity_axes[1], abun[i] == self._ck2004_intensity_axes[2], mu[i] == self._ck2004_intensity_axes[3], 0] = Bavg
-
-        if 'ck2004:Imu' not in self.content:
-            self.content.append('ck2004:Imu')
-
-    def compute_phoenix_intensities(self, path, particular=None, verbose=False):
-        """
-        Computes direction-dependent passband intensities using spherical
-        PHOENIX (Husser et al. 2013) model atmospheres.
-
-        Arguments
-        -----------
-        * `path` (string): path to the directory with SEDs in FITS format.
-        * `particular` (string, optional, default=None): particular file in
-            `path` to be processed; if None, all files in the directory are
-            processed.
-        * `verbose` (bool, optional, default=False): set to True to display
-            progress in the terminal.
-        """
-
-        if verbose:
-            print('Computing PHOENIX (Husser et al. 2013) specific passband intensities for %s:%s.' % (self.pbset, self.pbname))
-
-        models = glob.glob(path+'/*fits')
-        Nmodels = len(models)
-
-        # the values of mu are hard-coded to the ck2004 values for 1-to-1 comparison:
-        mu = np.array([0., 0.001, 0.002, 0.003, 0.005, 0.01 , 0.015, 0.02 , 0.025, 0.03, 0.035, 0.04, 0.045, 0.05, 0.06, 0.07, 0.08, 0.09, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.])
-
-        Teff, logg, abun = np.empty(Nmodels), np.empty(Nmodels), np.empty(Nmodels)
-
-        ImuE, ImuP = np.empty(Nmodels*len(mu)), np.empty(Nmodels*len(mu))
-        # boostingE, boostingP = np.empty(Nmodels), np.empty(Nmodels)
-
-        wavelengths = np.arange(500., 26000.)/1e10 # AA -> m
-        keep = (wavelengths >= self.ptf_table['wl'][0]) & (wavelengths <= self.ptf_table['wl'][-1])
-        wl = wavelengths[keep]
-        dwl = wl[1]-wl[0]
-
-        for i, model in enumerate(models):
-            with fits.open(model) as hdu:
-                mus = hdu[1].data
-                intensities = hdu[0].data*1e-1
-
-                # trim the spectrum at passband limits:
-                intensities = intensities[:,keep]
-
-            model = model[model.rfind('/')+1:] # get relative pathname
-            Teff[i] = float(model[3:8])
-            logg[i] = float(model[9:13])
-            abun[i] = float(model[13:17])
-
-            flE = self.ptf(wl)*intensities
-            flEint = flE.sum(axis=1)
-            flEint = self._rescale_phoenix_intensities(mu, mus, flEint)
-
-            flP = wl*flE
-            flPint = flP.sum(axis=1)
-            flPint = self._rescale_phoenix_intensities(mu, mus, flPint)
-
-            ImuE[i*len(mu):(i+1)*len(mu)] = np.log10(flEint/self.ptf_area*dwl)        # energy-weighted intensity
-            ImuP[i*len(mu):(i+1)*len(mu)] = np.log10(flPint/self.ptf_photon_area*dwl) # photon-weighted intensity
-
-            if verbose:
-                sys.stdout.write('\r' + '%0.0f%% done.' % (100*float(i+1)/len(models)))
-                sys.stdout.flush()
-
-        if verbose:
-            print('')
-
-            # for cmi, cmu in enumerate(mus):
-            #     fl = intensities[cmi,:]
-
-                # make a log-scale copy for boosting and fit a Legendre
-                # polynomial to the Imu envelope by way of sigma clipping;
-                # then compute a Legendre series derivative to get the
-                # boosting index; we only take positive fluxes to keep the
-                # log well defined.
-
-                # lnwl = np.log(wl[fl > 0])
-                # lnfl = np.log(fl[fl > 0]) + 5*lnwl
-
-                # First Legendre fit to the data:
-                # envelope = np.polynomial.legendre.legfit(lnwl, lnfl, 5)
-                # continuum = np.polynomial.legendre.legval(lnwl, envelope)
-                # diff = lnfl-continuum
-                # sigma = np.std(diff)
-                # clipped = (diff > -sigma)
-
-                # Sigma clip to get the continuum:
-                # while True:
-                #     Npts = clipped.sum()
-                #     envelope = np.polynomial.legendre.legfit(lnwl[clipped], lnfl[clipped], 5)
-                #     continuum = np.polynomial.legendre.legval(lnwl, envelope)
-                #     diff = lnfl-continuum
-
-                    # clipping will sometimes unclip already clipped points
-                    # because the fit is slightly different, which can lead
-                    # to infinite loops. To prevent that, we never allow
-                    # clipped points to be resurrected, which is achieved
-                    # by the following bitwise condition (array comparison):
-                #     clipped = clipped & (diff > -sigma)
-
-                #     if clipped.sum() == Npts:
-                #         break
-
-                # derivative = np.polynomial.legendre.legder(envelope, 1)
-                # boosting_index = np.polynomial.legendre.legval(lnwl, derivative)
-
-                # calculate energy (E) and photon (P) weighted fluxes and
-                # their integrals.
-
-                # calculate mean boosting coefficient and use it to get
-                # boosting factors for energy (E) and photon (P) weighted
-                # fluxes.
-
-                # boostE = (flE[fl > 0]*boosting_index).sum()/flEint
-                # boostP = (flP[fl > 0]*boosting_index).sum()/flPint
-                # boostingE[i] = boostE
-                # boostingP[i] = boostP
-
-
-
-        # Store axes (Teff, logg, abun, mu) and the full grid of Imu,
-        # with nans where the grid isn't complete. Imu-s come in two
-        # flavors: energy-weighted intensities and photon-weighted
-        # intensities, based on the detector used.
-
-        self._phoenix_intensity_axes = (np.unique(Teff), np.unique(logg), np.unique(abun), np.unique(mu))
-        self._phoenix_Imu_energy_grid = np.nan*np.ones((len(self._phoenix_intensity_axes[0]), len(self._phoenix_intensity_axes[1]), len(self._phoenix_intensity_axes[2]), len(self._phoenix_intensity_axes[3]), 1))
-        self._phoenix_Imu_photon_grid = np.nan*np.ones((len(self._phoenix_intensity_axes[0]), len(self._phoenix_intensity_axes[1]), len(self._phoenix_intensity_axes[2]), len(self._phoenix_intensity_axes[3]), 1))
-        # self._ck2004_phoenix_energy_grid = np.nan*np.ones((len(self._phoenix_intensity_axes[0]), len(self._phoenix_intensity_axes[1]), len(self._phoenix_intensity_axes[2]), len(self._phoenix_intensity_axes[3]), 1))
-        # self._ck2004_phoenix_photon_grid = np.nan*np.ones((len(self._phoenix_intensity_axes[0]), len(self._phoenix_intensity_axes[1]), len(self._phoenix_intensity_axes[2]), len(self._phoenix_intensity_axes[3]), 1))
-
-        # By design, mu=0 for phoenix atmospheres does not correspond to I=0; but to make this consistent with
-        # the plane-parallel ck2004 atmospheres, we set the limb (mu=0) to 0; in log this formally means flux
-        # density=1W/m3, but compared to ~10 that is the typical table[:,:,:,1,:] value, for all practical
-        # purposes that is still 0.
-        self._phoenix_Imu_energy_grid[:,:,:,0,:][~np.isnan(self._phoenix_Imu_energy_grid[:,:,:,1,:])] = 0.0
-        self._phoenix_Imu_photon_grid[:,:,:,0,:][~np.isnan(self._phoenix_Imu_photon_grid[:,:,:,1,:])] = 0.0
-        # self._phoenix_boosting_energy_grid[:,:,:,0,:] = 0.0
-        # self._phoenix_boosting_photon_grid[:,:,:,0,:] = 0.0
-
-        for i, Imu in enumerate(ImuE):
-            self._phoenix_Imu_energy_grid[Teff[int(i/len(mu))] == self._phoenix_intensity_axes[0], logg[int(i/len(mu))] == self._phoenix_intensity_axes[1], abun[int(i/len(mu))] == self._phoenix_intensity_axes[2], mu[i%len(mu)] == self._phoenix_intensity_axes[3], 0] = Imu
-        for i, Imu in enumerate(ImuP):
-            self._phoenix_Imu_photon_grid[Teff[int(i/len(mu))] == self._phoenix_intensity_axes[0], logg[int(i/len(mu))] == self._phoenix_intensity_axes[1], abun[int(i/len(mu))] == self._phoenix_intensity_axes[2], mu[i%len(mu)] == self._phoenix_intensity_axes[3], 0] = Imu
-        # for i, Bavg in enumerate(boostingE):
-        #     self._ck2004_boosting_energy_grid[Teff[i] == self._ck2004_intensity_axes[0], logg[i] == self._ck2004_intensity_axes[1], abun[i] == self._ck2004_intensity_axes[2], mu[i] == self._ck2004_intensity_axes[3], 0] = Bavg
-        # for i, Bavg in enumerate(boostingP):
-        #     self._ck2004_boosting_photon_grid[Teff[i] == self._ck2004_intensity_axes[0], logg[i] == self._ck2004_intensity_axes[1], abun[i] == self._ck2004_intensity_axes[2], mu[i] == self._ck2004_intensity_axes[3], 0] = Bavg
-
-        if 'phoenix:Imu' not in self.content:
-            self.content.append('phoenix:Imu')
 
     def _ldlaw_lin(self, mu, xl):
         return 1.0-xl*(1-mu)
@@ -2070,10 +2072,10 @@ class Passband:
             # -1 below is for cgs -> SI:
             retval = 10**(self._log10_Inorm_extern_atmx(Teff, logg, abun)-1)
 
-        elif atm == 'ck2004' and 'ck2004:Inorm' in self.content:
+        elif atm == 'ck2004' and 'ck2004:Imu' in self.content:
             retval = self._Inorm_ck2004(Teff, logg, abun, photon_weighted=photon_weighted)
 
-        elif atm == 'phoenix' and 'phoenix:Inorm' in self.content:
+        elif atm == 'phoenix' and 'phoenix:Imu' in self.content:
             retval = self._Inorm_phoenix(Teff, logg, abun, photon_weighted=photon_weighted)
 
         else:
