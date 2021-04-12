@@ -3258,13 +3258,11 @@ if __name__ == '__main__':
 
     pb.compute_blackbody_response()
 
-    pb.compute_ck2004_response(path='tables/ck2004', verbose=True)
-    pb.compute_ck2004_intensities(path='tables/ck2004', verbose=True)
+    pb.compute_ck2004_intensities(path='tables/ck2004', impute=True, verbose=True)
     pb.compute_ck2004_ldcoeffs()
     pb.compute_ck2004_ldints()
 
-    pb.compute_phoenix_response(path='tables/phoenix', verbose=True)
-    pb.compute_phoenix_intensities(path='tables/phoenix', verbose=True)
+    pb.compute_phoenix_intensities(path='tables/phoenix', impute=True, verbose=True)
     pb.compute_phoenix_ldcoeffs()
     pb.compute_phoenix_ldints()
 
@@ -3285,14 +3283,12 @@ if __name__ == '__main__':
     pb.compute_blackbody_response()
     pb.compute_bb_reddening(verbose=True)
 
-    pb.compute_ck2004_response(path='tables/ck2004', verbose=True)
-    pb.compute_ck2004_intensities(path='tables/ck2004', verbose=True)
+    pb.compute_ck2004_intensities(path='tables/ck2004', impute=True, verbose=True)
     pb.compute_ck2004_ldcoeffs()
     pb.compute_ck2004_ldints()
     pb.compute_ck2004_reddening(path='tables/ck2004', verbose=True)
 
-    pb.compute_phoenix_response(path='tables/phoenix', verbose=True)
-    pb.compute_phoenix_intensities(path='tables/phoenix', verbose=True)
+    pb.compute_phoenix_intensities(path='tables/phoenix', impute=True, verbose=True)
     pb.compute_phoenix_ldcoeffs()
     pb.compute_phoenix_ldints()
     pb.compute_phoenix_reddening(path='tables/phoenix', verbose=True)
