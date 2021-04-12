@@ -16,6 +16,7 @@ import numpy as np
 from scipy import interpolate, integrate
 from scipy.optimize import curve_fit as cfit
 from scipy.spatial import KDTree
+from scipy.special import binom as binomial
 from datetime import datetime
 import marshal
 import pickle
@@ -79,35 +80,41 @@ _pbdir_env = os.getenv('PHOEBE_PBDIR', None)
 def _dict_without_keys(d, skip_keys=[]):
     return {k:v for k,v in d.items() if k not in skip_keys}
 
-def ndpolate(x, N, lo, hi, fv):
+def ndpolate(x, lo, hi, fv, copy_data=False):
     """
-    @x: vector(s) of interest
-    @N: dimension of the interpolation space
+    @x: vector of interest
     @lo: N-dimensional vector of lower knot values
     @hi: N-dimensional vector of upper knot values
     @fv: (2^N)-dimensional vector of function values at knots
+    @copy_data: boolean switch to control whether a local copy of fv should be made
+    before it is modified.
 
     Linear interpolation or extrapolation in N dimensions. The fv array is modified so
-    make sure you pass a copy if you need to reuse it.
+    make sure you pass a copy if you need to reuse it, or set copy_data=True if you want
+    to work on a copy.
     """
 
+    N = len(lo)
     powers = [2**k for k in range(N+1)]
 
     n = np.empty((powers[N], N))
 
+    lfv = fv.copy() if copy_data else fv
+
     for i in range(N):
         for j in range(powers[N]):
             n[j,i] = lo[i] + (int(j/powers[i]) % 2) * (hi[i]-lo[i])
-
+    
     for i in range(N):
         for j in range(powers[N-i-1]):
-            fv[j] += (x[N-i-1]-n[j,N-i-1])/(n[j+powers[N-i-1],N-i-1]-n[j,N-i-1])*(fv[j+powers[N-i-1]]-fv[j])
+            lfv[j] += (x[N-i-1]-n[j,N-i-1])/(n[j+powers[N-i-1],N-i-1]-n[j,N-i-1])*(lfv[j+powers[N-i-1]]-lfv[j])
 
-    return fv[0]
+    return lfv[0]
 
-def interpolate_all_directions(entry):
+def interpolate_all_directions(entry, axes, grid):
     N = len(entry)
     interpolants = []
+
     for D in range(N, 0, -1): # sub-dimensions
         for d in range(int(binomial(N, D))): # combinations per sub-dimension
             slc = [slice(max(0, entry[k]-1), min(entry[k]+2, len(axes[k])), 2) for k in range(N)]
@@ -117,18 +124,27 @@ def interpolate_all_directions(entry):
                 slc[(d+l)%N] = slice(entry[(d+l)%N], entry[(d+l)%N]+1)
                 mask[(d+l)%N] = False
 
-            fv = ints[tuple(slc)].reshape(-1, 1)
+            fv = grid[tuple(slc)].reshape(-1, 1)
             if len(fv) != 2**mask.sum(): # missing vertices, cannot calculate
                 continue
 
             x = np.array([axes[k][entry[k]] for k in range(N)])[mask]
             lo = np.array([axes[k][max(0,entry[k]-1)] for k in range(N)])[mask]
             hi = np.array([axes[k][min(entry[k]+1,len(axes[k])-1)] for k in range(N)])[mask]
-            fv = ints[tuple(slc)].copy().reshape(-1, 1)
-                
-            interpolants.append(ndpolate(x, D, lo, hi, fv))
+            fv = grid[tuple(slc)].reshape(-1, 1)
+
+            interpolants.append(ndpolate(x, lo, hi, fv, copy_data=True))
 
     return np.array(interpolants)
+
+def impute_grid(axes, grid):
+    nantable = np.argwhere(np.isnan(grid[...,0]))
+    for entry in nantable:
+        interps = interpolate_all_directions(entry=entry, axes=axes, grid=grid)
+        if np.all(np.isnan(interps)):
+            continue
+        interps = interps[~np.isnan(interps)].mean()
+        grid[tuple(entry)][0] = interps
 
 class Passband:
     def __init__(self, ptf=None, pbset='Johnson', pbname='V', effwl=5500.0,
@@ -704,7 +720,7 @@ class Passband:
         if 'blackbody:Inorm' not in self.content:
             self.content.append('blackbody:Inorm')
 
-    def compute_ck2004_intensities(self, path, particular=None, verbose=True):
+    def compute_ck2004_intensities(self, path, particular=None, impute=False, verbose=True):
         """
         Computes direction-dependent passband intensities using Castelli & Kurucz (2004)
         model atmospheres.
@@ -715,12 +731,14 @@ class Passband:
         * `particular` (string, optional, default=None): particular file in
             `path` to be processed; if None, all files in the directory are
             processed.
+        * `impute` (boolean, optional, default=False): should NaN values
+            within the grid be imputed.
         * `verbose` (bool, optional, default=True): set to True to display
             progress in the terminal.
         """
 
         if verbose:
-            print('Computing Castelli & Kurucz (2004) specific passband intensities for {self.pbset}:{self.pbname}.')
+            print(f'Computing Castelli & Kurucz (2004) specific passband intensities for {self.pbset}:{self.pbname}.')
 
         models = glob.glob(path+'/*fits')
         Nmodels = len(models)
@@ -752,9 +770,11 @@ class Passband:
 
             flE = self.ptf(wl)*intensities
             flEint = flE.sum(axis=1)
+            flEint[flEint < 1.0] = 1.0
 
             flP = wl*flE
             flPint = flP.sum(axis=1)
+            flPint[flPint < 1.0] = 1.0
 
             ImuE[i*len(mus):(i+1)*len(mus)] = np.log10(flEint)-np.log10(self.ptf_area)+np.log10(dwl)        # energy-weighted intensity
             ImuP[i*len(mus):(i+1)*len(mus)] = np.log10(flPint)-np.log10(self.ptf_photon_area)+np.log10(dwl) # photon-weighted intensity
@@ -839,6 +859,14 @@ class Passband:
         # for i, Bavg in enumerate(boostingP):
         #     self._ck2004_boosting_photon_grid[Teff[i] == self._ck2004_intensity_axes[0], logg[i] == self._ck2004_intensity_axes[1], abun[i] == self._ck2004_intensity_axes[2], mu[i] == self._ck2004_intensity_axes[3], 0] = Bavg
 
+        # Impute if requested:
+        if impute:
+            if verbose:
+                print('Imputing the grids...')
+            for grid in (self._ck2004_Imu_energy_grid, self._ck2004_Imu_photon_grid):
+                for i in range(len(self._ck2004_intensity_axes[-1])):
+                    impute_grid(self._ck2004_intensity_axes[:-1], grid[...,i,:])
+
         # Build the table of non-null indices for the nearest neighbor lookup:
         self._ck2004_indices = np.argwhere(~np.isnan(self._ck2004_Imu_photon_grid[...,-1,:]))
         non_nan_vertices = np.array([ [self._ck2004_intensity_axes[i][self._ck2004_indices[k][i]] for i in range(len(self._ck2004_intensity_axes)-1)] for k in range(len(self._ck2004_indices))])
@@ -847,7 +875,7 @@ class Passband:
         if 'ck2004:Imu' not in self.content:
             self.content.append('ck2004:Imu')
 
-    def compute_phoenix_intensities(self, path, particular=None, verbose=False):
+    def compute_phoenix_intensities(self, path, particular=None, impute=False, verbose=False):
         """
         Computes direction-dependent passband intensities using spherical
         PHOENIX (Husser et al. 2013) model atmospheres.
@@ -858,6 +886,8 @@ class Passband:
         * `particular` (string, optional, default=None): particular file in
             `path` to be processed; if None, all files in the directory are
             processed.
+        * `impute` (boolean, optional, default=False): should NaN values
+            within the grid be imputed.
         * `verbose` (bool, optional, default=False): set to True to display
             progress in the terminal.
         """
@@ -993,6 +1023,14 @@ class Passband:
         #     self._ck2004_boosting_energy_grid[Teff[i] == self._ck2004_intensity_axes[0], logg[i] == self._ck2004_intensity_axes[1], abun[i] == self._ck2004_intensity_axes[2], mu[i] == self._ck2004_intensity_axes[3], 0] = Bavg
         # for i, Bavg in enumerate(boostingP):
         #     self._ck2004_boosting_photon_grid[Teff[i] == self._ck2004_intensity_axes[0], logg[i] == self._ck2004_intensity_axes[1], abun[i] == self._ck2004_intensity_axes[2], mu[i] == self._ck2004_intensity_axes[3], 0] = Bavg
+
+        # Impute if requested:
+        if impute:
+            if verbose:
+                print('Imputing the grids...')
+            for grid in (self._phoenix_Imu_energy_grid, self._phoenix_Imu_photon_grid):
+                for i in range(len(self._phoenix_intensity_axes[-1])):
+                    impute_grid(self._phoenix_intensity_axes[:-1], grid[...,i,:])
 
         # Build the table of non-null indices for the nearest neighbor lookup:
         self._phoenix_indices = np.argwhere(~np.isnan(self._phoenix_Imu_photon_grid[...,-1,:]))
