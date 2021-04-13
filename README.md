@@ -84,6 +84,10 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.3.36 - MPI passband directory bugfix
+
+* fixes bug where running phoebe for the first time within MPI crashes due to each processor attempting to create the passband directory.
+
 ### 2.3.35 - rotstar bugfix
 
 * bugfix in equation for converting rotation period/frequency to potential that affects the shapes of rapidly rotating stars with distortion_method of 'rotstar'.
