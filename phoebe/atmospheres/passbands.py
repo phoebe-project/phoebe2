@@ -1,7 +1,7 @@
 #from phoebe.c import h, c, k_B
 #from phoebe import u
 from phoebe import __version__ as phoebe_version
-from phoebe import conf
+from phoebe import conf, mpi
 from phoebe.utils import _bytes
 
 # NOTE: we'll import directly from astropy here to avoid
@@ -67,8 +67,9 @@ else:
     _pbdir_local = os.path.abspath(os.path.expanduser('~/.phoebe/atmospheres/tables/passbands'))+'/'
 
 if not os.path.exists(_pbdir_local):
-    logger.info("creating directory {}".format(_pbdir_local))
-    os.makedirs(_pbdir_local)
+    if not mpi.within_mpirun or mpi.myrank == 0:
+        logger.info("creating directory {}".format(_pbdir_local))
+        os.makedirs(_pbdir_local)
 
 _pbdir_env = os.getenv('PHOEBE_PBDIR', None)
 
