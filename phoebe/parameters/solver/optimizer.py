@@ -12,6 +12,12 @@ def _comments_params(**kwargs):
     params += [StringParameter(qualifier='comments', value=kwargs.get('comments', ''), description='User-provided comments for these solver-options.  Feel free to place any notes here - if not overridden, they will be copied to any resulting solutions.')]
     return params
 
+def _server_params(**kwargs):
+    params = []
+
+    params += [ChoiceParameter(qualifier='server', value=kwargs.get('server', 'none'), choices=['none'], description='Server to use when running the solver (or "none" to run locally).')]
+    return params
+
 def nelder_mead(**kwargs):
     """
     Create a <phoebe.parameters.ParameterSet> for solver options for the
@@ -77,6 +83,7 @@ def nelder_mead(**kwargs):
         <phoebe.parameters.Parameter> objects.
     """
     params = _comments_params(**kwargs)
+    params += _server_params(**kwargs)
 
     params += [ChoiceParameter(qualifier='compute', value=kwargs.get('compute', 'None'), choices=['None'], description='compute options to use for forward model')]
     params += [BoolParameter(qualifier='expose_lnprobabilities', value=kwargs.get('expose_lnprobabilities', False), description='whether to expose the initial and final lnprobabilities in the solution (will result in 2 additional forward model calls)')]
@@ -158,6 +165,7 @@ def powell(**kwargs):
         <phoebe.parameters.Parameter> objects.
     """
     params = _comments_params(**kwargs)
+    params += _server_params(**kwargs)
 
     params += [ChoiceParameter(qualifier='compute', value=kwargs.get('compute', 'None'), choices=['None'], description='compute options to use for forward model')]
     params += [BoolParameter(qualifier='expose_lnprobabilities', value=kwargs.get('expose_lnprobabilities', False), description='whether to expose the initial and final lnprobabilities in the solution (will result in 2 additional forward model calls)')]
@@ -232,6 +240,7 @@ def cg(**kwargs):
         <phoebe.parameters.Parameter> objects.
     """
     params = _comments_params(**kwargs)
+    params += _server_params(**kwargs)
 
     params += [ChoiceParameter(qualifier='compute', value=kwargs.get('compute', 'None'), choices=['None'], description='compute options to use for forward model')]
     params += [BoolParameter(qualifier='expose_lnprobabilities', value=kwargs.get('expose_lnprobabilities', False), description='whether to expose the initial and final lnprobabilities in the solution (will result in 2 additional forward model calls)')]
@@ -284,6 +293,7 @@ def differential_evolution(**kwargs):
         raise ImportError("differential_evolution is not fully tested and released.  Use developer mode to test.")
 
     params = _comments_params(**kwargs)
+    params += _server_params(**kwargs)
 
     params += [ChoiceParameter(qualifier='compute', value=kwargs.get('compute', 'None'), choices=['None'], description='compute options to use for forward model')]
     params += [BoolParameter(qualifier='expose_lnprobabilities', value=kwargs.get('expose_lnprobabilities', False), description='whether to expose the initial and final lnprobabilities in the solution (will result in 2 additional forward model calls)')]

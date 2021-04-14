@@ -2053,13 +2053,29 @@ class Bundle(ParameterSet):
 
         servers = self.filter(context='server', **_skip_filter_checks).servers
 
-        for param in self.filter(qualifier='run_checks_server', **_skip_filter_checks).to_list():
+        for param in self.filter(context='setting', qualifier='run_checks_server', **_skip_filter_checks).to_list():
             choices_changed = False
             if return_changes and servers != param._choices:
                 choices_changed = True
             param._choices = servers
 
             changed = param.handle_choice_rename(remove_not_valid=True, **rename)
+            if return_changes and (changed or choices_changed):
+                affected_params.append(param)
+
+        choices = ['none'] + servers
+        for param in self.filter(context=['compute', 'solver'], qualifier='server', **_skip_filter_checks).to_list():
+            choices_changed = False
+            if return_changes and choices != param._choices:
+                choices_changed = True
+            param._choices = choices
+
+            if param._value not in choices:
+                changed = True
+                param._value = 'none'
+            else:
+                changed = False
+
             if return_changes and (changed or choices_changed):
                 affected_params.append(param)
 
@@ -8593,8 +8609,6 @@ class Bundle(ParameterSet):
             # then we want to apply the default below, so let's pop for now
             _ = kwargs.pop('server')
 
-
-
         kwargs.setdefault('server',
                           self._default_label('ser',
                                               **{'context': 'server'}))
@@ -10159,6 +10173,7 @@ class Bundle(ParameterSet):
 
         ret_changes += self._handle_compute_selectparams(return_changes=return_changes)
         ret_changes += self._handle_compute_choiceparams(return_changes=return_changes)
+        ret_changes += self._handle_server_selectparams(return_changes=return_changes)
 
         if kwargs.get('overwrite', False) and return_changes:
             ret_ps += overwrite_ps
@@ -10188,6 +10203,8 @@ class Bundle(ParameterSet):
                 raise ValueError("compute='{}' not found".format(compute))
 
         kwargs['context'] = 'compute'
+        # server is passed as a kwarg to override the server parameter in run_compute/solver, but is never used for filtering for compute
+        _server = kwargs.pop('server', None)
         return self.filter(**kwargs)
 
     @send_if_client
@@ -11490,6 +11507,7 @@ class Bundle(ParameterSet):
         ret_changes += self._handle_dataset_selectparams(return_changes=return_changes)
         ret_changes += self._handle_orbit_choiceparams(return_changes=return_changes)
         ret_changes += self._handle_component_choiceparams(return_changes=return_changes)
+        ret_changes += self._handle_server_selectparams(return_changes=return_changes)
 
         ret_ps = self.get_solver(check_visible=False, check_default=False, **metawargs)
 
@@ -11531,6 +11549,8 @@ class Bundle(ParameterSet):
             if solver not in self.solvers:
                 raise ValueError("solver='{}' not found".format(solver))
         kwargs['context'] = 'solver'
+        # server is passed as a kwarg to override the server parameter in run_compute/solver, but is never used for filtering for compute
+        _server = kwargs.pop('server', None)
         return self.filter(**kwargs)
 
     @send_if_client

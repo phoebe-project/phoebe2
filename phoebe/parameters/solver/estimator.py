@@ -18,6 +18,12 @@ def _comments_params(**kwargs):
     params += [StringParameter(qualifier='comments', value=kwargs.get('comments', ''), description='User-provided comments for these solver-options.  Feel free to place any notes here - if not overridden, they will be copied to any resulting solutions.')]
     return params
 
+def _server_params(**kwargs):
+    params = []
+
+    params += [ChoiceParameter(qualifier='server', value=kwargs.get('server', 'none'), choices=['none'], description='Server to use when running the solver.')]
+    return params
+
 
 def lc_periodogram(**kwargs):
     """
@@ -99,6 +105,7 @@ def lc_periodogram(**kwargs):
         <phoebe.parameters.Parameter> objects.
     """
     params = _comments_params(**kwargs)
+    params += _server_params(**kwargs)
 
     params += [ChoiceParameter(qualifier='algorithm', value=kwargs.get('algorithm', 'bls'), choices=['bls', 'ls'], description='Algorithm to use to create the periodogram.  bls: BoxLeastSquares, ls: LombScargle.')]
 
@@ -189,6 +196,7 @@ def rv_periodogram(**kwargs):
         <phoebe.parameters.Parameter> objects.
     """
     params = _comments_params(**kwargs)
+    params += _server_params(**kwargs)
 
     params += [ChoiceParameter(qualifier='algorithm', value=kwargs.get('algorithm', 'ls'), choices=['ls'], description='Algorithm to use to create the periodogram.  ls: LombScargle.')]
 
@@ -264,6 +272,7 @@ def lc_geometry(**kwargs):
         <phoebe.parameters.Parameter> objects.
     """
     params = _comments_params(**kwargs)
+    params += _server_params(**kwargs)
 
     params += [SelectParameter(qualifier='lc_datasets', value=kwargs.get('lc_datasets', '*'), choices=[], description='Light curve dataset(s) to use to extract eclipse geometry')]
     params += [ChoiceParameter(visible_if='lc_datasets:<plural>', qualifier='lc_combine', value=kwargs.get('lc_combine', 'median'), choices=['median', 'max'], advanced=True, description='How to normalize each light curve prior to combining.')]
@@ -335,6 +344,7 @@ def rv_geometry(**kwargs):
         <phoebe.parameters.Parameter> objects.
     """
     params = _comments_params(**kwargs)
+    params += _server_params(**kwargs)
 
     params += [SelectParameter(qualifier='rv_datasets', value=kwargs.get('rv_datasets', '*'), choices=[], description='Radial velocity dataset(s) to use to extract RV geometry')]
     params += [ChoiceParameter(qualifier='orbit', value=kwargs.get('orbit', ''), choices=[''], description='Orbit to use for estimating orbital parameters')]
@@ -412,6 +422,7 @@ def ebai(**kwargs):
         <phoebe.parameters.Parameter> objects.
     """
     params = _comments_params(**kwargs)
+    params += _server_params(**kwargs)
 
     params += [SelectParameter(qualifier='lc_datasets', value=kwargs.get('lc_datasets', '*'), choices=[], description='Light curve dataset(s) to pass to ebai')]
     params += [ChoiceParameter(visible_if='lc_datasets:<plural>', qualifier='lc_combine', value=kwargs.get('lc_combine', 'median'), choices=['median', 'max'], advanced=True, description='How to normalize each light curve prior to combining.')]
