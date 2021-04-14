@@ -34,6 +34,7 @@ from phoebe.parameters import solver as _solver
 from phoebe.parameters import constraint as _constraint
 from phoebe.parameters import feature as _feature
 from phoebe.parameters import figure as _figure
+from phoebe.parameters import server as _server
 from phoebe.parameters.parameters import _uniqueid, _clientid, _return_ps, _extract_index_from_string, _corner_twig, _corner_label
 from phoebe.backend import backends, mesh
 from phoebe.backend import universe as _universe
@@ -123,7 +124,11 @@ class RunChecksItem(object):
 
     def __str__(self):
         n_affected_parameters = len(self._param_uniqueids)
-        return "{}: {} ({} affected parameter{}, affecting {})".format(self.level, self.message, n_affected_parameters, "s" if n_affected_parameters else "", ",".join(self.affects_methods))
+        if len(self.affects_methods):
+            return "{}: {} ({} affected parameter{}, affecting {})".format(self.level, self.message, n_affected_parameters, "s" if n_affected_parameters else "", ",".join(self.affects_methods))
+        else:
+            return "{}: {} ({} affected parameter{})".format(self.level, self.message, n_affected_parameters, "s" if n_affected_parameters else "")
+
 
     def to_dict(self):
         """
@@ -1808,6 +1813,9 @@ class Bundle(ParameterSet):
         elif tag=='figure':
             affected_params += self._handle_figure_selectparams(rename={old_value: new_value}, return_changes=True)
 
+        elif tag=='server':
+            affected_params += self._handle_server_selectparams(rename={old_value: new_value}, return_changes=True)
+
         elif tag=='solution':
             affected_params += self._handle_computesamplefrom_selectparams(rename={old_value: new_value}, return_changes=True)
             affected_params += self._handle_solution_selectparams(rename={old_value: new_value}, return_changes=True)
@@ -2032,6 +2040,26 @@ class Bundle(ParameterSet):
             else:
                 changed = False
 
+            if return_changes and (changed or choices_changed):
+                affected_params.append(param)
+
+        return affected_params
+
+    def _handle_server_selectparams(self, rename={}, return_changes=False):
+        """
+        """
+        affected_params = []
+        changed_params = self.run_delayed_constraints()
+
+        servers = self.filter(context='server', **_skip_filter_checks).servers
+
+        for param in self.filter(qualifier='run_checks_server', **_skip_filter_checks).to_list():
+            choices_changed = False
+            if return_changes and servers != param._choices:
+                choices_changed = True
+            param._choices = servers
+
+            changed = param.handle_choice_rename(remove_not_valid=True, **rename)
             if return_changes and (changed or choices_changed):
                 affected_params.append(param)
 
@@ -3034,6 +3062,7 @@ class Bundle(ParameterSet):
         * <phoebe.frontend.bundle.Bundle.run_checks_solver>
         * <phoebe.frontend.bundle.Bundle.run_checks_solution>
         * <phoebe.frontend.bundle.Bundle.run_checks_figure>
+        * <phoebe.frontend.bundle.Bundle.run_checks_server>
 
         Arguments
         -----------
@@ -3078,6 +3107,7 @@ class Bundle(ParameterSet):
         report = self.run_checks_solver(run_checks_compute=False, raise_logger_warning=False, raise_error=False, report=report, **kwargs)
         report = self.run_checks_solution(raise_logger_warning=False, raise_error=False, report=report, **kwargs)
         report = self.run_checks_figure(raise_logger_warning=False, raise_error=False, report=report, **kwargs)
+        report = self.run_checks_server(raise_logger_warning=False, raise_error=False, report=report, **kwargs)
 
         self._run_checks_warning_error(report, raise_logger_warning, raise_error)
 
@@ -3099,6 +3129,7 @@ class Bundle(ParameterSet):
         * <phoebe.frontend.bundle.Bundle.run_checks_solver>
         * <phoebe.frontend.bundle.Bundle.run_checks_solution>
         * <phoebe.frontend.bundle.Bundle.run_checks_figure>
+        * <phoebe.frontend.bundle.Bundle.run_checks_server>
 
         Arguments
         -----------
@@ -3461,6 +3492,7 @@ class Bundle(ParameterSet):
         * <phoebe.frontend.bundle.Bundle.run_checks_solver>
         * <phoebe.frontend.bundle.Bundle.run_checks_solution>
         * <phoebe.frontend.bundle.Bundle.run_checks_figure>
+        * <phoebe.frontend.bundle.Bundle.run_checks_server>
 
         Arguments
         -----------
@@ -4176,6 +4208,7 @@ class Bundle(ParameterSet):
         * <phoebe.frontend.bundle.Bundle.run_checks_compute>
         * <phoebe.frontend.bundle.Bundle.run_checks_solution>
         * <phoebe.frontend.bundle.Bundle.run_checks_figure>
+        * <phoebe.frontend.bundle.Bundle.run_checks_server>
 
         Arguments
         -----------
@@ -4593,6 +4626,7 @@ class Bundle(ParameterSet):
         * <phoebe.frontend.bundle.Bundle.run_checks_compute>
         * <phoebe.frontend.bundle.Bundle.run_checks_solver>
         * <phoebe.frontend.bundle.Bundle.run_checks_figure>
+        * <phoebe.frontend.bundle.Bundle.run_checks_server>
 
         Arguments
         -----------
@@ -4700,6 +4734,88 @@ class Bundle(ParameterSet):
         return report
 
 
+    def run_checks_server(self, server=None, compute=None, solver=None, solution=None,
+                          raise_logger_warning=False, raise_error=False, **kwargs):
+        """
+        Check to see whether the system is expected to be computable.
+
+        This is called by default for each set_value but will only raise a
+        logger warning if fails.  This is also called immediately when calling
+        <phoebe.frontend.bundle.Bundle.run_compute>.
+
+        kwargs are passed to override currently set values as if they were
+        sent to <phoebe.frontend.bundle.Bundle.run_compute>.
+
+        See also:
+        * <phoebe.frontend.bundle.Bundle.run_checks>
+        * <phoebe.frontend.bundle.Bundle.run_checks_system>
+        * <phoebe.frontend.bundle.Bundle.run_checks_compute>
+        * <phoebe.frontend.bundle.Bundle.run_checks_solver>
+        * <phoebe.frontend.bundle.Bundle.run_checks_solution>
+        * <phoebe.frontend.bundle.Bundle.run_checks_figure>
+
+        Arguments
+        -----------
+        * `server` (string or list of strings, optional, default=None): the
+            server options to use  when running checks.  If None (or not provided),
+            the server options in the 'run_checks_server@setting' parameter
+            will be used (which defaults to no servers, if not set).
+        * `allow_skip_constraints` (bool, optional, default=False): whether
+            to allow skipping running delayed constraints if interactive
+            constraints are disabled.  See <phoebe.interactive_constraints_off>.
+        * `raise_logger_warning` (bool, optional, default=False): whether to
+            raise any errors/warnings in the logger (with level of warning).
+        * `raise_error` (bool, optional, default=False): whether to raise an
+            error if the report has a status of failed.
+        * `**kwargs`: overrides for any parameter (given as qualifier=value pairs)
+
+        Returns
+        ----------
+        * (<phoebe.frontend.bundle.RunChecksReport>) object containing all
+            errors/warnings.  Print the returned object to see all messages.
+            See also: <phoebe.frontend.bundle.RunChecksReport.passed>,
+             <phoebe.frontend.bundle.RunChecksReport.items>, and
+             <phoebe.frontend.bundle.RunChecksItem.message>.
+        """
+
+        # make sure all constraints have been run
+        if conf.interactive_constraints or not kwargs.pop('allow_skip_constraints', False):
+            changed_params = self.run_delayed_constraints()
+
+        report = kwargs.pop('report', RunChecksReport())
+        addl_parameters = kwargs.pop('addl_parameters', [])
+
+        run_checks_server = self.get_value(qualifier='run_checks_server', context='setting', default='*', expand=True, **_skip_filter_checks)
+        if server is None:
+            servers = run_checks_server
+            addl_parameters += [self.get_parameter(qualifier='run_checks_server', context='setting', **_skip_filter_checks)]
+        else:
+            servers = server
+            if isinstance(servers, str):
+                servers = [servers]
+
+        for server in servers:
+            if server not in self.servers:
+                raise ValueError("server='{}' not found".format(server))
+
+            if server not in run_checks_server:
+                report.add_item(self,
+                                "server='{}' is not included in run_checks_server@setting, so will not raise interactive warnings".format(server),
+                                [self.get_parameter(qualifier='run_checks_server', context='setting', check_visible=False, check_default=False)],
+                                False
+                                )
+
+        for param in self.filter(context='server', qualifier='crimpl_name', **_skip_filter_checks).to_list():
+            if not len(param.get_value()):
+                report.add_item(self,
+                                "{} is not set".format(param.twig),
+                                [param]+addl_parameters,
+                                False, [])
+
+        self._run_checks_warning_error(report, raise_logger_warning, raise_error)
+
+        return report
+
     def run_checks_figure(self, figure=None, compute=None, solver=None, solution=None,
                           raise_logger_warning=False, raise_error=False, **kwargs):
         """
@@ -4718,6 +4834,7 @@ class Bundle(ParameterSet):
         * <phoebe.frontend.bundle.Bundle.run_checks_compute>
         * <phoebe.frontend.bundle.Bundle.run_checks_solver>
         * <phoebe.frontend.bundle.Bundle.run_checks_solution>
+        * <phoebe.frontend.bundle.Bundle.run_checks_server>
 
         Arguments
         -----------
@@ -8418,10 +8535,230 @@ class Bundle(ParameterSet):
             return dc.logpdf(values, as_univariates=True)
 
     @send_if_client
+    def add_server(self, kind, return_changes=False, **kwargs):
+        """
+        Add a new server to the bundle.  If not provided,
+        `server` (the name of the new server) will be created for
+        you and can be accessed by the `server` attribute of the returned
+        <phoebe.parameters.ParameterSet>.
+
+        ```py
+        b.add_server(server.remoteslurm)
+        ```
+
+        or
+
+        ```py
+        b.add_server('remoteslurm', nprocs=4)
+        ```
+
+        Available kinds can be found in <phoebe.parameters.server> and include:
+        * <phoebe.parameters.server.remoteslurm>
+        * <phoebe.parameters.server.awsec2>
+
+        See also:
+        * <phoebe.frontend.bundle.Bundle.get_server>
+        * <phoebe.frontend.bundle.Bundle.remove_server>
+        * <phoebe.frontend.bundle.Bundle.rename_server>
+        * <phoebe.list_available_servers>
+
+        Arguments
+        ----------
+        * `kind` (string): function to call that returns a
+             <phoebe.parameters.ParameterSet> or list of
+             <phoebe.parameters.Parameter> objects.  This must either be a
+             callable function that accepts the bundle and default values, or the name
+             of a function (as a string) that can be found in the
+             <phoebe.parameters.server> module.
+        * `server` (string, optional): name of the newly-created server.
+        * `overwrite` (boolean, optional, default=False): whether to overwrite
+            an existing server with the same `server` tag.  If False,
+            an error will be raised.
+        * `return_changes` (bool, optional, default=False): whether to include
+            changed/removed parameters in the returned ParameterSet, including
+            the removed parameters due to `overwrite`.
+        * `**kwargs`: default values for any of the newly-created parameters
+            (passed directly to the matched callabled function).
+
+        Returns
+        ---------
+        * <phoebe.parameters.ParameterSet> of all parameters that have been added
+        """
+
+        func = _get_add_func(_server, kind)
+
+        fname = func.__name__
+
+        if kwargs.get('server', False) is None:
+            # then we want to apply the default below, so let's pop for now
+            _ = kwargs.pop('server')
+
+
+
+        kwargs.setdefault('server',
+                          self._default_label('ser',
+                                              **{'context': 'server'}))
+
+        if kwargs.pop('check_label', True):
+            self._check_label(kwargs['server'], allow_overwrite=kwargs.get('overwrite', False))
+
+        # NOTE: we won't pass kwargs since some choices need to be updated.
+        # Instead we'll apply kwargs after calling all self._handle_*
+        params = func(self)
+
+
+        metawargs = {'context': 'server',
+                     'server': kwargs['server'],
+                     'kind': fname}
+
+        if kwargs.get('overwrite', False):
+            overwrite_ps = self.remove_server(server=kwargs['server'], during_overwrite=True)
+            # check the label again, just in case kwargs['server'] belongs to
+            # something other than component
+            self.exclude(server=kwargs['server'])._check_label(kwargs['server'], allow_overwrite=False)
+        else:
+            removed_ps = None
+
+        self._attach_params(params, **metawargs)
+        # attach params called _check_copy_for, but only on it's own parameterset
+        # self._check_copy_for()
+
+        # for constraint in constraints:
+            # self.add_constraint(*constraint)
+
+        ret_ps = self.filter(server=kwargs['server'], check_visible=False, check_default=False)
+
+        ret_changes = []
+        ret_changes += self._handle_server_selectparams(return_changes=return_changes)
+
+        # now set parameters that needed updated choices
+        qualifiers = ret_ps.qualifiers
+        for k,v in kwargs.items():
+            if k in qualifiers:
+                try:
+                    ret_ps.set_value_all(qualifier=k, value=v, **_skip_filter_checks)
+                except:
+                    self.remove_server(server=kwargs['server'])
+                    raise
+            # TODO: else raise warning?
+
+        # since we've already processed (so that we can get the new qualifiers),
+        # we'll only raise a warning
+        self._kwargs_checks(kwargs,
+                            additional_allowed_keys=['overwrite'],
+                            warning_only=True, ps=ret_ps)
+
+        if kwargs.get('overwrite', False) and return_changes:
+            ret_ps += overwrite_ps
+
+        if return_changes:
+            ret_ps += ret_changes
+        return _return_ps(self, ret_ps)
+
+    def get_server(self, server=None, **kwargs):
+        """
+        Filter in the 'server' context
+
+        See also:
+        * <phoebe.parameters.ParameterSet.filter>
+        * <phoebe.frontend.bundle.Bundle.add_server>
+        * <phoebe.frontend.bundle.Bundle.remove_server>
+        * <phoebe.frontend.bundle.Bundle.rename_server>
+
+        Arguments
+        ----------
+        * `server`: (string, optional, default=None): the name of the server
+        * `**kwargs`: any other tags to do the filtering (excluding server and context)
+
+        Returns
+        ----------
+        * a <phoebe.parameters.ParameterSet> object.
+        """
+        if server is not None:
+            kwargs['server'] = server
+            if server not in self.servers:
+                raise ValueError("server='{}' not found".format(server))
+
+        kwargs['context'] = 'server'
+        ret_ps = self.filter(**kwargs).exclude(server=[None])
+
+        if len(ret_ps.servers) == 0:
+            raise ValueError("no servers matched: {}".format(kwargs))
+        elif len(ret_ps.servers) > 1:
+            raise ValueError("more than one server matched: {}".format(kwargs))
+
+        return _return_ps(self, ret_ps)
+
+    @send_if_client
+    def remove_server(self, server, return_changes=False, **kwargs):
+        """
+        Remove a 'server' from the bundle.
+
+        See also:
+        * <phoebe.parameters.ParameterSet.remove_parameters_all>
+        * <phoebe.frontend.bundle.Bundle.add_server>
+        * <phoebe.frontend.bundle.Bundle.get_server>
+        * <phoebe.frontend.bundle.Bundle.rename_server>
+
+        Arguments
+        ----------
+        * `server` (string): the label of the server to be removed.
+        * `**kwargs`: other filter arguments to be sent to
+            <phoebe.parameters.ParameterSet.remove_parameters_all>.  The following
+            will be ignored: server, context
+
+        Returns
+        -----------
+        * ParameterSet of removed parameters
+        """
+        kwargs['server'] = server
+        kwargs['context'] = 'server'
+        ret_ps = self.remove_parameters_all(**kwargs)
+
+        ret_changes = []
+        ret_changes += self._handle_server_selectparams(return_changes=return_changes)
+
+        if return_changes:
+            ret_ps += ret_changes
+        return _return_ps(self, ret_ps)
+
+    @send_if_client
+    def rename_server(self, old_server, new_server,
+                      overwrite=False, return_changes=False):
+        """
+        Change the label of a server attached to the Bundle.
+
+        See also:
+        * <phoebe.frontend.bundle.Bundle.add_server>
+        * <phoebe.frontend.bundle.Bundle.get_server>
+        * <phoebe.frontend.bundle.Bundle.remove_server>
+
+        Arguments
+        ----------
+        * `old_server` (string): current label of the server (must exist)
+        * `new_server` (string): the desired new label of the server
+            (must not yet exist, unless `overwrite=True`)
+        * `overwrite` (bool, optional, default=False): overwrite the existing
+            entry if it exists.
+
+        Returns
+        --------
+        * <phoebe.parameters.ParameterSet> the renamed server
+
+        Raises
+        --------
+        * ValueError: if the value of `new_server` is forbidden or already exists.
+        """
+        # TODO: raise error if old_server not found?
+        self._rename_label('server', old_server, new_server, overwrite)
+
+        return self.filter(server=new_server)
+
+    @send_if_client
     def add_figure(self, kind, return_changes=False, **kwargs):
         """
         Add a new figure to the bundle.  If not provided,
-        figure` (the name of the new figure) will be created for
+        `figure` (the name of the new figure) will be created for
         you and can be accessed by the `figure` attribute of the returned
         <phoebe.parameters.ParameterSet>.
 

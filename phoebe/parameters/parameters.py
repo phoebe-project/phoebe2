@@ -145,7 +145,7 @@ _parameter_class_that_require_bundle = ['TwigParameter',
 
 _meta_fields_twig = ['time', 'qualifier', 'feature', 'component',
                      'dataset', 'constraint', 'distribution', 'compute', 'model',
-                     'solver', 'solution', 'figure', 'kind',
+                     'solver', 'solution', 'figure', 'server', 'kind',
                      'context']
 
 _meta_fields_all = _meta_fields_twig + ['twig', 'uniquetwig', 'uniqueid']
@@ -153,7 +153,7 @@ _meta_fields_filter = _meta_fields_all + ['constraint_func', 'value']
 
 _contexts = ['system', 'component', 'feature',
              'dataset', 'constraint', 'distribution', 'compute', 'model',
-             'solver', 'solution', 'figure', 'setting']
+             'solver', 'solution', 'figure', 'server', 'setting']
 
 # define a list of default_forbidden labels
 # an individual ParameterSet may build on this list with components, datasets,
@@ -192,7 +192,7 @@ _forbidden_labels += ['t0', 'ra', 'dec', 'epoch', 'distance', 'parallax', 'vgamm
 # from setting:
 _forbidden_labels += ['phoebe_version', 'dict_filter',
                       'dict_set_all', 'run_checks_compute', 'run_checks_solver',
-                      'run_checks_solution', 'run_checks_figure',
+                      'run_checks_solution', 'run_checks_figure', 'run_checks_server',
                       'auto_add_figure', 'auto_remove_figure', 'web_client', 'web_client_url']
 
 # from component
@@ -310,6 +310,10 @@ _forbidden_labels += ['datasets', 'models', 'components', 'contexts',
                       'uncover', 'highlight', 'draw_sidebars',
                       'latex_repr',
                       'legend']
+
+# from server:
+_forbidden_labels += ['remoteslurm', 'awsec2', 'crimpl_name', 'conda_env', 'isolate_env',
+                      'nprocs', 'walltime', 'mail_user', 'mail_type', 'terminate_on_complete']
 
 # ? and * used for wildcards in twigs
 _twig_delims = ' \t\n`~!#$%^&)-=+]{}\\|;,<>/:'
@@ -601,6 +605,7 @@ class ParameterSet(object):
         self._component = None
         self._dataset = None
         self._figure = None
+        self._server = None
         self._constraint = None
         self._distribution = None
         self._compute = None
@@ -1232,6 +1237,40 @@ class ParameterSet(object):
             in this <phoebe.parameters.ParameterSet>
         """
         return self._options_for_tag('figure')
+
+    @property
+    def server(self):
+        """Return the value for server if shared by ALL Parameters.
+
+        If the value is not shared by ALL, then None will be returned.  To see
+        all the qualifiers of all parameters, see <phoebe.parameters.ParameterSet.servers>.
+
+        To see the value of a single <phoebe.parameters.Parameter> object, see
+        <phoebe.parameters.Parameter.server>.
+
+        Returns
+        --------
+        (string or None) the value if shared by ALL <phoebe.parameters.Parameter>
+            objects in the <phoebe.parmaters.ParameterSet>, otherwise None
+        """
+        return self._server
+
+    @property
+    def servers(self):
+        """Return a list of all the servers of the Parameters.
+
+        See also:
+        * <phoebe.parameters.ParameterSet.tags>
+
+        For the singular version, see:
+        * <phoebe.parameters.ParameterSet.server>
+
+        Returns
+        --------
+        * (list) a list of all servers for each <phoebe.parameters.Parameter>
+            in this <phoebe.parameters.ParameterSet>
+        """
+        return self._options_for_tag('server')
 
     @property
     def solver(self):
@@ -5887,6 +5926,7 @@ class Parameter(object):
         * `component` (string, optional): label for the component tag
         * `dataset` (string, optional): label for the dataset tag
         * `figure` (string, optional): label for the figure tag
+        * `server` (string, optional): label for the server tag
         * `constraint` (string, optional): label for the constraint tag
         * `compute` (string, optional): label for the compute tag
         * `model` (string, optional): label for the model tag
@@ -5923,6 +5963,7 @@ class Parameter(object):
         self._component = kwargs.get('component', None)
         self._dataset = kwargs.get('dataset', None)
         self._figure = kwargs.get('figure', None)
+        self._server = kwargs.get('server', None)
         self._constraint = kwargs.get('constraint', None)
         self._distribution = kwargs.get('distribution', None)
         self._compute = kwargs.get('compute', None)
@@ -6582,6 +6623,21 @@ class Parameter(object):
         * (str) the figure tag of this Parameter.
         """
         return self._figure
+
+    @property
+    def server(self):
+        """
+        Return the server of this <phoebe.parameters.Parameter>.
+
+        See also:
+        * <phoebe.parameters.ParameterSet.server>
+        * <phoebe.parameters.ParameterSet.servers>
+
+        Returns
+        -------
+        * (str) the server tag of this Parameter.
+        """
+        return self._server
 
     @property
     def solver(self):

@@ -1,0 +1,101 @@
+
+
+from phoebe.parameters import *
+from phoebe import conf
+
+### NOTE: if creating new parameters, add to the _forbidden_labels list in parameters.py
+
+def remoteslurm(server, **kwargs):
+    """
+    Create a <phoebe.parameters.ParameterSet> for a remoteslurm server.
+
+    The server referenced by `crimpl_name` must be configured on the local
+    machine with [crimpl](http://crimpl.readthedocs.io).
+
+    Generally, this will be used as an input to the kind argument in
+    <phoebe.frontend.bundle.Bundle.add_server>.  If attaching through
+    <phoebe.frontend.bundle.Bundle.add_server>, all `**kwargs` will be
+    passed on to set the values as described in the arguments below.  Alternatively,
+    see <phoebe.parameters.ParameterSet.set_value> to set/change the values
+    after creating the Parameters.
+
+    Arguments
+    ----------
+    * `crimpl_name` (string, optional): Name of server saved in crimpl.  Must be
+        available on the local machine.  See docs for more details.
+    * `conda_env` (string, optional, default='default'): Name of conda
+        environment on remote machine to run jobs.  Will be created and
+        necessary deps installed if does not exist.
+    * `isolate_env` (bool, optional, default=False): Whether to clone the
+        conda_env environment per-job.
+    * `nprocs` (int, optional, default=4): Number of processors to allocate to
+        each job
+    * `walltime` (string, optional, default='00:10:00'): Walltime to allocate to
+        each job
+    * `mail_user` (string, optional): Email to have slurm notify about events
+        matching mail_type
+    * `mail_type` (list, optional, default=['END', 'FAIL']): Scenarios in which
+        to request slurm to notify mail_user by email
+
+
+    Returns
+    --------
+    * (<phoebe.parameters.ParameterSet>): ParameterSet of all newly created
+        <phoebe.parameters.Parameter> objects.
+    """
+
+    params = []
+
+    params += [StringParameter(qualifier="crimpl_name", value=kwargs.get('crimpl_name', ''), description='Name of server saved in crimpl.  Must be available on the local machine.  See docs for more details.')]
+    params += [StringParameter(qualifier="conda_env", value=kwargs.get('conda_env', 'default'), description='Name of conda environment on remote machine to run jobs.  Will be created and necessary deps installed if does not exist.')]
+    params += [BoolParameter(qualifier='isolate_env', value=kwargs.get('isolate_env', False), advanced=True, description='Whether to clone the conda_env environment per-job.')]
+    params += [IntParameter(qualifier='nprocs', value=kwargs.get('nprocs', 4), description='Number of processors to allocate to each job')]
+    params += [StringParameter(qualifier='walltime', value=kwargs.get('walltime', '00:10:00'), description='Walltime to allocate to each job')]
+    params += [StringParameter(qualifier='mail_user', value=kwargs.get('mail_user', ''), description='Email to have slurm notify about events matching mail_type')]
+    params += [SelectParameter(qualifier='mail_type', visible_if='mail_user:<notempty>', value=kwargs.get('mail_type', ['END', 'FAIL']), choices=['BEGIN', 'END', 'FAIL', 'REQUEUE', 'ALL'], description='Scenarios in which to request slurm to notify mail_user by email')]
+
+    return ParameterSet(params)
+
+def awsec2(server, **kwargs):
+    """
+    Create a <phoebe.parameters.ParameterSet> for an awsec2 server.
+
+    The server referenced by `crimpl_name` must be configured on the local
+    machine with [crimpl](http://crimpl.readthedocs.io).
+
+    Generally, this will be used as an input to the kind argument in
+    <phoebe.frontend.bundle.Bundle.add_server>.  If attaching through
+    <phoebe.frontend.bundle.Bundle.add_server>, all `**kwargs` will be
+    passed on to set the values as described in the arguments below.  Alternatively,
+    see <phoebe.parameters.ParameterSet.set_value> to set/change the values
+    after creating the Parameters.
+
+    Arguments
+    ----------
+    * `crimpl_name` (string, optional): Name of server saved in crimpl.  Must be
+        available on the local machine.  See docs for more details.
+    * `conda_env` (string, optional, default='default'): Name of conda
+        environment on remote machine to run jobs.  Will be created and
+        necessary deps installed if does not exist.
+    * `isolate_env` (bool, optional, default=False): Whether to clone the
+        conda_env environment per-job.
+    * `nprocs` (int, optional, default=4): Number of processors to allocate to
+        each job
+    * `terminate_on_complete` (bool, optional, default=True): Whether to
+        terminate the server after the job is completed
+
+    Returns
+    --------
+    * (<phoebe.parameters.ParameterSet>): ParameterSet of all newly created
+        <phoebe.parameters.Parameter> objects.
+    """
+
+    params = []
+
+    params += [StringParameter(qualifier="crimpl_name", value=kwargs.get('crimpl_name', ''), description='Name of server saved in crimpl.  Must be available on the local machine.  See docs for more details.')]
+    params += [StringParameter(qualifier="conda_env", value=kwargs.get('conda_env', 'default'), description='Name of conda environment on remote machine to run jobs.  Will be created and necessary deps installed if does not exist.')]
+    params += [BoolParameter(qualifier='isolate_env', value=kwargs.get('isolate_env', False), advanced=True, description='Whether to clone the conda_env environment per-job.')]
+    params += [IntParameter(qualifier='nprocs', value=kwargs.get('nprocs', 4), description='Number of processors to allocate to each job')]
+    params += [BoolParameter(qualifier='terminate_on_complete', value=kwargs.get('terminate_on_complete', True), description='Whether to terminate the server after the job is completed')]
+
+    return ParameterSet(params)

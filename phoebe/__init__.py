@@ -377,7 +377,7 @@ from .dependencies.unitsiau2015 import u,c
 from .dependencies.nparray import array, linspace, arange, logspace, geomspace, invspace
 from .dependencies.distl import gaussian, gaussian_around, normal, boxcar, uniform, uniform_around, histogram_from_bins, histogram_from_data, mvgaussian, mvhistogram_from_data
 from .atmospheres.passbands import install_passband, uninstall_passband, uninstall_all_passbands, download_passband, list_passband_online_history, update_passband_available, update_passband, update_all_passbands, list_all_update_passbands_available, list_online_passbands, list_installed_passbands, list_passbands, list_passband_directories, get_passband
-from .parameters import hierarchy, component, compute, constraint, dataset, feature, figure, solver
+from .parameters import hierarchy, component, compute, constraint, dataset, feature, figure, solver, server
 from .frontend.bundle import Bundle
 from .backend import backends as _backends
 from .solverbackends import solverbackends as _solverbackends
@@ -934,6 +934,8 @@ def list_available_components(devel=False):
     * <phoebe.list_available_datasets>
     * <phoebe.list_available_computes>
     * <phoebe.list_available_solvers>
+    * <phoebe.list_available_servers>
+    * <phoebe.list_available_figures>
 
     Arguments
     -----------
@@ -955,6 +957,8 @@ def list_available_features(devel=False):
     * <phoebe.list_available_datasets>
     * <phoebe.list_available_computes>
     * <phoebe.list_available_solvers>
+    * <phoebe.list_available_servers>
+    * <phoebe.list_available_figures>
 
     Arguments
     -----------
@@ -976,6 +980,8 @@ def list_available_datasets(devel=False):
     * <phoebe.list_available_features>
     * <phoebe.list_available_computes>
     * <phoebe.list_available_solvers>
+    * <phoebe.list_available_servers>
+    * <phoebe.list_available_figures>
 
     Arguments
     -----------
@@ -997,6 +1003,7 @@ def list_available_figures(devel=False):
     * <phoebe.list_available_features>
     * <phoebe.list_available_computes>
     * <phoebe.list_available_solvers>
+    * <phoebe.list_available_servers>
 
     Arguments
     -----------
@@ -1009,6 +1016,28 @@ def list_available_figures(devel=False):
     """
     return  _get_phoebe_funcs(figure, devel=devel)
 
+def list_available_servers(devel=False):
+    """
+    List all available 'kinds' for server from <phoebe.parameters.server>.
+
+    See also:
+    * <phoebe.list_available_components>
+    * <phoebe.list_available_features>
+    * <phoebe.list_available_computes>
+    * <phoebe.list_available_solvers>
+    * <phoebe.list_available_figures>
+
+    Arguments
+    -----------
+    * `devel` (bool, default, optional=False): whether to include development-only
+        kinds.  See <phoebe.devel_on>.
+
+    Returns
+    ---------
+    * (list of strings)
+    """
+    return  _get_phoebe_funcs(server, devel=devel)
+
 def list_available_computes(devel=False):
     """
     List all available 'kinds' for compute from <phoebe.parameters.compute>.
@@ -1018,6 +1047,8 @@ def list_available_computes(devel=False):
     * <phoebe.list_available_features>
     * <phoebe.list_available_datasets>
     * <phoebe.list_available_solvers>
+    * <phoebe.list_available_servers>
+    * <phoebe.list_available_figures>
 
     Arguments
     -----------
@@ -1039,6 +1070,8 @@ def list_available_solvers(devel=False):
     * <phoebe.list_available_features>
     * <phoebe.list_available_datasets>
     * <phoebe.list_available_computes>
+    * <phoebe.list_available_servers>
+    * <phoebe.list_available_figures>
 
     Arguments
     -----------
