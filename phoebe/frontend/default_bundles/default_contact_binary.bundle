@@ -2125,9 +2125,9 @@ null
 "description": "Atmosphere table",
 "choices": [
 "blackbody",
-"extern_planckint",
-"ck2004",
 "phoenix",
+"ck2004",
+"extern_planckint",
 "extern_atmx"
 ],
 "value": "ck2004",
@@ -2361,9 +2361,9 @@ null
 "description": "Atmosphere table",
 "choices": [
 "blackbody",
-"extern_planckint",
-"ck2004",
 "phoenix",
+"ck2004",
+"extern_planckint",
 "extern_atmx"
 ],
 "value": "ck2004",
@@ -2379,9 +2379,9 @@ null
 "description": "Atmosphere table",
 "choices": [
 "blackbody",
-"extern_planckint",
-"ck2004",
 "phoenix",
+"ck2004",
+"extern_planckint",
 "extern_atmx"
 ],
 "value": "ck2004",

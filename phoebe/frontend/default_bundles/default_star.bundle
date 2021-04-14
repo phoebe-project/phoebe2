@@ -144,7 +144,7 @@ null
 "kind": "star",
 "context": "component",
 "description": "Critical (maximum) value of the equivalent radius for the given morphology",
-"value": 10.0,
+"value": 3.4292622920441116,
 "default_unit": "solRad",
 "limits": [
 0.0,
@@ -532,6 +532,22 @@ null
 "Class": "ConstraintParameter"
 },
 {
+"qualifier": "requiv_max",
+"component": "starA",
+"kind": "star",
+"context": "constraint",
+"description": "expression that determines the constraint",
+"value": "0.814886 * (((2942.206218 * {mass@starA@component}) * (({period@starA@component} / 6.283185) ** 2.000000)) ** 0.333333)",
+"default_unit": "solRad",
+"constraint_func": "requiv_single_max",
+"constraint_kwargs": {
+"component": "starA"
+},
+"constraint_addl_vars": [],
+"in_solar_units": true,
+"Class": "ConstraintParameter"
+},
+{
 "qualifier": "sample_from",
 "compute": "phoebe01",
 "kind": "phoebe",
@@ -806,9 +822,9 @@ null
 "description": "Atmosphere table",
 "choices": [
 "blackbody",
-"extern_planckint",
-"ck2004",
 "phoenix",
+"ck2004",
+"extern_planckint",
 "extern_atmx"
 ],
 "value": "ck2004",
@@ -962,9 +978,9 @@ null
 "description": "Atmosphere table",
 "choices": [
 "blackbody",
-"extern_planckint",
-"ck2004",
 "phoenix",
+"ck2004",
+"extern_planckint",
 "extern_atmx"
 ],
 "value": "ck2004",

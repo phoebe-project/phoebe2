@@ -84,6 +84,20 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.3.36 - MPI passband directory bugfix
+
+* fixes bug where running phoebe for the first time within MPI crashes due to each processor attempting to create the passband directory.
+
+### 2.3.35 - rotstar bugfix
+
+* bugfix in equation for converting rotation period/frequency to potential that affects the shapes of rapidly rotating stars with distortion_method of 'rotstar'.
+* single stars: implements the missing constraint for requiv_max for single star systems.
+
+### 2.3.34 - ebai and continue_from bugfix
+
+* ebai: map phases onto -0.5,0.5 interval after computing phase-shift and sending to ebai
+* emcee: cast fitted_uniqueids to list when applying wrap indices for continue_from
+
 ### 2.3.33 - constrained and multivariate priors bugfix
 
 * fixes handling of multivariate distributions as priors
