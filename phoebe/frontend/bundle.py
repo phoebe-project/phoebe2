@@ -43,6 +43,7 @@ from phoebe.distortions import roche
 from phoebe.frontend import io
 from phoebe.atmospheres.passbands import list_installed_passbands, list_online_passbands, get_passband, update_passband, _timestamp_to_dt
 from phoebe.dependencies import distl as _distl
+from phoebe.dependencies import crimpl as _crimpl
 from phoebe.utils import _bytes, parse_json, _get_masked_times, _get_masked_compute_times
 from phoebe import helpers as _helpers
 import libphoebe
@@ -2063,8 +2064,12 @@ class Bundle(ParameterSet):
             if return_changes and (changed or choices_changed):
                 affected_params.append(param)
 
-        choices = ['none'] + servers
         for param in self.filter(context=['compute', 'solver'], qualifier='server', **_skip_filter_checks).to_list():
+            if 'compute' in param.choices:
+                choices = ['none', 'compute'] + servers
+            else:
+                choices = ['none'] + servers
+
             choices_changed = False
             if return_changes and choices != param._choices:
                 choices_changed = True
@@ -2072,7 +2077,7 @@ class Bundle(ParameterSet):
 
             if param._value not in choices:
                 changed = True
-                param._value = 'none'
+                param._value = 'compute' if 'compute' in choices else 'none'
             else:
                 changed = False
 
@@ -10650,10 +10655,10 @@ class Bundle(ParameterSet):
         if isinstance(detach, str):
             # then we want to temporarily go in to client mode
             raise NotImplementedError("detach currently must be a bool")
-            self.as_client(as_client=detach)
-            ret_ = self.run_compute(compute=compute, model=model, solver=solver, dataset=dataset, times=times, return_changes=return_changes, **kwargs)
-            self.as_client(as_client=False)
-            return _return_ps(self, ret_)
+            # self.as_client(as_client=detach)
+            # ret_ = self.run_compute(compute=compute, model=model, solver=solver, dataset=dataset, times=times, return_changes=return_changes, **kwargs)
+            # self.as_client(as_client=False)
+            # return _return_ps(self, ret_)
 
         if solver is not None and compute is not None:
             raise ValueError("cannot provide both solver and compute")
@@ -10684,10 +10689,21 @@ class Bundle(ParameterSet):
                 if isinstance(v, float) or isinstance(v, int):
                     times[k] = [v]
 
+        use_server = kwargs.get('server', None)
+        job_sleep = kwargs.get('sleep', 10)
+
+
         # NOTE: _prepare_compute calls run_checks_compute and will handle raising
         # any necessary errors
         model, computes, datasets, do_create_fig_params, changed_params, overwrite_ps, kwargs = self._prepare_compute(compute, model, dataset, **kwargs)
         _ = kwargs.pop('do_create_fig_params', None)
+
+        if use_server is None:
+            for compute in computes:
+                use_server_this = self.get_value(qualifier='server', compute=compute, context='compute', **_skip_filter_checks)
+                if use_server is not None and use_server_this != use_server:
+                    raise ValueError("multiple values found for server among compute options")
+                use_server = use_server_this
 
         kwargs.setdefault('progressbar', conf.progressbars)
 
@@ -10697,7 +10713,7 @@ class Bundle(ParameterSet):
             logger.warning("cannot detach when within mpirun, ignoring")
             detach = False
 
-        if (detach or mpi.enabled) and not mpi.within_mpirun:
+        if (detach or mpi.enabled or use_server!='none') and not mpi.within_mpirun:
             if detach:
                 logger.warning("detach support is EXPERIMENTAL")
 
@@ -10720,6 +10736,8 @@ class Bundle(ParameterSet):
                     compute_class = getattr(backends, '{}Backend'.format(computeparams.kind.title()))
                     out = compute_class().get_packet_and_syns(self, compute, times=times, **kwargs)
 
+            method = 'local' if use_server == 'none' else 'crimpl'
+
             # we'll track everything through the model name as well as
             # a random string, to avoid any conflicts
             jobid = kwargs.get('jobid', parameters._uniqueid())
@@ -10729,33 +10747,50 @@ class Bundle(ParameterSet):
             script_fname = "_{}.py".format(jobid)
             out_fname = "_{}.out".format(jobid)
             err_fname = "_{}.err".format(jobid)
-            script_fname, out_fname = self._write_export_compute_script(script_fname, out_fname, compute, model, dataset, do_create_fig_params, False, None, kwargs)
+            script_fname, out_fname = self._write_export_compute_script(script_fname, out_fname, compute, model, dataset, do_create_fig_params, True, None, kwargs)
 
             script_fname = os.path.abspath(script_fname)
-            cmd = mpi.detach_cmd.format(script_fname)
-            # TODO: would be nice to catch errors caused by the detached script...
-            # but that would probably need to be the responsibility of the
-            # jobparam to return a failed status and message.
-            # Unfortunately right now an error just results in the job hanging.
-            f = open(err_fname, 'w')
-            subprocess.Popen(cmd, shell=True, stdout=DEVNULL, stderr=f)
-            f.close()
 
-            # create model parameter and attach (and then return that instead of None)
+            if method == 'local':
+                cmd = mpi.detach_cmd.format(script_fname)
+                # TODO: would be nice to catch errors caused by the detached script...
+                # but that would probably need to be the responsibility of the
+                # jobparam to return a failed status and message.
+                # Unfortunately right now an error just results in the job hanging.
+                f = open(err_fname, 'w')
+                subprocess.Popen(cmd, shell=True, stdout=DEVNULL, stderr=f)
+                f.close()
+            elif method == 'crimpl':
+                qualifier_map = {'conda_env': 'conda_environment', 'isolate_env': 'isolate_environment'}
+                server_options = {qualifier_map.get(p.qualifier, p.qualifier): p.get_value() for p in self.filter(server=use_server, context='server', check_visible=False, **kwargs).to_list()}
+
+                crimpl_name = server_options.pop('crimpl_name')
+                s = _crimpl.load_server(crimpl_name)
+
+                # TODO: get dependencies and call s.run_script(...)
+                # TODO: boolean option on whether to use mpirun or not?
+                sj = s.submit_job(script=['mpirun python3 {}'.format(os.path.basename(script_fname))],
+                                  files=[script_fname],
+                                  **server_options)
+
+            else:
+                raise NotImplementedError()
+
+            # create model job parameter and attach (and then return that instead of None)
             job_param = JobParameter(self,
-                                     location=os.path.dirname(script_fname),
-                                     status_method='exists',
-                                     retrieve_method='local',
+                                     method=method,
+                                     location=os.path.dirname(script_fname) if method=='local' else None,
+                                     job_name=sj.job_name if method=='crimpl' else None,
                                      uniqueid=jobid)
 
-            metawargs = {'context': 'model', 'model': model}
+            metawargs = {'context': 'model', 'model': model, 'server': use_server if method=='crimpl' else None}
             self._attach_params([job_param], check_copy_for=False, **metawargs)
 
             if isinstance(detach, str):
                 self.save(detach)
 
             if not detach:
-                return job_param.attach()
+                return job_param.attach(sleep=job_sleep)
             else:
                 logger.info("detaching from run_compute.  Call get_parameter(model='{}').attach() to re-attach".format(model))
 
@@ -12133,12 +12168,18 @@ class Bundle(ParameterSet):
         if isinstance(detach, str):
             # then we want to temporarily go in to client mode
             raise NotImplementedError("detach currently must be a bool")
-            self.as_client(as_client=detach)
-            self.run_solver(solver=solver, solution=solution, **kwargs)
-            self.as_client(as_client=False)
-            return self.get_solution(solution=solution)
+            # self.as_client(as_client=detach)
+            # self.run_solver(solver=solver, solution=solution, **kwargs)
+            # self.as_client(as_client=False)
+            # return self.get_solution(solution=solution)
 
         kwargs.setdefault('progressbar', conf.progressbars)
+
+        # TODO: will server be able to be used as a default here
+        use_server = kwargs.get('server', self.get_value(qualifier='server', solver=solver, context='solver', **_skip_filter_checks))
+        if use_server == 'compute':
+            use_server = self.get_value(qualifier='server', compute=self.get_value(qualifier='compute', solver=solver, context='solver', **_skip_filter_checks), **_skip_filter_checks)
+        job_sleep = kwargs.get('sleep', 10)
 
         solver, solution, compute, solver_ps = self._prepare_solver(solver, solution, **kwargs)
 
@@ -12200,7 +12241,7 @@ class Bundle(ParameterSet):
             logger.warning("cannot detach when within mpirun, ignoring")
             detach = False
 
-        if (detach or mpi.enabled) and not mpi.within_mpirun:
+        if (detach or mpi.enabled or use_server!='none') and not mpi.within_mpirun:
             if detach:
                 logger.warning("detach support is EXPERIMENTAL")
 
@@ -12216,6 +12257,8 @@ class Bundle(ParameterSet):
             #         compute_class = getattr(backends, '{}Backend'.format(computeparams.kind.title()))
             #         out = compute_class().get_packet_and_syns(self, compute, times=times, **kwargs)
 
+            method = 'local' if use_server == 'none' else 'crimpl'
+
             # we'll track everything through the solution name as well as
             # a random string, to avoid any conflicts
             jobid = kwargs.get('jobid', parameters._uniqueid())
@@ -12224,26 +12267,43 @@ class Bundle(ParameterSet):
             out_fname = "_{}.out".format(jobid)
             err_fname = "_{}.err".format(jobid)
             kill_fname = "_{}.kill".format(jobid)
-            script_fname, out_fname = self._write_export_solver_script(script_fname, out_fname, solver, solution, False, False, None, kwargs)
+            script_fname, out_fname = self._write_export_solver_script(script_fname, out_fname, solver, solution, False, True, None, kwargs)
 
             script_fname = os.path.abspath(script_fname)
-            cmd = mpi.detach_cmd.format(script_fname)
-            # TODO: would be nice to catch errors caused by the detached script...
-            # but that would probably need to be the responsibility of the
-            # jobparam to return a failed status and message.
-            # Unfortunately right now an error just results in the job hanging.
-            f = open(err_fname, 'w')
-            subprocess.Popen(cmd, shell=True, stdout=DEVNULL, stderr=f)
-            f.close()
+
+            if method == 'local':
+                cmd = mpi.detach_cmd.format(script_fname)
+                # TODO: would be nice to catch errors caused by the detached script...
+                # but that would probably need to be the responsibility of the
+                # jobparam to return a failed status and message.
+                # Unfortunately right now an error just results in the job hanging.
+                f = open(err_fname, 'w')
+                subprocess.Popen(cmd, shell=True, stdout=DEVNULL, stderr=f)
+                f.close()
+            elif method == 'crimpl':
+                qualifier_map = {'conda_env': 'conda_environment', 'isolate_env': 'isolate_environment'}
+                server_options = {qualifier_map.get(p.qualifier, p.qualifier): p.get_value() for p in self.filter(server=use_server, context='server', check_visible=False, **kwargs).to_list()}
+
+                crimpl_name = server_options.pop('crimpl_name')
+                # TODO: cache servers
+                s = _crimpl.load_server(crimpl_name)
+
+                # TODO: get dependencies and call s.run_script(...)
+                # TODO: boolean option on whether to use mpirun or not?
+                sj = s.submit_job(script=['mpirun python3 {}'.format(os.path.basename(script_fname))],
+                                  files=[script_fname],
+                                  **server_options)
+            else:
+                raise NotImplementedError()
 
             # create model parameter and attach (and then return that instead of None)
             job_param = JobParameter(self,
-                                     location=os.path.dirname(script_fname),
-                                     status_method='exists',
-                                     retrieve_method='local',
+                                     method=method,
+                                     location=os.path.dirname(script_fname) if method=='local' else None,
+                                     job_name=sj.job_name if method=='crimpl' else None,
                                      uniqueid=jobid)
 
-            metawargs = {'context': 'solution', 'solution': solution}
+            metawargs = {'context': 'solution', 'solution': solution, 'server': use_server if method=='crimpl' else None}
             self._attach_params([job_param], check_copy_for=False, **metawargs)
 
             if isinstance(detach, str):
@@ -12252,7 +12312,7 @@ class Bundle(ParameterSet):
             restore_conf()
 
             if not detach:
-                return job_param.attach()
+                return job_param.attach(sleep=job_sleep)
             else:
                 logger.info("detaching from run_solver.  Call get_parameter(solution='{}').attach() to re-attach".format(solution))
 

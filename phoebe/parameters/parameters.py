@@ -10,6 +10,7 @@ from phoebe.parameters.twighelpers import _uniqueid_to_uniquetwig
 from phoebe.parameters.twighelpers import _twig_to_uniqueid
 from phoebe.frontend import tabcomplete
 from phoebe.dependencies import nparray, distl
+from phoebe.dependencies import crimpl as _crimpl
 from phoebe.utils import parse_json, phase_mask_inds
 from phoebe import helpers as _helpers
 
@@ -11910,7 +11911,7 @@ class JobParameter(Parameter):
     Parameter that tracks a submitted job (detached
     <phoebe.frontend.bundle.Bundle.run_compute>, for example)
     """
-    def __init__(self, b, location, status_method, retrieve_method, server_status=None, **kwargs):
+    def __init__(self, b, method, location=None, server=None, job_name=None, **kwargs):
         """
         see <phoebe.parameters.Parameter.__init__>
         """
@@ -11919,22 +11920,29 @@ class JobParameter(Parameter):
         super(JobParameter, self).__init__(qualifier='detached_job', **kwargs)
 
         self._bundle = b
-        self._server_status = server_status
-        self._location = location
-        self._status_method = status_method
-        self._retrieve_method = retrieve_method
+        # TODO: backwards compatibility map of status_method?
+        self._method = method # 'local' or 'crimpl'
+        # NOTE: for method='crimpl', will be tagged with the PHOEBE server
+        self._job_name = job_name  # crimpl only: name of the crimpl job
         self._value = 'unknown'
-        #self._randstr = randstr
 
-        # TODO: may need to be more clever once remote servers are supported
-        self._script_fname = os.path.join(location, '_{}.py'.format(self.uniqueid))
-        self._results_fname = os.path.join(location, '_{}.out'.format(self.uniqueid))
-        self._err_fname = os.path.join(location, '_{}.err'.format(self.uniqueid))
-        self._kill_fname = self._results_fname + '.kill'
+        self._cached_crimpl_server = None
+        self._cached_crimpl_job = None
+
+        self._location = location
+        if method == 'local':
+            self._script_fname = os.path.join(location, '_{}.py'.format(self.uniqueid))
+            self._results_fname = os.path.join(location, '_{}.out'.format(self.uniqueid))
+            self._err_fname = os.path.join(location, '_{}.err'.format(self.uniqueid))
+            self._kill_fname = self._results_fname + '.kill'
+        elif method == 'crimpl':
+            self._results_fname = '_{}.out'.format(self.uniqueid)
+        else:
+            raise NotImplementedError()
 
         # TODO: add a description?
 
-        self._dict_fields_other = ['description', 'value', 'server_status', 'location', 'status_method', 'retrieve_method', 'uniqueid', 'readonly', 'advanced', 'latexfmt']
+        self._dict_fields_other = ['description', 'value', 'method', 'location', 'server', 'job_name', 'uniqueid', 'readonly', 'advanced', 'latexfmt']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     def __str__(self):
@@ -11949,12 +11957,9 @@ class JobParameter(Parameter):
         representations, we'll provide the current status.
 
         Also see:
-            * <phoebe.parameters.JobParameter.status>
-            * <phoebe.parameters.JobParameter.attach>
-            * <phoebe.parameters.JobParameter.location>
-            * <phoebe.parameters.JobParameter.server_status>
-            * <phoebe.parameters.JobParameter.status_method>
-            * <phoebe.parameters.JobParameter.retrieve_method>
+        * <phoebe.parameters.JobParameter.status>
+        * <phoebe.parameters.JobParameter.attach>
+        * <phoebe.parameters.JobParameter.method>
 
         """
         return self.status
@@ -11972,29 +11977,7 @@ class JobParameter(Parameter):
         raise NotImplementedError("JobParameter is a read-only parameter.  Call status or attach()")
 
     @property
-    def server_status(self):
-        """
-        Access the status of the remote server, if applicable.
-
-        Returns
-        -----------
-        * (str)
-        """
-        return self._server_status
-
-    @property
-    def location(self):
-        """
-        Access the location of the remote server, if applicable.
-
-        Returns
-        ----------
-        * (str)
-        """
-        return self._location
-
-    @property
-    def status_method(self):
+    def method(self):
         """
         Access the method for determining the status of the Job.
 
@@ -12002,18 +11985,29 @@ class JobParameter(Parameter):
         ---------
         * (str)
         """
-        return self._status_method
+        return self._method
 
     @property
-    def retrieve_method(self):
+    def location(self):
         """
-        Access the method for retrieving the results from the Job, once completed.
+        Access the local location (if <phoebe.parameters.JobParameter.method> is 'local').
 
         Returns
-        -----------
+        ---------
         * (str)
         """
-        return self._retrieve_method
+        return self._location
+
+    @property
+    def job_name(self):
+        """
+        Access the job_name (if <phoebe.parameters.JobParameter.method> is 'crimpl').
+
+        Returns
+        ---------
+        * (str)
+        """
+        return self._job_name
 
     @property
     def status(self):
@@ -12047,57 +12041,34 @@ class JobParameter(Parameter):
         * NotImplementedError: if status isn't implemented for the given
             <phoebe.parameters.JobParameter.status_method>.
         """
-        if self._value == 'loaded':
-            status = 'loaded'
+        if self._value in ['loaded', 'complete', 'error', 'killed']:
+            # then we aren't expecting any new updates
+            status = self._value
 
-        elif not _is_server and self._bundle is not None and self._server_status is not None:
-            if not _can_requests:
-                raise ImportError("requests module required for external jobs")
-
-            raise NotImplementedError()
-            # if self._value in ['complete']:
-            #     # then we have no need to bother checking again
-            #     status = self._value
-            # else:
-            #     url = self._server_status
-            #     logger.info("checking job status on server from {}".format(url))
-            #     # "{}/{}/parameters/{}".format(server, bundleid, self.uniqueid)
-            #     r = requests.get(url, timeout=5)
-            #     try:
-            #         rjson = r.json()
-            #     except ValueError:
-            #         # TODO: better exception here - perhaps look for the status code from the response?
-            #         status = self._value
-            #     else:
-            #         status = rjson['data']['attributes']['value']
-
-        else:
-
-            if self.status_method == 'exists':
-                if self._value in ['error', 'killed', 'loaded']:
-                    # then error was already detected and we've already done cleanup
-                    status = self._value
-                elif os.path.isfile(self._results_fname):
-                    status = 'complete'
-                elif os.path.isfile(self._kill_fname):
-                    status = 'killed'
-                elif os.path.isfile(self._results_fname+'.progress'):
-                    status = 'progress'
-                elif os.path.isfile(self._err_fname) and os.stat(self._err_fname).st_size > 0:
-                    # some warnings from other packages can be set to stderr
-                    # so we need to make sure the last line is actually from
-                    # raising an error.
-                    ferr = open(self._err_fname, 'r')
-                    msg = ferr.readlines()[-1]
-                    ferr.close()
-                    if 'Error' in msg.split()[0]:
-                        status = 'error'
-                    else:
-                        status = 'running'
+        elif self.method == 'local':
+            if os.path.isfile(self._results_fname):
+                status = 'complete'
+            elif os.path.isfile(self._kill_fname):
+                status = 'killed'
+            elif os.path.isfile(self._results_fname+'.progress'):
+                status = 'progress'
+            elif os.path.isfile(self._err_fname) and os.stat(self._err_fname).st_size > 0:
+                # some warnings from other packages can be set to stderr
+                # so we need to make sure the last line is actually from
+                # raising an error.
+                ferr = open(self._err_fname, 'r')
+                msg = ferr.readlines()[-1]
+                ferr.close()
+                if 'Error' in msg.split()[0]:
+                    status = 'error'
                 else:
                     status = 'running'
             else:
-                raise NotImplementedError
+                status = 'running'
+        elif self.method == 'crimpl':
+            return self._crimpl_job.job_status
+        else:
+            raise NotImplementedError
 
         # here we'll set the value to be the latest CHECKED status for the sake
         # of exporting to JSON and updating the status for clients.  get_value
@@ -12105,10 +12076,27 @@ class JobParameter(Parameter):
         self._value = status
         return status
 
+    @property
+    def _crimpl_server(self):
+        if self._cached_crimpl_server is None:
+            crimpl_name = self._bundle.get_value(qualifier='crimpl_name', server=self._server, **_skip_filter_checks)
+            self._cached_crimpl_server = _crimpl.load_server(crimpl_name)
+        return self._cached_crimpl_server
+
+    @property
+    def _crimpl_job(self):
+        if self._cached_crimpl_job is None:
+            self._cached_crimpl_job = self._crimpl_server.get_job(self._job_name)
+        return self._cached_crimpl_job
+
     def _retrieve_results(self):
         """
         [NOT IMPLEMENTED]
         """
+        if self.method == 'crimpl':
+            crimpl_name = self._bundle.get_value(qualifier='crimpl_name', server=self._server, **_skip_filter_checks)
+            self._crimpl_job.check_output([self._results_fname, self._results_fname+'.progress'])
+
         # now the file with the model should be retrievable from self._result_fname
         if 'progress' in self._value:
             fname = self._results_fname + '.progress'
@@ -12142,7 +12130,7 @@ class JobParameter(Parameter):
             os.remove(self._kill_fname)
         except: pass
 
-    def attach(self, wait=True, sleep=5, cleanup=True, return_changes=False):
+    def attach(self, wait=True, sleep=10, cleanup=True, return_changes=False):
         """
         Attach the results from a <phoebe.parameters.JobParameter> to the
         <phoebe.frontend.bundle.Bundle>.  If the status is not yet reported as
@@ -12152,7 +12140,7 @@ class JobParameter(Parameter):
         ---------
         * `wait` (bool, optional, default=True): whether to wait until the job
             is complete.
-        * `sleep` (int, optional, default=5): number of seconds to sleep between
+        * `sleep` (int, optional, default=10): number of seconds to sleep between
             status checks.  See <phoebe.parameters.JobParameter.get_status>.
             Only applicable if `wait` is True.
         * `cleanup` (bool, optional, default=True): whether to delete any
@@ -12174,47 +12162,26 @@ class JobParameter(Parameter):
             raise ValueError("can only attach a job if attached to a bundle")
 
         status = self.get_status()
-        if not wait and status not in ['complete', 'error', 'progress']:
-            if status in ['loaded']:
-                logger.info("job already loaded")
-                if self.context == 'model':
-                    return self._bundle.get_model(self.model)
-                elif self.context == 'solution':
-                    return self._bundle.get_solution(self.solution)
-                else:
-                    raise NotImplementedError("attaching for context='{}' not implemented".format(self.context))
-            else:
-                logger.info("current status: {}, check again or use wait=True".format(status))
-                return self
+        if not wait and status not in ['complete', 'error', 'progress', 'loaded']:
+            logger.info("current status: {}, check again or use wait=True".format(status))
+            return self
 
         if wait:
-            while self.get_status() not in ['complete', 'loaded', 'error']:
-                # TODO: any way we can not make 2 calls to self.status here?
-                logger.info("current status: {}, trying again in {}s".format(self.get_status(), sleep))
+            while status not in ['complete', 'loaded', 'error']:
+                logger.info("current status: {}, trying again in {}s".format(status, sleep))
                 time.sleep(sleep)
+                status = self.get_status()
 
-        if self._server_status is not None and not _is_server:
-            if not _can_requests:
-                raise ImportError("requests module required for external jobs")
-
-            raise NotImplementedError()
-            # # then we are no longer attached as a client to this bundle on
-            # # the server, so we need to just pull the results manually
-            # url = self._server_status
-            # logger.info("pulling job results from server from {}".format(url))
-            # # "{}/{}/parameters/{}".format(server, bundleid, self.uniqueid)
-            # r = requests.get(url, timeout=5)
-            # rjson = r.json()
-            #
-            # # status should already be complete because of while loop above,
-            # # but could always check the following:
-            # # rjson['value']['attributes']['value'] == 'complete'
-            #
-            # # TODO: server needs to sideload results once complete
-            # newparams = rjson['included']
-            # self._bundle._attach_param_from_server(newparams)
-
-        elif self.status == 'error':
+        if status == 'loaded':
+            logger.info("job already loaded")
+            if self.context == 'model':
+                return self._bundle.get_model(self.model)
+            elif self.context == 'solution':
+                return self._bundle.get_solution(self.solution)
+            else:
+                raise NotImplementedError("attaching for context='{}' not implemented".format(self.context))
+        elif status == 'error':
+            # TODO: test and fix this (ferr probably isn't defined)
             lines = ferr.readlines()
             ferr.close()
 
@@ -12226,8 +12193,9 @@ class JobParameter(Parameter):
             print("ERROR: full error message: {}".format(lines))
             logger.error("full error message: {}".format(lines))
             raise RuntimeError("job failed with error: {}".format(lines[-1]))
+
         else:
-            logger.info("current status: {}, pulling job results".format(self.status))
+            logger.info("current status: {}, pulling job results".format(status))
             ret_ps = self._retrieve_results()
 
             if ret_ps is None and 'progress' in self._value:
@@ -12306,8 +12274,11 @@ class JobParameter(Parameter):
 
 
         """
-        f = open(self._kill_fname, 'w')
-        f.write('kill')
-        f.close()
-        if cleanup:
-            return self.attach(wait=True, cleanup=True)
+        if self._method == 'local':
+            f = open(self._kill_fname, 'w')
+            f.write('kill')
+            f.close()
+            if cleanup:
+                return self.attach(wait=True, cleanup=True)
+        else:
+            raise NotImplementedError()

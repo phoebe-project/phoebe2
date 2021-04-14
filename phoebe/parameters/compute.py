@@ -38,7 +38,7 @@ def _comments_params(**kwargs):
 def _server_params(**kwargs):
     params = []
 
-    params += [ChoiceParameter(qualifier='server', value=kwargs.get('server', 'none'), choices=['none'], description='Server to use when running the forward model (or "none" to run locally).')]
+    params += [ChoiceParameter(qualifier='server', value=kwargs.get('server', 'none'), choices=['none'], description='Server to use when running the forward model (or "none" to run locally) via run_compute.')]
     return params
 
 def phoebe(**kwargs):

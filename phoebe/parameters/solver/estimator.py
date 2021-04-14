@@ -21,7 +21,7 @@ def _comments_params(**kwargs):
 def _server_params(**kwargs):
     params = []
 
-    params += [ChoiceParameter(qualifier='server', value=kwargs.get('server', 'none'), choices=['none'], description='Server to use when running the solver.')]
+    params += [ChoiceParameter(qualifier='server', value=kwargs.get('server', 'none'), choices=['none'], description='Server to use when running the solver (or "none" to run locally).')]
     return params
 
 
