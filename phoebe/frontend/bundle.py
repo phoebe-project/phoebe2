@@ -4966,7 +4966,7 @@ class Bundle(ParameterSet):
     def references(self, compute=None, dataset=None, solver=None):
         """
         Provides a list of used references from the given bundle based on the
-        current parameter values and attached datasets/compute options.
+        current parameter values and attached datasets/compute/solver options.
 
         This list is not necessarily complete, but can be useful to find
         publications for various features/models used as well as to make sure
@@ -4981,6 +4981,9 @@ class Bundle(ParameterSet):
         * Passband table citations, when available/applicable.
         * Dependency (astropy, numpy, etc) citations, when available/applicable.
         * Alternate compute and/or solver backends, when applicable.
+
+        See also:
+        * <phoebe.frontend.bundle.Bundle.dependencies>
 
         Arguments
         ------------
@@ -5148,6 +5151,90 @@ class Bundle(ParameterSet):
         recs = _add_reason(recs, 'astropy', 'astropy dependency within PHOEBE')
 
         return {r: {'url': citation_urls.get(r, None), 'uses': v} for r,v in recs.items()}
+
+
+    def dependencies(self, compute=None, dataset=None, solver=None):
+        """
+        Provides a list of necessary dependencies from the given bundle based on the
+        current parameter values and attached datasets/compute/solver options.
+
+        See also:
+        * <phoebe.frontend.bundle.Bundle.references>
+
+        Arguments
+        ------------
+        * `compute` (string or list of strings, optional, default=None): only
+            consider a single (or list of) compute options.  If None or not
+            provided, will default to all attached compute options.
+        * `dataset` (string or list of strings, optional, default=None): only
+            consider a single (or list of) datasets.  If None or not provided,
+            will default to all attached datasets.
+        * `solver` (string or list of strings, optional, default=None): only
+            consider a single (or list of) solver options.  If None or not
+            provided, will default to all attached solver options.
+
+        Returns
+        ----------
+        * (list, list): list of pip dependencies, list of other dependencies
+        """
+
+        if compute is None:
+            computes = self.computes
+        elif isinstance(compute, str):
+            computes = [compute]
+        elif isinstance(compute, list):
+            computes = compute
+        else:
+            raise TypeError("compute must be type None, string, or list")
+
+        if dataset is None:
+            datasets = self.datasets
+        elif isinstance(dataset, str):
+            datasets = [dataset]
+        elif isinstance(dataset, list):
+            datasets = dataset
+        else:
+            raise TypeError("dataset must be type None, string, or list")
+
+        if solver is None:
+            solvers = self.solvers
+        elif isinstance(solver, str):
+            solvers = [solver]
+        elif isinstance(solver, list):
+            solvers = solver
+        else:
+            raise TypeError("solver must be of type None, string, or list")
+
+        deps_pip, deps_other = [], []
+
+        # check for backends
+        for compute in computes:
+            if self.get_compute(compute).kind == 'phoebe' and 'phoebe' not in deps_pip:
+                deps_pip.append('phoebe')
+            elif self.get_compute(compute).kind == 'legacy' and 'phoebe1' not in deps_other:
+                deps_other.append('phoebe1')
+            elif self.get_compute(compute).kind == 'jktebop' and 'jktebop' not in deps_other:
+                deps_other.append('jktebop')
+            elif self.get_compute(compute).kind == 'photodynam' and 'photodynam' not in deps_other:
+                deps_other.append('photodynam')
+            elif self.get_compute(compute).kind == 'ellc' and 'ellc' not in deps_pip:
+                deps_pip.append('ellc')
+
+        # if len(solvers) and 'phoebe>=2.3' not in deps_pip:
+            # deps_pip.append('phoebe>=2.3')
+
+        for solver in solvers:
+            solver_kind = self.get_solver(solver).kind
+            if solver_kind == 'emcee' and 'emcee' not in deps_pip:
+                deps_pip.append('emcee')
+            elif solver_kind == 'dynesty' and 'dynesty' not in deps_pip:
+                deps_pip.append('dynesty')
+
+        # features
+        if len(self.filter(context='feature', kind='gaussian_process').features) and 'celerite' not in deps_pip:
+            deps_pip.append('celerite')
+
+        return deps_pip, deps_other
 
     @send_if_client
     def add_feature(self, kind, component=None, dataset=None,
