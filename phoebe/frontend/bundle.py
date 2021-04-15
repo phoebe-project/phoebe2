@@ -7164,12 +7164,12 @@ class Bundle(ParameterSet):
                     else:
                         raise ValueError("parameter is already referenced by distribution = '{}'".format(kwargs['distribution']))
 
+                self._attach_params([dist_param], **metawargs)
                 dist_params += [dist_param]
 
         if not len(dist_params):
             return ParameterSet([])
 
-        self._attach_params(dist_params, **metawargs)
 
         ret_ps = ParameterSet(dist_params)
 
