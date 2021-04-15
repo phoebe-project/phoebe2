@@ -877,6 +877,29 @@ class Bundle(ParameterSet):
             # call set_hierarchy to force asini@component constraints (comp_asini) to be built
             b.set_hierarchy()
 
+        if phoebe_version_import < StrictVersion("2.4.0"):
+            existing_values_settings = {p.qualifier: p.get_value() for p in b.filter(context='setting').to_list()}
+            b.remove_parameters_all(context='setting', **_skip_filter_checks)
+            b._attach_params(_setting.settings(**existing_values_settings), context='setting')
+
+
+            for compute in b.filter(context='compute').computes:
+                logger.info("attempting to update compute='{}' to new version requirements".format(compute))
+                ps_compute = b.filter(context='compute', compute=compute, **_skip_filter_checks)
+                compute_kind = ps_compute.kind
+                dict_compute = _ps_dict(ps_compute)
+                # NOTE: we will not remove (or update) the dataset from any existing models
+                b.remove_compute(compute, context=['compute'])
+                b.add_compute(compute_kind, compute=compute, check_label=False, **dict_compute)
+
+            for solver in b.filter(context='solver').solvers:
+                logger.info("attempting to update solver='{}' to new version requirements".format(solver))
+                ps_solver = b.filter(context='solver', solver=solver, **_skip_filter_checks)
+                solver_kind = ps_solver.kind
+                dict_solver = _ps_dict(ps_solver)
+                b.remove_solver(solver, context=['solver'])
+                b.add_solver(solver_kind, solver=solver, check_label=False, **dict_solver)
+
         return b
 
 
