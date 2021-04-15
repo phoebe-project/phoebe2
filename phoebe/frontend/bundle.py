@@ -10874,11 +10874,20 @@ class Bundle(ParameterSet):
                 server_options = {qualifier_map.get(p.qualifier, p.qualifier): p.get_value() for p in self.filter(server=use_server, context='server', check_visible=False, **kwargs).to_list()}
 
                 crimpl_name = server_options.pop('crimpl_name')
+                use_mpi = server_options.pop('use_mpi')
+                install_deps = server_options.pop('install_deps')
                 s = _crimpl.load_server(crimpl_name)
 
-                # TODO: get dependencies and call s.run_script(...)
-                # TODO: boolean option on whether to use mpirun or not?
-                sj = s.submit_job(script=['mpirun python3 {}'.format(os.path.basename(script_fname))],
+                if install_deps:
+                    deps_pip, deps_other = self.dependencies(compute=compute)
+                    if len(deps_other):
+                        # TODO: do something better with this
+                        raise ValueError("cannot automatically install {}".format(deps_other))
+                    if use_mpi:
+                        deps_pip.append('mpi4py')
+                    s.run_script(['pip install {}'.format(" ".join(deps_pip))], conda_environment=server_options.get('conda_env'))
+
+                sj = s.submit_job(script=['{}python3 {}'.format("mpirun " if use_mpi else "", os.path.basename(script_fname))],
                                   files=[script_fname],
                                   **server_options)
 
@@ -12464,15 +12473,25 @@ class Bundle(ParameterSet):
                 qualifier_map = {'conda_env': 'conda_environment', 'isolate_env': 'isolate_environment'}
                 server_options = {qualifier_map.get(p.qualifier, p.qualifier): p.get_value() for p in self.filter(server=use_server, context='server', check_visible=False, **kwargs).to_list()}
 
-                crimpl_name = server_options.pop('crimpl_name')
                 # TODO: cache servers
+                crimpl_name = server_options.pop('crimpl_name')
+                use_mpi = server_options.pop('use_mpi')
+                install_deps = server_options.pop('install_deps')
                 s = _crimpl.load_server(crimpl_name)
 
-                # TODO: get dependencies and call s.run_script(...)
-                # TODO: boolean option on whether to use mpirun or not?
-                sj = s.submit_job(script=['mpirun python3 {}'.format(os.path.basename(script_fname))],
+                if install_deps:
+                    deps_pip, deps_other = self.dependencies(solver=solver, compute=self.get_value(qualifier='compute', solver=solver, default=[], **_skip_filter_checks))
+                    if len(deps_other):
+                        # TODO: do something better with this
+                        raise ValueError("cannot automatically install {}".format(deps_other))
+                    if use_mpi:
+                        deps_pip.append('mpi4py')
+                    s.run_script(['pip install {}'.format(" ".join(deps_pip))], conda_environment=server_options.get('conda_env'))
+
+                sj = s.submit_job(script=['{}python3 {}'.format("mpirun " if use_mpi else "", os.path.basename(script_fname))],
                                   files=[script_fname],
                                   **server_options)
+
             else:
                 raise NotImplementedError()
 

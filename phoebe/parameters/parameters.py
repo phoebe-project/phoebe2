@@ -314,7 +314,8 @@ _forbidden_labels += ['datasets', 'models', 'components', 'contexts',
 
 # from server:
 _forbidden_labels += ['remoteslurm', 'awsec2', 'crimpl_name', 'conda_env', 'isolate_env',
-                      'nprocs', 'walltime', 'mail_user', 'mail_type', 'terminate_on_complete']
+                      'nprocs', 'use_mpi',
+                      'walltime', 'mail_user', 'mail_type', 'terminate_on_complete']
 
 # ? and * used for wildcards in twigs
 _twig_delims = ' \t\n`~!#$%^&)-=+]{}\\|;,<>/:'

@@ -30,6 +30,13 @@ def remoteslurm(server, **kwargs):
         conda_env environment per-job.
     * `nprocs` (int, optional, default=4): Number of processors to allocate to
         each job
+    * `use_mpi` (bool, optional, default=True): Whether to use mpi on the remote
+       machine
+    * `install_deps` (bool, optional, default=True): Whether to ensure required
+        dependencies are installed in conda_env on the remote machine (adds some
+        overhead)
+    * `slurm_job_name` (string, optional): Job name to use within slurm on the
+        remote machine
     * `walltime` (string, optional, default='00:10:00'): Walltime to allocate to
         each job
     * `mail_user` (string, optional): Email to have slurm notify about events
@@ -50,6 +57,10 @@ def remoteslurm(server, **kwargs):
     params += [StringParameter(qualifier="conda_env", value=kwargs.get('conda_env', 'default'), description='Name of conda environment on remote machine to run jobs.  Will be created and necessary deps installed if does not exist.')]
     params += [BoolParameter(qualifier='isolate_env', value=kwargs.get('isolate_env', False), advanced=True, description='Whether to clone the conda_env environment per-job.')]
     params += [IntParameter(qualifier='nprocs', value=kwargs.get('nprocs', 4), description='Number of processors to allocate to each job')]
+    params += [BoolParameter(qualifier='use_mpi', value=kwargs.get('use_mpi', True), description='Whether to use mpi on the remote machine')]
+    params += [BoolParameter(qualifier='install_deps', value=kwargs.get('install_deps', True), description='Whether to ensure required dependencies are installed in conda_env on the remote machine (adds some overhead)')]
+
+    params += [StringParameter(qualifier='slurm_job_name', value=kwargs.get('slurm_job_name', ''), description='Jobname to use within slurm on the remote machine (optional)')]
     params += [StringParameter(qualifier='walltime', value=kwargs.get('walltime', '00:10:00'), description='Walltime to allocate to each job')]
     params += [StringParameter(qualifier='mail_user', value=kwargs.get('mail_user', ''), description='Email to have slurm notify about events matching mail_type')]
     params += [SelectParameter(qualifier='mail_type', visible_if='mail_user:<notempty>', value=kwargs.get('mail_type', ['END', 'FAIL']), choices=['BEGIN', 'END', 'FAIL', 'REQUEUE', 'ALL'], description='Scenarios in which to request slurm to notify mail_user by email')]
@@ -81,6 +92,11 @@ def awsec2(server, **kwargs):
         conda_env environment per-job.
     * `nprocs` (int, optional, default=4): Number of processors to allocate to
         each job
+    * `use_mpi` (bool, optional, default=True): Whether to use mpi on the remote
+       machine
+    * `install_deps` (bool, optional, default=True): Whether to ensure required
+        dependencies are installed in conda_env on the remote machine (adds some
+        overhead)
     * `terminate_on_complete` (bool, optional, default=True): Whether to
         terminate the server after the job is completed
 
@@ -96,6 +112,9 @@ def awsec2(server, **kwargs):
     params += [StringParameter(qualifier="conda_env", value=kwargs.get('conda_env', 'default'), description='Name of conda environment on remote machine to run jobs.  Will be created and necessary deps installed if does not exist.')]
     params += [BoolParameter(qualifier='isolate_env', value=kwargs.get('isolate_env', False), advanced=True, description='Whether to clone the conda_env environment per-job.')]
     params += [IntParameter(qualifier='nprocs', value=kwargs.get('nprocs', 4), description='Number of processors to allocate to each job')]
+    params += [BoolParameter(qualifier='use_mpi', value=kwargs.get('use_mpi', True), description='Whether to use mpi on the remote machine')]
+    params += [BoolParameter(qualifier='install_deps', value=kwargs.get('install_deps', True), description='Whether to ensure required dependencies are installed in conda_env on the remote machine (adds some overhead)')]
+
     params += [BoolParameter(qualifier='terminate_on_complete', value=kwargs.get('terminate_on_complete', True), description='Whether to terminate the server after the job is completed')]
 
     return ParameterSet(params)
