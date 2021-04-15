@@ -10808,6 +10808,11 @@ class Bundle(ParameterSet):
             metawargs = {'context': 'model', 'model': model, 'server': use_server if method=='crimpl' else None}
             self._attach_params([job_param], check_copy_for=False, **metawargs)
 
+            for compute in computes:
+                comment_param = StringParameter(qualifier='comments', value=kwargs.get('comments', self.get_value(qualifier='comments', compute=compute, default='', **_skip_filter_checks)), description='User-provided comments for this model.  Feel free to place any notes here.')
+                metawargs = {'context': 'model', 'model': model, 'compute': compute}
+                self._attach_params([comment_param], check_copy_for=False, **metawargs)
+
             if isinstance(detach, str):
                 self.save(detach)
 
@@ -12391,8 +12396,12 @@ class Bundle(ParameterSet):
                                      job_name=sj.job_name if method=='crimpl' else None,
                                      uniqueid=jobid)
 
-            metawargs = {'context': 'solution', 'solution': solution, 'server': use_server if method=='crimpl' else None}
+            metawargs = {'context': 'solution', 'solution': solution, 'solver': solver, 'server': use_server if method=='crimpl' else None}
             self._attach_params([job_param], check_copy_for=False, **metawargs)
+
+            comment_param = StringParameter(qualifier='comments', value=kwargs.get('comments', solver_ps.get_value(qualifier='comments', default='', **_skip_filter_checks)), description='User-provided comments for this solution.  Feel free to place any notes here.')
+            metawargs = {'context': 'solution', 'solution': solution, 'solver': solver}
+            self._attach_params([comment_param], check_copy_for=False, **metawargs)
 
             if isinstance(detach, str):
                 self.save(detach)
@@ -12421,7 +12430,6 @@ class Bundle(ParameterSet):
 
 
         comment_param = StringParameter(qualifier='comments', value=kwargs.get('comments', solver_ps.get_value(qualifier='comments', default='', **_skip_filter_checks)), description='User-provided comments for this solution.  Feel free to place any notes here.')
-
         self._attach_params(params+[comment_param], check_copy_for=False, **metawargs)
 
         restore_conf()
