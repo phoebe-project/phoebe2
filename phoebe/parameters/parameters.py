@@ -12111,7 +12111,7 @@ class JobParameter(Parameter):
             ret_ps = ParameterSet.open(fname)
         except Exception as err:
             if 'progress' in self._value:
-                return None
+                return ParameterSet([])
             else:
                 raise
         else:
@@ -12124,7 +12124,7 @@ class JobParameter(Parameter):
 
         ret_ps = self._retrieve_results()
 
-        if ret_ps is None and 'progress' in self._value:
+        if not len(ret_ps.to_list()) and 'progress' in self._value:
             # then we just want to update the progress value from the progress-file
             # but don't have anything to actually load
             f = open(self._results_fname + '.progress', 'r')
@@ -12143,9 +12143,18 @@ class JobParameter(Parameter):
         # now we need to attach ret_ps to self._bundle
         # TODO: is creating metawargs here necessary?  Shouldn't the params already be tagged?
         if self.context == 'model':
-            metawargs = {'compute': str(ret_ps.compute), 'model': str(ret_ps.model), 'context': 'model'}
+            metawargs = {'compute': str(ret_ps.compute), 'model': str(self.model), 'context': 'model'}
+            # NOTE: we need to update these tags now otherwise the returned copy won't have the correct tag (even though the attached copy will)
+            if ret_ps.model != self.model:
+                for param in ret_ps.to_list():
+                    param._model = self.model
+                ret_ps._model = self.model
         elif self.context == 'solution':
-            metawargs = {'solver': str(ret_ps.solver), 'solution': str(ret_ps.solution), 'context': 'solution'}
+            metawargs = {'solver': str(ret_ps.solver), 'solution': str(self.solution), 'context': 'solution'}
+            if ret_ps.solution != self.solution:
+                for param in ret_ps.to_list():
+                    param._solution = self.solution
+                ret_ps._solution = self.solution
         else:
             raise NotImplementedError("attaching for context='{}' not implemented".format(self.context))
 
@@ -12156,10 +12165,9 @@ class JobParameter(Parameter):
             elif 'progress' in ret_ps.qualifiers:
                 self._value = 'progress:{}%'.format(np.round(ret_ps.get_value(qualifier='progress'), 2))
 
-
+        # NOTE: we keep ParameterSet(ret_ps) instead of ret_ps in case
+        # the model/solution has been renamed since creating the job
         ret_changes = self._bundle._attach_params(ret_ps, overwrite=True, return_changes=return_changes, **metawargs)
-        if return_changes:
-            ret_changes += [self]
 
         if cleanup and self._value in ['complete', 'loaded', 'error', 'killed']:
             self._cleanup()
@@ -12167,7 +12175,7 @@ class JobParameter(Parameter):
         if self._value in ['complete']:
             self._value = 'loaded'
 
-        if self._value in ['failed'] and ret_ps is not None:
+        if self._value in ['failed'] and len(ret_ps.to_list()):
             # then we loaded the latest progress file available
             self._value = 'loaded'
 
@@ -12182,7 +12190,7 @@ class JobParameter(Parameter):
             raise NotImplementedError("attaching for context='{}' not implemented".format(self.context))
 
         if return_changes:
-            return ret_ps + ret_changes
+            return ret_ps + ret_changes + [self]
 
         return ret_ps
 
