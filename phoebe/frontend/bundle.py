@@ -11409,6 +11409,8 @@ class Bundle(ParameterSet):
         <phoebe.frontend.bundle.Bundle.run_solver>.
 
         See also:
+        * <phoebe.frontend.bundle.Bundle.get_job_status>
+        * <phoebe.frontend.bundle.Bundle.load_job_progress>
         * <phoebe.frontend.bundle.Bundle.kill_job>
         * <phoebe.parameters.JobParameter.attach>
 
@@ -11435,6 +11437,68 @@ class Bundle(ParameterSet):
         kwargs['qualifier'] = 'detached_job'
         return self.get_parameter(twig=twig, **kwargs).attach(wait=wait, sleep=sleep, cleanup=cleanup, return_changes=return_changes)
 
+    @send_if_client
+    def get_job_status(self, twig=None, **kwargs):
+        """
+        Check the status of an existing <phoebe.parameters.JobParameter>.
+
+        Jobs are created when passing `detach=True` to
+        <phoebe.frontend.bundle.Bundle.run_compute> or
+        <phoebe.frontend.bundle.Bundle.run_solver>.
+
+        See also:
+        * <phoebe.frontend.bundle.Bundle.attach_job>
+        * <phoebe.frontend.bundle.Bundle.load_job_progress>
+        * <phoebe.frontend.bundle.Bundle.kill_job>
+        * <phoebe.parameters.JobParameter.attach>
+
+        Arguments
+        ------------
+        * `twig` (string, optional): twig to use for filtering for the JobParameter.
+        * `**kwargs`: any additional keyword arguments are sent to filter for the
+            Job parameters.  Between `twig` and `**kwargs`, a single parameter
+            with qualifier of 'detached_job' must be found.
+
+        Returns
+        -----------
+        * (string)
+        """
+        kwargs['qualifier'] = 'detached_job'
+        return self.get_parameter(twig=twig, **kwargs).get_status()
+
+    @send_if_client
+    def load_job_progress(self, twig=None, return_changes=False, **kwargs):
+        """
+        Attach the results from an existing <phoebe.parameters.JobParameter>.
+
+        Jobs are created when passing `detach=True` to
+        <phoebe.frontend.bundle.Bundle.run_compute> or
+        <phoebe.frontend.bundle.Bundle.run_solver>.
+
+        See also:
+        * <phoebe.frontend.bundle.Bundle.get_job_status>
+        * <phoebe.frontend.bundle.Bundle.attach_job>
+        * <phoebe.frontend.bundle.Bundle.kill_job>
+        * <phoebe.parameters.JobParameter.load_progress>
+
+        Arguments
+        ------------
+        * `twig` (string, optional): twig to use for filtering for the JobParameter.
+        * `return_changes` (bool, optional, default=False): whether to include
+            changed/removed parameters in the returned ParameterSet.
+        * `**kwargs`: any additional keyword arguments are sent to filter for the
+            Job parameters.  Between `twig` and `**kwargs`, a single parameter
+            with qualifier of 'detached_job' must be found.
+
+        Returns
+        -----------
+        * (<phoebe.parameters.ParameterSet>): ParameterSet of the newly attached
+            Parameters.
+        """
+        kwargs['qualifier'] = 'detached_job'
+        return self.get_parameter(twig=twig, **kwargs).load_progress(return_changes=return_changes)
+
+
     def kill_job(self, twig=None, cleanup=True,
                    return_changes=False, **kwargs):
         """
@@ -11446,7 +11510,9 @@ class Bundle(ParameterSet):
         <phoebe.frontend.bundle.Bundle.run_solver>.
 
         See also:
+        * <phoebe.frontend.bundle.Bundle.get_job_status>
         * <phoebe.frontend.bundle.Bundle.attach_job>
+        * <phoebe.frontend.bundle.Bundle.load_job_progress>
         * <phoebe.parameters.JobParameter.kill>
 
         Arguments

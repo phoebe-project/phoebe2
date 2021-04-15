@@ -11949,12 +11949,14 @@ class JobParameter(Parameter):
         """
         """
         # TODO: implement a nice(r) string representation
-        return "qualifier: {}\nstatus: {}".format(self.qualifier, self.status)
+        # NOTE: we use the cached status instead of requerying
+        return "qualifier: {}\nlast known status: {}".format(self.qualifier, self._value)
 
     def get_value(self, **kwargs):
         """
         JobParameter doesn't really have a value, but for the sake of Parameter
-        representations, we'll provide the current status.
+        representations, we'll provide the last known status.  To check the current
+        status, call <phoebe.parameters.JobParameter.get_status>.
 
         Also see:
         * <phoebe.parameters.JobParameter.status>
@@ -11962,7 +11964,7 @@ class JobParameter(Parameter):
         * <phoebe.parameters.JobParameter.method>
 
         """
-        return self.status
+        return self._value
 
     def set_value(self, *args, **kwargs):
         """
@@ -12066,13 +12068,12 @@ class JobParameter(Parameter):
             else:
                 status = 'running'
         elif self.method == 'crimpl':
-            return self._crimpl_job.job_status
+            status = self._crimpl_job.job_status
         else:
             raise NotImplementedError
 
         # here we'll set the value to be the latest CHECKED status for the sake
-        # of exporting to JSON and updating the status for clients.  get_value
-        # will still call status so that it will return the CURRENT value.
+        # of exporting to JSON and updating the status for clients.
         self._value = status
         return status
 
@@ -12095,10 +12096,12 @@ class JobParameter(Parameter):
         """
         if self.method == 'crimpl':
             crimpl_name = self._bundle.get_value(qualifier='crimpl_name', server=self._server, **_skip_filter_checks)
-            self._crimpl_job.check_output([self._results_fname, self._results_fname+'.progress'])
+            out = self._crimpl_job.check_output([self._results_fname, self._results_fname+'.progress'])
+            if not len(out):
+                raise ValueError("no files retrieved from remote server")
 
         # now the file with the model should be retrievable from self._result_fname
-        if 'progress' in self._value:
+        if 'progress' in self._value or self._value in ['running', 'failed']:
             fname = self._results_fname + '.progress'
         else:
             fname = self._results_fname
@@ -12112,6 +12115,76 @@ class JobParameter(Parameter):
                 raise
         else:
             return ret_ps
+
+    def _retrieve_and_attach_results(self, cleanup=False, return_changes=False):
+        if self._value not in ['loaded', 'complete', 'running', 'failed']:
+            # then update cached value
+            _ = self.get_status()
+
+        ret_ps = self._retrieve_results()
+
+        if ret_ps is None and 'progress' in self._value:
+            # then we just want to update the progress value from the progress-file
+            # but don't have anything to actually load
+            f = open(self._results_fname + '.progress', 'r')
+            progress_str = f.readlines()[0]
+            f.close()
+
+            try:
+                progress = np.round(float(progress_str.strip()), 2)
+            except:
+                return ParameterSet([])
+            else:
+                self._value = 'progress:{}%'.format(progress)
+                return ParameterSet([self])
+
+
+        # now we need to attach ret_ps to self._bundle
+        # TODO: is creating metawargs here necessary?  Shouldn't the params already be tagged?
+        if self.context == 'model':
+            metawargs = {'compute': str(ret_ps.compute), 'model': str(ret_ps.model), 'context': 'model'}
+        elif self.context == 'solution':
+            metawargs = {'solver': str(ret_ps.solver), 'solution': str(ret_ps.solution), 'context': 'solution'}
+        else:
+            raise NotImplementedError("attaching for context='{}' not implemented".format(self.context))
+
+        if 'progress' in self._value:
+            if ret_ps.get_value(qualifier='progress', default=0, **_skip_filter_checks) == self._bundle.get_value(qualifier='progress', default=100, check_visible=False, check_advanced=False, **metawargs):
+                # then we have nothing new to load, so let's not bother attaching and overwriting with the exact same thing
+                return ParameterSet([])
+            elif 'progress' in ret_ps.qualifiers:
+                self._value = 'progress:{}%'.format(np.round(ret_ps.get_value(qualifier='progress'), 2))
+
+
+        ret_changes = self._bundle._attach_params(ret_ps, overwrite=True, return_changes=return_changes, **metawargs)
+        if return_changes:
+            ret_changes += [self]
+
+        if cleanup and self._value in ['complete', 'loaded', 'error', 'killed']:
+            self._cleanup()
+
+        if self._value in ['complete']:
+            self._value = 'loaded'
+
+        if self._value in ['failed'] and ret_ps is not None:
+            # then we loaded the latest progress file available
+            self._value = 'loaded'
+
+        if self.context == 'model':
+            # TODO: check logic for do_create_fig_params
+            ret_changes += self._bundle._run_compute_changes(ret_ps, return_changes=return_changes, do_create_fig_params=True)
+
+        elif self.context == 'solution':
+            ret_changes += self._bundle._run_solver_changes(ret_ps, return_changes=return_changes)
+
+        else:
+            raise NotImplementedError("attaching for context='{}' not implemented".format(self.context))
+
+        if return_changes:
+            return ret_ps + ret_changes
+
+        return ret_ps
+
 
     def _cleanup(self):
         try:
@@ -12196,65 +12269,34 @@ class JobParameter(Parameter):
 
         else:
             logger.info("current status: {}, pulling job results".format(status))
-            ret_ps = self._retrieve_results()
+            return self._retrieve_and_attach_results(cleanup=cleanup, return_changes=return_changes)
 
-            if ret_ps is None and 'progress' in self._value:
-                # then we just want to update the progress value from the progress-file
-                # but don't have anything to actually load
-                f = open(self._results_fname + '.progress', 'r')
-                progress_str = f.readlines()[0]
-                f.close()
+    def load_progress(self, cleanup=True, return_changes=False):
+        """
+        Attach the progress (if applicable) from a <phoebe.parameters.JobParameter> to the
+        <phoebe.frontend.bundle.Bundle>.
 
-                try:
-                    progress = np.round(float(progress_str.strip()), 2)
-                except:
-                    return ParameterSet([])
-                else:
-                    self._value = 'progress:{}%'.format(progress)
-                    return ParameterSet([self])
+        Arguments
+        ---------
+        * `cleanup` (bool, optional, default=True): whether to delete any
+            temporary files once the results are loaded.
+        * `return_changes` (bool, optional, default=False): whether to include
+            changed/removed parameters in the returned ParameterSet.
 
+        Returns
+        ---------
+        * ParameterSet of newly attached parameters (if attached or already
+            loaded).
 
-            # now we need to attach ret_ps to self._bundle
-            # TODO: is creating metawargs here necessary?  Shouldn't the params already be tagged?
-            if self.context == 'model':
-                metawargs = {'compute': str(ret_ps.compute), 'model': str(ret_ps.model), 'context': 'model'}
-            elif self.context == 'solution':
-                metawargs = {'solver': str(ret_ps.solver), 'solution': str(ret_ps.solution), 'context': 'solution'}
-            else:
-                raise NotImplementedError("attaching for context='{}' not implemented".format(self.context))
+        Raises
+        -----------
+        * ValueError: if not attached to a <phoebe.frontend.bundle.Bundle> object.
+        * ValueError: if the current <phoebe.parameters.JobParameter.status> is
+            not 'running' or 'complete'
 
-            if 'progress' in self._value:
-                if ret_ps.get_value(qualifier='progress', default=0, **_skip_filter_checks) == self._bundle.get_value(qualifier='progress', default=100, check_visible=False, check_advanced=False, **metawargs):
-                    # then we have nothing new to load, so let's not bother attaching and overwriting with the exact same thing
-                    return ParameterSet([])
-                elif 'progress' in ret_ps.qualifiers:
-                    self._value = 'progress:{}%'.format(np.round(ret_ps.get_value(qualifier='progress'), 2))
+        """
+        return self._retrieve_and_attach_results(cleanup=cleanup, return_changes=return_changes)
 
-
-            ret_changes = self._bundle._attach_params(ret_ps, overwrite=True, return_changes=return_changes, **metawargs)
-            if return_changes:
-                ret_changes += [self]
-
-            if cleanup and self._value in ['complete', 'loaded', 'error', 'killed']:
-                self._cleanup()
-
-            if 'progress' not in self._value:
-                self._value = 'loaded'
-
-            if self.context == 'model':
-                # TODO: check logic for do_create_fig_params
-                ret_changes += self._bundle._run_compute_changes(ret_ps, return_changes=return_changes, do_create_fig_params=True)
-
-            elif self.context == 'solution':
-                ret_changes += self._bundle._run_solver_changes(ret_ps, return_changes=return_changes)
-
-            else:
-                raise NotImplementedError("attaching for context='{}' not implemented".format(self.context))
-
-            if return_changes:
-                return ret_ps + ret_changes
-
-            return ret_ps
 
     def kill(self, cleanup=True, return_changes=False):
         """
