@@ -15,7 +15,7 @@ def _comments_params(**kwargs):
 def _server_params(**kwargs):
     params = []
 
-    params += [ChoiceParameter(qualifier='server', value=kwargs.get('server', 'compute'), choices=['none', 'compute'], description='Server to use when running the solver (or "none" to run locally).  If "compute", will use the server settings in the referenced compute options.')]
+    params += [ChoiceParameter(qualifier='use_server', value=kwargs.get('use_server', 'compute'), choices=['none', 'compute'], description='Server to use when running the solver (or "none" to run locally).  If "compute", will use the server settings in the referenced compute options.')]
     return params
 
 def nelder_mead(**kwargs):

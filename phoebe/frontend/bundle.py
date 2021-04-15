@@ -2087,7 +2087,7 @@ class Bundle(ParameterSet):
             if return_changes and (changed or choices_changed):
                 affected_params.append(param)
 
-        for param in self.filter(context=['compute', 'solver'], qualifier='server', **_skip_filter_checks).to_list():
+        for param in self.filter(context=['compute', 'solver'], qualifier='use_server', **_skip_filter_checks).to_list():
             if 'compute' in param.choices:
                 choices = ['none', 'compute'] + servers
             else:
@@ -10712,9 +10712,8 @@ class Bundle(ParameterSet):
                 if isinstance(v, float) or isinstance(v, int):
                     times[k] = [v]
 
-        use_server = kwargs.get('server', None)
+        use_server = kwargs.get('use_server', kwargs.get('server', None))
         job_sleep = kwargs.get('sleep', 10)
-
 
         # NOTE: _prepare_compute calls run_checks_compute and will handle raising
         # any necessary errors
@@ -10723,7 +10722,7 @@ class Bundle(ParameterSet):
 
         if use_server is None:
             for compute in computes:
-                use_server_this = self.get_value(qualifier='server', compute=compute, context='compute', **_skip_filter_checks)
+                use_server_this = self.get_value(qualifier='use_server', compute=compute, context='compute', **_skip_filter_checks)
                 if use_server is not None and use_server_this != use_server:
                     raise ValueError("multiple values found for server among compute options")
                 use_server = use_server_this
@@ -12199,9 +12198,9 @@ class Bundle(ParameterSet):
         kwargs.setdefault('progressbar', conf.progressbars)
 
         # TODO: will server be able to be used as a default here
-        use_server = kwargs.get('server', self.get_value(qualifier='server', solver=solver, context='solver', **_skip_filter_checks))
+        use_server = kwargs.get('use_server', kwargs.get('server', self.get_value(qualifier='use_server', solver=solver, context='solver', **_skip_filter_checks)))
         if use_server == 'compute':
-            use_server = self.get_value(qualifier='server', compute=self.get_value(qualifier='compute', solver=solver, context='solver', **_skip_filter_checks), **_skip_filter_checks)
+            use_server = self.get_value(qualifier='use_server', compute=self.get_value(qualifier='compute', solver=solver, context='solver', **_skip_filter_checks), **_skip_filter_checks)
         job_sleep = kwargs.get('sleep', 10)
 
         solver, solution, compute, solver_ps = self._prepare_solver(solver, solution, **kwargs)
