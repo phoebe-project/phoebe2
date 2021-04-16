@@ -508,6 +508,18 @@ class AWSEC2Job(_common.ServerJob):
 
             return response
 
+    def kill_job(self, delete_volume=False):
+        """
+        Kill a job by terminating the EC2 instance.
+
+        Arguments
+        -----------
+        * `delete_volume` (bool, optional, default=False): whether to delete the volume
+        """
+        if delete_volume:
+            return self.server.delete_volume()
+        return self.server.terminate()
+
     def run_script(self, script, files=[], trial_run=False):
         """
         Run a script on the **job** server in the <<class>.conda_environment>,

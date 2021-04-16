@@ -12102,7 +12102,7 @@ class JobParameter(Parameter):
                 raise ValueError("no files retrieved from remote server")
 
         # now the file with the model should be retrievable from self._result_fname
-        if 'progress' in self._value or self._value in ['running', 'failed']:
+        if 'progress' in self._value or self._value in ['running', 'failed', 'killed']:
             fname = self._results_fname + '.progress'
         else:
             fname = self._results_fname
@@ -12118,7 +12118,7 @@ class JobParameter(Parameter):
             return ret_ps
 
     def _retrieve_and_attach_results(self, cleanup=False, return_changes=False):
-        if self._value not in ['loaded', 'complete', 'running', 'failed']:
+        if self._value not in ['loaded', 'complete', 'running', 'failed', 'killed']:
             # then update cached value
             _ = self.get_status()
 
@@ -12244,12 +12244,12 @@ class JobParameter(Parameter):
             raise ValueError("can only attach a job if attached to a bundle")
 
         status = self.get_status()
-        if not wait and status not in ['complete', 'error', 'progress', 'loaded']:
+        if not wait and status not in ['complete', 'error', 'killed', 'progress', 'loaded']:
             logger.info("current status: {}, check again or use wait=True".format(status))
             return self
 
         if wait:
-            while status not in ['complete', 'loaded', 'error']:
+            while status not in ['complete', 'loaded', 'error', 'killed']:
                 logger.info("current status: {}, trying again in {}s".format(status, sleep))
                 time.sleep(sleep)
                 status = self.get_status()
@@ -12329,7 +12329,17 @@ class JobParameter(Parameter):
             f = open(self._kill_fname, 'w')
             f.write('kill')
             f.close()
-            if cleanup:
-                return self.attach(wait=True, cleanup=True)
+
         else:
-            raise NotImplementedError()
+            # TODO: options for whether to pass delete_volume
+            self._crimpl_job.kill_job()
+            self._value = 'killed'
+
+        if cleanup:
+            try:
+                return self.attach(wait=True, cleanup=True)
+            except ValueError as err:
+                if "no files" in str(err):
+                    pass
+                else:
+                    raise

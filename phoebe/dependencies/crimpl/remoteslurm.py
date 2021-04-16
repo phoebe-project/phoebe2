@@ -203,6 +203,17 @@ class RemoteSlurmJob(_common.ServerJob):
 
         return status
 
+    def kill_job(self):
+        """
+        Kill a job by calling `scancel` on the remote server for
+        this job's <RemoteSlurmJob.slurm_id>.
+
+        Returns
+        -----------
+        * (string)
+        """
+        return self.server._run_ssh_cmd("scancel {}".format(self.slurm_id))
+
     def run_script(self, script, files=[], trial_run=False):
         """
         Run a script on the server in the <<class>.conda_environment>,
