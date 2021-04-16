@@ -14,14 +14,22 @@ def _run_cmd(cmd, detach=False):
     if cmd is None:
         return
     print("# crimpl{}: {}".format(" (detached)" if detach else "", cmd))
-    try:
-        if detach:
-            return _subprocess.Popen(cmd, shell=True, stderr=_subprocess.DEVNULL)
-        else:
-            return _subprocess.check_output(cmd, shell=True, stderr=_subprocess.DEVNULL).decode('utf-8').strip()
-    except _subprocess.CalledProcessError as err:
-        # print("error output: {}".format(err.output))
-        raise
+    i = 0
+    while True:
+        try:
+            if detach:
+                return _subprocess.Popen(cmd, shell=True, stderr=_subprocess.DEVNULL)
+            else:
+                return _subprocess.check_output(cmd, shell=True, stderr=_subprocess.DEVNULL).decode('utf-8').strip()
+        except _subprocess.CalledProcessError as err:
+            # print("error output: {}".format(err.output))
+            if err.returncode == 255 and i < 5:
+                sleeptime = 5+i*5
+                print("# crimpl: received ssh error, waiting {}s then retrying".format(sleeptime))
+                _sleep(sleeptime)
+                i += 1
+            else:
+                raise
 
 class Server(object):
     def __init__(self, directory=None):
