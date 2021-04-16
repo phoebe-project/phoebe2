@@ -10871,7 +10871,7 @@ class Bundle(ParameterSet):
                 f.close()
             elif method == 'crimpl':
                 qualifier_map = {'conda_env': 'conda_environment', 'isolate_env': 'isolate_environment'}
-                server_options = {qualifier_map.get(p.qualifier, p.qualifier): p.get_value() for p in self.filter(server=use_server, context='server', check_visible=False, **kwargs).to_list()}
+                server_options = {qualifier_map.get(p.qualifier, p.qualifier): p.get_value(**kwargs) for p in self.filter(server=use_server, context='server', **_skip_filter_checks).to_list()}
 
                 crimpl_name = server_options.pop('crimpl_name')
                 use_mpi = server_options.pop('use_mpi')
@@ -12471,7 +12471,7 @@ class Bundle(ParameterSet):
                 f.close()
             elif method == 'crimpl':
                 qualifier_map = {'conda_env': 'conda_environment', 'isolate_env': 'isolate_environment'}
-                server_options = {qualifier_map.get(p.qualifier, p.qualifier): p.get_value() for p in self.filter(server=use_server, context='server', check_visible=False, **kwargs).to_list()}
+                server_options = {qualifier_map.get(p.qualifier, p.qualifier): p.get_value(**kwargs) for p in self.filter(server=use_server, context='server', **_skip_filter_checks).to_list()}
 
                 # TODO: cache servers
                 crimpl_name = server_options.pop('crimpl_name')

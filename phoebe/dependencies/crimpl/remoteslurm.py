@@ -347,7 +347,7 @@ class RemoteSlurmJob(_common.ServerJob):
                                                directory=self.remote_directory,
                                                conda_environment=self.conda_environment,
                                                isolate_environment=self.isolate_environment,
-                                               job_name=slurm_job_name if slurm_job_name is not None else self.job_name,
+                                               job_name=slurm_job_name if slurm_job_name is not None and len(slurm_job_name) else self.job_name,
                                                terminate_on_complete=False,
                                                use_nohup=False,
                                                install_conda=False,
@@ -418,7 +418,7 @@ class RemoteSlurmServer(_common.Server):
         raise NotImplementedError()
 
     def __repr__(self):
-        return "<RemoteSlurmServer host={} directory={}>".format(self.config.host, self.config.directory)
+        return "<RemoteSlurmServer host={} directory={}>".format(self.host, self.directory)
 
     @property
     def server_name(self):

@@ -330,8 +330,7 @@ class Server(object):
         elif not self.conda_installed:
             raise ValueError("conda is not installed on the remote server.  Install manually or call server.install_conda()")
 
-        _slurm_kwarg_to_prefix = {'job_name': '-J ',
-                                  'nprocs': '-n ',
+        _slurm_kwarg_to_prefix = {'nprocs': '-n ',
                                   'walltime': '-t ',
                                   'mail_type': '--mail-type=',
                                   'mail_user': '--mail-user='}
@@ -348,6 +347,7 @@ class Server(object):
                 slurm_script = ["#!/bin/bash"]
                 # TODO: use job subdirectory
                 slurm_script += ["#SBATCH -D {}".format(directory+"/")]
+                slurm_script += ["#SBATCH -J {}".format(job_name)]
                 for k,v in slurm_kwargs.items():
                     prefix = _slurm_kwarg_to_prefix.get(k, False)
                     if prefix is False:
