@@ -2293,8 +2293,13 @@ class Passband:
             # -1 below is for cgs -> SI:
             retval = 10**(self._log10_Inorm_extern_planckint(Teff)-1)
             if ldint is None:
-                ldint = self.ldint(Teff, logg, abun, ldatm, ld_func, ld_coeffs, photon_weighted)
+                ldint = self.ldint(Teff, logg, abun, ldatm, ld_func, ld_coeffs, photon_weighted, check_for_nans=check_for_nans)
             retval /= ldint
+
+            # if there are any nans in ldint, we need to extrapolate.
+            for i in np.argwhere(np.isnan(retval)).flatten():
+                v = (Teff[i], logg[i], abun[i])
+                retval[i] = 10**self._log10_Inorm_bb(v, axes=axes, ldint_grid=ldint_grid, ldint_mode=extrapolate_mode, ldint_tree=ldint_tree, ldint_indices=ldint_indices, ics=ics)
 
         elif atm == 'extern_atmx' and 'extern_atmx:Inorm' in self.content:
             # -1 below is for cgs -> SI:
