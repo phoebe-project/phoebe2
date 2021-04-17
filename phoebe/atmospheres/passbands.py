@@ -2205,7 +2205,7 @@ class Passband:
 
     #     return np.array(blints).mean()
 
-    def Inorm(self, Teff=5772., logg=4.43, abun=0.0, atm='ck2004', ldatm='ck2004', ldint=None, ld_func='interp', ld_coeffs=None, photon_weighted=False, extrapolate=True, extrapolate_mode='nearest'):
+    def Inorm(self, Teff=5772., logg=4.43, abun=0.0, atm='ck2004', ldatm='ck2004', ldint=None, ld_func='interp', ld_coeffs=None, photon_weighted=False, extrapolate=False, extrapolate_mode='nearest'):
         """
 
         Arguments
@@ -2230,7 +2230,7 @@ class Passband:
         * `ld_coeffs` (list, optional, default=None): limb darkening coefficients
             for the corresponding limb darkening function, `ld_func`.
         * `photon_weighted` (bool, optional, default=False): photon/energy switch
-        * `extrapolate` (bool, optional, default=True): should ldint be extrapolated
+        * `extrapolate` (bool, optional, default=False): should ldint be extrapolated
             if (Teff, logg, abun) is out of bounds
         * `extrapolate_mode` (string, optional, default='nearest'): if `extrapolate`
             is set to True, what mode to use ('nearest' or 'extrapolate')
@@ -2287,7 +2287,7 @@ class Passband:
             # if there are any nans in ldint, we need to extrapolate.
             for i in np.argwhere(np.isnan(retval)).flatten():
                 v = (Teff[i], logg[i], abun[i])
-                retval[i] = 10**self._log10_Inorm_bb(v, axes=axes, ldint_grid=ldint_grid, ldint_mode='nearest', ldint_tree=ldint_tree, ldint_indices=ldint_indices, ics=ics)
+                retval[i] = 10**self._log10_Inorm_bb(v, axes=axes, ldint_grid=ldint_grid, ldint_mode=extrapolate_mode, ldint_tree=ldint_tree, ldint_indices=ldint_indices, ics=ics)
 
         elif atm == 'extern_planckint' and 'extern_planckint:Inorm' in self.content:
             # -1 below is for cgs -> SI:
