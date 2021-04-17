@@ -10715,6 +10715,8 @@ class Bundle(ParameterSet):
             <phoebe.frontend.bundle.Bundle.get_model> and
             <phoebe.parameters.JobParameter>
             for details on how to check the job status and retrieve the results.
+        * `sleep` (int, optional, default=10): amount of time to sleep between
+            checking the job status if running externally and `detach=False`.
         * `dataset` (list, dict, or string, optional, default=None): filter for which datasets
             should be computed.  If provided as a dictionary, keys should be compute
             labels provided in `compute`.  If None, will use the `enabled` parameters in the
@@ -12324,6 +12326,8 @@ class Bundle(ParameterSet):
             <phoebe.frontend.bundle.Bundle.get_solution> and
             <phoebe.parameters.JobParameter>
             for details on how to check the job status and retrieve the results.
+        * `sleep` (int, optional, default=10): amount of time to sleep between
+            checking the job status if running externally and `detach=False`.
         * `overwrite` (boolean, optional, default=solution=='latest'): whether to overwrite
             an existing model with the same `model` tag.  If False,
             an error will be raised.  This defaults to True if `model` is not provided
