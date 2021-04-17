@@ -2205,7 +2205,7 @@ class Passband:
 
     #     return np.array(blints).mean()
 
-    def Inorm(self, Teff=5772., logg=4.43, abun=0.0, atm='ck2004', ldatm='ck2004', ldint=None, ld_func='interp', ld_coeffs=None, photon_weighted=False):
+    def Inorm(self, Teff=5772., logg=4.43, abun=0.0, atm='ck2004', ldatm='ck2004', ldint=None, ld_func='interp', ld_coeffs=None, photon_weighted=False, extrapolate=True, extrapolate_mode='nearest'):
         """
 
         Arguments
@@ -2230,6 +2230,10 @@ class Passband:
         * `ld_coeffs` (list, optional, default=None): limb darkening coefficients
             for the corresponding limb darkening function, `ld_func`.
         * `photon_weighted` (bool, optional, default=False): photon/energy switch
+        * `extrapolate` (bool, optional, default=True): should ldint be extrapolated
+            if (Teff, logg, abun) is out of bounds
+        * `extrapolate_mode` (string, optional, default='nearest'): if `extrapolate`
+            is set to True, what mode to use ('nearest' or 'extrapolate')
 
         Returns
         ----------
@@ -2250,6 +2254,8 @@ class Passband:
             logg = np.array((logg,))
         if not hasattr(abun, '__iter__'):
             abun = np.array((abun,))
+
+        check_for_nans = False if extrapolate else True
 
         if atm == 'blackbody' and 'blackbody:Inorm' in self.content:
             if ldatm == 'ck2004':
@@ -2274,7 +2280,7 @@ class Passband:
                 retval = 10**self._log10_Inorm_bb_energy(Teff)
 
             if ldint is None:
-                ldint = self.ldint(Teff, logg, abun, ldatm, ld_func, ld_coeffs, photon_weighted, check_for_nans=False)
+                ldint = self.ldint(Teff, logg, abun, ldatm, ld_func, ld_coeffs, photon_weighted, check_for_nans=check_for_nans)
 
             retval /= ldint
 
