@@ -10538,13 +10538,14 @@ class Bundle(ParameterSet):
             f.write("phoebe.logger('{}')\n".format(log_level))
         # TODO: can we skip other models
         # or datasets (except times and only for run_compute but not run_solver)
-        exclude_contexts = ['model', 'figure', 'constraint', 'solver']
+        exclude_qualifiers = ['detached_job']
+        exclude_contexts = ['model', 'figure', 'constraint', 'solver', 'server']
         sample_from = self.get_value(qualifier='sample_from', compute=compute, sample_from=kwargs.get('sample_from', None), default=[], expand=True)
         exclude_distributions = [dist for dist in self.distributions if dist not in sample_from]
         exclude_solutions = [sol for sol in self.solutions if sol not in sample_from]
         # we need to include uniqueids if needing to apply the solution during sample_from
         incl_uniqueid = len(exclude_solutions) != len(self.solutions)
-        f.write("bdict = json.loads(\"\"\"{}\"\"\", object_pairs_hook=phoebe.utils.parse_json)\n".format(json.dumps(self.exclude(context=exclude_contexts, **_skip_filter_checks).exclude(distribution=exclude_distributions, **_skip_filter_checks).exclude(solution=exclude_solutions, **_skip_filter_checks).to_json(incl_uniqueid=incl_uniqueid, exclude=['description', 'advanced', 'readonly', 'copy_for', 'latexfmt', 'labels_latex', 'label_latex']))))
+        f.write("bdict = json.loads(\"\"\"{}\"\"\", object_pairs_hook=phoebe.utils.parse_json)\n".format(json.dumps(self.exclude(context=exclude_contexts, **_skip_filter_checks).exclude(qualifier=exclude_qualifiers, **_skip_filter_checks).exclude(distribution=exclude_distributions, **_skip_filter_checks).exclude(solution=exclude_solutions, **_skip_filter_checks).to_json(incl_uniqueid=incl_uniqueid, exclude=['description', 'advanced', 'readonly', 'copy_for', 'latexfmt', 'labels_latex', 'label_latex']))))
         f.write("b = phoebe.open(bdict, import_from_older={})\n".format(import_from_older))
         # TODO: make sure this works with multiple computes
         compute_kwargs = list(kwargs.items())+[('compute', compute), ('model', str(model)), ('dataset', dataset), ('do_create_fig_params', do_create_fig_params)]
@@ -10851,6 +10852,9 @@ class Bundle(ParameterSet):
             # a random string, to avoid any conflicts
             jobid = kwargs.get('jobid', parameters._uniqueid())
 
+            qualifier_map = {'conda_env': 'conda_environment', 'isolate_env': 'isolate_environment'}
+            server_options = {qualifier_map.get(p.qualifier, p.qualifier): kwargs.pop(p.qualifier, p.get_value()) for p in self.filter(server=use_server, context='server', **_skip_filter_checks).to_list()}
+
             # we'll build a python script that can replicate this bundle as it
             # is now, run compute, and then save the resulting model
             script_fname = "_{}.py".format(jobid)
@@ -10870,9 +10874,6 @@ class Bundle(ParameterSet):
                 subprocess.Popen(cmd, shell=True, stdout=DEVNULL, stderr=f)
                 f.close()
             elif method == 'crimpl':
-                qualifier_map = {'conda_env': 'conda_environment', 'isolate_env': 'isolate_environment'}
-                server_options = {qualifier_map.get(p.qualifier, p.qualifier): p.get_value(**kwargs) for p in self.filter(server=use_server, context='server', **_skip_filter_checks).to_list()}
-
                 crimpl_name = server_options.pop('crimpl_name')
                 use_mpi = server_options.pop('use_mpi')
                 install_deps = server_options.pop('install_deps')
@@ -11939,7 +11940,8 @@ class Bundle(ParameterSet):
             f.write("phoebe.logger('{}')\n".format(log_level))
         # TODO: can we skip other models
         # or datasets (except times and only for run_compute but not run_solver)
-        exclude_contexts = ['model', 'figure']
+        exclude_qualifiers = ['detached_job']
+        exclude_contexts = ['model', 'figure', 'server']
         continue_from = self.get_value(qualifier='continue_from', solver=solver, continue_from=kwargs.get('continue_from', None), default='')
         exclude_solutions = [sol for sol in self.solutions if sol!=continue_from]
         exclude_solvers = [s for s in self.solvers if s!=solver]
@@ -11953,7 +11955,7 @@ class Bundle(ParameterSet):
         else:
             b = self
 
-        f.write("bdict = json.loads(\"\"\"{}\"\"\", object_pairs_hook=phoebe.utils.parse_json)\n".format(json.dumps(b.exclude(context=exclude_contexts, **_skip_filter_checks).exclude(solution=exclude_solutions, **_skip_filter_checks).exclude(solver=exclude_solvers, **_skip_filter_checks).exclude(distribution=exclude_distributions, **_skip_filter_checks).to_json(incl_uniqueid=True, exclude=['description', 'advanced', 'readonly', 'copy_for', 'latexfmt', 'labels_latex', 'label_latex']))))
+        f.write("bdict = json.loads(\"\"\"{}\"\"\", object_pairs_hook=phoebe.utils.parse_json)\n".format(json.dumps(b.exclude(context=exclude_contexts, **_skip_filter_checks).exclude(qualifier=exclude_qualifiers, **_skip_filter_checks).exclude(solution=exclude_solutions, **_skip_filter_checks).exclude(solver=exclude_solvers, **_skip_filter_checks).exclude(distribution=exclude_distributions, **_skip_filter_checks).to_json(incl_uniqueid=True, exclude=['description', 'advanced', 'readonly', 'copy_for', 'latexfmt', 'labels_latex', 'label_latex']))))
         f.write("b = phoebe.open(bdict, import_from_older={})\n".format(import_from_older))
         solver_kwargs = list(kwargs.items())+[('solver', solver), ('solution', str(solution))]
         solver_kwargs_string = ','.join(["{}={}".format(k,"\'{}\'".format(str(v)) if isinstance(v, str) else v) for k,v in solver_kwargs])
@@ -12452,6 +12454,9 @@ class Bundle(ParameterSet):
             # a random string, to avoid any conflicts
             jobid = kwargs.get('jobid', parameters._uniqueid())
 
+            qualifier_map = {'conda_env': 'conda_environment', 'isolate_env': 'isolate_environment'}
+            server_options = {qualifier_map.get(p.qualifier, p.qualifier): kwargs.pop(p.qualifier, p.get_value()) for p in self.filter(server=use_server, context='server', **_skip_filter_checks).to_list()}
+
             script_fname = "_{}.py".format(jobid)
             out_fname = "_{}.out".format(jobid)
             err_fname = "_{}.err".format(jobid)
@@ -12470,9 +12475,6 @@ class Bundle(ParameterSet):
                 subprocess.Popen(cmd, shell=True, stdout=DEVNULL, stderr=f)
                 f.close()
             elif method == 'crimpl':
-                qualifier_map = {'conda_env': 'conda_environment', 'isolate_env': 'isolate_environment'}
-                server_options = {qualifier_map.get(p.qualifier, p.qualifier): p.get_value(**kwargs) for p in self.filter(server=use_server, context='server', **_skip_filter_checks).to_list()}
-
                 # TODO: cache servers
                 crimpl_name = server_options.pop('crimpl_name')
                 use_mpi = server_options.pop('use_mpi')
