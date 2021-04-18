@@ -560,7 +560,7 @@ class AWSEC2Job(_common.ServerJob):
         if self.state != 'running' and not trial_run:
             self.start()  # wait is always True
 
-        cmds = self.server._submit_script_cmds(script, files,
+        cmds = self.server._submit_script_cmds(script, files, [],
                                                use_slurm=False,
                                                directory=self.remote_directory,
                                                conda_environment=self.conda_environment,
@@ -581,6 +581,7 @@ class AWSEC2Job(_common.ServerJob):
         return
 
     def submit_script(self, script, files=[], terminate_on_complete=True,
+                      ignore_files=[],
                       wait_for_job_status=False,
                       trial_run=False):
         """
@@ -612,6 +613,8 @@ class AWSEC2Job(_common.ServerJob):
             to minimize costs.  In this case, the <AWSEC2Job.server> EC2 instance
             will be restarted when calling <AWSEC2Job.check_output> with access
             to the same storage volume.
+        * `ignore_files` (list, optional, default=[]): list of filenames on the
+            remote server to ignore when calling <<class>.check_output>
         * `wait_for_job_status` (bool or string or list, optional, default=False):
             Whether to wait for a specific job_status.  If True, will default to
             'complete'.  See also <AWSEC2Job.wait_for_job_status>.
@@ -633,7 +636,7 @@ class AWSEC2Job(_common.ServerJob):
         if self.state != 'running' and not trial_run:
             self.start() # wait is always True
 
-        cmds = self.server._submit_script_cmds(script, files,
+        cmds = self.server._submit_script_cmds(script, files, ignore_files,
                                                use_slurm=False,
                                                directory=self.remote_directory,
                                                conda_environment=self.conda_environment,
@@ -659,6 +662,23 @@ class AWSEC2Job(_common.ServerJob):
             self.wait_for_job_status(wait_for_job_status)
 
         return self
+
+    def resubmit_script(self):
+        """
+        Resubmit an existing job script if <<class>.job_status> one of: complete,
+        failed, killed.
+        """
+        status = self.job_status
+        if status not in ['complete', 'failed', 'killed']:
+            raise ValueError("cannot resubmit script with job_status='{}'".format(status))
+
+        if self.state != 'running' and not trial_run:
+            self.start() # wait is always True
+
+        # TODO: discriminate between run_script and submit_script filenames and don't allow multiple calls to submit_script
+        self.server._run_ssh_cmd("cd {directory}; nohup bash {remote_script} &".format(directory=self.directory,
+                                                                                      remote_script='crimpl_script.sh'))
+
 
     def check_output(self, server_path=None, local_path="./",
                      terminate_if_server_started=False):
@@ -1113,6 +1133,7 @@ class AWSEC2Server(_common.Server):
                    conda_environment=None, isolate_environment=False,
                    nprocs=4,
                    terminate_on_complete=True,
+                   ignore_files=[],
                    wait_for_job_status=False,
                    trial_run=False
                    ):
@@ -1128,6 +1149,7 @@ class AWSEC2Server(_common.Server):
         * `isolate_environment`: passed to <AWSEC2Server.create_job>
         * `nprocs`: passed to <AWSEC2Server.create_job>
         * `terminate_on_complete`: passed to <AWSEC2Job.submit_script>
+        * `ignore_files`: passed to <AWSEC2Job.submit_script>
         * `wait_for_job_status`: passed to <AWSEC2Job.submit_script>
         * `trial_run`: passed to <AWSEC2Job.submit_script>
 
@@ -1145,6 +1167,7 @@ class AWSEC2Server(_common.Server):
 
         return j.submit_script(script, files=files,
                                terminate_on_complete=terminate_on_complete,
+                               ignore_files=ignore_files,
                                wait_for_job_status=wait_for_job_status,
                                trial_run=trial_run)
 
@@ -1346,7 +1369,7 @@ class AWSEC2Server(_common.Server):
         if self.state != 'running' and not trial_run:
             self.start()  # wait is always True
 
-        cmds = self._submit_script_cmds(script, files,
+        cmds = self._submit_script_cmds(script, files, [],
                                         use_slurm=False,
                                         directory=self.directory,
                                         conda_environment=conda_environment,

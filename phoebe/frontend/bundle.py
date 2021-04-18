@@ -10527,15 +10527,87 @@ class Bundle(ParameterSet):
 
         return model, computes, datasets, do_create_fig_params, changed_params, overwrite_ps, kwargs
 
-
-    def _write_export_compute_script(self, script_fname, out_fname, compute, model, dataset, do_create_fig_params, import_from_older, log_level, kwargs):
-        """
-        """
+    def _write_crimpl_script(self, script_fname, script, use_server, deps_pip, autocontinue, kwargs):
         f = open(script_fname, 'w')
-        f.write("import os; os.environ['PHOEBE_ENABLE_PLOTTING'] = 'FALSE'; os.environ['PHOEBE_ENABLE_SYMPY'] = 'FALSE';\n")
-        f.write("import phoebe; import json\n")
+        server_ps = self.get_server(server=use_server, **_skip_filter_checks)
+
+        crimpl_name = server_ps.get_value(qualifier='crimpl_name', crimpl_name=kwargs.get('crimpl_name', None), **_skip_filter_checks)
+        f.write("crimpl_name = '{}'\n".format(crimpl_name))
+
+        nprocs = server_ps.get_value(qualifier='nprocs', nprocs=kwargs.get('nprocs', None), **_skip_filter_checks)
+        f.write("nprocs = {}\n".format(nprocs))
+
+        conda_env = server_ps.get_value(qualifier='conda_env', conda_env=kwargs.get('conda_env', None), **_skip_filter_checks)
+        f.write("conda_environment = '{}'\n".format(conda_env))
+
+        install_deps = server_ps.get_value(qualifier='install_deps', install_deps=kwargs.get('install_deps', None), **_skip_filter_checks)
+        f.write("install_deps = {}\n".format(install_deps))
+
+        job_name = _crimpl.common._new_job_name()
+        f.write("job_name = '{}'\n".format(job_name))  # TODO: set this
+
+        qualifier_map = {'conda_env': 'conda_environment', 'isolate_env': 'isolate_environment'}
+        server_options = {qualifier_map.get(p.qualifier, p.qualifier): kwargs.pop(p.qualifier, p.get_value()) for p in server_ps.to_list() if p.qualifier not in ['conda_env', 'nprocs', 'crimpl_name', 'use_mpi', 'install_deps']}
+        f.write("server_options = {}\n".format(server_options))
+
+        f.write("\n\n")
+        f.write("####### DO NOT EDIT BELOW THIS LINE #######\n\n")
+        f.write("try: from phoebe.dependencies import crimpl\nexcept ImportError:\n    try: import crimpl\n    except ImportError: raise ImportError('phoebe or crimpl required to submit script')\n")
+        f.write("import sys\n\n")
+        f.write("if len(sys.argv) != 2:\n")
+        if autocontinue:
+            f.write("    print('usage: {} [submit, status, output, continue]'.format(sys.argv[0]))\n")
+        else:
+            f.write("    print('usage: {} [submit, status, output]'.format(sys.argv[0]))\n")
+        f.write("    exit()\n")
+        f.write("action = sys.argv[1]\n\n")
+        f.write("s = crimpl.load_server(crimpl_name)\n\n")
+        f.write("if action=='submit':\n")
+        f.write("    if job_name in s.existing_jobs:\n")
+        if autocontinue:
+            f.write("        print('job already submitted, to continue a previous run, use continue instead of submit')\n")
+        else:
+            f.write("        print('job already submitted')\n")
+        f.write("        exit()\n")
+        f.write("    python_code = \"\"\"{}\"\"\"\n\n".format("\n".join(script)))
+        # TODO: random string instead of export_compute.py to avoid conflict with script
+        server_tmp_script = 'server_tmp_script.py'
+        server_use_mpi = server_ps.get_value(qualifier='use_mpi', use_mpi=kwargs.get('use_mpi', None), **_skip_filter_checks)
+        f.write("    script = ['printf \"{}\" > %s'.format(python_code.replace('\"', '\\\\\"')), '%spython3 %s']\n\n" % (server_tmp_script, "mpirun " if server_use_mpi else "", server_tmp_script))
+
+        f.write("    if install_deps:\n")
+        f.write("        s.run_script(['pip install {}'])\n\n".format(" ".join(deps_pip)))
+
+        f.write("    sj = s.submit_job(script, ignore_files=['{}'], job_name=job_name, nprocs=nprocs, conda_environment=conda_environment)".format(server_tmp_script))
+
+        f.write("\n\n")
+        f.write("elif action=='status':\n")
+        f.write("    sj = s.get_job(job_name)\n")
+        f.write("    print(sj.job_status)\n\n")
+        f.write("elif action=='output':\n")
+        f.write("    sj = s.get_job(job_name)\n")
+        f.write("    print(sj.check_output())\n\n")
+        if autocontinue:
+            f.write("elif action=='continue':\n")
+            f.write("    sj = s.get_job(job_name)\n")
+            f.write("    sj.resubmit_script()\n")
+        f.write("else:\n")
+        if autocontinue:
+            f.write("    print('usage: {} [submit, status, output, continue]'.format(sys.argv[0]))\n")
+        else:
+            f.write("    print('usage: {} [submit, status, output]'.format(sys.argv[0]))\n")
+        f.write("    exit()\n")
+        f.close()
+        return
+
+    def _write_export_compute_script(self, script_fname, out_fname, compute, model, dataset, use_server, do_create_fig_params, import_from_older, log_level, kwargs):
+        """
+        """
+        script = []
+        script.append("import os; os.environ['PHOEBE_ENABLE_PLOTTING'] = 'FALSE'; os.environ['PHOEBE_ENABLE_SYMPY'] = 'FALSE';")
+        script.append("import phoebe; import json;")
         if log_level is not None:
-            f.write("phoebe.logger('{}')\n".format(log_level))
+            script.append("phoebe.logger('{}');".format(log_level))
         # TODO: can we skip other models
         # or datasets (except times and only for run_compute but not run_solver)
         exclude_qualifiers = ['detached_job']
@@ -10545,25 +10617,34 @@ class Bundle(ParameterSet):
         exclude_solutions = [sol for sol in self.solutions if sol not in sample_from]
         # we need to include uniqueids if needing to apply the solution during sample_from
         incl_uniqueid = len(exclude_solutions) != len(self.solutions)
-        f.write("bdict = json.loads(\"\"\"{}\"\"\", object_pairs_hook=phoebe.utils.parse_json)\n".format(json.dumps(self.exclude(context=exclude_contexts, **_skip_filter_checks).exclude(qualifier=exclude_qualifiers, **_skip_filter_checks).exclude(distribution=exclude_distributions, **_skip_filter_checks).exclude(solution=exclude_solutions, **_skip_filter_checks).to_json(incl_uniqueid=incl_uniqueid, exclude=['description', 'advanced', 'readonly', 'copy_for', 'latexfmt', 'labels_latex', 'label_latex']))))
-        f.write("b = phoebe.open(bdict, import_from_older={})\n".format(import_from_older))
+        script.append("bdict = json.loads('{}', object_pairs_hook=phoebe.utils.parse_json);".format(json.dumps(self.exclude(context=exclude_contexts, **_skip_filter_checks).exclude(qualifier=exclude_qualifiers, **_skip_filter_checks).exclude(distribution=exclude_distributions, **_skip_filter_checks).exclude(solution=exclude_solutions, **_skip_filter_checks).to_json(incl_uniqueid=incl_uniqueid, exclude=['description', 'advanced', 'readonly', 'copy_for', 'latexfmt', 'labels_latex', 'label_latex']))))
+        script.append("b = phoebe.open(bdict, import_from_older={});".format(import_from_older))
         # TODO: make sure this works with multiple computes
         compute_kwargs = list(kwargs.items())+[('compute', compute), ('model', str(model)), ('dataset', dataset), ('do_create_fig_params', do_create_fig_params)]
         compute_kwargs_string = ','.join(["{}={}".format(k,"\'{}\'".format(str(v)) if isinstance(v, str) else v) for k,v in compute_kwargs])
         # as the return from run_compute just does a filter on model=model,
         # model_ps here should include any created figure parameters
 
-        if out_fname is not None:
-            f.write("model_ps = b.run_compute(out_fname='{}', in_export_script=True, {})\n".format(out_fname, compute_kwargs_string))
-            f.write("b.filter(context='model', model=model_ps.model, check_visible=False).save('{}', incl_uniqueid=True)\n".format(out_fname))
-        else:
-            f.write("import sys\n")
-            f.write("model_ps = b.run_compute(out_fname=sys.argv[0]+'.out', in_export_script=True, {})\n".format(compute_kwargs_string))
-            f.write("b.filter(context='model', model=model_ps.model, check_visible=False).save(sys.argv[0]+'.out', incl_uniqueid=True)\n")
+        if out_fname is None and use_server and use_server != 'none':
             out_fname = script_fname+'.out'
 
-        f.write("\n# NOTE: this script only includes parameters needed to call the requested run_compute, edit manually with caution!\n")
-        f.close()
+        if out_fname is not None:
+            script.append("model_ps = b.run_compute(out_fname='{}', in_export_script=True, {});".format(out_fname, compute_kwargs_string))
+            script.append("b.filter(context='model', model=model_ps.model, check_visible=False).save('{}', incl_uniqueid=True);".format(out_fname))
+        else:
+            script.append("import sys;\n")
+            script.append("model_ps = b.run_compute(out_fname=sys.argv[0]+'.out', in_export_script=True, {});".format(compute_kwargs_string))
+            script.append("b.filter(context='model', model=model_ps.model, check_visible=False).save(sys.argv[0]+'.out', incl_uniqueid=True);")
+            out_fname = script_fname+'.out'
+
+        if use_server and use_server != 'none':
+            deps_pip, _ = self.dependencies(compute=compute)
+            self._write_crimpl_script(script_fname, script, use_server, deps_pip, False, kwargs)
+        else:
+            f = open(script_fname, 'w')
+            f.write("\n".join(script))
+            f.write("\n# NOTE: this script only includes parameters needed to call the requested run_compute, edit manually with caution!\n")
+            f.close()
 
         return script_fname, out_fname
 
@@ -10633,8 +10714,18 @@ class Bundle(ParameterSet):
           in the model being written to `out_fname`.
 
         """
+        use_server = kwargs.get('use_server', kwargs.get('server', None))
+
         model, computes, datasets, do_create_fig_params, changed_params, overwrite_ps, kwargs = self._prepare_compute(compute, model, dataset, **kwargs)
-        script_fname, out_fname = self._write_export_compute_script(script_fname, out_fname, computes, model, dataset, do_create_fig_params, import_from_older, log_level, kwargs)
+
+        if use_server is None:
+            for compute in computes:
+                use_server_this = self.get_value(qualifier='use_server', compute=compute, context='compute', **_skip_filter_checks)
+                if use_server is not None and use_server_this != use_server:
+                    raise ValueError("multiple values found for server among compute options")
+                use_server = use_server_this
+
+        script_fname, out_fname = self._write_export_compute_script(script_fname, out_fname, computes, model, dataset, use_server, do_create_fig_params, import_from_older, log_level, kwargs)
 
         if pause:
             input("* optional:  call b.save(...) to save the bundle to disk, you can then safely close the active python session and recover the bundle with phoebe.load(...)\n"+
@@ -10862,7 +10953,7 @@ class Bundle(ParameterSet):
             script_fname = "_{}.py".format(jobid)
             out_fname = "_{}.out".format(jobid)
             err_fname = "_{}.err".format(jobid)
-            script_fname, out_fname = self._write_export_compute_script(script_fname, out_fname, compute, model, dataset, do_create_fig_params, True, None, kwargs)
+            script_fname, out_fname = self._write_export_compute_script(script_fname, out_fname, compute, model, dataset, False, do_create_fig_params, True, None, kwargs)
 
             script_fname = os.path.abspath(script_fname)
 
@@ -11932,14 +12023,14 @@ class Bundle(ParameterSet):
         return solver, solution, compute, solver_ps
 
 
-    def _write_export_solver_script(self, script_fname, out_fname, solver, solution, autocontinue, import_from_older, log_level, kwargs):
+    def _write_export_solver_script(self, script_fname, out_fname, solver, solution, autocontinue, use_server, import_from_older, log_level, kwargs):
         """
         """
-        f = open(script_fname, 'w')
-        f.write("import os; os.environ['PHOEBE_ENABLE_PLOTTING'] = 'FALSE'; os.environ['PHOEBE_ENABLE_SYMPY'] = 'FALSE';\n")
-        f.write("import phoebe; import json\n")
+        script = []
+        script.append("import os; os.environ['PHOEBE_ENABLE_PLOTTING'] = 'FALSE'; os.environ['PHOEBE_ENABLE_SYMPY'] = 'FALSE';")
+        script.append("import phoebe; import json;")
         if log_level is not None:
-            f.write("phoebe.logger('{}')\n".format(log_level))
+            script.append("phoebe.logger('{}');".format(log_level))
         # TODO: can we skip other models
         # or datasets (except times and only for run_compute but not run_solver)
         exclude_qualifiers = ['detached_job']
@@ -11957,39 +12048,48 @@ class Bundle(ParameterSet):
         else:
             b = self
 
-        f.write("bdict = json.loads(\"\"\"{}\"\"\", object_pairs_hook=phoebe.utils.parse_json)\n".format(json.dumps(b.exclude(context=exclude_contexts, **_skip_filter_checks).exclude(qualifier=exclude_qualifiers, **_skip_filter_checks).exclude(solution=exclude_solutions, **_skip_filter_checks).exclude(solver=exclude_solvers, **_skip_filter_checks).exclude(distribution=exclude_distributions, **_skip_filter_checks).to_json(incl_uniqueid=True, exclude=['description', 'advanced', 'readonly', 'copy_for', 'latexfmt', 'labels_latex', 'label_latex']))))
-        f.write("b = phoebe.open(bdict, import_from_older={})\n".format(import_from_older))
+        script.append("bdict = json.loads('{}', object_pairs_hook=phoebe.utils.parse_json);".format(json.dumps(b.exclude(context=exclude_contexts, **_skip_filter_checks).exclude(qualifier=exclude_qualifiers, **_skip_filter_checks).exclude(solution=exclude_solutions, **_skip_filter_checks).exclude(solver=exclude_solvers, **_skip_filter_checks).exclude(distribution=exclude_distributions, **_skip_filter_checks).to_json(incl_uniqueid=True, exclude=['description', 'advanced', 'readonly', 'copy_for', 'latexfmt', 'labels_latex', 'label_latex']))))
+        script.append("b = phoebe.open(bdict, import_from_older={});".format(import_from_older))
         solver_kwargs = list(kwargs.items())+[('solver', solver), ('solution', str(solution))]
         solver_kwargs_string = ','.join(["{}={}".format(k,"\'{}\'".format(str(v)) if isinstance(v, str) else v) for k,v in solver_kwargs])
 
         custom_lnprobability_callable = kwargs.get('custom_lnprobability_callable', None)
         if custom_lnprobability_callable is not None:
             code = _getsource(custom_lnprobability_callable)
-            f.write(code)
+            script.append(code)  # TODO: test!
             kwargs['custom_lnprobability_callable'] = custom_lnprobability_callable.__name__
 
+        if out_fname is None and use_server and use_server != 'none':
+            out_fname = script_fname+'.out'
+
         if out_fname is None:
-            f.write("import sys\n")
-            f.write("out_fname=sys.argv[0]+'.out'\n")
+            script.append("import sys;")
+            script.append("out_fname=sys.argv[0]+'.out';")
             out_fname = script_fname+'.out'
         else:
-            f.write("out_fname='{}'\n".format(out_fname))
+            script.append("out_fname='{}';".format(out_fname))
 
         if autocontinue:
             if 'continue_from' not in self.get_solver(solver=solver).qualifiers:
                 raise ValueError("continue_from is not a parameter in solver='{}', cannot use autocontinue".format(solver))
-            f.write("if os.path.isfile(out_fname):\n")
-            f.write("    b.import_solution(out_fname, solution='progress', overwrite=True)\n")
-            f.write("    b.set_value(qualifier='continue_from', solver='{}', value='progress')\n".format(solver))
-            f.write("elif os.path.isfile(out_fname+'.progress'):\n")
-            f.write("    b.import_solution(out_fname+'.progress', solution='progress', overwrite=True)\n")
-            f.write("    b.set_value(qualifier='continue_from', solver='{}', value='progress')\n".format(solver))
+            script.append("if os.path.isfile(out_fname):")
+            script.append("    b.import_solution(out_fname, solution='progress', overwrite=True);")
+            script.append("    b.set_value(qualifier='continue_from', solver='{}', value='progress');".format(solver))
+            script.append("elif os.path.isfile(out_fname+'.progress'):")
+            script.append("    b.import_solution(out_fname+'.progress', solution='progress', overwrite=True);")
+            script.append("    b.set_value(qualifier='continue_from', solver='{}', value='progress');".format(solver))
 
-        f.write("solution_ps = b.run_solver(out_fname=out_fname, {})\n".format(solver_kwargs_string))
-        f.write("b.filter(context='solution', solution=solution_ps.solution, check_visible=False).save(out_fname, incl_uniqueid=True)\n")
+        script.append("solution_ps = b.run_solver(out_fname=out_fname, {});".format(solver_kwargs_string))
+        script.append("b.filter(context='solution', solution=solution_ps.solution, check_visible=False).save(out_fname, incl_uniqueid=True);")
 
-        f.write("\n# NOTE: this script only includes parameters needed to call the requested run_solver, edit manually with caution!\n")
-        f.close()
+        if use_server and use_server != 'none':
+            deps_pip, _ = self.dependencies(solver=solver)
+            self._write_crimpl_script(script_fname, script, use_server, deps_pip, autocontinue, kwargs)
+        else:
+            f = open(script_fname, 'w')
+            f.write("\n".join(script))
+            f.write("\n# NOTE: this script only includes parameters needed to call the requested run_solver, edit manually with caution!\n")
+            f.close()
 
         return script_fname, out_fname
 
@@ -12057,8 +12157,12 @@ class Bundle(ParameterSet):
           in the model being written to `out_fname`.
 
         """
+        use_server = kwargs.get('use_server', kwargs.get('server', self.get_value(qualifier='use_server', solver=solver, context='solver', **_skip_filter_checks)))
+        if use_server == 'compute':
+            use_server = self.get_value(qualifier='use_server', compute=self.get_value(qualifier='compute', solver=solver, context='solver', **_skip_filter_checks), **_skip_filter_checks)
+
         solver, solution, compute, solver_ps = self._prepare_solver(solver, solution, **kwargs)
-        script_fname, out_fname = self._write_export_solver_script(script_fname, out_fname, solver, solution, autocontinue, import_from_older, log_level, kwargs)
+        script_fname, out_fname = self._write_export_solver_script(script_fname, out_fname, solver, solution, autocontinue, use_server, import_from_older, log_level, kwargs)
 
         if pause:
             input("* optional:  call b.save(...) to save the bundle to disk, you can then safely close the active python session and recover the bundle with phoebe.load(...)\n"+
@@ -12465,7 +12569,12 @@ class Bundle(ParameterSet):
             out_fname = "_{}.out".format(jobid)
             err_fname = "_{}.err".format(jobid)
             kill_fname = "_{}.kill".format(jobid)
-            script_fname, out_fname = self._write_export_solver_script(script_fname, out_fname, solver, solution, False, True, None, kwargs)
+            script_fname, out_fname = self._write_export_solver_script(script_fname, out_fname, solver, solution,
+                                                                       autocontinue=False,
+                                                                       use_server=False,
+                                                                       import_from_older=True,
+                                                                       log_level=None,
+                                                                       kwargs=kwargs)
 
             script_fname = os.path.abspath(script_fname)
 

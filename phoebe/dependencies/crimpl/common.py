@@ -18,9 +18,9 @@ def _run_cmd(cmd, detach=False):
     while True:
         try:
             if detach:
-                return _subprocess.Popen(cmd, shell=True, stderr=_subprocess.DEVNULL)
+                ret = _subprocess.Popen(cmd, shell=True, stderr=_subprocess.DEVNULL)
             else:
-                return _subprocess.check_output(cmd, shell=True, stderr=_subprocess.DEVNULL).decode('utf-8').strip()
+                ret = _subprocess.check_output(cmd, shell=True, stderr=_subprocess.DEVNULL).decode('utf-8').strip()
         except _subprocess.CalledProcessError as err:
             # print("error output: {}".format(err.output))
             if err.returncode == 255 and i < 5:
@@ -30,6 +30,10 @@ def _run_cmd(cmd, detach=False):
                 i += 1
             else:
                 raise
+        else:
+            if i > 0:
+                print("# crimpl: ssh command succeeded")
+            return ret
 
 class Server(object):
     def __init__(self, directory=None):
@@ -295,7 +299,7 @@ class Server(object):
 
         return self.conda_installed
 
-    def _submit_script_cmds(self, script, files,
+    def _submit_script_cmds(self, script, files, ignore_files,
                             use_slurm,
                             directory,
                             conda_environment, isolate_environment,
@@ -383,7 +387,7 @@ class Server(object):
 
         mkdir_cmd = self.ssh_cmd.format("mkdir -p {}".format(directory))
         if job_name is not None:
-            logfiles_cmd = self.ssh_cmd.format("echo \'{}\' >> {}".format(" ".join([_os.path.basename(f) for f in files]), _os.path.join(directory, "crimpl-input-files.list"))) if len(files) else self.ssh_cmd.format("touch {}".format(_os.path.join(directory, "crimpl-input-files.list")))
+            logfiles_cmd = self.ssh_cmd.format("echo \'{}\' >> {}".format(" ".join([_os.path.basename(f) for f in files+ignore_files]), _os.path.join(directory, "crimpl-input-files.list"))) if len(files+ignore_files) else self.ssh_cmd.format("touch {}".format(_os.path.join(directory, "crimpl-input-files.list")))
             logenv_cmd = self.ssh_cmd.format("echo \'{}\' > {}".format(conda_environment, _os.path.join(directory, "crimpl-conda-environment")))
 
         # TODO: use job subdirectory for server_path
@@ -441,7 +445,7 @@ class Server(object):
         d['Class'] = self.__class__.__name__
         return d
 
-    def save(self, name, overwrite=False):
+    def save(self, name=None, overwrite=False):
         """
         Save this server configuration to ~/.crimpl to be loaded again via
         <crimpl.load_server>.
@@ -450,7 +454,8 @@ class Server(object):
 
         Arguments
         ----------
-        * `name` (string): name of the server.
+        * `name` (string, optional, default=None): name of the server.  Will
+            default to <<class>.server_name> if set.
         * `overwrite` (bool, optional, default=False): whether to overwrite
             an existing saved configuration for `name`.
 
@@ -462,6 +467,12 @@ class Server(object):
         ----------
         * ValueError: if `name` is already saved but `overwrite` is not passed as True
         """
+        if name is None:
+            name = self.server_name
+
+        if name is None:
+            raise ValueError("must pass name or set server_name")
+
         directory = _os.path.expanduser("~/.crimpl/servers")
         if not _os.path.exists(directory):
             _os.makedirs(directory)

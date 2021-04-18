@@ -252,7 +252,7 @@ class RemoteSlurmJob(_common.ServerJob):
         * TypeError: if `script` or `files` are not valid types.
         * ValueError: if the files referened by `script` or `files` are not valid.
         """
-        cmds = self.server._submit_script_cmds(script, files,
+        cmds = self.server._submit_script_cmds(script, files, [],
                                                use_slurm=False,
                                                directory=self.remote_directory,
                                                conda_environment=self.conda_environment,
@@ -277,6 +277,7 @@ class RemoteSlurmJob(_common.ServerJob):
                       walltime='2-00:00:00',
                       mail_type='END,FAIL',
                       mail_user=None,
+                      ignore_files=[],
                       wait_for_job_status=False,
                       trial_run=False):
         """
@@ -318,6 +319,8 @@ class RemoteSlurmJob(_common.ServerJob):
             by email to `mail_user`.  Prepended to `script` as "#SBATCH --mail_user=mail_user".
         * `mail_user` (string, optional, default=None): email to send notifications.
             Prepended to `script` as "#SBATCH --mail_user=mail_user"
+        * `ignore_files` (list, optional, default=[]): list of filenames on the
+            remote server to ignore when calling <<class>.check_output>
         * `wait_for_job_status` (bool or string or list, optional, default=False):
             Whether to wait for a specific job_status.  If True, will default to
             'complete'.  See also <RemoteSlurmJob.wait_for_job_status>.
@@ -342,7 +345,7 @@ class RemoteSlurmJob(_common.ServerJob):
         if nprocs is None:
             nprocs = self.nprocs
 
-        cmds = self.server._submit_script_cmds(script, files,
+        cmds = self.server._submit_script_cmds(script, files, ignore_files,
                                                use_slurm=True,
                                                directory=self.remote_directory,
                                                conda_environment=self.conda_environment,
@@ -380,11 +383,29 @@ class RemoteSlurmJob(_common.ServerJob):
 
         return self
 
+    def resubmit_script(self):
+        """
+        Resubmit an existing job script if <<class>.job_status> one of: complete,
+        failed, killed.
+        """
+        status = self.job_status
+        if status not in ['complete', 'failed', 'killed']:
+            raise ValueError("cannot resubmit script with job_status='{}'".format(status))
+
+        # TODO: discriminate between run_script and submit_script filenames and don't allow multiple calls to submit_script
+        remote_script = _os.path.join(directory, _os.path.basename("crimpl_script.sh"))
+        out = self.server._run_ssh_cmd("sbatch {remote_script}".format(remote_script=remote_script))
+        self._slurm_id = out.split(' ')[-1]
+
+        # leave record of (NEW) slurm id in the remote directory
+        self.server._run_ssh_cmd("echo {} > {}".format(self._slurm_id, _os.path.join(self.remote_directory, "crimpl_slurm_id")))
+
+
 
 
 class RemoteSlurmServer(_common.Server):
     _JobClass = RemoteSlurmJob
-    def __init__(self, host, directory=None, server_name=None):
+    def __init__(self, host, directory='~/crimpl', server_name=None):
         """
         Connect to a remote server running a Slurm scheduler.
 
@@ -395,7 +416,7 @@ class RemoteSlurmServer(_common.Server):
         -----------
         * `host` (string): host of the remote server.  Must be passwordless ssh-able.
             See <RemoteSlurmServer.host>
-        * `directory` (string, optional, default=None): root directory of all
+        * `directory` (string, optional, default='~/crimpl'): root directory of all
             jobs to run on the remote server.  The directory will be created
             if it does not already exist.
         * `server_name` (string): name to assign to the server.  If not provided,
@@ -554,6 +575,7 @@ class RemoteSlurmServer(_common.Server):
                    walltime='2-00:00:00',
                    mail_type='END,FAIL',
                    mail_user=None,
+                   ignore_files=[],
                    wait_for_job_status=False,
                    trial_run=False):
         """
@@ -571,6 +593,7 @@ class RemoteSlurmServer(_common.Server):
         * `walltime`: passed to <RemoteSlurmJob.submit_script>
         * `mail_type`: passed to <RemoteSlurmJob.submit_script>
         * `mail_user`: passed to <RemoteSlurmJob.submit_script>
+        * `ignore_files`: passed to <RemoteSlurmJob.submit_script>
         * `wait_for_job_status`: passed to <RemoteSlurmJob.submit_script>
         * `trial_run`: passed to <RemoteSlurmJob.submit_script>
 
@@ -588,6 +611,7 @@ class RemoteSlurmServer(_common.Server):
                                walltime=walltime,
                                mail_type=mail_type,
                                mail_user=mail_user,
+                               ignore_files=ignore_files,
                                wait_for_job_status=wait_for_job_status,
                                trial_run=trial_run)
 
@@ -631,7 +655,7 @@ class RemoteSlurmServer(_common.Server):
         * TypeError: if `script` or `files` are not valid types.
         * ValueError: if the files referened by `script` or `files` are not valid.
         """
-        cmds = self._submit_script_cmds(script, files,
+        cmds = self._submit_script_cmds(script, files, [],
                                         use_slurm=False,
                                         directory=self.directory,
                                         conda_environment=conda_environment,
