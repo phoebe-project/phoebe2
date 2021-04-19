@@ -133,7 +133,7 @@ class Server(object):
             return False
         return True
 
-    def _get_conda_environments_dict(self, job_name=None):
+    def _get_conda_envs_dict(self, job_name=None):
         """
 
         Returns
@@ -156,28 +156,28 @@ class Server(object):
         # force crimpl environments to override global
         crimpl_env_dir = _os.path.join(self.directory, "crimpl-envs")
         try:
-            server_environment_paths = self._run_ssh_cmd("ls -d {}/*".format(crimpl_env_dir))
+            server_env_paths = self._run_ssh_cmd("ls -d {}/*".format(crimpl_env_dir))
         except _subprocess.CalledProcessError:
             pass
         else:
-            for server_environment_path in server_environment_paths.split():
-                d[server_environment_path.split("crimpl-envs/")[-1]] = server_environment_path
+            for server_env_path in server_env_paths.split():
+                d[server_env_path.split("crimpl-envs/")[-1]] = server_env_path
 
         # force job clones environments to override crimpl/global
         if job_name is not None:
             crimpl_job_env_dir = _os.path.join(self.directory, "crimpl-job-{}".format(job_name), "crimpl-envs")
             try:
-                job_environment_paths = self._run_ssh_cmd("ls -d {}/*".format(crimpl_job_env_dir))
+                job_env_paths = self._run_ssh_cmd("ls -d {}/*".format(crimpl_job_env_dir))
             except _subprocess.CalledProcessError:
                 pass
             else:
-                for job_environment_path in job_environment_paths.split():
-                    d[job_environment_path.split("crimpl-envs/")[-1]] = job_environment_path
+                for job_env_path in job_env_paths.split():
+                    d[job_env_path.split("crimpl-envs/")[-1]] = job_env_path
 
         return d
 
     @property
-    def conda_environments(self):
+    def conda_envs(self):
         """
         List (existing) available conda environments and their paths on the remote server.
 
@@ -190,13 +190,13 @@ class Server(object):
         --------
         * (list)
         """
-        return list(self._get_conda_environments_dict().keys())
+        return list(self._get_conda_envs_dict().keys())
 
-    def _create_conda_environment(self, conda_environment,
-                                  isolate_environment=False,
-                                  job_name=None,
-                                  check_if_exists=True,
-                                  run_cmd=True):
+    def _create_conda_env(self, conda_env,
+                          isolate_env=False,
+                          job_name=None,
+                          check_if_exists=True,
+                          run_cmd=True):
         """
         """
         default_deps = "pip numpy"
@@ -206,41 +206,41 @@ class Server(object):
             default_deps = "gcc_linux-64 gxx_linux-64 openmpi mpi4py "+default_deps
 
 
-        if not (isinstance(conda_environment, str) or conda_environment is None):
-            raise TypeError("conda_environment must be a string or None")
+        if not (isinstance(conda_env, str) or conda_env is None):
+            raise TypeError("conda_env must be a string or None")
 
-        if isinstance(conda_environment, str) and "/" in conda_environment:
-            raise ValueError("conda_environment should be alpha-numeric (and -/_) only")
+        if isinstance(conda_env, str) and "/" in conda_env:
+            raise ValueError("conda_env should be alpha-numeric (and -/_) only")
 
-        if conda_environment is None:
-            conda_environment = 'default'
+        if conda_env is None:
+            conda_env = 'default'
 
         python_version = _sys.version.split()[0]
-        if isolate_environment and job_name is not None:
+        if isolate_env and job_name is not None:
             # need to check to see if the server environment needs to be created and/or cloned
-            conda_envs_dict = self._get_conda_environments_dict(job_name=job_name)
+            conda_envs_dict = self._get_conda_envs_dict(job_name=job_name)
 
             cmd = ""
-            envpath_server = _os.path.join(self.directory, "crimpl-envs", conda_environment)
-            envpath = _os.path.join(self.directory, "crimpl-job-{}".format(job_name), "crimpl-envs", conda_environment)
+            envpath_server = _os.path.join(self.directory, "crimpl-envs", conda_env)
+            envpath = _os.path.join(self.directory, "crimpl-job-{}".format(job_name), "crimpl-envs", conda_env)
 
-            if conda_environment not in conda_envs_dict.keys():
+            if conda_env not in conda_envs_dict.keys():
                 # create the environment at the server level
                 cmd += "conda create -p {envpath_server} -y {default_deps} python={python_version}; ".format(envpath_server=envpath_server, default_deps=default_deps, python_version=python_version)
-            if len(cmd) or job_name not in conda_envs_dict.get(conda_environment):
+            if len(cmd) or job_name not in conda_envs_dict.get(conda_env):
                 # clone the server environment at the job level
                 cmd += "conda create -p {envpath} -y --clone {envpath_server};".format(envpath=envpath, envpath_server=envpath_server)
 
         else:
             if check_if_exists:
-                conda_envs_dict = self._get_conda_environments_dict(job_name=job_name)
-                if conda_environment in conda_envs_dict.keys():
-                    return None, conda_envs_dict.get(conda_environment)
+                conda_envs_dict = self._get_conda_envs_dict(job_name=job_name)
+                if conda_env in conda_envs_dict.keys():
+                    return None, conda_envs_dict.get(conda_env)
             else:
                 conda_envs_dict = False
 
             # create the environment at the server level
-            envpath = _os.path.join(self.directory, "crimpl-envs", conda_environment)
+            envpath = _os.path.join(self.directory, "crimpl-envs", conda_env)
             cmd = "conda create -p {envpath} -y {default_deps} python={python_version}".format(envpath=envpath, default_deps=default_deps, python_version=python_version)
 
         if run_cmd:
@@ -302,14 +302,14 @@ class Server(object):
     def _submit_script_cmds(self, script, files, ignore_files,
                             use_slurm,
                             directory,
-                            conda_environment, isolate_environment,
+                            conda_env, isolate_env,
                             job_name,
                             terminate_on_complete=False,
                             use_nohup=False,
                             install_conda=False,
                             **slurm_kwargs):
-        # from job: self.server._submit_script_cmds(script, files, use_slurm, directory=self.remote_directory, conda_environment=self.conda_environment, isolate_environment=self.isolate_environment, job_name=self.job_name)
-        # from server: self._submit_script_cmds(script, files, use_slurm=False, directory=self.directory, conda_environment=conda_environment, isolate_environment=False, job_name=None)
+        # from job: self.server._submit_script_cmds(script, files, use_slurm, directory=self.remote_directory, conda_env=self.conda_env, isolate_env=self.isolate_env, job_name=self.job_name)
+        # from server: self._submit_script_cmds(script, files, use_slurm=False, directory=self.directory, conda_env=conda_env, isolate_env=False, job_name=None)
 
         # NOTE: job_name here is used to identify IF a job and as the slurm job name, but is NOT necessary the job.job_name
 
@@ -339,7 +339,7 @@ class Server(object):
                                   'mail_type': '--mail-type=',
                                   'mail_user': '--mail-user='}
 
-        create_env_cmd, conda_env_path = self._create_conda_environment(conda_environment, isolate_environment, job_name=job_name, check_if_exists=True, run_cmd=False)
+        create_env_cmd, conda_env_path = self._create_conda_env(conda_env, isolate_env, job_name=job_name, check_if_exists=True, run_cmd=False)
 
         if use_slurm and job_name is None:
             raise ValueError("use_slurm requires job_name")
@@ -388,7 +388,7 @@ class Server(object):
         mkdir_cmd = self.ssh_cmd.format("mkdir -p {}".format(directory))
         if job_name is not None:
             logfiles_cmd = self.ssh_cmd.format("echo \'{}\' >> {}".format(" ".join([_os.path.basename(f) for f in files+ignore_files]), _os.path.join(directory, "crimpl-input-files.list"))) if len(files+ignore_files) else self.ssh_cmd.format("touch {}".format(_os.path.join(directory, "crimpl-input-files.list")))
-            logenv_cmd = self.ssh_cmd.format("echo \'{}\' > {}".format(conda_environment, _os.path.join(directory, "crimpl-conda-environment")))
+            logenv_cmd = self.ssh_cmd.format("echo \'{}\' > {}".format(conda_env, _os.path.join(directory, "crimpl-conda-environment")))
 
         # TODO: use job subdirectory for server_path
         scp_cmd = self.scp_cmd_to.format(local_path=" ".join(["crimpl_script.sh"]+files), server_path=directory+"/")
@@ -416,13 +416,13 @@ class Server(object):
         else:
             return [mkdir_cmd, scp_cmd, create_env_cmd, cmd]
 
-    def create_job(self, job_name=None, conda_environment=None, isolate_environment=False):
+    def create_job(self, job_name=None, conda_env=None, isolate_env=False):
         """
         """
         return self._JobClass(server=self,
                               job_name=job_name,
-                              conda_environment=conda_environment,
-                              isolate_environment=isolate_environment,
+                              conda_env=conda_env,
+                              isolate_env=isolate_env,
                               connect_to_existing=False)
 
     def get_job(self, job_name=None):
@@ -489,7 +489,7 @@ class Server(object):
 
 class ServerJob(object):
     def __init__(self, server, job_name=None,
-                 conda_environment=None, isolate_environment=False,
+                 conda_env=None, isolate_env=False,
                  job_submitted=False):
         self._server = server
 
@@ -497,18 +497,18 @@ class ServerJob(object):
         self._job_submitted = job_submitted
 
 
-        if not (isinstance(conda_environment, str) or conda_environment is None):
-            raise TypeError("conda_environment must be a string or None")
-        if isinstance(conda_environment, str) and "/" in conda_environment:
-            raise ValueError("conda_environment should be alpha-numeric (and -/_) only")
-        self._conda_environment = conda_environment
+        if not (isinstance(conda_env, str) or conda_env is None):
+            raise TypeError("conda_env must be a string or None")
+        if isinstance(conda_env, str) and "/" in conda_env:
+            raise ValueError("conda_env should be alpha-numeric (and -/_) only")
+        self._conda_env = conda_env
 
-        if not isinstance(isolate_environment, bool):
-            raise TypeError("isolate_environment must be of type bool")
-        self._isolate_environment = isolate_environment
+        if not isinstance(isolate_env, bool):
+            raise TypeError("isolate_env must be of type bool")
+        self._isolate_env = isolate_env
 
         # allow caching once the environment exists
-        self._conda_environment_exists = False
+        self._conda_env_exists = False
 
         # allow for caching remote_directory
         self._remote_directory = None
@@ -527,7 +527,7 @@ class ServerJob(object):
         return self._server
 
     @property
-    def conda_environment(self):
+    def conda_env(self):
         """
         Name of the conda environment to use for any future calls
         to <<class>.run_script> or <<class>.submit_script>.
@@ -537,64 +537,64 @@ class ServerJob(object):
 
         See also:
 
-        * <class>.conda_environment_exists>
-        * <Server.conda_environments>
+        * <class>.conda_env_exists>
+        * <Server.conda_envs>
 
         Returns
         -----------
         * (str): name or path of the conda environment on the remote server.
         """
-        if self._conda_environment is None:
+        if self._conda_env is None:
             # determine if already stored in the remote directory
             try:
                 response = self.server._run_ssh_cmd("cat {}".format(_os.path.join(self.remote_directory, "crimpl-conda-environment")))
             except _subprocess.CalledProcessError as e:
                 if 'No such file or directory' in str(e):
                     # then the cached file does not yet exist, so we'll default to 'default'
-                    self._conda_environment = 'default'
-                    print("# crimpl: will use conda_environment=\"default\"")
+                    self._conda_env = 'default'
+                    print("# crimpl: will use conda_env=\"default\"")
                 else:
-                    # leave self._conda_environment at None
+                    # leave self._conda_env at None
                     pass
             else:
-                self._conda_environment = response.strip()
+                self._conda_env = response.strip()
 
-        return self._conda_environment
-
-    @property
-    def isolate_environment(self):
-        """
-        """
-        return self._isolate_environment
+        return self._conda_env
 
     @property
-    def conda_environment_exists(self):
+    def isolate_env(self):
         """
-        Check whether <<class>.conda_environment> exists on the remote machine.
+        """
+        return self._isolate_env
+
+    @property
+    def conda_env_exists(self):
+        """
+        Check whether <<class>.conda_env> exists on the remote machine.
 
         Returns
         ----------
         * (bool)
         """
-        if not self._conda_environment_exists:
-            self._conda_environment_exists = self.conda_environment in self.server.conda_environments
-        return self._conda_environment_exists
+        if not self._conda_env_exists:
+            self._conda_env_exists = self.conda_env in self.server.conda_envs
+        return self._conda_env_exists
 
-    def create_conda_environment(self):
+    def create_conda_env(self):
         """
         Create a conda environment (in the <<Server>.remote_directory>) named
-        <<class>.conda_environment>.
+        <<class>.conda_env>.
 
         This environment will be available to any jobs in this server and will
-        be listed in <<Server>.conda_environments>.  The created environment will
+        be listed in <<Server>.conda_envs>.  The created environment will
         use the same version of python as the local version and include pip
         and numpy by default.
 
         """
-        if self.conda_environment_exists:
+        if self.conda_env_exists:
             return
 
-        return self.server._create_conda_environment(conda_environment, check_if_exists=False)
+        return self.server._create_conda_env(conda_env, check_if_exists=False)
 
     @property
     def job_name(self):

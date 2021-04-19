@@ -8,7 +8,7 @@ from . import common as _common
 class RemoteSlurmJob(_common.ServerJob):
     def __init__(self, server=None,
                  job_name=None,
-                 conda_environment=None, isolate_environment=False,
+                 conda_env=None, isolate_env=False,
                  nprocs=4,
                  slurm_id=None, connect_to_existing=None):
         """
@@ -28,16 +28,16 @@ class RemoteSlurmJob(_common.ServerJob):
             If not provided, one will be created from the current datetime and
             accessible through <RemoteSlurmJob.job_name>.  This `job_name` will
             be necessary to reconnect to a previously submitted job.
-        * `conda_environment` (string or None, optional, default=None): name of
+        * `conda_env` (string or None, optional, default=None): name of
             the conda environment to use for the job, or None to use the
             'default' environment stored in the server crimpl directory.
-        * `isolate_environment` (bool, optional, default=False): whether to clone
-            the `conda_environment` for use in this job.  If True, any setup/installation
+        * `isolate_env` (bool, optional, default=False): whether to clone
+            the `conda_env` for use in this job.  If True, any setup/installation
             done by this job will not affect the original environment and
             will not affect other jobs.  Note that the environment is cloned
             (and therefore isolated) at the first call to <<class>.run_script>
             or <<class>.submit_script>.  Setup in the parent environment can
-            be done at the server level, but requires passing `conda_environment`.
+            be done at the server level, but requires passing `conda_env`.
         * `nprocs` (int, optional, default=4): default number of procs to use
             when calling <RemoteSlurmJob.submit_job>
         * `slurm_id` (int, optional, default=None): internal id of the remote
@@ -77,8 +77,8 @@ class RemoteSlurmJob(_common.ServerJob):
         self._nprocs = nprocs
 
         super().__init__(server, job_name,
-                         conda_environment=conda_environment,
-                         isolate_environment=isolate_environment,
+                         conda_env=conda_env,
+                         isolate_env=isolate_env,
                          job_submitted=connect_to_existing)
 
     def __repr__(self):
@@ -216,7 +216,7 @@ class RemoteSlurmJob(_common.ServerJob):
 
     def run_script(self, script, files=[], trial_run=False):
         """
-        Run a script on the server in the <<class>.conda_environment>,
+        Run a script on the server in the <<class>.conda_env>,
         and wait for it to complete.
 
         This is useful for short installation/setup scripts that do not belong
@@ -255,8 +255,8 @@ class RemoteSlurmJob(_common.ServerJob):
         cmds = self.server._submit_script_cmds(script, files, [],
                                                use_slurm=False,
                                                directory=self.remote_directory,
-                                               conda_environment=self.conda_environment,
-                                               isolate_environment=self.isolate_environment,
+                                               conda_env=self.conda_env,
+                                               isolate_env=self.isolate_env,
                                                job_name=None,
                                                terminate_on_complete=False,
                                                use_nohup=False,
@@ -281,7 +281,7 @@ class RemoteSlurmJob(_common.ServerJob):
                       wait_for_job_status=False,
                       trial_run=False):
         """
-        Submit a script to the server in the <<class>.conda_environment>.
+        Submit a script to the server in the <<class>.conda_env>.
 
         This will copy `script` (modified with the provided slurm options) and
         `files` to <RemoteSlurmJob.remote_directory> on the remote server and
@@ -348,8 +348,8 @@ class RemoteSlurmJob(_common.ServerJob):
         cmds = self.server._submit_script_cmds(script, files, ignore_files,
                                                use_slurm=True,
                                                directory=self.remote_directory,
-                                               conda_environment=self.conda_environment,
-                                               isolate_environment=self.isolate_environment,
+                                               conda_env=self.conda_env,
+                                               isolate_env=self.isolate_env,
                                                job_name=slurm_job_name if slurm_job_name is not None and len(slurm_job_name) else self.job_name,
                                                terminate_on_complete=False,
                                                use_nohup=False,
@@ -535,7 +535,7 @@ class RemoteSlurmServer(_common.Server):
         return self.server._run_ssh_cmd("ls")
 
     def create_job(self, job_name=None,
-                   conda_environment=None, isolate_environment=False,
+                   conda_env=None, isolate_env=False,
                    nprocs=4):
         """
         Create a child <RemoteSlurmJob> instance.
@@ -546,16 +546,16 @@ class RemoteSlurmServer(_common.Server):
             If not provided, one will be created from the current datetime and
             accessible through <RemoteSlurmJob.job_name>.  This `job_name` will
             be necessary to reconnect to a previously submitted job.
-        * `conda_environment` (string or None, optional, default=None): name of
+        * `conda_env` (string or None, optional, default=None): name of
             the conda environment to use for the job, or None to use the
             'default' environment stored in the server crimpl directory.
-        * `isolate_environment` (bool, optional, default=False): whether to clone
-            the `conda_environment` for use in this job.  If True, any setup/installation
+        * `isolate_env` (bool, optional, default=False): whether to clone
+            the `conda_env` for use in this job.  If True, any setup/installation
             done by this job will not affect the original environment and
             will not affect other jobs.  Note that the environment is cloned
             (and therefore isolated) at the first call to <<class>.run_script>
             or <<class>.submit_script>.  Setup in the parent environment can
-            be done at the server level, but requires passing `conda_environment`.
+            be done at the server level, but requires passing `conda_env`.
         * `nprocs` (int, optional, default=4): default number of procs to use
             when calling <RemoteSlurmJob.submit_job>
 
@@ -564,13 +564,13 @@ class RemoteSlurmServer(_common.Server):
         * <RemoteSlurmJob>
         """
         return self._JobClass(server=self, job_name=job_name,
-                              conda_environment=conda_environment,
-                              isolate_environment=isolate_environment,
+                              conda_env=conda_env,
+                              isolate_env=isolate_env,
                               nprocs=nprocs, connect_to_existing=False)
 
     def submit_job(self, script, files=[],
                    job_name=None, slurm_job_name=None,
-                   conda_environment=None, isolate_environment=False,
+                   conda_env=None, isolate_env=False,
                    nprocs=4,
                    walltime='2-00:00:00',
                    mail_type='END,FAIL',
@@ -587,8 +587,8 @@ class RemoteSlurmServer(_common.Server):
         * `files`: passed to <RemoteSlurmJob.submit_script>
         * `job_name`: passed to <RemoteSlurmServer.create_job>
         * `slurm_job_name`: passed to <RemoteSlurmJob.submit_script>
-        * `conda_environment`: passed to <RemoteSlurmServer.create_job>
-        * `isolate_environment`: passed to <RemoteSlurmServer.create_job>
+        * `conda_env`: passed to <RemoteSlurmServer.create_job>
+        * `isolate_env`: passed to <RemoteSlurmServer.create_job>
         * `nprocs`: passed to <RemoteSlurmServer.create_job>
         * `walltime`: passed to <RemoteSlurmJob.submit_script>
         * `mail_type`: passed to <RemoteSlurmJob.submit_script>
@@ -602,8 +602,8 @@ class RemoteSlurmServer(_common.Server):
         * <RemoteSlurmJob>
         """
         j = self.create_job(job_name=job_name,
-                            conda_environment=conda_environment,
-                            isolate_environment=isolate_environment,
+                            conda_env=conda_env,
+                            isolate_env=isolate_env,
                             nprocs=nprocs)
 
         return j.submit_script(script, files=files,
@@ -615,9 +615,9 @@ class RemoteSlurmServer(_common.Server):
                                wait_for_job_status=wait_for_job_status,
                                trial_run=trial_run)
 
-    def run_script(self, script, files=[], conda_environment=None, trial_run=False):
+    def run_script(self, script, files=[], conda_env=None, trial_run=False):
         """
-        Run a script on the server in the `conda_environment`, and wait for it to complete.
+        Run a script on the server in the `conda_env`, and wait for it to complete.
 
         The files are copied and executed in <RemoteSlurmServer.directory> directly
         (whereas <RemoteSlurmJob> scripts are executed in subdirectories).
@@ -639,7 +639,7 @@ class RemoteSlurmServer(_common.Server):
         * `files` (list, optional, default=[]): list of paths to additional files
             to copy to the server required in order to successfully execute
             `script`.
-        * `conda_environment` (string or None): name of the conda environment to
+        * `conda_env` (string or None): name of the conda environment to
             run the script, or None to use the 'default' environment stored in
             the server crimpl directory.
         * `trial_run` (bool, optional, default=False): if True, the commands
@@ -658,8 +658,8 @@ class RemoteSlurmServer(_common.Server):
         cmds = self._submit_script_cmds(script, files, [],
                                         use_slurm=False,
                                         directory=self.directory,
-                                        conda_environment=conda_environment,
-                                        isolate_environment=False,
+                                        conda_env=conda_env,
+                                        isolate_env=False,
                                         job_name=None,
                                         terminate_on_complete=False,
                                         use_nohup=False,

@@ -10612,7 +10612,7 @@ class Bundle(ParameterSet):
         f.write("nprocs = {}\n".format(nprocs))
 
         conda_env = server_ps.get_value(qualifier='conda_env', conda_env=kwargs.get('conda_env', None), **_skip_filter_checks)
-        f.write("conda_environment = '{}'\n".format(conda_env))
+        f.write("conda_env = '{}'\n".format(conda_env))
 
         install_deps = server_ps.get_value(qualifier='install_deps', install_deps=kwargs.get('install_deps', None), **_skip_filter_checks)
         f.write("install_deps = {}\n".format(install_deps))
@@ -10620,8 +10620,7 @@ class Bundle(ParameterSet):
         job_name = _crimpl.common._new_job_name()
         f.write("job_name = '{}'\n".format(job_name))  # TODO: set this
 
-        qualifier_map = {'conda_env': 'conda_environment', 'isolate_env': 'isolate_environment'}
-        server_options = {qualifier_map.get(p.qualifier, p.qualifier): kwargs.pop(p.qualifier, p.get_value()) for p in server_ps.to_list() if p.qualifier not in ['conda_env', 'nprocs', 'crimpl_name', 'use_mpi', 'install_deps']}
+        server_options = {p.qualifier: kwargs.pop(p.qualifier, p.get_value()) for p in server_ps.to_list() if p.qualifier not in ['conda_env', 'nprocs', 'crimpl_name', 'use_mpi', 'install_deps']}
         f.write("server_options = {}\n".format(server_options))
 
         f.write("\n\n")
@@ -10652,7 +10651,7 @@ class Bundle(ParameterSet):
         f.write("    if install_deps:\n")
         f.write("        s.run_script(['pip install {}'])\n\n".format(" ".join(deps_pip)))
 
-        f.write("    sj = s.submit_job(script, ignore_files=['{}'], job_name=job_name, nprocs=nprocs, conda_environment=conda_environment)".format(server_tmp_script))
+        f.write("    sj = s.submit_job(script, ignore_files=['{}'], job_name=job_name, nprocs=nprocs, conda_env=conda_env)".format(server_tmp_script))
 
         f.write("\n\n")
         f.write("elif action=='status':\n")
@@ -11024,8 +11023,7 @@ class Bundle(ParameterSet):
             # a random string, to avoid any conflicts
             jobid = kwargs.get('jobid', parameters._uniqueid())
 
-            qualifier_map = {'conda_env': 'conda_environment', 'isolate_env': 'isolate_environment'}
-            server_options = {qualifier_map.get(p.qualifier, p.qualifier): kwargs.pop(p.qualifier, p.get_value()) for p in self.filter(server=use_server, context='server', **_skip_filter_checks).to_list()}
+            server_options = {p.qualifier: kwargs.pop(p.qualifier, p.get_value()) for p in self.filter(server=use_server, context='server', **_skip_filter_checks).to_list()}
 
             # we'll build a python script that can replicate this bundle as it
             # is now, run compute, and then save the resulting model
@@ -11058,7 +11056,7 @@ class Bundle(ParameterSet):
                         raise ValueError("cannot automatically install {}".format(deps_other))
                     if use_mpi:
                         deps_pip.append('mpi4py')
-                    s.run_script(['pip install {}'.format(" ".join(deps_pip))], conda_environment=server_options.get('conda_env'))
+                    s.run_script(['pip install {}'.format(" ".join(deps_pip))], conda_env=server_options.get('conda_env'))
 
                 sj = s.submit_job(script=['{}python3 {}'.format("mpirun " if use_mpi else "", os.path.basename(script_fname))],
                                   files=[script_fname],
@@ -12645,8 +12643,7 @@ class Bundle(ParameterSet):
             # a random string, to avoid any conflicts
             jobid = kwargs.get('jobid', parameters._uniqueid())
 
-            qualifier_map = {'conda_env': 'conda_environment', 'isolate_env': 'isolate_environment'}
-            server_options = {qualifier_map.get(p.qualifier, p.qualifier): kwargs.pop(p.qualifier, p.get_value()) for p in self.filter(server=use_server, context='server', **_skip_filter_checks).to_list()}
+            server_options = {p.qualifier: kwargs.pop(p.qualifier, p.get_value()) for p in self.filter(server=use_server, context='server', **_skip_filter_checks).to_list()}
 
             script_fname = "_{}.py".format(jobid)
             out_fname = "_{}.out".format(jobid)
@@ -12684,7 +12681,7 @@ class Bundle(ParameterSet):
                         raise ValueError("cannot automatically install {}".format(deps_other))
                     if use_mpi:
                         deps_pip.append('mpi4py')
-                    s.run_script(['pip install {}'.format(" ".join(deps_pip))], conda_environment=server_options.get('conda_env'))
+                    s.run_script(['pip install {}'.format(" ".join(deps_pip))], conda_env=server_options.get('conda_env'))
 
                 sj = s.submit_job(script=['{}python3 {}'.format("mpirun " if use_mpi else "", os.path.basename(script_fname))],
                                   files=[script_fname],
