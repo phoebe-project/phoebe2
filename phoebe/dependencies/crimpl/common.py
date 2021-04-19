@@ -10,10 +10,10 @@ __version__ = '0.1.0-dev2'
 def _new_job_name():
     return _datetime.now().strftime('%Y.%m.%d-%H.%M.%S')
 
-def _run_cmd(cmd, detach=False):
+def _run_cmd(cmd, detach=False, log_cmd=True):
     if cmd is None:
         return
-    print("# crimpl{}: {}".format(" (detached)" if detach else "", cmd))
+    if log_cmd:  print("# crimpl{}: {}".format(" (detached)" if detach else "", cmd))
     i = 0
     while True:
         try:

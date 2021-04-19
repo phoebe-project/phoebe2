@@ -1294,7 +1294,9 @@ class Bundle(ParameterSet):
         self.run_delayed_constraints()
 
         if not skip_checks:
-            report = self.run_checks_compute(compute=compute, allow_skip_constraints=False,
+            report = self.run_checks_compute(compute=compute,
+                                             run_checks_server=False,
+                                             allow_skip_constraints=False,
                                              raise_logger_warning=True, raise_error=True,
                                              run_checks_system=True)
 
@@ -1337,7 +1339,9 @@ class Bundle(ParameterSet):
         self.run_delayed_constraints()
 
         if not skip_checks:
-            report = self.run_checks_compute(compute=compute, allow_skip_constraints=False,
+            report = self.run_checks_compute(compute=compute,
+                                             run_checks_server=False,
+                                             allow_skip_constraints=False,
                                              raise_logger_warning=True, raise_error=True,
                                              run_checks_system=True)
 
@@ -3144,14 +3148,14 @@ class Bundle(ParameterSet):
              <phoebe.frontend.bundle.RunChecksItem.message>.
         """
         report = self.run_checks_system(raise_logger_warning=False, raise_error=False, **kwargs)
-        report = self.run_checks_compute(run_checks_system=False, raise_logger_warning=False, raise_error=False, report=report, **kwargs)
+        report = self.run_checks_compute(run_checks_server=False, run_checks_system=False, raise_logger_warning=False, raise_error=False, report=report, **kwargs)
         # TODO: passing run_checks_compute=False is to try to avoid duplicates with the call above,
         # but could get us into trouble if compute@solver references a compute that is
         # skipped by the run_checks_compute@setting or kwargs.get('compute').
-        report = self.run_checks_solver(run_checks_compute=False, raise_logger_warning=False, raise_error=False, report=report, **kwargs)
+        report = self.run_checks_solver(run_checks_compute=False, run_checks_server=False, raise_logger_warning=False, raise_error=False, report=report, **kwargs)
         report = self.run_checks_solution(raise_logger_warning=False, raise_error=False, report=report, **kwargs)
         report = self.run_checks_figure(raise_logger_warning=False, raise_error=False, report=report, **kwargs)
-        report = self.run_checks_server(raise_logger_warning=False, raise_error=False, report=report, **kwargs)
+        report = self.run_checks_server(allow_nonlocal_server=True, raise_logger_warning=False, raise_error=False, report=report, **kwargs)
 
         self._run_checks_warning_error(report, raise_logger_warning, raise_error)
 
@@ -3519,7 +3523,8 @@ class Bundle(ParameterSet):
         return report
 
     def run_checks_compute(self, compute=None, solver=None, solution=None, figure=None,
-                         raise_logger_warning=False, raise_error=False, run_checks_system=True, **kwargs):
+                         raise_logger_warning=False, raise_error=False,
+                         run_checks_system=True, run_checks_server=True, **kwargs):
         """
         Check to see whether the system is expected to be computable.
 
@@ -3546,6 +3551,9 @@ class Bundle(ParameterSet):
             will be used (which defaults to all available compute options).
         * `run_checks_system` (bool, optional, default=True): whether to also
             call (and include the output from) <phoebe.frontend.bundle.run_checks_system>.
+        * `run_checks_server` (bool, optional, default=True): whether to also
+            call (and include the output from) <phoebe.frontend.bundle.run_checks_server>
+            for any referenced servers in the matched compute options.
         * `allow_skip_constraints` (bool, optional, default=False): whether
             to allow skipping running delayed constraints if interactive
             constraints are disabled.  See <phoebe.interactive_constraints_off>.
@@ -3573,7 +3581,10 @@ class Bundle(ParameterSet):
         addl_parameters = kwargs.pop('addl_parameters', [])
 
         if run_checks_system:
-            report = self.run_checks_system(raise_logger_warning=False, raise_error=False, report=report, **kwargs)
+            report = self.run_checks_system(raise_logger_warning=False,
+                                            raise_error=False,
+                                            report=report,
+                                            **kwargs)
 
         run_checks_compute = self.get_value(qualifier='run_checks_compute', context='setting', default='*', expand=True, **_skip_filter_checks)
         if compute is None:
@@ -3594,6 +3605,16 @@ class Bundle(ParameterSet):
                                 [self.get_parameter(qualifier='run_checks_compute', context='setting', check_visible=False, check_default=False)],
                                 False
                                 )
+
+            if run_checks_server:
+                use_server_param = self.get_parameter(qualifier='use_server', compute=compute, context='compute', **_skip_filter_checks)
+                report = self.run_checks_server(server=use_server_param.get_value(use_server=kwargs.get('use_server', None)),
+                                                raise_logger_warning=False,
+                                                raise_error=False,
+                                                report=report,
+                                                addl_parameters=[use_server_param],
+                                                check_interactive_warnings=False,
+                                                **kwargs)
 
         hier = self.hierarchy
         if hier is None:
@@ -4231,7 +4252,8 @@ class Bundle(ParameterSet):
         return report
 
     def run_checks_solver(self, solver=None, compute=None, solution=None, figure=None,
-                          raise_logger_warning=False, raise_error=False, **kwargs):
+                          raise_logger_warning=False, raise_error=False,
+                          run_checks_compute=True, run_checks_server=True, **kwargs):
         """
         Check to for any expected errors/warnings to <phoebe.frontend.bundle.Bundle.run_solver>.
 
@@ -4261,8 +4283,11 @@ class Bundle(ParameterSet):
             the compute options in the 'run_checks_solver@setting' parameter
             will be used (which defaults to all available solver options).
         * `run_checks_compute` (bool, optional, default=True): whether to also
-            call <phoebe.frontend.bundle.run_checks_compute> on any `compute`
-            listed in the solver options in `solver`.
+            call <phoebe.frontend.bundle.run_checks_compute> on any referenced
+            computes in the matched solver options.
+        * `run_checks_server` (bool, optional, default=True): whether to also
+            call (and include the output from) <phoebe.frontend.bundle.run_checks_server>
+            for any referenced servers in the matched compute options.
         * `allow_skip_constraints` (bool, optional, default=False): whether
             to allow skipping running delayed constraints if interactive
             constraints are disabled.  See <phoebe.interactive_constraints_off>.
@@ -4312,14 +4337,36 @@ class Bundle(ParameterSet):
         for solver in solvers:
             solver_ps = self.get_solver(solver=solver, **_skip_filter_checks)
             solver_kind = solver_ps.kind
+            if 'use_server' in solver_ps.qualifiers and run_checks_server:
+                use_server = kwargs.get('use_server', solver_ps.get_value(qualifier='use_server', **_skip_filter_checks))
+                addl_parameters = [solver_ps.get_parameter(qualifier='use_server', **_skip_filter_checks)]
+                if server == 'compute':
+                    compute = solver_ps.get_value(qualifier='compute', compute=kwargs.get('compute', None), **_skip_filter_checks)
+                    use_server = self.get_value(qualifier='use_server', compute=compute, **_skip_filter_checks)
+                    addl_parameters += [self.get_parameter(qualifier='use_server', compute=compute, **_skip_filter_checks)]
+
+                report = self.run_checks_server(server=use_server,
+                                                raise_logger_warning=False,
+                                                raise_error=False,
+                                                report=report,
+                                                addl_parameters=addl_parameters,
+                                                check_interactive_warnings=False,
+                                                **kwargs)
+
             if 'compute' in solver_ps.qualifiers:
                 # NOTE: we can't pass compute as a kwarg to get_value or it will be used as a filter instead... which means technically we can't be sure compute is in self.computes
                 compute = kwargs.get('compute', solver_ps.get_value(qualifier='compute', **_skip_filter_checks))
-                if kwargs.get('run_checks_compute', True):
+                if run_checks_compute:
                     if compute not in self.computes:
                         raise ValueError("compute='{}' not in computes".format(compute))
                     # TODO: do we need to append (only if report was sent as a kwarg)
-                    report = self.run_checks_compute(compute=compute, raise_logger_warning=False, raise_error=False, report=report, addl_parameters=[solver_ps.get_parameter(qualifier='compute', **_skip_filter_checks)])
+                    report = self.run_checks_compute(compute=compute,
+                                                     run_checks_server=False,  # already would have covered above
+                                                     raise_logger_warning=False,
+                                                     raise_error=False,
+                                                     report=report,
+                                                     addl_parameters=[solver_ps.get_parameter(qualifier='compute', **_skip_filter_checks)],
+                                                     **kwargs)
 
                 # test to make sure solver_times will cover the full dataset for time-dependent systems
                 if self.hierarchy.is_time_dependent(consider_gaussian_process=True):
@@ -4778,17 +4825,18 @@ class Bundle(ParameterSet):
         return report
 
 
-    def run_checks_server(self, server=None, compute=None, solver=None, solution=None,
+    def run_checks_server(self, server=None,
+                          allow_nonlocal_server=False,
                           raise_logger_warning=False, raise_error=False, **kwargs):
         """
-        Check to see whether the system is expected to be computable.
+        Check to see whether the server options are valid.
 
         This is called by default for each set_value but will only raise a
         logger warning if fails.  This is also called immediately when calling
-        <phoebe.frontend.bundle.Bundle.run_compute>.
+        <phoebe.frontend.bundle.Bundle.run_compute> or
+        <phoebe.frontend.bundle.Bundle.run_solver>.
 
-        kwargs are passed to override currently set values as if they were
-        sent to <phoebe.frontend.bundle.Bundle.run_compute>.
+        kwargs are passed to override currently set values.
 
         See also:
         * <phoebe.frontend.bundle.Bundle.run_checks>
@@ -4804,9 +4852,9 @@ class Bundle(ParameterSet):
             server options to use  when running checks.  If None (or not provided),
             the server options in the 'run_checks_server@setting' parameter
             will be used (which defaults to no servers, if not set).
-        * `allow_skip_constraints` (bool, optional, default=False): whether
-            to allow skipping running delayed constraints if interactive
-            constraints are disabled.  See <phoebe.interactive_constraints_off>.
+        * `allow_nonlocal_server` (bool, optional, default=False): whether
+            to allow `crimpl_name` to not be available on the local machine
+            (and therefore raise a warning instead of an error).
         * `raise_logger_warning` (bool, optional, default=False): whether to
             raise any errors/warnings in the logger (with level of warning).
         * `raise_error` (bool, optional, default=False): whether to raise an
@@ -4838,23 +4886,41 @@ class Bundle(ParameterSet):
             if isinstance(servers, str):
                 servers = [servers]
 
-        for server in servers:
-            if server not in self.servers:
-                raise ValueError("server='{}' not found".format(server))
-
-            if server not in run_checks_server:
+        for server in self.servers:
+            if server not in run_checks_server and kwargs.get('check_interactive_warnings', True):
                 report.add_item(self,
                                 "server='{}' is not included in run_checks_server@setting, so will not raise interactive warnings".format(server),
                                 [self.get_parameter(qualifier='run_checks_server', context='setting', check_visible=False, check_default=False)],
-                                False
+                                False, []
                                 )
 
-        for param in self.filter(context='server', qualifier='crimpl_name', **_skip_filter_checks).to_list():
-            if not len(param.get_value()):
+        local_server_configs = _crimpl.list_servers()
+        for server in servers:
+            if server == 'none':
+                continue
+
+            if server not in self.servers:
+                raise ValueError("server='{}' not found".format(server))
+
+            crimpl_param = self.get_parameter(qualifier='crimpl_name', server=server, context='server', **_skip_filter_checks)
+            crimpl_name = crimpl_param.get_value()
+            if not len(crimpl_name):
                 report.add_item(self,
-                                "{} is not set".format(param.twig),
-                                [param]+addl_parameters,
-                                False, [])
+                                "{} is not set".format(crimpl_param.twig),
+                                [crimpl_param]+addl_parameters,
+                                True, [])
+
+            elif crimpl_name not in local_server_configs:
+                if allow_nonlocal_server:
+                    report.add_item(self,
+                                    "{} ({}) is not a configured crimpl server on this machine and will only be able to be run on a machine in which it is.".format(crimpl_name, crimpl_param.twig),
+                                    [crimpl_param]+addl_parameters,
+                                    False, [])
+                else:
+                    report.add_item(self,
+                                    "{} ({}) is not a configured crimpl server on this machine".format(crimpl_name, crimpl_param.twig),
+                                    [crimpl_param]+addl_parameters,
+                                    True, [])
 
         self._run_checks_warning_error(report, raise_logger_warning, raise_error)
 
@@ -9528,7 +9594,9 @@ class Bundle(ParameterSet):
             self._kwargs_checks(kwargs, additional_allowed_keys=['skip_checks', 'overwrite'], additional_forbidden_keys=forbidden_keys)
 
         if not kwargs.get('skip_checks', False):
-            report = self.run_checks_compute(compute=compute, allow_skip_constraints=False,
+            report = self.run_checks_compute(compute=compute,
+                                             run_checks_server=False,
+                                             allow_skip_constraints=False,
                                              raise_logger_warning=True, raise_error=True,
                                              run_checks_system=True,
                                              **kwargs)
@@ -9708,7 +9776,9 @@ class Bundle(ParameterSet):
                 use_pbfluxes[dataset] = compute_pblums_pbfluxes.get(dataset)
 
         elif not kwargs.get('skip_checks', False):
-            report = self.run_checks_compute(compute=compute, allow_skip_constraints=False,
+            report = self.run_checks_compute(compute=compute,
+                                             run_checks_server=False,
+                                             allow_skip_constraints=False,
                                              raise_logger_warning=True, raise_error=True,
                                              run_checks_system=True,
                                              **kwargs)
@@ -9916,6 +9986,7 @@ class Bundle(ParameterSet):
         # make sure we pass system checks
         if not kwargs.get('skip_checks', False):
             report = self.run_checks_compute(compute=compute_ps.compute,
+                                             run_checks_server=False,
                                              allow_skip_constraints=False,
                                              raise_logger_warning=True, raise_error=True,
                                              run_checks_system=True,
@@ -10401,7 +10472,7 @@ class Bundle(ParameterSet):
 
         return self.filter(compute=new_compute)
 
-    def _prepare_compute(self, compute, model, dataset, **kwargs):
+    def _prepare_compute(self, compute, model, dataset, from_export=False, **kwargs):
         """
         """
         # protomesh and pbmesh were supported kwargs in 2.0.x but are no longer
@@ -10496,7 +10567,10 @@ class Bundle(ParameterSet):
         self._kwargs_checks(kwargs, allowed_kwargs, ps=computes_ps)
 
         if not kwargs.get('skip_checks', False):
-            report = self.run_checks_compute(compute=computes, allow_skip_constraints=False,
+            report = self.run_checks_compute(compute=computes,
+                                             run_checks_server=True,
+                                             allow_nonlocal_server=from_export,
+                                             allow_skip_constraints=False,
                                              raise_logger_warning=True, raise_error=True,
                                              run_checks_system=True,
                                              **kwargs)
@@ -10719,7 +10793,7 @@ class Bundle(ParameterSet):
         """
         use_server = kwargs.get('use_server', kwargs.get('server', None))
 
-        model, computes, datasets, do_create_fig_params, changed_params, overwrite_ps, kwargs = self._prepare_compute(compute, model, dataset, **kwargs)
+        model, computes, datasets, do_create_fig_params, changed_params, overwrite_ps, kwargs = self._prepare_compute(compute, model, dataset, from_export=True, **kwargs)
 
         if use_server is None:
             for compute in computes:
@@ -10872,7 +10946,9 @@ class Bundle(ParameterSet):
 
         if solver is not None:
             if not kwargs.get('skip_checks', False):
-                report = self.run_checks_solver(solver=solver, run_checks_compute=False,
+                report = self.run_checks_solver(solver=solver,
+                                                run_checks_compute=False,
+                                                run_checks_server=False,
                                                 allow_skip_constraints=False,
                                                 raise_logger_warning=True, raise_error=True)
 
@@ -10901,7 +10977,7 @@ class Bundle(ParameterSet):
 
         # NOTE: _prepare_compute calls run_checks_compute and will handle raising
         # any necessary errors
-        model, computes, datasets, do_create_fig_params, changed_params, overwrite_ps, kwargs = self._prepare_compute(compute, model, dataset, **kwargs)
+        model, computes, datasets, do_create_fig_params, changed_params, overwrite_ps, kwargs = self._prepare_compute(compute, model, dataset, from_export=False, **kwargs)
         _ = kwargs.pop('do_create_fig_params', None)
 
         if use_server is None:
@@ -11971,7 +12047,7 @@ class Bundle(ParameterSet):
         return _return_ps(self, ret_ps)
 
 
-    def _prepare_solver(self, solver, solution, **kwargs):
+    def _prepare_solver(self, solver, solution, from_export=False, **kwargs):
         """
         """
 
@@ -12018,7 +12094,10 @@ class Bundle(ParameterSet):
         self._kwargs_checks(kwargs, allowed_kwargs, ps=solver_ps.copy()+compute_ps)
 
         if not kwargs.get('skip_checks', False):
-            report = self.run_checks_solver(solver=solver, run_checks_compute=True,
+            report = self.run_checks_solver(solver=solver,
+                                            run_checks_compute=True,
+                                            run_checks_server=True,
+                                            allow_nonlocal_server=from_export,
                                             allow_skip_constraints=False,
                                             raise_logger_warning=True, raise_error=True,
                                             **kwargs)
@@ -12164,7 +12243,7 @@ class Bundle(ParameterSet):
         if use_server == 'compute':
             use_server = self.get_value(qualifier='use_server', compute=self.get_value(qualifier='compute', solver=solver, context='solver', **_skip_filter_checks), **_skip_filter_checks)
 
-        solver, solution, compute, solver_ps = self._prepare_solver(solver, solution, **kwargs)
+        solver, solution, compute, solver_ps = self._prepare_solver(solver, solution, from_export=True, **kwargs)
         script_fname, out_fname = self._write_export_solver_script(script_fname, out_fname, solver, solution, autocontinue, use_server, import_from_older, log_level, kwargs)
 
         if pause:
@@ -12483,12 +12562,13 @@ class Bundle(ParameterSet):
             use_server = self.get_value(qualifier='use_server', compute=self.get_value(qualifier='compute', solver=solver, context='solver', **_skip_filter_checks), **_skip_filter_checks)
         job_sleep = kwargs.get('sleep', 10)
 
-        solver, solution, compute, solver_ps = self._prepare_solver(solver, solution, **kwargs)
+        solver, solution, compute, solver_ps = self._prepare_solver(solver, solution, from_export=False, **kwargs)
 
-        if not kwargs.get('skip_checks', False):
-            self.run_checks_solver(solver=solver_ps.solver,
-                                   raise_logger_warning=True, raise_error=True,
-                                   **kwargs)
+        # REMOVE? (should be covered in _prepare_solver above)
+        # if not kwargs.get('skip_checks', False):
+        #     self.run_checks_solver(solver=solver_ps.solver,
+        #                            raise_logger_warning=True, raise_error=True,
+        #                            **kwargs)
 
         # temporarily disable interactive_checks, check_default, and check_visible
         conf_interactive_checks = conf.interactive_checks

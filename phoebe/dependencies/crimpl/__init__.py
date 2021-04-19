@@ -19,7 +19,7 @@ def list_servers():
     """
     directory = _os.path.expanduser("~/.crimpl/servers/")
     try:
-        return [_os.path.basename(f)[:-5] for f in _run_cmd("ls {}".format(directory)).split()]
+        return [_os.path.basename(f)[:-5] for f in _run_cmd("ls {}".format(directory), log_cmd=False).split()]
     except _subprocess.CalledProcessError:
         return []
 
