@@ -10556,9 +10556,9 @@ class Bundle(ParameterSet):
         f.write("import sys\n\n")
         f.write("if len(sys.argv) != 2:\n")
         if autocontinue:
-            f.write("    print('usage: {} [submit, status, output, continue]'.format(sys.argv[0]))\n")
+            f.write("    print('usage: {} [submit, status, output, kill, continue]'.format(sys.argv[0]))\n")
         else:
-            f.write("    print('usage: {} [submit, status, output]'.format(sys.argv[0]))\n")
+            f.write("    print('usage: {} [submit, status, output, kill]'.format(sys.argv[0]))\n")
         f.write("    exit()\n")
         f.write("action = sys.argv[1]\n\n")
         f.write("s = crimpl.load_server(crimpl_name)\n\n")
@@ -10587,15 +10587,18 @@ class Bundle(ParameterSet):
         f.write("elif action=='output':\n")
         f.write("    sj = s.get_job(job_name)\n")
         f.write("    print(sj.check_output())\n\n")
+        f.write("elif action=='kill':\n")
+        f.write("    sj = s.get_job(job_name)\n")
+        f.write("    print(sj.kill_job())\n\n")
         if autocontinue:
             f.write("elif action=='continue':\n")
             f.write("    sj = s.get_job(job_name)\n")
             f.write("    sj.resubmit_script()\n")
         f.write("else:\n")
         if autocontinue:
-            f.write("    print('usage: {} [submit, status, output, continue]'.format(sys.argv[0]))\n")
+            f.write("    print('usage: {} [submit, status, output, kill, continue]'.format(sys.argv[0]))\n")
         else:
-            f.write("    print('usage: {} [submit, status, output]'.format(sys.argv[0]))\n")
+            f.write("    print('usage: {} [submit, status, output, kill]'.format(sys.argv[0]))\n")
         f.write("    exit()\n")
         f.close()
         return

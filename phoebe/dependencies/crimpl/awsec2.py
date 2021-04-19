@@ -676,7 +676,7 @@ class AWSEC2Job(_common.ServerJob):
             self.start() # wait is always True
 
         # TODO: discriminate between run_script and submit_script filenames and don't allow multiple calls to submit_script
-        self.server._run_ssh_cmd("cd {directory}; nohup bash {remote_script} &".format(directory=self.directory,
+        self.server._run_ssh_cmd("cd {directory}; nohup bash {remote_script} &".format(directory=self.remote_directory,
                                                                                       remote_script='crimpl_script.sh'))
 
 

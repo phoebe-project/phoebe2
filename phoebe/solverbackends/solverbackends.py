@@ -169,7 +169,7 @@ def _lnprobability(sampled_values, b, params_uniqueids, compute,
     try:
         # override sample_from that may be set in the compute options
         compute_kwargs['sample_from'] = []
-        b.run_compute(compute=compute, model=solution, do_create_fig_params=False, **compute_kwargs)
+        b.run_compute(use_server='none', compute=compute, model=solution, do_create_fig_params=False, **compute_kwargs)
     except Exception as err:
         logger.warning("received error from run_compute: {}.  lnprobability=-inf".format(err))
         return _return(-np.inf, str(err))
@@ -1075,11 +1075,11 @@ class EbaiBackend(BaseSolverBackend):
             ecl_positions = lc_geom_dict.get('ecl_positions')
             # assume primary is close to zero?
             pshift = ecl_positions[np.argmin(abs(np.array(ecl_positions)))]
-            phases_shifted = phases-pshift 
+            phases_shifted = phases-pshift
             phases_shifted[phases_shifted > 0.5] = phases_shifted[phases_shifted>0.5]-1.
             phases_shifted[phases_shifted < -0.5] = phases_shifted[phases_shifted<-0.5]+1.
             s=np.argsort(phases_shifted)
-            
+
             fit_result = lc_geometry.fit_lc(phases_shifted[s], fluxes[s], sigmas[s])
             best_fit = fit_result['best_fit']
             best_fit = fit_result['best_fit']
