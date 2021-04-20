@@ -553,6 +553,11 @@ class Passband:
                     non_nan_vertices = np.array([ [self._ck2004_intensity_axes[i][self._ck2004_indices[k][i]] for i in range(len(self._ck2004_intensity_axes)-1)] for k in range(len(self._ck2004_indices))])
                     self.nntree['ck2004'] = KDTree(non_nan_vertices, copy_data=True)
 
+                    # Rebuild blending map:
+                    self._ck2004_blending_region = (750., 0.5, 0.5)
+                    self._ck2004_offsets = [a[0] for a in self._ck2004_intensity_axes[:-1]]
+                    self._ck2004_remap = lambda v: tuple([1/self._ck2004_blending_region[k]*(v[k]-self._ck2004_offsets[k]) for k in range(len(self._ck2004_blending_region))])
+
                     # Rebuild the table of inferior corners for extrapolation:
                     raxes = self._ck2004_intensity_axes[:-1]
                     subgrid = self._ck2004_Imu_photon_grid[...,-1,:]
@@ -2088,7 +2093,6 @@ class Passband:
                 Inorm[k] = grid[tuple(self._ck2004_indices[i])]
             return Inorm
         elif extrapolate_mode == 'linear':
-            # coordinates of the inferior corner:
             for k in nan_indices:
                 v = req[k]
                 ic = np.array([np.searchsorted(axes[i], v[i])-1 for i in range(len(axes))])
@@ -2117,6 +2121,74 @@ class Passband:
                     # print('  extrapolated atm value: %f' % ckint)
                     ints.append(ckint)
                 Inorm[k] = np.array(ints).mean()
+            return Inorm
+        elif extrapolate_mode == 'blended':
+            naxes = self._ck2004_remap(axes)
+            for k in nan_indices:
+                v = req[k]
+                nv = self._ck2004_remap(v)
+                ic = np.array([np.searchsorted(naxes[i], nv[i])-1 for i in range(len(naxes))])
+                # print('coordinates of the inferior corner:', ic)
+
+                # get the inferior corners of all nearest fully defined hypercubes; this
+                # is all integer math so we can compare with == instead of np.isclose().
+                sep = (np.abs(self._ck2004_ics-ic)).sum(axis=1)
+                corners = np.argwhere(sep == sep.min()).flatten()
+                # print('%d fully defined adjacent hypercube(s) found.' % len(corners))
+                # for i, corner in enumerate(corners):
+                #     print('  hypercube %d inferior corner: %s' % (i, self._ck2004_ics[corner]))
+
+                blints = []
+                for corner in corners:
+                    slc = tuple([slice(self._ck2004_ics[corner][i], self._ck2004_ics[corner][i]+2) for i in range(len(self._ck2004_ics[corner]))])
+                    coords = [naxes[i][slc[i]] for i in range(len(naxes))]
+                    verts = np.array([(x,y,z) for z in coords[2] for y in coords[1] for x in coords[0]])
+                    distance_vectors = nv-verts
+                    distances = (distance_vectors**2).sum(axis=1)
+                    distance_vector = distance_vectors[distances.argmin()]
+                    # print('  distance vector:', distance_vector)
+
+                    shift = ic-self._ck2004_ics[corner]
+                    shift = shift!=0
+                    # print('  hypercube shift: %s' % shift)
+
+                    # if the hypercube is unshifted, we're inside the grid; return Inorm().
+                    if shift.sum() == 0:
+                        raise ValueError('how did we get here?')
+
+                    # if the hypercube is adjacent, project the distance vector:
+                    if shift.sum() == 1:
+                        distance_vector *= shift
+                        # print('  projected distance vector: %s' % distance_vector)
+
+                    distance = np.sqrt((distance_vector**2).sum())
+
+                    ldint_grid = self._ck2004_ldint_photon_grid if photon_weighted else self._ck2004_ldint_energy_grid
+                    bbint = np.log10(self.Inorm(v[0], v[1], v[2], atm='blackbody', ldatm='ck2004', extrapolate_mode='nearest'))
+
+                    # print(f'bbint: {bbint}')
+
+                    if distance > 1:
+                        blints.append(bbint)
+                        continue
+
+                    ckint = np.log10(self.Inorm(v[0], v[1], v[2], atm='ck2004', extrapolate_mode='linear'))
+                    # print(f'ckint: {ckint}')
+
+                    # Blending:
+                    alpha = blending_function(distance)
+                    print('  orthogonal distance:', distance)
+                    print('  alpha:', alpha)
+        
+                    blint = (1-alpha)*bbint + alpha*ckint
+                    print('  blint:', blint)
+
+                    blints.append(blint)
+                    # print('  blints: %s' % blints)
+
+                Inorm[k] = np.array(blints).mean()
+                print(Inorm[k])
+
             return Inorm
         else:
             raise ValueError(f'extrapolate_mode="{extrapolate_mode}" is not recognized.')
@@ -2157,28 +2229,28 @@ class Passband:
 
         return 10**Imu
 
-    def _blend(self, v, naxes, atm_grid, ldint_grid, ldint_mode='nearest', debug=False):
-        nv = self.remap(v, blending_region=self._ck2004_blending_region, offsets=self._ck2004_offsets)
-        if debug:
-            print('vector:', v, '\nnormalized vector:', nv)
+    def _blend(self, v, naxes, blending_region, offsets, ics, atm_grid, ldint_grid, ldint_mode='nearest', debug=False):
+        # nv = self.remap(v, blending_region=blending_region, offsets=offsets)
+        # if debug:
+        #     print('vector:', v, '\nnormalized vector:', nv)
 
-        # coordinates of the inferior corner:
-        ic = np.array([np.searchsorted(naxes[k], nv[k])-1 for k in range(len(naxes))])
-        if debug:
-            print('coordinates of the inferior corner:', entry)
+        # # coordinates of the inferior corner:
+        # ic = np.array([np.searchsorted(naxes[k], nv[k])-1 for k in range(len(naxes))])
+        # if debug:
+        #     print('coordinates of the inferior corner:', entry)
 
-        # get the inferior corners of all nearest fully defined hypercubes; this
-        # is all integer math so we can compare with == instead of np.isclose().
-        sep = (np.abs(self._ck2004_ics-ic)).sum(axis=1)
-        corners = np.argwhere(sep == sep.min()).flatten()
-        if debug:
-            print('%d fully defined adjacent hypercube(s) found.' % len(corners))
-            for i, corner in enumerate(corners):
-                print('  hypercube %d inferior corner: %s' % (i, self._ck2004_ics[corner]))
+        # # get the inferior corners of all nearest fully defined hypercubes; this
+        # # is all integer math so we can compare with == instead of np.isclose().
+        # sep = (np.abs(self.ics-ic)).sum(axis=1)
+        # corners = np.argwhere(sep == sep.min()).flatten()
+        # if debug:
+        #     print('%d fully defined adjacent hypercube(s) found.' % len(corners))
+        #     for i, corner in enumerate(corners):
+        #         print('  hypercube %d inferior corner: %s' % (i, self._ck2004_ics[corner]))
 
         blints = []
         for corner in corners:
-            slc = tuple([slice(self._ck2004_ics[corner][k], self._ck2004_ics[corner][k]+2) for k in range(len(self._ck2004_ics[corner]))])
+            slc = tuple([slice(ics[corner][k], ics[corner][k]+2) for k in range(len(ics[corner]))])
             if debug:
                 print('  nearest fully defined hypercube:', slc)
 
@@ -2191,7 +2263,7 @@ class Passband:
             if debug:
                 print('  distance vector:', distance_vector)
 
-            shift = ic-self._ck2004_ics[corner]
+            shift = ic-ics[corner]
             shift = shift!=0
             if debug:
                 print('  hypercube shift: %s' % shift)
