@@ -4904,6 +4904,7 @@ class Bundle(ParameterSet):
 
             crimpl_param = self.get_parameter(qualifier='crimpl_name', server=server, context='server', **_skip_filter_checks)
             crimpl_name = crimpl_param.get_value()
+            server_kind = self.get_server(server=server, **_skip_filter_checks).kind
             if not len(crimpl_name):
                 report.add_item(self,
                                 "{} is not set".format(crimpl_param.twig),
@@ -4919,6 +4920,14 @@ class Bundle(ParameterSet):
                 else:
                     report.add_item(self,
                                     "{} ({}) is not a configured crimpl server on this machine".format(crimpl_name, crimpl_param.twig),
+                                    [crimpl_param]+addl_parameters,
+                                    True, [])
+
+            elif not allow_nonlocal_server:
+                crimpl_server_kind = _crimpl.load_server(crimpl_name).__class__.__name__.lower()[:-6]  # strip of "server"
+                if server_kind != crimpl_server_kind:
+                    report.add_item(self,
+                                    "{} ({}) is a crimpl {} server, not a {} server".format(crimpl_name, crimpl_param.twig, crimpl_server_kind, server_kind),
                                     [crimpl_param]+addl_parameters,
                                     True, [])
 
