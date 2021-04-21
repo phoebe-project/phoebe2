@@ -12344,3 +12344,18 @@ class JobParameter(Parameter):
                     pass
                 else:
                     raise
+
+    def resubmit(self):
+        """
+        Continue a job that was previously canceled, killed, or exceeded walltime.
+        For jobs that do not support continuing, the job will be restarted.
+        """
+        if self._method == 'local':
+            f = open(self._kill_fname, 'w')
+            f.write('kill')
+            f.close()
+
+        else:
+            # TODO: options for whether to pass delete_volume
+            self._crimpl_job.resubmit_script()
+            self._value = 'unknown'

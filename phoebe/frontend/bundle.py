@@ -11684,6 +11684,7 @@ class Bundle(ParameterSet):
         * <phoebe.frontend.bundle.Bundle.get_job_status>
         * <phoebe.frontend.bundle.Bundle.load_job_progress>
         * <phoebe.frontend.bundle.Bundle.kill_job>
+        * <phoebe.frontend.bundle.Bundle.resubmit_job>
         * <phoebe.parameters.JobParameter.attach>
 
         Arguments
@@ -11722,6 +11723,7 @@ class Bundle(ParameterSet):
         * <phoebe.frontend.bundle.Bundle.attach_job>
         * <phoebe.frontend.bundle.Bundle.load_job_progress>
         * <phoebe.frontend.bundle.Bundle.kill_job>
+        * <phoebe.frontend.bundle.Bundle.resubmit_job>
         * <phoebe.parameters.JobParameter.attach>
 
         Arguments
@@ -11751,6 +11753,7 @@ class Bundle(ParameterSet):
         * <phoebe.frontend.bundle.Bundle.get_job_status>
         * <phoebe.frontend.bundle.Bundle.attach_job>
         * <phoebe.frontend.bundle.Bundle.kill_job>
+        * <phoebe.frontend.bundle.Bundle.resubmit_job>
         * <phoebe.parameters.JobParameter.load_progress>
 
         Arguments
@@ -11785,6 +11788,7 @@ class Bundle(ParameterSet):
         * <phoebe.frontend.bundle.Bundle.get_job_status>
         * <phoebe.frontend.bundle.Bundle.attach_job>
         * <phoebe.frontend.bundle.Bundle.load_job_progress>
+        * <phoebe.frontend.bundle.Bundle.resubmit_job>
         * <phoebe.parameters.JobParameter.kill>
 
         Arguments
@@ -11805,6 +11809,39 @@ class Bundle(ParameterSet):
         """
         kwargs['qualifier'] = 'detached_job'
         return self.get_parameter(twig=twig, **kwargs).kill(cleanup=cleanup, return_changes=return_changes)
+
+    def resubmit_job(self, twig=None, **kwargs):
+        """
+        Continue a job that was previously canceled, killed, or exceeded walltime.
+        For jobs that do not support continuing, the job will be restarted.
+
+        Jobs are created when passing `detach=True` to
+        <phoebe.frontend.bundle.Bundle.run_compute> or
+        <phoebe.frontend.bundle.Bundle.run_solver>.
+
+        See also:
+        * <phoebe.frontend.bundle.Bundle.get_job_status>
+        * <phoebe.frontend.bundle.Bundle.attach_job>
+        * <phoebe.frontend.bundle.Bundle.load_job_progress>
+        * <phoebe.frontend.bundle.Bundle.kill_job>
+        * <phoebe.parameters.JobParameter.resubmit>
+
+        Arguments
+        ------------
+        * `twig` (string, optional): twig to use for filtering for the JobParameter.
+        * `**kwargs`: any additional keyword arguments are sent to filter for the
+            Job parameters.  Between `twig` and `**kwargs`, a single parameter
+            with qualifier of 'detached_job' must be found.
+
+        Returns
+        -----------
+        * (<phoebe.parameters.ParameterSet>): ParameterSet of the newly attached
+            Parameters.
+        """
+        kwargs['qualifier'] = 'detached_job'
+        job_param = self.get_parameter(twig=twig, **kwargs)
+        job_param.resubmit()
+        return ParameterSet([job_param])
 
     @send_if_client
     def add_solver(self, kind, return_changes=False, **kwargs):
