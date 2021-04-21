@@ -11774,7 +11774,7 @@ class Bundle(ParameterSet):
         return self.get_parameter(twig=twig, **kwargs).load_progress(return_changes=return_changes)
 
 
-    def kill_job(self, twig=None, cleanup=True,
+    def kill_job(self, twig=None, load_progress=False, cleanup=True,
                    return_changes=False, **kwargs):
         """
         Send a termination signal to the external job referenced by an existing
@@ -11794,8 +11794,11 @@ class Bundle(ParameterSet):
         Arguments
         ------------
         * `twig` (string, optional): twig to use for filtering for the JobParameter.
+        * `load_progress` (bool, optional, default=False): whether to wait for the
+            thread to terminate and then load results (if available).
         * `cleanup` (bool, optional, default=True): whether to delete any
-            temporary files created by the Job.
+            temporary files once the job is killed (and results are loaded
+            if `load_progress=True`).
         * `return_changes` (bool, optional, default=False): whether to include
             changed/removed parameters in the returned ParameterSet.
         * `**kwargs`: any additional keyword arguments are sent to filter for the
@@ -11808,7 +11811,9 @@ class Bundle(ParameterSet):
             Parameters.
         """
         kwargs['qualifier'] = 'detached_job'
-        return self.get_parameter(twig=twig, **kwargs).kill(cleanup=cleanup, return_changes=return_changes)
+        return self.get_parameter(twig=twig, **kwargs).kill(load_progress=load_progress,
+                                                            cleanup=cleanup,
+                                                            return_changes=return_changes)
 
     def resubmit_job(self, twig=None, **kwargs):
         """

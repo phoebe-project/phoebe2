@@ -12308,22 +12308,25 @@ class JobParameter(Parameter):
         return self._retrieve_and_attach_results(cleanup=cleanup, return_changes=return_changes)
 
 
-    def kill(self, cleanup=True, return_changes=False):
+    def kill(self, load_progress=False, cleanup=True, return_changes=False):
         """
         Send a termination signal to the external thread running a
         <phoebe.parameters.JobParameter>
 
         Arguments
         ---------
-        * `cleanup` (bool, optional, default=True): whether to wait for the
+        * `load_progress` (bool, optional, default=False): whether to wait for the
             thread to terminate and then call <phoebe.parameters.JobParameter.attach>
-            with `cleanup=True` and `wait=True`.
+            with `wait=True`.
+        * `cleanup` (bool, optional, default=True): whether to delete any
+            temporary files once the job is killed (and results are loaded
+            if `load_progress=True`).
         * `return_changes` (bool, optional, default=False): whether to include
             changed/removed parameters in the returned ParameterSet.
 
         Returns
         ---------
-
+        * (<phoebe.parameters.ParameterSet>)
 
         """
         if self._method == 'local':
@@ -12336,14 +12339,20 @@ class JobParameter(Parameter):
             self._crimpl_job.kill_job()
             self._value = 'killed'
 
-        if cleanup:
+        ret = None
+        if load_progress:
             try:
-                return self.attach(wait=True, cleanup=True)
+                ret = self.attach(wait=True, cleanup=True)
             except ValueError as err:
                 if "no files" in str(err):
                     pass
                 else:
                     raise
+
+        if cleanup:
+            self._cleanup()
+
+        return ret if ret is not None else ParameterSet([])
 
     def resubmit(self):
         """
