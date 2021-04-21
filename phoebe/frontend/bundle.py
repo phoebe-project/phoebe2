@@ -12188,7 +12188,10 @@ class Bundle(ParameterSet):
 
         if autocontinue:
             if 'continue_from' not in self.get_solver(solver=solver).qualifiers:
-                raise ValueError("continue_from is not a parameter in solver='{}', cannot use autocontinue".format(solver))
+                # then ignore autocontinue
+                autocontinue = False
+
+        if autocontinue:
             script.append("if os.path.isfile(out_fname):")
             script.append("    b.import_solution(out_fname, solution='progress', overwrite=True);")
             script.append("    b.set_value(qualifier='continue_from', solver='{}', value='progress');".format(solver))
@@ -12213,7 +12216,7 @@ class Bundle(ParameterSet):
     def export_solver(self, script_fname, out_fname=None,
                       solver=None, solution=None,
                       pause=False,
-                      autocontinue=False,
+                      autocontinue=True,
                       import_from_older=False,
                       log_level=None,
                       **kwargs):
@@ -12241,13 +12244,13 @@ class Bundle(ParameterSet):
             with instructions for running the exported script and calling
             <phoebe.frontend.bundle.Bundle.import_solution>.  Particularly
             useful if running in an interactive notebook or a script.
-        * `autocontinue` (bool, optional, default=False): override `continue_from`
+        * `autocontinue` (bool, optional, default=True): override `continue_from`
             in `solver` to continue from `out_fname` (or `script_fname`.out or
             .progress files) if those files exist.  This is useful to set to True
             and then resubmit the same script if not converged (although care should
             be taken to ensure multiple scripts aren't reading/writing from the
-            same filenames).  `continue_from` must be a parameter in `solver` options,
-            or an error will be raised if `autocontinue=True`
+            same filenames).  If `continue_from` is not a parameter in `solver` options,
+            `autocontinue` will be ignored.
         * `import_from_older` (boolean, optional, default=False): whether to allow
             the script to run on a newer version of PHOEBE.  If True and executing
             the outputed script (`script_fname`) on a newer version of PHOEBE,
@@ -12687,7 +12690,7 @@ class Bundle(ParameterSet):
             err_fname = "_{}.err".format(jobid)
             kill_fname = "_{}.kill".format(jobid)
             script_fname, out_fname = self._write_export_solver_script(script_fname, out_fname, solver, solution,
-                                                                       autocontinue=False,
+                                                                       autocontinue=True,
                                                                        use_server=False,
                                                                        import_from_older=True,
                                                                        log_level=None,
