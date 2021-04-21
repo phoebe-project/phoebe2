@@ -169,6 +169,7 @@ def _lnprobability(sampled_values, b, params_uniqueids, compute,
     try:
         # override sample_from that may be set in the compute options
         compute_kwargs['sample_from'] = []
+        compute_kwargs['progressbar'] = False
         b.run_compute(compute=compute, model=solution, do_create_fig_params=False, **compute_kwargs)
     except Exception as err:
         logger.warning("received error from run_compute: {}.  lnprobability=-inf".format(err))
@@ -1183,7 +1184,7 @@ class EmceeBackend(BaseSolverBackend):
         solution_params += [_parameters.IntParameter(qualifier='thin', value=1, limits=(1,1e6), description='thin to use when adopting/plotting the solution')]
         solution_params += [_parameters.FloatParameter(qualifier='lnprob_cutoff', value=-np.inf, default_unit=u.dimensionless_unscaled, description='lower limit cuttoff on lnproabilities to use when adopting/plotting the solution')]
 
-        solution_params += [_parameters.FloatParameter(qualifier='progress', value=0, limits=(0,100), default_unit=u.dimensionless_unscaled, advanced=True, readonly=True, descrition='percentage of requested iterations completed')]
+        solution_params += [_parameters.FloatParameter(qualifier='progress', value=0, limits=(0,100), default_unit=u.dimensionless_unscaled, advanced=True, readonly=True, description='percentage of requested iterations completed')]
 
         return kwargs, _parameters.ParameterSet(solution_params)
 
@@ -1548,7 +1549,7 @@ class DynestyBackend(BaseSolverBackend):
         solution_params += [_parameters.ArrayParameter(qualifier='samples_bound', value=0, readonly=True, description='')]
         solution_params += [_parameters.ArrayParameter(qualifier='scale', value=0, readonly=True, description='')]
 
-        solution_params += [_parameters.FloatParameter(qualifier='progress', value=0, limits=(0,100), default_unit=u.dimensionless_unscaled, advanced=True, readonly=True, descrition='percentage of requested iterations completed')]
+        solution_params += [_parameters.FloatParameter(qualifier='progress', value=0, limits=(0,100), default_unit=u.dimensionless_unscaled, advanced=True, readonly=True, description='percentage of requested iterations completed')]
 
         if kwargs.get('expose_failed', True):
             solution_params += [_parameters.DictParameter(qualifier='failed_samples', value={}, readonly=True, description='Samples that returned lnprobability=-inf.  Dictionary keys are the messages with values being an array with shape (N, len(fitted_twigs))')]
