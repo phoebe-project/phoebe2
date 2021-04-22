@@ -146,15 +146,33 @@ def impute_grid(axes, grid):
         interps = interps[~np.isnan(interps)].mean()
         grid[tuple(entry)][0] = interps
 
-def blending_function(d, func='sigmoid', tau=15, offset=0.5):
+def blending_function(d, func='sigmoid', scale=15, offset=0.5):
     """
-    # FIXME: add docstring.
+    This auxiliary function returns a factor between 0 and 1 that is
+    used for blending a model atmosphere into blackbody atmosphere as
+    the atmosphere values fall off the grid. By default the function
+    uses a sigmoid to compute the factor, where a sigmoid is defined as:
+
+    f(d) = 1 - (1 + e^{-\tau (d-\Delta)})^{-1},
+
+    where \tau is scaling and \Delta is offset.
+
+    Arguments
+    ----------
+    * `d` (float or array): distance or distances from the grid
+    * `func` (string, optional, default='sigmoid'): type of blending function;
+        it can be 'linear' or 'sigmoid'
+    * `scale` (float, optional, default=15): if `func`='sigmoid', `scale` is the
+        scaling for the sigmoid
+    * `offset` (float, optional, default=0.5): if `func`='sigmoid', `offset` is
+        the zero-point between 0 and 1.
     """
+
     rv = np.zeros_like(d)
     if func == 'linear':
         rv[d<=1] = 1-d[d<=1]
     elif func == 'sigmoid':
-        rv[d<=1] = 1-(1+np.exp(-tau*(d[d<=1]-offset)))**-1
+        rv[d<=1] = 1-(1+np.exp(-scale*(d[d<=1]-offset)))**-1
     else:
         print('function `%s` not supported.' % func)
         return None
@@ -2228,87 +2246,6 @@ class Passband:
             Imu = libphoebe.interp(req, self._phoenix_intensity_axes, self._phoenix_Imu_photon_grid if photon_weighted else self._phoenix_Imu_energy_grid).T[0]
 
         return 10**Imu
-
-    def _blend(self, v, naxes, blending_region, offsets, ics, atm_grid, ldint_grid, ldint_mode='nearest', debug=False):
-        # nv = self.remap(v, blending_region=blending_region, offsets=offsets)
-        # if debug:
-        #     print('vector:', v, '\nnormalized vector:', nv)
-
-        # # coordinates of the inferior corner:
-        # ic = np.array([np.searchsorted(naxes[k], nv[k])-1 for k in range(len(naxes))])
-        # if debug:
-        #     print('coordinates of the inferior corner:', entry)
-
-        # # get the inferior corners of all nearest fully defined hypercubes; this
-        # # is all integer math so we can compare with == instead of np.isclose().
-        # sep = (np.abs(self.ics-ic)).sum(axis=1)
-        # corners = np.argwhere(sep == sep.min()).flatten()
-        # if debug:
-        #     print('%d fully defined adjacent hypercube(s) found.' % len(corners))
-        #     for i, corner in enumerate(corners):
-        #         print('  hypercube %d inferior corner: %s' % (i, self._ck2004_ics[corner]))
-
-        blints = []
-        for corner in corners:
-            slc = tuple([slice(ics[corner][k], ics[corner][k]+2) for k in range(len(ics[corner]))])
-            if debug:
-                print('  nearest fully defined hypercube:', slc)
-
-            # find distance vector to the nearest vertex:
-            coords = [naxes[k][slc[k]] for k in range(len(naxes))]
-            verts = np.array([(x,y,z) for z in coords[2] for y in coords[1] for x in coords[0]])
-            distance_vectors = nv-verts
-            distances = (distance_vectors**2).sum(axis=1)
-            distance_vector = distance_vectors[distances.argmin()]
-            if debug:
-                print('  distance vector:', distance_vector)
-
-            shift = ic-ics[corner]
-            shift = shift!=0
-            if debug:
-                print('  hypercube shift: %s' % shift)
-
-            # if the hypercube is unshifted, we're inside the grid; return Inorm().
-            if shift.sum() == 0:
-                # FIXME: generalize atm
-                blints.append(np.log10(self.Inorm(v[0], v[1], v[2], atm='ck2004')[0]))
-                continue
-
-            # if the hypercube is adjacent, project the distance vector:
-            if shift.sum() == 1:
-                distance_vector *= shift
-                if debug:
-                    print('  projected distance vector: %s' % distance_vector)
-
-            distance = np.sqrt((distance_vector**2).sum())
-
-            # calculate blackbody intensity:
-            bbint = self.Inorm(v[0], v[1], v[2], atm='blackbody', ldatm='ck2004', extrapolate=True, extrapolate_mode='nearest')
-
-            # if v is outside the blending range, assign a blackbody-only intensity.
-            if distance > 1:
-                blints.append(bbint)
-                continue
-
-            # extrapolate atm:
-            # subgrid = atm_grid[slc]
-            # fv = subgrid.T.reshape(2**len(naxes))
-            # ckint = ndpolate(nv, lo, hi, fv)
-            # if debug:
-                # print('  extrapolated atm value: %f' % ckint)
-
-            # blending:
-            # alpha = bf(distance)
-            # if debug:
-                # print('  orthogonal distance:', distance)
-                # print('  alpha:', alpha)
-            
-            # blint = (1-alpha)*bbint + alpha*ckint
-            # if debug:
-                # print('  blint:', blint)
-            # blints.append(blint)
-
-        # return np.array(blints).mean()
 
     def Inorm(self, Teff=5772., logg=4.43, abun=0.0, atm='ck2004', ldatm='ck2004', ldint=None, ld_func='interp', ld_coeffs=None, photon_weighted=False, extrapolate_mode='none'):
         """
