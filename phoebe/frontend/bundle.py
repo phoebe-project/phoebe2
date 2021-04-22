@@ -8872,6 +8872,7 @@ class Bundle(ParameterSet):
         See also:
         * <phoebe.parameters.ParameterSet.filter>
         * <phoebe.frontend.bundle.Bundle.add_server>
+        * <phoebe.frontend.bundle.Bundle.get_server_crimpl_object>
         * <phoebe.frontend.bundle.Bundle.remove_server>
         * <phoebe.frontend.bundle.Bundle.rename_server>
 
@@ -8899,6 +8900,40 @@ class Bundle(ParameterSet):
 
         return _return_ps(self, ret_ps)
 
+    def get_server_crimpl_object(self, server=None, **kwargs):
+        """
+        Filter in the 'server' context and retrieve the referenced
+        [crimpl](https://crimpl.readthedocs.io) object
+
+        See also:
+        * <phoebe.parameters.ParameterSet.filter>
+        * <phoebe.frontend.bundle.Bundle.add_server>
+        * <phoebe.frontend.bundle.Bundle.get_server>
+        * <phoebe.frontend.bundle.Bundle.remove_server>
+        * <phoebe.frontend.bundle.Bundle.rename_server>
+
+        Arguments
+        ----------
+        * `server`: (string, optional, default=None): the name of the server
+        * `**kwargs`: any other tags to do the filtering (excluding server, context, and qualifier)
+
+        Returns
+        ----------
+        * a crimpl server object or None
+        """
+        kwargs['context'] = 'server'
+        if server is not None:
+            kwargs['server'] = server
+        kwargs['qualifier'] = 'crimpl_name'
+        crimpl_name_param = self.get_parameter(**kwargs)
+        crimpl_name = crimpl_name_param.get_value()
+        if not len(crimpl_name):
+            if crimpl_name_param.kind == 'localthread':
+                return _crimpl.LocalThreadServer('./phoebe_crimpl_jobs')
+            else:
+                return None
+        return _crimpl.load_server(crimpl_name)
+
     @send_if_client
     def remove_server(self, server, return_changes=False, **kwargs):
         """
@@ -8908,6 +8943,7 @@ class Bundle(ParameterSet):
         * <phoebe.parameters.ParameterSet.remove_parameters_all>
         * <phoebe.frontend.bundle.Bundle.add_server>
         * <phoebe.frontend.bundle.Bundle.get_server>
+        * <phoebe.frontend.bundle.Bundle.get_server_crimpl_object>
         * <phoebe.frontend.bundle.Bundle.rename_server>
 
         Arguments
@@ -8941,6 +8977,7 @@ class Bundle(ParameterSet):
         See also:
         * <phoebe.frontend.bundle.Bundle.add_server>
         * <phoebe.frontend.bundle.Bundle.get_server>
+        * <phoebe.frontend.bundle.Bundle.get_server_crimpl_object>
         * <phoebe.frontend.bundle.Bundle.remove_server>
 
         Arguments
@@ -11691,8 +11728,8 @@ class Bundle(ParameterSet):
         """
         Attach the results from an existing <phoebe.parameters.JobParameter>.
 
-        Jobs are created when passing `detach=True` to
-        <phoebe.frontend.bundle.Bundle.run_compute> or
+        Jobs are created when passing `detach=True` or setting or passing
+        `use_server` to <phoebe.frontend.bundle.Bundle.run_compute> or
         <phoebe.frontend.bundle.Bundle.run_solver>.
 
         See also:
@@ -11730,8 +11767,8 @@ class Bundle(ParameterSet):
         """
         Check the status of an existing <phoebe.parameters.JobParameter>.
 
-        Jobs are created when passing `detach=True` to
-        <phoebe.frontend.bundle.Bundle.run_compute> or
+        Jobs are created when passing `detach=True` or setting or passing
+        `use_server` to <phoebe.frontend.bundle.Bundle.run_compute> or
         <phoebe.frontend.bundle.Bundle.run_solver>.
 
         See also:
@@ -11739,6 +11776,7 @@ class Bundle(ParameterSet):
         * <phoebe.frontend.bundle.Bundle.load_job_progress>
         * <phoebe.frontend.bundle.Bundle.kill_job>
         * <phoebe.frontend.bundle.Bundle.resubmit_job>
+        * <phoebe.frontend.bundle.Bundle.get_job_crimpl_object>
         * <phoebe.parameters.JobParameter.attach>
 
         Arguments
@@ -11755,13 +11793,43 @@ class Bundle(ParameterSet):
         kwargs['qualifier'] = 'detached_job'
         return self.get_parameter(twig=twig, **kwargs).get_status()
 
+    def get_job_crimpl_object(self, twig=None, **kwargs):
+        """
+        Access the crimpl job object for an existing <phoebe.parameters.JobParameter>.
+
+        Jobs are created when passing `detach=True` or setting or passing
+        `use_server` to <phoebe.frontend.bundle.Bundle.run_compute> or
+        <phoebe.frontend.bundle.Bundle.run_solver>.
+
+        See also:
+        * <phoebe.frontend.bundle.Bundle.attach_job>
+        * <phoebe.frontend.bundle.Bundle.get_job_status>
+        * <phoebe.frontend.bundle.Bundle.load_job_progress>
+        * <phoebe.frontend.bundle.Bundle.kill_job>
+        * <phoebe.frontend.bundle.Bundle.resubmit_job>
+        * <phoebe.parameters.JobParameter.crimpl_job>
+
+        Arguments
+        ------------
+        * `twig` (string, optional): twig to use for filtering for the JobParameter.
+        * `**kwargs`: any additional keyword arguments are sent to filter for the
+            Job parameters.  Between `twig` and `**kwargs`, a single parameter
+            with qualifier of 'detached_job' must be found.
+
+        Returns
+        -----------
+        * (string)
+        """
+        kwargs['qualifier'] = 'detached_job'
+        return self.get_parameter(twig=twig, **kwargs).crimpl_job
+
     @send_if_client
     def load_job_progress(self, twig=None, return_changes=False, **kwargs):
         """
         Attach the results from an existing <phoebe.parameters.JobParameter>.
 
-        Jobs are created when passing `detach=True` to
-        <phoebe.frontend.bundle.Bundle.run_compute> or
+        Jobs are created when passing `detach=True` or setting or passing
+        `use_server` to <phoebe.frontend.bundle.Bundle.run_compute> or
         <phoebe.frontend.bundle.Bundle.run_solver>.
 
         See also:
@@ -11769,6 +11837,7 @@ class Bundle(ParameterSet):
         * <phoebe.frontend.bundle.Bundle.attach_job>
         * <phoebe.frontend.bundle.Bundle.kill_job>
         * <phoebe.frontend.bundle.Bundle.resubmit_job>
+        * <phoebe.frontend.bundle.Bundle.get_job_crimpl_object>
         * <phoebe.parameters.JobParameter.load_progress>
 
         Arguments
@@ -11795,8 +11864,8 @@ class Bundle(ParameterSet):
         Send a termination signal to the external job referenced by an existing
         <phoebe.parameters.JobParameter>.
 
-        Jobs are created when passing `detach=True` to
-        <phoebe.frontend.bundle.Bundle.run_compute> or
+        Jobs are created when passing `detach=True` or setting or passing
+        `use_server` to <phoebe.frontend.bundle.Bundle.run_compute> or
         <phoebe.frontend.bundle.Bundle.run_solver>.
 
         See also:
@@ -11804,6 +11873,7 @@ class Bundle(ParameterSet):
         * <phoebe.frontend.bundle.Bundle.attach_job>
         * <phoebe.frontend.bundle.Bundle.load_job_progress>
         * <phoebe.frontend.bundle.Bundle.resubmit_job>
+        * <phoebe.frontend.bundle.Bundle.get_job_crimpl_object>
         * <phoebe.parameters.JobParameter.kill>
 
         Arguments
@@ -11835,8 +11905,8 @@ class Bundle(ParameterSet):
         Continue a job that was previously canceled, killed, or exceeded walltime.
         For jobs that do not support continuing, the job will be restarted.
 
-        Jobs are created when passing `detach=True` to
-        <phoebe.frontend.bundle.Bundle.run_compute> or
+        Jobs are created when passing `detach=True` or setting or passing
+        `use_server` to <phoebe.frontend.bundle.Bundle.run_compute> or
         <phoebe.frontend.bundle.Bundle.run_solver>.
 
         See also:
@@ -11844,6 +11914,7 @@ class Bundle(ParameterSet):
         * <phoebe.frontend.bundle.Bundle.attach_job>
         * <phoebe.frontend.bundle.Bundle.load_job_progress>
         * <phoebe.frontend.bundle.Bundle.kill_job>
+        * <phoebe.frontend.bundle.Bundle.get_job_crimpl_object>
         * <phoebe.parameters.JobParameter.resubmit>
 
         Arguments

@@ -12019,7 +12019,7 @@ class JobParameter(Parameter):
             status = self._value
 
         else:
-            status = self._crimpl_job.job_status
+            status = self.crimpl_job.job_status
 
         # here we'll set the value to be the latest CHECKED status for the sake
         # of exporting to JSON and updating the status for clients.
@@ -12037,7 +12037,10 @@ class JobParameter(Parameter):
         return self._cached_crimpl_server
 
     @property
-    def _crimpl_job(self):
+    def crimpl_job(self):
+        """
+        Access the crimpl job object
+        """
         if self._cached_crimpl_job is None:
             self._cached_crimpl_job = self._crimpl_server.get_job(self._job_name)
         return self._cached_crimpl_job
@@ -12051,7 +12054,7 @@ class JobParameter(Parameter):
         else:
             crimpl_name = ''
 
-        out = self._crimpl_job.check_output([self._results_fname, self._results_fname+'.progress'])
+        out = self.crimpl_job.check_output([self._results_fname, self._results_fname+'.progress'])
         if not len(out):
             raise ValueError("no files retrieved from remote server")
 
@@ -12265,7 +12268,7 @@ class JobParameter(Parameter):
 
         """
         # TODO: options for whether to pass delete_volume
-        self._crimpl_job.kill_job()
+        self.crimpl_job.kill_job()
         self._value = 'killed'
 
         ret = None
@@ -12290,5 +12293,5 @@ class JobParameter(Parameter):
         """
 
         # TODO: options for whether to pass delete_volume
-        self._crimpl_job.resubmit_script()
+        self.crimpl_job.resubmit_script()
         self._value = 'unknown'
