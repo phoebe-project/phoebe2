@@ -604,6 +604,16 @@ class Passband:
                     non_nan_vertices = np.array([ [self._phoenix_intensity_axes[i][self._phoenix_indices[k][i]] for i in range(len(self._phoenix_intensity_axes)-1)] for k in range(len(self._phoenix_indices))])
                     self.nntree['phoenix'] = KDTree(non_nan_vertices, copy_data=True)
 
+                    # Rebuild blending map:
+                    self._phoenix_blending_region = (750., 0.5, 0.5)
+                    self._phoenix_offsets = [a[0] for a in self._phoenix_intensity_axes[:-1]]
+                    self._phoenix_remap = lambda v: tuple([1/self._phoenix_blending_region[k]*(v[k]-self._phoenix_offsets[k]) for k in range(len(self._phoenix_blending_region))])
+
+                    # Rebuild the table of inferior corners for extrapolation:
+                    raxes = self._phoenix_intensity_axes[:-1]
+                    subgrid = self._phoenix_Imu_photon_grid[...,-1,:]
+                    self._phoenix_ics = np.array([(i, j, k) for i in range(0,len(raxes[0])-1) for j in range(0,len(raxes[1])-1) for k in range(0,len(raxes[2])-1) if ~np.any(np.isnan(subgrid[i:i+2,j:j+2,k:k+2]))])
+
                 if 'phoenix:ld' in self.content:
                     self._phoenix_ld_energy_grid = hdul['phlegrid'].data
                     self._phoenix_ld_photon_grid = hdul['phlpgrid'].data
@@ -1089,6 +1099,16 @@ class Passband:
         self._phoenix_indices = np.argwhere(~np.isnan(self._phoenix_Imu_photon_grid[...,-1,:]))
         non_nan_vertices = np.array([ [self._phoenix_intensity_axes[i][self._phoenix_indices[k][i]] for i in range(len(self._phoenix_intensity_axes)-1)] for k in range(len(self._phoenix_indices))])
         self.nntree['phoenix'] = KDTree(non_nan_vertices, copy_data=True)
+
+        # Set up the blending region:
+        self._phoenix_blending_region = (750., 0.5, 0.5)
+        self._phoenix_offsets = [a[0] for a in self._phoenix_intensity_axes[:-1]]
+        self._phoenix_remap = lambda v: tuple([1/self._phoenix_blending_region[k]*(v[k]-self._phoenix_offsets[k]) for k in range(len(self._phoenix_blending_region))])
+
+        # Store all inferior corners for quick nearest neighbor lookup:
+        raxes = self._phoenix_intensity_axes[:-1]
+        subgrid = self._phoenix_Imu_photon_grid[...,-1,:]
+        self._phoenix_ics = np.array([(i, j, k) for i in range(0,len(raxes[0])-1) for j in range(0,len(raxes[1])-1) for k in range(0,len(raxes[2])-1) if ~np.any(np.isnan(subgrid[i:i+2,j:j+2,k:k+2]))])
 
         if 'phoenix:Imu' not in self.content:
             self.content.append('phoenix:Imu')
@@ -2298,13 +2318,13 @@ class Passband:
         check_for_nans = True if extrapolate_mode == 'none' else False
 
         if atm == 'blackbody' and 'blackbody:Inorm' in self.content:
-            if ldatm == 'ck2004':
+            if ldatm == 'ck2004' and 'ck2004:Imu' in self.content:
                 axes = self._ck2004_intensity_axes[:-1]
                 ldint_grid = self._ck2004_ldint_energy_grid if photon_weighted == False else pb._ck2004_ldint_photon_grid
                 ldint_tree = self.nntree['ck2004']
                 ldint_indices = self._ck2004_indices
                 ics = self._ck2004_ics
-            elif ldatm == 'phoenix':
+            elif ldatm == 'phoenix' and 'phoenix:Imu' in self.content:
                 axes = self._phoenix_intensity_axes[:-1]
                 ldint_grid = self._phoenix_ldint_energy_grid if photon_weighted == False else pb._phoenix_ldint_photon_grid
                 ldint_tree = self.nntree['phoenix']
