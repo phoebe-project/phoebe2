@@ -2215,11 +2215,132 @@ class Passband:
 
                     # Blending:
                     alpha = blending_function(distance)
-                    print('  orthogonal distance:', distance)
-                    print('  alpha:', alpha)
+                    # print('  orthogonal distance:', distance)
+                    # print('  alpha:', alpha)
         
                     blint = (1-alpha)*bbint + alpha*ckint
-                    print('  blint:', blint)
+                    # print('  blint:', blint)
+
+                    blints.append(blint)
+                    # print('  blints: %s' % blints)
+
+                Inorm[k] = np.array(blints).mean()
+                print(Inorm[k])
+
+            return Inorm
+        else:
+            raise ValueError(f'extrapolate_mode="{extrapolate_mode}" is not recognized.')
+
+    def _log10_Inorm_phoenix(self, Teff, logg, abun, photon_weighted=False, extrapolate_mode='none'):
+        req = np.vstack((Teff, logg, abun)).T
+        axes = self._phoenix_intensity_axes[:-1]
+        grid = self._phoenix_Imu_photon_grid[...,-1,:] if photon_weighted else self._phoenix_Imu_energy_grid[...,-1,:]
+        Inorm = libphoebe.interp(req, axes, grid).T[0]
+
+        # if there are no nans, return the interpolated array:
+        nanmask = np.isnan(Inorm)
+        nan_indices = np.argwhere(nanmask).flatten()
+        if len(nan_indices) == 0:
+            return Inorm
+
+        # if we are here, it means that there are nans. Now we switch on extrapolate_mode:
+        if extrapolate_mode == 'none': 
+            raise ValueError(f'Atmosphere parameters out of bounds: atm=phoenix, photon_weighted={photon_weighted}, Teff={Teff[nanmask]}, logg={logg[nanmask]}, abun={abun[nanmask]}')
+        elif extrapolate_mode == 'nearest':
+            for k in nan_indices:
+                d, i = self.nntree['phoenix'].query(req[k])
+                Inorm[k] = grid[tuple(self._phoenix_indices[i])]
+            return Inorm
+        elif extrapolate_mode == 'linear':
+            for k in nan_indices:
+                v = req[k]
+                ic = np.array([np.searchsorted(axes[i], v[i])-1 for i in range(len(axes))])
+                # print('coordinates of the inferior corner:', ic)
+
+                # get the inferior corners of all nearest fully defined hypercubes; this
+                # is all integer math so we can compare with == instead of np.isclose().
+                sep = (np.abs(self._phoenix_ics-ic)).sum(axis=1)
+                corners = np.argwhere(sep == sep.min()).flatten()
+                # print('%d fully defined adjacent hypercube(s) found.' % len(corners))
+                # for i, corner in enumerate(corners):
+                #     print('  hypercube %d inferior corner: %s' % (i, self._ck2004_ics[corner]))
+
+                ints = []
+                for corner in corners:
+                    slc = tuple([slice(self._phoenix_ics[corner][i], self._phoenix_ics[corner][i]+2) for i in range(len(self._phoenix_ics[corner]))])
+                    coords = [axes[i][slc[i]] for i in range(len(axes))]
+                    # print('  nearest fully defined hypercube:', slc)
+
+                    # extrapolate:
+                    lo = [c[0] for c in coords]
+                    hi = [c[1] for c in coords]
+                    subgrid = grid[slc]
+                    fv = subgrid.T.reshape(2**len(axes))
+                    atmint = ndpolate(v, lo, hi, fv)
+                    # print('  extrapolated atm value: %f' % atmint)
+                    ints.append(atmint)
+                Inorm[k] = np.array(ints).mean()
+            return Inorm
+        elif extrapolate_mode == 'blended':
+            naxes = self._phoenix_remap(axes)
+            for k in nan_indices:
+                v = req[k]
+                nv = self._phoenix_remap(v)
+                ic = np.array([np.searchsorted(naxes[i], nv[i])-1 for i in range(len(naxes))])
+                # print('coordinates of the inferior corner:', ic)
+
+                # get the inferior corners of all nearest fully defined hypercubes; this
+                # is all integer math so we can compare with == instead of np.isclose().
+                sep = (np.abs(self._phoenix_ics-ic)).sum(axis=1)
+                corners = np.argwhere(sep == sep.min()).flatten()
+                # print('%d fully defined adjacent hypercube(s) found.' % len(corners))
+                # for i, corner in enumerate(corners):
+                #     print('  hypercube %d inferior corner: %s' % (i, self._ck2004_ics[corner]))
+
+                blints = []
+                for corner in corners:
+                    slc = tuple([slice(self._phoenix_ics[corner][i], self._phoenix_ics[corner][i]+2) for i in range(len(self._phoenix_ics[corner]))])
+                    coords = [naxes[i][slc[i]] for i in range(len(naxes))]
+                    verts = np.array([(x,y,z) for z in coords[2] for y in coords[1] for x in coords[0]])
+                    distance_vectors = nv-verts
+                    distances = (distance_vectors**2).sum(axis=1)
+                    distance_vector = distance_vectors[distances.argmin()]
+                    # print('  distance vector:', distance_vector)
+
+                    shift = ic-self._phoenix_ics[corner]
+                    shift = shift!=0
+                    # print('  hypercube shift: %s' % shift)
+
+                    # if the hypercube is unshifted, we're inside the grid; return Inorm().
+                    if shift.sum() == 0:
+                        raise ValueError('how did we get here?')
+
+                    # if the hypercube is adjacent, project the distance vector:
+                    if shift.sum() == 1:
+                        distance_vector *= shift
+                        # print('  projected distance vector: %s' % distance_vector)
+
+                    distance = np.sqrt((distance_vector**2).sum())
+
+                    ldint_grid = self._phoenix_ldint_photon_grid if photon_weighted else self._phoenix_ldint_energy_grid
+                    bbint = np.log10(self.Inorm(v[0], v[1], v[2], atm='blackbody', ldatm='phoenix', extrapolate_mode='nearest'))
+
+                    # print(f'bbint: {bbint}')
+
+                    if distance > 1:
+                        blints.append(bbint)
+                        continue
+
+                    atmint = np.log10(self.Inorm(v[0], v[1], v[2], atm='phoenix', extrapolate_mode='linear'))
+                    # print(f'ckint: {ckint}')
+
+                    # Blending:
+                    alpha = blending_function(distance)
+                    # print('  orthogonal distance:', distance)
+                    # print('  alpha:', alpha)
+        
+                    blint = (1-alpha)*bbint + alpha*atmint
+                    # print('  blint:', blint)
 
                     blints.append(blint)
                     # print('  blints: %s' % blints)
@@ -2368,7 +2489,7 @@ class Passband:
             retval = 10**self._log10_Inorm_ck2004(Teff, logg, abun, photon_weighted=photon_weighted, extrapolate_mode=extrapolate_mode)
 
         elif atm == 'phoenix' and 'phoenix:Imu' in self.content:
-            retval = self._Inorm_phoenix(Teff, logg, abun, photon_weighted=photon_weighted)
+            retval = 10**self._log10_Inorm_phoenix(Teff, logg, abun, photon_weighted=photon_weighted, extrapolate_mode=extrapolate_mode)
 
         else:
             raise NotImplementedError('atm={} not supported by {}:{}'.format(atm, self.pbset, self.pbname))
