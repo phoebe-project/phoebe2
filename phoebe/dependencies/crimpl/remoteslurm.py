@@ -29,8 +29,9 @@ class RemoteSlurmJob(_common.ServerJob):
             accessible through <RemoteSlurmJob.job_name>.  This `job_name` will
             be necessary to reconnect to a previously submitted job.
         * `conda_env` (string or None, optional, default=None): name of
-            the conda environment to use for the job, or None to use the
-            'default' environment stored in the server crimpl directory.
+            the conda environment to use for the job or False to not use a
+            conda environment.  If not passed or None, will default to 'default'
+            if conda is installed on the server or to False otherwise.
         * `isolate_env` (bool, optional, default=False): whether to clone
             the `conda_env` for use in this job.  If True, any setup/installation
             done by this job will not affect the original environment and
@@ -38,6 +39,7 @@ class RemoteSlurmJob(_common.ServerJob):
             (and therefore isolated) at the first call to <<class>.run_script>
             or <<class>.submit_script>.  Setup in the parent environment can
             be done at the server level, but requires passing `conda_env`.
+            Will raise an error if `isolate_env=True` and `conda_env=False`.
         * `nprocs` (int, optional, default=4): default number of procs to use
             when calling <RemoteSlurmJob.submit_job>
         * `slurm_id` (int, optional, default=None): internal id of the remote
@@ -107,7 +109,7 @@ class RemoteSlurmJob(_common.ServerJob):
         if self._slurm_id is None:
             # attempt to get slurm id from server
             try:
-                out = self.server._run_ssh_cmd("cat {}".format(_os.path.join(self.remote_directory, "crimpl_slurm_id")))
+                out = self.server._run_server_cmd("cat {}".format(_os.path.join(self.remote_directory, "crimpl_slurm_id")))
                 self._slurm_id = int(float(out))
             except:
                 raise ValueError("No job has been submitted, call submit_script")
@@ -124,7 +126,7 @@ class RemoteSlurmJob(_common.ServerJob):
         -----------
         * (string)
         """
-        return self.server._run_ssh_cmd("squeue -j {}".format(self.slurm_id))
+        return self.server._run_server_cmd("squeue -j {}".format(self.slurm_id))
 
     @property
     def job_status(self):
@@ -152,7 +154,7 @@ class RemoteSlurmJob(_common.ServerJob):
             # then no longer in the queue, so we'll rely on the status file
 
             try:
-                response = self.server._run_ssh_cmd("cat {}".format(_os.path.join(self.remote_directory, "crimpl-job.status")))
+                response = self.server._run_server_cmd("cat {}".format(_os.path.join(self.remote_directory, "crimpl-job.status")))
             except _subprocess.CalledProcessError:
                 return 'unknown'
 
@@ -212,7 +214,7 @@ class RemoteSlurmJob(_common.ServerJob):
         -----------
         * (string)
         """
-        return self.server._run_ssh_cmd("scancel {}".format(self.slurm_id))
+        return self.server._run_server_cmd("scancel {}".format(self.slurm_id))
 
     def run_script(self, script, files=[], trial_run=False):
         """
@@ -334,13 +336,12 @@ class RemoteSlurmJob(_common.ServerJob):
         Raises
         ------------
         * ValueError: if a script has already been submitted within this
-            <RemoteSlurmJob> instance.  To run another script, call <RemoteSlurmJob.release_job>
-            or create another <RemoteSlurmJob> instance.
+            <RemoteSlurmJob> instance.
         * TypeError: if `script` or `files` are not valid types.
         * ValueError: if the files referened by `script` or `files` are not valid.
         """
         if self._slurm_id is not None:
-            raise ValueError("a job is already submitted.  Use a new instance to run multiple jobs, or call release_job() to stop tracking slurm_id={}".format(self.slurm_id))
+            raise ValueError("a job is already submitted.")
 
         if nprocs is None:
             nprocs = self.nprocs
@@ -372,7 +373,7 @@ class RemoteSlurmJob(_common.ServerJob):
                 self._slurm_id = out.split(' ')[-1]
 
                 # leave record of slurm id in the remote directory
-                self.server._run_ssh_cmd("echo {} > {}".format(self._slurm_id, _os.path.join(self.remote_directory, "crimpl_slurm_id")))
+                self.server._run_server_cmd("echo {} > {}".format(self._slurm_id, _os.path.join(self.remote_directory, "crimpl_slurm_id")))
 
 
         self._job_submitted = True
@@ -394,16 +395,16 @@ class RemoteSlurmJob(_common.ServerJob):
 
         # TODO: discriminate between run_script and submit_script filenames and don't allow multiple calls to submit_script
         remote_script = _os.path.join(self.remote_directory, _os.path.basename("crimpl_script.sh"))
-        out = self.server._run_ssh_cmd("sbatch {remote_script}".format(remote_script=remote_script))
+        out = self.server._run_server_cmd("sbatch {remote_script}".format(remote_script=remote_script))
         self._slurm_id = out.split(' ')[-1]
 
         # leave record of (NEW) slurm id in the remote directory
-        self.server._run_ssh_cmd("echo {} > {}".format(self._slurm_id, _os.path.join(self.remote_directory, "crimpl_slurm_id")))
+        self.server._run_server_cmd("echo {} > {}".format(self._slurm_id, _os.path.join(self.remote_directory, "crimpl_slurm_id")))
 
 
 
 
-class RemoteSlurmServer(_common.Server):
+class RemoteSlurmServer(_common.SSHServer):
     _JobClass = RemoteSlurmJob
     def __init__(self, host, directory='~/crimpl', server_name=None):
         """
@@ -432,11 +433,6 @@ class RemoteSlurmServer(_common.Server):
 
         super().__init__(directory)
         self._dict_keys = ['host', 'directory']
-
-
-    @classmethod
-    def load(cls, name):
-        raise NotImplementedError()
 
     def __repr__(self):
         return "<RemoteSlurmServer host={} directory={}>".format(self.host, self.directory)
@@ -510,7 +506,7 @@ class RemoteSlurmServer(_common.Server):
         -----------
         * (string)
         """
-        return self.server._run_ssh_cmd("squeue")
+        return self.server._run_server_cmd("squeue")
 
     @property
     def sinfo(self):
@@ -521,7 +517,7 @@ class RemoteSlurmServer(_common.Server):
         -----------
         * (string)
         """
-        return self.server._run_ssh_cmd("sinfo")
+        return self.server._run_server_cmd("sinfo")
 
     @property
     def ls(self):
@@ -532,7 +528,7 @@ class RemoteSlurmServer(_common.Server):
         -----------
         * (string)
         """
-        return self.server._run_ssh_cmd("ls")
+        return self.server._run_server_cmd("ls")
 
     def create_job(self, job_name=None,
                    conda_env=None, isolate_env=False,
@@ -547,8 +543,9 @@ class RemoteSlurmServer(_common.Server):
             accessible through <RemoteSlurmJob.job_name>.  This `job_name` will
             be necessary to reconnect to a previously submitted job.
         * `conda_env` (string or None, optional, default=None): name of
-            the conda environment to use for the job, or None to use the
-            'default' environment stored in the server crimpl directory.
+            the conda environment to use for the job or False to not use a
+            conda environment.  If not passed or None, will default to 'default'
+            if conda is installed on the server or to False otherwise.
         * `isolate_env` (bool, optional, default=False): whether to clone
             the `conda_env` for use in this job.  If True, any setup/installation
             done by this job will not affect the original environment and
@@ -556,6 +553,7 @@ class RemoteSlurmServer(_common.Server):
             (and therefore isolated) at the first call to <<class>.run_script>
             or <<class>.submit_script>.  Setup in the parent environment can
             be done at the server level, but requires passing `conda_env`.
+            Will raise an error if `isolate_env=True` and `conda_env=False`.
         * `nprocs` (int, optional, default=4): default number of procs to use
             when calling <RemoteSlurmJob.submit_job>
 
@@ -639,9 +637,10 @@ class RemoteSlurmServer(_common.Server):
         * `files` (list, optional, default=[]): list of paths to additional files
             to copy to the server required in order to successfully execute
             `script`.
-        * `conda_env` (string or None): name of the conda environment to
-            run the script, or None to use the 'default' environment stored in
-            the server crimpl directory.
+        * `conda_env` (string or None, optional, default=None): name of
+            the conda environment to run the script or False to not use a
+            conda environment.  If not passed or None, will default to 'default'
+            if conda is installed on the server or to False otherwise.
         * `trial_run` (bool, optional, default=False): if True, the commands
             that would be sent to the server are returned but not executed.
 

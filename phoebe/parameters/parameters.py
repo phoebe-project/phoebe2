@@ -313,7 +313,8 @@ _forbidden_labels += ['datasets', 'models', 'components', 'contexts',
                       'legend']
 
 # from server:
-_forbidden_labels += ['remoteslurm', 'awsec2', 'crimpl_name', 'conda_env', 'isolate_env',
+_forbidden_labels += ['remoteslurm', 'awsec2', 'localthread',
+                      'crimpl_name', 'use_conda', 'conda_env', 'isolate_env',
                       'nprocs', 'use_mpi',
                       'walltime', 'mail_user', 'mail_type', 'terminate_on_complete',
                       'use_server', 'install_deps', 'slurm_job_name']
@@ -11913,7 +11914,7 @@ class JobParameter(Parameter):
     Parameter that tracks a submitted job (detached
     <phoebe.frontend.bundle.Bundle.run_compute>, for example)
     """
-    def __init__(self, b, method, location=None, server=None, job_name=None, **kwargs):
+    def __init__(self, b, job_name=None, **kwargs):
         """
         see <phoebe.parameters.Parameter.__init__>
         """
@@ -11922,29 +11923,19 @@ class JobParameter(Parameter):
         super(JobParameter, self).__init__(qualifier='detached_job', **kwargs)
 
         self._bundle = b
-        # TODO: backwards compatibility map of status_method?
-        self._method = method # 'local' or 'crimpl'
-        # NOTE: for method='crimpl', will be tagged with the PHOEBE server
+
+        # NOTE: will also be tagged with the PHOEBE server, or None if using the default LocalThreadServer
         self._job_name = job_name  # crimpl only: name of the crimpl job
         self._value = 'unknown'
 
         self._cached_crimpl_server = None
         self._cached_crimpl_job = None
 
-        self._location = location
-        if method == 'local':
-            self._script_fname = os.path.join(location, '_{}.py'.format(self.uniqueid))
-            self._results_fname = os.path.join(location, '_{}.out'.format(self.uniqueid))
-            self._err_fname = os.path.join(location, '_{}.err'.format(self.uniqueid))
-            self._kill_fname = self._results_fname + '.kill'
-        elif method == 'crimpl':
-            self._results_fname = '_{}.out'.format(self.uniqueid)
-        else:
-            raise NotImplementedError()
+        self._results_fname = '_{}.out'.format(self.uniqueid)
 
         # TODO: add a description?
 
-        self._dict_fields_other = ['description', 'value', 'method', 'location', 'server', 'job_name', 'uniqueid', 'readonly', 'advanced', 'latexfmt']
+        self._dict_fields_other = ['description', 'value', 'job_name', 'uniqueid', 'readonly', 'advanced', 'latexfmt']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     def __str__(self):
@@ -11981,31 +11972,9 @@ class JobParameter(Parameter):
         raise NotImplementedError("JobParameter is a read-only parameter.  Call status or attach()")
 
     @property
-    def method(self):
-        """
-        Access the method for determining the status of the Job.
-
-        Returns
-        ---------
-        * (str)
-        """
-        return self._method
-
-    @property
-    def location(self):
-        """
-        Access the local location (if <phoebe.parameters.JobParameter.method> is 'local').
-
-        Returns
-        ---------
-        * (str)
-        """
-        return self._location
-
-    @property
     def job_name(self):
         """
-        Access the job_name (if <phoebe.parameters.JobParameter.method> is 'crimpl').
+        Access the crimpl job_name.
 
         Returns
         ---------
@@ -12049,30 +12018,8 @@ class JobParameter(Parameter):
             # then we aren't expecting any new updates
             status = self._value
 
-        elif self.method == 'local':
-            if os.path.isfile(self._results_fname):
-                status = 'complete'
-            elif os.path.isfile(self._kill_fname):
-                status = 'killed'
-            elif os.path.isfile(self._results_fname+'.progress'):
-                status = 'progress'
-            elif os.path.isfile(self._err_fname) and os.stat(self._err_fname).st_size > 0:
-                # some warnings from other packages can be set to stderr
-                # so we need to make sure the last line is actually from
-                # raising an error.
-                ferr = open(self._err_fname, 'r')
-                msg = ferr.readlines()[-1]
-                ferr.close()
-                if 'Error' in msg.split()[0]:
-                    status = 'error'
-                else:
-                    status = 'running'
-            else:
-                status = 'running'
-        elif self.method == 'crimpl':
-            status = self._crimpl_job.job_status
         else:
-            raise NotImplementedError
+            status = self._crimpl_job.job_status
 
         # here we'll set the value to be the latest CHECKED status for the sake
         # of exporting to JSON and updating the status for clients.
@@ -12082,8 +12029,11 @@ class JobParameter(Parameter):
     @property
     def _crimpl_server(self):
         if self._cached_crimpl_server is None:
-            crimpl_name = self._bundle.get_value(qualifier='crimpl_name', server=self._server, **_skip_filter_checks)
-            self._cached_crimpl_server = _crimpl.load_server(crimpl_name)
+            if self._server is not None:
+                crimpl_name = self._bundle.get_value(qualifier='crimpl_name', server=self._server, **_skip_filter_checks)
+            else:
+                crimpl_name = ''
+            self._cached_crimpl_server = _crimpl.load_server(crimpl_name) if crimpl_name else _crimpl.LocalThreadServer('./phoebe_crimpl_jobs')
         return self._cached_crimpl_server
 
     @property
@@ -12096,11 +12046,14 @@ class JobParameter(Parameter):
         """
         [NOT IMPLEMENTED]
         """
-        if self.method == 'crimpl':
+        if self._server is not None:
             crimpl_name = self._bundle.get_value(qualifier='crimpl_name', server=self._server, **_skip_filter_checks)
-            out = self._crimpl_job.check_output([self._results_fname, self._results_fname+'.progress'])
-            if not len(out):
-                raise ValueError("no files retrieved from remote server")
+        else:
+            crimpl_name = ''
+
+        out = self._crimpl_job.check_output([self._results_fname, self._results_fname+'.progress'])
+        if not len(out):
+            raise ValueError("no files retrieved from remote server")
 
         # now the file with the model should be retrievable from self._result_fname
         if 'progress' in self._value or self._value in ['running', 'failed', 'killed']:
@@ -12198,19 +12151,10 @@ class JobParameter(Parameter):
 
     def _cleanup(self):
         try:
-            os.remove(self._script_fname)
-        except: pass
-        try:
             os.remove(self._results_fname)
         except: pass
         try:
-            os.remove(self._err_fname)
-        except: pass
-        try:
             os.remove(self._results_fname+".progress")
-        except: pass
-        try:
-            os.remove(self._kill_fname)
         except: pass
 
     def attach(self, wait=True, sleep=10, cleanup=True, return_changes=False):
@@ -12264,17 +12208,8 @@ class JobParameter(Parameter):
             else:
                 raise NotImplementedError("attaching for context='{}' not implemented".format(self.context))
         elif status == 'error':
-            # TODO: test and fix this (ferr probably isn't defined)
-            lines = ferr.readlines()
-            ferr.close()
+            # TODO: implement retrieving error messages from server
 
-            if cleanup:
-                self._cleanup()
-
-            self._value = 'error'
-
-            print("ERROR: full error message: {}".format(lines))
-            logger.error("full error message: {}".format(lines))
             raise RuntimeError("job failed with error: {}".format(lines[-1]))
 
         else:
@@ -12329,15 +12264,9 @@ class JobParameter(Parameter):
         * (<phoebe.parameters.ParameterSet>)
 
         """
-        if self._method == 'local':
-            f = open(self._kill_fname, 'w')
-            f.write('kill')
-            f.close()
-
-        else:
-            # TODO: options for whether to pass delete_volume
-            self._crimpl_job.kill_job()
-            self._value = 'killed'
+        # TODO: options for whether to pass delete_volume
+        self._crimpl_job.kill_job()
+        self._value = 'killed'
 
         ret = None
         if load_progress:
@@ -12359,12 +12288,7 @@ class JobParameter(Parameter):
         Continue a job that was previously canceled, killed, or exceeded walltime.
         For jobs that do not support continuing, the job will be restarted.
         """
-        if self._method == 'local':
-            f = open(self._kill_fname, 'w')
-            f.write('kill')
-            f.close()
 
-        else:
-            # TODO: options for whether to pass delete_volume
-            self._crimpl_job.resubmit_script()
-            self._value = 'unknown'
+        # TODO: options for whether to pass delete_volume
+        self._crimpl_job.resubmit_script()
+        self._value = 'unknown'

@@ -51,43 +51,17 @@ class Server(object):
             return _os.path.join("~", self._directory)
         return self._directory
 
-    @property
-    def _ssh_cmd(self):
-        raise NotImplementedError("{} does not subclass _ssh_cmd".format(self.__class__.__name__))
-
-    @property
-    def ssh_cmd(self):
-        """
-        ssh command to the server
-
-        Returns
-        ----------
-        * (string): command with "{}" placeholders for the command to run on the remote machine.
-        """
-        # return "%s \'export PATH=\"%s/crimpl-bin:$PATH\"; {}\'" % (self._ssh_cmd, self.directory.replace("~", "$HOME"))
-        return "%s \"source %s/exportpath.sh; {}\"" % (self._ssh_cmd, self.directory)
-
-        # TODO: need to create a directory/exportpath.sh EXECUTABLE file that does the same as above
-
-    def _run_ssh_cmd(self, cmd, exportpath=None):
-        if exportpath is None:
-            exportpath = 'conda' in cmd or 'crimpl_script.sh' in cmd
-
-        if exportpath:
-            ssh_cmd = self.ssh_cmd.format(cmd)
-        else:
-            ssh_cmd = "{} \"{}\"".format(self._ssh_cmd, cmd)
-        # ssh_cmd = self.ssh_cmd+" \'export PATH=\"{directory}/crimpl-bin:$PATH\"; {cmd}\'".format(directory=self.directory.replace("~", "$HOME"), cmd=cmd)
-        # ssh_cmd = self.ssh_cmd+" \'{cmd}\'".format(directory=self.directory.replace("~", "$HOME"), cmd=cmd)
-        return _run_cmd(ssh_cmd)
-
-    @property
-    def scp_cmd_to(self):
-        raise NotImplementedError("{} does not subclass scp_cmd_to".format(self.__class__.__name__))
-
-    @property
-    def scp_cmd_from(self):
-        raise NotImplementedError("{} does not subclass scp_cmd_from".format(self.__class__.__name__))
+    # def _run_server_cmd(self, cmd, exportpath=None):
+    #     if exportpath is None:
+    #         exportpath = 'conda' in cmd or 'crimpl_script.sh' in cmd
+    #
+    #     if exportpath:
+    #         ssh_cmd = self.ssh_cmd.format(cmd)
+    #     else:
+    #         ssh_cmd = "{} \"{}\"".format(self._ssh_cmd, cmd)
+    #     # ssh_cmd = self.ssh_cmd+" \'export PATH=\"{directory}/crimpl-bin:$PATH\"; {cmd}\'".format(directory=self.directory.replace("~", "$HOME"), cmd=cmd)
+    #     # ssh_cmd = self.ssh_cmd+" \'{cmd}\'".format(directory=self.directory.replace("~", "$HOME"), cmd=cmd)
+    #     return _run_cmd(ssh_cmd)
 
     @property
     def existing_jobs(self):
@@ -96,7 +70,7 @@ class Server(object):
         # TODO: override for EC2 to handle whatever servers are running (if the job server is running, have it check the status, otherwise have the server ec2 check the directory)
 
         try:
-            out = self._run_ssh_cmd("ls -d {}/crimpl-job-*".format(self.directory))
+            out = self._run_server_cmd("ls -d {}/crimpl-job-*".format(self.directory))
         except _subprocess.CalledProcessError:
             return []
 
@@ -128,7 +102,7 @@ class Server(object):
         # need to make sure crimpl_directory exists and exportpath.sh is already copied
         self._create_crimpl_directory()
         try:
-            out = self._run_ssh_cmd("conda -V")
+            out = self._run_server_cmd("conda -V")
         except _subprocess.CalledProcessError:
             return False
         return True
@@ -145,7 +119,7 @@ class Server(object):
         # setup, the server/job environments MAY not appear here, so we'll
         # check those directories manually later.
         try:
-            out = self._run_ssh_cmd("conda info --envs")
+            out = self._run_server_cmd("conda info --envs")
         except _subprocess.CalledProcessError:
             print("# crimpl: conda not yet installed on remote machine")
             return {}
@@ -156,7 +130,7 @@ class Server(object):
         # force crimpl environments to override global
         crimpl_env_dir = _os.path.join(self.directory, "crimpl-envs")
         try:
-            server_env_paths = self._run_ssh_cmd("ls -d {}/*".format(crimpl_env_dir))
+            server_env_paths = self._run_server_cmd("ls -d {}/*".format(crimpl_env_dir))
         except _subprocess.CalledProcessError:
             pass
         else:
@@ -167,7 +141,7 @@ class Server(object):
         if job_name is not None:
             crimpl_job_env_dir = _os.path.join(self.directory, "crimpl-job-{}".format(job_name), "crimpl-envs")
             try:
-                job_env_paths = self._run_ssh_cmd("ls -d {}/*".format(crimpl_job_env_dir))
+                job_env_paths = self._run_server_cmd("ls -d {}/*".format(crimpl_job_env_dir))
             except _subprocess.CalledProcessError:
                 pass
             else:
@@ -199,6 +173,9 @@ class Server(object):
                           run_cmd=True):
         """
         """
+        if conda_env is False:
+            return None, None
+
         default_deps = "pip numpy"
         if self.__class__.__name__ == 'AWSEC2Server':
             # NOTE: AWS needs mpi4py via CONDA not PIP, so we'll include it by default
@@ -244,7 +221,7 @@ class Server(object):
             cmd = "conda create -p {envpath} -y {default_deps} python={python_version}".format(envpath=envpath, default_deps=default_deps, python_version=python_version)
 
         if run_cmd:
-            return self._run_ssh_cmd(cmd), envpath
+            return self._run_server_cmd(cmd), envpath
         else:
             return self.ssh_cmd.format(cmd), envpath
 
@@ -255,7 +232,7 @@ class Server(object):
             return True
 
         try:
-            out = self._run_ssh_cmd("mkdir -p {directory}".format(directory=self.directory), exportpath=False)
+            out = self._run_server_cmd("mkdir -p {directory}".format(directory=self.directory), exportpath=False)
         except _subprocess.CalledProcessError:
             return False
         else:
@@ -292,10 +269,10 @@ class Server(object):
             return
 
         if in_server_directory:
-            out = self._run_ssh_cmd("cd {directory}; wget -q https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh; sh Miniconda3-latest-Linux-x86_64.sh -u -b -p ./crimpl-conda; mkdir ./crimpl-bin; cp ./crimpl-conda/bin/conda ./crimpl-bin/conda".format(directory=self.directory, exportpath=False))
+            out = self._run_server_cmd("cd {directory}; wget -q https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh; sh Miniconda3-latest-Linux-x86_64.sh -u -b -p ./crimpl-conda; mkdir ./crimpl-bin; cp ./crimpl-conda/bin/conda ./crimpl-bin/conda".format(directory=self.directory, exportpath=False))
         else:
-            out = self._run_ssh_cmd("cd {directory}; wget -q https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh; sh Miniconda3-latest-Linux-x86_64.sh -u -b; mkdir ./crimpl-bin; cp ~/miniconda3/bin/conda ./crimpl-bin".format(directory=self.directory, exportpath=False))
-        out = self._run_ssh_cmd("conda init")
+            out = self._run_server_cmd("cd {directory}; wget -q https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh; sh Miniconda3-latest-Linux-x86_64.sh -u -b; mkdir ./crimpl-bin; cp ~/miniconda3/bin/conda ./crimpl-bin".format(directory=self.directory, exportpath=False))
+        out = self._run_server_cmd("conda init")
 
         return self.conda_installed
 
@@ -308,11 +285,13 @@ class Server(object):
                             use_nohup=False,
                             install_conda=False,
                             **slurm_kwargs):
+
+        if conda_env is False and isolate_env is True:
+            raise Value("cannot use isolate_env with conda_env=False")
         # from job: self.server._submit_script_cmds(script, files, use_slurm, directory=self.remote_directory, conda_env=self.conda_env, isolate_env=self.isolate_env, job_name=self.job_name)
         # from server: self._submit_script_cmds(script, files, use_slurm=False, directory=self.directory, conda_env=conda_env, isolate_env=False, job_name=None)
 
         # NOTE: job_name here is used to identify IF a job and as the slurm job name, but is NOT necessary the job.job_name
-
         if isinstance(script, str):
             # TODO: allow for http?
             if not _os.path.isfile(script):
@@ -331,7 +310,7 @@ class Server(object):
 
         if install_conda:
             self.install_conda(in_server_directory=True)
-        elif not self.conda_installed:
+        elif not self.conda_installed and conda_env is not False:
             raise ValueError("conda is not installed on the remote server.  Install manually or call server.install_conda()")
 
         _slurm_kwarg_to_prefix = {'nprocs': '-n ',
@@ -360,7 +339,11 @@ class Server(object):
                         v = ",".join(v)
                     slurm_script += ["#SBATCH {}{}".format(prefix, v)]
 
-                script = slurm_script + ["\n\n", "echo \'starting\' > crimpl-job.status", "eval \"$(conda shell.bash hook)\"", "conda activate {}".format(conda_env_path)] + ["echo \'running\' > crimpl-job.status"] + script + ["echo \'complete\' > crimpl-job.status"]
+                orig_script = script
+                script = slurm_script + ["\n\n", "echo \'starting\' > crimpl-job.status"]
+                if conda_env is not False:
+                    script += ["eval \"$(conda shell.bash hook)\"", "conda activate {}".format(conda_env_path)]
+                script += ["echo \'running\' > crimpl-job.status"] + orig_script + ["echo \'complete\' > crimpl-job.status"]
             else:
                 # need to track status by writing to log file
                 if "#!" in script[0]:
@@ -372,7 +355,9 @@ class Server(object):
         # TODO: use tmp file instead
         f = open('crimpl_script.sh', 'w')
         if not use_slurm:
-            f.write("echo \'starting\' > crimpl-job.status\neval \"$(conda shell.bash hook)\"\nconda activate {}\n".format(conda_env_path))
+            f.write("echo \'starting\' > crimpl-job.status\n")
+            if conda_env is not False:
+                f.write("eval \"$(conda shell.bash hook)\"\nconda activate {}\n".format(conda_env_path))
         f.write("\n".join(script))
         if terminate_on_complete:
             # should really only be used for AWS
@@ -399,15 +384,11 @@ class Server(object):
         else:
             remote_script = "./crimpl_script.sh"
             if use_nohup:
-                # TODO: don't hardcode the source command here
-                cmd = self.ssh_cmd.format("cd {directory}; chmod +x {remote_script}; nohup bash {remote_script} &".format(directory=directory,
-                                                                                                                     remote_script=remote_script,
-                                                                                                                     job_name=job_name if job_name is not None else "crimpl",
-                                                                                                                     conda_env_path=conda_env_path))
-                # cmd = self.ssh_cmd.format("cd {directory}; chmod +x {remote_script}; conda init; bash; conda activate {conda_env_path}; screen -dmS {job_name}; screen -S {job_name} -X screen {remote_script}".format(directory=directory,
-                #                                                                                                                                                     remote_script=remote_script,
-                #                                                                                                                                                     job_name=job_name if job_name is not None else "crimpl",
-                #                                                                                                                                                     conda_env_path=conda_env_path))
+                cmd = self.ssh_cmd.format("cd {directory}; chmod +x {remote_script}; nohup bash {remote_script} 2>&1 & echo $! > crimpl-nohup.pid".format(directory=directory,
+                                                                                                                                                          remote_script=remote_script,
+                                                                                                                                                          job_name=job_name if job_name is not None else "crimpl",
+                                                                                                                                                          conda_env_path=conda_env_path))
+
             else:
                 cmd = self.ssh_cmd.format("cd {directory}; chmod +x {remote_script}; {remote_script}".format(directory=directory,
                                                                                                             remote_script=remote_script))
@@ -497,7 +478,7 @@ class ServerJob(object):
         self._job_submitted = job_submitted
 
 
-        if not (isinstance(conda_env, str) or conda_env is None):
+        if not (isinstance(conda_env, str) or conda_env is None or conda_env is False):
             raise TypeError("conda_env must be a string or None")
         if isinstance(conda_env, str) and "/" in conda_env:
             raise ValueError("conda_env should be alpha-numeric (and -/_) only")
@@ -547,7 +528,7 @@ class ServerJob(object):
         if self._conda_env is None:
             # determine if already stored in the remote directory
             try:
-                response = self.server._run_ssh_cmd("cat {}".format(_os.path.join(self.remote_directory, "crimpl-conda-environment")))
+                response = self.server._run_server_cmd("cat {}".format(_os.path.join(self.remote_directory, "crimpl-conda-environment")))
             except _subprocess.CalledProcessError as e:
                 if 'No such file or directory' in str(e):
                     # then the cached file does not yet exist, so we'll default to 'default'
@@ -618,7 +599,7 @@ class ServerJob(object):
         """
         if self._remote_directory is None:
             # NOTE: for AWSEC2 self.server.ssh_cmd may point to the job EC2 instance if the server is not running
-            home_dir = self.server._run_ssh_cmd("pwd")
+            home_dir = self.server._run_server_cmd("pwd")
             if "~" in self.server.directory:
                 self._remote_directory = _os.path.join(self.server.directory.replace("~", home_dir), "crimpl-job-{}".format(self.job_name))
             else:
@@ -640,7 +621,7 @@ class ServerJob(object):
         ----------
         * (list)
         """
-        response = self.server._run_ssh_cmd("ls {}/*".format(self.remote_directory))
+        response = self.server._run_server_cmd("ls {}/*".format(self.remote_directory))
         return [_os.path.basename(f) for f in response.split()]
 
     @property
@@ -681,7 +662,7 @@ class ServerJob(object):
         """
         if self._input_files is None:
 
-            response = self.server._run_ssh_cmd("cat {}".format(_os.path.join(self.remote_directory, "crimpl-input-files.list")))
+            response = self.server._run_server_cmd("cat {}".format(_os.path.join(self.remote_directory, "crimpl-input-files.list")))
             self._input_files = response.split()
 
         return self._input_files
@@ -703,7 +684,7 @@ class ServerJob(object):
         ----------
         * (list)
         """
-        return [f for f in self.job_files if f not in self.input_files]
+        return [f for f in self.job_files if f not in self.input_files and f not in ['nohup.out']]
 
     def wait_for_job_status(self, status='complete',
                             error_if=['failed', 'canceled'],
@@ -786,3 +767,45 @@ class ServerJob(object):
         _run_cmd(scp_cmd)
 
         return server_path
+
+
+
+class SSHServer(Server):
+
+    @property
+    def _ssh_cmd(self):
+        raise NotImplementedError("{} does not subclass _ssh_cmd".format(self.__class__.__name__))
+
+    @property
+    def ssh_cmd(self):
+        """
+        ssh command to the server
+
+        Returns
+        ----------
+        * (string): command with "{}" placeholders for the command to run on the remote machine.
+        """
+        # return "%s \'export PATH=\"%s/crimpl-bin:$PATH\"; {}\'" % (self._ssh_cmd, self.directory.replace("~", "$HOME"))
+        return "%s \"source %s/exportpath.sh; {}\"" % (self._ssh_cmd, self.directory)
+
+        # TODO: need to create a directory/exportpath.sh EXECUTABLE file that does the same as above
+
+    def _run_server_cmd(self, cmd, exportpath=None):
+        if exportpath is None:
+            exportpath = 'conda' in cmd or 'crimpl_script.sh' in cmd
+
+        if exportpath:
+            ssh_cmd = self.ssh_cmd.format(cmd)
+        else:
+            ssh_cmd = "{} \"{}\"".format(self._ssh_cmd, cmd)
+        # ssh_cmd = self.ssh_cmd+" \'export PATH=\"{directory}/crimpl-bin:$PATH\"; {cmd}\'".format(directory=self.directory.replace("~", "$HOME"), cmd=cmd)
+        # ssh_cmd = self.ssh_cmd+" \'{cmd}\'".format(directory=self.directory.replace("~", "$HOME"), cmd=cmd)
+        return _run_cmd(ssh_cmd)
+
+    @property
+    def scp_cmd_to(self):
+        raise NotImplementedError("{} does not subclass scp_cmd_to".format(self.__class__.__name__))
+
+    @property
+    def scp_cmd_from(self):
+        raise NotImplementedError("{} does not subclass scp_cmd_from".format(self.__class__.__name__))
