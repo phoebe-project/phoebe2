@@ -2225,7 +2225,7 @@ class Passband:
                     # print('  blints: %s' % blints)
 
                 Inorm[k] = np.array(blints).mean()
-                print(Inorm[k])
+                # print(Inorm[k])
 
             return Inorm
         else:
@@ -2358,15 +2358,63 @@ class Passband:
 
         return 10**Inorm
 
-    def _log10_Imu_ck2004(self, Teff, logg, abun, mu, photon_weighted=False):
+    def _log10_Imu_ck2004(self, Teff, logg, abun, mu, photon_weighted=False, extrapolate_mode='none'):
+        axes = self._ck2004_intensity_axes
+        grid = self._ck2004_Imu_photon_grid if photon_weighted else self._ck2004_Imu_energy_grid
+        
         if not hasattr(Teff, '__iter__'):
             req = np.array(((Teff, logg, abun, mu),))
-            log10_Imu = libphoebe.interp(req, self._ck2004_intensity_axes, self._ck2004_Imu_photon_grid if photon_weighted else self._ck2004_Imu_energy_grid)[0][0]
+            log10_Imu = libphoebe.interp(req, axes, grid).T[0]
         else:
             req = np.vstack((Teff, logg, abun, mu)).T
-            log10_Imu = libphoebe.interp(req, self._ck2004_intensity_axes, self._ck2004_Imu_photon_grid if photon_weighted else self._ck2004_Imu_energy_grid).T[0]
+            log10_Imu = libphoebe.interp(req, axes, grid).T[0]
 
-        return log10_Imu
+        nanmask = np.isnan(log10_Imu)
+        if ~np.any(nanmask):
+            return log10_Imu
+
+        nan_indices = np.argwhere(nanmask).flatten()
+
+        # if we are here, it means that there are nans. Now we switch on extrapolate_mode:
+        if extrapolate_mode == 'none':
+            raise ValueError(f'Atmosphere parameters out of bounds: atm=ck2004, photon_weighted={photon_weighted}, Teff={req[:,0][nanmask]}, logg={req[:,1][nanmask]}, abun={req[:,2][nanmask]}, mu={req[:,3][nanmask]}')
+        elif extrapolate_mode == 'nearest':
+            for k in nan_indices:
+                v, mu_v = req[k,:-1], req[k,-1]
+                mu_k = np.searchsorted(axes[-1], mu_v)
+                if (mu_k == len(axes[-1])) | (np.fabs(mu_v-axes[-1][max(mu_k-1,0)]) < np.fabs(mu_v-axes[-1][min(mu_k,len(axes[-1])-1)])):
+                    mu_k -= 1
+                d, i = self.nntree['ck2004'].query(v)
+                log10_Imu[k] = grid[tuple(self._ck2004_indices[i][:-1])][mu_k]
+            return log10_Imu
+        elif extrapolate_mode == 'linear':
+            raxes = axes[:-1] # reduced axes, without mu -- to optimize because mu cannot be out of bounds
+            for k in nan_indices:
+                v, mu_v = req[k,:-1], req[k,-1]
+                mu_k = np.searchsorted(axes[-1], mu_v)-1
+                ic = np.array([np.searchsorted(raxes[i], v[i])-1 for i in range(len(raxes))])
+                sep = (np.abs(self._ck2004_ics-ic)).sum(axis=1)
+                corners = np.argwhere(sep == sep.min()).flatten()
+                ints = []
+                for corner in corners:
+                    slc = tuple([slice(self._ck2004_ics[corner][i], self._ck2004_ics[corner][i]+2) for i in range(len(self._ck2004_ics[corner]))]+[slice(mu_k, mu_k+2)])
+                    coords = [axes[i][slc[i]] for i in range(len(axes))]
+                    # print('  nearest fully defined hypercube:', slc)
+
+                    # extrapolate:
+                    lo = [c[0] for c in coords]
+                    hi = [c[1] for c in coords]
+                    subgrid = grid[slc]
+                    fv = subgrid.T.reshape(2**len(axes))
+                    ckint = ndpolate(req[k], lo, hi, fv)
+                    # print('  extrapolated atm value: %f' % ckint)
+                    ints.append(ckint)
+                log10_Imu[k] = np.array(ints).mean()
+            return log10_Imu
+        elif extrapolate_mode == 'blended':
+            pass
+        else:
+            raise ValueError(f'extrapolate_mode="{extrapolate_mode}" is not recognized.')
 
     def _Imu_ck2004(self, Teff, logg, abun, mu, photon_weighted=False):
         if not hasattr(Teff, '__iter__'):
@@ -2499,7 +2547,7 @@ class Passband:
         #     raise ValueError('Atmosphere parameters out of bounds: atm=%s, ldatm=%s, Teff=%s, logg=%s, abun=%s' % (atm, ldatm, Teff[nanmask], logg[nanmask], abun[nanmask]))
         return retval
 
-    def Imu(self, Teff=5772., logg=4.43, abun=0.0, mu=1.0, atm='ck2004', ldatm='ck2004', ldint=None, ld_func='interp', ld_coeffs=None, photon_weighted=False):
+    def Imu(self, Teff=5772., logg=4.43, abun=0.0, mu=1.0, atm='ck2004', ldatm='ck2004', ldint=None, ld_func='interp', ld_coeffs=None, photon_weighted=False, extrapolate_mode='none'):
         """
         Arguments
         ----------
@@ -2540,19 +2588,13 @@ class Passband:
         if ld_func == 'interp':
             # The 'interp' LD function works only for model atmospheres:
             if atm == 'ck2004' and 'ck2004:Imu' in self.content:
-                retval = self._Imu_ck2004(Teff, logg, abun, mu, photon_weighted=photon_weighted)
-                nanmask = np.isnan(retval)
-                if np.any(nanmask):
-                    raise ValueError('Atmosphere parameters out of bounds: Teff=%s, logg=%s, abun=%s, mu=%s' % (Teff[nanmask], logg[nanmask], abun[nanmask], mu[nanmask]))
-                return retval
+                retval = 10**self._log10_Imu_ck2004(Teff, logg, abun, mu, photon_weighted=photon_weighted, extrapolate_mode=extrapolate_mode)
             elif atm == 'phoenix' and 'phoenix:Imu' in self.content:
                 retval = self._Imu_phoenix(Teff, logg, abun, mu, photon_weighted=photon_weighted)
-                nanmask = np.isnan(retval)
-                if np.any(nanmask):
-                    raise ValueError('Atmosphere parameters out of bounds: Teff=%s, logg=%s, abun=%s, mu=%s' % (Teff[nanmask], logg[nanmask], abun[nanmask], mu[nanmask]))
-                return retval
             else:
                 raise ValueError('atm={} not supported by {}:{} ld_func=interp'.format(atm, self.pbset, self.pbname))
+
+            return retval
 
         if ld_coeffs is None:
             # LD function can be passed without coefficients; in that
