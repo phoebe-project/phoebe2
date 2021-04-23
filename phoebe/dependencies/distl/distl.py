@@ -45,7 +45,7 @@ except ImportError:
 else:
     _has_dill = True
 
-__version__ = '0.3.0'
+__version__ = '0.3.1'
 version = __version__
 
 _math_symbols = {'__mul__': '*', '__add__': '+', '__sub__': '-',
@@ -6736,45 +6736,6 @@ class MVGaussian(BaseMultivariateDistribution):
         * int
         """
         return len(self.mean)
-
-
-    def uncertainties(self, sigma=1, tex=False, dimension=None):
-        """
-        Expose (symmetric) uncertainties for the distribution(s) at a given
-        value of `sigma` directly from <MVGaussian.mean> and <MVGaussian.cov>.
-
-        Arguments
-        -----------
-        * `sigma` (int, optional, default=1): number of standard deviations to
-            expose.
-        * `tex` (bool, optional, default=False): return as a formatted latex
-            string.
-        * `dimension` (int or string, optional, default=None): the label or index
-            of the dimension to use.
-
-        Returns
-        ---------
-        * if not `tex`: a list of triplets where each triplet is lower, median, upper
-        * if `tex`: <Latex> object with <Latex.as_latex> and <Latex.as_string> properties.
-
-        """
-
-        if dimension is None:
-            dimensions = range(self.ndimensions)
-        else:
-            dimensions = [self._get_dimension_index(dimension)]
-
-        if tex:
-            labels = [self.labels[d] if self.labels is not None else None for d in dimensions]
-            labels_latex = [self.labels_latex[d] if self.labels is not None else None for d in dimensions]
-            units = [self.units[d] if self.units is not None else None for d in dimensions]
-            means = [self.mean[d] for d in dimensions]
-            diagonal = self.cov.diagonal()
-            diagonals = [diagonal[d]*sigma for d in dimensions]
-            return _format_uncertainties_symmetric(labels, labels_latex, units, means, diagonals)
-        else:
-            return [[self.mean[i]-self.cov[i][i]*sigma, self.mean[i], self.mean[i]+self.cov[i][i]*sigma] for i in dimensions]
-
 
     def slice(self, dimension):
         """
