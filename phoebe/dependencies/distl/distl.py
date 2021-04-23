@@ -45,7 +45,7 @@ except ImportError:
 else:
     _has_dill = True
 
-__version__ = '0.3.0'
+__version__ = '0.3.1'
 version = __version__
 
 _math_symbols = {'__mul__': '*', '__add__': '+', '__sub__': '-',

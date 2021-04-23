@@ -84,6 +84,17 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.3.38 - mvgaussian uncertainties bugfix
+
+* updates distl to 0.3.1 which includes a fix to treat mvgaussian uncertainties from percentiles like other distribution types
+* forces updating kepler's third law constraint when importing a bundle from before 2.3.25 bugfix
+
+### 2.3.37 - add_distribution allow_multiple_matches bugfix
+
+* fixes bug where tags on distributions were improperly applied when passing `allow_multiple_matches=True`
+* disables run_compute progressbar within solvers
+* fixes typo in description of progress parameter
+
 ### 2.3.36 - MPI passband directory bugfix
 
 * fixes bug where running phoebe for the first time within MPI crashes due to each processor attempting to create the passband directory.

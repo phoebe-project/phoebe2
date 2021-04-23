@@ -877,6 +877,12 @@ class Bundle(ParameterSet):
             # call set_hierarchy to force asini@component constraints (comp_asini) to be built
             b.set_hierarchy()
 
+        elif phoebe_version_import < StrictVersion("2.3.25"):
+            # elif here since the if above already call set_hierarchy and we want to avoid doing that twice since its expensive
+
+            # call set_hierarchy to force mass constraints to be rebuilt
+            b.set_hierarchy()
+
         if phoebe_version_import < StrictVersion("2.4.0"):
             existing_values_settings = {p.qualifier: p.get_value() for p in b.filter(context='setting').to_list()}
             b.remove_parameters_all(context='setting', **_skip_filter_checks)
