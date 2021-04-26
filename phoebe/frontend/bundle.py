@@ -12784,8 +12784,6 @@ class Bundle(ParameterSet):
             # a random string, to avoid any conflicts
             jobid = kwargs.get('jobid', parameters._uniqueid())
 
-            server_options = {p.qualifier: kwargs.pop(p.qualifier, p.get_value()) for p in self.filter(server=use_server, context='server', **_skip_filter_checks).to_list()}
-
             script_fname = "_{}.py".format(jobid)
             out_fname = "_{}.out".format(jobid)
             err_fname = "_{}.err".format(jobid)
