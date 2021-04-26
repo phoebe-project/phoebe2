@@ -12054,20 +12054,24 @@ class JobParameter(Parameter):
         else:
             crimpl_name = ''
 
-        out = self.crimpl_job.check_output([self._results_fname, self._results_fname+'.progress'])
-        if not len(out):
+        retrieved_fnames = self.crimpl_job.check_output([self._results_fname, self._results_fname+'.progress']).split()
+        if not len(retrieved_fnames):
             raise ValueError("no files retrieved from remote server")
 
         # now the file with the model should be retrievable from self._result_fname
-        if 'progress' in self._value or self._value in ['running', 'failed', 'killed']:
-            fname = self._results_fname + '.progress'
-        else:
+        if self._results_fname in retrieved_fnames:
             fname = self._results_fname
+            is_progress = False
+        elif self._results_fname+'.progress' in retrieved_fnames:
+            fname = self._results_fname + '.progress'
+            is_progress = True
+        else:
+            raise ValueError("no matching files retrieved from remote server")
 
         try:
             ret_ps = ParameterSet.open(fname)
         except Exception as err:
-            if 'progress' in self._value:
+            if is_progress:
                 return ParameterSet([])
             else:
                 raise
