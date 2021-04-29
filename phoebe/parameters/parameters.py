@@ -12054,7 +12054,9 @@ class JobParameter(Parameter):
         else:
             crimpl_name = ''
 
-        retrieved_fnames = self.crimpl_job.check_output([self._results_fname, self._results_fname+'.progress']).split()
+        retrieved_fnames = self.crimpl_job.check_output([self._results_fname, self._results_fname+'.progress'])
+        if isinstance(retrieved_fnames, str):
+            retrieved_fnames = retrieved_fnames.split()
         if not len(retrieved_fnames):
             raise ValueError("no files retrieved from remote server")
 
