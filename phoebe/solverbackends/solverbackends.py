@@ -1076,11 +1076,11 @@ class EbaiBackend(BaseSolverBackend):
             ecl_positions = lc_geom_dict.get('ecl_positions')
             # assume primary is close to zero?
             pshift = ecl_positions[np.argmin(abs(np.array(ecl_positions)))]
-            phases_shifted = phases-pshift 
+            phases_shifted = phases-pshift
             phases_shifted[phases_shifted > 0.5] = phases_shifted[phases_shifted>0.5]-1.
             phases_shifted[phases_shifted < -0.5] = phases_shifted[phases_shifted<-0.5]+1.
             s=np.argsort(phases_shifted)
-            
+
             fit_result = lc_geometry.fit_lc(phases_shifted[s], fluxes[s], sigmas[s])
             best_fit = fit_result['best_fit']
             best_fit = fit_result['best_fit']
@@ -1860,7 +1860,7 @@ class _ScipyOptimizeBaseBackend(BaseSolverBackend):
             global _minimize_iter
             _minimize_iter += 1
             global _minimize_pbar
-            _minimize_pbar.update(_minimize_iter)
+            _minimize_pbar.update(1)
 
         logger.debug("calling scipy.optimize.minimize(_lnprobability_negative, p0, method='{}', args=(b, {}, {}, {}, {}, {}), options={})".format(self.method, params_uniqueids, compute, priors, kwargs.get('solution', None), compute_kwargs, options))
         # TODO: would it be cheaper to pass the whole bundle (or just make one copy originally so we restore original values) than copying for each iteration?
