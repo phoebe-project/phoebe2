@@ -99,10 +99,20 @@ def _get_add_func(mod, func, return_none_if_not_found=False):
     if isinstance(func, str) and hasattr(mod, func):
         func = getattr(mod, func)
 
-
-
     if hasattr(func, '__call__'):
         return func
+    elif mod.__name__ in ['phoebe.parameters.solver']:
+        # then recursively check submodules
+        for submod in ['estimator', 'optimizer', 'sampler']:
+            ret = _get_add_func(getattr(mod, submod), func, return_none_if_not_found=True)
+            if ret is not None:
+                return ret
+    elif mod.__name__ in ['phoebe.parameters.figure']:
+        # then recursively check submodules
+        for submod in ['dataset', 'distribution', 'solution']:
+            ret = _get_add_func(getattr(mod, submod), func, return_none_if_not_found=True)
+            if ret is not None:
+                return ret
     elif return_none_if_not_found:
         return None
     else:
