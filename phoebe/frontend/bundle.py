@@ -9666,7 +9666,7 @@ class Bundle(ParameterSet):
             overwrite_ps = self.remove_compute(compute=kwargs['compute'], during_overwrite=True)
             # check the label again, just in case kwargs['compute'] belongs to
             # something other than compute
-            self.exclude(context='model', **_skip_filter_checks)._check_label(kwargs['compute'], allow_overwrite=False)
+            self.exclude(context=['model', 'solution'], **_skip_filter_checks)._check_label(kwargs['compute'], allow_overwrite=False)
 
         logger.info("adding {} '{}' compute to bundle".format(metawargs['kind'], metawargs['compute']))
         self._attach_params(params, **metawargs)
