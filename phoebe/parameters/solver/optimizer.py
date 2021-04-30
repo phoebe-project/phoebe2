@@ -42,11 +42,15 @@ def nelder_mead(**kwargs):
     * `expose_lnprobabilities` (bool, optional, default=False): whether to expose
         the initial and final lnprobabilities in the solution (will result in 2
         additional forward model calls)
+    * `continue_from` (string, optional, default='none'): continue the optimization
+        run from an existing solution by starting each parameter at its final
+        position in the solution.
     * `fit_parameters` (list, optional, default=[]): parameters (as twigs) to
-        optimize.
+        optimize. Only applicable if `continue_from` is 'None'.
     * `initial_values` (dict, optional, default={}): twig-value pairs to
         (optionally) override the current values in the bundle.  Any items not
-        in `fit_parameters` will be silently ignored.
+        in `fit_parameters` will be silently ignored.  Only applicable if
+        `continue_from` is 'None'.
     * `priors` (list, optional, default=[]): distribution(s) to use for priors
         (constrained and unconstrained parameters will be included, covariances
         will be respected except for distributions merge via `priors_combine`).
@@ -88,8 +92,10 @@ def nelder_mead(**kwargs):
     params += [ChoiceParameter(qualifier='compute', value=kwargs.get('compute', 'None'), choices=['None'], description='compute options to use for forward model')]
     params += [BoolParameter(qualifier='expose_lnprobabilities', value=kwargs.get('expose_lnprobabilities', False), description='whether to expose the initial and final lnprobabilities in the solution (will result in 2 additional forward model calls)')]
 
-    params += [SelectTwigParameter(qualifier='fit_parameters', value=kwargs.get('fit_parameters', []), choices=[], description='parameters (as twigs) to optimize')]
-    params += [DictParameter(qualifier='initial_values', value=kwargs.get('initial_values', {}), description='twig-value pairs to (optionally) override the current values in the bundle.  Any items not in fit_parameters will be silently ignored.')]
+    params += [ChoiceParameter(qualifier='continue_from', value=kwargs.get('continue_from', 'None'), choices=['None'], description='continue the optimization run from an existing solution by starting each parameter at its final position in the solution.')]
+
+    params += [SelectTwigParameter(visible_if='continue_from:None', qualifier='fit_parameters', value=kwargs.get('fit_parameters', []), choices=[], description='parameters (as twigs) to optimize')]
+    params += [DictParameter(visible_if='continue_from:None', qualifier='initial_values', value=kwargs.get('initial_values', {}), description='twig-value pairs to (optionally) override the current values in the bundle.  Any items not in fit_parameters will be silently ignored.')]
 
     params += [SelectParameter(qualifier='priors', value=kwargs.get('priors', []), choices=[], description='distribution(s) to use for priors (constrained and unconstrained parameters will be included, covariances will be respected except for distributions merge via priors_combine)')]
     params += [ChoiceParameter(visible_if='priors:<notempty>', qualifier='priors_combine', value=kwargs.get('priors_combine', 'and'), choices=['first', 'and', 'or'], description='Method to use to combine multiple distributions from priors for the same parameter.  first: ignore duplicate entries and take the first in the priors parameter. and: combine duplicate entries via AND logic, dropping covariances.  or: combine duplicate entries via OR logic, dropping covariances.')]
@@ -134,11 +140,15 @@ def powell(**kwargs):
     * `expose_lnprobabilities` (bool, optional, default=False): whether to expose
         the initial and final lnprobabilities in the solution (will result in 2
         additional forward model calls)
+    * `continue_from` (string, optional, default='none'): continue the optimization
+        run from an existing solution  by starting each parameter at its final
+        position in the solution.
     * `fit_parameters` (list, optional, default=[]): parameters (as twigs) to
-        optimize.
+        optimize.  Only applicable if `continue_from` is 'None'.
     * `initial_values` (dict, optional, default={}): twig-value pairs to
         (optionally) override the current values in the bundle.  Any items not
-        in `fit_parameters` will be silently ignored.
+        in `fit_parameters` will be silently ignored.  Only applicable if
+        `continue_from` is 'None'.
     * `priors` (list, optional, default=[]): distribution(s) to use for priors
         (constrained and unconstrained parameters will be included, covariances
         will be respected except for distributions merge via `priors_combine`).
@@ -177,8 +187,10 @@ def powell(**kwargs):
     params += [ChoiceParameter(qualifier='compute', value=kwargs.get('compute', 'None'), choices=['None'], description='compute options to use for forward model')]
     params += [BoolParameter(qualifier='expose_lnprobabilities', value=kwargs.get('expose_lnprobabilities', False), description='whether to expose the initial and final lnprobabilities in the solution (will result in 2 additional forward model calls)')]
 
-    params += [SelectTwigParameter(qualifier='fit_parameters', value=kwargs.get('fit_parameters', []), choices=[], description='parameters to optimize')]
-    params += [DictParameter(qualifier='initial_values', value=kwargs.get('initial_values', {}), description='twig-value pairs to (optionally) override the current values in the bundle.  Any items not in fit_parameters will be silently ignored.')]
+    params += [ChoiceParameter(qualifier='continue_from', value=kwargs.get('continue_from', 'None'), choices=['None'], description='continue the optimization run from an existing solution by starting each parameter at its final position in the solution.')]
+
+    params += [SelectTwigParameter(visible_if='continue_from:None', qualifier='fit_parameters', value=kwargs.get('fit_parameters', []), choices=[], description='parameters to optimize')]
+    params += [DictParameter(visible_if='continue_from:None', qualifier='initial_values', value=kwargs.get('initial_values', {}), description='twig-value pairs to (optionally) override the current values in the bundle.  Any items not in fit_parameters will be silently ignored.')]
 
     params += [SelectParameter(qualifier='priors', value=kwargs.get('priors', []), choices=[], description='distribution(s) to use for priors (constrained and unconstrained parameters will be included, covariances will be respected except for distributions merge via priors_combine)')]
     params += [ChoiceParameter(visible_if='priors:<notempty>', qualifier='priors_combine', value=kwargs.get('priors_combine', 'and'), choices=['first', 'and', 'or'], description='Method to use to combine multiple distributions from priors for the same parameter.  irst: ignore duplicate entries and take the first in the priors parameter. and: combine duplicate entries via AND logic, dropping covariances.  or: combine duplicate entries via OR logic, dropping covariances.')]
@@ -223,11 +235,15 @@ def cg(**kwargs):
     * `expose_lnprobabilities` (bool, optional, default=False): whether to expose
         the initial and final lnprobabilities in the solution (will result in 2
         additional forward model calls)
+    * `continue_from` (string, optional, default='none'): continue the optimization
+        run from an existing solution by starting each parameter at its final
+        position in the solution.
     * `fit_parameters` (list, optional, default=[]): parameters (as twigs) to
-        optimize.
+        optimize.  Only applicable if `continue_from` is 'None'.
     * `initial_values` (dict, optional, default={}): twig-value pairs to
         (optionally) override the current values in the bundle.  Any items not
-        in `fit_parameters` will be silently ignored.
+        in `fit_parameters` will be silently ignored.  Only applicable if
+        `continue_from` is 'None'.
     * `priors` (list, optional, default=[]): distribution(s) to use for priors
         (constrained and unconstrained parameters will be included, covariances
         will be respected except for distributions merge via `priors_combine`).
@@ -263,8 +279,10 @@ def cg(**kwargs):
     params += [ChoiceParameter(qualifier='compute', value=kwargs.get('compute', 'None'), choices=['None'], description='compute options to use for forward model')]
     params += [BoolParameter(qualifier='expose_lnprobabilities', value=kwargs.get('expose_lnprobabilities', False), description='whether to expose the initial and final lnprobabilities in the solution (will result in 2 additional forward model calls)')]
 
-    params += [SelectTwigParameter(qualifier='fit_parameters', value=kwargs.get('fit_parameters', []), choices=[], description='parameters to optimize')]
-    params += [DictParameter(qualifier='initial_values', value=kwargs.get('initial_values', {}), description='twig-value pairs to (optionally) override the current values in the bundle.  Any items not in fit_parameters will be silently ignored.')]
+    params += [ChoiceParameter(qualifier='continue_from', value=kwargs.get('continue_from', 'None'), choices=['None'], description='continue the optimization run from an existing solution by starting each parameter at its final position in the solution.')]
+
+    params += [SelectTwigParameter(visible_if='continue_from:None', qualifier='fit_parameters', value=kwargs.get('fit_parameters', []), choices=[], description='parameters to optimize')]
+    params += [DictParameter(visible_if='continue_from:None', qualifier='initial_values', value=kwargs.get('initial_values', {}), description='twig-value pairs to (optionally) override the current values in the bundle.  Any items not in fit_parameters will be silently ignored.')]
 
     params += [SelectParameter(qualifier='priors', value=kwargs.get('priors', []), choices=[], description='distribution(s) to use for priors (constrained and unconstrained parameters will be included, covariances will be respected except for distributions merge via priors_combine)')]
     params += [ChoiceParameter(visible_if='priors:<notempty>', qualifier='priors_combine', value=kwargs.get('priors_combine', 'and'), choices=['first', 'and', 'or'], description='Method to use to combine multiple distributions from priors for the same parameter.  irst: ignore duplicate entries and take the first in the priors parameter. and: combine duplicate entries via AND logic, dropping covariances.  or: combine duplicate entries via OR logic, dropping covariances.')]

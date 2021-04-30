@@ -1825,8 +1825,15 @@ class _ScipyOptimizeBaseBackend(BaseSolverBackend):
             # backends that support that
             return
 
-        fit_parameters = kwargs.get('fit_parameters') # list of twigs
-        initial_values = kwargs.get('initial_values') # dictionary
+        continue_from = kwargs.get('continue_from')
+        if continue_from == 'None':
+            fit_parameters = kwargs.get('fit_parameters') # list of twigs
+            initial_values = kwargs.get('initial_values') # dictionary
+        else:
+            continue_from_ps = kwargs.get('continue_from_ps', b.filter(context='solution', solution=continue_from, **_skip_filter_checks))
+            fit_parameters = continue_from_ps.get_value('fitted_twigs')
+            initial_values = {twig: value for twig, value in zip(fit_parameters, continue_from_ps.get_value('fitted_values'))}
+
         priors = kwargs.get('priors')
         priors_combine = kwargs.get('priors_combine')
 

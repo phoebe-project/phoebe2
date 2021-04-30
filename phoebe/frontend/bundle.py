@@ -2338,10 +2338,9 @@ class Bundle(ParameterSet):
     def _handle_solution_choiceparams(self, return_changes=False):
         affected_params = []
 
-        # currently hardcoded to emcee only
-        choices = ['None'] + self.filter(context='solution', kind='emcee', **_skip_filter_checks).solutions
-
         for param in self.filter(qualifier='continue_from', context='solver', **_skip_filter_checks).to_list():
+            choices = ['None'] + self.filter(context='solution', kind=param.kind, **_skip_filter_checks).solutions
+
             choices_changed = False
             if return_changes and choices != param._choices:
                 choices_changed = True
