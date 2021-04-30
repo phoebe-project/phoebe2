@@ -1798,7 +1798,6 @@ class _ScipyOptimizeBaseBackend(BaseSolverBackend):
 
 
         solution_params += [_parameters.StringParameter(qualifier='message', value='', readonly=True, description='message from the minimizer')]
-        solution_params += [_parameters.IntParameter(qualifier='nfev', value=0, readonly=True, limits=(0,None), description='number of completed function evaluations (forward models)')]
         solution_params += [_parameters.IntParameter(qualifier='niter', value=0, readonly=True, limits=(0,None), description='number of completed iterations')]
         solution_params += [_parameters.BoolParameter(qualifier='success', value=False, readonly=True, description='whether the minimizer returned a success message')]
         solution_params += [_parameters.ArrayParameter(qualifier='initial_values', value=[], readonly=True, description='initial values before running the minimizer (in current default units of each parameter)')]
@@ -1883,7 +1882,6 @@ class _ScipyOptimizeBaseBackend(BaseSolverBackend):
         b._within_solver = False
 
         return_ = [{'qualifier': 'message', 'value': res.message},
-                {'qualifier': 'nfev', 'value': res.nfev},
                 {'qualifier': 'niter', 'value': res.nit},
                 {'qualifier': 'success', 'value': res.success},
                 {'qualifier': 'fitted_uniqueids', 'value': params_uniqueids},
@@ -1960,7 +1958,6 @@ class Differential_EvolutionBackend(BaseSolverBackend):
         solution_params += [_parameters.BoolParameter(qualifier='adopt_values', value=True, description='whether to update the parameter face-values (of all parameters in adopt_parameters) when calling adopt_solution.')]
 
         solution_params += [_parameters.StringParameter(qualifier='message', value='', readonly=True, description='message from the minimizer')]
-        solution_params += [_parameters.IntParameter(qualifier='nfev', value=0, readonly=True, limits=(0,None), description='number of completed function evaluations (forward models)')]
         solution_params += [_parameters.IntParameter(qualifier='niter', value=0, readonly=True, limits=(0,None), description='number of completed iterations')]
         solution_params += [_parameters.BoolParameter(qualifier='success', value=False, readonly=True, description='whether the minimizer returned a success message')]
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_values', value=[],readonly=True,  description='final values returned by the minimizer (in current default units of each parameter)')]
@@ -2068,7 +2065,6 @@ class Differential_EvolutionBackend(BaseSolverBackend):
             # TODO: expose the adopted bounds?
 
             return_ = [{'qualifier': 'message', 'value': res.message},
-                       {'qualifier': 'nfev', 'value': res.nfev},
                        {'qualifier': 'niter', 'value': res.nit},
                        {'qualifier': 'success', 'value': res.success},
                        {'qualifier': 'fitted_uniqueids', 'value': params_uniqueids},

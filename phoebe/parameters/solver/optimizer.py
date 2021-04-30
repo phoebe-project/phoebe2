@@ -57,9 +57,6 @@ def nelder_mead(**kwargs):
         or: combine duplicate entries via OR logic, dropping covariances.
     * `maxiter` (int, optional, default=1e6): passed directly to
         scipy.optimize.minimize.  Maximum allowed number of iterations.
-    * `maxfev` (int, optional, default=1e6): passed directly to
-        scipy.optimize.minimize.  Maximum allowed number of function evaluations
-        (forward models).
     * `adaptive` (bool, optional, default=False): passed directly to
         scipy.optimize.minimize.  Adapt algorithm parameters to dimensionality
         of problem. Useful for high-dimensional minimization
@@ -88,7 +85,6 @@ def nelder_mead(**kwargs):
     params += [ChoiceParameter(visible_if='priors:<notempty>', qualifier='priors_combine', value=kwargs.get('priors_combine', 'and'), choices=['first', 'and', 'or'], description='Method to use to combine multiple distributions from priors for the same parameter.  first: ignore duplicate entries and take the first in the priors parameter. and: combine duplicate entries via AND logic, dropping covariances.  or: combine duplicate entries via OR logic, dropping covariances.')]
 
     params += [IntParameter(qualifier='maxiter', value=kwargs.get('maxiter', 1e6), limits=[1,1e12], description='passed directly to scipy.optimize.minimize.  Maximum allowed number of iterations.')]
-    params += [IntParameter(qualifier='maxfev', value=kwargs.get('maxfev', 1e6), limits=[1,1e12], description='passed directly to scipy.optimize.minimize.  Maximum allowed number of function evaluations (forward models).')]
     params += [BoolParameter(qualifier='adaptive', value=kwargs.get('adaptive', False), description='passed directly to scipy.optimize.minimize.  Adapt algorithm parameters to dimensionality of problem. Useful for high-dimensional minimization')]
 
     params += [FloatParameter(qualifier='xatol', value=kwargs.get('xatol', 1e-4), limits=[1e-12,None], description='passed directly to scipy.optimize.minimize.  Absolute error in xopt (input parameters) between iterations that is acceptable for convergence.')]
@@ -141,9 +137,6 @@ def powell(**kwargs):
         or: combine duplicate entries via OR logic, dropping covariances.
     * `maxiter` (int, optional, default=1e6): passed directly to
         scipy.optimize.minimize.  Maximum allowed number of iterations.
-    * `maxfev` (int, optional, default=1e6): passed directly to
-        scipy.optimize.minimize.  Maximum allowed number of function evaluations
-        (forward models).
     * `xtol` (float, optional, default=1e-4): passed directly to
         scipy.optimize.minimize.  Relative error in xopt (input parameters)
         between iterations that is acceptable for convergence.
@@ -169,7 +162,6 @@ def powell(**kwargs):
     params += [ChoiceParameter(visible_if='priors:<notempty>', qualifier='priors_combine', value=kwargs.get('priors_combine', 'and'), choices=['first', 'and', 'or'], description='Method to use to combine multiple distributions from priors for the same parameter.  irst: ignore duplicate entries and take the first in the priors parameter. and: combine duplicate entries via AND logic, dropping covariances.  or: combine duplicate entries via OR logic, dropping covariances.')]
 
     params += [IntParameter(qualifier='maxiter', value=kwargs.get('maxiter', 1e6), limits=[1,1e12], description='passed directly to scipy.optimize.minimize.  Maximum allowed number of iterations.')]
-    params += [IntParameter(qualifier='maxfev', value=kwargs.get('maxfev', 1e6), limits=[1,1e12], description='passed directly to scipy.optimize.minimize.  Maximum allowed number of function evaluations (forward models).')]
 
     params += [FloatParameter(qualifier='xtol', value=kwargs.get('xtol', 1e-4), limits=[1e-12,None], description='passed directly to scipy.optimize.minimize.  Relative error in xopt (input parameters) between iterations that is acceptable for convergence.')]
     params += [FloatParameter(qualifier='ftol', value=kwargs.get('ftol', 1e-4), limits=[1e-12,None], description='passed directly to scipy.optimize.minimize.  Relative error in func(xopt) (lnlikelihood + lnp(priors)) between iterations that is acceptable for convergence.')]
