@@ -6169,13 +6169,13 @@ static PyObject *mesh_visibility([[maybe_unused]] PyObject *self, PyObject *args
     switch (fnv1a_32::hash(s)) {
 
       case "boolean"_hash32:
-        // N - normal of traingles
+        // N - normal of triangles
         triangle_mesh_visibility_boolean(view, V, T, N, M, W, H);
         break;
 
       case "linear"_hash32:
         // N - normals at vertices
-        triangle_mesh_visibility_linear(view, V, T, N, M, W, H);
+        triangle_mesh_visibility_linear_ver2(view, V, T, N, M, W, H);
         break;
     }
   }

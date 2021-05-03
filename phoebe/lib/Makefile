@@ -19,4 +19,7 @@ $(LIBP).so: $(LIBP).cpp *.h
 	$(CXX)  -fPIC -shared $(LIBP).cpp -o $(LIBP).so $(CXXFLAGS) $(LDFLAGS)
 
 
+.PHONY: clean
+clean:
+	rm -f $(LIBP).so
 

@@ -451,14 +451,12 @@ void triangle_mesh_rough_visibility(
   delete [] Vst;
 }
 
-
-
 /*
   Determine rough visibility of triangles in a triangulated surfaces in direction v.
   The surface can be a union of closed surfaces.  The algorithm is the sequence of
 
     Back-face culling:
-      throwing away all surfaces which n_i v_i < 0
+      throwing away all surfaces which n_{triangle, i} v_i < 0
       only working for closed surfaces
 
     Painter's algorithm:
@@ -759,11 +757,110 @@ void triangle_mesh_rough_visibility_elegant(
 }
 
 
+template<class T, class F>
+void trangle_mesh_get_horizon(
+  std::vector<F> & Tv,
+  std::vector<T3Dpoint<int>> & Tr,
+  std::vector<std::vector<int>> & H)
+{
+
+  H.clear();
+
+  // ordered pair
+  struct Tedge {
+    int i, j;
+
+    Tedge();
+
+    Tedge(const int & ii, const int &jj): i(ii), j(jj) {
+      if (i > j) {
+        int k = i;
+        i = j;
+        j = k;
+      }
+    }
+
+    bool operator == (const Tedge & rhs) const {
+      return i == rhs.i && j == rhs.j;
+    }
+
+    bool operator != (const Tedge & rhs) const {
+      return i != rhs.i && j != rhs.j;
+    }
+
+    bool operator < (const Tedge & rhs) const {
+      return  i < rhs.i || (i == rhs.i && j < rhs.j);
+    }
+  };
+
+  // collection of edges
+  std::map<Tedge, int> collected_edges;
+  for (auto && v : Tv) {  // loop over visible triangles
+    int *t = Tr[v.index].data;
+    ++collected_edges[Tedge(t[0],t[1])];
+    ++collected_edges[Tedge(t[1],t[2])];
+    ++collected_edges[Tedge(t[2],t[0])];
+  }
+
+  // extract only the edges that are repeated once
+  std::list<Tedge> uniq_edges;
+  for (auto && e : collected_edges)
+    if (e.second == 1)
+      uniq_edges.push_back(e.first);
+
+
+  // connect the edges
+  while (uniq_edges.size() != 0) {
+
+    std::list<int> h;
+
+    auto & e = uniq_edges.front();
+
+    int head, tail;
+    h.push_back(head = e.i);
+    h.push_back(tail = e.j);
+    uniq_edges.pop_front();
+
+    while (uniq_edges.size() != 0) {
+
+      bool found = false;
+
+      auto it = uniq_edges.begin(), it_end = uniq_edges.end();
+
+      do {
+
+        if (it->i == tail) {
+          h.push_back(tail = it->j);
+          found = true;
+        } else if (it->j == tail) {
+          h.push_back(tail = it->i);
+          found = true;
+        } else if (it->i == head) {
+          h.push_front(head = it->j);
+          found = true;
+        } else if (it->j == head) {
+          h.push_front(head = it->i);
+          found = true;
+        } else ++it;
+
+      }  while (!found && it != it_end);
+
+      if (found)
+        uniq_edges.erase(it);
+      else
+        break;
+    }
+
+    H.emplace_back(h.begin(), h.end());
+  }
+}
+
 /*
   Determining the visibility ratio of triangles in a triangulated surfaces.
   It can be a union of closed surfaces.  The algorithm is the sequence of
 
-    * Back-face culling (only working for closed surfaces)
+    * Back-face culling:
+         taking only n_{triangle}.view > 0 (only working for closed surfaces)
     * Painter's algorithm (depth ordering of triangles)
     * Determining the ratio of visible surface of triangles by
       polygon algebra provided by a polygon clipping library. Its worst
@@ -830,10 +927,10 @@ void triangle_mesh_visibility_boolean(
   // if ith vertex was projected onto screen bases Vst[i] = true
   std::vector<bool> Vst(Nv, false);
 
-  // Prepare triangle to be sorted according to depth
+  // For sorting triangles according to depth (z)
   struct Tt {
 
-    int index;              // triangle index
+    int index;         // triangle index
 
     T z;               // maximal depth of the triangle
 
@@ -845,6 +942,7 @@ void triangle_mesh_visibility_boolean(
 
     bool operator < (const Tt & rhs) const { return z > rhs.z; }
   };
+
 
   std::vector<int> Vi;  // indices of visual points
   std::vector<Tt> Tv;   // vector of potentially visible triangles
@@ -900,9 +998,14 @@ void triangle_mesh_visibility_boolean(
   //
   // Lets do eclipsing
   //
-  if (M) {
+  if (M) {                  // if we calc fractions of visible part of triangle
     M->clear();
-    M->resize(Nt, 0);
+    M->resize(Nt, 0);                  // default ratio is 0
+  }
+
+  if (W) {                  // if we generate weights of visible areas
+    W->clear();
+    W->resize(Nt, T3Dpoint<T>(0,0,0)); // default is hidden
   }
 
   if (Tv.size() == 0) {
@@ -953,11 +1056,6 @@ void triangle_mesh_visibility_boolean(
 
     ClipperLib::Path s(3);    // triangle
 
-    if (W) {                  // if we generate weights of visible areas
-      W->clear();
-      W->resize(Nt, T3Dpoint<T>(0,0,0)); // default is hidden
-    }
-
     auto it = Tv.begin(), it_end = Tv.end();
 
     //
@@ -973,8 +1071,8 @@ void triangle_mesh_visibility_boolean(
 
     S.push_back(s);
 
+    // triangle nearest to observer is fully visible
     if (M) (*M)[it->index] = 1;
-
     if (W) (*W)[it->index].fill(1./3);
 
     double r;
@@ -1064,100 +1162,10 @@ void triangle_mesh_visibility_boolean(
   }
 
   //
-  // Calculating the horizon
+  // Calculating the horizon (indepedent from clipping algorithm)
   //
 
-  if (H) {
-
-    // ordered pair
-    struct Tedge {
-      int i, j;
-
-      Tedge();
-
-      Tedge(const int & ii, const int &jj): i(ii), j(jj) {
-        if (i > j) {
-          int k = i;
-          i = j;
-          j = k;
-        }
-      }
-
-      bool operator == (const Tedge & rhs) const {
-        return i == rhs.i && j == rhs.j;
-      }
-
-      bool operator != (const Tedge & rhs) const {
-        return i != rhs.i && j != rhs.j;
-      }
-
-      bool operator < (const Tedge & rhs) const {
-        return  i < rhs.i || (i == rhs.i && j < rhs.j);
-      }
-    };
-
-    // collection of edges
-    std::map<Tedge, int> collected_edges;
-    for (auto && v : Tv) {  // loop over visible triangles
-      int *t = Tr[v.index].data;
-      ++collected_edges[Tedge(t[0],t[1])];
-      ++collected_edges[Tedge(t[1],t[2])];
-      ++collected_edges[Tedge(t[2],t[0])];
-    }
-
-    // extract only the edges that are repeated once
-    std::list<Tedge> uniq_edges;
-    for (auto && e : collected_edges)
-      if (e.second == 1)
-        uniq_edges.push_back(e.first);
-
-
-    // connect the edges
-    while (uniq_edges.size() != 0) {
-
-      std::list<int> h;
-
-      auto & e = uniq_edges.front();
-
-      int head, tail;
-      h.push_back(head = e.i);
-      h.push_back(tail = e.j);
-      uniq_edges.pop_front();
-
-      while (uniq_edges.size() != 0) {
-
-        bool found = false;
-
-        auto it = uniq_edges.begin(), it_end = uniq_edges.end();
-
-        do {
-
-          if (it->i == tail) {
-            h.push_back(tail = it->j);
-            found = true;
-          } else if (it->j == tail) {
-            h.push_back(tail = it->i);
-            found = true;
-          } else if (it->i == head) {
-            h.push_front(head = it->j);
-            found = true;
-          } else if (it->j == head) {
-            h.push_front(head = it->i);
-            found = true;
-          } else ++it;
-
-        }  while (!found && it != it_end);
-
-        if (found)
-          uniq_edges.erase(it);
-        else
-          break;
-
-      }
-
-      H->emplace_back(h.begin(), h.end());
-    }
-  }
+  if (H) trangle_mesh_get_horizon<T,Tt> (Tv, Tr, *H);
 
   delete [] Vs;
 }
@@ -1173,6 +1181,7 @@ void triangle_mesh_visibility_boolean(
 
   Input:
     mu
+    p - number of negative mu, if p < 0 then calculate it inside
     s0 - vector of 3 points -- triangle
 
   Output:
@@ -1185,12 +1194,15 @@ void triangle_mesh_visibility_boolean(
 template <class T>
 void cut_triangle_based_on_mu(
   T mu[3],
+  int p,
   ClipperLib::Path &s0,
   ClipperLib::Path &s) {
 
   // number of non-negative mu
-  int p = 0;
-  for (int i = 0; i < 3; ++i) if (mu[i] >= 0) ++p;
+  if (p < 0){
+    p = 0;
+    for (int i = 0; i < 3; ++i) if (mu[i] >= 0) ++p;
+  }
 
   // order mu-s so that
   int ind[3] = {0, 1, 2};
@@ -1238,6 +1250,7 @@ void cut_triangle_based_on_mu(
 
   std::cerr << "cut_triangle_based_on_mu::You shouldn't be here!";
 }
+
 /*
   Determining the visibility ratio of triangles in a triangulated surfaces based
   on linearly interpolated
@@ -1245,7 +1258,9 @@ void cut_triangle_based_on_mu(
 
   The surface can be a union of closed surfaces.  The algorithm is the sequence of
 
-    * Back-face culling (only working for closed surfaces)
+    * Back-face culling with condition
+          n(vertices_i)*view >= 0 for at last one i
+      (only working for closed surfaces)
     * Painter's algorithm (depth ordering of triangles) using
       mu-s at vertices
 
@@ -1282,7 +1297,7 @@ void cut_triangle_based_on_mu(
 */
 
 template <class T>
-void triangle_mesh_visibility_linear(
+void triangle_mesh_visibility_linear_ver1(
   double view[3],
   std::vector<T3Dpoint<T>> & V,
   std::vector<T3Dpoint<int>> & Tr,
@@ -1318,21 +1333,20 @@ void triangle_mesh_visibility_linear(
   // if ith vertex was projected onto screen bases Vst[i] = true
   std::vector<bool> Vst(Nv, false);
 
-  // Prepare triangle to be sorted according to depth
+  // For sorting triangles according to depth (z) with additional information about mu
   struct Tt {
 
     int index;         // triangle index
 
-    T z,               // maximal depth of the triangle
-      mu[3];           // projection of vertex-normals on direction of the observer
+    T z, mu[3];        // maximal depth of the triangle and projection
 
     Tt(){}
 
     Tt(const struct Tt & t): index(t.index), z(t.z) {
-     for (int i = 0; i < 3; ++i) mu[i] = t.mu[i];
+      for (int i = 0; i < 3; ++i) this->mu[i] = t.mu[i];
     }
 
-    Tt(const int& index, T mu[3], const T &z) : index(index), z(z) {
+    Tt(const int& index, const T mu[3], const T &z):index(index), z(z) {
       for (int i = 0; i < 3; ++i) this->mu[i] = mu[i];
     }
 
@@ -1357,12 +1371,11 @@ void triangle_mesh_visibility_linear(
 
     for (int i = 0; i < Nt; ++i){
 
-
-      // indices of vectices used in the ith triangle
+      // indices of vertices used in the ith triangle
       t = Tr[i].data;
 
       for (int j = 0; j < 3; ++j) {
-        n = N[t[j]].data;               // normal of the t[j]th vertex
+        n = N[t[j]].data;               // normal at the t[j]th vertex
         mu[j] = n[0]*view[0] + n[1]*view[1] + n[2]*view[2];
       }
 
@@ -1401,6 +1414,11 @@ void triangle_mesh_visibility_linear(
   if (M) {
     M->clear();
     M->resize(Nt, 0);
+  }
+
+  if (W) {                    // if we generate weights of visible areas
+    W->clear();
+    W->resize(Nt, T3Dpoint<T>(0,0,0)); // default is hidden
   }
 
   if (Tv.size() == 0) {
@@ -1451,11 +1469,6 @@ void triangle_mesh_visibility_linear(
 
     ClipperLib::Path s, s0(3);  // triangle
 
-    if (W) {                    // if we generate weights of visible areas
-      W->clear();
-      W->resize(Nt, T3Dpoint<T>(0,0,0)); // default is hidden
-    }
-
     auto it = Tv.begin(), it_end = Tv.end();
 
     //
@@ -1472,8 +1485,8 @@ void triangle_mesh_visibility_linear(
     // whole triangle is added
     S.push_back(s0);
 
+    // first triangle if fully visible
     if (M) (*M)[it->index] = 1;
-
     if (W) (*W)[it->index].fill(1./3);
 
     //
@@ -1498,7 +1511,7 @@ void triangle_mesh_visibility_linear(
         c.AddPath(s0, ClipperLib::ptSubject, true);
       } else {
         // cutting triangle as some vertices are not visible
-        cut_triangle_based_on_mu(it->mu, s0, s);
+        cut_triangle_based_on_mu(it->mu, -1, s0, s);
         c.AddPath(s, ClipperLib::ptSubject, true);
       }
 
@@ -1556,6 +1569,7 @@ void triangle_mesh_visibility_linear(
           x[1] = (A[0][0]*b[1] - A[1][0]*b[0])/det;
 
           // storing the results
+
           (*W)[it->index].assign(1-x[0]-x[1], x[0], x[1]);
         }
       }
@@ -1579,101 +1593,414 @@ void triangle_mesh_visibility_linear(
     }
   }
 
-  //
   // Calculating the horizon of potentially visible triangles
+  if (H) trangle_mesh_get_horizon<T, Tt>(Tv, Tr, *H);
+
+  delete [] Vs;
+}
+
+
+/*
+  Determining the visibility ratio of triangles in a triangulated surfaces based
+  on linearly interpolated
+
+    mu(r) = n(r)*view
+
+  with n(r) known in vertices and thereby emulating curved surface.
+
+  The surface can be a union of closed surfaces. The algorithm is the sequence of
+
+    * Back-face culling of  triangles only working for closed surfaces)
+    * Painter's algorithm (depth ordering of triangles) using
+      mu-s at vertices
+
+    * Determining the ratio of visible surface of triangles by
+      polygon algebra provided by a polygon clipping library. Its worst
+      case relative precision is 1e-9.
+
+    * Adding triangles that are not eclipsed by should be visible in the mu-linear
+      approximation. Their average mu is positive.
+
+      Before a triangle is given in the shadow we cut away parts with
+      negative mu which is linearly interpolated over the surface of the
+      triangle.
+
+  Comment:
+
+  This algorithm has O(n^1.5) complexity, where n number of forward
+  facing triangles, but it has due to introduction of polygon algebra
+  quite an overhead.
+
+  Input:
+    view[3] - direction of the observer
+
+    V - vector of vertices used in triangles
+    Tr - vector of triangles defined by indices vertices
+    N - vector of normals at vertices
+
+  Output: optional
+    M - vector of the fractions of triangle that is visible
+    W - weights for averaging over visible area of triangles
+    H - horizon given in indices of vertices
+
+  Ref:
+  * http://web.cecs.pdx.edu/~karlaf/CS447_Slides/Set5.pdf
+  * http://www.tutorialspoint.com/computer_graphics/visible_surface_detection.htm
+  * http://www.angusj.com/delphi/clipper.php
+*/
+
+template <class T>
+void triangle_mesh_visibility_linear_ver2(
+  double view[3],
+  std::vector<T3Dpoint<T>> & V,
+  std::vector<T3Dpoint<int>> & Tr,
+  std::vector<T3Dpoint<T>> & N,
+  std::vector<T> *M = 0,
+  std::vector<T3Dpoint<T>> *W = 0,
+  std::vector<std::vector<int>> *H = 0)
+{
+
+  if (M == 0 && W == 0 && H == 0) return;
+
+  //
+  // Defining the on-screen vector basis (t1,t2,view)
   //
 
-  if (H) {
+  T b[3][3];
 
-    // ordered pair
-    struct Tedge {
-      int i, j;
+  create_basis(view, b);
 
-      Tedge();
+  //
+  // Back-face culling and storing all potentially visible triangles
+  //
 
-      Tedge(const int & ii, const int &jj): i(ii), j(jj) {
-        if (i > j) {
-          int k = i;
-          i = j;
-          j = k;
-        }
-      }
+  int
+    Nt = Tr.size(),
+    Nv = V.size();
 
-      bool operator == (const Tedge & rhs) const {
-        return i == rhs.i && j == rhs.j;
-      }
+  // Sequence vertices in the on-screen basis
+  // Vs = (x_0, y_0, z_0, x_1, y_1, z_1, ..., x_{Nv-1}, y_{Nv-1}, z_{Nv-1})
+  T *Vs = new T [3*Nv];
 
-      bool operator != (const Tedge & rhs) const {
-        return i != rhs.i && j != rhs.j;
-      }
+  // If on-screen coordinates have been calculated
+  // if ith vertex was projected onto screen bases Vst[i] = true
+  std::vector<bool> Vst(Nv, false);
 
-      bool operator < (const Tedge & rhs) const {
-        return  i < rhs.i || (i == rhs.i && j < rhs.j);
-      }
-    };
+  // For sorting triangles according to depth (z) with additional information about mu
+  struct Tt {
 
-    // collection of edges
-    std::map<Tedge, int> collected_edges;
-    for (auto && v : Tv) {  // loop over visible triangles
-      int *t = Tr[v.index].data;
-      ++collected_edges[Tedge(t[0],t[1])];
-      ++collected_edges[Tedge(t[1],t[2])];
-      ++collected_edges[Tedge(t[2],t[0])];
+    int index;         // triangle index
+
+    T z, mu[3];        // maximal depth of the triangle and projection
+
+    Tt(){}
+
+    Tt(const struct Tt & t): index(t.index), z(t.z) {
+      for (int i = 0; i < 3; ++i) this->mu[i] = t.mu[i];
     }
 
-    // extract only the edges that are repeated once
-    std::list<Tedge> uniq_edges;
-    for (auto && e : collected_edges)
-      if (e.second == 1)
-        uniq_edges.push_back(e.first);
+    Tt(const int& index, const T mu[3], const T &z):index(index), z(z) {
+      for (int i = 0; i < 3; ++i) this->mu[i] = mu[i];
+    }
+
+    bool operator < (const Tt & rhs) const { return z > rhs.z; }
+  };
 
 
-    // connect the edges
-    while (uniq_edges.size() != 0) {
+  std::vector<int> Vi;  // indices of visual points
+  std::vector<Tt> Tv;   // vector of potentially visible triangles
 
-      std::list<int> h;
+  //  Bounding box of all triangles on the screen
+  T bb[4] = {
+      +std::numeric_limits<T>::max(),
+      -std::numeric_limits<T>::max(),
+      +std::numeric_limits<T>::max(),
+      -std::numeric_limits<T>::max()
+    }; // {minX, maxX, minY, maxY}
 
-      auto & e = uniq_edges.front();
+  {
+    int k, *t;
 
-      int head, tail;
-      h.push_back(head = e.i);
-      h.push_back(tail = e.j);
-      uniq_edges.pop_front();
+    T *n, *p, *v[3], mu[3];
 
-      while (uniq_edges.size() != 0) {
+    for (int i = 0; i < Nt; ++i){
 
-        bool found = false;
 
-        auto it = uniq_edges.begin(), it_end = uniq_edges.end();
+      // indices of vertices used in the ith triangle
+      t = Tr[i].data;
 
-        do {
-
-          if (it->i == tail) {
-            h.push_back(tail = it->j);
-            found = true;
-          } else if (it->j == tail) {
-            h.push_back(tail = it->i);
-            found = true;
-          } else if (it->i == head) {
-            h.push_front(head = it->j);
-            found = true;
-          } else if (it->j == head) {
-            h.push_front(head = it->i);
-            found = true;
-          } else ++it;
-
-        }  while (!found && it != it_end);
-
-        if (found)
-          uniq_edges.erase(it);
-        else
-          break;
-
+      for (int j = 0; j < 3; ++j) {
+        n = N[t[j]].data;               // normal at the t[j]th vertex
+        mu[j] = n[0]*view[0] + n[1]*view[1] + n[2]*view[2];
       }
 
-      H->emplace_back(h.begin(), h.end());
+      // if at least one vertex is visible
+      if (mu[0] >= 0 || mu[1] >= 0 || mu[2] >= 0) {
+
+        // calculate projection onto screen
+        for (int j = 0; j < 3; ++j) {
+
+          v[j] = p = Vs + 3*(k = t[j]);
+
+          if (!Vst[k]) {  // projecting on the screens
+
+            trans_basis(V[k].data, p, b);
+
+            if (bb[0] > p[0]) bb[0] = p[0]; // Xmin
+            if (bb[1] < p[0]) bb[1] = p[0]; // Xmax
+            if (bb[2] > p[1]) bb[2] = p[1]; // Ymin
+            if (bb[3] < p[1]) bb[3] = p[1]; // Ymax
+
+            Vst[k] = true;
+            Vi.push_back(k);
+          }
+        }
+
+        Tv.emplace_back(i, mu, utils::max3(v[0][2], v[1][2], v[2][2]));
+      }
     }
   }
+
+  Vst.clear();
+
+  //
+  // Lets do eclipsing
+  //
+  if (M) {
+    M->clear();
+    M->resize(Nt, 0);
+  }
+
+  if (W) {                    // if we generate weights of visible areas
+    W->clear();
+    W->resize(Nt, T3Dpoint<T>(0,0,0)); // default is hidden
+  }
+
+  if (Tv.size() == 0) {
+    delete [] Vs;
+    return;
+  }
+
+  //
+  // Sort potentially visible triangles w.r.t. to max distance
+  // in direction of observation
+  //
+
+  std::sort(Tv.begin(), Tv.end());
+
+  //
+  // Rescaling parameters
+  //
+  T scale = ClipperLib::hiRange,
+    fac[4] = {
+      2*scale/(bb[1] - bb[0]), (bb[0] + bb[1])/2,
+      2*scale/(bb[3] - bb[2]), (bb[2] + bb[3])/2
+    };
+
+  //
+  // Points on the screen in integers
+  //
+  std::vector<ClipperLib::IntPoint> VsI(Nv);
+
+  {
+    T *p;
+    for (auto && i : Vi) {
+      p = Vs + 3*i;
+      VsI[i].X = fac[0]*(p[0] - fac[1]);
+      VsI[i].Y = fac[2]*(p[1] - fac[3]);
+    }
+  }
+
+  //
+  //  Perform the eclipsing
+  //
+  if (M || W) {
+
+    int *t;
+
+    ClipperLib::Clipper c;      // clipping engine
+
+    ClipperLib::Paths S, P;     // shadow (image on the screen) and remainder
+
+    ClipperLib::Path s, s0(3);  // triangle
+
+    auto it = Tv.begin(), it_end = Tv.end();
+
+    //
+    //  Process the first triangle
+    //
+
+    // add the first triangle to the shadow
+    t = Tr[it->index].data;
+
+    // get vertices of the base triangle
+    for (int i = 0; i < 3; ++i) s0[i] = VsI[t[i]];
+
+    // we assume that the first triangle is surely visible
+    // whole triangle is added
+    S.push_back(s0);
+
+    // the front triangle is visible
+    if (M) (*M)[it->index] = 1;
+    if (W) (*W)[it->index].fill(1./3);
+
+    //
+    // Loop over visible triangles
+    //
+
+    int nm;
+
+    double r;
+
+    while (++it != it_end) {
+
+      // Loading polygons
+      c.Clear();
+
+      t = Tr[it->index].data;
+
+      // get vertices of the base triangle
+      for (int i = 0; i < 3; ++i) s0[i] = VsI[t[i]];
+
+      // counting possitive mus
+      nm = 0; for (int i = 0; i < 3; ++i)  if (it->mu[i] >= 0) ++nm;
+
+      // determine the initial polygon
+      if (nm == 3) {
+        // whole triangle is added
+        c.AddPath(s0, ClipperLib::ptSubject, true);
+      } else {
+        // cutting triangle as some vertices are not visible
+        cut_triangle_based_on_mu(it->mu, nm, s0, s);
+        c.AddPath(s, ClipperLib::ptSubject, true);
+      }
+
+      // calculate the shadow S
+      c.AddPaths(S, ClipperLib::ptClip, true);
+
+      // calculate remainder: P = T - S
+      // P is the visible part of T
+      c.Execute(ClipperLib::ctDifference, P, ClipperLib::pftNonZero, ClipperLib::pftNonZero);
+
+      r = ClipperLib::Area(P);
+
+      // if it is perfectly hidden don't do union
+      // detemine ratio of visibility
+      // due to round off errors it can be slightly bigger than 1
+
+      if (r == 0) { // triangle is geometrically hidden
+
+        // if nm == 3 is not visible then it is surely eclipsed by a body
+        // for now we will assumed that all nm<3 are visible !!!!!
+        if (nm < 3) {
+
+          r = std::abs(ClipperLib::Area(s))/std::abs(ClipperLib::Area(s0));
+
+          if (M) (*M)[it->index] = r;
+
+          if (W) {
+
+            // calculate barycenter of the polygon == centroids
+            // http://stackoverflow.com/questions/2792443/finding-the-centroid-of-a-polygon
+            ClipperLib::DoublePoint u;
+
+            ClipperLib::PolygonCentroid(s, u);
+
+            // transform in barycentric coordinates (x[0],x[1])
+            // solving
+            //  <r> = s0[0] + x[0]*(s0[1] - s0[0]) + x[1]*(s0[2] - s0[0])
+            // equivalent to 2x2 lin system
+            //   A x = b = <r> - s0[0]
+            // note: triangle is stored in s
+
+            int i, j;
+
+            T x[2], A[2][2], b[2], det;
+
+            // define matrix A and vector b
+            for (i = 0; i < 2; ++i) {
+              b[i] = u[i] - s0[0][i];
+              for (j = 0; j < 2; ++j)  A[i][j] = s0[j+1][i] - s0[0][i];
+            }
+            det = A[0][0]*A[1][1] - A[0][1]*A[1][0];
+
+            // solve 2x2 eq. A x = b
+            x[0] = (A[1][1]*b[0] - A[0][1]*b[1])/det;
+            x[1] = (A[0][0]*b[1] - A[1][0]*b[0])/det;
+
+            // storing the results
+            (*W)[it->index].assign(1-x[0]-x[1], x[0], x[1]);
+          }
+        }
+
+      } else {    // triangle is geometrically only partially visible,
+                  // probably is eclipsed by objects
+
+        r /= std::abs(ClipperLib::Area(s0));
+
+        if (M) (*M)[it->index] = r;
+
+        if (W) {
+
+          if (r == 1) {              // triangle if fully visible
+              (*W)[it->index].fill(1./3);
+          } else  {                  // triangle is partially hidden or initially cut
+
+            // calculate barycenter of the polygon == centroids
+            // http://stackoverflow.com/questions/2792443/finding-the-centroid-of-a-polygon
+            ClipperLib::DoublePoint u;
+
+            ClipperLib::PolygonCentroid(P, u);
+
+            // transform in barycentric coordinates (x[0],x[1])
+            // solving
+            //  <r> = s0[0] + x[0]*(s0[1] - s0[0]) + x[1]*(s0[2] - s0[0])
+            // equivalent to 2x2 lin system
+            //   A x = b = <r> - s0[0]
+            // note: triangle is stored in s
+
+            int i, j;
+
+            T x[2], A[2][2], b[2], det;
+
+            // define matrix A and vector b
+            for (i = 0; i < 2; ++i) {
+              b[i] = u[i] - s0[0][i];
+              for (j = 0; j < 2; ++j)  A[i][j] = s0[j+1][i] - s0[0][i];
+            }
+            det = A[0][0]*A[1][1] - A[0][1]*A[1][0];
+
+            // solve 2x2 eq. A x = b
+            x[0] = (A[1][1]*b[0] - A[0][1]*b[1])/det;
+            x[1] = (A[0][0]*b[1] - A[1][0]*b[0])/det;
+
+            // storing the results
+            (*W)[it->index].assign(1-x[0]-x[1], x[0], x[1]);
+          }
+        }
+
+        // calculate the union: S = S U T
+        // S is the new "shadow" aka picture at the screen
+        c.Execute(ClipperLib::ctUnion, S, ClipperLib::pftNonZero, ClipperLib::pftNonZero);
+
+        // clean the shadow
+        ClipperLib::CleanPolygonsDefault(S);
+
+        // erase path of zero size
+        {
+          auto jt = S.begin();
+          while (jt != S.end()) {
+            if (jt->size() == 0)
+              jt = S.erase(jt);
+            else ++jt;
+          }
+        }
+      }
+    }
+  }
+
+  // Calculating the horizon of potentially visible triangles
+  if (H) trangle_mesh_get_horizon<T, Tt>(Tv, Tr, *H);
 
   delete [] Vs;
 }
