@@ -35,7 +35,7 @@ from phoebe.parameters import constraint as _constraint
 from phoebe.parameters import feature as _feature
 from phoebe.parameters import figure as _figure
 from phoebe.parameters import server as _server
-from phoebe.parameters.parameters import _uniqueid, _clientid, _return_ps, _extract_index_from_string, _corner_twig, _corner_label
+from phoebe.parameters.parameters import _uniqueid, _clientid, _return_ps, _extract_index_from_string, _corner_twig, _corner_label, _cached_crimpl_servers
 from phoebe.backend import backends, mesh
 from phoebe.backend import universe as _universe
 from phoebe.solverbackends import solverbackends as _solverbackends
@@ -10947,7 +10947,7 @@ class Bundle(ParameterSet):
             (see <phoebe.frontend.bundle.Bundle.parse_solver_times>) unless
             `times` is also passed.  `compute` must be None (not passed) or an
             error will be raised.
-        * `detach` (bool, optional, default=False, EXPERIMENTAL):
+        * `detach` (bool, optional, default=False):
             whether to detach from the computation run,
             or wait for computations to complete.  If detach is True, see
             <phoebe.frontend.bundle.Bundle.get_model> and
@@ -11113,8 +11113,14 @@ class Bundle(ParameterSet):
                 server_options['conda_env'] = False
             use_mpi = server_options.pop('use_mpi')
             install_deps = server_options.pop('install_deps')
-            s = _crimpl.load_server(crimpl_name) if crimpl_name else _crimpl.LocalThreadServer('./phoebe_crimpl_jobs')
-
+            if crimpl_name:
+                if crimpl_name in _cached_crimpl_servers.keys():
+                    s = _cached_crimpl_servers.get(crimpl_name)
+                else:
+                    s = _crimpl.load_server(crimpl_name)
+                    _cached_crimpl_servers[crimpl_name] = s
+            else:
+                s = _crimpl.LocalThreadServer('./phoebe_crimpl_jobs')
             if install_deps:
                 deps_pip, deps_other = self.dependencies(compute=compute)
                 if len(deps_other):
@@ -12651,7 +12657,7 @@ class Bundle(ParameterSet):
             of `overwrite` (see below).   See also
             <phoebe.frontend.bundle.Bundle.rename_solution> to rename a solution after
             creation.
-        * `detach` (bool, optional, default=False, EXPERIMENTAL):
+        * `detach` (bool, optional, default=False):
             whether to detach from the solver run,
             or wait for computations to complete.  If detach is True, see
             <phoebe.frontend.bundle.Bundle.get_solution> and
@@ -12815,7 +12821,14 @@ class Bundle(ParameterSet):
                 server_options['conda_env'] = False
             use_mpi = server_options.pop('use_mpi')
             install_deps = server_options.pop('install_deps')
-            s = _crimpl.load_server(crimpl_name) if crimpl_name else _crimpl.LocalThreadServer('./phoebe_crimpl_jobs')
+            if crimpl_name:
+                if crimpl_name in _cached_crimpl_servers.keys():
+                    s = _cached_crimpl_servers.get(crimpl_name)
+                else:
+                    s = _crimpl.load_server(crimpl_name)
+                    _cached_crimpl_servers[crimpl_name] = s
+            else:
+                s = _crimpl.LocalThreadServer('./phoebe_crimpl_jobs')
 
             if install_deps:
                 deps_pip, deps_other = self.dependencies(solver=solver, compute=self.get_value(qualifier='compute', solver=solver, default=[], **_skip_filter_checks))

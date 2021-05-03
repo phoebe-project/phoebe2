@@ -37,5 +37,9 @@ def load_server(name):
         raise ValueError("could not find configuration at {}".format(filename))
     with open(filename, 'r') as f:
         d = _json.load(f)
-    classname = d.pop('Class')
+
+    if 'crimpl' not in d.keys():
+        raise ValueError("input configuration missing 'crimpl' entry")
+    classname = d.pop('crimpl')
+    version = d.pop('crimpl.version', None)
     return globals().get(classname)(**d)

@@ -341,6 +341,8 @@ def _singular_to_plural_get(k):
 def _plural_to_singular_get(k):
     return _plural_to_singular.get(k, k)
 
+_cached_crimpl_servers = {}
+
 def _return_ps(b, ps):
     """set the _filter of the ps to be the uniqueids and return"""
     if isinstance(ps, list):
@@ -12033,7 +12035,14 @@ class JobParameter(Parameter):
                 crimpl_name = self._bundle.get_value(qualifier='crimpl_name', server=self._server, **_skip_filter_checks)
             else:
                 crimpl_name = ''
-            self._cached_crimpl_server = _crimpl.load_server(crimpl_name) if crimpl_name else _crimpl.LocalThreadServer('./phoebe_crimpl_jobs')
+            if crimpl_name in _cached_crimpl_servers.keys():
+                self._cached_crimpl_server = _cached_crimpl_servers.get(crimpl_name)
+            else:
+                crimpl_server = _crimpl.load_server(crimpl_name) if crimpl_name else _crimpl.LocalThreadServer('./phoebe_crimpl_jobs')
+                self._cached_crimpl_server = crimpl_server
+                if crimpl_name:
+                    _cached_crimpl_servers[crimpl_name] = crimpl_server
+
         return self._cached_crimpl_server
 
     @property

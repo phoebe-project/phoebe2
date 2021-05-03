@@ -636,6 +636,9 @@ class AWSEC2Job(_common.ServerJob):
         if self.state != 'running' and not trial_run:
             self.start() # wait is always True
 
+        if "crimpl_submit_script.sh" in self.ls:
+            raise ValueError("job already submitted.  Create a new job or call resubmit_job")
+
         cmds = self.server._submit_script_cmds(script, files, ignore_files,
                                                use_slurm=False,
                                                directory=self.remote_directory,
@@ -675,9 +678,8 @@ class AWSEC2Job(_common.ServerJob):
         if self.state != 'running':
             self.start() # wait is always True
 
-        # TODO: discriminate between run_script and submit_script filenames and don't allow multiple calls to submit_script
         self.server._run_server_cmd("cd {directory}; nohup bash {remote_script} &".format(directory=self.remote_directory,
-                                                                                          remote_script='crimpl_script.sh'))
+                                                                                          remote_script='crimpl_submit_script.sh'))
 
 
     def check_output(self, server_path=None, local_path="./",

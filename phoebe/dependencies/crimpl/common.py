@@ -51,18 +51,6 @@ class Server(object):
             return _os.path.join("~", self._directory)
         return self._directory
 
-    # def _run_server_cmd(self, cmd, exportpath=None):
-    #     if exportpath is None:
-    #         exportpath = 'conda' in cmd or 'crimpl_script.sh' in cmd
-    #
-    #     if exportpath:
-    #         ssh_cmd = self.ssh_cmd.format(cmd)
-    #     else:
-    #         ssh_cmd = "{} \"{}\"".format(self._ssh_cmd, cmd)
-    #     # ssh_cmd = self.ssh_cmd+" \'export PATH=\"{directory}/crimpl-bin:$PATH\"; {cmd}\'".format(directory=self.directory.replace("~", "$HOME"), cmd=cmd)
-    #     # ssh_cmd = self.ssh_cmd+" \'{cmd}\'".format(directory=self.directory.replace("~", "$HOME"), cmd=cmd)
-    #     return _run_cmd(ssh_cmd)
-
     @property
     def existing_jobs(self):
         """
@@ -353,7 +341,8 @@ class Server(object):
 
 
         # TODO: use tmp file instead
-        f = open('crimpl_script.sh', 'w')
+        script_fname = 'crimpl_submit_script.sh' if use_slurm or use_nohup else 'crimpl_run_script.sh'
+        f = open(script_fname, 'w')
         if not use_slurm:
             f.write("echo \'starting\' > crimpl-job.status\n")
             if conda_env is not False:
@@ -376,13 +365,13 @@ class Server(object):
             logenv_cmd = self.ssh_cmd.format("echo \'{}\' > {}".format(conda_env, _os.path.join(directory, "crimpl-conda-environment")))
 
         # TODO: use job subdirectory for server_path
-        scp_cmd = self.scp_cmd_to.format(local_path=" ".join(["crimpl_script.sh"]+files), server_path=directory+"/")
+        scp_cmd = self.scp_cmd_to.format(local_path=" ".join([script_fname]+files), server_path=directory+"/")
 
         if use_slurm:
-            remote_script = _os.path.join(directory, _os.path.basename("crimpl_script.sh"))
+            remote_script = _os.path.join(directory, _os.path.basename(script_fname))
             cmd = self.ssh_cmd.format("sbatch {remote_script}".format(remote_script=remote_script))
         else:
-            remote_script = "./crimpl_script.sh"
+            remote_script = "./"+script_fname
             if use_nohup:
                 cmd = self.ssh_cmd.format("cd {directory}; chmod +x {remote_script}; nohup bash {remote_script} 2>&1 & echo $! > crimpl-nohup.pid".format(directory=directory,
                                                                                                                                                           remote_script=remote_script,
@@ -423,7 +412,8 @@ class Server(object):
         * (dict)
         """
         d = {k: getattr(self, k) for k in self._dict_keys}
-        d['Class'] = self.__class__.__name__
+        d['crimpl'] = self.__class__.__name__
+        d['crimpl.version'] = __version__
         return d
 
     def save(self, name=None, overwrite=False):
@@ -621,7 +611,10 @@ class ServerJob(object):
         ----------
         * (list)
         """
-        response = self.server._run_server_cmd("ls {}/*".format(self.remote_directory))
+        try:
+            response = self.server._run_server_cmd("ls {}/*".format(self.remote_directory))
+        except _subprocess.CalledProcessError:
+            return []
         return [_os.path.basename(f) for f in response.split()]
 
     @property
@@ -744,7 +737,8 @@ class ServerJob(object):
         ----------
         * None
         """
-
+        if isinstance(server_path, str):
+            server_path = [server_path]
 
         if server_path is None:
             server_path = self.output_files
@@ -792,7 +786,7 @@ class SSHServer(Server):
 
     def _run_server_cmd(self, cmd, exportpath=None):
         if exportpath is None:
-            exportpath = 'conda' in cmd or 'crimpl_script.sh' in cmd
+            exportpath = 'conda' in cmd or 'crimpl_submit_script.sh' in cmd or 'crimpl_run_script.sh' in cmd
 
         if exportpath:
             ssh_cmd = self.ssh_cmd.format(cmd)

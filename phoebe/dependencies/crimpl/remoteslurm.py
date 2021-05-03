@@ -346,6 +346,9 @@ class RemoteSlurmJob(_common.ServerJob):
         if nprocs is None:
             nprocs = self.nprocs
 
+        if "crimpl_submit_script.sh" in self.ls:
+            raise ValueError("job already submitted.  Create a new job or call resubmit_job")
+
         cmds = self.server._submit_script_cmds(script, files, ignore_files,
                                                use_slurm=True,
                                                directory=self.remote_directory,
@@ -393,8 +396,7 @@ class RemoteSlurmJob(_common.ServerJob):
         if status not in ['complete', 'failed', 'killed']:
             raise ValueError("cannot resubmit script with job_status='{}'".format(status))
 
-        # TODO: discriminate between run_script and submit_script filenames and don't allow multiple calls to submit_script
-        remote_script = _os.path.join(self.remote_directory, _os.path.basename("crimpl_script.sh"))
+        remote_script = _os.path.join(self.remote_directory, _os.path.basename("crimpl_submit_script.sh"))
         out = self.server._run_server_cmd("sbatch {remote_script}".format(remote_script=remote_script))
         self._slurm_id = out.split(' ')[-1]
 
