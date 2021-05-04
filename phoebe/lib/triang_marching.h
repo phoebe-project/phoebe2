@@ -847,102 +847,317 @@ struct Tmarching: public Tbody {
 
 
   /*
-    Triangulization using marching method of genus 0 closed and surfaces
-    Has
+    Collect all bad points of the polygon front P
+
+    P.size() > 3
+
+  */
+
+  Tbad_pair check_bad_pairs(Tfront_polygon &P, const T &delta2){
+
+    int s;
+
+    T a[3];
+
+    auto
+      it_begin = P.begin(),
+      it_last = P.end() - 1,
+
+      it0  = it_begin,
+      it0_next = it0 + 1,
+      it0_prev = it_last,
+      it0_last = it_last - 2;
+
+    while (1) {
+
+      // checking only those it1 - it0 > 1
+      auto
+        it1 = (it0_next == it_last ? it0_next + 1 : it_begin),
+        it1_next = (it1 == it_last ? it_begin : it1 + 1),
+        it1_prev = (it1 == it_begin ? it_last : it1 - 1),
+
+        // avoiding that the last element of it1 is the neighbour of it0
+        it1_last = (it0 == it_begin ? it_last - 1 : it_last);
+
+      while (1) {
+
+        // are on the side the object
+        if (utils::dot3D(it0->b[2], it1->b[2]) > 0) {
+
+          utils::sub3D(it1->r, it0->r, a);
+
+          // if near enough and looking inside from it and from it1
+          if (utils::norm2(a) < delta2) {
+
+            // check if same side of both edges and determine the side
+            // depending of it_prev -> it -> it_next circle
+            s = split_angle(*it0_prev, *it0, *it0_next, a);
+
+            if (s != 0 &&
+                s*split_angle(*it1_prev, *it1, *it1_next, a) < 0) {
+
+              // create new last front
+              #if defined(DEBUG)
+              std::cerr
+                << "P.size=" << P.size()
+                << " i=" << int(it0 - it_begin)
+                << " j=" << int(it1 - it_begin)
+                << " len=" << int(it1 + 1 - it)
+                << std::endl;
+              #endif
+
+              return Tbad_pair(it0 - it_begin, it1 - it_begin);
+            }
+          }
+        }
+
+        if (it1 == it1_last) break;
+        it1_prev = it1;
+        it1 = it1_next;
+
+        if (it1_next == it_last)
+          it1_next = it_begin;
+        else
+          ++it1_next;
+      }
+
+      if (it0 == it0_last) break;
+      it0_prev = it0;
+      it0 = it0_next++;
+    }
+
+    return Tbad_pair(0, 0);
+  }
+
+
+  /*
+    Collect all bad points between polygon front P and part
+    of the polygon
+  */
+  //#define DEBUG
+  Tbad_pair check_bad_pairs(
+    Tfront_polygon &P,
+    typename Tfront_polygon::iterator & start,
+    typename Tfront_polygon::iterator & end,
+    const T &delta2 ){
+
+    int s;
+
+    T a[3];
+
+    // checking all combinations of (it0, it1)
+    auto
+      it_begin = P.begin(),
+      it_last = P.end() - 1,
+
+      it0 = start,
+      it0_next = (it0 == it_last  ? it_begin : it0 + 1),
+      it0_prev = (it0 == it_begin ? it_last  : it0 - 1),
+      it0_prev_start = it0_prev,
+      it0_last = end - 1;
+
+    while (1) {
+
+      auto
+        it1 = (it0_next == it_last ? it_begin : it0_next + 1),
+        it1_next = (it1 == it_last  ? it_begin : it1 + 1),
+        it1_prev = (it1 == it_begin ? it_last  : it1 - 1),
+
+        // avoid running twice over the [start,end)
+        it1_last = (
+          it0 == start ?
+          (it0_prev_start == it_begin ? it_last : it0_prev_start - 1):
+          it0_prev_start
+        );
+
+      while (1) {
+
+        // are on the side the object
+        if (utils::dot3D(it0->b[2], it1->b[2]) > 0) {
+
+          utils::sub3D(it1->r, it0->r, a);
+
+          // if near enough and looking inside from it and from it1
+          if (utils::norm2(a) < delta2) {
+
+            // check if same side of both edges and determine the side
+            // depending of it_prev -> it -> it_next circle
+            s = split_angle(*it0_prev, *it0, *it0_next, a);
+
+            if (s != 0 && s*split_angle(*it1_prev, *it1, *it1_next, a) < 0) {
+
+              int ind[2] = {
+                static_cast<int>(it0 - it_begin),
+                static_cast<int>(it1 - it_begin)
+              };
+
+              // create new last front
+              #if defined(DEBUG)
+              std::cerr
+                << "P.size=" << P.size()
+                << " i=" << ind[0]
+                << " j=" << ind[1]
+                << " len=" << int(it1 + 1 - it0)
+                << std::endl;
+              #endif
+
+              if (ind[0] < ind[1]) return Tbad_pair(ind[0], ind[1]);
+
+              return Tbad_pair(ind[1], ind[0]);
+            }
+          }
+        }
+
+        if (it1 == it1_last) break;
+
+        it1_prev = it1;
+        it1 = it1_next;
+
+        if (it1_next == it_last)
+          it1_next = it_begin;
+        else
+          ++it1_next;
+      }
+
+      if (it0 == it0_last) break;
+
+      it0_prev = it0;
+      it0 = it0_next;
+
+      if (it0_next == it_last)
+        it0_next = it_begin;
+      else
+        ++it0_next;
+    }
+
+    return Tbad_pair(0, 0);
+  }
+  #if defined(DEBUG)
+  #undef DEBUG
+  #endif
+
+  /*
+    Create the front polygon from central point on the body at point r
+    with gradient g.
+
+
+    Input:
+      init_r - initial point
+      init_g - gradient at inital point
+      init_phi - angle at which we start drawing triangles
+
+    Output:
+      V  - vector of vertices
+      NatV - vector of normals at vertices
+      Tr - vector of triangles (indices of vertices forming triangles)
+      GatV : pointer to vector of gradients at vertices if not 0
+      P - front polygon
+      max_iter - maximal number of iterations in projections
+    return:
+      0 : success
+      1 : failed to converge
+  */
+  bool create_front(
+    const T & delta,
+    T init_r[3],
+    T init_g[3],
+    const T & init_phi,
+    std::vector <T3Dpoint<T>> & V,
+    std::vector <T3Dpoint<T>> & NatV,
+    std::vector <T3Dpoint<int>> & Tr,
+    std::vector<T> * GatV,
+    Tfront_polygon & P,
+    const int & max_iter = 100) {
+
+    int error = 0;
+
+    Tvertex v, vk;
+
+    // construct the vector base
+    create_internal_vertex(init_r, init_g, v, init_phi);
+
+    // add vertex to the set, index 0
+    V.emplace_back(v.r);                  // saving only r
+    if (GatV) GatV->emplace_back(v.norm); // saving g
+    NatV.emplace_back(v.b[2]);            // saving only normal
+
+    T sa[6], ca[6], qk[3], u[3];
+
+    utils::sincos_array(5, utils::m_pi3, sa, ca, delta);
+
+    for (int k = 0; k < 6 && error == 0; ++k){
+
+      for (int i = 0; i < 3; ++i)
+        qk[i] = v.r[i] + (u[i] = ca[k]*v.b[0][i] + sa[k]*v.b[1][i]);
+
+      if (!slide_over_potential(v.r, v.b[2], u, delta, vk, max_iter) &&
+          !project_onto_potential(qk, vk, max_iter, v.b[2])){
+        error = 1;
+      }
+      // store points into initial front
+      vk.index = k + 1;  // = V.size();
+      vk.omega_changed = true;
+      P.push_back(vk);
+
+      V.emplace_back(vk.r);                     // saving only r
+      if (GatV) GatV->emplace_back(vk.norm);    // saving norm
+      NatV.emplace_back(vk.b[2]);               // saving only normal
+    }
+
+    //
+    // Creating initial hexagon -- triangle faces in Tr
+    //
+    for (int k = 0; k < 5; ++k) Tr.emplace_back(0, k + 1, k + 2);
+    Tr.emplace_back(0, 6, 1);
+
+    return error;
+  }
+
+  /*
+    Do marching method of genus 0 closed and surfaces using initial frontal polygon.
+
+    Featured over basic marching method:
     -- additionals checks
     -- support multifronts
 
     Input:
-      init_r[3] - initial position
-      init_g[3] - initial gradient
       delta - size of triangles edges projected to tangent space
+      P - initial frontal polygon (IFP)
+      V - vertices of IFP
+      NatV - vector of normal at vectices of IFP
+      Tr - vector of triangles of IFP
+      GatV - norm of the gradient at vertices of IFP
+
       max_triangles - maximal number of triangles used
-      init_phi - rotation of the initial hexagon
+      max_iter - maximal number of iteration of projections
+
     Output:
-      V - vector of vertices
-      NatV - vector of normals at vertices (read N at V)
-      Tr - vector of triangles
-      GatV - norm of the gradient at vertices
+      V - vector of vertices of the object
+      NatV - vector of normals at vertices (read N at V) of the object
+      Tr - vector of triangles of the object
+      GatV - norm of the gradient at vertices of the object
+
     Return:
      0 - no error
-     1 - too triangles
-     2 - problem with converges
+     1 - too many triangles
+     2 - problem with converges in marching
   */
-  int triangulize_full(
-    T init_r[3],
-    T init_g[3],
+
+  int do_marching_v1(
     const T & delta,
-    const unsigned & max_triangles,
+    Tfront_polygon & P,
     std::vector <T3Dpoint<T>> & V,
     std::vector <T3Dpoint<T>> & NatV,
     std::vector <T3Dpoint<int>> & Tr,
-    std::vector<T> * GatV = 0,
-    const T &init_phi = 0
-    )
-  {
-
-    // start with normal precision defined by T
-    precision = false;
+    std::vector<T> *GatV,
+    const int & max_triangles,
+    const int & max_iter = 100) {
 
     // error
     int error = 0;
 
-    V.clear();
-    Tr.clear();
-
-    const int max_iter = 100;
-
-    //
-    // Create initial frontal polygon
-    // Step 0:
-    //
-    typedef std::vector<Tvertex> Tfront_polygon;
-
-    // list of frontal polygon, working here as circular list
-    std::vector<Tfront_polygon> lP(1);
-
-    {
-      Tvertex v, vk;
-
-      // construct the vector base
-      create_internal_vertex(init_r, init_g, v, init_phi);
-
-      // add vertex to the set, index 0
-      V.emplace_back(v.r);                  // saving only r
-      if (GatV) GatV->emplace_back(v.norm); // saving g
-      NatV.emplace_back(v.b[2]);            // saving only normal
-
-      T sa[6], ca[6], qk[3], u[3];
-
-      utils::sincos_array(5, utils::m_pi3, sa, ca, delta);
-
-      for (int k = 0; k < 6 && error == 0; ++k){
-
-        for (int i = 0; i < 3; ++i)
-          qk[i] = v.r[i] + (u[i] = ca[k]*v.b[0][i] + sa[k]*v.b[1][i]);
-
-        if (!project_onto_potential(qk, vk, max_iter, v.b[2]) &&
-            !slide_over_potential(v.r, v.b[2], u, delta, vk, max_iter)) {
-          std::cerr << "Warning: Projection did not converge for initial frontal polygon.\n";
-          error = 2;
-        }
-
-        // store points into initial front
-        vk.index = k + 1;  // = V.size();
-        vk.omega_changed = true;
-        lP[0].push_back(vk);
-
-        V.emplace_back(vk.r);                     // saving only r
-        if (GatV) GatV->emplace_back(vk.norm);    // saving norm
-        NatV.emplace_back(vk.b[2]);               // saving only normal
-      }
-
-      //
-      // Creating initial hexagon -- triangle faces in Tr
-      //
-      for (int k = 0; k < 5; ++k) Tr.emplace_back(0, k + 1, k + 2);
-      Tr.emplace_back(0, 6, 1);
-    }
+    // list of fronts
+    std::vector<Tfront_polygon> lP{P};
 
     //
     //  Triangulization of genus 0 surfaces
@@ -1255,305 +1470,56 @@ struct Tmarching: public Tbody {
   }
 
   /*
-    Collect all bad points of the polygon front P
+    Do marching method of genus 0 closed and surfaces using initial frontal polygon.
 
-    P.size() > 3
-
-  */
-
-  Tbad_pair check_bad_pairs(Tfront_polygon &P, const T &delta2){
-
-    int s;
-
-    T a[3];
-
-    auto
-      it_begin = P.begin(),
-      it_last = P.end() - 1,
-
-      it0  = it_begin,
-      it0_next = it0 + 1,
-      it0_prev = it_last,
-      it0_last = it_last - 2;
-
-    while (1) {
-
-      // checking only those it1 - it0 > 1
-      auto
-        it1 = (it0_next == it_last ? it0_next + 1 : it_begin),
-        it1_next = (it1 == it_last ? it_begin : it1 + 1),
-        it1_prev = (it1 == it_begin ? it_last : it1 - 1),
-
-        // avoiding that the last element of it1 is the neighbour of it0
-        it1_last = (it0 == it_begin ? it_last - 1 : it_last);
-
-      while (1) {
-
-        // are on the side the object
-        if (utils::dot3D(it0->b[2], it1->b[2]) > 0) {
-
-          utils::sub3D(it1->r, it0->r, a);
-
-          // if near enough and looking inside from it and from it1
-          if (utils::norm2(a) < delta2) {
-
-            // check if same side of both edges and determine the side
-            // depending of it_prev -> it -> it_next circle
-            s = split_angle(*it0_prev, *it0, *it0_next, a);
-
-            if (s != 0 &&
-                s*split_angle(*it1_prev, *it1, *it1_next, a) < 0) {
-
-              // create new last front
-              #if defined(DEBUG)
-              std::cerr
-                << "P.size=" << P.size()
-                << " i=" << int(it0 - it_begin)
-                << " j=" << int(it1 - it_begin)
-                << " len=" << int(it1 + 1 - it)
-                << std::endl;
-              #endif
-
-              return Tbad_pair(it0 - it_begin, it1 - it_begin);
-            }
-          }
-        }
-
-        if (it1 == it1_last) break;
-        it1_prev = it1;
-        it1 = it1_next;
-
-        if (it1_next == it_last)
-          it1_next = it_begin;
-        else
-          ++it1_next;
-      }
-
-      if (it0 == it0_last) break;
-      it0_prev = it0;
-      it0 = it0_next++;
-    }
-
-    return Tbad_pair(0, 0);
-  }
-
-
-  /*
-    Collect all bad points between polygon front P and part
-    of the polygon
-  */
-  //#define DEBUG
-  Tbad_pair check_bad_pairs(
-    Tfront_polygon &P,
-    typename Tfront_polygon::iterator & start,
-    typename Tfront_polygon::iterator & end,
-    const T &delta2 ){
-
-    int s;
-
-    T a[3];
-
-    // checking all combinations of (it0, it1)
-    auto
-      it_begin = P.begin(),
-      it_last = P.end() - 1,
-
-      it0 = start,
-      it0_next = (it0 == it_last  ? it_begin : it0 + 1),
-      it0_prev = (it0 == it_begin ? it_last  : it0 - 1),
-      it0_prev_start = it0_prev,
-      it0_last = end - 1;
-
-    while (1) {
-
-      auto
-        it1 = (it0_next == it_last ? it_begin : it0_next + 1),
-        it1_next = (it1 == it_last  ? it_begin : it1 + 1),
-        it1_prev = (it1 == it_begin ? it_last  : it1 - 1),
-
-        // avoid running twice over the [start,end)
-        it1_last = (
-          it0 == start ?
-          (it0_prev_start == it_begin ? it_last : it0_prev_start - 1):
-          it0_prev_start
-        );
-
-      while (1) {
-
-        // are on the side the object
-        if (utils::dot3D(it0->b[2], it1->b[2]) > 0) {
-
-          utils::sub3D(it1->r, it0->r, a);
-
-          // if near enough and looking inside from it and from it1
-          if (utils::norm2(a) < delta2) {
-
-            // check if same side of both edges and determine the side
-            // depending of it_prev -> it -> it_next circle
-            s = split_angle(*it0_prev, *it0, *it0_next, a);
-
-            if (s != 0 && s*split_angle(*it1_prev, *it1, *it1_next, a) < 0) {
-
-              int ind[2] = {
-                static_cast<int>(it0 - it_begin),
-                static_cast<int>(it1 - it_begin)
-              };
-
-              // create new last front
-              #if defined(DEBUG)
-              std::cerr
-                << "P.size=" << P.size()
-                << " i=" << ind[0]
-                << " j=" << ind[1]
-                << " len=" << int(it1 + 1 - it0)
-                << std::endl;
-              #endif
-
-              if (ind[0] < ind[1]) return Tbad_pair(ind[0], ind[1]);
-
-              return Tbad_pair(ind[1], ind[0]);
-            }
-          }
-        }
-
-        if (it1 == it1_last) break;
-
-        it1_prev = it1;
-        it1 = it1_next;
-
-        if (it1_next == it_last)
-          it1_next = it_begin;
-        else
-          ++it1_next;
-      }
-
-      if (it0 == it0_last) break;
-
-      it0_prev = it0;
-      it0 = it0_next;
-
-      if (it0_next == it_last)
-        it0_next = it_begin;
-      else
-        ++it0_next;
-    }
-
-    return Tbad_pair(0, 0);
-  }
-  #if defined(DEBUG)
-  #undef DEBUG
-  #endif
-
-  /*
-    Triangulization using marching method of genus 0 closed and surfaces.
-
-    Has:
+    Featured over basic marching method:
       -- additionals checks
       -- supports multifronts
       -- clever detection of bad pairs/points
 
     Input:
-      init_r[3] - initial position
-      init_g[3] - initial gradient
       delta - size of triangles edges projected to tangent space
+      P - initial frontal polygon (IFP)
+      V - vertices of IFP
+      NatV - vector of normal at vectices of IFP
+      Tr - vector of triangles of IFP
+      GatV - norm of the gradient at vertices of IFP
+
       max_triangles - maximal number of triangles used
-      init_phi - rotation of the initial hexagon
+      max_iter - maximal number of iteration of projections
 
     Output:
-      V - vector of vertices
-      NatV - vector of normals at vertices (read N at V)
-      Tr - vector of triangles
-      GatV - norm of the gradient at vertices
+      V - vector of vertices of the object
+      NatV - vector of normals at vertices (read N at V) of the object
+      Tr - vector of triangles of the object
+      GatV - norm of the gradient at vertices of the object
 
     Return:
      0 - no error
-     1 - too triangles
-     2 - problem with converges
+     1 - too many triangles
+     2 - problem with converges in marching
   */
 
-  int triangulize_full_clever(
-    T init_r[3],
-    T init_g[3],
+  int do_marching_v2(
     const T & delta,
-    const unsigned & max_triangles,
+    Tfront_polygon & P,
     std::vector <T3Dpoint<T>> & V,
     std::vector <T3Dpoint<T>> & NatV,
     std::vector <T3Dpoint<int>> & Tr,
-    std::vector<T> * GatV = 0,
-    const T & init_phi = 0)
-  {
-
-    // start with normal precision defined by T
-    precision = false;
+    std::vector<T> *GatV,
+    const int & max_triangles,
+    const int & max_iter = 100) {
 
     // error
     int error = 0;
 
-    V.clear();
-    Tr.clear();
-
-    const int max_iter = 100;
-
-    // list of front polygons: front is threated as circular list
-    std::vector<Tfront_polygon> lP(1);
+    // list of fronts
+    std::vector<Tfront_polygon> lP{P};
 
     // list of bad pairs
     //   pair.first = pair.second means there is no bad pair
     std::vector<Tbad_pair> lB;
-
-    //
-    // Create initial frontal polygon lP[0] and initial bad point lB[0]
-    // Step 0:
-    //
-
-    {
-      Tvertex v, vk;
-
-      Tfront_polygon & P  = lP.back();
-
-      lB.emplace_back(0,0);   // no bad pair detected
-
-      // construct the vector base
-      create_internal_vertex(init_r, init_g, v, init_phi);
-
-      // add vertex to the set, index 0
-      V.emplace_back(v.r);                  // saving only r
-      if (GatV) GatV->emplace_back(v.norm); // saving g
-      NatV.emplace_back(v.b[2]);            // saving only normal
-
-      T sa[6], ca[6], qk[3], u[3];
-
-      utils::sincos_array(5, utils::m_pi3, sa, ca, delta);
-
-      for (int k = 0; k < 6 && error == 0; ++k){
-
-        for (int i = 0; i < 3; ++i)
-          qk[i] = v.r[i] + (u[i] = ca[k]*v.b[0][i] + sa[k]*v.b[1][i]);
-
-        if (
-            !slide_over_potential(v.r, v.b[2], u, delta, vk, max_iter) &&
-            !project_onto_potential(qk, vk, max_iter, v.b[2])
-           ) {
-          std::cerr << "Warning: Projection did not converge for initial frontal polygon!\n";
-          error = 2;
-        }
-
-        // store points into initial front
-        vk.index = k + 1;  // = V.size();
-        vk.omega_changed = true;
-        P.push_back(vk);
-
-        V.emplace_back(vk.r);                     // saving only r
-        if (GatV) GatV->emplace_back(vk.norm);    // saving norm
-        NatV.emplace_back(vk.b[2]);               // saving only normal
-      }
-
-      //
-      // Creating initial hexagon -- triangle faces in Tr
-      //
-      for (int k = 0; k < 5; ++k) Tr.emplace_back(0, k + 1, k + 2);
-      Tr.emplace_back(0, 6, 1);
-    }
+    lB.emplace_back(0,0);   // no bad pair detected
 
     //
     //  Triangulization of genus 0 surfaces
@@ -1814,13 +1780,136 @@ struct Tmarching: public Tbody {
           }
         }
 
-        if (Tr.size() >= max_triangles) error = 1;
+        if ((int)Tr.size() >= max_triangles) error = 1;
 
       } while (error == 0);
 
     } while (lP.size() > 0 && error == 0);
 
     return error;
+  }
+
+ /*
+    Triangulization using marching method of genus 0 closed and surfaces using
+    marching method V1 which has
+
+    -- additionals checks
+    -- support multifronts
+
+    Input:
+      init_r[3] - initial position
+      init_g[3] - initial gradient
+      delta - size of triangles edges projected to tangent space
+      max_triangles - maximal number of triangles used
+      init_phi - rotation of the initial hexagon
+    Output:
+      V - vector of vertices
+      NatV - vector of normals at vertices (read N at V)
+      Tr - vector of triangles
+      GatV - norm of the gradient at vertices
+    Return:
+     0 - no error
+     1 - too triangles
+     2 - problem with converges
+     3 - problem with convegence in frontal poligon
+  */
+
+  int triangulize_full(
+    T init_r[3],
+    T init_g[3],
+    const T & delta,
+    const unsigned & max_triangles,
+    std::vector <T3Dpoint<T>> & V,
+    std::vector <T3Dpoint<T>> & NatV,
+    std::vector <T3Dpoint<int>> & Tr,
+    std::vector<T> * GatV = 0,
+    const T &init_phi = 0
+    )
+  {
+    // maximal number of interation in projections
+    const int max_iter = 100;
+
+    int err = 0;
+
+    // start with normal precision defined by T
+    precision = false;
+
+    V.clear();
+    Tr.clear();
+
+    // list of front polygons: front is threated as circular list
+    Tfront_polygon P;
+
+    // Create initial frontal polygon lP[0] and initial bad point lB[0]
+    err = create_front(delta, init_r, init_g, init_phi, V, NatV, Tr, GatV, P, max_iter);
+    if (err != 0) return 3;
+
+    // Do marching method using initial front polygon (err = 0,1,2)
+    err = do_marching_v1(delta, P, V, NatV, Tr, GatV, max_triangles, max_iter);
+    return err;
+  }
+
+  /*
+    Triangulization using marching method of genus 0 closed and surfaces using
+    marching method V2 which has
+
+      -- additionals checks
+      -- supports multifronts
+      -- clever detection of bad pairs/points
+
+    Input:
+      init_r[3] - initial position
+      init_g[3] - initial gradient
+      delta - size of triangles edges projected to tangent space
+      max_triangles - maximal number of triangles used
+      init_phi - rotation of the initial hexagon
+
+    Output:
+      V - vector of vertices
+      NatV - vector of normals at vertices (read N at V)
+      Tr - vector of triangles
+      GatV - norm of the gradient at vertices
+
+    Return:
+     0 - no error
+     1 - too many triangles
+     2 - problem with converges in marching
+     3 - problem with convegence in frontal poligon
+  */
+
+  int triangulize_full_clever(
+    T init_r[3],
+    T init_g[3],
+    const T & delta,
+    const unsigned & max_triangles,
+    std::vector <T3Dpoint<T>> & V,
+    std::vector <T3Dpoint<T>> & NatV,
+    std::vector <T3Dpoint<int>> & Tr,
+    std::vector<T> * GatV = 0,
+    const T & init_phi = 0)
+  {
+
+    // maximal number of interation in projections
+    const int max_iter = 100;
+
+    int err = 0;
+
+    // start with normal precision defined by T
+    precision = false;
+
+    V.clear();
+    Tr.clear();
+
+    // list of front polygons: front is threated as circular list
+    Tfront_polygon P;
+
+    // Create initial frontal polygon lP[0] and initial bad point lB[0]
+    err = create_front(delta, init_r, init_g, init_phi, V, NatV, Tr, GatV, P, max_iter);
+    if (err != 0) return 3;
+
+    // Do marching method using initial front (err = 0,1,2)
+    err = do_marching_v2(delta, P, V, NatV, Tr, GatV, max_triangles, max_iter);
+    return err;
   }
 
   /*
@@ -1903,5 +1992,4 @@ struct Tmarching: public Tbody {
     return true;
   }
 
-}; // class marching
-
+}; // struct marching
