@@ -11472,8 +11472,8 @@ class Bundle(ParameterSet):
             logger in the exported script.  See <phoebe.logger>.
         * `custom_lnprobability_callable` (callable, optional, default=None):
             custom callable function which takes the following arguments:
-            `b, model, lnpriors, priors, priors_combine` and returns the lnlikelihood
-            to override the built-in lnlikelihood of <phoebe.frontend.bundle.Bundle.calculate_lnp> (on priors)
+            `b, model, lnpriors, priors, priors_combine` and returns the lnprobability
+            to override the built-in lnprobability of <phoebe.frontend.bundle.Bundle.calculate_lnp> (on priors)
             + <phoebe.parameters.ParameterSet.calculate_lnlikelihood>.  For
             optimizers that minimize, the negative returned values will be minimized.
             NOTE: if defined in an interactive session and inspect.getsource fails,
@@ -11770,11 +11770,11 @@ class Bundle(ParameterSet):
             pass checks.
         * `custom_lnprobability_callable` (callable, optional, default=None):
             custom callable function which takes the following arguments:
-            `b, model, lnpriors, priors, priors_combine` and returns the lnlikelihood
-            to override the built-in lnlikelihood of <phoebe.frontend.bundle.Bundle.calculate_lnp> (on priors)
+            `b, model, lnpriors, priors, priors_combine` and returns the lnprobability
+            to override the built-in lnprobability of <phoebe.frontend.bundle.Bundle.calculate_lnp> (on priors)
             + <phoebe.parameters.ParameterSet.calculate_lnlikelihood>.  For
             optimizers that minimize, the negative returned values will be minimized.
-            NOTE: if defined in an interactive session, passing `custom_lnlikelihood_callable`
+            NOTE: if defined in an interactive session, passing `custom_lnprobability_callable`
             may throw an error if `detach=True`.
         * `progressbar` (bool, optional): whether to show a progressbar.  If not
             provided or none, will default to <phoebe.progressbars_on> or
