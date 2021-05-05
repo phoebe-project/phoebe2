@@ -11350,7 +11350,7 @@ class Bundle(ParameterSet):
 
         # we'll wait to here to run kwargs and system checks so that
         # add_compute is already called if necessary
-        allowed_kwargs = ['skip_checks', 'jobid', 'overwrite', 'max_computations', 'in_export_script', 'out_fname', 'solution', 'progressbar']
+        allowed_kwargs = ['skip_checks', 'jobid', 'overwrite', 'max_computations', 'in_export_script', 'out_fname', 'solution', 'progressbar', 'custom_lnprobability_callable']
         if conf.devel:
             allowed_kwargs += ['mesh_init_phi']
         self._kwargs_checks(kwargs, allowed_kwargs, ps=solver_ps.copy()+compute_ps)
