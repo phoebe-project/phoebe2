@@ -11242,14 +11242,16 @@ class Bundle(ParameterSet):
 
         f.write("bdict = json.loads(\"\"\"{}\"\"\", object_pairs_hook=phoebe.utils.parse_json)\n".format(json.dumps(b.exclude(context=exclude_contexts, **_skip_filter_checks).exclude(solution=exclude_solutions, **_skip_filter_checks).exclude(solver=exclude_solvers, **_skip_filter_checks).exclude(distribution=exclude_distributions, **_skip_filter_checks).to_json(incl_uniqueid=True, exclude=['description', 'advanced', 'readonly', 'copy_for', 'latexfmt', 'labels_latex', 'label_latex']))))
         f.write("b = phoebe.open(bdict, import_from_older={})\n".format(import_from_older))
-        solver_kwargs = list(kwargs.items())+[('solver', solver), ('solution', str(solution))]
-        solver_kwargs_string = ','.join(["{}={}".format(k,"\'{}\'".format(str(v)) if isinstance(v, str) else v) for k,v in solver_kwargs])
 
         custom_lnprobability_callable = kwargs.get('custom_lnprobability_callable', None)
         if custom_lnprobability_callable is not None:
             code = _getsource(custom_lnprobability_callable)
             f.write(code)
             kwargs['custom_lnprobability_callable'] = custom_lnprobability_callable.__name__
+
+        solver_kwargs = list(kwargs.items())+[('solver', solver), ('solution', str(solution))]
+        solver_kwargs_string = ','.join(["{}={}".format(k,"\'{}\'".format(str(v)) if isinstance(v, str) and k!='custom_lnprobability_callable' else v) for k,v in solver_kwargs])
+
 
         if out_fname is None:
             f.write("import sys\n")
