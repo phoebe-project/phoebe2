@@ -4923,7 +4923,7 @@ class Bundle(ParameterSet):
 
         local_server_configs = _crimpl.list_servers()
         for server in servers:
-            if server == 'none':
+            if server in ['compute', 'none']:
                 continue
 
             if server not in self.servers:
