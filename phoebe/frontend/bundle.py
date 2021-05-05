@@ -599,7 +599,7 @@ class Bundle(ParameterSet):
         b = cls(data)
 
         version = b.get_value(qualifier='phoebe_version', check_default=False, check_visible=False)
-        phoebe_version_import = StrictVersion(version if version != 'devel' else '2.4.0')
+        phoebe_version_import = StrictVersion(version if version != 'devel' else '2.3.0')
         phoebe_version_this = StrictVersion(__version__ if __version__ != 'devel' else '2.4.0')
 
         logger.debug("importing from PHOEBE v {} into v {}".format(phoebe_version_import, phoebe_version_this))
@@ -618,6 +618,12 @@ class Bundle(ParameterSet):
             return b
         elif not import_from_older:
             raise RuntimeError("The file/bundle is from an older version of PHOEBE ({}) than installed ({}). Attempt importing by passing import_from_older=True.".format(phoebe_version_import, phoebe_version_this))
+
+        # temporarily disable interactive_checks, check_default, and check_visible
+        conf_interactive_checks = conf.interactive_checks
+        if conf_interactive_checks:
+            logger.debug("temporarily disabling interactive_checks")
+            conf._interactive_checks = False
 
         if phoebe_version_import < StrictVersion("2.1.0"):
             logger.warning("importing from an older version ({}) of PHOEBE into version {}".format(phoebe_version_import, phoebe_version_this))
@@ -915,6 +921,11 @@ class Bundle(ParameterSet):
                 dict_solver = _ps_dict(ps_solver)
                 b.remove_solver(solver, context=['solver'])
                 b.add_solver(solver_kind, solver=solver, check_label=False, overwrite=True, **dict_solver)
+
+
+        if conf_interactive_checks:
+            logger.debug("re-enabling interactive_checks")
+            conf._interactive_checks = True
 
         return b
 
