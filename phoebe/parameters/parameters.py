@@ -12064,10 +12064,15 @@ class JobParameter(Parameter):
             crimpl_name = ''
 
         retrieved_fnames = self.crimpl_job.check_output([self._results_fname, self._results_fname+'.progress'])
-        if isinstance(retrieved_fnames, str):
-            retrieved_fnames = retrieved_fnames.split()
         if not len(retrieved_fnames):
-            raise ValueError("no files retrieved from remote server")
+            # try retrieving any error logs
+            output_files = self.crimpl_job.output_files
+            error_fnames = self.crimpl_job.check_output([f for f in output_files if 'slurm-' in f])
+            if len(error_fnames) == 1:
+                with open(error_fnames[0], 'r') as e:
+                    raise ValueError("job failed with the following error: {}".format("\n".join(e.readlines())))
+            else:
+                raise ValueError("no files retrieved from remote server")
 
         # now the file with the model should be retrievable from self._result_fname
         if self._results_fname in retrieved_fnames:

@@ -760,7 +760,7 @@ class ServerJob(object):
         # TODO: execute cmd, and handle errors if stopped/terminated before getting results
         _run_cmd(scp_cmd)
 
-        return server_path
+        return [server_path] if isinstance(server_path, str) else server_path
 
 
 
