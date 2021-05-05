@@ -502,7 +502,7 @@ class AWSEC2Job(_common.ServerJob):
         else:
             # then we have an instance and we can check its state via ssh
             try:
-                response = self.server._run_server_cmd("cat {}".format(_os.path.join(self.remote_directory, "crimpl-job.status")))
+                response = self.server._run_server_cmd("cat {}".format(_os.path.join(self.remote_directory, "crimpl-job.status")), allow_retries=False)
             except _subprocess.CalledProcessError:
                 return 'unknown'
 
@@ -704,8 +704,7 @@ class AWSEC2Job(_common.ServerJob):
 
         Returns
         ----------
-        * None
-
+        * (list) list of retrieved files
         """
 
         did_restart = False
@@ -713,14 +712,17 @@ class AWSEC2Job(_common.ServerJob):
             self.server.start()  # wait is always True
             did_restart = True
 
-        super().check_output(server_path, local_path)
+        ret_ = super().check_output(server_path, local_path)
 
         if did_restart and terminate_if_server_started:
             self.server.terminate()
 
+        return ret_
+
 class AWSEC2Server(_common.SSHServer):
     _JobClass = AWSEC2Job
-    def __init__(self, server_name=None, volumeId=None,
+    def __init__(self, server_name=None,
+                       volumeSize=4, volumeId=None,
                        instanceId=None,
                        KeyFile=None, KeyName=None,
                        SubnetId=None, SecurityGroupId=None):
@@ -733,6 +735,10 @@ class AWSEC2Server(_common.SSHServer):
             **existing** server to retrieve.  To create a new server, call
             <AWSEC2Server.new> instead.  Either `server_name` or `volumeId` must
             be provided.
+        * `volumeSize` (int, optional, default=4): size, in GiB of the shared
+            volume to create.  Once created, the volume begins accruing charges.
+            See AWS documentation for pricing details.  Will be ignored if volume
+            already exists.
         * `volumeId` (string, optional, default=None): AWS internal `volumeId`
             of the shared AWS EC2 volume instance.  Either `server_name` or
             `volumeId` must be provided.
@@ -760,8 +766,42 @@ class AWSEC2Server(_common.SSHServer):
         if len(server_match) == 1:
             server_name = server_match[0]['crimpl.server_name']
             volumeId = server_match[0]['volumeId']
+            self._volume_needs_format = False
+
         else:
-            raise ValueError("{} existing EC2 volumes matched with server_name={} and volumeId={}.  Use new instead of __init__ to generate a new server.".format(len(server_match), server_name, volumeId))
+            # create a new server on AWS
+
+            # Multi-Attach is available in the following Regions only:
+            # For io2 volumes—us-east-2, eu-central-1, and ap-south-1.
+            # For io1 volumes—us-east-1, us-west-2, eu-west-1, and ap-northeast-2.
+
+            # iops: The number of I/O operations per second (IOPS).
+            # The following are the supported values for each volume type:
+            # io1 : 100-64,000 IOPS
+            # io2 : 100-64,000 IOPS
+            # response = _ec2_client.create_volume(Size=volumeSize,
+            #                                      VolumeType='io1',
+            #                                      Iops=100,  # TODO: expose
+            #                                      MultiAttachEnabled=True,
+            #                                      AvailabilityZone='us-east-1a')  # TODO: expose
+
+
+            if server_name is None:
+                # create a new server name
+                server_names = [d['crimpl.server_name'] for d in list_awsec2_volumes()]
+                server_name = 'awsec2{:02d}'.format(len(server_names)+1)
+
+            volume_init_kwargs = {'Size': volumeSize,
+                                  'VolumeType': 'gp2',
+                                  'AvailabilityZone': 'us-east-1a'}  # TODO: expose
+            volume_init_kwargs['TagSpecifications'] = [{'ResourceType': 'volume', 'Tags': [{'Key': 'crimpl.level', 'Value': 'server-volume'},
+                                                                                           {'Key': 'crimpl.server_name', 'Value': server_name},
+                                                                                           {'Key': 'crimpl.version', 'Value': _common.__version__}]}]
+
+            response = _ec2_client.create_volume(**volume_init_kwargs)
+
+            volumeId = response.get('VolumeId')
+            self._volume_needs_format = True
 
         self._server_name = server_name
         self._volumeId = volumeId
@@ -785,6 +825,8 @@ class AWSEC2Server(_common.SSHServer):
             raise ValueError("KeyFile does not point to a file")
 
         self._KeyFile = KeyFile
+        self._SubnetId = SubnetId
+        self._SecurityGroupId = SecurityGroupId
 
         if KeyName is None:
             KeyName = _os.path.basename(KeyFile).split(".")[0]
@@ -798,12 +840,11 @@ class AWSEC2Server(_common.SSHServer):
         self._ImageId = 'ami-03d315ad33b9d49c4'
         self._username = "ubuntu"
 
-        self._volume_needs_format = False
 
         # directory here is fixed at the point of the mounted volume
         super().__init__(directory="~/crimpl_server")
 
-        self._dict_keys = ['server_name', 'VolumeId', 'instanceId', 'KeyFile', 'KeyName', 'SubnetId', 'SecurityGroupId']
+        self._dict_keys = ['server_name', 'volumeSize', 'KeyFile', 'SubnetId', 'SecurityGroupId']
 
     @classmethod
     def new(cls, server_name=None, volumeSize=4,
@@ -835,44 +876,10 @@ class AWSEC2Server(_common.SSHServer):
         * <AWSEC2Server>
         """
 
-
-        # Multi-Attach is available in the following Regions only:
-        # For io2 volumes—us-east-2, eu-central-1, and ap-south-1.
-        # For io1 volumes—us-east-1, us-west-2, eu-west-1, and ap-northeast-2.
-
-        # iops: The number of I/O operations per second (IOPS).
-        # The following are the supported values for each volume type:
-        # io1 : 100-64,000 IOPS
-        # io2 : 100-64,000 IOPS
-        # response = _ec2_client.create_volume(Size=volumeSize,
-        #                                      VolumeType='io1',
-        #                                      Iops=100,  # TODO: expose
-        #                                      MultiAttachEnabled=True,
-        #                                      AvailabilityZone='us-east-1a')  # TODO: expose
-
-
-        if server_name is None:
-            # create a new server name
-            server_names = [d['crimpl.server_name'] for d in list_awsec2_volumes()]
-            server_name = 'awsec2{:02d}'.format(len(server_names)+1)
-
-        volume_init_kwargs = {'Size': volumeSize,
-                              'VolumeType': 'gp2',
-                              'AvailabilityZone': 'us-east-1a'}  # TODO: expose
-        volume_init_kwargs['TagSpecifications'] = [{'ResourceType': 'volume', 'Tags': [{'Key': 'crimpl.level', 'Value': 'server-volume'},
-                                                                                       {'Key': 'crimpl.server_name', 'Value': server_name},
-                                                                                       {'Key': 'crimpl.version', 'Value': _common.__version__}]}]
-
-        response = _ec2_client.create_volume(**volume_init_kwargs)
-
-        volumeId = response.get('VolumeId')
-
-        self = cls(server_name=server_name, volumeId=volumeId,
+        return cls(server_name=server_name, volumeId=volumeId,
                    KeyFile=KeyFile, KeyName=KeyName,
                    SubnetId=SubnetId, SecurityGroupId=SecurityGroupId)
 
-        self._volume_needs_format = True
-        return self
 
     def __repr__(self):
         return "<AWSEC2Server server_name={} volumeId={} instanceId={}>".format(self.server_name, self.volumeId, self.instanceId)
@@ -902,6 +909,10 @@ class AWSEC2Server(_common.SSHServer):
     @property
     def _volume(self):
         return _ec2_resource.Volume(self._volumeId)
+
+    @property
+    def volumeSize(self):
+        return self._volume.size
 
     def delete_volume(self, terminate_instances=True):
         """
@@ -1374,7 +1385,7 @@ class AWSEC2Server(_common.SSHServer):
                                         job_name=None,
                                         terminate_on_complete=False,
                                         use_nohup=False,
-                                        install_conda=self.conda_env is not False)
+                                        install_conda=conda_env is not False)
 
         if trial_run:
             return cmds

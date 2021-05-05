@@ -10,7 +10,7 @@ __version__ = '0.1.0-dev2'
 def _new_job_name():
     return _datetime.now().strftime('%Y.%m.%d-%H.%M.%S')
 
-def _run_cmd(cmd, detach=False, log_cmd=True):
+def _run_cmd(cmd, detach=False, log_cmd=True, allow_retries=True):
     if cmd is None:
         return
     if log_cmd:  print("# crimpl{}: {}".format(" (detached)" if detach else "", cmd))
@@ -23,7 +23,7 @@ def _run_cmd(cmd, detach=False, log_cmd=True):
                 ret = _subprocess.check_output(cmd, shell=True, stderr=_subprocess.DEVNULL).decode('utf-8').strip()
         except _subprocess.CalledProcessError as err:
             # print("error output: {}".format(err.output))
-            if err.returncode == 255 and i < 5:
+            if allow_retries and err.returncode == 255 and i < 5:
                 sleeptime = 5+i*5
                 print("# crimpl: received ssh error, waiting {}s then retrying".format(sleeptime))
                 _sleep(sleeptime)
@@ -411,7 +411,7 @@ class Server(object):
         ----------
         * (dict)
         """
-        d = {k: getattr(self, k) for k in self._dict_keys}
+        d = {k: getattr(self, k) if hasattr(self, k) else getattr(self, "_{}".format(k)) for k in self._dict_keys}
         d['crimpl'] = self.__class__.__name__
         d['crimpl.version'] = __version__
         return d
@@ -735,7 +735,7 @@ class ServerJob(object):
 
         Returns
         ----------
-        * None
+        * (list) list of retrieved files
         """
         if isinstance(server_path, str):
             server_path = [server_path]
@@ -784,7 +784,7 @@ class SSHServer(Server):
 
         # TODO: need to create a directory/exportpath.sh EXECUTABLE file that does the same as above
 
-    def _run_server_cmd(self, cmd, exportpath=None):
+    def _run_server_cmd(self, cmd, exportpath=None, allow_retries=True):
         if exportpath is None:
             exportpath = 'conda' in cmd or 'crimpl_submit_script.sh' in cmd or 'crimpl_run_script.sh' in cmd
 
@@ -794,7 +794,7 @@ class SSHServer(Server):
             ssh_cmd = "{} \"{}\"".format(self._ssh_cmd, cmd)
         # ssh_cmd = self.ssh_cmd+" \'export PATH=\"{directory}/crimpl-bin:$PATH\"; {cmd}\'".format(directory=self.directory.replace("~", "$HOME"), cmd=cmd)
         # ssh_cmd = self.ssh_cmd+" \'{cmd}\'".format(directory=self.directory.replace("~", "$HOME"), cmd=cmd)
-        return _run_cmd(ssh_cmd)
+        return _run_cmd(ssh_cmd, allow_retries=allow_retries)
 
     @property
     def scp_cmd_to(self):

@@ -154,7 +154,9 @@ def awsec2(server, **kwargs):
         dependencies are installed in conda_env on the remote machine (adds some
         overhead)
     * `terminate_on_complete` (bool, optional, default=True): Whether to
-        terminate the server after the job is completed
+        terminate the server after the job is completed for detached jobs only.
+        This will override to False for jobs to <phoebe.frontend.bundle.Bundle.run_compute>
+        or <phoebe.frontend.bundle.Bundle.run_solver> with `detach=False`.
 
     Returns
     --------
@@ -171,6 +173,6 @@ def awsec2(server, **kwargs):
     params += [BoolParameter(qualifier='use_mpi', value=kwargs.get('use_mpi', True), description='Whether to use mpi on the remote machine')]
     params += [BoolParameter(qualifier='install_deps', value=kwargs.get('install_deps', True), description='Whether to ensure required dependencies are installed in conda_env on the remote machine (adds some overhead)')]
 
-    params += [BoolParameter(qualifier='terminate_on_complete', value=kwargs.get('terminate_on_complete', True), description='Whether to terminate the server after the job is completed')]
+    params += [BoolParameter(qualifier='terminate_on_complete', value=kwargs.get('terminate_on_complete', True), description='Whether to terminate the server after the job is completed for detached jobs only.')]
 
     return ParameterSet(params)

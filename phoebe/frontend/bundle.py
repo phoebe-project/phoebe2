@@ -11098,6 +11098,11 @@ class Bundle(ParameterSet):
                 # default to the LocalThreadServer in ./phoebe_crimpl_jobs without mpi and without conda
                 server_options = {'crimpl_name': '', 'use_mpi': False, 'use_conda': False, 'install_deps': False}
 
+            # override terminate_on_complete if we're waiting
+            if server_options.get('terminate_on_complete', False) and not detach:
+                logger.info("overriding to terminate_on_complete=False since job is not detached")
+                server_options['terminate_on_complete'] = False
+
             # we'll build a python script that can replicate this bundle as it
             # is now, run compute, and then save the resulting model
             script_fname = "_{}.py".format(jobid)
@@ -12795,6 +12800,11 @@ class Bundle(ParameterSet):
             else:
                 # default to the LocalThreadServer in ./phoebe_crimpl_jobs without mpi and without conda
                 server_options = {'crimpl_name': '', 'use_mpi': False, 'use_conda': False, 'install_deps': False}
+
+            # override terminate_on_complete if we're waiting
+            if server_options.get('terminate_on_complete', False) and not detach:
+                logger.info("overriding to terminate_on_complete=False since job is not detached")
+                server_options['terminate_on_complete'] = False
 
             # we'll track everything through the solution name as well as
             # a random string, to avoid any conflicts
