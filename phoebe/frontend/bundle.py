@@ -599,7 +599,7 @@ class Bundle(ParameterSet):
         b = cls(data)
 
         version = b.get_value(qualifier='phoebe_version', check_default=False, check_visible=False)
-        phoebe_version_import = StrictVersion(version if version != 'devel' else '2.3.0')
+        phoebe_version_import = StrictVersion(version if version != 'devel' else '2.4.0')
         phoebe_version_this = StrictVersion(__version__ if __version__ != 'devel' else '2.4.0')
 
         logger.debug("importing from PHOEBE v {} into v {}".format(phoebe_version_import, phoebe_version_this))
@@ -607,7 +607,7 @@ class Bundle(ParameterSet):
         # update the entry in the PS, so if this is saved again it will have the new version
         b.set_value(qualifier='phoebe_version', value=__version__, check_default=False, check_visible=False, ignore_readonly=True)
 
-        if phoebe_version_import == phoebe_version_this:
+        if phoebe_version_import == phoebe_version_this and version != 'devel':
             return b
         elif phoebe_version_import > phoebe_version_this:
             if not import_from_newer:
@@ -899,7 +899,7 @@ class Bundle(ParameterSet):
             # call set_hierarchy to force mass constraints to be rebuilt
             b.set_hierarchy()
 
-        if phoebe_version_import < StrictVersion("2.4.0"):
+        if phoebe_version_import < StrictVersion("2.4.0") or version == 'devel':
             existing_values_settings = {p.qualifier: p.get_value() for p in b.filter(context='setting').to_list()}
             b.remove_parameters_all(context='setting', **_skip_filter_checks)
             b._attach_params(_setting.settings(**existing_values_settings), context='setting')
