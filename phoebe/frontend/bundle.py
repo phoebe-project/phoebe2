@@ -12304,7 +12304,7 @@ class Bundle(ParameterSet):
             kwargs['custom_lnprobability_callable'] = custom_lnprobability_callable.__name__
 
         solver_kwargs = list(kwargs.items())+[('solver', solver), ('solution', str(solution))]
-        solver_kwargs_string = ','.join(["{}={}".format(k,"\'{}\'".format(str(v)) if isinstance(v, str) and k!='custom_lnprobability_callable' else v) for k,v in solver_kwargs])
+        solver_kwargs_string = ','.join(["{}={}".format(k,"\'{}\'".format(str(v)) if isinstance(v, str) and k!='custom_lnprobability_callable' else v) for k,v in solver_kwargs if k not in ['use_server']])
 
         if out_fname is None and use_server and use_server != 'none':
             out_fname = script_fname+'.out'
