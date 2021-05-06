@@ -677,7 +677,7 @@ class ServerJob(object):
         ----------
         * (list)
         """
-        return [f for f in self.job_files if f not in self.input_files and f not in ['nohup.out']]
+        return [f for f in self.job_files if f not in self.input_files]
 
     def wait_for_job_status(self, status='complete',
                             error_if=['failed', 'canceled'],
@@ -750,6 +750,13 @@ class ServerJob(object):
                 return []
             if len(server_path) == 1:
                 server_path = server_path[0]
+
+        if self.server.scp_cmd_from[:3] != "scp" and isinstance(server_path, list):
+            # cp doesn't like the {} formatting
+            for path in server_path:
+                cp_cmd = self.server.scp_cmd_from.format(server_path=_os.path.join(self.remote_directory, path), local_path=local_path)
+                _run_cmd(cp_cmd)
+            return [server_path] if isinstance(server_path, str) else server_path
 
         if isinstance(server_path, str):
             server_path_str = _os.path.join(self.remote_directory, server_path)

@@ -8792,6 +8792,7 @@ class Bundle(ParameterSet):
         ```
 
         Available kinds can be found in <phoebe.parameters.server> and include:
+        * <phoebe.parameters.server.localthread>
         * <phoebe.parameters.server.remoteslurm>
         * <phoebe.parameters.server.awsec2>
 
@@ -10690,6 +10691,9 @@ class Bundle(ParameterSet):
         nprocs = server_ps.get_value(qualifier='nprocs', nprocs=kwargs.get('nprocs', None), **_skip_filter_checks)
         f.write("nprocs = {}\n".format(nprocs))
 
+        use_mpi = server_ps.get_value(qualifier='use_mpi', use_mpi=kwargs.get('use_mpi', None), **_skip_filter_checks)
+        f.write("use_mpi = {}\n".format(use_mpi))
+
         use_conda = server_ps.get_value(qualifier='use_conda', use_conda=kwargs.get('use_conda', None), default=True, **_skip_filter_checks)
         f.write("use_conda = {}\n".format(use_conda))
 
@@ -10711,9 +10715,9 @@ class Bundle(ParameterSet):
         f.write("import sys\n\n")
         f.write("if len(sys.argv) != 2:\n")
         if autocontinue:
-            f.write("    print('usage: {} [submit, status, output, kill, continue]'.format(sys.argv[0]))\n")
+            f.write("    print('usage: {} [submit, status, wait, output, kill, continue]'.format(sys.argv[0]))\n")
         else:
-            f.write("    print('usage: {} [submit, status, output, kill]'.format(sys.argv[0]))\n")
+            f.write("    print('usage: {} [submit, status, wait, output, kill]'.format(sys.argv[0]))\n")
         f.write("    exit()\n")
         f.write("action = sys.argv[1]\n\n")
         f.write("s = crimpl.load_server(crimpl_name) if crimpl_name else crimpl.LocalThreadServer('./phoebe_crimpl_jobs')\n\n")
@@ -10727,18 +10731,36 @@ class Bundle(ParameterSet):
         f.write("    python_code = \"\"\"{}\"\"\"\n\n".format("\n".join(script)))
         # TODO: random string instead of export_compute.py to avoid conflict with script
         server_tmp_script = 'server_tmp_script.py'
-        server_use_mpi = server_ps.get_value(qualifier='use_mpi', use_mpi=kwargs.get('use_mpi', None), **_skip_filter_checks)
-        f.write("    script = ['printf \"{}\" > %s'.format(python_code.replace('\"', '\\\\\"')), '%spython3 %s']\n\n" % (server_tmp_script, "mpirun " if server_use_mpi else "", server_tmp_script))
+        f.write("    if use_mpi:\n")
+        f.write("        if s.__class__.__name__ == 'LocalThreadServer':\n")
+        f.write("            run_cmd = 'mpirun -np {} python3 %s'.format(nprocs)\n" % (server_tmp_script))
+        f.write("            submit_job_kwargs = {}\n")
+        f.write("        else:\n")
+        f.write("            run_cmd = 'mpirun python3 %s'\n" % (server_tmp_script))
+        f.write("            submit_job_kwargs = {'nprocs': %d}\n\n" % (nprocs))
+        f.write("    else:\n")
+        f.write("        run_cmd = 'python3 %s'\n" % (server_tmp_script))
+        f.write("    if s.__class__.__name__ == 'LocalThreadServer':\n")
+        f.write("        submit_job_kwargs = {}\n")
+        f.write("    else:\n")
+        f.write("        submit_job_kwargs = {'nprocs': %d}\n\n" % (nprocs))
+
+        # NOTE: sleep command here is to make sure there is time to actually write to the file before attempting to call it
+        f.write("    script = ['printf \"{}\" > %s'.format(python_code.replace('\"', '\\\\\"')), 'sleep 2', run_cmd]\n\n" % (server_tmp_script))
 
         f.write("    if install_deps:\n")
         f.write("        s.run_script(['pip install {}'], conda_env=conda_env if use_conda else False)\n\n".format(" ".join(deps_pip)))
 
-        f.write("    sj = s.submit_job(script, ignore_files=['{}'], job_name=job_name, nprocs=nprocs, conda_env=conda_env if use_conda else False)".format(server_tmp_script))
+        f.write("    sj = s.submit_job(script, ignore_files=['{}'], job_name=job_name, conda_env=conda_env if use_conda else False, **submit_job_kwargs)".format(server_tmp_script))
+
 
         f.write("\n\n")
         f.write("elif action=='status':\n")
         f.write("    sj = s.get_job(job_name)\n")
         f.write("    print(sj.job_status)\n\n")
+        f.write("elif action=='wait':\n")
+        f.write("    sj = s.get_job(job_name)\n")
+        f.write("    sj.wait_for_job_status()\n\n")
         f.write("elif action=='output':\n")
         f.write("    sj = s.get_job(job_name)\n")
         f.write("    print(sj.check_output())\n\n")
@@ -10751,9 +10773,9 @@ class Bundle(ParameterSet):
             f.write("    sj.resubmit_script()\n")
         f.write("else:\n")
         if autocontinue:
-            f.write("    print('usage: {} [submit, status, output, kill, continue]'.format(sys.argv[0]))\n")
+            f.write("    print('usage: {} [submit, status, wait, output, kill, continue]'.format(sys.argv[0]))\n")
         else:
-            f.write("    print('usage: {} [submit, status, output, kill]'.format(sys.argv[0]))\n")
+            f.write("    print('usage: {} [submit, status, wait, output, kill]'.format(sys.argv[0]))\n")
         f.write("    exit()\n")
         f.close()
         return
@@ -10769,7 +10791,7 @@ class Bundle(ParameterSet):
         # TODO: can we skip other models
         # or datasets (except times and only for run_compute but not run_solver)
         exclude_qualifiers = ['detached_job']
-        exclude_contexts = ['model', 'figure', 'constraint', 'solver', 'server']
+        exclude_contexts = ['model', 'figure', 'constraint', 'solver']  # NOTE: need server for kwargs check on use_server
         sample_from = self.get_value(qualifier='sample_from', compute=compute, sample_from=kwargs.get('sample_from', None), default=[], expand=True)
         exclude_distributions = [dist for dist in self.distributions if dist not in sample_from]
         exclude_solutions = [sol for sol in self.solutions if sol not in sample_from]
@@ -10779,7 +10801,7 @@ class Bundle(ParameterSet):
         script.append("b = phoebe.open(bdict, import_from_older={});".format(import_from_older))
         # TODO: make sure this works with multiple computes
         compute_kwargs = list(kwargs.items())+[('compute', compute), ('model', str(model)), ('dataset', dataset), ('do_create_fig_params', do_create_fig_params)]
-        compute_kwargs_string = ','.join(["{}={}".format(k,"\'{}\'".format(str(v)) if isinstance(v, str) else v) for k,v in compute_kwargs])
+        compute_kwargs_string = ','.join(["{}={}".format(k,"\'{}\'".format(str(v)) if isinstance(v, str) else v) for k,v in compute_kwargs if k not in ['use_server']])
         # as the return from run_compute just does a filter on model=model,
         # model_ps here should include any created figure parameters
 
@@ -10787,11 +10809,11 @@ class Bundle(ParameterSet):
             out_fname = script_fname+'.out'
 
         if out_fname is not None:
-            script.append("model_ps = b.run_compute(out_fname='{}', in_export_script=True, {});".format(out_fname, compute_kwargs_string))
+            script.append("model_ps = b.run_compute(out_fname='{}', use_server='none', in_export_script=True, {});".format(out_fname, compute_kwargs_string))
             script.append("b.filter(context='model', model=model_ps.model, check_visible=False).save('{}', incl_uniqueid=True);".format(out_fname))
         else:
             script.append("import sys;\n")
-            script.append("model_ps = b.run_compute(out_fname=sys.argv[0]+'.out', in_export_script=True, {});".format(compute_kwargs_string))
+            script.append("model_ps = b.run_compute(out_fname=sys.argv[0]+'.out', use_server='none', in_export_script=True, {});".format(compute_kwargs_string))
             script.append("b.filter(context='model', model=model_ps.model, check_visible=False).save(sys.argv[0]+'.out', incl_uniqueid=True);")
             out_fname = script_fname+'.out'
 
@@ -12280,7 +12302,7 @@ class Bundle(ParameterSet):
         # TODO: can we skip other models
         # or datasets (except times and only for run_compute but not run_solver)
         exclude_qualifiers = ['detached_job']
-        exclude_contexts = ['model', 'figure', 'server']
+        exclude_contexts = ['model', 'figure'] # NOTE: need server for kwargs check on use_server
         continue_from = self.get_value(qualifier='continue_from', solver=solver, continue_from=kwargs.get('continue_from', None), default='')
         exclude_solutions = [sol for sol in self.solutions if sol!=continue_from]
         exclude_solvers = [s for s in self.solvers if s!=solver]
@@ -12329,7 +12351,7 @@ class Bundle(ParameterSet):
             script.append("    b.import_solution(out_fname+'.progress', solution='progress', overwrite=True);")
             script.append("    b.set_value(qualifier='continue_from', solver='{}', value='progress');".format(solver))
 
-        script.append("solution_ps = b.run_solver(out_fname=out_fname, {});".format(solver_kwargs_string))
+        script.append("solution_ps = b.run_solver(out_fname=out_fname, use_server='none', {});".format(solver_kwargs_string))
         script.append("b.filter(context='solution', solution=solution_ps.solution, check_visible=False).save(out_fname, incl_uniqueid=True);")
 
         if use_server and use_server != 'none':

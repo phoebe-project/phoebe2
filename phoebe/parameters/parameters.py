@@ -12067,7 +12067,7 @@ class JobParameter(Parameter):
         if not len(retrieved_fnames):
             # try retrieving any error logs
             output_files = self.crimpl_job.output_files
-            error_fnames = self.crimpl_job.check_output([f for f in output_files if 'slurm-' in f])
+            error_fnames = self.crimpl_job.check_output([f for f in output_files if 'slurm-' in f or f=='nohup.out'])
             if len(error_fnames) == 1:
                 with open(error_fnames[0], 'r') as e:
                     raise ValueError("job failed with the following error: {}".format("\n".join(e.readlines())))
