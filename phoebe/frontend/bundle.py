@@ -10809,7 +10809,7 @@ class Bundle(ParameterSet):
     def export_compute(self, script_fname, out_fname=None,
                        compute=None, model=None, dataset=None,
                        pause=False, log_level=None,
-                       import_from_older=False, **kwargs):
+                       import_from_older=True, **kwargs):
         """
         Export a script to call run_compute externally (in a different thread
         or on a different machine).  To automatically detach to a different
@@ -10852,7 +10852,7 @@ class Bundle(ParameterSet):
             useful if running in an interactive notebook or a script.
         * `log_level` (string, optional, default=None): `clevel` to set in the
             logger in the exported script.  See <phoebe.logger>.
-        * `import_from_older` (boolean, optional, default=False): whether to allow
+        * `import_from_older` (boolean, optional, default=True): whether to allow
             the script to run on a newer version of PHOEBE.  If True and executing
             the outputed script (`script_fname`) on a newer version of PHOEBE,
             the bundle will attempt to migrate to the newer version.  If False,
@@ -12347,7 +12347,7 @@ class Bundle(ParameterSet):
                       solver=None, solution=None,
                       pause=False,
                       autocontinue=True,
-                      import_from_older=False,
+                      import_from_older=True,
                       log_level=None,
                       **kwargs):
         """
@@ -12381,7 +12381,7 @@ class Bundle(ParameterSet):
             be taken to ensure multiple scripts aren't reading/writing from the
             same filenames).  If `continue_from` is not a parameter in `solver` options,
             `autocontinue` will be ignored.
-        * `import_from_older` (boolean, optional, default=False): whether to allow
+        * `import_from_older` (boolean, optional, default=True): whether to allow
             the script to run on a newer version of PHOEBE.  If True and executing
             the outputed script (`script_fname`) on a newer version of PHOEBE,
             the bundle will attempt to migrate to the newer version.  If False,
