@@ -11202,7 +11202,7 @@ class Bundle(ParameterSet):
 
         # we'll wait to here to run kwargs and system checks so that
         # add_compute is already called if necessary
-        allowed_kwargs = ['skip_checks', 'jobid', 'overwrite', 'max_computations', 'in_export_script', 'out_fname', 'solution', 'progressbar']
+        allowed_kwargs = ['skip_checks', 'jobid', 'overwrite', 'max_computations', 'in_export_script', 'out_fname', 'solution', 'progressbar', 'custom_lnprobability_callable']
         if conf.devel:
             allowed_kwargs += ['mesh_init_phi']
         self._kwargs_checks(kwargs, allowed_kwargs, ps=solver_ps.copy()+compute_ps)
@@ -11242,14 +11242,16 @@ class Bundle(ParameterSet):
 
         f.write("bdict = json.loads(\"\"\"{}\"\"\", object_pairs_hook=phoebe.utils.parse_json)\n".format(json.dumps(b.exclude(context=exclude_contexts, **_skip_filter_checks).exclude(solution=exclude_solutions, **_skip_filter_checks).exclude(solver=exclude_solvers, **_skip_filter_checks).exclude(distribution=exclude_distributions, **_skip_filter_checks).to_json(incl_uniqueid=True, exclude=['description', 'advanced', 'readonly', 'copy_for', 'latexfmt', 'labels_latex', 'label_latex']))))
         f.write("b = phoebe.open(bdict, import_from_older={})\n".format(import_from_older))
-        solver_kwargs = list(kwargs.items())+[('solver', solver), ('solution', str(solution))]
-        solver_kwargs_string = ','.join(["{}={}".format(k,"\'{}\'".format(str(v)) if isinstance(v, str) else v) for k,v in solver_kwargs])
 
         custom_lnprobability_callable = kwargs.get('custom_lnprobability_callable', None)
         if custom_lnprobability_callable is not None:
             code = _getsource(custom_lnprobability_callable)
             f.write(code)
             kwargs['custom_lnprobability_callable'] = custom_lnprobability_callable.__name__
+
+        solver_kwargs = list(kwargs.items())+[('solver', solver), ('solution', str(solution))]
+        solver_kwargs_string = ','.join(["{}={}".format(k,"\'{}\'".format(str(v)) if isinstance(v, str) and k!='custom_lnprobability_callable' else v) for k,v in solver_kwargs])
+
 
         if out_fname is None:
             f.write("import sys\n")
@@ -11324,8 +11326,8 @@ class Bundle(ParameterSet):
             logger in the exported script.  See <phoebe.logger>.
         * `custom_lnprobability_callable` (callable, optional, default=None):
             custom callable function which takes the following arguments:
-            `b, model, lnpriors, priors, priors_combine` and returns the lnlikelihood
-            to override the built-in lnlikelihood of <phoebe.frontend.bundle.Bundle.calculate_lnp> (on priors)
+            `b, model, lnpriors, priors, priors_combine` and returns the lnprobability
+            to override the built-in lnprobability of <phoebe.frontend.bundle.Bundle.calculate_lnp> (on priors)
             + <phoebe.parameters.ParameterSet.calculate_lnlikelihood>.  For
             optimizers that minimize, the negative returned values will be minimized.
             NOTE: if defined in an interactive session and inspect.getsource fails,
@@ -11622,11 +11624,11 @@ class Bundle(ParameterSet):
             pass checks.
         * `custom_lnprobability_callable` (callable, optional, default=None):
             custom callable function which takes the following arguments:
-            `b, model, lnpriors, priors, priors_combine` and returns the lnlikelihood
-            to override the built-in lnlikelihood of <phoebe.frontend.bundle.Bundle.calculate_lnp> (on priors)
+            `b, model, lnpriors, priors, priors_combine` and returns the lnprobability
+            to override the built-in lnprobability of <phoebe.frontend.bundle.Bundle.calculate_lnp> (on priors)
             + <phoebe.parameters.ParameterSet.calculate_lnlikelihood>.  For
             optimizers that minimize, the negative returned values will be minimized.
-            NOTE: if defined in an interactive session, passing `custom_lnlikelihood_callable`
+            NOTE: if defined in an interactive session, passing `custom_lnprobability_callable`
             may throw an error if `detach=True`.
         * `progressbar` (bool, optional): whether to show a progressbar.  If not
             provided or none, will default to <phoebe.progressbars_on> or
