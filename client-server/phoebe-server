@@ -101,7 +101,6 @@ from distutils.version import StrictVersion
 
 from phoebe.parameters.unit_choices import unit_choices as _unit_choices
 
-phoebe.devel_on() # currently needed for client mode, remove for actual release
 phoebe.interactive_off()
 phoebe.parameters._is_server = True
 
@@ -254,7 +253,8 @@ _available_kinds = {'component': phoebe.list_available_components(),
                     'dataset': phoebe.list_available_datasets(),
                     'figure': phoebe.list_available_figures(),
                     'compute': phoebe.list_available_computes(),
-                    'solver': phoebe.list_available_solvers()}
+                    'solver': phoebe.list_available_solvers(),
+                    'server': phoebe.list_available_servers()}
 
 # logger = phoebe.logger('INFO')
 _dir_tmpimages = os.path.join(tempfile.gettempdir(), 'phoebe-server-tmpimages')
@@ -540,6 +540,8 @@ def info():
     if client_version is not None:
         if StrictVersion(client_version) < StrictVersion('1.0.0'):
             client_warning = 'client still in development'
+        elif StrictVersion(client_version) < StrictVersion('1.1.0'):
+            client_warning = 'client does not support adding or editing servers'
 
 
     info = app._includeinfo

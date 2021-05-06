@@ -624,7 +624,7 @@ class BaseBackendByDataset(BaseBackend):
 
 def _call_run_single_model(args):
     # NOTE: b should be a deepcopy here to prevent conflicts
-    b, samples, sample_kwargs, compute, dataset, times, compute_kwargs, expose_samples, expose_failed, i = args
+    b, samples, sample_kwargs, compute, dataset, times, compute_kwargs, expose_samples, expose_failed, i, allow_retries = args
     # override sample_from
     compute_kwargs['sample_from'] = []
 
@@ -662,8 +662,12 @@ def _call_run_single_model(args):
                 failed_samples[msg] = failed_samples.get(msg, []) + [list([s[0] if isinstance(s, np.ndarray) else s for s in samples.values()])]
                 # failed_samples[msg] = failed_samples.get(msg, []) + [list(samples.values())]
 
-            samples = b.sample_distribution_collection(N=None, keys='uniqueid', **sample_kwargs)
-            # continue the next iteration in the while loop
+            if allow_retries:
+                samples = b.sample_distribution_collection(N=None, keys='uniqueid', **sample_kwargs)
+                # continue the next iteration in the while loop
+                allow_retries -= 1
+            else:
+                raise ValueError("single model exceeded number of allowed retries.  Check sampling distribution to ensure physical models exist.  Latest model error: {}".format(err))
         else:
             if expose_samples:
                 # TODO: remove the list comprehension here once the bug is fixed in distributions that is sometimes returning an array with one entry
@@ -740,6 +744,13 @@ class SampleOverModel(object):
                                                 keys='uniqueid',
                                                 **sample_kwargs)
 
+            # determine if ALL samples are the same
+            allow_retries = 10
+            if sample_num == 1:
+                allow_retries = 0
+            elif np.all([len(np.unique(v))==1 for v in sample_dict.values()]):
+                allow_retries = 0
+
             if len(list(sample_dict.values())[0]) == 1 and sample_mode != 'all':
                 logger.warning("only one sample, falling back on sample_mode='all', sample_num=1 instead of sample_mode='{}', sample_num={}".format(sample_mode, sample_num))
                 sample_num = 1
@@ -748,8 +759,7 @@ class SampleOverModel(object):
             bexcl = b.copy()
             bexcl.remove_parameters_all(context=['model', 'solver', 'solutoin', 'figure'], **_skip_filter_checks)
             bexcl.remove_parameters_all(kind=['orb', 'mesh'], context='dataset', **_skip_filter_checks)
-            args_per_sample = [(bexcl.copy(), {k:v[i] for k,v in sample_dict.items()}, sample_kwargs, compute, dataset, times, compute_kwargs, expose_samples, expose_failed, i) for i in range(sample_num)]
-            # models = [_call_run_single_model(args) for args in args_per_sample]
+            args_per_sample = [(bexcl.copy(), {k:v[i] for k,v in sample_dict.items()}, sample_kwargs, compute, dataset, times, compute_kwargs, expose_samples, expose_failed, i, allow_retries) for i in range(sample_num)]
             models_success_failed = list(pool.map(_call_run_single_model, args_per_sample))
         else:
             pool.wait()

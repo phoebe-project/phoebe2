@@ -426,8 +426,8 @@ null
 "description": "Source for bolometric limb darkening coefficients (used only for irradiation; 'auto' to interpolate from the applicable table according to the 'atm' parameter, or the name of a specific atmosphere table)",
 "choices": [
 "auto",
-"phoenix",
-"ck2004"
+"ck2004",
+"phoenix"
 ],
 "value": "auto",
 "visible_if": "ld_mode_bol:lookup",
@@ -774,8 +774,8 @@ null
 "description": "Source for bolometric limb darkening coefficients (used only for irradiation; 'auto' to interpolate from the applicable table according to the 'atm' parameter, or the name of a specific atmosphere table)",
 "choices": [
 "auto",
-"phoenix",
-"ck2004"
+"ck2004",
+"phoenix"
 ],
 "value": "auto",
 "visible_if": "ld_mode_bol:lookup",
@@ -1750,6 +1750,19 @@ null
 "Class": "StringParameter"
 },
 {
+"qualifier": "use_server",
+"compute": "phoebe01",
+"kind": "phoebe",
+"context": "compute",
+"description": "Server to use when running the forward model (or \"none\" to run locally) via run_compute.",
+"choices": [
+"none"
+],
+"value": "none",
+"copy_for": false,
+"Class": "ChoiceParameter"
+},
+{
 "qualifier": "enabled",
 "dataset": "_default",
 "compute": "phoebe01",
@@ -1933,9 +1946,9 @@ null
 "context": "compute",
 "description": "Atmosphere table",
 "choices": [
-"blackbody",
-"phoenix",
 "ck2004",
+"phoenix",
+"blackbody",
 "extern_planckint",
 "extern_atmx"
 ],
@@ -2138,9 +2151,9 @@ null
 "context": "compute",
 "description": "Atmosphere table",
 "choices": [
-"blackbody",
-"phoenix",
 "ck2004",
+"phoenix",
+"blackbody",
 "extern_planckint",
 "extern_atmx"
 ],
@@ -2156,9 +2169,9 @@ null
 "context": "compute",
 "description": "Atmosphere table",
 "choices": [
-"blackbody",
-"phoenix",
 "ck2004",
+"phoenix",
+"blackbody",
 "extern_planckint",
 "extern_atmx"
 ],
@@ -2409,7 +2422,9 @@ null
 "context": "setting",
 "description": "Solutions to use when calling run_checks/run_checks_solution or within interactive checks.",
 "choices": [],
-"value": [],
+"value": [
+"*"
+],
 "copy_for": false,
 "Class": "SelectParameter"
 },
@@ -2418,7 +2433,20 @@ null
 "context": "setting",
 "description": "Figures to use when calling run_checks/run_checks_figure or within interactive checks.",
 "choices": [],
-"value": [],
+"value": [
+"*"
+],
+"copy_for": false,
+"Class": "SelectParameter"
+},
+{
+"qualifier": "run_checks_server",
+"context": "setting",
+"description": "Servers to use when calling run_checks/run_checks_server or within interactive checks.",
+"choices": [],
+"value": [
+"*"
+],
 "copy_for": false,
 "Class": "SelectParameter"
 },

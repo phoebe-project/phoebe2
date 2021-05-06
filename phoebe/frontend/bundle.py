@@ -34,7 +34,8 @@ from phoebe.parameters import solver as _solver
 from phoebe.parameters import constraint as _constraint
 from phoebe.parameters import feature as _feature
 from phoebe.parameters import figure as _figure
-from phoebe.parameters.parameters import _uniqueid, _clientid, _return_ps, _extract_index_from_string, _corner_twig, _corner_label
+from phoebe.parameters import server as _server
+from phoebe.parameters.parameters import _uniqueid, _clientid, _return_ps, _extract_index_from_string, _corner_twig, _corner_label, _cached_crimpl_servers
 from phoebe.backend import backends, mesh
 from phoebe.backend import universe as _universe
 from phoebe.solverbackends import solverbackends as _solverbackends
@@ -42,6 +43,7 @@ from phoebe.distortions import roche
 from phoebe.frontend import io
 from phoebe.atmospheres.passbands import list_installed_passbands, list_online_passbands, get_passband, update_passband, _timestamp_to_dt
 from phoebe.dependencies import distl as _distl
+from phoebe.dependencies import crimpl as _crimpl
 from phoebe.utils import _bytes, parse_json, _get_masked_times, _get_masked_compute_times
 from phoebe import helpers as _helpers
 import libphoebe
@@ -133,7 +135,11 @@ class RunChecksItem(object):
 
     def __str__(self):
         n_affected_parameters = len(self._param_uniqueids)
-        return "{}: {} ({} affected parameter{}, affecting {})".format(self.level, self.message, n_affected_parameters, "s" if n_affected_parameters else "", ",".join(self.affects_methods))
+        if len(self.affects_methods):
+            return "{}: {} ({} affected parameter{}, affecting {})".format(self.level, self.message, n_affected_parameters, "s" if n_affected_parameters else "", ",".join(self.affects_methods))
+        else:
+            return "{}: {} ({} affected parameter{})".format(self.level, self.message, n_affected_parameters, "s" if n_affected_parameters else "")
+
 
     def to_dict(self):
         """
@@ -601,7 +607,7 @@ class Bundle(ParameterSet):
         # update the entry in the PS, so if this is saved again it will have the new version
         b.set_value(qualifier='phoebe_version', value=__version__, check_default=False, check_visible=False, ignore_readonly=True)
 
-        if phoebe_version_import == phoebe_version_this:
+        if phoebe_version_import == phoebe_version_this and version != 'devel':
             return b
         elif phoebe_version_import > phoebe_version_this:
             if not import_from_newer:
@@ -612,6 +618,12 @@ class Bundle(ParameterSet):
             return b
         elif not import_from_older:
             raise RuntimeError("The file/bundle is from an older version of PHOEBE ({}) than installed ({}). Attempt importing by passing import_from_older=True.".format(phoebe_version_import, phoebe_version_this))
+
+        # temporarily disable interactive_checks, check_default, and check_visible
+        conf_interactive_checks = conf.interactive_checks
+        if conf_interactive_checks:
+            logger.debug("temporarily disabling interactive_checks")
+            conf._interactive_checks = False
 
         if phoebe_version_import < StrictVersion("2.1.0"):
             logger.warning("importing from an older version ({}) of PHOEBE into version {}".format(phoebe_version_import, phoebe_version_this))
@@ -886,6 +898,34 @@ class Bundle(ParameterSet):
 
             # call set_hierarchy to force mass constraints to be rebuilt
             b.set_hierarchy()
+
+        if phoebe_version_import < StrictVersion("2.4.0") or version == 'devel':
+            existing_values_settings = {p.qualifier: p.get_value() for p in b.filter(context='setting').to_list()}
+            b.remove_parameters_all(context='setting', **_skip_filter_checks)
+            b._attach_params(_setting.settings(**existing_values_settings), context='setting')
+
+
+            for compute in b.filter(context='compute').computes:
+                logger.info("attempting to update compute='{}' to new version requirements".format(compute))
+                ps_compute = b.filter(context='compute', compute=compute, **_skip_filter_checks)
+                compute_kind = ps_compute.kind
+                dict_compute = _ps_dict(ps_compute)
+                # NOTE: we will not remove (or update) the dataset from any existing models
+                b.remove_compute(compute, context=['compute'])
+                b.add_compute(compute_kind, compute=compute, check_label=False, overwrite=True, **dict_compute)
+
+            for solver in b.filter(context='solver').solvers:
+                logger.info("attempting to update solver='{}' to new version requirements".format(solver))
+                ps_solver = b.filter(context='solver', solver=solver, **_skip_filter_checks)
+                solver_kind = ps_solver.kind
+                dict_solver = _ps_dict(ps_solver)
+                b.remove_solver(solver, context=['solver'])
+                b.add_solver(solver_kind, solver=solver, check_label=False, overwrite=True, **dict_solver)
+
+
+        if conf_interactive_checks:
+            logger.debug("re-enabling interactive_checks")
+            conf._interactive_checks = True
 
         return b
 
@@ -1281,7 +1321,9 @@ class Bundle(ParameterSet):
         self.run_delayed_constraints()
 
         if not skip_checks:
-            report = self.run_checks_compute(compute=compute, allow_skip_constraints=False,
+            report = self.run_checks_compute(compute=compute,
+                                             run_checks_server=False,
+                                             allow_skip_constraints=False,
                                              raise_logger_warning=True, raise_error=True,
                                              run_checks_system=True)
 
@@ -1324,7 +1366,9 @@ class Bundle(ParameterSet):
         self.run_delayed_constraints()
 
         if not skip_checks:
-            report = self.run_checks_compute(compute=compute, allow_skip_constraints=False,
+            report = self.run_checks_compute(compute=compute,
+                                             run_checks_server=False,
+                                             allow_skip_constraints=False,
                                              raise_logger_warning=True, raise_error=True,
                                              run_checks_system=True)
 
@@ -1824,6 +1868,9 @@ class Bundle(ParameterSet):
         elif tag=='figure':
             affected_params += self._handle_figure_selectparams(rename={old_value: new_value}, return_changes=True)
 
+        elif tag=='server':
+            affected_params += self._handle_server_selectparams(rename={old_value: new_value}, return_changes=True)
+
         elif tag=='solution':
             affected_params += self._handle_computesamplefrom_selectparams(rename={old_value: new_value}, return_changes=True)
             affected_params += self._handle_solution_selectparams(rename={old_value: new_value}, return_changes=True)
@@ -2045,6 +2092,46 @@ class Bundle(ParameterSet):
 
                 else:
                     param._value = 'None' if param.qualifier=='default_time_source' else 'default'
+            else:
+                changed = False
+
+            if return_changes and (changed or choices_changed):
+                affected_params.append(param)
+
+        return affected_params
+
+    def _handle_server_selectparams(self, rename={}, return_changes=False):
+        """
+        """
+        affected_params = []
+        changed_params = self.run_delayed_constraints()
+
+        servers = self.filter(context='server', **_skip_filter_checks).servers
+
+        for param in self.filter(context='setting', qualifier='run_checks_server', **_skip_filter_checks).to_list():
+            choices_changed = False
+            if return_changes and servers != param._choices:
+                choices_changed = True
+            param._choices = servers
+
+            changed = param.handle_choice_rename(remove_not_valid=True, **rename)
+            if return_changes and (changed or choices_changed):
+                affected_params.append(param)
+
+        for param in self.filter(context=['compute', 'solver'], qualifier='use_server', **_skip_filter_checks).to_list():
+            if 'compute' in param.choices:
+                choices = ['none', 'compute'] + servers
+            else:
+                choices = ['none'] + servers
+
+            choices_changed = False
+            if return_changes and choices != param._choices:
+                choices_changed = True
+            param._choices = choices
+
+            if param._value not in choices:
+                changed = True
+                param._value = 'compute' if 'compute' in choices else 'none'
             else:
                 changed = False
 
@@ -3049,6 +3136,7 @@ class Bundle(ParameterSet):
         * <phoebe.frontend.bundle.Bundle.run_checks_solver>
         * <phoebe.frontend.bundle.Bundle.run_checks_solution>
         * <phoebe.frontend.bundle.Bundle.run_checks_figure>
+        * <phoebe.frontend.bundle.Bundle.run_checks_server>
 
         Arguments
         -----------
@@ -3086,13 +3174,14 @@ class Bundle(ParameterSet):
              <phoebe.frontend.bundle.RunChecksItem.message>.
         """
         report = self.run_checks_system(raise_logger_warning=False, raise_error=False, **kwargs)
-        report = self.run_checks_compute(run_checks_system=False, raise_logger_warning=False, raise_error=False, report=report, **kwargs)
+        report = self.run_checks_compute(run_checks_server=False, run_checks_system=False, raise_logger_warning=False, raise_error=False, report=report, **kwargs)
         # TODO: passing run_checks_compute=False is to try to avoid duplicates with the call above,
         # but could get us into trouble if compute@solver references a compute that is
         # skipped by the run_checks_compute@setting or kwargs.get('compute').
-        report = self.run_checks_solver(run_checks_compute=False, raise_logger_warning=False, raise_error=False, report=report, **kwargs)
+        report = self.run_checks_solver(run_checks_compute=False, run_checks_server=False, raise_logger_warning=False, raise_error=False, report=report, **kwargs)
         report = self.run_checks_solution(raise_logger_warning=False, raise_error=False, report=report, **kwargs)
         report = self.run_checks_figure(raise_logger_warning=False, raise_error=False, report=report, **kwargs)
+        report = self.run_checks_server(allow_nonlocal_server=True, raise_logger_warning=False, raise_error=False, report=report, **kwargs)
 
         self._run_checks_warning_error(report, raise_logger_warning, raise_error)
 
@@ -3114,6 +3203,7 @@ class Bundle(ParameterSet):
         * <phoebe.frontend.bundle.Bundle.run_checks_solver>
         * <phoebe.frontend.bundle.Bundle.run_checks_solution>
         * <phoebe.frontend.bundle.Bundle.run_checks_figure>
+        * <phoebe.frontend.bundle.Bundle.run_checks_server>
 
         Arguments
         -----------
@@ -3459,7 +3549,8 @@ class Bundle(ParameterSet):
         return report
 
     def run_checks_compute(self, compute=None, solver=None, solution=None, figure=None,
-                         raise_logger_warning=False, raise_error=False, run_checks_system=True, **kwargs):
+                         raise_logger_warning=False, raise_error=False,
+                         run_checks_system=True, run_checks_server=True, **kwargs):
         """
         Check to see whether the system is expected to be computable.
 
@@ -3476,6 +3567,7 @@ class Bundle(ParameterSet):
         * <phoebe.frontend.bundle.Bundle.run_checks_solver>
         * <phoebe.frontend.bundle.Bundle.run_checks_solution>
         * <phoebe.frontend.bundle.Bundle.run_checks_figure>
+        * <phoebe.frontend.bundle.Bundle.run_checks_server>
 
         Arguments
         -----------
@@ -3485,6 +3577,9 @@ class Bundle(ParameterSet):
             will be used (which defaults to all available compute options).
         * `run_checks_system` (bool, optional, default=True): whether to also
             call (and include the output from) <phoebe.frontend.bundle.run_checks_system>.
+        * `run_checks_server` (bool, optional, default=True): whether to also
+            call (and include the output from) <phoebe.frontend.bundle.run_checks_server>
+            for any referenced servers in the matched compute options.
         * `allow_skip_constraints` (bool, optional, default=False): whether
             to allow skipping running delayed constraints if interactive
             constraints are disabled.  See <phoebe.interactive_constraints_off>.
@@ -3512,7 +3607,10 @@ class Bundle(ParameterSet):
         addl_parameters = kwargs.pop('addl_parameters', [])
 
         if run_checks_system:
-            report = self.run_checks_system(raise_logger_warning=False, raise_error=False, report=report, **kwargs)
+            report = self.run_checks_system(raise_logger_warning=False,
+                                            raise_error=False,
+                                            report=report,
+                                            **kwargs)
 
         run_checks_compute = self.get_value(qualifier='run_checks_compute', context='setting', default='*', expand=True, **_skip_filter_checks)
         if compute is None:
@@ -3533,6 +3631,16 @@ class Bundle(ParameterSet):
                                 [self.get_parameter(qualifier='run_checks_compute', context='setting', check_visible=False, check_default=False)],
                                 False
                                 )
+
+            if run_checks_server:
+                use_server_param = self.get_parameter(qualifier='use_server', compute=compute, context='compute', **_skip_filter_checks)
+                report = self.run_checks_server(server=use_server_param.get_value(use_server=kwargs.get('use_server', None)),
+                                                raise_logger_warning=False,
+                                                raise_error=False,
+                                                report=report,
+                                                addl_parameters=[use_server_param],
+                                                check_interactive_warnings=False,
+                                                **kwargs)
 
         hier = self.hierarchy
         if hier is None:
@@ -4170,7 +4278,8 @@ class Bundle(ParameterSet):
         return report
 
     def run_checks_solver(self, solver=None, compute=None, solution=None, figure=None,
-                          raise_logger_warning=False, raise_error=False, **kwargs):
+                          raise_logger_warning=False, raise_error=False,
+                          run_checks_compute=True, run_checks_server=True, **kwargs):
         """
         Check to for any expected errors/warnings to <phoebe.frontend.bundle.Bundle.run_solver>.
 
@@ -4191,6 +4300,7 @@ class Bundle(ParameterSet):
         * <phoebe.frontend.bundle.Bundle.run_checks_compute>
         * <phoebe.frontend.bundle.Bundle.run_checks_solution>
         * <phoebe.frontend.bundle.Bundle.run_checks_figure>
+        * <phoebe.frontend.bundle.Bundle.run_checks_server>
 
         Arguments
         -----------
@@ -4199,8 +4309,11 @@ class Bundle(ParameterSet):
             the compute options in the 'run_checks_solver@setting' parameter
             will be used (which defaults to all available solver options).
         * `run_checks_compute` (bool, optional, default=True): whether to also
-            call <phoebe.frontend.bundle.run_checks_compute> on any `compute`
-            listed in the solver options in `solver`.
+            call <phoebe.frontend.bundle.run_checks_compute> on any referenced
+            computes in the matched solver options.
+        * `run_checks_server` (bool, optional, default=True): whether to also
+            call (and include the output from) <phoebe.frontend.bundle.run_checks_server>
+            for any referenced servers in the matched compute options.
         * `allow_skip_constraints` (bool, optional, default=False): whether
             to allow skipping running delayed constraints if interactive
             constraints are disabled.  See <phoebe.interactive_constraints_off>.
@@ -4250,14 +4363,36 @@ class Bundle(ParameterSet):
         for solver in solvers:
             solver_ps = self.get_solver(solver=solver, **_skip_filter_checks)
             solver_kind = solver_ps.kind
+            if 'use_server' in solver_ps.qualifiers and run_checks_server:
+                use_server = kwargs.get('use_server', solver_ps.get_value(qualifier='use_server', **_skip_filter_checks))
+                addl_parameters = [solver_ps.get_parameter(qualifier='use_server', **_skip_filter_checks)]
+                if server == 'compute':
+                    compute = solver_ps.get_value(qualifier='compute', compute=kwargs.get('compute', None), **_skip_filter_checks)
+                    use_server = self.get_value(qualifier='use_server', compute=compute, **_skip_filter_checks)
+                    addl_parameters += [self.get_parameter(qualifier='use_server', compute=compute, **_skip_filter_checks)]
+
+                report = self.run_checks_server(server=use_server,
+                                                raise_logger_warning=False,
+                                                raise_error=False,
+                                                report=report,
+                                                addl_parameters=addl_parameters,
+                                                check_interactive_warnings=False,
+                                                **kwargs)
+
             if 'compute' in solver_ps.qualifiers:
                 # NOTE: we can't pass compute as a kwarg to get_value or it will be used as a filter instead... which means technically we can't be sure compute is in self.computes
                 compute = kwargs.get('compute', solver_ps.get_value(qualifier='compute', **_skip_filter_checks))
-                if kwargs.get('run_checks_compute', True):
+                if run_checks_compute:
                     if compute not in self.computes:
                         raise ValueError("compute='{}' not in computes".format(compute))
                     # TODO: do we need to append (only if report was sent as a kwarg)
-                    report = self.run_checks_compute(compute=compute, raise_logger_warning=False, raise_error=False, report=report, addl_parameters=[solver_ps.get_parameter(qualifier='compute', **_skip_filter_checks)])
+                    report = self.run_checks_compute(compute=compute,
+                                                     run_checks_server=False,  # already would have covered above
+                                                     raise_logger_warning=False,
+                                                     raise_error=False,
+                                                     report=report,
+                                                     addl_parameters=[solver_ps.get_parameter(qualifier='compute', **_skip_filter_checks)],
+                                                     **kwargs)
 
                 # test to make sure solver_times will cover the full dataset for time-dependent systems
                 if self.hierarchy.is_time_dependent(consider_gaussian_process=True):
@@ -4608,6 +4743,7 @@ class Bundle(ParameterSet):
         * <phoebe.frontend.bundle.Bundle.run_checks_compute>
         * <phoebe.frontend.bundle.Bundle.run_checks_solver>
         * <phoebe.frontend.bundle.Bundle.run_checks_figure>
+        * <phoebe.frontend.bundle.Bundle.run_checks_server>
 
         Arguments
         -----------
@@ -4715,6 +4851,122 @@ class Bundle(ParameterSet):
         return report
 
 
+    def run_checks_server(self, server=None,
+                          allow_nonlocal_server=False,
+                          raise_logger_warning=False, raise_error=False, **kwargs):
+        """
+        Check to see whether the server options are valid.
+
+        This is called by default for each set_value but will only raise a
+        logger warning if fails.  This is also called immediately when calling
+        <phoebe.frontend.bundle.Bundle.run_compute> or
+        <phoebe.frontend.bundle.Bundle.run_solver>.
+
+        kwargs are passed to override currently set values.
+
+        See also:
+        * <phoebe.frontend.bundle.Bundle.run_checks>
+        * <phoebe.frontend.bundle.Bundle.run_checks_system>
+        * <phoebe.frontend.bundle.Bundle.run_checks_compute>
+        * <phoebe.frontend.bundle.Bundle.run_checks_solver>
+        * <phoebe.frontend.bundle.Bundle.run_checks_solution>
+        * <phoebe.frontend.bundle.Bundle.run_checks_figure>
+
+        Arguments
+        -----------
+        * `server` (string or list of strings, optional, default=None): the
+            server options to use  when running checks.  If None (or not provided),
+            the server options in the 'run_checks_server@setting' parameter
+            will be used (which defaults to no servers, if not set).
+        * `allow_nonlocal_server` (bool, optional, default=False): whether
+            to allow `crimpl_name` to not be available on the local machine
+            (and therefore raise a warning instead of an error).
+        * `raise_logger_warning` (bool, optional, default=False): whether to
+            raise any errors/warnings in the logger (with level of warning).
+        * `raise_error` (bool, optional, default=False): whether to raise an
+            error if the report has a status of failed.
+        * `**kwargs`: overrides for any parameter (given as qualifier=value pairs)
+
+        Returns
+        ----------
+        * (<phoebe.frontend.bundle.RunChecksReport>) object containing all
+            errors/warnings.  Print the returned object to see all messages.
+            See also: <phoebe.frontend.bundle.RunChecksReport.passed>,
+             <phoebe.frontend.bundle.RunChecksReport.items>, and
+             <phoebe.frontend.bundle.RunChecksItem.message>.
+        """
+
+        # make sure all constraints have been run
+        if conf.interactive_constraints or not kwargs.pop('allow_skip_constraints', False):
+            changed_params = self.run_delayed_constraints()
+
+        report = kwargs.pop('report', RunChecksReport())
+        addl_parameters = kwargs.pop('addl_parameters', [])
+
+        run_checks_server = self.get_value(qualifier='run_checks_server', context='setting', default='*', expand=True, **_skip_filter_checks)
+        if server is None:
+            servers = run_checks_server
+            addl_parameters += [self.get_parameter(qualifier='run_checks_server', context='setting', **_skip_filter_checks)]
+        else:
+            servers = server
+            if isinstance(servers, str):
+                servers = [servers]
+
+        for server in self.servers:
+            if server not in run_checks_server and kwargs.get('check_interactive_warnings', True):
+                report.add_item(self,
+                                "server='{}' is not included in run_checks_server@setting, so will not raise interactive warnings".format(server),
+                                [self.get_parameter(qualifier='run_checks_server', context='setting', check_visible=False, check_default=False)],
+                                False, []
+                                )
+
+        local_server_configs = _crimpl.list_servers()
+        for server in servers:
+            if server in ['compute', 'none']:
+                continue
+
+            if server not in self.servers:
+                raise ValueError("server='{}' not found".format(server))
+
+            crimpl_param = self.get_parameter(qualifier='crimpl_name', server=server, context='server', **_skip_filter_checks)
+            crimpl_name = crimpl_param.get_value()
+            server_kind = self.get_server(server=server, **_skip_filter_checks).kind
+            if not len(crimpl_name):
+                if server_kind == 'localthread':
+                    report.add_item(self,
+                                    "{} is not set, will create \'crimpl\' subdirectory in working directory".format(crimpl_param.twig),
+                                    [crimpl_param]+addl_parameters,
+                                    False, [])
+                else:
+                    report.add_item(self,
+                                    "{} is not set".format(crimpl_param.twig),
+                                    [crimpl_param]+addl_parameters,
+                                    True, [])
+
+            elif crimpl_name not in local_server_configs:
+                if allow_nonlocal_server:
+                    report.add_item(self,
+                                    "{} ({}) is not a configured crimpl server on this machine and will only be able to be run on a machine in which it is.".format(crimpl_name, crimpl_param.twig),
+                                    [crimpl_param]+addl_parameters,
+                                    False, [])
+                else:
+                    report.add_item(self,
+                                    "{} ({}) is not a configured crimpl server on this machine".format(crimpl_name, crimpl_param.twig),
+                                    [crimpl_param]+addl_parameters,
+                                    True, [])
+
+            elif not allow_nonlocal_server:
+                crimpl_server_kind = _crimpl.load_server(crimpl_name).__class__.__name__.lower()[:-6]  # strip of "server"
+                if server_kind != crimpl_server_kind:
+                    report.add_item(self,
+                                    "{} ({}) is a crimpl {} server, not a {} server".format(crimpl_name, crimpl_param.twig, crimpl_server_kind, server_kind),
+                                    [crimpl_param]+addl_parameters,
+                                    True, [])
+
+        self._run_checks_warning_error(report, raise_logger_warning, raise_error)
+
+        return report
+
     def run_checks_figure(self, figure=None, compute=None, solver=None, solution=None,
                           raise_logger_warning=False, raise_error=False, **kwargs):
         """
@@ -4733,6 +4985,7 @@ class Bundle(ParameterSet):
         * <phoebe.frontend.bundle.Bundle.run_checks_compute>
         * <phoebe.frontend.bundle.Bundle.run_checks_solver>
         * <phoebe.frontend.bundle.Bundle.run_checks_solution>
+        * <phoebe.frontend.bundle.Bundle.run_checks_server>
 
         Arguments
         -----------
@@ -4820,7 +5073,7 @@ class Bundle(ParameterSet):
     def references(self, compute=None, dataset=None, solver=None):
         """
         Provides a list of used references from the given bundle based on the
-        current parameter values and attached datasets/compute options.
+        current parameter values and attached datasets/compute/solver options.
 
         This list is not necessarily complete, but can be useful to find
         publications for various features/models used as well as to make sure
@@ -4835,6 +5088,9 @@ class Bundle(ParameterSet):
         * Passband table citations, when available/applicable.
         * Dependency (astropy, numpy, etc) citations, when available/applicable.
         * Alternate compute and/or solver backends, when applicable.
+
+        See also:
+        * <phoebe.frontend.bundle.Bundle.dependencies>
 
         Arguments
         ------------
@@ -5002,6 +5258,90 @@ class Bundle(ParameterSet):
         recs = _add_reason(recs, 'astropy', 'astropy dependency within PHOEBE')
 
         return {r: {'url': citation_urls.get(r, None), 'uses': v} for r,v in recs.items()}
+
+
+    def dependencies(self, compute=None, dataset=None, solver=None):
+        """
+        Provides a list of necessary dependencies from the given bundle based on the
+        current parameter values and attached datasets/compute/solver options.
+
+        See also:
+        * <phoebe.frontend.bundle.Bundle.references>
+
+        Arguments
+        ------------
+        * `compute` (string or list of strings, optional, default=None): only
+            consider a single (or list of) compute options.  If None or not
+            provided, will default to all attached compute options.
+        * `dataset` (string or list of strings, optional, default=None): only
+            consider a single (or list of) datasets.  If None or not provided,
+            will default to all attached datasets.
+        * `solver` (string or list of strings, optional, default=None): only
+            consider a single (or list of) solver options.  If None or not
+            provided, will default to all attached solver options.
+
+        Returns
+        ----------
+        * (list, list): list of pip dependencies, list of other dependencies
+        """
+
+        if compute is None:
+            computes = self.computes
+        elif isinstance(compute, str):
+            computes = [compute]
+        elif isinstance(compute, list):
+            computes = compute
+        else:
+            raise TypeError("compute must be type None, string, or list")
+
+        if dataset is None:
+            datasets = self.datasets
+        elif isinstance(dataset, str):
+            datasets = [dataset]
+        elif isinstance(dataset, list):
+            datasets = dataset
+        else:
+            raise TypeError("dataset must be type None, string, or list")
+
+        if solver is None:
+            solvers = self.solvers
+        elif isinstance(solver, str):
+            solvers = [solver]
+        elif isinstance(solver, list):
+            solvers = solver
+        else:
+            raise TypeError("solver must be of type None, string, or list")
+
+        deps_pip, deps_other = [], []
+
+        # check for backends
+        for compute in computes:
+            if self.get_compute(compute).kind == 'phoebe' and 'phoebe' not in deps_pip:
+                deps_pip.append('phoebe')
+            elif self.get_compute(compute).kind == 'legacy' and 'phoebe1' not in deps_other:
+                deps_other.append('phoebe1')
+            elif self.get_compute(compute).kind == 'jktebop' and 'jktebop' not in deps_other:
+                deps_other.append('jktebop')
+            elif self.get_compute(compute).kind == 'photodynam' and 'photodynam' not in deps_other:
+                deps_other.append('photodynam')
+            elif self.get_compute(compute).kind == 'ellc' and 'ellc' not in deps_pip:
+                deps_pip.append('ellc')
+
+        # if len(solvers) and 'phoebe>=2.3' not in deps_pip:
+            # deps_pip.append('phoebe>=2.3')
+
+        for solver in solvers:
+            solver_kind = self.get_solver(solver).kind
+            if solver_kind == 'emcee' and 'emcee' not in deps_pip:
+                deps_pip.append('emcee')
+            elif solver_kind == 'dynesty' and 'dynesty' not in deps_pip:
+                deps_pip.append('dynesty')
+
+        # features
+        if len(self.filter(context='feature', kind='gaussian_process').features) and 'celerite' not in deps_pip:
+            deps_pip.append('celerite')
+
+        return deps_pip, deps_other
 
     @send_if_client
     def add_feature(self, kind, component=None, dataset=None,
@@ -8433,10 +8773,266 @@ class Bundle(ParameterSet):
             return dc.logpdf(values, as_univariates=True)
 
     @send_if_client
+    def add_server(self, kind, return_changes=False, **kwargs):
+        """
+        Add a new server to the bundle.  If not provided,
+        `server` (the name of the new server) will be created for
+        you and can be accessed by the `server` attribute of the returned
+        <phoebe.parameters.ParameterSet>.
+
+        ```py
+        b.add_server(server.remoteslurm)
+        ```
+
+        or
+
+        ```py
+        b.add_server('remoteslurm', nprocs=4)
+        ```
+
+        Available kinds can be found in <phoebe.parameters.server> and include:
+        * <phoebe.parameters.server.localthread>
+        * <phoebe.parameters.server.remoteslurm>
+        * <phoebe.parameters.server.awsec2>
+
+        See also:
+        * <phoebe.frontend.bundle.Bundle.get_server>
+        * <phoebe.frontend.bundle.Bundle.remove_server>
+        * <phoebe.frontend.bundle.Bundle.rename_server>
+        * <phoebe.list_available_servers>
+
+        Arguments
+        ----------
+        * `kind` (string): function to call that returns a
+             <phoebe.parameters.ParameterSet> or list of
+             <phoebe.parameters.Parameter> objects.  This must either be a
+             callable function that accepts the bundle and default values, or the name
+             of a function (as a string) that can be found in the
+             <phoebe.parameters.server> module.
+        * `server` (string, optional): name of the newly-created server.
+        * `overwrite` (boolean, optional, default=False): whether to overwrite
+            an existing server with the same `server` tag.  If False,
+            an error will be raised.
+        * `return_changes` (bool, optional, default=False): whether to include
+            changed/removed parameters in the returned ParameterSet, including
+            the removed parameters due to `overwrite`.
+        * `**kwargs`: default values for any of the newly-created parameters
+            (passed directly to the matched callabled function).
+
+        Returns
+        ---------
+        * <phoebe.parameters.ParameterSet> of all parameters that have been added
+        """
+
+        func = _get_add_func(_server, kind)
+
+        fname = func.__name__
+
+        if kwargs.get('server', False) is None:
+            # then we want to apply the default below, so let's pop for now
+            _ = kwargs.pop('server')
+
+        kwargs.setdefault('server',
+                          self._default_label('ser',
+                                              **{'context': 'server'}))
+
+        if kwargs.pop('check_label', True):
+            self._check_label(kwargs['server'], allow_overwrite=kwargs.get('overwrite', False))
+
+        # NOTE: we won't pass kwargs since some choices need to be updated.
+        # Instead we'll apply kwargs after calling all self._handle_*
+        params = func(self)
+
+
+        metawargs = {'context': 'server',
+                     'server': kwargs['server'],
+                     'kind': fname}
+
+        if kwargs.get('overwrite', False):
+            overwrite_ps = self.remove_server(server=kwargs['server'], during_overwrite=True)
+            # check the label again, just in case kwargs['server'] belongs to
+            # something other than component
+            self.exclude(server=kwargs['server'])._check_label(kwargs['server'], allow_overwrite=False)
+        else:
+            removed_ps = None
+
+        self._attach_params(params, **metawargs)
+        # attach params called _check_copy_for, but only on it's own parameterset
+        # self._check_copy_for()
+
+        # for constraint in constraints:
+            # self.add_constraint(*constraint)
+
+        ret_ps = self.filter(server=kwargs['server'], check_visible=False, check_default=False)
+
+        ret_changes = []
+        ret_changes += self._handle_server_selectparams(return_changes=return_changes)
+
+        # now set parameters that needed updated choices
+        qualifiers = ret_ps.qualifiers
+        for k,v in kwargs.items():
+            if k in qualifiers:
+                try:
+                    ret_ps.set_value_all(qualifier=k, value=v, **_skip_filter_checks)
+                except:
+                    self.remove_server(server=kwargs['server'])
+                    raise
+            # TODO: else raise warning?
+
+        # since we've already processed (so that we can get the new qualifiers),
+        # we'll only raise a warning
+        self._kwargs_checks(kwargs,
+                            additional_allowed_keys=['overwrite'],
+                            warning_only=True, ps=ret_ps)
+
+        if kwargs.get('overwrite', False) and return_changes:
+            ret_ps += overwrite_ps
+
+        if return_changes:
+            ret_ps += ret_changes
+        return _return_ps(self, ret_ps)
+
+    def get_server(self, server=None, **kwargs):
+        """
+        Filter in the 'server' context
+
+        See also:
+        * <phoebe.parameters.ParameterSet.filter>
+        * <phoebe.frontend.bundle.Bundle.add_server>
+        * <phoebe.frontend.bundle.Bundle.get_server_crimpl_object>
+        * <phoebe.frontend.bundle.Bundle.remove_server>
+        * <phoebe.frontend.bundle.Bundle.rename_server>
+
+        Arguments
+        ----------
+        * `server`: (string, optional, default=None): the name of the server
+        * `**kwargs`: any other tags to do the filtering (excluding server and context)
+
+        Returns
+        ----------
+        * a <phoebe.parameters.ParameterSet> object.
+        """
+        if server is not None:
+            kwargs['server'] = server
+            if server not in self.servers:
+                raise ValueError("server='{}' not found".format(server))
+
+        kwargs['context'] = 'server'
+        ret_ps = self.filter(**kwargs).exclude(server=[None])
+
+        if len(ret_ps.servers) == 0:
+            raise ValueError("no servers matched: {}".format(kwargs))
+        elif len(ret_ps.servers) > 1:
+            raise ValueError("more than one server matched: {}".format(kwargs))
+
+        return _return_ps(self, ret_ps)
+
+    def get_server_crimpl_object(self, server=None, **kwargs):
+        """
+        Filter in the 'server' context and retrieve the referenced
+        [crimpl](https://crimpl.readthedocs.io) object
+
+        See also:
+        * <phoebe.parameters.ParameterSet.filter>
+        * <phoebe.frontend.bundle.Bundle.add_server>
+        * <phoebe.frontend.bundle.Bundle.get_server>
+        * <phoebe.frontend.bundle.Bundle.remove_server>
+        * <phoebe.frontend.bundle.Bundle.rename_server>
+
+        Arguments
+        ----------
+        * `server`: (string, optional, default=None): the name of the server
+        * `**kwargs`: any other tags to do the filtering (excluding server, context, and qualifier)
+
+        Returns
+        ----------
+        * a crimpl server object or None
+        """
+        kwargs['context'] = 'server'
+        if server is not None:
+            kwargs['server'] = server
+        kwargs['qualifier'] = 'crimpl_name'
+        crimpl_name_param = self.get_parameter(**kwargs)
+        crimpl_name = crimpl_name_param.get_value()
+        if not len(crimpl_name):
+            if crimpl_name_param.kind == 'localthread':
+                return _crimpl.LocalThreadServer('./phoebe_crimpl_jobs')
+            else:
+                return None
+        return _crimpl.load_server(crimpl_name)
+
+    @send_if_client
+    def remove_server(self, server, return_changes=False, **kwargs):
+        """
+        Remove a 'server' from the bundle.
+
+        See also:
+        * <phoebe.parameters.ParameterSet.remove_parameters_all>
+        * <phoebe.frontend.bundle.Bundle.add_server>
+        * <phoebe.frontend.bundle.Bundle.get_server>
+        * <phoebe.frontend.bundle.Bundle.get_server_crimpl_object>
+        * <phoebe.frontend.bundle.Bundle.rename_server>
+
+        Arguments
+        ----------
+        * `server` (string): the label of the server to be removed.
+        * `**kwargs`: other filter arguments to be sent to
+            <phoebe.parameters.ParameterSet.remove_parameters_all>.  The following
+            will be ignored: server, context
+
+        Returns
+        -----------
+        * ParameterSet of removed parameters
+        """
+        kwargs['server'] = server
+        kwargs['context'] = 'server'
+        ret_ps = self.remove_parameters_all(**kwargs)
+
+        ret_changes = []
+        ret_changes += self._handle_server_selectparams(return_changes=return_changes)
+
+        if return_changes:
+            ret_ps += ret_changes
+        return _return_ps(self, ret_ps)
+
+    @send_if_client
+    def rename_server(self, old_server, new_server,
+                      overwrite=False, return_changes=False):
+        """
+        Change the label of a server attached to the Bundle.
+
+        See also:
+        * <phoebe.frontend.bundle.Bundle.add_server>
+        * <phoebe.frontend.bundle.Bundle.get_server>
+        * <phoebe.frontend.bundle.Bundle.get_server_crimpl_object>
+        * <phoebe.frontend.bundle.Bundle.remove_server>
+
+        Arguments
+        ----------
+        * `old_server` (string): current label of the server (must exist)
+        * `new_server` (string): the desired new label of the server
+            (must not yet exist, unless `overwrite=True`)
+        * `overwrite` (bool, optional, default=False): overwrite the existing
+            entry if it exists.
+
+        Returns
+        --------
+        * <phoebe.parameters.ParameterSet> the renamed server
+
+        Raises
+        --------
+        * ValueError: if the value of `new_server` is forbidden or already exists.
+        """
+        # TODO: raise error if old_server not found?
+        self._rename_label('server', old_server, new_server, overwrite)
+
+        return self.filter(server=new_server)
+
+    @send_if_client
     def add_figure(self, kind, return_changes=False, **kwargs):
         """
         Add a new figure to the bundle.  If not provided,
-        figure` (the name of the new figure) will be created for
+        `figure` (the name of the new figure) will be created for
         you and can be accessed by the `figure` attribute of the returned
         <phoebe.parameters.ParameterSet>.
 
@@ -9077,7 +9673,9 @@ class Bundle(ParameterSet):
             self._kwargs_checks(kwargs, additional_allowed_keys=['skip_checks', 'overwrite'], additional_forbidden_keys=forbidden_keys)
 
         if not kwargs.get('skip_checks', False):
-            report = self.run_checks_compute(compute=compute, allow_skip_constraints=False,
+            report = self.run_checks_compute(compute=compute,
+                                             run_checks_server=False,
+                                             allow_skip_constraints=False,
                                              raise_logger_warning=True, raise_error=True,
                                              run_checks_system=True,
                                              **kwargs)
@@ -9257,7 +9855,9 @@ class Bundle(ParameterSet):
                 use_pbfluxes[dataset] = compute_pblums_pbfluxes.get(dataset)
 
         elif not kwargs.get('skip_checks', False):
-            report = self.run_checks_compute(compute=compute, allow_skip_constraints=False,
+            report = self.run_checks_compute(compute=compute,
+                                             run_checks_server=False,
+                                             allow_skip_constraints=False,
                                              raise_logger_warning=True, raise_error=True,
                                              run_checks_system=True,
                                              **kwargs)
@@ -9465,6 +10065,7 @@ class Bundle(ParameterSet):
         # make sure we pass system checks
         if not kwargs.get('skip_checks', False):
             report = self.run_checks_compute(compute=compute_ps.compute,
+                                             run_checks_server=False,
                                              allow_skip_constraints=False,
                                              raise_logger_warning=True, raise_error=True,
                                              run_checks_system=True,
@@ -9837,6 +10438,7 @@ class Bundle(ParameterSet):
 
         ret_changes += self._handle_compute_selectparams(return_changes=return_changes)
         ret_changes += self._handle_compute_choiceparams(return_changes=return_changes)
+        ret_changes += self._handle_server_selectparams(return_changes=return_changes)
 
         if kwargs.get('overwrite', False) and return_changes:
             ret_ps += overwrite_ps
@@ -9866,6 +10468,8 @@ class Bundle(ParameterSet):
                 raise ValueError("compute='{}' not found".format(compute))
 
         kwargs['context'] = 'compute'
+        # server is passed as a kwarg to override the server parameter in run_compute/solver, but is never used for filtering for compute
+        _server = kwargs.pop('server', None)
         return self.filter(**kwargs)
 
     @send_if_client
@@ -9947,7 +10551,7 @@ class Bundle(ParameterSet):
 
         return self.filter(compute=new_compute)
 
-    def _prepare_compute(self, compute, model, dataset, **kwargs):
+    def _prepare_compute(self, compute, model, dataset, from_export=False, **kwargs):
         """
         """
         # protomesh and pbmesh were supported kwargs in 2.0.x but are no longer
@@ -10042,7 +10646,10 @@ class Bundle(ParameterSet):
         self._kwargs_checks(kwargs, allowed_kwargs, ps=computes_ps)
 
         if not kwargs.get('skip_checks', False):
-            report = self.run_checks_compute(compute=computes, allow_skip_constraints=False,
+            report = self.run_checks_compute(compute=computes,
+                                             run_checks_server=True,
+                                             allow_nonlocal_server=from_export,
+                                             allow_skip_constraints=False,
                                              raise_logger_warning=True, raise_error=True,
                                              run_checks_system=True,
                                              **kwargs)
@@ -10073,49 +10680,157 @@ class Bundle(ParameterSet):
 
         return model, computes, datasets, do_create_fig_params, changed_params, overwrite_ps, kwargs
 
-
-    def _write_export_compute_script(self, script_fname, out_fname, compute, model, dataset, do_create_fig_params, import_from_older, log_level, kwargs):
-        """
-        """
+    def _write_crimpl_script(self, script_fname, script, use_server, deps_pip, autocontinue, kwargs):
         f = open(script_fname, 'w')
-        f.write("import os; os.environ['PHOEBE_ENABLE_PLOTTING'] = 'FALSE'; os.environ['PHOEBE_ENABLE_SYMPY'] = 'FALSE';\n")
-        f.write("import phoebe; import json\n")
+        server_ps = self.get_server(server=use_server, **_skip_filter_checks)
+
+        crimpl_name = server_ps.get_value(qualifier='crimpl_name', crimpl_name=kwargs.get('crimpl_name', None), **_skip_filter_checks)
+        f.write("crimpl_name = '{}'\n".format(crimpl_name))
+
+        nprocs = server_ps.get_value(qualifier='nprocs', nprocs=kwargs.get('nprocs', None), **_skip_filter_checks)
+        f.write("nprocs = {}\n".format(nprocs))
+
+        use_mpi = server_ps.get_value(qualifier='use_mpi', use_mpi=kwargs.get('use_mpi', None), **_skip_filter_checks)
+        f.write("use_mpi = {}\n".format(use_mpi))
+
+        use_conda = server_ps.get_value(qualifier='use_conda', use_conda=kwargs.get('use_conda', None), default=True, **_skip_filter_checks)
+        f.write("use_conda = {}\n".format(use_conda))
+
+        conda_env = server_ps.get_value(qualifier='conda_env', conda_env=kwargs.get('conda_env', None), **_skip_filter_checks)
+        f.write("conda_env = '{}'\n".format(conda_env))
+
+        install_deps = server_ps.get_value(qualifier='install_deps', install_deps=kwargs.get('install_deps', None), **_skip_filter_checks)
+        f.write("install_deps = {}\n".format(install_deps))
+
+        job_name = _crimpl.common._new_job_name()
+        f.write("job_name = '{}'\n".format(job_name))  # TODO: set this
+
+        server_options = {p.qualifier: kwargs.pop(p.qualifier, p.get_value()) for p in server_ps.to_list() if p.qualifier not in ['use_conda', 'conda_env', 'nprocs', 'crimpl_name', 'use_mpi', 'install_deps']}
+        f.write("server_options = {}\n".format(server_options))
+
+        f.write("\n\n")
+        f.write("####### DO NOT EDIT BELOW THIS LINE #######\n\n")
+        f.write("try: from phoebe.dependencies import crimpl\nexcept ImportError:\n    try: import crimpl\n    except ImportError: raise ImportError('phoebe or crimpl required to submit script')\n")
+        f.write("import sys\n\n")
+        f.write("if len(sys.argv) != 2:\n")
+        if autocontinue:
+            f.write("    print('usage: {} [submit, status, wait, output, kill, continue]'.format(sys.argv[0]))\n")
+        else:
+            f.write("    print('usage: {} [submit, status, wait, output, kill]'.format(sys.argv[0]))\n")
+        f.write("    exit()\n")
+        f.write("action = sys.argv[1]\n\n")
+        f.write("s = crimpl.load_server(crimpl_name) if crimpl_name else crimpl.LocalThreadServer('./phoebe_crimpl_jobs')\n\n")
+        f.write("if action=='submit':\n")
+        f.write("    if job_name in s.existing_jobs:\n")
+        if autocontinue:
+            f.write("        print('job already submitted, to continue a previous run, use continue instead of submit')\n")
+        else:
+            f.write("        print('job already submitted')\n")
+        f.write("        exit()\n")
+        f.write("    python_code = \"\"\"{}\"\"\"\n\n".format("\n".join(script)))
+        # TODO: random string instead of export_compute.py to avoid conflict with script
+        server_tmp_script = 'server_tmp_script.py'
+        f.write("    if use_mpi:\n")
+        f.write("        if s.__class__.__name__ == 'LocalThreadServer':\n")
+        f.write("            run_cmd = 'mpirun -np {} python3 %s'.format(nprocs)\n" % (server_tmp_script))
+        f.write("            submit_job_kwargs = {}\n")
+        f.write("        else:\n")
+        f.write("            run_cmd = 'mpirun python3 %s'\n" % (server_tmp_script))
+        f.write("            submit_job_kwargs = {'nprocs': %d}\n\n" % (nprocs))
+        f.write("    else:\n")
+        f.write("        run_cmd = 'python3 %s'\n" % (server_tmp_script))
+        f.write("    if s.__class__.__name__ == 'LocalThreadServer':\n")
+        f.write("        submit_job_kwargs = {}\n")
+        f.write("    else:\n")
+        f.write("        submit_job_kwargs = {'nprocs': %d}\n\n" % (nprocs))
+
+        # NOTE: sleep command here is to make sure there is time to actually write to the file before attempting to call it
+        f.write("    script = ['printf \"{}\" > %s'.format(python_code.replace('\"', '\\\\\"')), 'sleep 2', run_cmd]\n\n" % (server_tmp_script))
+
+        f.write("    if install_deps:\n")
+        f.write("        s.run_script(['pip install {}'], conda_env=conda_env if use_conda else False)\n\n".format(" ".join(deps_pip)))
+
+        f.write("    sj = s.submit_job(script, ignore_files=['{}'], job_name=job_name, conda_env=conda_env if use_conda else False, **submit_job_kwargs)".format(server_tmp_script))
+
+
+        f.write("\n\n")
+        f.write("elif action=='status':\n")
+        f.write("    sj = s.get_job(job_name)\n")
+        f.write("    print(sj.job_status)\n\n")
+        f.write("elif action=='wait':\n")
+        f.write("    sj = s.get_job(job_name)\n")
+        f.write("    sj.wait_for_job_status()\n\n")
+        f.write("elif action=='output':\n")
+        f.write("    sj = s.get_job(job_name)\n")
+        f.write("    print(sj.check_output())\n\n")
+        f.write("elif action=='kill':\n")
+        f.write("    sj = s.get_job(job_name)\n")
+        f.write("    print(sj.kill_job())\n\n")
+        if autocontinue:
+            f.write("elif action=='continue':\n")
+            f.write("    sj = s.get_job(job_name)\n")
+            f.write("    sj.resubmit_script()\n")
+        f.write("else:\n")
+        if autocontinue:
+            f.write("    print('usage: {} [submit, status, wait, output, kill, continue]'.format(sys.argv[0]))\n")
+        else:
+            f.write("    print('usage: {} [submit, status, wait, output, kill]'.format(sys.argv[0]))\n")
+        f.write("    exit()\n")
+        f.close()
+        return
+
+    def _write_export_compute_script(self, script_fname, out_fname, compute, model, dataset, use_server, do_create_fig_params, import_from_older, log_level, kwargs):
+        """
+        """
+        script = []
+        script.append("import os; os.environ['PHOEBE_ENABLE_PLOTTING'] = 'FALSE'; os.environ['PHOEBE_ENABLE_SYMPY'] = 'FALSE';")
+        script.append("import phoebe; import json;")
         if log_level is not None:
-            f.write("phoebe.logger('{}')\n".format(log_level))
+            script.append("phoebe.logger('{}');".format(log_level))
         # TODO: can we skip other models
         # or datasets (except times and only for run_compute but not run_solver)
-        exclude_contexts = ['model', 'figure', 'constraint', 'solver']
+        exclude_qualifiers = ['detached_job']
+        exclude_contexts = ['model', 'figure', 'constraint', 'solver']  # NOTE: need server for kwargs check on use_server
         sample_from = self.get_value(qualifier='sample_from', compute=compute, sample_from=kwargs.get('sample_from', None), default=[], expand=True)
         exclude_distributions = [dist for dist in self.distributions if dist not in sample_from]
         exclude_solutions = [sol for sol in self.solutions if sol not in sample_from]
         # we need to include uniqueids if needing to apply the solution during sample_from
         incl_uniqueid = len(exclude_solutions) != len(self.solutions)
-        f.write("bdict = json.loads(\"\"\"{}\"\"\", object_pairs_hook=phoebe.utils.parse_json)\n".format(json.dumps(self.exclude(context=exclude_contexts, **_skip_filter_checks).exclude(distribution=exclude_distributions, **_skip_filter_checks).exclude(solution=exclude_solutions, **_skip_filter_checks).to_json(incl_uniqueid=incl_uniqueid, exclude=['description', 'advanced', 'readonly', 'copy_for', 'latexfmt', 'labels_latex', 'label_latex']))))
-        f.write("b = phoebe.open(bdict, import_from_older={})\n".format(import_from_older))
+        script.append("bdict = json.loads('{}', object_pairs_hook=phoebe.utils.parse_json);".format(json.dumps(self.exclude(context=exclude_contexts, **_skip_filter_checks).exclude(qualifier=exclude_qualifiers, **_skip_filter_checks).exclude(distribution=exclude_distributions, **_skip_filter_checks).exclude(solution=exclude_solutions, **_skip_filter_checks).to_json(incl_uniqueid=incl_uniqueid, exclude=['description', 'advanced', 'readonly', 'copy_for', 'latexfmt', 'labels_latex', 'label_latex']))))
+        script.append("b = phoebe.open(bdict, import_from_older={});".format(import_from_older))
         # TODO: make sure this works with multiple computes
         compute_kwargs = list(kwargs.items())+[('compute', compute), ('model', str(model)), ('dataset', dataset), ('do_create_fig_params', do_create_fig_params)]
-        compute_kwargs_string = ','.join(["{}={}".format(k,"\'{}\'".format(str(v)) if isinstance(v, str) else v) for k,v in compute_kwargs])
+        compute_kwargs_string = ','.join(["{}={}".format(k,"\'{}\'".format(str(v)) if isinstance(v, str) else v) for k,v in compute_kwargs if k not in ['use_server']])
         # as the return from run_compute just does a filter on model=model,
         # model_ps here should include any created figure parameters
 
-        if out_fname is not None:
-            f.write("model_ps = b.run_compute(out_fname='{}', in_export_script=True, {})\n".format(out_fname, compute_kwargs_string))
-            f.write("b.filter(context='model', model=model_ps.model, check_visible=False).save('{}', incl_uniqueid=True)\n".format(out_fname))
-        else:
-            f.write("import sys\n")
-            f.write("model_ps = b.run_compute(out_fname=sys.argv[0]+'.out', in_export_script=True, {})\n".format(compute_kwargs_string))
-            f.write("b.filter(context='model', model=model_ps.model, check_visible=False).save(sys.argv[0]+'.out', incl_uniqueid=True)\n")
+        if out_fname is None and use_server and use_server != 'none':
             out_fname = script_fname+'.out'
 
-        f.write("\n# NOTE: this script only includes parameters needed to call the requested run_compute, edit manually with caution!\n")
-        f.close()
+        if out_fname is not None:
+            script.append("model_ps = b.run_compute(out_fname='{}', use_server='none', in_export_script=True, {});".format(out_fname, compute_kwargs_string))
+            script.append("b.filter(context='model', model=model_ps.model, check_visible=False).save('{}', incl_uniqueid=True);".format(out_fname))
+        else:
+            script.append("import sys;\n")
+            script.append("model_ps = b.run_compute(out_fname=sys.argv[0]+'.out', use_server='none', in_export_script=True, {});".format(compute_kwargs_string))
+            script.append("b.filter(context='model', model=model_ps.model, check_visible=False).save(sys.argv[0]+'.out', incl_uniqueid=True);")
+            out_fname = script_fname+'.out'
+
+        if use_server and use_server != 'none':
+            deps_pip, _ = self.dependencies(compute=compute)
+            self._write_crimpl_script(script_fname, script, use_server, deps_pip, False, kwargs)
+        else:
+            f = open(script_fname, 'w')
+            f.write("\n".join(script))
+            f.write("\n# NOTE: this script only includes parameters needed to call the requested run_compute, edit manually with caution!\n")
+            f.close()
 
         return script_fname, out_fname
 
     def export_compute(self, script_fname, out_fname=None,
                        compute=None, model=None, dataset=None,
                        pause=False, log_level=None,
-                       import_from_older=False, **kwargs):
+                       import_from_older=True, **kwargs):
         """
         Export a script to call run_compute externally (in a different thread
         or on a different machine).  To automatically detach to a different
@@ -10158,7 +10873,7 @@ class Bundle(ParameterSet):
             useful if running in an interactive notebook or a script.
         * `log_level` (string, optional, default=None): `clevel` to set in the
             logger in the exported script.  See <phoebe.logger>.
-        * `import_from_older` (boolean, optional, default=False): whether to allow
+        * `import_from_older` (boolean, optional, default=True): whether to allow
             the script to run on a newer version of PHOEBE.  If True and executing
             the outputed script (`script_fname`) on a newer version of PHOEBE,
             the bundle will attempt to migrate to the newer version.  If False,
@@ -10178,8 +10893,18 @@ class Bundle(ParameterSet):
           in the model being written to `out_fname`.
 
         """
-        model, computes, datasets, do_create_fig_params, changed_params, overwrite_ps, kwargs = self._prepare_compute(compute, model, dataset, **kwargs)
-        script_fname, out_fname = self._write_export_compute_script(script_fname, out_fname, computes, model, dataset, do_create_fig_params, import_from_older, log_level, kwargs)
+        use_server = kwargs.get('use_server', kwargs.get('server', None))
+
+        model, computes, datasets, do_create_fig_params, changed_params, overwrite_ps, kwargs = self._prepare_compute(compute, model, dataset, from_export=True, **kwargs)
+
+        if use_server is None:
+            for compute in computes:
+                use_server_this = self.get_value(qualifier='use_server', compute=compute, context='compute', **_skip_filter_checks)
+                if use_server is not None and use_server_this != use_server:
+                    raise ValueError("multiple values found for server among compute options")
+                use_server = use_server_this
+
+        script_fname, out_fname = self._write_export_compute_script(script_fname, out_fname, computes, model, dataset, use_server, do_create_fig_params, import_from_older, log_level, kwargs)
 
         if pause:
             input("* optional:  call b.save(...) to save the bundle to disk, you can then safely close the active python session and recover the bundle with phoebe.load(...)\n"+
@@ -10254,12 +10979,14 @@ class Bundle(ParameterSet):
             (see <phoebe.frontend.bundle.Bundle.parse_solver_times>) unless
             `times` is also passed.  `compute` must be None (not passed) or an
             error will be raised.
-        * `detach` (bool, optional, default=False, EXPERIMENTAL):
+        * `detach` (bool, optional, default=False):
             whether to detach from the computation run,
             or wait for computations to complete.  If detach is True, see
             <phoebe.frontend.bundle.Bundle.get_model> and
             <phoebe.parameters.JobParameter>
             for details on how to check the job status and retrieve the results.
+        * `sleep` (int, optional, default=10): amount of time to sleep between
+            checking the job status if running externally and `detach=False`.
         * `dataset` (list, dict, or string, optional, default=None): filter for which datasets
             should be computed.  If provided as a dictionary, keys should be compute
             labels provided in `compute`.  If None, will use the `enabled` parameters in the
@@ -10311,17 +11038,19 @@ class Bundle(ParameterSet):
         if isinstance(detach, str):
             # then we want to temporarily go in to client mode
             raise NotImplementedError("detach currently must be a bool")
-            self.as_client(as_client=detach)
-            ret_ = self.run_compute(compute=compute, model=model, solver=solver, dataset=dataset, times=times, return_changes=return_changes, **kwargs)
-            self.as_client(as_client=False)
-            return _return_ps(self, ret_)
+            # self.as_client(as_client=detach)
+            # ret_ = self.run_compute(compute=compute, model=model, solver=solver, dataset=dataset, times=times, return_changes=return_changes, **kwargs)
+            # self.as_client(as_client=False)
+            # return _return_ps(self, ret_)
 
         if solver is not None and compute is not None:
             raise ValueError("cannot provide both solver and compute")
 
         if solver is not None:
             if not kwargs.get('skip_checks', False):
-                report = self.run_checks_solver(solver=solver, run_checks_compute=False,
+                report = self.run_checks_solver(solver=solver,
+                                                run_checks_compute=False,
+                                                run_checks_server=False,
                                                 allow_skip_constraints=False,
                                                 raise_logger_warning=True, raise_error=True)
 
@@ -10345,10 +11074,20 @@ class Bundle(ParameterSet):
                 if isinstance(v, float) or isinstance(v, int):
                     times[k] = [v]
 
+        use_server = kwargs.get('use_server', kwargs.get('server', None))
+        job_sleep = kwargs.get('sleep', 10)
+
         # NOTE: _prepare_compute calls run_checks_compute and will handle raising
         # any necessary errors
-        model, computes, datasets, do_create_fig_params, changed_params, overwrite_ps, kwargs = self._prepare_compute(compute, model, dataset, **kwargs)
+        model, computes, datasets, do_create_fig_params, changed_params, overwrite_ps, kwargs = self._prepare_compute(compute, model, dataset, from_export=False, **kwargs)
         _ = kwargs.pop('do_create_fig_params', None)
+
+        if use_server is None:
+            for compute in computes:
+                use_server_this = self.get_value(qualifier='use_server', compute=compute, context='compute', **_skip_filter_checks)
+                if use_server is not None and use_server_this != use_server:
+                    raise ValueError("multiple values found for server among compute options")
+                use_server = use_server_this
 
         kwargs.setdefault('progressbar', conf.progressbars)
 
@@ -10358,7 +11097,7 @@ class Bundle(ParameterSet):
             logger.warning("cannot detach when within mpirun, ignoring")
             detach = False
 
-        if (detach or mpi.enabled) and not mpi.within_mpirun:
+        if (detach or mpi.enabled or use_server!='none') and not mpi.within_mpirun:
             if detach:
                 logger.warning("detach support is EXPERIMENTAL")
 
@@ -10385,38 +11124,78 @@ class Bundle(ParameterSet):
             # a random string, to avoid any conflicts
             jobid = kwargs.get('jobid', parameters._uniqueid())
 
+            if use_server != 'none':
+                server_options = {p.qualifier: kwargs.pop(p.qualifier, p.get_value()) for p in self.filter(server=use_server, context='server', **_skip_filter_checks).to_list()}
+            else:
+                # default to the LocalThreadServer in ./phoebe_crimpl_jobs without mpi and without conda
+                server_options = {'crimpl_name': '', 'use_mpi': False, 'use_conda': False, 'install_deps': False}
+
+            # override terminate_on_complete if we're waiting
+            if server_options.get('terminate_on_complete', False) and not detach:
+                logger.info("overriding to terminate_on_complete=False since job is not detached")
+                server_options['terminate_on_complete'] = False
+
             # we'll build a python script that can replicate this bundle as it
             # is now, run compute, and then save the resulting model
             script_fname = "_{}.py".format(jobid)
             out_fname = "_{}.out".format(jobid)
             err_fname = "_{}.err".format(jobid)
-            script_fname, out_fname = self._write_export_compute_script(script_fname, out_fname, compute, model, dataset, do_create_fig_params, False, None, kwargs)
+            script_fname, out_fname = self._write_export_compute_script(script_fname, out_fname, compute, model, dataset, False, do_create_fig_params, True, None, kwargs)
 
             script_fname = os.path.abspath(script_fname)
-            cmd = mpi.detach_cmd.format(script_fname)
-            # TODO: would be nice to catch errors caused by the detached script...
-            # but that would probably need to be the responsibility of the
-            # jobparam to return a failed status and message.
-            # Unfortunately right now an error just results in the job hanging.
-            f = open(err_fname, 'w')
-            subprocess.Popen(cmd, shell=True, stdout=DEVNULL, stderr=f)
-            f.close()
 
-            # create model parameter and attach (and then return that instead of None)
+            crimpl_name = server_options.pop('crimpl_name')
+            use_conda = server_options.pop('use_conda', True)
+            if not use_conda:
+                server_options['conda_env'] = False
+            use_mpi = server_options.pop('use_mpi')
+            install_deps = server_options.pop('install_deps')
+            if crimpl_name:
+                if crimpl_name in _cached_crimpl_servers.keys():
+                    s = _cached_crimpl_servers.get(crimpl_name)
+                else:
+                    s = _crimpl.load_server(crimpl_name)
+                    _cached_crimpl_servers[crimpl_name] = s
+            else:
+                s = _crimpl.LocalThreadServer('./phoebe_crimpl_jobs')
+            if install_deps:
+                deps_pip, deps_other = self.dependencies(compute=compute)
+                if len(deps_other):
+                    # TODO: do something better with this
+                    raise ValueError("cannot automatically install {}".format(deps_other))
+                if use_mpi:
+                    deps_pip.append('mpi4py')
+                s.run_script(['pip install {}'.format(" ".join(deps_pip))], conda_env=server_options.get('conda_env'))
+
+            prefix = "mpirun " if use_mpi else ""
+            if s.__class__.__name__ == 'LocalThreadServer':
+                # then nprocs are handled in the script, not by crimpl
+                nprocs = server_options.pop('nprocs', 1)
+                if use_mpi:
+                    prefix = "mpirun -np {} ".format(nprocs)
+
+            sj = s.submit_job(script=['{}python3 {}'.format(prefix, os.path.basename(script_fname))],
+                              files=[script_fname],
+                              **server_options)
+
+            # create model job parameter and attach (and then return that instead of None)
             job_param = JobParameter(self,
-                                     location=os.path.dirname(script_fname),
-                                     status_method='exists',
-                                     retrieve_method='local',
+                                     job_name=sj.job_name,
                                      uniqueid=jobid)
 
-            metawargs = {'context': 'model', 'model': model}
+            metawargs = {'context': 'model', 'model': model, 'server': use_server if use_server!='none' else None}
             self._attach_params([job_param], check_copy_for=False, **metawargs)
+
+            for compute in computes:
+                comment_param = StringParameter(qualifier='comments', value=kwargs.get('comments', self.get_value(qualifier='comments', compute=compute, default='', **_skip_filter_checks)), description='User-provided comments for this model.  Feel free to place any notes here.')
+                metawargs = {'context': 'model', 'model': model, 'compute': compute}
+                self._attach_params([comment_param], check_copy_for=False, **metawargs)
 
             if isinstance(detach, str):
                 self.save(detach)
 
             if not detach:
-                return job_param.attach()
+                return job_param.attach(sleep=job_sleep)
             else:
                 logger.info("detaching from run_compute.  Call get_parameter(model='{}').attach() to re-attach".format(model))
 
@@ -11008,12 +11787,15 @@ class Bundle(ParameterSet):
         """
         Attach the results from an existing <phoebe.parameters.JobParameter>.
 
-        Jobs are created when passing `detach=True` to
-        <phoebe.frontend.bundle.Bundle.run_compute> or
+        Jobs are created when passing `detach=True` or setting or passing
+        `use_server` to <phoebe.frontend.bundle.Bundle.run_compute> or
         <phoebe.frontend.bundle.Bundle.run_solver>.
 
         See also:
+        * <phoebe.frontend.bundle.Bundle.get_job_status>
+        * <phoebe.frontend.bundle.Bundle.load_job_progress>
         * <phoebe.frontend.bundle.Bundle.kill_job>
+        * <phoebe.frontend.bundle.Bundle.resubmit_job>
         * <phoebe.parameters.JobParameter.attach>
 
         Arguments
@@ -11039,25 +11821,87 @@ class Bundle(ParameterSet):
         kwargs['qualifier'] = 'detached_job'
         return self.get_parameter(twig=twig, **kwargs).attach(wait=wait, sleep=sleep, cleanup=cleanup, return_changes=return_changes)
 
-    def kill_job(self, twig=None, cleanup=True,
-                   return_changes=False, **kwargs):
+    @send_if_client
+    def get_job_status(self, twig=None, **kwargs):
         """
-        Send a termination signal to the external job referenced by an existing
-        <phoebe.parameters.JobParameter>.
+        Check the status of an existing <phoebe.parameters.JobParameter>.
 
-        Jobs are created when passing `detach=True` to
-        <phoebe.frontend.bundle.Bundle.run_compute> or
+        Jobs are created when passing `detach=True` or setting or passing
+        `use_server` to <phoebe.frontend.bundle.Bundle.run_compute> or
         <phoebe.frontend.bundle.Bundle.run_solver>.
 
         See also:
         * <phoebe.frontend.bundle.Bundle.attach_job>
-        * <phoebe.parameters.JobParameter.kill>
+        * <phoebe.frontend.bundle.Bundle.load_job_progress>
+        * <phoebe.frontend.bundle.Bundle.kill_job>
+        * <phoebe.frontend.bundle.Bundle.resubmit_job>
+        * <phoebe.frontend.bundle.Bundle.get_job_crimpl_object>
+        * <phoebe.parameters.JobParameter.attach>
 
         Arguments
         ------------
         * `twig` (string, optional): twig to use for filtering for the JobParameter.
-        * `cleanup` (bool, optional, default=True): whether to delete any
-            temporary files created by the Job.
+        * `**kwargs`: any additional keyword arguments are sent to filter for the
+            Job parameters.  Between `twig` and `**kwargs`, a single parameter
+            with qualifier of 'detached_job' must be found.
+
+        Returns
+        -----------
+        * (string)
+        """
+        kwargs['qualifier'] = 'detached_job'
+        return self.get_parameter(twig=twig, **kwargs).get_status()
+
+    def get_job_crimpl_object(self, twig=None, **kwargs):
+        """
+        Access the crimpl job object for an existing <phoebe.parameters.JobParameter>.
+
+        Jobs are created when passing `detach=True` or setting or passing
+        `use_server` to <phoebe.frontend.bundle.Bundle.run_compute> or
+        <phoebe.frontend.bundle.Bundle.run_solver>.
+
+        See also:
+        * <phoebe.frontend.bundle.Bundle.attach_job>
+        * <phoebe.frontend.bundle.Bundle.get_job_status>
+        * <phoebe.frontend.bundle.Bundle.load_job_progress>
+        * <phoebe.frontend.bundle.Bundle.kill_job>
+        * <phoebe.frontend.bundle.Bundle.resubmit_job>
+        * <phoebe.parameters.JobParameter.crimpl_job>
+
+        Arguments
+        ------------
+        * `twig` (string, optional): twig to use for filtering for the JobParameter.
+        * `**kwargs`: any additional keyword arguments are sent to filter for the
+            Job parameters.  Between `twig` and `**kwargs`, a single parameter
+            with qualifier of 'detached_job' must be found.
+
+        Returns
+        -----------
+        * (string)
+        """
+        kwargs['qualifier'] = 'detached_job'
+        return self.get_parameter(twig=twig, **kwargs).crimpl_job
+
+    @send_if_client
+    def load_job_progress(self, twig=None, return_changes=False, **kwargs):
+        """
+        Attach the results from an existing <phoebe.parameters.JobParameter>.
+
+        Jobs are created when passing `detach=True` or setting or passing
+        `use_server` to <phoebe.frontend.bundle.Bundle.run_compute> or
+        <phoebe.frontend.bundle.Bundle.run_solver>.
+
+        See also:
+        * <phoebe.frontend.bundle.Bundle.get_job_status>
+        * <phoebe.frontend.bundle.Bundle.attach_job>
+        * <phoebe.frontend.bundle.Bundle.kill_job>
+        * <phoebe.frontend.bundle.Bundle.resubmit_job>
+        * <phoebe.frontend.bundle.Bundle.get_job_crimpl_object>
+        * <phoebe.parameters.JobParameter.load_progress>
+
+        Arguments
+        ------------
+        * `twig` (string, optional): twig to use for filtering for the JobParameter.
         * `return_changes` (bool, optional, default=False): whether to include
             changed/removed parameters in the returned ParameterSet.
         * `**kwargs`: any additional keyword arguments are sent to filter for the
@@ -11070,7 +11914,84 @@ class Bundle(ParameterSet):
             Parameters.
         """
         kwargs['qualifier'] = 'detached_job'
-        return self.get_parameter(twig=twig, **kwargs).kill(cleanup=cleanup, return_changes=return_changes)
+        return self.get_parameter(twig=twig, **kwargs).load_progress(return_changes=return_changes)
+
+
+    def kill_job(self, twig=None, load_progress=False, cleanup=True,
+                   return_changes=False, **kwargs):
+        """
+        Send a termination signal to the external job referenced by an existing
+        <phoebe.parameters.JobParameter>.
+
+        Jobs are created when passing `detach=True` or setting or passing
+        `use_server` to <phoebe.frontend.bundle.Bundle.run_compute> or
+        <phoebe.frontend.bundle.Bundle.run_solver>.
+
+        See also:
+        * <phoebe.frontend.bundle.Bundle.get_job_status>
+        * <phoebe.frontend.bundle.Bundle.attach_job>
+        * <phoebe.frontend.bundle.Bundle.load_job_progress>
+        * <phoebe.frontend.bundle.Bundle.resubmit_job>
+        * <phoebe.frontend.bundle.Bundle.get_job_crimpl_object>
+        * <phoebe.parameters.JobParameter.kill>
+
+        Arguments
+        ------------
+        * `twig` (string, optional): twig to use for filtering for the JobParameter.
+        * `load_progress` (bool, optional, default=False): whether to wait for the
+            thread to terminate and then load results (if available).
+        * `cleanup` (bool, optional, default=True): whether to delete any
+            temporary files once the job is killed (and results are loaded
+            if `load_progress=True`).
+        * `return_changes` (bool, optional, default=False): whether to include
+            changed/removed parameters in the returned ParameterSet.
+        * `**kwargs`: any additional keyword arguments are sent to filter for the
+            Job parameters.  Between `twig` and `**kwargs`, a single parameter
+            with qualifier of 'detached_job' must be found.
+
+        Returns
+        -----------
+        * (<phoebe.parameters.ParameterSet>): ParameterSet of the newly attached
+            Parameters.
+        """
+        kwargs['qualifier'] = 'detached_job'
+        return self.get_parameter(twig=twig, **kwargs).kill(load_progress=load_progress,
+                                                            cleanup=cleanup,
+                                                            return_changes=return_changes)
+
+    def resubmit_job(self, twig=None, **kwargs):
+        """
+        Continue a job that was previously canceled, killed, or exceeded walltime.
+        For jobs that do not support continuing, the job will be restarted.
+
+        Jobs are created when passing `detach=True` or setting or passing
+        `use_server` to <phoebe.frontend.bundle.Bundle.run_compute> or
+        <phoebe.frontend.bundle.Bundle.run_solver>.
+
+        See also:
+        * <phoebe.frontend.bundle.Bundle.get_job_status>
+        * <phoebe.frontend.bundle.Bundle.attach_job>
+        * <phoebe.frontend.bundle.Bundle.load_job_progress>
+        * <phoebe.frontend.bundle.Bundle.kill_job>
+        * <phoebe.frontend.bundle.Bundle.get_job_crimpl_object>
+        * <phoebe.parameters.JobParameter.resubmit>
+
+        Arguments
+        ------------
+        * `twig` (string, optional): twig to use for filtering for the JobParameter.
+        * `**kwargs`: any additional keyword arguments are sent to filter for the
+            Job parameters.  Between `twig` and `**kwargs`, a single parameter
+            with qualifier of 'detached_job' must be found.
+
+        Returns
+        -----------
+        * (<phoebe.parameters.ParameterSet>): ParameterSet of the newly attached
+            Parameters.
+        """
+        kwargs['qualifier'] = 'detached_job'
+        job_param = self.get_parameter(twig=twig, **kwargs)
+        job_param.resubmit()
+        return ParameterSet([job_param])
 
     @send_if_client
     def add_solver(self, kind, return_changes=False, **kwargs):
@@ -11168,6 +12089,7 @@ class Bundle(ParameterSet):
         ret_changes += self._handle_dataset_selectparams(return_changes=return_changes)
         ret_changes += self._handle_orbit_choiceparams(return_changes=return_changes)
         ret_changes += self._handle_component_choiceparams(return_changes=return_changes)
+        ret_changes += self._handle_server_selectparams(return_changes=return_changes)
 
         ret_ps = self.get_solver(check_visible=False, check_default=False, **metawargs)
 
@@ -11209,6 +12131,8 @@ class Bundle(ParameterSet):
             if solver not in self.solvers:
                 raise ValueError("solver='{}' not found".format(solver))
         kwargs['context'] = 'solver'
+        # server is passed as a kwarg to override the server parameter in run_compute/solver, but is never used for filtering for compute
+        _server = kwargs.pop('server', None)
         return self.filter(**kwargs)
 
     @send_if_client
@@ -11308,7 +12232,7 @@ class Bundle(ParameterSet):
         return _return_ps(self, ret_ps)
 
 
-    def _prepare_solver(self, solver, solution, **kwargs):
+    def _prepare_solver(self, solver, solution, from_export=False, **kwargs):
         """
         """
 
@@ -11349,13 +12273,16 @@ class Bundle(ParameterSet):
 
         # we'll wait to here to run kwargs and system checks so that
         # add_compute is already called if necessary
-        allowed_kwargs = ['skip_checks', 'jobid', 'overwrite', 'max_computations', 'in_export_script', 'out_fname', 'solution', 'progressbar']
+        allowed_kwargs = ['skip_checks', 'jobid', 'overwrite', 'max_computations', 'in_export_script', 'out_fname', 'solution', 'progressbar', 'custom_lnprobability_callable']
         if conf.devel:
             allowed_kwargs += ['mesh_init_phi']
         self._kwargs_checks(kwargs, allowed_kwargs, ps=solver_ps.copy()+compute_ps)
 
         if not kwargs.get('skip_checks', False):
-            report = self.run_checks_solver(solver=solver, run_checks_compute=True,
+            report = self.run_checks_solver(solver=solver,
+                                            run_checks_compute=True,
+                                            run_checks_server=True,
+                                            allow_nonlocal_server=from_export,
                                             allow_skip_constraints=False,
                                             raise_logger_warning=True, raise_error=True,
                                             **kwargs)
@@ -11363,17 +12290,18 @@ class Bundle(ParameterSet):
         return solver, solution, compute, solver_ps
 
 
-    def _write_export_solver_script(self, script_fname, out_fname, solver, solution, autocontinue, import_from_older, log_level, kwargs):
+    def _write_export_solver_script(self, script_fname, out_fname, solver, solution, autocontinue, use_server, import_from_older, log_level, kwargs):
         """
         """
-        f = open(script_fname, 'w')
-        f.write("import os; os.environ['PHOEBE_ENABLE_PLOTTING'] = 'FALSE'; os.environ['PHOEBE_ENABLE_SYMPY'] = 'FALSE';\n")
-        f.write("import phoebe; import json\n")
+        script = []
+        script.append("import os; os.environ['PHOEBE_ENABLE_PLOTTING'] = 'FALSE'; os.environ['PHOEBE_ENABLE_SYMPY'] = 'FALSE';")
+        script.append("import phoebe; import json;")
         if log_level is not None:
-            f.write("phoebe.logger('{}')\n".format(log_level))
+            script.append("phoebe.logger('{}');".format(log_level))
         # TODO: can we skip other models
         # or datasets (except times and only for run_compute but not run_solver)
-        exclude_contexts = ['model', 'figure']
+        exclude_qualifiers = ['detached_job']
+        exclude_contexts = ['model', 'figure'] # NOTE: need server for kwargs check on use_server
         continue_from = self.get_value(qualifier='continue_from', solver=solver, continue_from=kwargs.get('continue_from', None), default='')
         exclude_solutions = [sol for sol in self.solutions if sol!=continue_from]
         exclude_solvers = [s for s in self.solvers if s!=solver]
@@ -11387,47 +12315,60 @@ class Bundle(ParameterSet):
         else:
             b = self
 
-        f.write("bdict = json.loads(\"\"\"{}\"\"\", object_pairs_hook=phoebe.utils.parse_json)\n".format(json.dumps(b.exclude(context=exclude_contexts, **_skip_filter_checks).exclude(solution=exclude_solutions, **_skip_filter_checks).exclude(solver=exclude_solvers, **_skip_filter_checks).exclude(distribution=exclude_distributions, **_skip_filter_checks).to_json(incl_uniqueid=True, exclude=['description', 'advanced', 'readonly', 'copy_for', 'latexfmt', 'labels_latex', 'label_latex']))))
-        f.write("b = phoebe.open(bdict, import_from_older={})\n".format(import_from_older))
-        solver_kwargs = list(kwargs.items())+[('solver', solver), ('solution', str(solution))]
-        solver_kwargs_string = ','.join(["{}={}".format(k,"\'{}\'".format(str(v)) if isinstance(v, str) else v) for k,v in solver_kwargs])
+        script.append("bdict = json.loads('{}', object_pairs_hook=phoebe.utils.parse_json);".format(json.dumps(b.exclude(context=exclude_contexts, **_skip_filter_checks).exclude(qualifier=exclude_qualifiers, **_skip_filter_checks).exclude(solution=exclude_solutions, **_skip_filter_checks).exclude(solver=exclude_solvers, **_skip_filter_checks).exclude(distribution=exclude_distributions, **_skip_filter_checks).to_json(incl_uniqueid=True, exclude=['description', 'advanced', 'readonly', 'copy_for', 'latexfmt', 'labels_latex', 'label_latex']))))
+        script.append("b = phoebe.open(bdict, import_from_older={});".format(import_from_older))
 
         custom_lnprobability_callable = kwargs.get('custom_lnprobability_callable', None)
         if custom_lnprobability_callable is not None:
             code = _getsource(custom_lnprobability_callable)
-            f.write(code)
+            script.append(code)  # TODO: test!
             kwargs['custom_lnprobability_callable'] = custom_lnprobability_callable.__name__
 
+        solver_kwargs = list(kwargs.items())+[('solver', solver), ('solution', str(solution))]
+        solver_kwargs_string = ','.join(["{}={}".format(k,"\'{}\'".format(str(v)) if isinstance(v, str) and k!='custom_lnprobability_callable' else v) for k,v in solver_kwargs if k not in ['use_server']])
+
+        if out_fname is None and use_server and use_server != 'none':
+            out_fname = script_fname+'.out'
+
         if out_fname is None:
-            f.write("import sys\n")
-            f.write("out_fname=sys.argv[0]+'.out'\n")
+            script.append("import sys;")
+            script.append("out_fname=sys.argv[0]+'.out';")
             out_fname = script_fname+'.out'
         else:
-            f.write("out_fname='{}'\n".format(out_fname))
+            script.append("out_fname='{}';".format(out_fname))
 
         if autocontinue:
             if 'continue_from' not in self.get_solver(solver=solver).qualifiers:
-                raise ValueError("continue_from is not a parameter in solver='{}', cannot use autocontinue".format(solver))
-            f.write("if os.path.isfile(out_fname):\n")
-            f.write("    b.import_solution(out_fname, solution='progress', overwrite=True)\n")
-            f.write("    b.set_value(qualifier='continue_from', solver='{}', value='progress')\n".format(solver))
-            f.write("elif os.path.isfile(out_fname+'.progress'):\n")
-            f.write("    b.import_solution(out_fname+'.progress', solution='progress', overwrite=True)\n")
-            f.write("    b.set_value(qualifier='continue_from', solver='{}', value='progress')\n".format(solver))
+                # then ignore autocontinue
+                autocontinue = False
 
-        f.write("solution_ps = b.run_solver(out_fname=out_fname, {})\n".format(solver_kwargs_string))
-        f.write("b.filter(context='solution', solution=solution_ps.solution, check_visible=False).save(out_fname, incl_uniqueid=True)\n")
+        if autocontinue:
+            script.append("if os.path.isfile(out_fname):")
+            script.append("    b.import_solution(out_fname, solution='progress', overwrite=True);")
+            script.append("    b.set_value(qualifier='continue_from', solver='{}', value='progress');".format(solver))
+            script.append("elif os.path.isfile(out_fname+'.progress'):")
+            script.append("    b.import_solution(out_fname+'.progress', solution='progress', overwrite=True);")
+            script.append("    b.set_value(qualifier='continue_from', solver='{}', value='progress');".format(solver))
 
-        f.write("\n# NOTE: this script only includes parameters needed to call the requested run_solver, edit manually with caution!\n")
-        f.close()
+        script.append("solution_ps = b.run_solver(out_fname=out_fname, use_server='none', {});".format(solver_kwargs_string))
+        script.append("b.filter(context='solution', solution=solution_ps.solution, check_visible=False).save(out_fname, incl_uniqueid=True);")
+
+        if use_server and use_server != 'none':
+            deps_pip, _ = self.dependencies(solver=solver)
+            self._write_crimpl_script(script_fname, script, use_server, deps_pip, autocontinue, kwargs)
+        else:
+            f = open(script_fname, 'w')
+            f.write("\n".join(script))
+            f.write("\n# NOTE: this script only includes parameters needed to call the requested run_solver, edit manually with caution!\n")
+            f.close()
 
         return script_fname, out_fname
 
     def export_solver(self, script_fname, out_fname=None,
                       solver=None, solution=None,
                       pause=False,
-                      autocontinue=False,
-                      import_from_older=False,
+                      autocontinue=True,
+                      import_from_older=True,
                       log_level=None,
                       **kwargs):
         """
@@ -11454,14 +12395,14 @@ class Bundle(ParameterSet):
             with instructions for running the exported script and calling
             <phoebe.frontend.bundle.Bundle.import_solution>.  Particularly
             useful if running in an interactive notebook or a script.
-        * `autocontinue` (bool, optional, default=False): override `continue_from`
+        * `autocontinue` (bool, optional, default=True): override `continue_from`
             in `solver` to continue from `out_fname` (or `script_fname`.out or
             .progress files) if those files exist.  This is useful to set to True
             and then resubmit the same script if not converged (although care should
             be taken to ensure multiple scripts aren't reading/writing from the
-            same filenames).  `continue_from` must be a parameter in `solver` options,
-            or an error will be raised if `autocontinue=True`
-        * `import_from_older` (boolean, optional, default=False): whether to allow
+            same filenames).  If `continue_from` is not a parameter in `solver` options,
+            `autocontinue` will be ignored.
+        * `import_from_older` (boolean, optional, default=True): whether to allow
             the script to run on a newer version of PHOEBE.  If True and executing
             the outputed script (`script_fname`) on a newer version of PHOEBE,
             the bundle will attempt to migrate to the newer version.  If False,
@@ -11471,8 +12412,8 @@ class Bundle(ParameterSet):
             logger in the exported script.  See <phoebe.logger>.
         * `custom_lnprobability_callable` (callable, optional, default=None):
             custom callable function which takes the following arguments:
-            `b, model, lnpriors, priors, priors_combine` and returns the lnlikelihood
-            to override the built-in lnlikelihood of <phoebe.frontend.bundle.Bundle.calculate_lnp> (on priors)
+            `b, model, lnpriors, priors, priors_combine` and returns the lnprobability
+            to override the built-in lnprobability of <phoebe.frontend.bundle.Bundle.calculate_lnp> (on priors)
             + <phoebe.parameters.ParameterSet.calculate_lnlikelihood>.  For
             optimizers that minimize, the negative returned values will be minimized.
             NOTE: if defined in an interactive session and inspect.getsource fails,
@@ -11487,8 +12428,12 @@ class Bundle(ParameterSet):
           in the model being written to `out_fname`.
 
         """
-        solver, solution, compute, solver_ps = self._prepare_solver(solver, solution, **kwargs)
-        script_fname, out_fname = self._write_export_solver_script(script_fname, out_fname, solver, solution, autocontinue, import_from_older, log_level, kwargs)
+        use_server = kwargs.get('use_server', kwargs.get('server', self.get_value(qualifier='use_server', solver=solver, context='solver', **_skip_filter_checks)))
+        if use_server == 'compute':
+            use_server = self.get_value(qualifier='use_server', compute=self.get_value(qualifier='compute', solver=solver, context='solver', **_skip_filter_checks), **_skip_filter_checks)
+
+        solver, solution, compute, solver_ps = self._prepare_solver(solver, solution, from_export=True, **kwargs)
+        script_fname, out_fname = self._write_export_solver_script(script_fname, out_fname, solver, solution, autocontinue, use_server, import_from_older, log_level, kwargs)
 
         if pause:
             input("* optional:  call b.save(...) to save the bundle to disk, you can then safely close the active python session and recover the bundle with phoebe.load(...)\n"+
@@ -11750,12 +12695,14 @@ class Bundle(ParameterSet):
             of `overwrite` (see below).   See also
             <phoebe.frontend.bundle.Bundle.rename_solution> to rename a solution after
             creation.
-        * `detach` (bool, optional, default=False, EXPERIMENTAL):
+        * `detach` (bool, optional, default=False):
             whether to detach from the solver run,
             or wait for computations to complete.  If detach is True, see
             <phoebe.frontend.bundle.Bundle.get_solution> and
             <phoebe.parameters.JobParameter>
             for details on how to check the job status and retrieve the results.
+        * `sleep` (int, optional, default=10): amount of time to sleep between
+            checking the job status if running externally and `detach=False`.
         * `overwrite` (boolean, optional, default=solution=='latest'): whether to overwrite
             an existing model with the same `model` tag.  If False,
             an error will be raised.  This defaults to True if `model` is not provided
@@ -11769,11 +12716,11 @@ class Bundle(ParameterSet):
             pass checks.
         * `custom_lnprobability_callable` (callable, optional, default=None):
             custom callable function which takes the following arguments:
-            `b, model, lnpriors, priors, priors_combine` and returns the lnlikelihood
-            to override the built-in lnlikelihood of <phoebe.frontend.bundle.Bundle.calculate_lnp> (on priors)
+            `b, model, lnpriors, priors, priors_combine` and returns the lnprobability
+            to override the built-in lnprobability of <phoebe.frontend.bundle.Bundle.calculate_lnp> (on priors)
             + <phoebe.parameters.ParameterSet.calculate_lnlikelihood>.  For
             optimizers that minimize, the negative returned values will be minimized.
-            NOTE: if defined in an interactive session, passing `custom_lnlikelihood_callable`
+            NOTE: if defined in an interactive session, passing `custom_lnprobability_callable`
             may throw an error if `detach=True`.
         * `progressbar` (bool, optional): whether to show a progressbar.  If not
             provided or none, will default to <phoebe.progressbars_on> or
@@ -11791,19 +12738,26 @@ class Bundle(ParameterSet):
         if isinstance(detach, str):
             # then we want to temporarily go in to client mode
             raise NotImplementedError("detach currently must be a bool")
-            self.as_client(as_client=detach)
-            self.run_solver(solver=solver, solution=solution, **kwargs)
-            self.as_client(as_client=False)
-            return self.get_solution(solution=solution)
+            # self.as_client(as_client=detach)
+            # self.run_solver(solver=solver, solution=solution, **kwargs)
+            # self.as_client(as_client=False)
+            # return self.get_solution(solution=solution)
 
         kwargs.setdefault('progressbar', conf.progressbars)
 
-        solver, solution, compute, solver_ps = self._prepare_solver(solver, solution, **kwargs)
+        # TODO: will server be able to be used as a default here
+        use_server = kwargs.get('use_server', kwargs.get('server', self.get_value(qualifier='use_server', solver=solver, context='solver', **_skip_filter_checks)))
+        if use_server == 'compute':
+            use_server = self.get_value(qualifier='use_server', compute=self.get_value(qualifier='compute', solver=solver, context='solver', **_skip_filter_checks), **_skip_filter_checks)
+        job_sleep = kwargs.get('sleep', 10)
 
-        if not kwargs.get('skip_checks', False):
-            self.run_checks_solver(solver=solver_ps.solver,
-                                   raise_logger_warning=True, raise_error=True,
-                                   **kwargs)
+        solver, solution, compute, solver_ps = self._prepare_solver(solver, solution, from_export=False, **kwargs)
+
+        # REMOVE? (should be covered in _prepare_solver above)
+        # if not kwargs.get('skip_checks', False):
+        #     self.run_checks_solver(solver=solver_ps.solver,
+        #                            raise_logger_warning=True, raise_error=True,
+        #                            **kwargs)
 
         # temporarily disable interactive_checks, check_default, and check_visible
         conf_interactive_checks = conf.interactive_checks
@@ -11858,7 +12812,7 @@ class Bundle(ParameterSet):
             logger.warning("cannot detach when within mpirun, ignoring")
             detach = False
 
-        if (detach or mpi.enabled) and not mpi.within_mpirun:
+        if (detach or mpi.enabled or use_server!='none') and not mpi.within_mpirun:
             if detach:
                 logger.warning("detach support is EXPERIMENTAL")
 
@@ -11874,6 +12828,17 @@ class Bundle(ParameterSet):
             #         compute_class = getattr(backends, '{}Backend'.format(computeparams.kind.title()))
             #         out = compute_class().get_packet_and_syns(self, compute, times=times, **kwargs)
 
+            if use_server != 'none':
+                server_options = {p.qualifier: kwargs.pop(p.qualifier, p.get_value()) for p in self.filter(server=use_server, context='server', **_skip_filter_checks).to_list()}
+            else:
+                # default to the LocalThreadServer in ./phoebe_crimpl_jobs without mpi and without conda
+                server_options = {'crimpl_name': '', 'use_mpi': False, 'use_conda': False, 'install_deps': False}
+
+            # override terminate_on_complete if we're waiting
+            if server_options.get('terminate_on_complete', False) and not detach:
+                logger.info("overriding to terminate_on_complete=False since job is not detached")
+                server_options['terminate_on_complete'] = False
+
             # we'll track everything through the solution name as well as
             # a random string, to avoid any conflicts
             jobid = kwargs.get('jobid', parameters._uniqueid())
@@ -11882,27 +12847,63 @@ class Bundle(ParameterSet):
             out_fname = "_{}.out".format(jobid)
             err_fname = "_{}.err".format(jobid)
             kill_fname = "_{}.kill".format(jobid)
-            script_fname, out_fname = self._write_export_solver_script(script_fname, out_fname, solver, solution, False, False, None, kwargs)
+            script_fname, out_fname = self._write_export_solver_script(script_fname, out_fname, solver, solution,
+                                                                       autocontinue=True,
+                                                                       use_server=False,
+                                                                       import_from_older=True,
+                                                                       log_level=None,
+                                                                       kwargs=kwargs)
 
             script_fname = os.path.abspath(script_fname)
-            cmd = mpi.detach_cmd.format(script_fname)
-            # TODO: would be nice to catch errors caused by the detached script...
-            # but that would probably need to be the responsibility of the
-            # jobparam to return a failed status and message.
-            # Unfortunately right now an error just results in the job hanging.
-            f = open(err_fname, 'w')
-            subprocess.Popen(cmd, shell=True, stdout=DEVNULL, stderr=f)
-            f.close()
+
+
+            # TODO: cache servers
+            crimpl_name = server_options.pop('crimpl_name')
+            use_conda = server_options.pop('use_conda', True)
+            if not use_conda:
+                server_options['conda_env'] = False
+            use_mpi = server_options.pop('use_mpi')
+            install_deps = server_options.pop('install_deps')
+            if crimpl_name:
+                if crimpl_name in _cached_crimpl_servers.keys():
+                    s = _cached_crimpl_servers.get(crimpl_name)
+                else:
+                    s = _crimpl.load_server(crimpl_name)
+                    _cached_crimpl_servers[crimpl_name] = s
+            else:
+                s = _crimpl.LocalThreadServer('./phoebe_crimpl_jobs')
+
+            if install_deps:
+                deps_pip, deps_other = self.dependencies(solver=solver, compute=self.get_value(qualifier='compute', solver=solver, default=[], **_skip_filter_checks))
+                if len(deps_other):
+                    # TODO: do something better with this
+                    raise ValueError("cannot automatically install {}".format(deps_other))
+                if use_mpi:
+                    deps_pip.append('mpi4py')
+                s.run_script(['pip install {}'.format(" ".join(deps_pip))], conda_env=server_options.get('conda_env'))
+
+            prefix = "mpirun " if use_mpi else ""
+            if s.__class__.__name__ == 'LocalThreadServer':
+                # then nprocs are handled in the script, not by crimpl
+                nprocs = server_options.pop('nprocs', 1)
+                if use_mpi:
+                    prefix = "mpirun -np {} ".format(nprocs)
+
+            sj = s.submit_job(script=['{}python3 {}'.format(prefix, os.path.basename(script_fname))],
+                              files=[script_fname],
+                              **server_options)
 
             # create model parameter and attach (and then return that instead of None)
             job_param = JobParameter(self,
-                                     location=os.path.dirname(script_fname),
-                                     status_method='exists',
-                                     retrieve_method='local',
+                                     job_name=sj.job_name,
                                      uniqueid=jobid)
 
-            metawargs = {'context': 'solution', 'solution': solution}
+            metawargs = {'context': 'solution', 'solution': solution, 'solver': solver, 'server': use_server if use_server!='none' else None}
             self._attach_params([job_param], check_copy_for=False, **metawargs)
+
+            comment_param = StringParameter(qualifier='comments', value=kwargs.get('comments', solver_ps.get_value(qualifier='comments', default='', **_skip_filter_checks)), description='User-provided comments for this solution.  Feel free to place any notes here.')
+            metawargs = {'context': 'solution', 'solution': solution, 'solver': solver}
+            self._attach_params([comment_param], check_copy_for=False, **metawargs)
 
             if isinstance(detach, str):
                 self.save(detach)
@@ -11910,7 +12911,7 @@ class Bundle(ParameterSet):
             restore_conf()
 
             if not detach:
-                return job_param.attach()
+                return job_param.attach(sleep=job_sleep)
             else:
                 logger.info("detaching from run_solver.  Call get_parameter(solution='{}').attach() to re-attach".format(solution))
 
@@ -11931,7 +12932,6 @@ class Bundle(ParameterSet):
 
 
         comment_param = StringParameter(qualifier='comments', value=kwargs.get('comments', solver_ps.get_value(qualifier='comments', default='', **_skip_filter_checks)), description='User-provided comments for this solution.  Feel free to place any notes here.')
-
         self._attach_params(params+[comment_param], check_copy_for=False, **metawargs)
 
         restore_conf()
