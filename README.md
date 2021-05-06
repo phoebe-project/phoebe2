@@ -84,6 +84,14 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.3.40 - custom lnprobability bugfix
+* fixes handling of `custom_lnprobability_callable` when passed to `run_solver`.  Previously an error was raised stating it was not a supported keyword argument and was not passed to the script correctly during `export_solver`.
+
+### 2.3.39 - optimizer progressbar and sample_from infinite failed samples bugfix
+* fixes bug in increment size in progressbar for optimizers that appears to go past 100% before completion
+* when running a forward model sampling from a distribution (or a solution), only allow 10 failed samples per draw before raising an error to prevent getting stuck in an infinite loop if the parameter space is unphysical
+* add_compute(overwrite=True) now allows the existing tag to already exist in solutions (in addition to models)
+
 ### 2.3.38 - mvgaussian uncertainties bugfix
 
 * updates distl to 0.3.1 which includes a fix to treat mvgaussian uncertainties from percentiles like other distribution types
