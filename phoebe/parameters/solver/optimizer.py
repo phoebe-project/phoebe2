@@ -45,7 +45,7 @@ def nelder_mead(**kwargs):
     ----------
     * `compute` (string, optional): compute options to use for the forward
         model.
-    * `expose_lnlikelihoods` (bool, optional, default=False): whether to expose
+    * `expose_lnprobabilities` (bool, optional, default=False): whether to expose
         the initial and final lnprobabilities in the solution (will result in 2
         additional forward model calls)
     * `fit_parameters` (list, optional, default=[]): parameters (as twigs) to
@@ -131,7 +131,7 @@ def powell(**kwargs):
     * `compute` (string, optional): compute options to use for the forward
         model.
     * `expose_lnprobabilities` (bool, optional, default=False): whether to expose
-        the initial and final lnlikelihoods in the solution (will result in 2
+        the initial and final lnprobabilities in the solution (will result in 2
         additional forward model calls)
     * `fit_parameters` (list, optional, default=[]): parameters (as twigs) to
         optimize.
@@ -211,7 +211,7 @@ def cg(**kwargs):
     ----------
     * `compute` (string, optional): compute options to use for the forward
         model.
-    * `expose_lnlikelihoods` (bool, optional, default=False): whether to expose
+    * `expose_lnprobabilities` (bool, optional, default=False): whether to expose
         the initial and final lnprobabilities in the solution (will result in 2
         additional forward model calls)
     * `fit_parameters` (list, optional, default=[]): parameters (as twigs) to

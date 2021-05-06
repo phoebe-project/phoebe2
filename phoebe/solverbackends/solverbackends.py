@@ -1860,7 +1860,7 @@ class _ScipyOptimizeBaseBackend(BaseSolverBackend):
             global _minimize_iter
             _minimize_iter += 1
             global _minimize_pbar
-            _minimize_pbar.update(_minimize_iter)
+            _minimize_pbar.update(1)
 
         logger.debug("calling scipy.optimize.minimize(_lnprobability_negative, p0, method='{}', args=(b, {}, {}, {}, {}, {}), options={})".format(self.method, params_uniqueids, compute, priors, kwargs.get('solution', None), compute_kwargs, options))
         # TODO: would it be cheaper to pass the whole bundle (or just make one copy originally so we restore original values) than copying for each iteration?
