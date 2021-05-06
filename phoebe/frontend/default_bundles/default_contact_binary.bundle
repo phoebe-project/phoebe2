@@ -2138,9 +2138,9 @@ null
 "description": "Atmosphere table",
 "choices": [
 "ck2004",
-"extern_planckint",
 "phoenix",
 "blackbody",
+"extern_planckint",
 "extern_atmx"
 ],
 "value": "ck2004",
@@ -2374,9 +2374,9 @@ null
 "description": "Atmosphere table",
 "choices": [
 "ck2004",
-"extern_planckint",
 "phoenix",
 "blackbody",
+"extern_planckint",
 "extern_atmx"
 ],
 "value": "ck2004",
@@ -2392,9 +2392,9 @@ null
 "description": "Atmosphere table",
 "choices": [
 "ck2004",
-"extern_planckint",
 "phoenix",
 "blackbody",
+"extern_planckint",
 "extern_atmx"
 ],
 "value": "ck2004",
@@ -2654,7 +2654,9 @@ null
 "context": "setting",
 "description": "Solutions to use when calling run_checks/run_checks_solution or within interactive checks.",
 "choices": [],
-"value": [],
+"value": [
+"*"
+],
 "copy_for": false,
 "Class": "SelectParameter"
 },
@@ -2663,7 +2665,9 @@ null
 "context": "setting",
 "description": "Figures to use when calling run_checks/run_checks_figure or within interactive checks.",
 "choices": [],
-"value": [],
+"value": [
+"*"
+],
 "copy_for": false,
 "Class": "SelectParameter"
 },
@@ -2672,7 +2676,9 @@ null
 "context": "setting",
 "description": "Servers to use when calling run_checks/run_checks_server or within interactive checks.",
 "choices": [],
-"value": [],
+"value": [
+"*"
+],
 "copy_for": false,
 "Class": "SelectParameter"
 },

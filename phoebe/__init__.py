@@ -240,10 +240,8 @@ class Settings(object):
         # See #154 (https://github.com/phoebe-project/phoebe2/issues/154)
         self._interactive_constraints = True
 
-        # We'll set interactive system checks to be on if running within a Python
-        # console, but False if running from within a script
-        # See #255 (https://github.com/phoebe-project/phoebe2/issues/255)
-        self._interactive_checks = not hasattr(__main__, '__file__') or bool(_sys.flags.interactive)
+        # We'll set interactive system checks to be off by default (new in 2.4)
+        self._interactive_checks = False
 
         self._download_passband_defaults = {'content': _env_variable_string_or_list('PHOEBE_DOWNLOAD_PASSBAND_DEFAULTS_CONTENT', 'all'),
                                             'gzipped': _env_variable_bool('PHOEBE_DOWNLOAD_PASSBAND_DEFAULTS_GZIPPED', False)}
@@ -593,9 +591,7 @@ def interactive_checks_on():
     calling <phoebe.frontend.bundle.Bundle.run_compute> and will raise
     an error if failing.
 
-    By default, interactive checks is ON if running PHOEBE in an interactive
-    console (or Jupyter notebook), but OFF if running in a script (to save
-    time but also save confusing logger messages).
+    By default, interactive checks is OFF (in 2.4).
 
     See also:
     * <phoebe.interactive_checks_off>
@@ -616,9 +612,7 @@ def interactive_checks_off():
     To manually run system checks at any time, you can call
     <phoebe.frontend.bundle.Bundle.run_checks>.
 
-    By default, interactive checks is ON if running PHOEBE in an interactive
-    console (or Jupyter notebook), but OFF if running in a script (to save
-    time but also save confusing logger messages).
+    By default, interactive checks is OFF (new in 2.4).
 
     See also:
     * <phoebe.interactive_checks_on>
