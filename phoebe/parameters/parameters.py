@@ -10,6 +10,7 @@ from phoebe.parameters.twighelpers import _uniqueid_to_uniquetwig
 from phoebe.parameters.twighelpers import _twig_to_uniqueid
 from phoebe.frontend import tabcomplete
 from phoebe.dependencies import nparray, distl
+from phoebe.dependencies import crimpl as _crimpl
 from phoebe.utils import parse_json, phase_mask_inds
 from phoebe import helpers as _helpers
 
@@ -145,7 +146,7 @@ _parameter_class_that_require_bundle = ['TwigParameter',
 
 _meta_fields_twig = ['time', 'qualifier', 'feature', 'component',
                      'dataset', 'constraint', 'distribution', 'compute', 'model',
-                     'solver', 'solution', 'figure', 'kind',
+                     'solver', 'solution', 'figure', 'server', 'kind',
                      'context']
 
 _meta_fields_all = _meta_fields_twig + ['twig', 'uniquetwig', 'uniqueid']
@@ -153,7 +154,7 @@ _meta_fields_filter = _meta_fields_all + ['constraint_func', 'value']
 
 _contexts = ['system', 'component', 'feature',
              'dataset', 'constraint', 'distribution', 'compute', 'model',
-             'solver', 'solution', 'figure', 'setting']
+             'solver', 'solution', 'figure', 'server', 'setting']
 
 # define a list of default_forbidden labels
 # an individual ParameterSet may build on this list with components, datasets,
@@ -192,7 +193,7 @@ _forbidden_labels += ['t0', 'ra', 'dec', 'epoch', 'distance', 'parallax', 'vgamm
 # from setting:
 _forbidden_labels += ['phoebe_version', 'dict_filter',
                       'dict_set_all', 'run_checks_compute', 'run_checks_solver',
-                      'run_checks_solution', 'run_checks_figure',
+                      'run_checks_solution', 'run_checks_figure', 'run_checks_server',
                       'auto_add_figure', 'auto_remove_figure', 'web_client', 'web_client_url']
 
 # from component
@@ -311,6 +312,13 @@ _forbidden_labels += ['datasets', 'models', 'components', 'contexts',
                       'latex_repr',
                       'legend']
 
+# from server:
+_forbidden_labels += ['remoteslurm', 'awsec2', 'localthread',
+                      'crimpl_name', 'use_conda', 'conda_env', 'isolate_env',
+                      'nprocs', 'use_mpi',
+                      'walltime', 'mail_user', 'mail_type', 'terminate_on_complete',
+                      'use_server', 'install_deps', 'slurm_job_name']
+
 # ? and * used for wildcards in twigs
 _twig_delims = ' \t\n`~!#$%^&)-=+]{}\\|;,<>/:'
 
@@ -332,6 +340,8 @@ def _singular_to_plural_get(k):
 
 def _plural_to_singular_get(k):
     return _plural_to_singular.get(k, k)
+
+_cached_crimpl_servers = {}
 
 def _return_ps(b, ps):
     """set the _filter of the ps to be the uniqueids and return"""
@@ -601,6 +611,7 @@ class ParameterSet(object):
         self._component = None
         self._dataset = None
         self._figure = None
+        self._server = None
         self._constraint = None
         self._distribution = None
         self._compute = None
@@ -1232,6 +1243,40 @@ class ParameterSet(object):
             in this <phoebe.parameters.ParameterSet>
         """
         return self._options_for_tag('figure')
+
+    @property
+    def server(self):
+        """Return the value for server if shared by ALL Parameters.
+
+        If the value is not shared by ALL, then None will be returned.  To see
+        all the qualifiers of all parameters, see <phoebe.parameters.ParameterSet.servers>.
+
+        To see the value of a single <phoebe.parameters.Parameter> object, see
+        <phoebe.parameters.Parameter.server>.
+
+        Returns
+        --------
+        (string or None) the value if shared by ALL <phoebe.parameters.Parameter>
+            objects in the <phoebe.parmaters.ParameterSet>, otherwise None
+        """
+        return self._server
+
+    @property
+    def servers(self):
+        """Return a list of all the servers of the Parameters.
+
+        See also:
+        * <phoebe.parameters.ParameterSet.tags>
+
+        For the singular version, see:
+        * <phoebe.parameters.ParameterSet.server>
+
+        Returns
+        --------
+        * (list) a list of all servers for each <phoebe.parameters.Parameter>
+            in this <phoebe.parameters.ParameterSet>
+        """
+        return self._options_for_tag('server')
 
     @property
     def solver(self):
@@ -5887,6 +5932,7 @@ class Parameter(object):
         * `component` (string, optional): label for the component tag
         * `dataset` (string, optional): label for the dataset tag
         * `figure` (string, optional): label for the figure tag
+        * `server` (string, optional): label for the server tag
         * `constraint` (string, optional): label for the constraint tag
         * `compute` (string, optional): label for the compute tag
         * `model` (string, optional): label for the model tag
@@ -5923,6 +5969,7 @@ class Parameter(object):
         self._component = kwargs.get('component', None)
         self._dataset = kwargs.get('dataset', None)
         self._figure = kwargs.get('figure', None)
+        self._server = kwargs.get('server', None)
         self._constraint = kwargs.get('constraint', None)
         self._distribution = kwargs.get('distribution', None)
         self._compute = kwargs.get('compute', None)
@@ -6582,6 +6629,21 @@ class Parameter(object):
         * (str) the figure tag of this Parameter.
         """
         return self._figure
+
+    @property
+    def server(self):
+        """
+        Return the server of this <phoebe.parameters.Parameter>.
+
+        See also:
+        * <phoebe.parameters.ParameterSet.server>
+        * <phoebe.parameters.ParameterSet.servers>
+
+        Returns
+        -------
+        * (str) the server tag of this Parameter.
+        """
+        return self._server
 
     @property
     def solver(self):
@@ -11854,7 +11916,7 @@ class JobParameter(Parameter):
     Parameter that tracks a submitted job (detached
     <phoebe.frontend.bundle.Bundle.run_compute>, for example)
     """
-    def __init__(self, b, location, status_method, retrieve_method, server_status=None, **kwargs):
+    def __init__(self, b, job_name=None, **kwargs):
         """
         see <phoebe.parameters.Parameter.__init__>
         """
@@ -11863,45 +11925,41 @@ class JobParameter(Parameter):
         super(JobParameter, self).__init__(qualifier='detached_job', **kwargs)
 
         self._bundle = b
-        self._server_status = server_status
-        self._location = location
-        self._status_method = status_method
-        self._retrieve_method = retrieve_method
-        self._value = 'unknown'
-        #self._randstr = randstr
 
-        # TODO: may need to be more clever once remote servers are supported
-        self._script_fname = os.path.join(location, '_{}.py'.format(self.uniqueid))
-        self._results_fname = os.path.join(location, '_{}.out'.format(self.uniqueid))
-        self._err_fname = os.path.join(location, '_{}.err'.format(self.uniqueid))
-        self._kill_fname = self._results_fname + '.kill'
+        # NOTE: will also be tagged with the PHOEBE server, or None if using the default LocalThreadServer
+        self._job_name = job_name  # crimpl only: name of the crimpl job
+        self._value = 'unknown'
+
+        self._cached_crimpl_server = None
+        self._cached_crimpl_job = None
+
+        self._results_fname = '_{}.out'.format(self.uniqueid)
 
         # TODO: add a description?
 
-        self._dict_fields_other = ['description', 'value', 'server_status', 'location', 'status_method', 'retrieve_method', 'uniqueid', 'readonly', 'advanced', 'latexfmt']
+        self._dict_fields_other = ['description', 'value', 'job_name', 'uniqueid', 'readonly', 'advanced', 'latexfmt']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     def __str__(self):
         """
         """
         # TODO: implement a nice(r) string representation
-        return "qualifier: {}\nstatus: {}".format(self.qualifier, self.status)
+        # NOTE: we use the cached status instead of requerying
+        return "qualifier: {}\nlast known status: {}".format(self.qualifier, self._value)
 
     def get_value(self, **kwargs):
         """
         JobParameter doesn't really have a value, but for the sake of Parameter
-        representations, we'll provide the current status.
+        representations, we'll provide the last known status.  To check the current
+        status, call <phoebe.parameters.JobParameter.get_status>.
 
         Also see:
-            * <phoebe.parameters.JobParameter.status>
-            * <phoebe.parameters.JobParameter.attach>
-            * <phoebe.parameters.JobParameter.location>
-            * <phoebe.parameters.JobParameter.server_status>
-            * <phoebe.parameters.JobParameter.status_method>
-            * <phoebe.parameters.JobParameter.retrieve_method>
+        * <phoebe.parameters.JobParameter.status>
+        * <phoebe.parameters.JobParameter.attach>
+        * <phoebe.parameters.JobParameter.method>
 
         """
-        return self.status
+        return self._value
 
     def set_value(self, *args, **kwargs):
         """
@@ -11916,48 +11974,15 @@ class JobParameter(Parameter):
         raise NotImplementedError("JobParameter is a read-only parameter.  Call status or attach()")
 
     @property
-    def server_status(self):
+    def job_name(self):
         """
-        Access the status of the remote server, if applicable.
-
-        Returns
-        -----------
-        * (str)
-        """
-        return self._server_status
-
-    @property
-    def location(self):
-        """
-        Access the location of the remote server, if applicable.
-
-        Returns
-        ----------
-        * (str)
-        """
-        return self._location
-
-    @property
-    def status_method(self):
-        """
-        Access the method for determining the status of the Job.
+        Access the crimpl job_name.
 
         Returns
         ---------
         * (str)
         """
-        return self._status_method
-
-    @property
-    def retrieve_method(self):
-        """
-        Access the method for retrieving the results from the Job, once completed.
-
-        Returns
-        -----------
-        * (str)
-        """
-        return self._retrieve_method
+        return self._job_name
 
     @property
     def status(self):
@@ -11991,102 +12016,171 @@ class JobParameter(Parameter):
         * NotImplementedError: if status isn't implemented for the given
             <phoebe.parameters.JobParameter.status_method>.
         """
-        if self._value == 'loaded':
-            status = 'loaded'
-
-        elif not _is_server and self._bundle is not None and self._server_status is not None:
-            if not _can_requests:
-                raise ImportError("requests module required for external jobs")
-
-            raise NotImplementedError()
-            # if self._value in ['complete']:
-            #     # then we have no need to bother checking again
-            #     status = self._value
-            # else:
-            #     url = self._server_status
-            #     logger.info("checking job status on server from {}".format(url))
-            #     # "{}/{}/parameters/{}".format(server, bundleid, self.uniqueid)
-            #     r = requests.get(url, timeout=5)
-            #     try:
-            #         rjson = r.json()
-            #     except ValueError:
-            #         # TODO: better exception here - perhaps look for the status code from the response?
-            #         status = self._value
-            #     else:
-            #         status = rjson['data']['attributes']['value']
+        if self._value in ['loaded', 'complete', 'error', 'killed']:
+            # then we aren't expecting any new updates
+            status = self._value
 
         else:
-
-            if self.status_method == 'exists':
-                if self._value in ['error', 'killed', 'loaded']:
-                    # then error was already detected and we've already done cleanup
-                    status = self._value
-                elif os.path.isfile(self._results_fname):
-                    status = 'complete'
-                elif os.path.isfile(self._kill_fname):
-                    status = 'killed'
-                elif os.path.isfile(self._results_fname+'.progress'):
-                    status = 'progress'
-                elif os.path.isfile(self._err_fname) and os.stat(self._err_fname).st_size > 0:
-                    # some warnings from other packages can be set to stderr
-                    # so we need to make sure the last line is actually from
-                    # raising an error.
-                    ferr = open(self._err_fname, 'r')
-                    msg = ferr.readlines()[-1]
-                    ferr.close()
-                    if 'Error' in msg.split()[0]:
-                        status = 'error'
-                    else:
-                        status = 'running'
-                else:
-                    status = 'running'
-            else:
-                raise NotImplementedError
+            status = self.crimpl_job.job_status
 
         # here we'll set the value to be the latest CHECKED status for the sake
-        # of exporting to JSON and updating the status for clients.  get_value
-        # will still call status so that it will return the CURRENT value.
+        # of exporting to JSON and updating the status for clients.
         self._value = status
         return status
+
+    @property
+    def _crimpl_server(self):
+        if self._cached_crimpl_server is None:
+            if self._server is not None:
+                crimpl_name = self._bundle.get_value(qualifier='crimpl_name', server=self._server, **_skip_filter_checks)
+            else:
+                crimpl_name = ''
+            if crimpl_name in _cached_crimpl_servers.keys():
+                self._cached_crimpl_server = _cached_crimpl_servers.get(crimpl_name)
+            else:
+                crimpl_server = _crimpl.load_server(crimpl_name) if crimpl_name else _crimpl.LocalThreadServer('./phoebe_crimpl_jobs')
+                self._cached_crimpl_server = crimpl_server
+                if crimpl_name:
+                    _cached_crimpl_servers[crimpl_name] = crimpl_server
+
+        return self._cached_crimpl_server
+
+    @property
+    def crimpl_job(self):
+        """
+        Access the crimpl job object
+        """
+        if self._cached_crimpl_job is None:
+            self._cached_crimpl_job = self._crimpl_server.get_job(self._job_name)
+        return self._cached_crimpl_job
 
     def _retrieve_results(self):
         """
         [NOT IMPLEMENTED]
         """
-        # now the file with the model should be retrievable from self._result_fname
-        if 'progress' in self._value:
-            fname = self._results_fname + '.progress'
+        if self._server is not None:
+            crimpl_name = self._bundle.get_value(qualifier='crimpl_name', server=self._server, **_skip_filter_checks)
         else:
+            crimpl_name = ''
+
+        retrieved_fnames = self.crimpl_job.check_output([self._results_fname, self._results_fname+'.progress'])
+        if not len(retrieved_fnames):
+            # try retrieving any error logs
+            output_files = self.crimpl_job.output_files
+            error_fnames = self.crimpl_job.check_output([f for f in output_files if 'slurm-' in f or f=='nohup.out'])
+            if len(error_fnames) == 1:
+                with open(error_fnames[0], 'r') as e:
+                    raise ValueError("job failed with the following error: {}".format("\n".join(e.readlines())))
+            else:
+                raise ValueError("no files retrieved from remote server")
+
+        # now the file with the model should be retrievable from self._result_fname
+        if self._results_fname in retrieved_fnames:
             fname = self._results_fname
+            is_progress = False
+        elif self._results_fname+'.progress' in retrieved_fnames:
+            fname = self._results_fname + '.progress'
+            is_progress = True
+        else:
+            raise ValueError("no matching files retrieved from remote server")
 
         try:
             ret_ps = ParameterSet.open(fname)
         except Exception as err:
-            if 'progress' in self._value:
-                return None
+            if is_progress:
+                return ParameterSet([])
             else:
                 raise
         else:
             return ret_ps
 
+    def _retrieve_and_attach_results(self, cleanup=False, return_changes=False):
+        if self._value not in ['loaded', 'complete', 'running', 'failed', 'killed']:
+            # then update cached value
+            _ = self.get_status()
+
+        ret_ps = self._retrieve_results()
+
+        if not len(ret_ps.to_list()) and 'progress' in self._value:
+            # then we just want to update the progress value from the progress-file
+            # but don't have anything to actually load
+            f = open(self._results_fname + '.progress', 'r')
+            progress_str = f.readlines()[0]
+            f.close()
+
+            try:
+                progress = np.round(float(progress_str.strip()), 2)
+            except:
+                return ParameterSet([])
+            else:
+                self._value = 'progress:{}%'.format(progress)
+                return ParameterSet([self])
+
+
+        # now we need to attach ret_ps to self._bundle
+        # TODO: is creating metawargs here necessary?  Shouldn't the params already be tagged?
+        if self.context == 'model':
+            metawargs = {'compute': str(ret_ps.compute), 'model': str(self.model), 'context': 'model'}
+            # NOTE: we need to update these tags now otherwise the returned copy won't have the correct tag (even though the attached copy will)
+            if ret_ps.model != self.model:
+                for param in ret_ps.to_list():
+                    param._model = self.model
+                ret_ps._model = self.model
+        elif self.context == 'solution':
+            metawargs = {'solver': str(ret_ps.solver), 'solution': str(self.solution), 'context': 'solution'}
+            if ret_ps.solution != self.solution:
+                for param in ret_ps.to_list():
+                    param._solution = self.solution
+                ret_ps._solution = self.solution
+        else:
+            raise NotImplementedError("attaching for context='{}' not implemented".format(self.context))
+
+        if 'progress' in self._value:
+            if ret_ps.get_value(qualifier='progress', default=0, **_skip_filter_checks) == self._bundle.get_value(qualifier='progress', default=100, check_visible=False, check_advanced=False, **metawargs):
+                # then we have nothing new to load, so let's not bother attaching and overwriting with the exact same thing
+                return ParameterSet([])
+            elif 'progress' in ret_ps.qualifiers:
+                self._value = 'progress:{}%'.format(np.round(ret_ps.get_value(qualifier='progress'), 2))
+
+        # NOTE: we keep ParameterSet(ret_ps) instead of ret_ps in case
+        # the model/solution has been renamed since creating the job
+        ret_changes = self._bundle._attach_params(ret_ps, overwrite=True, return_changes=return_changes, **metawargs)
+
+        if cleanup and self._value in ['complete', 'loaded', 'error', 'killed']:
+            self._cleanup()
+
+        if self._value in ['complete']:
+            self._value = 'loaded'
+
+        if self._value in ['failed'] and len(ret_ps.to_list()):
+            # then we loaded the latest progress file available
+            self._value = 'loaded'
+
+        if self.context == 'model':
+            # TODO: check logic for do_create_fig_params
+            ret_changes += self._bundle._run_compute_changes(ret_ps, return_changes=return_changes, do_create_fig_params=True)
+
+        elif self.context == 'solution':
+            ret_changes += self._bundle._run_solver_changes(ret_ps, return_changes=return_changes)
+
+        else:
+            raise NotImplementedError("attaching for context='{}' not implemented".format(self.context))
+
+        if return_changes:
+            return ret_ps + ret_changes + [self]
+
+        return ret_ps
+
+
     def _cleanup(self):
-        try:
-            os.remove(self._script_fname)
-        except: pass
         try:
             os.remove(self._results_fname)
         except: pass
         try:
-            os.remove(self._err_fname)
-        except: pass
-        try:
             os.remove(self._results_fname+".progress")
         except: pass
-        try:
-            os.remove(self._kill_fname)
-        except: pass
 
-    def attach(self, wait=True, sleep=5, cleanup=True, return_changes=False):
+    def attach(self, wait=True, sleep=10, cleanup=True, return_changes=False):
         """
         Attach the results from a <phoebe.parameters.JobParameter> to the
         <phoebe.frontend.bundle.Bundle>.  If the status is not yet reported as
@@ -12096,7 +12190,7 @@ class JobParameter(Parameter):
         ---------
         * `wait` (bool, optional, default=True): whether to wait until the job
             is complete.
-        * `sleep` (int, optional, default=5): number of seconds to sleep between
+        * `sleep` (int, optional, default=10): number of seconds to sleep between
             status checks.  See <phoebe.parameters.JobParameter.get_status>.
             Only applicable if `wait` is True.
         * `cleanup` (bool, optional, default=True): whether to delete any
@@ -12118,140 +12212,106 @@ class JobParameter(Parameter):
             raise ValueError("can only attach a job if attached to a bundle")
 
         status = self.get_status()
-        if not wait and status not in ['complete', 'error', 'progress']:
-            if status in ['loaded']:
-                logger.info("job already loaded")
-                if self.context == 'model':
-                    return self._bundle.get_model(self.model)
-                elif self.context == 'solution':
-                    return self._bundle.get_solution(self.solution)
-                else:
-                    raise NotImplementedError("attaching for context='{}' not implemented".format(self.context))
-            else:
-                logger.info("current status: {}, check again or use wait=True".format(status))
-                return self
+        if not wait and status not in ['complete', 'error', 'killed', 'progress', 'loaded']:
+            logger.info("current status: {}, check again or use wait=True".format(status))
+            return self
 
         if wait:
-            while self.get_status() not in ['complete', 'loaded', 'error']:
-                # TODO: any way we can not make 2 calls to self.status here?
-                logger.info("current status: {}, trying again in {}s".format(self.get_status(), sleep))
+            while status not in ['complete', 'loaded', 'error', 'killed']:
+                logger.info("current status: {}, trying again in {}s".format(status, sleep))
                 time.sleep(sleep)
+                status = self.get_status()
 
-        if self._server_status is not None and not _is_server:
-            if not _can_requests:
-                raise ImportError("requests module required for external jobs")
+        if status == 'loaded':
+            logger.info("job already loaded")
+            if self.context == 'model':
+                return self._bundle.get_model(self.model)
+            elif self.context == 'solution':
+                return self._bundle.get_solution(self.solution)
+            else:
+                raise NotImplementedError("attaching for context='{}' not implemented".format(self.context))
+        elif status == 'error':
+            # TODO: implement retrieving error messages from server
 
-            raise NotImplementedError()
-            # # then we are no longer attached as a client to this bundle on
-            # # the server, so we need to just pull the results manually
-            # url = self._server_status
-            # logger.info("pulling job results from server from {}".format(url))
-            # # "{}/{}/parameters/{}".format(server, bundleid, self.uniqueid)
-            # r = requests.get(url, timeout=5)
-            # rjson = r.json()
-            #
-            # # status should already be complete because of while loop above,
-            # # but could always check the following:
-            # # rjson['value']['attributes']['value'] == 'complete'
-            #
-            # # TODO: server needs to sideload results once complete
-            # newparams = rjson['included']
-            # self._bundle._attach_param_from_server(newparams)
-
-        elif self.status == 'error':
-            lines = ferr.readlines()
-            ferr.close()
-
-            if cleanup:
-                self._cleanup()
-
-            self._value = 'error'
-
-            print("ERROR: full error message: {}".format(lines))
-            logger.error("full error message: {}".format(lines))
             raise RuntimeError("job failed with error: {}".format(lines[-1]))
+
         else:
-            logger.info("current status: {}, pulling job results".format(self.status))
-            ret_ps = self._retrieve_results()
+            logger.info("current status: {}, pulling job results".format(status))
+            return self._retrieve_and_attach_results(cleanup=cleanup, return_changes=return_changes)
 
-            if ret_ps is None and 'progress' in self._value:
-                # then we just want to update the progress value from the progress-file
-                # but don't have anything to actually load
-                f = open(self._results_fname + '.progress', 'r')
-                progress_str = f.readlines()[0]
-                f.close()
+    def load_progress(self, cleanup=True, return_changes=False):
+        """
+        Attach the progress (if applicable) from a <phoebe.parameters.JobParameter> to the
+        <phoebe.frontend.bundle.Bundle>.
 
-                try:
-                    progress = np.round(float(progress_str.strip()), 2)
-                except:
-                    return ParameterSet([])
-                else:
-                    self._value = 'progress:{}%'.format(progress)
-                    return ParameterSet([self])
+        Arguments
+        ---------
+        * `cleanup` (bool, optional, default=True): whether to delete any
+            temporary files once the results are loaded.
+        * `return_changes` (bool, optional, default=False): whether to include
+            changed/removed parameters in the returned ParameterSet.
 
+        Returns
+        ---------
+        * ParameterSet of newly attached parameters (if attached or already
+            loaded).
 
-            # now we need to attach ret_ps to self._bundle
-            # TODO: is creating metawargs here necessary?  Shouldn't the params already be tagged?
-            if self.context == 'model':
-                metawargs = {'compute': str(ret_ps.compute), 'model': str(ret_ps.model), 'context': 'model'}
-            elif self.context == 'solution':
-                metawargs = {'solver': str(ret_ps.solver), 'solution': str(ret_ps.solution), 'context': 'solution'}
-            else:
-                raise NotImplementedError("attaching for context='{}' not implemented".format(self.context))
+        Raises
+        -----------
+        * ValueError: if not attached to a <phoebe.frontend.bundle.Bundle> object.
+        * ValueError: if the current <phoebe.parameters.JobParameter.status> is
+            not 'running' or 'complete'
 
-            if 'progress' in self._value:
-                if ret_ps.get_value(qualifier='progress', default=0, **_skip_filter_checks) == self._bundle.get_value(qualifier='progress', default=100, check_visible=False, check_advanced=False, **metawargs):
-                    # then we have nothing new to load, so let's not bother attaching and overwriting with the exact same thing
-                    return ParameterSet([])
-                elif 'progress' in ret_ps.qualifiers:
-                    self._value = 'progress:{}%'.format(np.round(ret_ps.get_value(qualifier='progress'), 2))
+        """
+        return self._retrieve_and_attach_results(cleanup=cleanup, return_changes=return_changes)
 
 
-            ret_changes = self._bundle._attach_params(ret_ps, overwrite=True, return_changes=return_changes, **metawargs)
-            if return_changes:
-                ret_changes += [self]
-
-            if cleanup and self._value in ['complete', 'loaded', 'error', 'killed']:
-                self._cleanup()
-
-            if 'progress' not in self._value:
-                self._value = 'loaded'
-
-            if self.context == 'model':
-                # TODO: check logic for do_create_fig_params
-                ret_changes += self._bundle._run_compute_changes(ret_ps, return_changes=return_changes, do_create_fig_params=True)
-
-            elif self.context == 'solution':
-                ret_changes += self._bundle._run_solver_changes(ret_ps, return_changes=return_changes)
-
-            else:
-                raise NotImplementedError("attaching for context='{}' not implemented".format(self.context))
-
-            if return_changes:
-                return ret_ps + ret_changes
-
-            return ret_ps
-
-    def kill(self, cleanup=True, return_changes=False):
+    def kill(self, load_progress=False, cleanup=True, return_changes=False):
         """
         Send a termination signal to the external thread running a
         <phoebe.parameters.JobParameter>
 
         Arguments
         ---------
-        * `cleanup` (bool, optional, default=True): whether to wait for the
+        * `load_progress` (bool, optional, default=False): whether to wait for the
             thread to terminate and then call <phoebe.parameters.JobParameter.attach>
-            with `cleanup=True` and `wait=True`.
+            with `wait=True`.
+        * `cleanup` (bool, optional, default=True): whether to delete any
+            temporary files once the job is killed (and results are loaded
+            if `load_progress=True`).
         * `return_changes` (bool, optional, default=False): whether to include
             changed/removed parameters in the returned ParameterSet.
 
         Returns
         ---------
-
+        * (<phoebe.parameters.ParameterSet>)
 
         """
-        f = open(self._kill_fname, 'w')
-        f.write('kill')
-        f.close()
+        # TODO: options for whether to pass delete_volume
+        self.crimpl_job.kill_job()
+        self._value = 'killed'
+
+        ret = None
+        if load_progress:
+            try:
+                ret = self.attach(wait=True, cleanup=True)
+            except ValueError as err:
+                if "no files" in str(err):
+                    pass
+                else:
+                    raise
+
         if cleanup:
-            return self.attach(wait=True, cleanup=True)
+            self._cleanup()
+
+        return ret if ret is not None else ParameterSet([])
+
+    def resubmit(self):
+        """
+        Continue a job that was previously canceled, killed, or exceeded walltime.
+        For jobs that do not support continuing, the job will be restarted.
+        """
+
+        # TODO: options for whether to pass delete_volume
+        self.crimpl_job.resubmit_script()
+        self._value = 'unknown'

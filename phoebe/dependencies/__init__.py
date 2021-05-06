@@ -8,4 +8,5 @@ if os.getenv('PHOEBE_ENABLE_PLOTTING', 'TRUE').upper() == 'TRUE':
 
 from . import nparray
 from . import distl
+from . import crimpl
 from . import unitsiau2015
