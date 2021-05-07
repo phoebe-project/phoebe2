@@ -914,6 +914,11 @@ class Bundle(ParameterSet):
                 b.remove_compute(compute, context=['compute'])
                 b.add_compute(compute_kind, compute=compute, check_label=False, overwrite=True, **dict_compute)
 
+                # dict_compute didn't account for per-dataset values for enabled
+                for param in ps_compute.to_list():
+                    if param.component is None and param.dataset is None: continue
+                    b.set_value(qualifier=param.qualifier, compute=compute, dataset=param.dataset, component=param.component, value=param.get_value(), **_skip_filter_checks)
+
             for solver in b.filter(context='solver').solvers:
                 logger.info("attempting to update solver='{}' to new version requirements".format(solver))
                 ps_solver = b.filter(context='solver', solver=solver, **_skip_filter_checks)
