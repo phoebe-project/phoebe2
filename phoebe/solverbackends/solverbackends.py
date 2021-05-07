@@ -170,7 +170,9 @@ def _lnprobability(sampled_values, b, params_uniqueids, compute,
         # override sample_from that may be set in the compute options
         compute_kwargs['sample_from'] = []
         compute_kwargs['progressbar'] = False
-        b.run_compute(use_server='none', compute=compute, model=solution, do_create_fig_params=False, **compute_kwargs)
+        compute_kwargs['use_server'] = 'none'
+        compute_kwargs['detach'] = False
+        b.run_compute(compute=compute, model=solution, do_create_fig_params=False, **compute_kwargs)
     except Exception as err:
         logger.warning("received error from run_compute: {}.  lnprobability=-inf".format(err))
         return _return(-np.inf, str(err))
