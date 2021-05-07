@@ -58,9 +58,9 @@ def remoteslurm(server, **kwargs):
     params = []
 
     params += [StringParameter(qualifier="crimpl_name", value=kwargs.get('crimpl_name', ''), description='Name of server saved in crimpl.  Must be available on the local machine.  See docs for more details.')]
-    params += [BoolParameter(qualifier='use_conda', value=kwargs.get('use_conda', False), description='Whether to use a conda environment on the server.')]
-    params += [StringParameter(qualifier='conda_env', value=kwargs.get('conda_env', 'default'), description='Name of conda environment on remote machine to run jobs.  Will be created if does not exist.')]
-    params += [BoolParameter(qualifier='isolate_env', value=kwargs.get('isolate_env', False), advanced=True, description='Whether to clone the conda_env environment per-job.')]
+    params += [BoolParameter(qualifier='use_conda', value=kwargs.get('use_conda', True), description='Whether to use a conda environment on the server.')]
+    params += [StringParameter(visible_if='use_conda:true', qualifier='conda_env', value=kwargs.get('conda_env', 'default'), description='Name of conda environment on remote machine to run jobs.  Will be created if does not exist.')]
+    params += [BoolParameter(visible_if='use_conda:true', qualifier='isolate_env', value=kwargs.get('isolate_env', False), advanced=True, description='Whether to clone the conda_env environment per-job.')]
     params += [IntParameter(qualifier='nprocs', value=kwargs.get('nprocs', 4), description='Number of processors to allocate to each job')]
     params += [BoolParameter(qualifier='use_mpi', value=kwargs.get('use_mpi', True), description='Whether to use mpi on the remote machine')]
     params += [BoolParameter(qualifier='install_deps', value=kwargs.get('install_deps', True), description='Whether to ensure required dependencies are installed in conda_env on the remote machine (adds some overhead)')]
