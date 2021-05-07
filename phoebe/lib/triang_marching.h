@@ -45,8 +45,8 @@ struct Tmarching: public Tbody {
       b[3][3];   // b[0] = t1, b[1] = t2, b[2] = n
   };
 
-  typedef std::vector<Tvertex> Tfront_polygon;
-  typedef std::pair<int,int> Tbad_pair;
+  using Tfront_polygon = std::vector<Tvertex>;
+  using Tbad_pair = std::pair<int,int>;
 
   bool precision;
 
@@ -62,7 +62,7 @@ struct Tmarching: public Tbody {
   */
 
   //#define DEBUG
-  void create_internal_vertex(T r[3], T g[3], Tvertex & v, const T & phi = 0){
+  void create_internal_vertex(T r[3], T g[3], Tvertex & v, const T & phi = 0, bool normalization = true){
 
     for (int i = 0; i < 3; ++i) v.r[i] = r[i];
 
@@ -75,9 +75,10 @@ struct Tmarching: public Tbody {
       *n  = v.b[2],
       fac;
 
-    fac = 1/(v.norm = utils::hypot3(g[0], g[1], g[2]));
-
-    for (int i = 0; i < 3; ++i) n[i] = fac*g[i];
+    if (normalization){
+      fac = 1/(v.norm = utils::hypot3(g[0], g[1], g[2]));
+      for (int i = 0; i < 3; ++i) n[i] = fac*g[i];
+    }
 
     //
     // creating base in the tangent plane
@@ -1459,7 +1460,7 @@ struct Tmarching: public Tbody {
           }
         }
 
-        if (Tr.size() >= max_triangles) error = 1;
+        if ((int)Tr.size() >= max_triangles) error = 1;
 
       } while (error == 0);
 

@@ -22,7 +22,7 @@
 /* ===================================================================
   Torus
 
-  Defined implicitly by the constrain and the gradient of it
+  Defined implicitly by the constraint and the gradient of it
 
     (x^2 + y^2 + z^2 + R^2 - A^2)^2 - 4 R^2 (x^2 + y^2) = 0
 
@@ -52,7 +52,7 @@ struct Ttorus {
   }
 
   /*
-    Definition of the constrain and the gradient of it
+    Definition of the constraint and the gradient of it
 
     Input:
       r[3] = {x, y, z}
@@ -96,7 +96,7 @@ struct Ttorus {
 /* ===================================================================
   Sphere
 
-  Defined of implicitly by a constrain
+  Defined of implicitly by a constraintt
 
     x^2 + y^2 + z^2 - R^2 = 0
  =================================================================== */
@@ -118,7 +118,7 @@ struct Tsphere {
   }
 
   /*
-    Definition of the constrain and the gradient of it
+    Definition of the constraint and the gradient of it
 
     Input:
       r[3] = {x, y, z}
@@ -176,7 +176,7 @@ struct Theart {
 
   Theart(T *params){ }
 
-  /* Definition of constrain and the gradient of it
+  /* Definition of constraint and the gradient of it
 
     Input:
       r[3] = {x, y, z}
@@ -276,7 +276,7 @@ struct Tgen_roche {
       Omega0 - Omega(x,y,z)
   */
 
-  T constrain(T r[3]) {
+  T constraint(T r[3]) {
     return Omega0 - (
       1/utils::hypot3(r[0], r[1], r[2]) +
       q*(1/utils::hypot3(r[0] - delta, r[1], r[2]) - f0*r[0]) + b*(r[0]*r[0] + r[1]*r[1])/2
@@ -394,7 +394,7 @@ struct Tgen_roche {
 
 
   /*
-    Calculate Hessian matrix of the constrain Omega0 - Omega:
+    Calculate Hessian matrix of the constraint Omega0 - Omega:
     resulting:
       H_{ij} = - partial_i partial_j Omega
 
@@ -430,7 +430,7 @@ struct Tgen_roche {
 /* ===================================================================
   Rotating star
 
-  Defined of implicitly by a constrain
+  Defined of implicitly by a constraint
 
     1/r + 1/2 omega^2 (x^2 + y^2) = Omega_0
  =================================================================== */
@@ -462,7 +462,7 @@ struct Trot_star {
       Omega0 - Omega(x,y,z)
   */
 
-  T constrain(T r[3]) {
+  T constraint(T r[3]) {
     return
       Omega0 - (1/utils::hypot3(r) + w2*(r[0]*r[0] + r[1]*r[1])/2);
   }
@@ -563,7 +563,7 @@ struct Trot_star {
 
 
   /*
-    Calculate Hessian matrix of the constrain Omega0 - Omega:
+    Calculate Hessian matrix of the constraint Omega0 - Omega:
     resulting:
       H_{ij} = - partial_i partial_j Omega
 
@@ -601,9 +601,9 @@ struct Trot_star {
 
     gradOmega = -r/|r|^3 + omega^2 (r - s(r.s))
 
-  defined of implicitly by a constrain
+  defined of implicitly by a constraint
 
-    constrain = Omega_0 - Omega(r) == 0
+    constraint = Omega_0 - Omega(r) == 0
  =================================================================== */
 
 template <class T>
@@ -639,7 +639,7 @@ struct Tmisaligned_rot_star {
       Omega0 - Omega(x,y,z)
   */
 
-  T constrain(T r[3]) {
+  T constraint(T r[3]) {
 
     T w = utils::dot3D(r, s),   // = r.s
       f = 1/utils::hypot3(r),   // 1/|r|
@@ -752,7 +752,7 @@ struct Tmisaligned_rot_star {
 
 
   /*
-    Calculate Hessian matrix of the constrain Omega0 - Omega:
+    Calculate Hessian matrix of the constraint Omega0 - Omega:
     resulting:
       H_{ij} = - partial_i partial_j Omega
 
@@ -780,12 +780,12 @@ struct Tmisaligned_rot_star {
   Generalizd Roche potential with misaligned binary system in rotated
   coordinate system.
 
-  Defined of implicitly by a constrain
+  Defined of implicitly by a constraint
 
     Omega(x,y,z,params) =
       1/r1 + q(1/r2 - x/delta^2) + 1/2 (1+q) F^2 [(x cos theta' - z sin theta')^2 + y^2]
 
-    constrain = Omega0 - Omega(x,y,z,params) = 0
+    constraint = Omega0 - Omega(x,y,z,params) = 0
 
     r1 = sqrt(x^2 + y^2 + z^2)
     r2 = sqrt((x - delta)^2 + y^2+z^2)
@@ -835,7 +835,7 @@ struct Tmisaligned_rotated_roche {
       Omega0 - Omega(x,y,z)
   */
 
-  T constrain(T r[3]) {
+  T constraint(T r[3]) {
 
     T x = r[0], y = r[1], z = r[2],
       x_ = x*c - z*s,
@@ -955,7 +955,7 @@ struct Tmisaligned_rotated_roche {
 
 
   /*
-    Calculate Hessian matrix of the constrain Omega0 - Omega:
+    Calculate Hessian matrix of the constraint Omega0 - Omega:
     resulting:
       H_{ij} = - partial_i partial_j Omega
 
@@ -985,12 +985,12 @@ struct Tmisaligned_rotated_roche {
   Generalizd Roche potential with misaligned binary system in canonical
   coordinate system.
 
-  Defined of implicitly by a constrain
+  Defined of implicitly by a constraint
 
     Omega(x,y,z,params) =
       1/r1 + q(1/r2 - x/delta^2) + 1/2 (1+q) F^2 [r - s(s.r)]
 
-    constrain = Omega0 - Omega(x,y,z,params) = 0
+    constraint = Omega0 - Omega(x,y,z,params) = 0
     r = (x,y,z)
     r1 = sqrt(x^2 + y^2 + z^2)
     r2 = sqrt((x - delta)^2 + y^2+z^2)
@@ -1020,7 +1020,7 @@ struct Tmisaligned_roche {
   */
 
   Tmisaligned_roche(T *params) {
-   
+
     q = params[0];
     F = params[1];
     delta = params[2];
@@ -1043,7 +1043,7 @@ struct Tmisaligned_roche {
       Omega0 - Omega(x,y,z)
   */
 
-  T constrain(T r[3]) {
+  T constraint(T r[3]) {
 
     T x = r[0], y = r[1], z = r[2],
       r1 = utils::hypot3(r),
@@ -1184,7 +1184,7 @@ struct Tmisaligned_roche {
 
 
   /*
-    Calculate Hessian matrix of the constrain Omega0 - Omega:
+    Calculate Hessian matrix of the constraint Omega0 - Omega:
     resulting:
       H_{ij} = - partial_i partial_j Omega
 

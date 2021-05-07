@@ -3789,7 +3789,7 @@ static PyObject *roche_Omega(PyObject *self, PyObject *args) {
 
   Tgen_roche<double> b(p);
 
-  return PyFloat_FromDouble(-b.constrain((double*)PyArray_DATA(X)));
+  return PyFloat_FromDouble(-b.constraint((double*)PyArray_DATA(X)));
 }
 
 /*
@@ -3830,7 +3830,7 @@ static PyObject *rotstar_Omega(PyObject *self, PyObject *args) {
 
   Trot_star<double> b(p);
 
-  return PyFloat_FromDouble(-b.constrain((double*)PyArray_DATA(X)));
+  return PyFloat_FromDouble(-b.constraint((double*)PyArray_DATA(X)));
 }
 
 
@@ -3909,7 +3909,7 @@ static PyObject *rotstar_misaligned_Omega(PyObject *self, PyObject *args) {
 
   Tmisaligned_rot_star<double> b(p);
 
-  return PyFloat_FromDouble(-b.constrain((double*)PyArray_DATA(X)));
+  return PyFloat_FromDouble(-b.constraint((double*)PyArray_DATA(X)));
 }
 
 /*
@@ -4011,7 +4011,7 @@ static PyObject *roche_misaligned_Omega(PyObject *self, PyObject *args) {
       report_stream << fname << "::END" << std::endl;
 
     Tmisaligned_rotated_roche<double> b(p);
-    return PyFloat_FromDouble(-b.constrain(x));
+    return PyFloat_FromDouble(-b.constraint(x));
   } else if (PyArray_Check(o_misalignment) &&
     PyArray_TYPE((PyArrayObject *) o_misalignment) == NPY_DOUBLE) {
 
@@ -4026,7 +4026,7 @@ static PyObject *roche_misaligned_Omega(PyObject *self, PyObject *args) {
       report_stream << fname << "::END" << std::endl;
 
     Tmisaligned_roche<double> b(p);
-    return PyFloat_FromDouble(-b.constrain(x));
+    return PyFloat_FromDouble(-b.constraint(x));
   }
 
   if (verbosity_level>=4)
@@ -4453,10 +4453,18 @@ static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *k
       centers: boolean, default False
       cnormals: boolean, default False
       cnormgrads: boolean, default False
+
       init_phi: float, default 0
-        orientation of the initial polygon front
+        shift in angles on the initial frontal polygon used in both choices of
+        creating initial frontal polygon
+
       init_dir: 1-rank numpy array of floats = [theta, phi], default [0,0]
         direction of the initial point in marching given by spherical angles
+
+      init_front: integer, default 1
+        chosing the way to create initial frontal polygin
+        0 - start marching meshing from single point determined by init_dir
+        1 - start marching meshing from the equator and use mirror symmetry
 
   Returns:
 
@@ -4545,12 +4553,14 @@ static PyObject *rotstar_marching_mesh(PyObject *self, PyObject *args, PyObject 
     (char*)"volume",
     (char*)"init_phi",
     (char*)"init_dir",
+    (char*)"init_front",
     NULL};
 
   double omega, Omega0, delta,
          init_phi = 0, init_dir[2] = {0., 0.};
 
-  int max_triangles = 10000000; // 10^7
+  int max_triangles = 10000000, // 10^7
+      init_front = 1;           // default choice
 
   bool
     b_full = true,
@@ -4584,7 +4594,7 @@ static PyObject *rotstar_marching_mesh(PyObject *self, PyObject *args, PyObject 
   PyArrayObject *o_init_dir = 0;
 
   if (!PyArg_ParseTupleAndKeywords(
-      args, keywds,  "ddd|iO!O!O!O!O!O!O!O!O!O!O!O!dO!", kwlist,
+      args, keywds,  "ddd|iO!O!O!O!O!O!O!O!O!O!O!O!dO!i", kwlist,
       &omega, &Omega0, &delta, // neccesary
       &max_triangles,
       &PyBool_Type, &o_full,
@@ -4600,7 +4610,8 @@ static PyObject *rotstar_marching_mesh(PyObject *self, PyObject *args, PyObject 
       &PyBool_Type, &o_area,
       &PyBool_Type, &o_volume,
       &init_phi,
-      &PyArray_Type, &o_init_dir)
+      &PyArray_Type, &o_init_dir,
+      &init_front)
   ){
     raise_exception(fname + "::Problem reading arguments");
     return NULL;
@@ -4628,6 +4639,16 @@ static PyObject *rotstar_marching_mesh(PyObject *self, PyObject *args, PyObject 
   }
 
   //
+  // Checking the choice of generating initial polygons
+  //
+  if ( init_front != 0 && init_front != 1) {
+    raise_exception(fname +
+      "::This choice of generating frontal polygons is not supported! "+
+      "init_front=" + std::to_string(init_front));
+    return NULL;
+  }
+
+  //
   // Check if the lobe exists
   //
   if (27*utils::sqr(omega)/(8*utils::cube(Omega0)) > 1){
@@ -4643,24 +4664,7 @@ static PyObject *rotstar_marching_mesh(PyObject *self, PyObject *args, PyObject 
   PyObject *results = PyDict_New();
 
   //
-  // Getting initial meshing point
-  //
-
-  if (verbosity_level>=4)
-    report_stream << fname << "::Point on surface" << std::endl;
-
-  double r[3], g[3];
-  //rot_star::meshing_start_point(r, g, Omega0, omega);
-  rot_star::point_on_surface(Omega0, omega, init_dir[0], init_dir[1], r, g);
-
-  if (verbosity_level>=4)
-    report_stream << fname
-      << "::r=" << r[0] << " " << r[1] << " " << r[2]
-      << "g=" << g[0] << " " << g[1] << " " << g[2]
-      << std::endl;
-
-  //
-  //  Marching triangulation of the Roche lobe
+  //  Marching triangulation of the Rotstar lobe
   //
 
   if (verbosity_level>=4)
@@ -4668,27 +4672,156 @@ static PyObject *rotstar_marching_mesh(PyObject *self, PyObject *args, PyObject 
 
   double params[3] = {omega, Omega0};
 
-  Tmarching<double, Trot_star<double>> march(params);
+  using Tm = Tmarching<double, Trot_star<double>>;
+
+  Tm march(params);
+
+  double r[3], g[3];
 
   std::vector<T3Dpoint<double>> V, NatV;
   std::vector<T3Dpoint<int>> Tr;
   std::vector<double> *GatV = 0;
 
-  if (b_vnormgrads) GatV = new std::vector<double>;
+  //
+  // Prepare initial front polygon
+  //
 
-  int error =
+  const int max_iter = 100;   // maximal number of interation in projections
+
+  int mP,                     // size of initial front
+      error = 0;
+
+  march.precision = false;    // start with normal precision
+
+  Tm::Tfront_polygon P;       // list of front polygons (circular list)
+
+  if (init_front == 0) {       // Inital frontal polygon is around a point
+
+    if (verbosity_level>=4)
+      report_stream << fname << "::Frontal poygon around a point on surface" << std::endl;
+
+    //rot_star::meshing_start_point(r, g, Omega0, omega);
+    rot_star::point_on_surface(Omega0, omega, init_dir[0], init_dir[1], r, g);
+
+    if (verbosity_level>=4)
+      report_stream << fname
+        << "::r=" << r[0] << " " << r[1] << " " << r[2]
+        << "  g="   << g[0] << " " << g[1] << " " << g[2]
+        << std::endl;
+
+    error = march.create_front(delta, r, g, init_phi, V, NatV, Tr, GatV, P, max_iter);
+
+    mP = P.size();  // to remove -Wmaybe-uninitialized compiler warnings
+
+  } else if (init_front == 1) {  // Inital frontal polygon is around equator
+
+    if (verbosity_level>=4)
+      report_stream << fname << "::Frontal poygon around equator" << std::endl;
+
+    double R, circ, dphi, s, c, g0;
+
+    Tm::Tvertex v;
+
+    R = rot_star::equator(Omega0, omega);   // equator
+
+    circ = utils::m_2pi*R;                  // circumference
+
+    mP = std::round(circ/delta);            // approximate number of segments on circ.
+
+    dphi = utils::m_2pi/mP;
+
+    g0 = 1/utils::sqr(R) - utils::sqr(omega)*R;  // gradient of constraint = Omega0 - Omega(r)
+
+    for (int i = 0; i < mP; ++i) {
+
+      utils::sincos(dphi*i + init_phi, &s, &c);
+
+      r[0] = R*c;
+      r[1] = R*s;
+      r[2] = 0;
+
+      g[0] = c;
+      g[1] = s;
+      g[2] = 0;
+
+      march.create_internal_vertex(r, g, v, 0, false);
+
+      v.index = i;
+      v.omega_changed = true;
+      P.push_back(v);
+
+      V.emplace_back(v.r);                    // saving only r
+      if (GatV) GatV->emplace_back(g0);       // saving norm
+      NatV.emplace_back(v.b[2]);              // saving only normal
+    }
+  } else {
+    raise_exception(fname + "::You should not be here!");
+    return NULL;
+  }
+
+  //
+  // Do marching using initial front
+  // - err = 0,1,2
+  // - neglecting GatV as it is trivial for sphere
+
+  if (error == 0)
+    error =
     (b_full ?
-      march.triangulize_full_clever(r, g, delta, max_triangles, V, NatV, Tr, GatV, init_phi) :
-      march.triangulize(r, g, delta, max_triangles, V, NatV, Tr, GatV, init_phi)
+      march.do_marching_v1(delta, P, V, NatV, Tr, GatV, max_triangles, max_iter) :
+      march.do_marching_v2(delta, P, V, NatV, Tr, GatV, max_triangles, max_iter)
     );
+
 
   switch(error) {
     case 1:
-      raise_exception("There are too many triangles!");
+      raise_exception(fname + "::There are too many triangles!");
       return NULL;
     case 2:
-      raise_exception("Projections are failing!");
+      raise_exception(fname + "::Projections are failing in marching!");
       return NULL;
+    case 3:
+      raise_exception(fname + "::Projections are failing in creating initial frontal polygon!");
+      return NULL;
+  }
+
+  //
+  // By using equatoral initial polygon, we need to mirror the points
+  //
+
+  if (init_front == 1) {
+
+    int nv0 = V.size(),
+        nv1 = nv0 - mP,
+        dim = nv0 + nv1,
+        nt = Tr.size();
+
+    Tr.resize(2*nt);
+    V.resize(dim);
+    NatV.resize(dim);
+    if (GatV) GatV->resize(dim);
+
+    int *t;
+
+    auto index = [&](int i) { return i < mP ? i : i + nv1;};
+
+    // create triangles of opposite hemisphere
+    for (int i = 0, j = nt; i < nt; ++i, ++j){
+      t = Tr[i].data;
+      Tr[j].assign(index(t[2]), index(t[1]), index(t[0]));
+    }
+
+    double *v;
+
+    // create new vertices apart of initial front on the opposite hemisphere
+    for (int i = mP, j = nv0; i < nv0; ++i, ++j){
+      v = V[i].data;
+      V[j].assign(v[0], v[1], -v[2]);
+
+      v = NatV[i].data;
+      NatV[j].assign(v[0], v[1], -v[2]);
+
+      if (GatV) (*GatV)[j] = (*GatV)[i];
+    }
   }
 
   if (verbosity_level >= 4)
@@ -5237,7 +5370,15 @@ static PyObject *rotstar_misaligned_marching_mesh(PyObject *self, PyObject *args
       centers: boolean, default False
       cnormals: boolean, default False
       cnormgrads: boolean, default False
+
       init_phi: float, default 0
+        shift in angles on the initial frontal polygon used in both choices of
+        creating initial frontal polygon
+
+      init_front: integer, default 1
+        chosing the way to create initial frontal polygin
+        0 - start marching meshing from single pont = pole
+        1 - start marching meshing from the equator and use mirror symmetry
 
   Returns:
 
@@ -5321,12 +5462,14 @@ static PyObject *sphere_marching_mesh(PyObject *self, PyObject *args, PyObject *
     (char*)"area",
     (char*)"volume",
     (char*)"init_phi",
+    (char*)"init_front",
     NULL};
 
   double Omega0, delta,
          init_phi = 0;
 
-  int max_triangles = 10000000; // 10^7
+  int max_triangles = 10000000, // 10^7
+      init_front = 1;           // default choice for initial frontal polygon
 
   bool
     b_full = true,
@@ -5358,7 +5501,7 @@ static PyObject *sphere_marching_mesh(PyObject *self, PyObject *args, PyObject *
     *o_volume = 0;
 
   if (!PyArg_ParseTupleAndKeywords(
-      args, keywds,  "dd|iO!O!O!O!O!O!O!O!O!O!O!O!d", kwlist,
+      args, keywds,  "dd|iO!O!O!O!O!O!O!O!O!O!O!O!di", kwlist,
       &Omega0, &delta,                  // neccesary
       &max_triangles,                   // optional ...
       &PyBool_Type, &o_full,
@@ -5373,7 +5516,8 @@ static PyObject *sphere_marching_mesh(PyObject *self, PyObject *args, PyObject *
       &PyBool_Type, &o_areas,
       &PyBool_Type, &o_area,
       &PyBool_Type, &o_volume,
-      &init_phi
+      &init_phi,
+      &init_front
       )) {
     raise_exception(fname + "::Problem reading arguments");
     return NULL;
@@ -5392,6 +5536,14 @@ static PyObject *sphere_marching_mesh(PyObject *self, PyObject *args, PyObject *
   if (o_area) b_area = PyObject_IsTrue(o_area);
   if (o_volume) b_volume = PyObject_IsTrue(o_volume);
 
+
+  if ( init_front != 0 && init_front != 1) {
+    raise_exception(fname +
+      "::This choice of generating frontal polygons is not supported! "+
+      "init_front=" + std::to_string(init_front));
+    return NULL;
+  }
+
   //
   // Storing results in dictioonary
   // https://docs.python.org/2/c-api/dict.html
@@ -5400,35 +5552,144 @@ static PyObject *sphere_marching_mesh(PyObject *self, PyObject *args, PyObject *
 
 
   //
-  //  Marching triangulation of the Roche lobe
+  //  Marching triangulation
   //
 
   double R = 1/Omega0;
 
-  Tmarching<double, Tsphere<double> > march(&R);
+  using Tm = Tmarching<double, Tsphere<double> >;
+
+  Tm march(&R);
 
   double r[3], g[3];
-
-  march.init(r, g);
 
   std::vector<T3Dpoint<double>> V, NatV;
   std::vector<T3Dpoint<int>> Tr;
   std::vector<double> *GatV = 0;
 
-  int error =
+  //
+  // Prepare initial front polygon (neglecting GatV as it is trivial for sphere)
+  //
+
+  const int max_iter = 100;   // maximal number of interation in projections
+
+  int mP,                     // size of initial front
+      error = 0;
+
+  march.precision = false;    // start with normal precision
+
+  Tm::Tfront_polygon P;       // list of front polygons (circular list)
+
+
+  if (init_front == 0) {
+
+    march.init(r, g);
+
+    error = march.create_front(delta, r, g, init_phi, V, NatV, Tr, 0, P, max_iter);
+
+    mP = P.size();  // to remove -Wmaybe-uninitialized compiler warnings
+
+  } else if (init_front == 1) {
+
+    double circ, dphi, s, c;
+
+    Tm::Tvertex v;
+
+    circ = utils::m_2pi*R;            // circumference
+
+    mP = std::round(circ/delta);      // approximate number of segments on circ.
+
+    dphi = utils::m_2pi/mP;
+
+    for (int i = 0; i < mP ; ++i) {
+
+      utils::sincos(dphi*i + init_phi, &s, &c);
+
+      // using constraint x^2 + y^2 + z^2 - R^2 = 0
+      r[0] = R*c;
+      r[1] = R*s;
+      r[2] = 0;
+
+      g[0] = c;
+      g[1] = s;
+      g[2] = 0;
+
+      march.create_internal_vertex(r, g, v, 0, false);
+
+      v.index = i;
+      v.omega_changed = true;
+      P.push_back(v);
+
+      V.emplace_back(v.r);                    // saving only r
+      NatV.emplace_back(v.b[2]);              // saving only normal
+    }
+  } else {
+    raise_exception(fname + "::You should not be here!");
+    return NULL;
+  }
+
+  //
+  // Do marching using initial front
+  // - err = 0,1,2
+  // - neglecting GatV as it is trivial for sphere
+
+  if (error == 0)
+    error =
     (b_full ?
-      march.triangulize_full_clever(r, g, delta, max_triangles, V, NatV, Tr, GatV, init_phi) :
-      march.triangulize(r, g, delta, max_triangles, V, NatV, Tr, GatV, init_phi)
+      march.do_marching_v1(delta, P, V, NatV, Tr, 0, max_triangles, max_iter) :
+      march.do_marching_v2(delta, P, V, NatV, Tr, 0, max_triangles, max_iter)
     );
+
 
   switch(error) {
     case 1:
-      raise_exception("There are too many triangles!");
+      raise_exception(fname + "::There are too many triangles!");
       return NULL;
     case 2:
-      raise_exception("Projections are failing!");
+      raise_exception(fname + "::Projections are failing in marching!");
+      return NULL;
+    case 3:
+      raise_exception(fname + "::Projections are failing in creating initial frontal polygon!");
       return NULL;
   }
+
+  //
+  // For using equatoral initial polygon we need to mirror the points
+  //
+
+  if (init_front == 1) {
+
+    int nv0 = V.size(),
+        nv1 = nv0 - mP,
+        dim = nv0 + nv1,
+        nt = Tr.size();
+
+    Tr.resize(2*nt);
+    V.resize(dim);
+    NatV.resize(dim);
+
+    int *t;
+
+    auto index = [&](int i) { return i < mP ? i : i + nv1;};
+
+    // create triangles of opposite hemisphere
+    for (int i = 0, j = nt; i < nt; ++i, ++j){
+      t = Tr[i].data;
+      Tr[j].assign(index(t[2]), index(t[1]), index(t[0]));
+    }
+
+    double *v;
+
+    // create new vertices apart of initial front on the opposite hemisphere
+    for (int i = mP, j = nv0; i < nv0; ++i, ++j){
+      v = V[i].data;
+      V[j].assign(v[0], v[1], -v[2]);
+
+      v = NatV[i].data;
+      NatV[j].assign(v[0], v[1], -v[2]);
+    }
+  }
+
 
   if (b_vnormgrads)
     GatV = new std::vector<double>(V.size(), Omega0*Omega0);
@@ -9001,7 +9262,7 @@ static PyObject *roche_square_grid(PyObject *self, PyObject *args, PyObject *key
 
           for (int i = 0; i < 3; ++i) r[i] = r0[i] + u[i]*L[i];
 
-          if (roche.constrain(r) <= 0) *m = 1;
+          if (roche.constraint(r) <= 0) *m = 1;
         }
 
   }
