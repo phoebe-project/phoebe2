@@ -1950,7 +1950,7 @@ class _ScipyOptimizeBaseBackend(BaseSolverBackend):
         metawargs = {'context': 'solution',
                      'solver': solver,
                      'compute': compute,
-                     'kind': self.method,
+                     'kind': b.get_solver(solver=solver, **_skip_filter_checks).kind,
                      'solution': _solution}
 
         global _use_progressbar
