@@ -10601,7 +10601,7 @@ class Bundle(ParameterSet):
 
         # handle case where compute is not provided
         if compute is None:
-            computes = self.get_compute(check_default=False, check_visible=False, **kwargs).computes
+            computes = self.get_compute(check_default=False, check_visible=False, compute=kwargs.get('compute', None)).computes
             if len(computes)==0:
                 # NOTE: this doesn't take **kwargs since we want those to be
                 # temporarily overriden as is the case when the compute options
