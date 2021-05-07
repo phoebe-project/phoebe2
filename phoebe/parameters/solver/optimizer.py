@@ -48,11 +48,15 @@ def nelder_mead(**kwargs):
     * `expose_lnprobabilities` (bool, optional, default=False): whether to expose
         the initial and final lnprobabilities in the solution (will result in 2
         additional forward model calls)
+    * `continue_from` (string, optional, default='none'): continue the optimization
+        run from an existing solution by starting each parameter at its final
+        position in the solution.
     * `fit_parameters` (list, optional, default=[]): parameters (as twigs) to
-        optimize.
+        optimize. Only applicable if `continue_from` is 'None'.
     * `initial_values` (dict, optional, default={}): twig-value pairs to
         (optionally) override the current values in the bundle.  Any items not
-        in `fit_parameters` will be silently ignored.
+        in `fit_parameters` will be silently ignored.  Only applicable if
+        `continue_from` is 'None'.
     * `priors` (list, optional, default=[]): distribution(s) to use for priors
         (constrained and unconstrained parameters will be included, covariances
         will be respected except for distributions merge via `priors_combine`).
@@ -63,9 +67,6 @@ def nelder_mead(**kwargs):
         or: combine duplicate entries via OR logic, dropping covariances.
     * `maxiter` (int, optional, default=1e6): passed directly to
         scipy.optimize.minimize.  Maximum allowed number of iterations.
-    * `maxfev` (int, optional, default=1e6): passed directly to
-        scipy.optimize.minimize.  Maximum allowed number of function evaluations
-        (forward models).
     * `adaptive` (bool, optional, default=False): passed directly to
         scipy.optimize.minimize.  Adapt algorithm parameters to dimensionality
         of problem. Useful for high-dimensional minimization
@@ -76,6 +77,16 @@ def nelder_mead(**kwargs):
         scipy.optimize.minimize.  Absolute error in func(xopt)
         (lnlikelihood + lnp(priors)) between iterations that is acceptable for
         convergence.
+    * `progress_every_niters` (int, optional, default=0): Save the progress of
+        the solution every n iterations.  The solution can only be recovered
+        from an early termination by loading the bundle from a saved file and
+        then calling <phoebe.frontend.bundle.Bundle.import_solution>(filename).
+        The filename of the saved file will default to solution.ps.progress within
+        <phoebe.frontend.bundle.Bundle.run_solver>, or the output filename provided
+        to <phoebe.frontend.bundle.Bundle.export_solver> suffixed with .progress.
+        If using detach=True within run_solver, attach job will load the progress
+        and allow re-attaching until the job is completed.  If 0 will not save
+        and will only return after completion.
 
     Returns
     --------
@@ -88,18 +99,21 @@ def nelder_mead(**kwargs):
     params += [ChoiceParameter(qualifier='compute', value=kwargs.get('compute', 'None'), choices=['None'], description='compute options to use for forward model')]
     params += [BoolParameter(qualifier='expose_lnprobabilities', value=kwargs.get('expose_lnprobabilities', False), description='whether to expose the initial and final lnprobabilities in the solution (will result in 2 additional forward model calls)')]
 
-    params += [SelectTwigParameter(qualifier='fit_parameters', value=kwargs.get('fit_parameters', []), choices=[], description='parameters (as twigs) to optimize')]
-    params += [DictParameter(qualifier='initial_values', value=kwargs.get('initial_values', {}), description='twig-value pairs to (optionally) override the current values in the bundle.  Any items not in fit_parameters will be silently ignored.')]
+    params += [ChoiceParameter(qualifier='continue_from', value=kwargs.get('continue_from', 'None'), choices=['None'], description='continue the optimization run from an existing solution by starting each parameter at its final position in the solution.')]
+
+    params += [SelectTwigParameter(visible_if='continue_from:None', qualifier='fit_parameters', value=kwargs.get('fit_parameters', []), choices=[], description='parameters (as twigs) to optimize')]
+    params += [DictParameter(visible_if='continue_from:None', qualifier='initial_values', value=kwargs.get('initial_values', {}), description='twig-value pairs to (optionally) override the current values in the bundle.  Any items not in fit_parameters will be silently ignored.')]
 
     params += [SelectParameter(qualifier='priors', value=kwargs.get('priors', []), choices=[], description='distribution(s) to use for priors (constrained and unconstrained parameters will be included, covariances will be respected except for distributions merge via priors_combine)')]
     params += [ChoiceParameter(visible_if='priors:<notempty>', qualifier='priors_combine', value=kwargs.get('priors_combine', 'and'), choices=['first', 'and', 'or'], description='Method to use to combine multiple distributions from priors for the same parameter.  first: ignore duplicate entries and take the first in the priors parameter. and: combine duplicate entries via AND logic, dropping covariances.  or: combine duplicate entries via OR logic, dropping covariances.')]
 
     params += [IntParameter(qualifier='maxiter', value=kwargs.get('maxiter', 1e6), limits=[1,1e12], description='passed directly to scipy.optimize.minimize.  Maximum allowed number of iterations.')]
-    params += [IntParameter(qualifier='maxfev', value=kwargs.get('maxfev', 1e6), limits=[1,1e12], description='passed directly to scipy.optimize.minimize.  Maximum allowed number of function evaluations (forward models).')]
     params += [BoolParameter(qualifier='adaptive', value=kwargs.get('adaptive', False), description='passed directly to scipy.optimize.minimize.  Adapt algorithm parameters to dimensionality of problem. Useful for high-dimensional minimization')]
 
     params += [FloatParameter(qualifier='xatol', value=kwargs.get('xatol', 1e-4), limits=[1e-12,None], description='passed directly to scipy.optimize.minimize.  Absolute error in xopt (input parameters) between iterations that is acceptable for convergence.')]
     params += [FloatParameter(qualifier='fatol', value=kwargs.get('fatol', 1e-4), limits=[1e-12,None], description='passed directly to scipy.optimize.minimize.  Absolute error in func(xopt) (lnlikelihood + lnp(priors)) between iterations that is acceptable for convergence.')]
+
+    params += [IntParameter(qualifier='progress_every_niters', value=kwargs.get('progress_every_niters', 0), limits=(0,1e6), description='save the progress of the solution every n iterations.  The solution can only be recovered from an early termination by loading the bundle from a saved file and then calling b.import_solution(filename).  The filename of the saved file will default to solution.ps.progress within run_solver, or the output filename provided to export_solver suffixed with .progress.  If using detach=True within run_solver, attach job will load the progress and allow re-attaching until the job is completed.  If 0 will not save and will only return after completion.')]
 
     return ParameterSet(params)
 
@@ -133,11 +147,15 @@ def powell(**kwargs):
     * `expose_lnprobabilities` (bool, optional, default=False): whether to expose
         the initial and final lnprobabilities in the solution (will result in 2
         additional forward model calls)
+    * `continue_from` (string, optional, default='none'): continue the optimization
+        run from an existing solution  by starting each parameter at its final
+        position in the solution.
     * `fit_parameters` (list, optional, default=[]): parameters (as twigs) to
-        optimize.
+        optimize.  Only applicable if `continue_from` is 'None'.
     * `initial_values` (dict, optional, default={}): twig-value pairs to
         (optionally) override the current values in the bundle.  Any items not
-        in `fit_parameters` will be silently ignored.
+        in `fit_parameters` will be silently ignored.  Only applicable if
+        `continue_from` is 'None'.
     * `priors` (list, optional, default=[]): distribution(s) to use for priors
         (constrained and unconstrained parameters will be included, covariances
         will be respected except for distributions merge via `priors_combine`).
@@ -148,9 +166,6 @@ def powell(**kwargs):
         or: combine duplicate entries via OR logic, dropping covariances.
     * `maxiter` (int, optional, default=1e6): passed directly to
         scipy.optimize.minimize.  Maximum allowed number of iterations.
-    * `maxfev` (int, optional, default=1e6): passed directly to
-        scipy.optimize.minimize.  Maximum allowed number of function evaluations
-        (forward models).
     * `xtol` (float, optional, default=1e-4): passed directly to
         scipy.optimize.minimize.  Relative error in xopt (input parameters)
         between iterations that is acceptable for convergence.
@@ -158,6 +173,16 @@ def powell(**kwargs):
         scipy.optimize.minimize.  Relative error in func(xopt)
         (lnlikelihood + lnp(priors)) between iterations that is acceptable for
         convergence.
+    * `progress_every_niters` (int, optional, default=0): Save the progress of
+        the solution every n iterations.  The solution can only be recovered
+        from an early termination by loading the bundle from a saved file and
+        then calling <phoebe.frontend.bundle.Bundle.import_solution>(filename).
+        The filename of the saved file will default to solution.ps.progress within
+        <phoebe.frontend.bundle.Bundle.run_solver>, or the output filename provided
+        to <phoebe.frontend.bundle.Bundle.export_solver> suffixed with .progress.
+        If using detach=True within run_solver, attach job will load the progress
+        and allow re-attaching until the job is completed.  If 0 will not save
+        and will only return after completion.
 
     Returns
     --------
@@ -170,17 +195,21 @@ def powell(**kwargs):
     params += [ChoiceParameter(qualifier='compute', value=kwargs.get('compute', 'None'), choices=['None'], description='compute options to use for forward model')]
     params += [BoolParameter(qualifier='expose_lnprobabilities', value=kwargs.get('expose_lnprobabilities', False), description='whether to expose the initial and final lnprobabilities in the solution (will result in 2 additional forward model calls)')]
 
-    params += [SelectTwigParameter(qualifier='fit_parameters', value=kwargs.get('fit_parameters', []), choices=[], description='parameters to optimize')]
-    params += [DictParameter(qualifier='initial_values', value=kwargs.get('initial_values', {}), description='twig-value pairs to (optionally) override the current values in the bundle.  Any items not in fit_parameters will be silently ignored.')]
+    params += [ChoiceParameter(qualifier='continue_from', value=kwargs.get('continue_from', 'None'), choices=['None'], description='continue the optimization run from an existing solution by starting each parameter at its final position in the solution.')]
+
+    params += [SelectTwigParameter(visible_if='continue_from:None', qualifier='fit_parameters', value=kwargs.get('fit_parameters', []), choices=[], description='parameters to optimize')]
+    params += [DictParameter(visible_if='continue_from:None', qualifier='initial_values', value=kwargs.get('initial_values', {}), description='twig-value pairs to (optionally) override the current values in the bundle.  Any items not in fit_parameters will be silently ignored.')]
 
     params += [SelectParameter(qualifier='priors', value=kwargs.get('priors', []), choices=[], description='distribution(s) to use for priors (constrained and unconstrained parameters will be included, covariances will be respected except for distributions merge via priors_combine)')]
     params += [ChoiceParameter(visible_if='priors:<notempty>', qualifier='priors_combine', value=kwargs.get('priors_combine', 'and'), choices=['first', 'and', 'or'], description='Method to use to combine multiple distributions from priors for the same parameter.  irst: ignore duplicate entries and take the first in the priors parameter. and: combine duplicate entries via AND logic, dropping covariances.  or: combine duplicate entries via OR logic, dropping covariances.')]
 
     params += [IntParameter(qualifier='maxiter', value=kwargs.get('maxiter', 1e6), limits=[1,1e12], description='passed directly to scipy.optimize.minimize.  Maximum allowed number of iterations.')]
-    params += [IntParameter(qualifier='maxfev', value=kwargs.get('maxfev', 1e6), limits=[1,1e12], description='passed directly to scipy.optimize.minimize.  Maximum allowed number of function evaluations (forward models).')]
 
     params += [FloatParameter(qualifier='xtol', value=kwargs.get('xtol', 1e-4), limits=[1e-12,None], description='passed directly to scipy.optimize.minimize.  Relative error in xopt (input parameters) between iterations that is acceptable for convergence.')]
     params += [FloatParameter(qualifier='ftol', value=kwargs.get('ftol', 1e-4), limits=[1e-12,None], description='passed directly to scipy.optimize.minimize.  Relative error in func(xopt) (lnlikelihood + lnp(priors)) between iterations that is acceptable for convergence.')]
+
+    params += [IntParameter(qualifier='progress_every_niters', value=kwargs.get('progress_every_niters', 0), limits=(0,1e6), description='save the progress of the solution every n iterations.  The solution can only be recovered from an early termination by loading the bundle from a saved file and then calling b.import_solution(filename).  The filename of the saved file will default to solution.ps.progress within run_solver, or the output filename provided to export_solver suffixed with .progress.  If using detach=True within run_solver, attach job will load the progress and allow re-attaching until the job is completed.  If 0 will not save and will only return after completion.')]
+
 
     return ParameterSet(params)
 
@@ -214,11 +243,15 @@ def cg(**kwargs):
     * `expose_lnprobabilities` (bool, optional, default=False): whether to expose
         the initial and final lnprobabilities in the solution (will result in 2
         additional forward model calls)
+    * `continue_from` (string, optional, default='none'): continue the optimization
+        run from an existing solution by starting each parameter at its final
+        position in the solution.
     * `fit_parameters` (list, optional, default=[]): parameters (as twigs) to
-        optimize.
+        optimize.  Only applicable if `continue_from` is 'None'.
     * `initial_values` (dict, optional, default={}): twig-value pairs to
         (optionally) override the current values in the bundle.  Any items not
-        in `fit_parameters` will be silently ignored.
+        in `fit_parameters` will be silently ignored.  Only applicable if
+        `continue_from` is 'None'.
     * `priors` (list, optional, default=[]): distribution(s) to use for priors
         (constrained and unconstrained parameters will be included, covariances
         will be respected except for distributions merge via `priors_combine`).
@@ -233,6 +266,16 @@ def cg(**kwargs):
         scipy.optimize.minimize.  Gradient norm must be less than gtol before successful termination.
     * `norm` (float, optional, default=np.inf): passed directly to
         scipy.optimize.minimize.  Order of norm (Inf is max, -Inf is min).
+    * `progress_every_niters` (int, optional, default=0): Save the progress of
+        the solution every n iterations.  The solution can only be recovered
+        from an early termination by loading the bundle from a saved file and
+        then calling <phoebe.frontend.bundle.Bundle.import_solution>(filename).
+        The filename of the saved file will default to solution.ps.progress within
+        <phoebe.frontend.bundle.Bundle.run_solver>, or the output filename provided
+        to <phoebe.frontend.bundle.Bundle.export_solver> suffixed with .progress.
+        If using detach=True within run_solver, attach job will load the progress
+        and allow re-attaching until the job is completed.  If 0 will not save
+        and will only return after completion.
 
     Returns
     --------
@@ -245,8 +288,10 @@ def cg(**kwargs):
     params += [ChoiceParameter(qualifier='compute', value=kwargs.get('compute', 'None'), choices=['None'], description='compute options to use for forward model')]
     params += [BoolParameter(qualifier='expose_lnprobabilities', value=kwargs.get('expose_lnprobabilities', False), description='whether to expose the initial and final lnprobabilities in the solution (will result in 2 additional forward model calls)')]
 
-    params += [SelectTwigParameter(qualifier='fit_parameters', value=kwargs.get('fit_parameters', []), choices=[], description='parameters to optimize')]
-    params += [DictParameter(qualifier='initial_values', value=kwargs.get('initial_values', {}), description='twig-value pairs to (optionally) override the current values in the bundle.  Any items not in fit_parameters will be silently ignored.')]
+    params += [ChoiceParameter(qualifier='continue_from', value=kwargs.get('continue_from', 'None'), choices=['None'], description='continue the optimization run from an existing solution by starting each parameter at its final position in the solution.')]
+
+    params += [SelectTwigParameter(visible_if='continue_from:None', qualifier='fit_parameters', value=kwargs.get('fit_parameters', []), choices=[], description='parameters to optimize')]
+    params += [DictParameter(visible_if='continue_from:None', qualifier='initial_values', value=kwargs.get('initial_values', {}), description='twig-value pairs to (optionally) override the current values in the bundle.  Any items not in fit_parameters will be silently ignored.')]
 
     params += [SelectParameter(qualifier='priors', value=kwargs.get('priors', []), choices=[], description='distribution(s) to use for priors (constrained and unconstrained parameters will be included, covariances will be respected except for distributions merge via priors_combine)')]
     params += [ChoiceParameter(visible_if='priors:<notempty>', qualifier='priors_combine', value=kwargs.get('priors_combine', 'and'), choices=['first', 'and', 'or'], description='Method to use to combine multiple distributions from priors for the same parameter.  irst: ignore duplicate entries and take the first in the priors parameter. and: combine duplicate entries via AND logic, dropping covariances.  or: combine duplicate entries via OR logic, dropping covariances.')]
@@ -255,6 +300,8 @@ def cg(**kwargs):
 
     params += [FloatParameter(qualifier='gtol', value=kwargs.get('gtol', 1e-5), limits=[1e-12,None], description='passed directly to scipy.optimize.minimize.  Gradient norm must be less than gtol before successful termination.')]
     params += [FloatParameter(qualifier='norm', value=kwargs.get('norm', np.inf), limits=[None,None], description='passed directly to scipy.optimize.minimize.  Order of norm (Inf is max, -Inf is min).')]
+
+    params += [IntParameter(qualifier='progress_every_niters', value=kwargs.get('progress_every_niters', 0), limits=(0,1e6), description='save the progress of the solution every n iterations.  The solution can only be recovered from an early termination by loading the bundle from a saved file and then calling b.import_solution(filename).  The filename of the saved file will default to solution.ps.progress within run_solver, or the output filename provided to export_solver suffixed with .progress.  If using detach=True within run_solver, attach job will load the progress and allow re-attaching until the job is completed.  If 0 will not save and will only return after completion.')]
 
     return ParameterSet(params)
 

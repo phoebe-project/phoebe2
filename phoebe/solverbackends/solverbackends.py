@@ -170,7 +170,9 @@ def _lnprobability(sampled_values, b, params_uniqueids, compute,
         # override sample_from that may be set in the compute options
         compute_kwargs['sample_from'] = []
         compute_kwargs['progressbar'] = False
-        b.run_compute(use_server='none', compute=compute, model=solution, do_create_fig_params=False, **compute_kwargs)
+        compute_kwargs['use_server'] = 'none'
+        compute_kwargs['detach'] = False
+        b.run_compute(compute=compute, model=solution, do_create_fig_params=False, **compute_kwargs)
     except Exception as err:
         logger.warning("received error from run_compute: {}.  lnprobability=-inf".format(err))
         return _return(-np.inf, str(err))
@@ -1780,6 +1782,11 @@ class _ScipyOptimizeBaseBackend(BaseSolverBackend):
         super(_ScipyOptimizeBaseBackend, self).__init__()
         self._allow_mpi = False
 
+    @property
+    def workers_need_solution_ps(self):
+        # TODO: only if progress_every_niters?
+        return True
+
     def run_checks(self, b, solver, compute, **kwargs):
         solver_ps = b.get_solver(solver=solver, **_skip_filter_checks)
         if not len(solver_ps.get_value(qualifier='fit_parameters', fit_parameters=kwargs.get('fit_parameters', None), expand=True)):
@@ -1798,7 +1805,6 @@ class _ScipyOptimizeBaseBackend(BaseSolverBackend):
 
 
         solution_params += [_parameters.StringParameter(qualifier='message', value='', readonly=True, description='message from the minimizer')]
-        solution_params += [_parameters.IntParameter(qualifier='nfev', value=0, readonly=True, limits=(0,None), description='number of completed function evaluations (forward models)')]
         solution_params += [_parameters.IntParameter(qualifier='niter', value=0, readonly=True, limits=(0,None), description='number of completed iterations')]
         solution_params += [_parameters.BoolParameter(qualifier='success', value=False, readonly=True, description='whether the minimizer returned a success message')]
         solution_params += [_parameters.ArrayParameter(qualifier='initial_values', value=[], readonly=True, description='initial values before running the minimizer (in current default units of each parameter)')]
@@ -1821,8 +1827,15 @@ class _ScipyOptimizeBaseBackend(BaseSolverBackend):
             # backends that support that
             return
 
-        fit_parameters = kwargs.get('fit_parameters') # list of twigs
-        initial_values = kwargs.get('initial_values') # dictionary
+        continue_from = kwargs.get('continue_from')
+        if continue_from == 'None':
+            fit_parameters = kwargs.get('fit_parameters') # list of twigs
+            initial_values = kwargs.get('initial_values') # dictionary
+        else:
+            continue_from_ps = kwargs.get('continue_from_ps', b.filter(context='solution', solution=continue_from, **_skip_filter_checks))
+            fit_parameters = continue_from_ps.get_value('fitted_twigs')
+            initial_values = {twig: value for twig, value in zip(fit_parameters, continue_from_ps.get_value('fitted_values'))}
+
         priors = kwargs.get('priors')
         priors_combine = kwargs.get('priors_combine')
 
@@ -1856,11 +1869,71 @@ class _ScipyOptimizeBaseBackend(BaseSolverBackend):
 
         options = {k:v for k,v in kwargs.items() if k in self.valid_options}
 
-        def _progressbar(xi):
+        class DummyRes(object):
+            def __init__(self, x, niters, progress):
+                self.x = x
+                self.nit = niters
+                self.message = 'running'
+                self.success = False
+
+        def _get_packetlist(res, progress):
+            return_ = [{'qualifier': 'message', 'value': res.message},
+                    {'qualifier': 'niter', 'value': res.nit},
+                    {'qualifier': 'success', 'value': res.success},
+                    {'qualifier': 'fitted_uniqueids', 'value': params_uniqueids},
+                    {'qualifier': 'fitted_twigs', 'value': params_twigs},
+                    {'qualifier': 'initial_values', 'value': p0},
+                    {'qualifier': 'fitted_values', 'value': res.x},
+                    {'qualifier': 'fitted_units', 'value': [u if isinstance(u, str) else u.to_string() for u in fitted_units]},
+                    {'qualifier': 'adopt_parameters', 'value': params_twigs, 'choices': params_twigs}]
+
+            if kwargs.get('expose_lnprobabilities', False):
+                initial_lnprobability = _lnprobability(p0, *args)
+                fitted_lnprobability = _lnprobability(res.x, *args)
+
+                return_ += [{'qualifier': 'initial_lnprobability', 'value': initial_lnprobability},
+                             {'qualifier': 'fitted_lnprobability', 'value': fitted_lnprobability}]
+
+            return [return_]
+
+        def _progress(xi):
             global _minimize_iter
             _minimize_iter += 1
             global _minimize_pbar
-            _minimize_pbar.update(1)
+            global _use_progressbar
+            global _solution
+            global _solution_ps
+
+            maxiter = _minimize_pbar.total
+            progress = float(_minimize_iter) / maxiter * 100
+
+            if _progress_every_niters == 0 and 'out_fname' in kwargs.keys():
+                fname = kwargs.get('out_fname') + '.progress'
+                f = open(fname, 'w')
+                f.write(str(progress))
+                f.close()
+
+            if (_progress_every_niters > 0 and (_minimize_iter==0 or _minimize_iter % _progress_every_niters == 0 or _minimize_iter==maxiter)):
+                logger.info("optimize: saving output from iteration {}".format(_minimize_iter))
+
+                _solution_ps = self._fill_solution(_solution_ps, [_get_packetlist(DummyRes(xi, _minimize_iter, progress), progress)], metawargs)
+
+                if 'out_fname' in kwargs.keys():
+                    if _minimize_iter == maxiter:
+                        fname = kwargs.get('out_fname')
+                    else:
+                        fname = kwargs.get('out_fname') + '.progress'
+                else:
+                    if _minimize_iter == maxiter:
+                        fname = '{}.ps'.format(_solution)
+                    else:
+                        fname = '{}.progress.ps'.format(_solution)
+
+                if _progress_every_niters > 0:
+                    _solution_ps.save(fname, compact=True, sort_by_context=False)
+
+            if _use_progressbar:
+                _minimize_pbar.update(1)
 
         logger.debug("calling scipy.optimize.minimize(_lnprobability_negative, p0, method='{}', args=(b, {}, {}, {}, {}, {}), options={})".format(self.method, params_uniqueids, compute, priors, kwargs.get('solution', None), compute_kwargs, options))
         # TODO: would it be cheaper to pass the whole bundle (or just make one copy originally so we restore original values) than copying for each iteration?
@@ -1869,42 +1942,44 @@ class _ScipyOptimizeBaseBackend(BaseSolverBackend):
         # set _within solver to prevent run_compute progressbars
         b._within_solver = True
 
+        global _solution_ps
+        _solution_ps = kwargs.get('solution_ps')
+        global _solution
+        _solution = kwargs.get('solution')
+        global metawargs
+        metawargs = {'context': 'solution',
+                     'solver': solver,
+                     'compute': compute,
+                     'kind': self.method,
+                     'solution': _solution}
+
+        global _use_progressbar
         if _has_tqdm and kwargs.get('progressbar', False):
             global _minimize_iter
             _minimize_iter = 0
             global _minimize_pbar
-            _minimize_pbar = _tqdm(total=options.get('maxiter'))
+            _minimize_pbar = _tqdm(total=kwargs.get('maxiter'))
+            _minimize_pbar.update(1)  # start at 1 instead of 0
+            _use_progressbar = True
+        else:
+            _use_progressbar = False
+
+        global _progress_every_niters
+        _progress_every_niters = kwargs.get('progress_every_niters', 0)
 
         res = optimize.minimize(_lnprobability_negative, p0,
                                 method=self.method,
                                 args=args,
                                 options=options,
-                                callback=_progressbar if _has_tqdm and kwargs.get('progressbar', False) else None)
+                                callback=_progress if _use_progressbar or _progress_every_niters else None)
+
+        if _use_progressbar:
+            _minimize_pbar.close()
+
         b._within_solver = False
 
-        return_ = [{'qualifier': 'message', 'value': res.message},
-                {'qualifier': 'nfev', 'value': res.nfev},
-                {'qualifier': 'niter', 'value': res.nit},
-                {'qualifier': 'success', 'value': res.success},
-                {'qualifier': 'fitted_uniqueids', 'value': params_uniqueids},
-                {'qualifier': 'fitted_twigs', 'value': params_twigs},
-                {'qualifier': 'initial_values', 'value': p0},
-                {'qualifier': 'fitted_values', 'value': res.x},
-                {'qualifier': 'fitted_units', 'value': [u if isinstance(u, str) else u.to_string() for u in fitted_units]},
-                {'qualifier': 'adopt_parameters', 'value': params_twigs, 'choices': params_twigs}]
+        return _get_packetlist(res, progress=100)
 
-
-
-        if kwargs.get('expose_lnprobabilities', False):
-            initial_lnprobability = _lnprobability(p0, *args)
-            fitted_lnprobability = _lnprobability(res.x, *args)
-
-            return_ += [{'qualifier': 'initial_lnprobability', 'value': initial_lnprobability},
-                         {'qualifier': 'fitted_lnprobability', 'value': fitted_lnprobability}]
-
-
-
-        return [return_]
 
 class Nelder_MeadBackend(_ScipyOptimizeBaseBackend):
     @property
@@ -1960,7 +2035,6 @@ class Differential_EvolutionBackend(BaseSolverBackend):
         solution_params += [_parameters.BoolParameter(qualifier='adopt_values', value=True, description='whether to update the parameter face-values (of all parameters in adopt_parameters) when calling adopt_solution.')]
 
         solution_params += [_parameters.StringParameter(qualifier='message', value='', readonly=True, description='message from the minimizer')]
-        solution_params += [_parameters.IntParameter(qualifier='nfev', value=0, readonly=True, limits=(0,None), description='number of completed function evaluations (forward models)')]
         solution_params += [_parameters.IntParameter(qualifier='niter', value=0, readonly=True, limits=(0,None), description='number of completed iterations')]
         solution_params += [_parameters.BoolParameter(qualifier='success', value=False, readonly=True, description='whether the minimizer returned a success message')]
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_values', value=[],readonly=True,  description='final values returned by the minimizer (in current default units of each parameter)')]
@@ -2068,7 +2142,6 @@ class Differential_EvolutionBackend(BaseSolverBackend):
             # TODO: expose the adopted bounds?
 
             return_ = [{'qualifier': 'message', 'value': res.message},
-                       {'qualifier': 'nfev', 'value': res.nfev},
                        {'qualifier': 'niter', 'value': res.nit},
                        {'qualifier': 'success', 'value': res.success},
                        {'qualifier': 'fitted_uniqueids', 'value': params_uniqueids},

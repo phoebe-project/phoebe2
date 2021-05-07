@@ -2430,10 +2430,9 @@ class Bundle(ParameterSet):
     def _handle_solution_choiceparams(self, return_changes=False):
         affected_params = []
 
-        # currently hardcoded to emcee only
-        choices = ['None'] + self.filter(context='solution', kind='emcee', **_skip_filter_checks).solutions
-
         for param in self.filter(qualifier='continue_from', context='solver', **_skip_filter_checks).to_list():
+            choices = ['None'] + self.filter(context='solution', kind=param.kind, **_skip_filter_checks).solutions
+
             choices_changed = False
             if return_changes and choices != param._choices:
                 choices_changed = True
@@ -5323,7 +5322,11 @@ class Bundle(ParameterSet):
         # check for backends
         for compute in computes:
             if self.get_compute(compute).kind == 'phoebe' and 'phoebe' not in deps_pip:
-                deps_pip.append('phoebe')
+                if __version__ == "devel":
+                    # TODO: can we access the exact branch or commit instead of always using development?
+                    deps_pip.append("https://github.com/phoebe-project/phoebe2/archive/refs/heads/development.zip")
+                else:
+                    deps_pip.append('phoebe=={}'.format(__version__))
             elif self.get_compute(compute).kind == 'legacy' and 'phoebe1' not in deps_other:
                 deps_other.append('phoebe1')
             elif self.get_compute(compute).kind == 'jktebop' and 'jktebop' not in deps_other:
@@ -11171,6 +11174,8 @@ class Bundle(ParameterSet):
                     raise ValueError("cannot automatically install {}".format(deps_other))
                 if use_mpi:
                     deps_pip.append('mpi4py')
+                if __version__ == 'devel':
+                    deps_pip.append('--ignore-installed')
                 s.run_script(['pip install {}'.format(" ".join(deps_pip))], conda_env=server_options.get('conda_env'))
 
             prefix = "mpirun " if use_mpi else ""
@@ -12361,6 +12366,8 @@ class Bundle(ParameterSet):
 
         if use_server and use_server != 'none':
             deps_pip, _ = self.dependencies(solver=solver)
+            if __version__ == 'devel':
+                deps_pip.append('--ignore-installed')
             self._write_crimpl_script(script_fname, script, use_server, deps_pip, autocontinue, kwargs)
         else:
             f = open(script_fname, 'w')
@@ -12886,6 +12893,8 @@ class Bundle(ParameterSet):
                     raise ValueError("cannot automatically install {}".format(deps_other))
                 if use_mpi:
                     deps_pip.append('mpi4py')
+                if __version__ == 'devel':
+                    deps_pip.append('--ignore-installed')
                 s.run_script(['pip install {}'.format(" ".join(deps_pip))], conda_env=server_options.get('conda_env'))
 
             prefix = "mpirun " if use_mpi else ""
