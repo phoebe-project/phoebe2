@@ -101,7 +101,10 @@ struct Tmarching: public Tbody {
     if (normalization){
       fac = 1/(v.norm = utils::hypot3(g[0], g[1], g[2]));
       for (int i = 0; i < 3; ++i) n[i] = fac*g[i];
+    } else {
+      for (int i = 0; i < 3; ++i) n[i] = g[i];
     }
+
 
     //
     // creating base in the tangent plane
@@ -1510,7 +1513,7 @@ struct Tmarching: public Tbody {
 
   int do_marching_v2(
     const T & delta,
-    Tfront_polygon & P,
+    Tfront_polygon & start_P,
     std::vector <T3Dpoint<T>> & V,
     std::vector <T3Dpoint<T>> & NatV,
     std::vector <T3Dpoint<int>> & Tr,
@@ -1522,7 +1525,7 @@ struct Tmarching: public Tbody {
     int error = 0;
 
     // list of fronts
-    std::vector<Tfront_polygon> lP{P};
+    std::vector<Tfront_polygon> lP{start_P};
 
     // list of bad pairs
     //   pair.first = pair.second means there is no bad pair
@@ -1599,7 +1602,6 @@ struct Tmarching: public Tbody {
         typename Tfront_polygon::iterator it_min;
 
         {
-
           T omega, t, tt, c, s, st, ct;
 
           // set it_prev, it, it_next: as circular list
@@ -1650,7 +1652,6 @@ struct Tmarching: public Tbody {
               ++it_next;
           }
         }
-
 
         //
         // Discuss the point with the minimal angle

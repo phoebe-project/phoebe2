@@ -4737,6 +4737,9 @@ static PyObject *rotstar_marching_mesh([[maybe_unused]] PyObject *self, PyObject
 
     R = rot_star::equator(Omega0, omega);   // equator
 
+    if (verbosity_level>=4)
+      report_stream << fname << "::Equator=" + std::to_string(R) << std::endl;
+
     circ = utils::m_2pi*R;                  // circumference
 
     mP = std::round(circ/delta);            // approximate number of segments on circ.
@@ -4771,6 +4774,9 @@ static PyObject *rotstar_marching_mesh([[maybe_unused]] PyObject *self, PyObject
     raise_exception(fname + "::You should not be here!");
     return NULL;
   }
+
+  if (verbosity_level>=4)
+    report_stream << fname << "::Frontal poygon size mP=" << std::to_string(mP) << std::endl;
 
   //
   // Do marching using initial front
@@ -5167,6 +5173,9 @@ static PyObject *rotstar_misaligned_marching_mesh([[maybe_unused]] PyObject *sel
     init_dir[1] = p[1];
   }
 
+ if (verbosity_level>=4)
+    report_stream << fname << "::Omega=" << Omega0 << " omega=" << omega << " delta=" << delta << std::endl;
+
   //
   // Check if the lobe exists
   //
@@ -5212,6 +5221,10 @@ static PyObject *rotstar_misaligned_marching_mesh([[maybe_unused]] PyObject *sel
   //rot_star::meshing_start_point(r, g, Omega0, omega);
   rot_star::point_on_surface(Omega0, omega, spin, init_dir[0], init_dir[1], r, g);
 
+  if (verbosity_level>=4)
+    report_stream << fname
+      << "::r=" << r[0] << ' ' << r[1] << ' ' << r[2]
+      << " g=" << g[0] << ' ' << g[1] << ' ' << g[2] << '\n';
   //
   //  Marching triangulation of the Roche lobe
   //
