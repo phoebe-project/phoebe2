@@ -11200,7 +11200,7 @@ class Bundle(ParameterSet):
             self._attach_params([job_param], check_copy_for=False, **metawargs)
 
             for compute in computes:
-                comment_param = StringParameter(qualifier='comments', value=kwargs.get('comments', self.get_value(qualifier='comments', compute=compute, default='', **_skip_filter_checks)), description='User-provided comments for this model.  Feel free to place any notes here.')
+                comment_param = StringParameter(qualifier='comments', value=kwargs.get('comments', self.get_value(qualifier='comments', compute=compute, context='compute', default='', **_skip_filter_checks)), description='User-provided comments for this model.  Feel free to place any notes here.')
                 metawargs = {'context': 'model', 'model': model, 'compute': compute}
                 self._attach_params([comment_param], check_copy_for=False, **metawargs)
 
