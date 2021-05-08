@@ -5324,9 +5324,11 @@ class Bundle(ParameterSet):
             if self.get_compute(compute).kind == 'phoebe' and 'phoebe' not in deps_pip:
                 if __version__ == "devel":
                     # TODO: can we access the exact branch or commit instead of always using development?
-                    deps_pip.append("https://github.com/phoebe-project/phoebe2/archive/refs/heads/development.zip")
+                    dep_phoebe = "https://github.com/phoebe-project/phoebe2/archive/refs/heads/development.zip"
                 else:
-                    deps_pip.append('phoebe=={}'.format(__version__))
+                    dep_phoebe = 'phoebe=={}'.format(__version__)
+                if dep_phoebe not in deps_pip:
+                    deps_pip.append(dep_phoebe)
             elif self.get_compute(compute).kind == 'legacy' and 'phoebe1' not in deps_other:
                 deps_other.append('phoebe1')
             elif self.get_compute(compute).kind == 'jktebop' and 'jktebop' not in deps_other:
