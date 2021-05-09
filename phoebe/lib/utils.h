@@ -227,6 +227,15 @@ namespace utils {
       y[i] = A[i][0]*x[0] + A[i][1]*x[1] + A[i][2]*x[2];
   }
 
+  // y  = A x and y = x
+  template <class T> void dot3D(T A[3][3], T x[3]) {
+    T y[3];
+    for (int i = 0; i < 3; ++i)
+      y[i] = A[i][0]*x[0] + A[i][1]*x[1] + A[i][2]*x[2];
+    for (int i = 0; i < 3; ++i) x[i] = y[i];
+  }
+
+
   // y^T  = x^T A
   template <class T> void dot3D(T x[3], T A[3][3], T y[3]) {
     for (int i = 0; i < 3; ++i)

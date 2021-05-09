@@ -123,7 +123,7 @@ namespace rot_star {
       Omega(r,0,0) = Omega0
 
     solving
-       1/r + 1/2 omega^2 r = Omega0
+       1/r + 1/2 omega^2 r^2 = Omega0
 
     The rescaled version with variable r = 1/Omega v is
 
@@ -635,7 +635,8 @@ namespace rot_star {
 
     Input:
       theta - polar angle (from z axis)
-      phi - azimulal angle
+      phi - azimutal angle
+      spin - vector of rotation
       Omega0 - value of the potential
       omega - parameter of the potential
 
