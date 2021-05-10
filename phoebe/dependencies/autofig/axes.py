@@ -6,6 +6,9 @@ from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.collections import LineCollection
 from matplotlib import colorbar as mplcolorbar
 from matplotlib import gridspec as gridspec
+from matplotlib import __version__ as _mplversion
+
+from distutils.version import StrictVersion
 
 from . import common
 from . import callbacks
@@ -1008,7 +1011,10 @@ class Axes(object):
 
             for i,ax in enumerate(axes):
                 try:
-                    ax.change_geometry(rows, cols, i+1)
+                    if StrictVersion(_mplversion) < StrictVersion("3.4.0"):
+                        ax.change_geometry(rows, cols, i+1)
+                    else:
+                        ax.set_subplotspec(gridspec.SubplotSpec(gridspec.GridSpec(rows, cols, figure=fig), i))
                 except AttributeError:
                     # colorbars and sizebars won't be able to change geometry
                     pass
