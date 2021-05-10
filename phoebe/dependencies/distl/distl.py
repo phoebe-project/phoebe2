@@ -460,20 +460,20 @@ def is_unit_or_unitstring_or_none(value):
 def is_bool(value):
     if isinstance(value, bool):
         return value
-    raise TypeError("must be boolean")
+    raise TypeError("must be boolean, got {} ({})".format(value, type(value)))
 
 def is_float(value):
     try:
         value = float(value)
     except:
-        raise TypeError("must be a float")
+        raise TypeError("must be a float, got {} ({})".format(value, type(value)))
     else:
         return value
 
 def is_int(value):
     if isinstance(value, int):
         return value
-    raise TypeError('must be an integer')
+    raise TypeError("must be an integer, got {} ({})".format(value, type(value)))
 
 def is_int_positive(value):
     if isinstance(value, int) and value > 0:
@@ -2897,13 +2897,13 @@ class BaseMultivariateDistribution(BaseDistribution):
         d['distl'] = self.__class__.__name__
         d['distl.version'] = __version__
         d['uniqueid'] = self.uniqueid
-        if self.units is not None and 'units':
+        if self.units is not None:
             d['units'] = [u.to_string() if u is not None else None for u in self.units]
-        if self.labels is not None and 'labels':
+        if self.labels is not None:
             d['labels'] = self.labels
-        if self._labels_latex is not None and 'labels_latex':
+        if self._labels_latex is not None:
             d['labels_latex'] = self._labels_latex
-        if self.wrap_ats is not None and 'wrap_ats':
+        if self.wrap_ats is not None:
             d['wrap_ats'] = self.wrap_ats
 
         if exclude:
@@ -3502,13 +3502,13 @@ class BaseMultivariateSliceDistribution(BaseUnivariateDistribution):
         d['uniqueid'] = self.uniqueid
         d['multivariate'] = self.multivariate.to_dict(exclude=exclude)
         d['dimension'] = self.dimension
-        if self._unit is not None and 'unit':
+        if self._unit is not None:
             d['unit'] = str(self._unit.to_string())
-        if self._label is not None and 'label':
+        if self._label is not None:
             d['label'] = self._label
-        if self._label_latex is not None and 'label_latex':
+        if self._label_latex is not None:
             d['label_latex'] = self._label_latex
-        if self._wrap_at is not None and 'wrap_at':
+        if self._wrap_at is not None:
             d['wrap_at'] = self._wrap_at
 
         if exclude:
@@ -8069,10 +8069,12 @@ class MVSamplesSlice(BaseMultivariateSliceDistribution):
 
 class BaseAroundGenerator(BaseDistlObject):
     def __init__(self, value=None, unit=None,
+                 frac=False,
                  label=None, label_latex=None, wrap_at=None,
                  **kwargs):
         self.value = value
         self.unit = unit
+        self.frac = frac
         self.label = label
         self.label_latex = label_latex
         self.wrap_at = wrap_at
@@ -8090,6 +8092,14 @@ class BaseAroundGenerator(BaseDistlObject):
 
         self._value = is_float(value)
 
+    @property
+    def frac(self):
+        return self._frac
+
+    @frac.setter
+    def frac(self, frac):
+        self._frac = is_bool(frac)
+
     # def __getattr__(self, attr):
     #     try:
     #         return super(BaseAroundGenerator, self).__getattr__(attr)
@@ -8099,8 +8109,9 @@ class BaseAroundGenerator(BaseDistlObject):
     #         else:
     #             raise ValueError("cannot access attribute of distl distribution object without setting value first")
 
-    def __call__(self, value=None, unit=None, label=None, label_latex=None, wrap_at=None):
+    def __call__(self, value=None, unit=None, frac=None, label=None, label_latex=None, wrap_at=None):
         unit = unit if unit is not None else self._unit
+        frac = frac if frac is not None else self._frac
         label = label if label is not None else self._label
         label_latex = label_latex if label_latex is not None else self._label_latex
         wrap_at = wrap_at if wrap_at is not None else self._wrap_at
@@ -8108,13 +8119,14 @@ class BaseAroundGenerator(BaseDistlObject):
         if value is None:
             raise ValueError("value must be passed or set in order to create distl distribution object")
 
-        return self.__create_distl__(value, unit, label, label_latex, wrap_at)
+        return self.__create_distl__(value, unit, frac, label, label_latex, wrap_at)
 
     def __repr__(self):
         descriptors = " ".join(["{}={}".format(k,getattr(self,k)) for k in self._descriptors])
         descriptors += " value={}".format(self.value if self.value is not None else "UNSET")
         if self.unit is not None:
             descriptors += " unit={}".format(self.unit)
+        descriptors += " frac={}".format(self.frac)
         if self.wrap_at is not None:
             descriptors += " wrap_at={}".format(self.wrap_at)
         if self.label is not None:
@@ -8227,15 +8239,16 @@ class BaseAroundGenerator(BaseDistlObject):
         d['distl'] = self.__class__.__name__
         d['distl.version'] = __version__
         d['uniqueid'] = self.uniqueid
-        if self.value is not None and 'value':
+        if self.value is not None :
             d['value'] = self.value
-        if self.unit is not None and 'unit':
+        if self.unit is not None:
             d['unit'] = str(self.unit.to_string())
-        if self.label is not None and 'label':
+        d['frac'] = self.frac
+        if self.label is not None:
             d['label'] = self.label
         if self._label_latex is not None:
             d['label_latex'] = self._label_latex
-        if self.wrap_at is not None and 'wrap_at':
+        if self.wrap_at is not None:
             d['wrap_at'] = self.wrap_at
 
         if exclude:
@@ -8342,7 +8355,7 @@ class BaseAroundGenerator(BaseDistlObject):
 
         _label = self.label
 
-        if self.unit is None or self.unit in [_units.dimensionless_unscaled]:
+        if self.unit is None or self.unit in [_units.dimensionless_unscaled] or self.frac:
             # then we'll just adopt the units without applying any scaling
             factor = 1.0
         else:
@@ -8489,6 +8502,7 @@ class Uniform_Around(BaseAroundGenerator):
 
     """
     def __init__(self, width, value=None, unit=None,
+                 frac=False,
                  label=None, label_latex=None, wrap_at=None,
                  uniqueid=None):
         """
@@ -8505,6 +8519,8 @@ class Uniform_Around(BaseAroundGenerator):
             and <Uniform.high> will be set based on the current value and `width`).
         * `value` (float, optional, default=None): the current face-value.
         * `unit` (astropy.units object, optional): the units of the provided values.
+        * `frac` (bool, optional, default=False): whether `width` is provided as
+            a fraction of `value` rather than in `unit`.
         * `label` (string, optional): a label for the distribution.  This is used
             for the x-label while plotting the distribution if `label_latex` is not provided,
             as well as a shorthand notation when creating a <Composite> distribution.
@@ -8519,10 +8535,14 @@ class Uniform_Around(BaseAroundGenerator):
         -----------
         * a <Uniform_Around> object.
         """
-        super(Uniform_Around, self).__init__(value, unit, label, label_latex, wrap_at, width=width, uniqueid=uniqueid)
+        super(Uniform_Around, self).__init__(value, unit, frac, label, label_latex, wrap_at, width=width, uniqueid=uniqueid)
 
-    def __create_distl__(self, value, unit, label, label_latex, wrap_at):
-        return Uniform(value-self._width/2, value+self._width/2, unit, label, label_latex, wrap_at)
+    def __create_distl__(self, value, unit, frac, label, label_latex, wrap_at):
+        if frac:
+            width = value * self._width
+        else:
+            width = self._width
+        return Uniform(value-width/2, value+width/2, unit, label, label_latex, wrap_at)
 
     @property
     def width(self):
@@ -8573,7 +8593,7 @@ class Delta_Around(BaseAroundGenerator):
     ```
 
     """
-    def __init__(self, value=None, unit=None, label=None, label_latex=None,
+    def __init__(self, value=None, unit=None, frac=False, label=None, label_latex=None,
                  wrap_at=None, uniqueid=None):
         """
         Create a <Delta_Around> object which, when called, will resolve
@@ -8587,6 +8607,7 @@ class Delta_Around(BaseAroundGenerator):
         --------------
         * `value` (float, optional, default=None): the current face-value.
         * `unit` (astropy.units object, optional): the units of the provided values.
+        * `frac` (bool, optional, default=False): ignored as <Delta> has no width parameter.
         * `label` (string, optional): a label for the distribution.  This is used
             for the x-label while plotting the distribution if `label_latex` is not provided,
             as well as a shorthand notation when creating a <Composite> distribution.
@@ -8601,9 +8622,9 @@ class Delta_Around(BaseAroundGenerator):
         --------
         * a <Delta> object
         """
-        super(Delta_Around, self).__init__(value, unit, label, label_latex, wrap_at, uniqueid=uniqueid)
+        super(Delta_Around, self).__init__(value, unit, frac, label, label_latex, wrap_at, uniqueid=uniqueid)
 
-    def __create_distl__(self, value, unit, label, label_latex, wrap_at):
+    def __create_distl__(self, value, unit, frac, label, label_latex, wrap_at):
         return Delta(value, unit, label, label_latex, wrap_at)
 
     def to_delta(self, value=None):
@@ -8644,7 +8665,7 @@ class Gaussian_Around(BaseAroundGenerator):
     ```
 
     """
-    def __init__(self, scale, value=None, unit=None, label=None, label_latex=None,
+    def __init__(self, scale, value=None, unit=None, frac=False, label=None, label_latex=None,
                  wrap_at=None, uniqueid=None):
         """
         Create a <Gaussian_Around> object which, when called, will resolve
@@ -8660,6 +8681,8 @@ class Gaussian_Around(BaseAroundGenerator):
             distribution.
         * `value` (float, optional, default=None): the current face-value.
         * `unit` (astropy.units object, optional): the units of the provided values.
+        * `frac` (bool, optional, default=False): whether `scale` is provided as
+            a fraction of `value` rather than in `unit`.
         * `label` (string, optional): a label for the distribution.  This is used
             for the x-label while plotting the distribution if `label_latex` is not provided,
             as well as a shorthand notation when creating a <Composite> distribution.
@@ -8673,10 +8696,14 @@ class Gaussian_Around(BaseAroundGenerator):
         --------
         * a <Gaussian_Around> object
         """
-        super(Gaussian_Around, self).__init__(value, unit, label, label_latex, wrap_at, scale=scale, uniqueid=uniqueid)
+        super(Gaussian_Around, self).__init__(value, unit, frac, label, label_latex, wrap_at, scale=scale, uniqueid=uniqueid)
 
-    def __create_distl__(self, value, unit, label, label_latex, wrap_at):
-        return Gaussian(value, self._scale, unit, label, label_latex, wrap_at)
+    def __create_distl__(self, value, unit, frac, label, label_latex, wrap_at):
+        if frac:
+            scale = value * self._scale
+        else:
+            scale = self._scale
+        return Gaussian(value, scale, unit, label, label_latex, wrap_at)
 
     @property
     def scale(self):
