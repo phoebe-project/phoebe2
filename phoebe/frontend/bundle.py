@@ -3053,7 +3053,7 @@ class Bundle(ParameterSet):
 
         allowed_keys = self.qualifiers +\
                         parameters._meta_fields_filter +\
-                        ['skip_checks', 'check_default', 'check_visible', 'do_create_fig_params'] +\
+                        ['skip_checks', 'check_label', 'check_default', 'check_visible', 'do_create_fig_params'] +\
                         additional_allowed_keys
 
         for k in additional_forbidden_keys:
@@ -11109,9 +11109,6 @@ class Bundle(ParameterSet):
             detach = False
 
         if (detach or mpi.enabled or use_server!='none') and not mpi.within_mpirun:
-            if detach:
-                logger.warning("detach support is EXPERIMENTAL")
-
             if times is not None:
                 # TODO: support overriding times with detached - issue here is
                 # that it isn't necessarilly trivially to send this array

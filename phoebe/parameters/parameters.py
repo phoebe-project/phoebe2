@@ -4161,22 +4161,22 @@ class ParameterSet(object):
 
         #### ALIASES
         if 'color' in kwargs.keys() and 'colors' not in kwargs.keys() and 'c' not in kwargs.keys():
-            logger.warning("assuming you meant 'c' instead of 'color'")
+            logger.info("assuming you meant 'c' instead of 'color'")
             kwargs['c'] = kwargs.pop('color')
         elif 'colors' in kwargs.keys() and 'c' not in kwargs.keys():
-            logger.warning("assuming you meant 'c' instead of 'colors'")
+            logger.info("assuming you meant 'c' instead of 'colors'")
             kwargs['c'] = kwargs.pop('colors')
         if 'facecolor' in kwargs.keys() and 'facecolors' not in kwargs.keys() and 'fc' not in kwargs.keys():
-            logger.warning("assuming you meant 'fc' instead of 'facecolor'")
+            logger.info("assuming you meant 'fc' instead of 'facecolor'")
             kwargs['fc'] = kwargs.pop('facecolor')
         elif 'facecolors' in kwargs.keys() and 'fc' not in kwargs.keys():
-            logger.warning("assuming you meant 'fc' instead of 'facecolors'")
+            logger.info("assuming you meant 'fc' instead of 'facecolors'")
             kwargs['fc'] = kwargs.pop('facecolors')
         if 'edgecolor' in kwargs.keys() and 'edgecolors' not in kwargs.keys() and 'ec' not in kwargs.keys():
-            logger.warning("assuming you meant 'ec' instead of 'edgecolor'")
+            logger.info("assuming you meant 'ec' instead of 'edgecolor'")
             kwargs['ec'] = kwargs.pop('edgecolor')
         elif 'edgecolors' in kwargs.keys() and 'ec' not in kwargs.keys():
-            logger.warning("assuming you meant 'ec' instead of 'edgecolors'")
+            logger.info("assuming you meant 'ec' instead of 'edgecolors'")
             kwargs['ec'] = kwargs.pop('edgecolors')
 
         for k in ['c', 'fc', 'ec']:
@@ -4186,7 +4186,7 @@ class ParameterSet(object):
         for d in ['x', 'y', 'z']:
             if '{}error'.format(d) not in kwargs.keys():
                 if '{}errors'.format(d) in kwargs.keys():
-                    logger.warning("assuming you meant '{}error' instead of '{}errors'".format(d,d))
+                    logger.info("assuming you meant '{}error' instead of '{}errors'".format(d,d))
                     kwargs['{}error'.format(d)] = kwargs.pop('{}errors'.format(d))
 
         def _handle_mask(ps, array, **kwargs):
@@ -9605,7 +9605,7 @@ class FloatParameter(Parameter):
                     if abs(value.to(u.deg).value - self._value.to(u.deg).value) > 180:
                         raise ValueError("value further than 180 deg from {}".format(self._value.to(u.deg).value))
                 value = value % (360*u.deg)
-                logger.warning("wrapping value of {} to {}".format(self.qualifier, value))
+                logger.info("wrapping value of {} to {}".format(self.qualifier, value))
 
         # make sure the value is within the limits, if this isn't an array or nan
         if ((isinstance(value, float) and not np.isnan(value))
@@ -9843,7 +9843,7 @@ class FloatArrayParameter(FloatParameter):
 
         if isinstance(qualifier_interp_value, u.Quantity):
             default_unit = parent_ps.get_parameter(qualifier=qualifier, **_skip_filter_checks).default_unit
-            logger.warning("converting from provided quantity with units {} to default units ({}) of {}".format(qualifier_interp_value.unit, default_unit, qualifier))
+            logger.info("converting from provided quantity with units {} to default units ({}) of {}".format(qualifier_interp_value.unit, default_unit, qualifier))
             qualifier_interp_value = qualifier_interp_value.to(default_unit).value
 
         if qualifier=='times':
@@ -9856,7 +9856,7 @@ class FloatArrayParameter(FloatParameter):
 
                 qualifier_interp_value_time_str = "({} -> {})".format(min(qualifier_interp_value_time), max(qualifier_interp_value_time)) if hasattr(qualifier_interp_value_time, '__iter__') else qualifier_interp_value_time
                 qualifier_interp_value_str = "({} -> {})".format(min(qualifier_interp_value), max(qualifier_interp_value)) if hasattr(qualifier_interp_value, '__iter__') else qualifier_interp_value
-                logger.warning("times={} outside of interpolation limits ({} -> {}), attempting to interpolate at phases={}".format(qualifier_interp_value_time_str, times.min(), times.max(), qualifier_interp_value_str))
+                logger.debug("times={} outside of interpolation limits ({} -> {}), attempting to interpolate at phases={}".format(qualifier_interp_value_time_str, times.min(), times.max(), qualifier_interp_value_str))
 
         self_value = self.get_value()
         if len(self_value.shape) > 1:
@@ -9866,7 +9866,7 @@ class FloatArrayParameter(FloatParameter):
             # do we want bundle or parent_ps here (for the case where doing scaling from run_compute)
             sample_mode = bundle.get_value(qualifier='sample_mode', context='model', model=self.model, default='none', **_skip_filter_checks)
             if '-sigma' in sample_mode:
-                logger.warning("using median for interpolation for sample_mode='{}'".format(sample_mode))
+                logger.info("using median for interpolation for sample_mode='{}'".format(sample_mode))
                 self_value = self_value[1]
             elif sample_mode == 'all' and self_value.shape[0] == 1:
                 # then sample_num = 1, possibly from an optimizer solution
