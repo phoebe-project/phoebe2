@@ -4094,8 +4094,9 @@ class ParameterSet(object):
 
         if len(ps.models) > 1: # and ps.context=='model'
             # we'll filter by filter_kwargs again in case it wasn't filtered above for being in default_contexts
-            for model in ps.filter(model=kwargs.get('model', filter_kwargs.get('model', None))).models:
+            for model in ps.filter(model=kwargs.get('model', filter_kwargs.get('model', None)), **_skip_filter_checks).models:
                 # TODO: change linestyle for models instead of color?
+                # print("*** model loop, model={}".format(model))
                 this_return = ps.filter(check_visible=False, model=model)._unpack_plotting_kwargs(animate=animate, **kwargs)
                 return_ += this_return
             return _handle_additional_calls(ps, return_)
@@ -4110,7 +4111,8 @@ class ParameterSet(object):
         if len(ps.components) > 1 and ps.context in ['model', 'dataset'] and ps.kind not in ['lc']:
             # lc has per-component passband-dependent parameters in the dataset which are not plottable
             return_ = []
-            for component in ps.filter(component=kwargs.get('component', filter_kwargs.get('component', None))).exclude(qualifier=['*_phases', 'phases_*']).components:
+            for component in ps.filter(component=kwargs.get('component', filter_kwargs.get('component', None)), **_skip_filter_checks).exclude(qualifier=['*_phases', 'phases_*'], **_skip_filter_checks).components:
+                # print("*** component loop, component={}".format(component))
                 this_return = ps.filter(check_visible=False, component=component)._unpack_plotting_kwargs(animate=animate, **kwargs)
                 return_ += this_return
             return _handle_additional_calls(ps, return_)
@@ -5651,7 +5653,12 @@ class ParameterSet(object):
             return mplfig
 
         try:
-            plot_kwargss = self._unpack_plotting_kwargs(animate=animate, **kwargs)
+            if self._filter and self._bundle is not None:
+                # then make sure the filter hasn't already removed hidden parameters we might need!
+                ps = self._bundle.filter(check_visible=False, check_default=False, **self._filter)
+            else:
+                ps = self
+            plot_kwargss = ps._unpack_plotting_kwargs(animate=animate, **kwargs)
             # print("*** plot_kwargss", plot_kwargss)
             # this loop handles any of the automatically-generated
             # multiple plotting calls, passing each on to autofig
