@@ -10,7 +10,6 @@ try:
     import boto3 as _boto3
     _ec2_resource = _boto3.resource('ec2')
     _ec2_client = _boto3.client('ec2')
-    blue
 except ImportError:
     _boto3_installed = False
     _boto3_configured = False
