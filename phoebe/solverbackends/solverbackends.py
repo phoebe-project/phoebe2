@@ -1316,10 +1316,13 @@ class EmceeBackend(BaseSolverBackend):
 
                 expose_failed = kwargs.get('expose_failed')
 
+                # TODO: implement within_distribution_collection=None option to automatically & by any uniforms/deltas in other dc
                 dc, params_uniqueids = b.get_distribution_collection(distribution=init_from,
                                                                      combine=init_from_combine,
                                                                      include_constrained=False,
+                                                                     within_parameter_limits=True,
                                                                      keys='uniqueid')
+
 
                 wrap_central_values = _wrap_central_values(b, dc, params_uniqueids)
 
@@ -1671,6 +1674,7 @@ class DynestyBackend(BaseSolverBackend):
                                                                         combine=priors_combine,
                                                                         include_constrained=False,
                                                                         keys='uniqueid',
+                                                                        within_parameter_limits=True,
                                                                         set_labels=False)
 
             wrap_central_values = _wrap_central_values(b, priors_dc, params_uniqueids)

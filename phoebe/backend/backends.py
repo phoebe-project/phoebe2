@@ -738,7 +738,8 @@ class SampleOverModel(object):
                              'combine': combine,
                              'include_constrained': include_constrained,
                              'to_univariates': to_univariates,
-                             'to_uniforms': to_uniforms}
+                             'to_uniforms': to_uniforms,
+                             'within_parameter_limits': True}
 
             sample_dict = b.sample_distribution_collection(N=sample_num,
                                                 keys='uniqueid',

@@ -8016,6 +8016,7 @@ class Bundle(ParameterSet):
                 kwargs.setdefault('include_constrained', False)
                 kwargs.setdefault('to_univariates', False)
                 kwargs.setdefault('combine', self.get_value(qualifier='{}_combine'.format(ps.qualifier), check_visible=False, check_default=False, **{k:v for k,v in ps.meta.items() if k not in ['qualifier']}))
+                kwargs.setdefault('within_parameter_limits', True)
                 return self._distribution_collection_defaults(ps.get_value(expand=True, **{ps.qualifier: kwargs.get(ps.qualifier, None)}), **kwargs)
 
             elif ps.context == 'solver':
@@ -8029,9 +8030,11 @@ class Bundle(ParameterSet):
                     if ps.qualifier in ['priors']:
                         kwargs.setdefault('include_constrained', True)
                         kwargs.setdefault('to_univariates', False)
+                        kwargs.setdefault('within_parameter_limits', False)
                     elif ps.qualifier in ['init_from']:
                         kwargs.setdefault('include_constrained', False)
                         kwargs.setdefault('to_univariates', False)
+                        kwargs.setdefault('within_parameter_limits', True)
                     else:
                         raise NotImplementedError("get_distribution_collection for solver kind='{}' and qualifier='{}' not implemented".format(kind, ps.qualifier))
 
@@ -8040,6 +8043,7 @@ class Bundle(ParameterSet):
                         # TODO: need to support flattening to univariates
                         kwargs.setdefault('include_constrained', False)
                         kwargs.setdefault('to_univariates', True)
+                        kwargs.setdefault('within_parameter_limits', True)
                     else:
                         raise NotImplementedError("get_distribution_collection for solver kind='{}' and qualifier='{}' not implemented".format(kind, ps.qualifier))
 
@@ -8048,6 +8052,7 @@ class Bundle(ParameterSet):
                         kwargs.setdefault('include_constrained', True)
                         kwargs.setdefault('to_univariates', True)
                         kwargs.setdefault('to_uniforms', self.get_value('{}_sigma'.format(ps.qualifier), check_visible=False, check_default=False, **{k:v for k,v in ps.meta.items() if k not in ['qualifier']}))
+                        kwargs.setdefault('within_parameter_limits', False)
 
                 else:
                     raise NotImplementedError("get_distribution_collection for solver kind='{}' not implemented".format(kind))
@@ -8084,11 +8089,12 @@ class Bundle(ParameterSet):
         include_constrained = kwargs.get('include_constrained', False)
         to_univariates = kwargs.get('to_univariates', False)
         to_uniforms = kwargs.get('to_uniforms', False)
+        within_parameter_limits = kwargs.get('within_parameter_limits', False)
 
         if to_uniforms and not to_univariates:
             raise ValueError("to_univariates must be True in order to use to_uniforms")
 
-        return filters, combine, include_constrained, to_univariates, to_uniforms
+        return filters, combine, include_constrained, to_univariates, to_uniforms, within_parameter_limits
 
     def get_distribution_collection(self, twig=None,
                                     keys='twig', set_labels=True,
@@ -8148,6 +8154,11 @@ class Bundle(ParameterSet):
             constraints).  An error may be raised if any matching parameters
             are not included in the original DistributionCollection or available
             through propagated constraints.
+        * `within_parameter_limits` (bool, optional): whether to
+            require distribution to be within parameter limits (by including &
+            with a uniform distribution if otherwise would extend beyone limits).
+            Will default to True if `twig` points to `sample_from@compute`,
+            `init_from@emcee`, or `priors@dynesty`, otherwise will default to False.
         * `**kwargs`: additional keyword arguments are used for filtering.
             `twig` and `**kwargs` must result in either a single supported
             parameter in a solver ParameterSet, or a ParameterSet of distribution
@@ -8186,6 +8197,8 @@ class Bundle(ParameterSet):
                 else:
                     k += '[{}]'.format(index)
             return k
+
+        # TODO: kwargs checks?
 
         if parameters is not None:
             parameters_indices = None
@@ -8227,7 +8240,7 @@ class Bundle(ParameterSet):
 
 
         if 'distribution_filters' not in kwargs.keys():
-            distribution_filters, combine, include_constrained, to_univariates, to_uniforms = self._distribution_collection_defaults(twig=twig, **kwargs)
+            distribution_filters, combine, include_constrained, to_univariates, to_uniforms, within_parameter_limits = self._distribution_collection_defaults(twig=twig, **kwargs)
         else:
             # INTERNAL USE ONLY, probably
             distribution_filters = kwargs.get('distribution_filters')
@@ -8235,6 +8248,7 @@ class Bundle(ParameterSet):
             include_constrained = kwargs.get('include_constrained', True)
             to_univariates = kwargs.get('to_univariates', False)
             to_uniforms = kwargs.get('to_uniforms', False)
+            within_parameter_limits = kwargs.get('within_parameter_limits', False)
 
         # NOTE: in python3 we could do this with booleans and nonlocal variables,
         # but for python2 support we can only fake it by mutating a dictionary.
@@ -8386,6 +8400,16 @@ class Bundle(ParameterSet):
         if kwargs.get('return_dc', True):
             ret_dists += [uid_dist_dict.get(uid) for uid in uniqueids]
 
+            if within_parameter_limits:
+                for i, uniqueid in enumerate(uniqueids):
+                    # check if ret_dists[i] is fully within parameter limits
+                    param = self.get_parameter(uniqueid=uniqueid, **_skip_filter_checks)
+                    if not hasattr(param, 'limits'):
+                        continue
+                    if np.any([np.isfinite(ret_dists[i].logpdf(limit.value)) for limit in param.limits if limit is not None]):
+                        # NOTE: uniform cannot have an infinite bound, so instead we'll use the ppf at 1e-6 (or 1e-6) to get close to the original distribution limits
+                        ret_dists[i] = ret_dists[i] & _distl.uniform(param.limits[0].value if param.limits[0] is not None else ret_dists[i].ppf(1e-6), param.limits[1].value if param.limits[1] is not None else ret_dists[i].ppf(1-1e-6))
+
             dc = _distl.DistributionCollection(*ret_dists)
         else:
             dc = None
@@ -8461,6 +8485,11 @@ class Bundle(ParameterSet):
             constraints).  An error may be raised if any matching parameters
             are not included in the original DistributionCollection or available
             through propagated constraints.
+        * `within_parameter_limits` (bool, optional): whether to
+            require distribution to be within parameter limits (by including &
+            with a uniform distribution if otherwise would extend beyone limits).
+            Will default to True if `twig` points to `sample_from@compute`,
+            `init_from@emcee`, or `priors@dynesty`, otherwise will default to False.
         * `**kwargs`: additional keyword arguments are used for filtering.
             `twig` and `**kwargs` must result in either a single supported
             parameter in a solver ParameterSet, or a ParameterSet of distribution
@@ -8490,7 +8519,7 @@ class Bundle(ParameterSet):
             raise ValueError("cannot use set_value and sample_size together")
 
         if 'distribution_filters' not in kwargs.keys():
-            distribution_filters, combine, include_constrained, to_univariates, to_uniforms = self._distribution_collection_defaults(twig=twig, **kwargs)
+            distribution_filters, combine, include_constrained, to_univariates, to_uniforms, within_parameter_limits = self._distribution_collection_defaults(twig=twig, **kwargs)
         else:
             # INTERNAL USE ONLY, probably
             distribution_filters = kwargs.get('distribution_filters')
@@ -8498,6 +8527,7 @@ class Bundle(ParameterSet):
             include_constrained = kwargs.get('include_constrained', True)
             to_univariates = kwargs.get('to_univariates', False)
             to_uniforms = kwargs.get('to_uniforms', False)
+            within_parameter_limits = kwargs.get('within_parameter_limits', False)
 
         if include_constrained and set_value:
             raise ValueError("cannot use include_constrained=True and set_value together")
@@ -8513,6 +8543,7 @@ class Bundle(ParameterSet):
                                                          to_uniforms=to_uniforms,
                                                          keys='uniqueid',
                                                          parameters=parameters,
+                                                         within_parameter_limits=within_parameter_limits,
                                                          allow_non_dc=False)
 
         if isinstance(dc, _distl._distl.DistributionCollection) and np.all([isinstance(dist, _distl._distl.Delta) for dist in dc.dists]):
@@ -8599,6 +8630,11 @@ class Bundle(ParameterSet):
             constraints).  An error may be raised if any matching parameters
             are not included in the original DistributionCollection or available
             through propagated constraints.
+        * `within_parameter_limits` (bool, optional): whether to
+            require distribution to be within parameter limits (by including &
+            with a uniform distribution if otherwise would extend beyone limits).
+            Will default to True if `twig` points to `sample_from@compute`,
+            `init_from@emcee`, or `priors@dynesty`, otherwise will default to False.
         * `plot_uncertainties` (bool or list, optional, default=True): whether
             to plot uncertainties (as contours on 2D plots, vertical lines
             on histograms, and in the axes titles).  If True, defaults to `[1,2,3]`.
@@ -8685,6 +8721,11 @@ class Bundle(ParameterSet):
             constraints).  An error may be raised if any matching parameters
             are not included in the original DistributionCollection or available
             through propagated constraints.
+        * `within_parameter_limits` (bool, optional): whether to
+            require distribution to be within parameter limits (by including &
+            with a uniform distribution if otherwise would extend beyone limits).
+            Will default to True if `twig` points to `sample_from@compute`,
+            `init_from@emcee`, or `priors@dynesty`, otherwise will default to False.
         * `**kwargs`: all additional keyword arguments are passed directly to
             <phoebe.frontend.bundle.Bundle.get_distribution_collection>.
 
