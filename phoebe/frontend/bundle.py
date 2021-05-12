@@ -8408,7 +8408,7 @@ class Bundle(ParameterSet):
                         continue
                     if np.any([np.isfinite(ret_dists[i].logpdf(limit.value)) for limit in param.limits if limit is not None]):
                         # NOTE: uniform cannot have an infinite bound, so instead we'll use the ppf at 1e-6 (or 1e-6) to get close to the original distribution limits
-                        ret_dists[i] = ret_dists[i] & _distl.uniform(param.limits[0].value if param.limits[0] is not None else ret_dists[i].ppf(1e-6), param.limits[1].value if param.limits[1] is not None else ret_dists[i].ppf(1-1e-6))
+                        ret_dists[i] = ret_dists[i] & _distl.uniform(param.limits[0].value if param.limits[0] is not None else ret_dists[i].ppf(1e-6), param.limits[1].value if param.limits[1] is not None else ret_dists[i].ppf(1-1e-6), unit=param.default_unit)
 
             dc = _distl.DistributionCollection(*ret_dists)
         else:
