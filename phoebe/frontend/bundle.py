@@ -4812,9 +4812,24 @@ class Bundle(ParameterSet):
             solution_kind = solution_ps.kind
 
             adopt_values = solution_ps.get_value(qualifier='adopt_values', adopt_values=kwargs.get('adopt_values', None), **_skip_filter_checks)
-            if adopt_values:
-                adopt_inds, adopt_uniqueids = self._get_adopt_inds_uniqueids(solution_ps, **kwargs)
+            adopt_distributions = solution_ps.get_value(qualifier='adopt_distributions', adopt_distributions=kwargs.get('adopt_distributions', None), **_skip_filter_checks)
+            if not adopt_values and not adopt_distributions:
+                report.add_item(self,
+                                "must set at least one of adopt_values or adopt_distributions to True",
+                                [solution_ps.get_parameter(qualifier='adopt_distributions', **_skip_filter_checks),
+                                 solution_ps.get_parameter(qualifier='adopt_values', **_skip_filter_checks)
+                                 ]+addl_parameters,
+                                 True, 'adopt_solution')
 
+            adopt_inds, adopt_uniqueids = self._get_adopt_inds_uniqueids(solution_ps, **kwargs)
+            if not len(adopt_uniqueids):
+                report.add_item(self,
+                                "no parameters set to be adopted",
+                                [solution_ps.get_parameter(qualifier='adopt_parameters', **_skip_filter_checks)
+                                ]+addl_parameters,
+                                True, 'adopt_solution')
+
+            if adopt_values:
                 # NOTE: samplers won't have fitted_values so this will default to the empty list
                 fitted_values = solution_ps.get_value(qualifier='fitted_values', default=[], **_skip_filter_checks)
                 # NOTE: the following list-comprehension is necessary because fitted_values may not be an array of floats/nans
@@ -4850,6 +4865,7 @@ class Bundle(ParameterSet):
                                                  adopt_param.is_constraint
                                                 ]+addl_parameters,
                                                 True, 'adopt_solution')
+
 
         self._run_checks_warning_error(report, raise_logger_warning, raise_error)
 
