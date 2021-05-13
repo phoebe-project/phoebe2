@@ -11322,7 +11322,7 @@ class Bundle(ParameterSet):
                 if dataset_this_compute is None:
                     dataset_this_compute = computeparams.filter(qualifier='enabled', value=True, **_skip_filter_checks).datasets
                 else:
-                    dataset_this_compute = [ds[0] if isinstance(ds, tuple) else ds for ds in dataset_this_compute if computeparams.get_value(qualifier='enabled', dataset=ds[0] if isinstance(ds, tuple) else ds, default=False, **_skip_filter_checks)]
+                    dataset_this_compute = [ds[0] if isinstance(ds, tuple) else ds for ds in dataset_this_compute if 'enabled' in computeparams.filter(qualifier='enabled', dataset=ds[0] if isinstance(ds, tuple) else ds, **_skip_filter_checks).qualifiers]
 
                 # if sampling is enabled then we need to pass things off now
                 # to the sampler.  The sampler will then make handle parallelization
