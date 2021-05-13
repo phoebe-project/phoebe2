@@ -579,7 +579,7 @@ class Lc_GeometryBackend(BaseSolverBackend):
 
         solution_params += [_parameters.FloatArrayParameter(qualifier='eclipse_edges', value=[], readonly=True, unit=u.dimensionless_unscaled, description='detected phases of eclipse edges')]
 
-        solution_params += [_parameters.ArrayParameter(qualifier='fitted_uniqueids', value=[], advanced=True, readonly=True, description='uniqueids of parameters fitted by the minimizer')]
+        solution_params += [_parameters.ArrayParameter(qualifier='fitted_uniqueids', visible_if='false', value=[], advanced=True, readonly=True, description='uniqueids of parameters fitted by the minimizer')]
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_twigs', value=[], readonly=True, description='twigs of parameters fitted by the minimizer')]
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_values', value=[], readonly=True, description='final values returned by the minimizer (in current default units of each parameter)')]
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_units', value=[], advanced=True, readonly=True, description='units of the fitted_values')]
@@ -709,7 +709,7 @@ class Rv_GeometryBackend(BaseSolverBackend):
         if kwargs.get('expose_model', True):
             solution_params += [_parameters.FloatArrayParameter(qualifier='analytic_phases', value=[], readonly=True, default_unit=u.dimensionless_unscaled, description='phases for analytic_rvs')]
 
-        solution_params += [_parameters.ArrayParameter(qualifier='fitted_uniqueids', value=[], advanced=True, readonly=True, description='uniqueids of parameters fitted by the minimizer')]
+        solution_params += [_parameters.ArrayParameter(qualifier='fitted_uniqueids', visible_if='false', value=[], advanced=True, readonly=True, description='uniqueids of parameters fitted by the minimizer')]
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_twigs', value=[], readonly=True, description='twigs of parameters fitted by the minimizer')]
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_values', value=[], readonly=True, description='final values returned by the minimizer (in current default units of each parameter)')]
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_units', value=[], advanced=True, readonly=True, description='units of the fitted_values')]
@@ -846,7 +846,7 @@ class _PeriodogramBaseBackend(BaseSolverBackend):
 
         solution_params += [_parameters.FloatParameter(qualifier='period_factor', value=1.0, default_unit=u.dimensionless_unscaled, description='factor to apply to the max peak period when adopting or plotting the solution')]
 
-        solution_params += [_parameters.ArrayParameter(qualifier='fitted_uniqueids', value=[], advanced=True, readonly=True, description='uniqueids of parameters fitted by the minimizer')]
+        solution_params += [_parameters.ArrayParameter(qualifier='fitted_uniqueids', visible_if='false', value=[], advanced=True, readonly=True, description='uniqueids of parameters fitted by the minimizer')]
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_twigs', value=[], readonly=True, description='twigs of parameters fitted by the minimizer')]
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_values', value=[], readonly=True, description='final values returned by the minimizer (in current default units of each parameter)')]
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_units', value=[], advanced=True, readonly=True, description='units of the fitted_values')]
@@ -1027,7 +1027,7 @@ class EbaiBackend(BaseSolverBackend):
         solution_params += [_parameters.FloatArrayParameter(qualifier='ebai_phases', value=[], readonly=True, default_unit=u.dimensionless_unscaled, description='input phases to ebai')]
         solution_params += [_parameters.FloatArrayParameter(qualifier='ebai_fluxes', value=[], readonly=True, default_unit=u.dimensionless_unscaled, description='input fluxes to ebai')]
 
-        solution_params += [_parameters.ArrayParameter(qualifier='fitted_uniqueids', value=[], advanced=True, readonly=True, description='uniqueids of parameters fitted by the minimizer')]
+        solution_params += [_parameters.ArrayParameter(qualifier='fitted_uniqueids', visible_if='false', value=[], advanced=True, readonly=True, description='uniqueids of parameters fitted by the minimizer')]
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_twigs', value=[], readonly=True, description='twigs of parameters fitted by the minimizer')]
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_values', value=[], readonly=True, description='final values returned by the minimizer (in current default units of each parameter)')]
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_units', value=[], advanced=True, readonly=True, description='units of the fitted_values')]
@@ -1161,7 +1161,7 @@ class EmceeBackend(BaseSolverBackend):
 
         solution_params = []
         solution_params += [_parameters.DictParameter(qualifier='wrap_central_values', value={}, advanced=True, readonly=True, description='Central values adopted for all parameters in init_from that allow angle-wrapping.  Sampled values are not allowed beyond +/- pi of the central value.')]
-        solution_params += [_parameters.ArrayParameter(qualifier='fitted_uniqueids', value=[], advanced=True, readonly=True, description='uniqueids of parameters fitted by the sampler')]
+        solution_params += [_parameters.ArrayParameter(qualifier='fitted_uniqueids', visible_if='false', value=[], advanced=True, readonly=True, description='uniqueids of parameters fitted by the sampler')]
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_twigs', value=[], readonly=True, description='twigs of parameters fitted by the sampler')]
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_units', value=[], advanced=True, readonly=True, description='units of parameters fitted by the sampler')]
         solution_params += [_parameters.SelectTwigParameter(qualifier='adopt_parameters', value=[], description='which of the parameters should be included when adopting (and plotting) the solution')]
@@ -1526,7 +1526,7 @@ class DynestyBackend(BaseSolverBackend):
 
         solution_params = []
         solution_params += [_parameters.DictParameter(qualifier='wrap_central_values', value={}, advanced=True, readonly=True, description='Central values adopted for all parameters in init_from that allow angle-wrapping.  Sampled values are not allowed beyond +/- pi of the central value.')]
-        solution_params += [_parameters.ArrayParameter(qualifier='fitted_uniqueids', value=[], advanced=True, readonly=True, description='uniqueids of parameters fitted by the sampler')]
+        solution_params += [_parameters.ArrayParameter(qualifier='fitted_uniqueids', visible_if='false', value=[], advanced=True, readonly=True, description='uniqueids of parameters fitted by the sampler')]
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_twigs', value=[], readonly=True, description='twigs of parameters fitted by the sampler')]
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_units', value=[], advanced=True, readonly=True, description='units of parameters fitted by the sampler')]
         solution_params += [_parameters.SelectTwigParameter(qualifier='adopt_parameters', value=[], description='which of the parameters should be included when adopting (and plotting) the solution')]
@@ -1801,7 +1801,7 @@ class _ScipyOptimizeBaseBackend(BaseSolverBackend):
         # NOTE: b, solver, compute, backend will be added by get_packet_and_solution
         solution_params = []
 
-        solution_params += [_parameters.ArrayParameter(qualifier='fitted_uniqueids', value=[], advanced=True, readonly=True, description='uniqueids of parameters fitted by the minimizer')]
+        solution_params += [_parameters.ArrayParameter(qualifier='fitted_uniqueids', visible_if='false', value=[], advanced=True, readonly=True, description='uniqueids of parameters fitted by the minimizer')]
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_twigs', value=[], readonly=True, description='twigs of parameters fitted by the minimizer')]
         solution_params += [_parameters.SelectTwigParameter(qualifier='adopt_parameters', value=[], description='which of the parameters should be included when adopting the solution')]
         solution_params += [_parameters.BoolParameter(qualifier='adopt_distributions', value=False, description='whether to create a distribution (of delta functions of all parameters in adopt_parameters) when calling adopt_solution.')]
@@ -2032,7 +2032,7 @@ class Differential_EvolutionBackend(BaseSolverBackend):
         # NOTE: b, solver, compute, backend will be added by get_packet_and_solution
         solution_params = []
 
-        solution_params += [_parameters.ArrayParameter(qualifier='fitted_uniqueids', value=[], advanced=True, readonly=True, description='uniqueids of parameters fitted by the minimizer')]
+        solution_params += [_parameters.ArrayParameter(qualifier='fitted_uniqueids', visible_if='false', value=[], advanced=True, readonly=True, description='uniqueids of parameters fitted by the minimizer')]
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_twigs', value=[], readonly=True, description='twigs of parameters fitted by the minimizer')]
         solution_params += [_parameters.SelectTwigParameter(qualifier='adopt_parameters', value=[], description='which of the parameters should be included when adopting the solution')]
         solution_params += [_parameters.BoolParameter(qualifier='adopt_distributions', value=False, description='whether to create a distribution (of delta functions of all parameters in adopt_parameters) when calling adopt_solution.')]
