@@ -1207,15 +1207,15 @@ class Plot(Call):
                 sc_kwargs_const['cmap'] = self.axes_c.cmap if self.axes_c is not None else None
                 # we'll set sc_kwargs['cmap'] per-loop in the function below
             else:
-                sc_kwargs_const['c'] = color
+                sc_kwargs_const['color'] = color
 
 
             def sc_kwargs_loop(sc_kwargs, loop, do_zorder):
                 if do_colorscale:
                     if do_zorder:
-                        sc_kwargs['c'] = c[loop]
+                        sc_kwargs['color'] = c[loop]
                     else:
-                        sc_kwargs['c'] = c
+                        sc_kwargs['color'] = c
                 # if do_sizescale:
                     # if do_zorder:
                         # sc_kwargs['s'] = self.get_markersize(sizes[loop], scatter=True)
