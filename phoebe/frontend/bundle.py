@@ -8995,6 +8995,19 @@ class Bundle(ParameterSet):
 
         return _return_ps(self, ret_ps)
 
+    def _get_server_options_dict(self, server, exclude_qualifiers=[], **kwargs):
+        server_ps = self.filter(server=server, context='server', **_skip_filter_checks)
+        server_options = {p.qualifier: kwargs.get(p.qualifier, p.get_value()) for p in server_ps.to_list() if p.qualifier not in exclude_qualifiers}
+
+        if 'walltime' in server_options.keys():
+            walltime_s = int(server_ps.get_value(qualifier='walltime', unit='s', walltime=kwargs.get('walltime', None), **_skip_filter_checks))
+            m, s = divmod(walltime_s, 60)
+            h, m = divmod(m, 60)
+            d, h = divmod(h, 24)
+            server_options['walltime'] = '{}-{:02d}:{:02d}:{:02d}'.format(d, h, m, s)
+
+        return server_options
+
     def get_server_crimpl_object(self, server=None, **kwargs):
         """
         Filter in the 'server' context and retrieve the referenced
@@ -10773,7 +10786,7 @@ class Bundle(ParameterSet):
         job_name = _crimpl.common._new_job_name()
         f.write("job_name = '{}'\n".format(job_name))  # TODO: set this
 
-        server_options = {p.qualifier: kwargs.pop(p.qualifier, p.get_value()) for p in server_ps.to_list() if p.qualifier not in ['use_conda', 'conda_env', 'nprocs', 'crimpl_name', 'use_mpi', 'install_deps']}
+        server_options = self._get_server_options_dict(server=use_server, exclude_qualifiers=['use_conda', 'conda_env', 'nprocs', 'crimpl_name', 'use_mpi', 'install_deps'], **kwargs)
         f.write("server_options = {}\n".format(server_options))
 
         f.write("\n\n")
@@ -11190,7 +11203,7 @@ class Bundle(ParameterSet):
             jobid = kwargs.get('jobid', parameters._uniqueid())
 
             if use_server != 'none':
-                server_options = {p.qualifier: kwargs.pop(p.qualifier, p.get_value()) for p in self.filter(server=use_server, context='server', **_skip_filter_checks).to_list()}
+                server_options = self._get_server_options_dict(server=use_server, **kwargs)
             else:
                 # default to the LocalThreadServer in ./phoebe_crimpl_jobs without mpi and without conda
                 server_options = {'crimpl_name': '', 'use_mpi': False, 'use_conda': False, 'install_deps': False}
@@ -12898,7 +12911,7 @@ class Bundle(ParameterSet):
             #         out = compute_class().get_packet_and_syns(self, compute, times=times, **kwargs)
 
             if use_server != 'none':
-                server_options = {p.qualifier: kwargs.pop(p.qualifier, p.get_value()) for p in self.filter(server=use_server, context='server', **_skip_filter_checks).to_list()}
+                server_options = self._get_server_options_dict(server=use_server, **kwargs)
             else:
                 # default to the LocalThreadServer in ./phoebe_crimpl_jobs without mpi and without conda
                 server_options = {'crimpl_name': '', 'use_mpi': False, 'use_conda': False, 'install_deps': False}

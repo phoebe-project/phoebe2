@@ -41,8 +41,8 @@ def remoteslurm(server, **kwargs):
         overhead)
     * `slurm_job_name` (string, optional): Job name to use within slurm on the
         remote machine
-    * `walltime` (string, optional, default='00:10:00'): Walltime to allocate to
-        each job
+    * `walltime` (float, optional, default=0.5): Walltime to allocate to
+        each job.  Default units are in hours.
     * `mail_user` (string, optional): Email to have slurm notify about events
         matching mail_type
     * `mail_type` (list, optional, default=['END', 'FAIL']): Scenarios in which
@@ -66,7 +66,7 @@ def remoteslurm(server, **kwargs):
     params += [BoolParameter(qualifier='install_deps', value=kwargs.get('install_deps', True), description='Whether to ensure required dependencies are installed in conda_env on the remote machine (adds some overhead)')]
 
     params += [StringParameter(qualifier='slurm_job_name', value=kwargs.get('slurm_job_name', ''), description='Jobname to use within slurm on the remote machine (optional)')]
-    params += [StringParameter(qualifier='walltime', value=kwargs.get('walltime', '00:10:00'), description='Walltime to allocate to each job')]
+    params += [FloatParameter(qualifier='walltime', value=kwargs.get('walltime', 0.5), default_unit=u.hr, limits=(0,None), description='Walltime to allocate to each job')]
     params += [StringParameter(qualifier='mail_user', value=kwargs.get('mail_user', ''), description='Email to have slurm notify about events matching mail_type')]
     params += [SelectParameter(qualifier='mail_type', visible_if='mail_user:<notempty>', value=kwargs.get('mail_type', ['END', 'FAIL']), choices=['BEGIN', 'END', 'FAIL', 'REQUEUE', 'ALL'], description='Scenarios in which to request slurm to notify mail_user by email')]
 
