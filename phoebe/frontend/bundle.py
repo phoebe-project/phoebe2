@@ -8678,7 +8678,12 @@ class Bundle(ParameterSet):
                 plot_kwargs[k] = kwargs.pop(k)
             elif k == 'sample_size':
                 plot_kwargs['size'] = kwargs.pop('sample_size')
-        dc, _ = self.get_distribution_collection(twig=twig, set_labels=set_labels, keys='uniqueid', parameters=parameters, **kwargs)
+        dc, uniqueids = self.get_distribution_collection(twig=twig, set_labels=set_labels, keys='uniqueid', parameters=parameters, **kwargs)
+        if 'size' not in plot_kwargs.keys():
+            ps = self.filter(uniqueid=uniqueids, **_skip_filter_checks)
+            constraint_funcs = [p.is_constraint.constraint_func for p in ps.to_list() if p.is_constraint is not None]
+            if np.any([cf in ['requiv_detached_max', 'requiv_single_max', 'requiv_contact_min'] for cf in constraint_funcs]):
+                plot_kwargs['size'] = 1e3
         return dc.plot(show=show, **plot_kwargs)
 
     def uncertainties_from_distribution_collection(self, twig=None,
