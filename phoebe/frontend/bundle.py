@@ -9983,7 +9983,7 @@ class Bundle(ParameterSet):
 
     def compute_pblums(self, compute=None, model=None, pblum=True, pblum_abs=False,
                        pblum_scale=False, pbflux=False,
-                       set_value=False, **kwargs):
+                       set_value=False, unit=None, **kwargs):
         """
         Compute the passband luminosities that will be applied to the system,
         following all coupling, etc, as well as all relevant compute options
@@ -10079,6 +10079,9 @@ class Bundle(ParameterSet):
             various options for pblum_mode for alternate backends that require
             passband luminosities or surface brightnesses as input, but is not
             ever required to be called manually.
+        * `unit` (astropy unit or string, optional, default=None): unit to convert
+            exposed luminosities.  If not provided or None, will default to
+            the default units on pblum.
         * `skip_checks` (bool, optional, default=False): whether to skip calling
             <phoebe.frontend.bundle.Bundle.run_checks_compute> before computing the model.
             NOTE: some unexpected errors could occur for systems which do not
@@ -10391,16 +10394,20 @@ class Bundle(ParameterSet):
 
                 pblums_rel[dataset][component] = pblum_rel
 
-                if set_value:
-                    self.set_value(qualifier='pblum', component=component, dataset=dataset, context='dataset', value=pblum_rel*u.W, **_skip_filter_checks)
+                try:
+                    pblum_param = self.get_parameter(qualifier='pblum', component=component, dataset=dataset, context='dataset', **_skip_filter_checks)
+                except ValueError:
+                    pblum_param = None
+                if set_value and pblum_param is not None:
+                    pblum_param.set_value(value=pblum_rel*u.W, **_skip_filter_checks)
 
                 if not ret_structured_dicts and component in components:
                     if pblum and (not ds_scaled or model is not None):
-                        ret["{}@{}@{}".format('pblum', component, dataset)] = pblum_rel*u.W
+                        ret["{}@{}@{}".format('pblum', component, dataset)] = (pblum_rel*u.W).to(unit if unit is not None else pblum_param.default_unit if pblum_param is not None else u.W)
                     if pblum_scale and (not ds_scaled or model is not None):
                         ret["{}@{}@{}".format('pblum_scale', component, dataset)] = pblums_scale[dataset].get(component, 1.0)
                     if pblum_abs:
-                        ret["{}@{}@{}".format('pblum_abs', component, dataset)] = pblums_abs[dataset][component]*u.W
+                        ret["{}@{}@{}".format('pblum_abs', component, dataset)] = (pblums_abs[dataset][component]*u.W).to(unit if unit is not None else pblum_param.default_unit if pblum_param is not None else u.W)
 
                 if self.hierarchy.get_kind_of(component) != 'envelope':
                     # don't want to double count
