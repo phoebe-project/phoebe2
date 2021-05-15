@@ -4808,7 +4808,7 @@ class Bundle(ParameterSet):
         # kwargs.setdefault('check_default', False)
 
         for solution in solutions:
-            solution_ps = self.get_solution(solution=solution)
+            solution_ps = self.get_solution(solution=solution, **_skip_filter_checks)
             solution_kind = solution_ps.kind
 
             adopt_values = solution_ps.get_value(qualifier='adopt_values', adopt_values=kwargs.get('adopt_values', None), **_skip_filter_checks)
@@ -13133,7 +13133,7 @@ class Bundle(ParameterSet):
         distribution = kwargs.pop('distribution')
         distribution_overwrite_all = kwargs.pop('distribution_overwrite_all', False)
 
-        solution_ps = self.get_solution(solution=solution, **kwargs)
+        solution_ps = self.get_solution(solution=solution, check_visible=False, **kwargs)
         solver_kind = solution_ps.kind
         if solver_kind is None:
             raise ValueError("could not find solution='{}'".format(solution))
@@ -13350,7 +13350,7 @@ class Bundle(ParameterSet):
         ------------
         * the output from <phoebe.frontend.bundle.Bundle.run_solver>
         """
-        solution_ps = self.get_solution(solution=solution)
+        solution_ps = self.get_solution(solution=solution, **_skip_filter_checks)
 
         solver = solution_ps.solver
         kwargs.setdefault('solver', solver)
