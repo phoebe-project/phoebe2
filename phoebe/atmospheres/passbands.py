@@ -171,6 +171,11 @@ class Passband:
         ---------
         * an instatiated <phoebe.atmospheres.passbands.Passband> object.
         """
+        if "'" in pbset or '"' in pbset:
+            raise ValueError("pbset cannot contain quotation marks")
+        if "'" in pbname or '"' in pbname:
+            raise ValueError("pbset cannot contain quotation marks")
+
         self.h = h.value
         self.c = c.value
         self.k = k_B.value
