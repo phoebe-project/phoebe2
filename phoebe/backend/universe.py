@@ -805,7 +805,7 @@ class Body(object):
                                           new_mesh['pvertices'],
                                           new_mesh['vnormals'],
                                           new_mesh['triangles'],
-                                          curvature=True,
+                                          curvature=False,
                                           vertices=True,
                                           tnormals=True,
                                           areas=True,
@@ -2469,6 +2469,7 @@ class Star_rotstar(Star):
 
             # TODO: we need a different scale if self._is_single==True
             freq_rot = self.freq_rot
+
             omega = rotstar.rotfreq_to_omega(freq_rot, M_star = self.masses[self.ind_self], scale=self.sma, solar_units=True)
 
             # polar_direction_xyz is instantaneous based on current true_anom
@@ -2478,6 +2479,7 @@ class Star_rotstar(Star):
             # get_target_volume will need to take time or true anomaly
             # TODO: not sure if scaled should be True or False here
             target_volume = self.get_target_volume(scaled=False)
+
             logger.debug("libphoebe.rotstar_misaligned_Omega_at_vol(vol={}, omega={}, s={})".format(target_volume, omega, s))
             Phi = libphoebe.rotstar_misaligned_Omega_at_vol(target_volume,
                                                             omega, s)

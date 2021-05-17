@@ -24,11 +24,14 @@ def rotfreq_to_omega(rotfreq, M_star, scale=c.R_sun.si.value, solar_units=False)
     ---------
     * float
     """
+
     if solar_units:
         omega = rotfreq / np.sqrt(M_star * c.G.to(u.solRad**3/(u.solMass*u.d**2)).value/scale**3)
     else:
         # then SI units
         omega = rotfreq / np.sqrt(M_star * c.G.value/scale**3)
+
+    # ~ print("*** rotstar.rotfreq_to_omega", rotfreq, scale, solar_units, omega)
 
     return omega
 
