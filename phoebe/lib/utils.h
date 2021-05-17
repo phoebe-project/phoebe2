@@ -1071,5 +1071,129 @@ namespace utils {
 
     return w;
   }
+
+
+/*
+   Giving the secondary solution -- lower branch of the solution
+   of the Lambert equation
+
+        W e^W = x
+
+    for x in [-1/e, 0) and W < -1.
+
+  Ref:
+    * http://mathworld.wolfram.com/LambertW-Function.html
+    * Robert M. Corless, et.al, A Sequence of Series for The Lambert W Function
+
+  */
+
+  template <class T>
+  T lambertW1(const T & x){
+
+    // checking limits
+    if (x == T(0)) return  -T(std::numeric_limits<T>::infinity());
+
+    if (x < -m_1_e || x > 0 || std::isnan(x)) return std::numeric_limits<T>::quiet_NaN();
+
+    //
+    // calculating approximation
+    //
+
+    T p, w;
+    if (x < -0.75*m_1_e) {
+      // expansion around x= -1/E
+      p = std::sqrt(2*(m_e*x + 1));
+      w = -1. +
+           p*(-1. + p*(-0.33333333333333333333 + p*(-0.15277777777777777778 +
+           p*(-0.07962962962962962963 + p*(-0.044502314814814814815 +
+           p*(-0.025984714873603762493 + p*(-0.015635632532333921223 +
+           p*(-0.0096168920242994317068 - p*0.006014543252956117861))))))));
+
+      if (x + m_1_e < 1e-3) return w; // relative precision < 2e-14
+
+    } else if (x < -0.25*m_1_e) {
+      p = m_e*x + 0.5;
+
+      w = -2.6783469900166606534 + p*(-3.1916486947553952202 + p*(-2.058592174308073237 +
+          p*(-3.6940406403672775322 + p*(-4.2263709638111872228 + p*(-8.4610694310942229992 +
+          p*(-11.389755094334248503 + (-23.563292376071667929 - 34.366339579080064289*p)*p))))));
+
+      if (std::abs(x + 0.5*m_1_e) < 1e-3) return w;  // relative precision < 4e-16
+
+    } else if (x < -0.125*m_1_e) {
+      p = m_e*x + 0.1875;
+
+      w = -4.0800972599190759195 + p*(-7.0648803863226461404 + p*(-16.853839061524788775 +
+          p*(-59.803147695886480612 + p*(-236.44999217263845286 + p*(-1003.1595568469443365 +
+          p*(-4437.4526752548861 + p*(-20212.175727665004915 - p*94041.853538210852713)))))));
+
+      if (std::abs(x + m_1_e*0.1875) < 1e-3) return w; // relative precision < 4e-16
+
+    } else {  // asymptotics approximation, iterative solution
+      T L1 = -std::log(-x), q = L1;
+      for (int i = 0; i < 10; ++i) q = L1 + std::log(q);
+      w = -q;
+    }
+
+    //
+    // Halley’s method
+    // x < 0: log(q) - q = log(-x) := z, q = -w
+    // Ref:
+    //  *  https://en.wikipedia.org/wiki/Halley%27s_method
+
+    const int max_iter = 20;
+    const T eps = 10*std::numeric_limits<T>::epsilon();
+    const T min = 10*std::numeric_limits<T>::min();
+
+    int iter = 0;
+
+    T z = std::log(std::abs(x)), dw;
+
+    w = -w;
+    do {
+      p = std::log(w) - z;
+      dw = (2*w*(-1 + w)*(w - p))/((-2 + w)*(-1 + 2*w) + p);
+      w -= dw;
+    } while (std::abs(dw) < eps*std::abs(w) + min && ++iter < max_iter );
+    w = -w;
+
+    return w;
+  }
+
+  /*
+    The kth branch of the Lambert W function solutions of
+
+      W e^W = x
+
+    for x in [-1/e, infty).
+
+    k =  0: principal (upper) branch W > -1
+    k = -1: secondary (lower) branch W <= -1
+
+  Input:
+     k : selection of branch
+     x : argument
+
+  Return:
+     W - solution
+
+  Ref:
+    * http://mathworld.wolfram.com/LambertW-Function.html
+    * Robert M. Corless, et.al, A Sequence of Series for The Lambert W Function
+
+  */
+
+  template <class T>
+  T lambertW(int k, const T & x){
+
+    if (k == 0) return lamberW(x);
+    if (k == -1) return lamberW1(x);
+
+    std::cerr << "This options does not exist\n";
+
+    return std::nan("");
+  }
+
+
 } // namespace utils
 

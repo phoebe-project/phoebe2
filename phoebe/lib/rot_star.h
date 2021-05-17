@@ -198,13 +198,13 @@ namespace rot_star {
    Computing area of the surface and the volume of the rotating star lobe.
    The quantities are defined as
 
-      A = fA*int_0^1 dx F[t (1-x^2)]^2
+      A = fA*int_0^1 dx F[t (1-x^2)] sqrt[ F[t(1-x^2)]^2  + (2 t x sqrt(1-x^2) DF[t(1-x^2)])^2 ]
       V = fV*int_0^1 dx F[t (1-x^2)]^3
 
   with
       fA = 4 Pi/Omega0^2
       fV = 4Pi/(3 Omega0^3)
-      t = 28/7 omega^2/Omega0^3
+      t = 27/8 omega^2/Omega0^3
 
     Input:
       omega - parameter of the potential
@@ -270,7 +270,7 @@ namespace rot_star {
     // maximal possible area and volume
    if (t == 1) {
 
-      if (b_area) res[0] = fA*1.4738328557327723663;
+      if (b_area) res[0] = fA*1.5813805352231757866;
       if (b_vol)  res[1] = fV*1.8262651430357240475;
 
       return 0;
@@ -278,36 +278,62 @@ namespace rot_star {
 
     //
     // Analytic approximation (generated in rot_star.nb)
-    // relative precision at least 1e-20 for t < 0.1
     //
     if (t < 0.1) {
-       if (b_area)
+       if (b_area) // relative precision at least 1e-13 for t < 0.1
         res[0] = fA*(
-              1. + t*(0.1975308641975308642 + t*(0.081938728852309099223 + t*(0.044592505497855292094 +
-              t*(0.027991125536102306807 + t*(0.019191956290440516452 + t*(0.013973517907720004089 +
-              t*(0.010626774112537682122 + t*(0.008352883235964515829 + (0.0067378382224733158155 +
-              0.0055496612950397498048*t)*t)))))))));
+          1. + t*(0.1975308641975309 + t*(0.08779149519890261 + t*(0.05053817289756933 +
+          t*(0.03325169545766 + t*(0.02374609152282183 + t*(0.01792335301831647 +
+          t*(0.01407919743262187 + t*(0.01139760997468452 + t*0.009446335378950055)))))))));
 
-      if (b_vol)
+      if (b_vol)  // relative precision at least 1e-20 for t < 0.1
         res[1] = fV*(
-              1. + t*(0.2962962962962962963 + t*(0.1404663923182441701 + t*(0.081752926746068035506 +
-              t*(0.053437603296195312995 + t*(0.037645760415864089963 + t*(0.027947035815440008177 +
-              t*(0.021566100404855884306 + t*(0.017145391905400848281 + (0.013956950603694725618 +
-              0.011581901833126434375*t)*t)))))))));
+          1. + t*(0.2962962962962962963 + t*(0.1404663923182441701 + t*(0.081752926746068035506 +
+          t*(0.053437603296195312995 + t*(0.037645760415864089963 + t*(0.027947035815440008177 +
+          t*(0.021566100404855884306 + t*(0.017145391905400848281 + t*(0.013956950603694725618 +
+          t*0.011581901833126434375))))))))));
+
+    } if (t >= 0.99) {
+    //
+    // Fitted approximatioms (generated in rot_star_vol.nb)
+    //
+      T  dt = 1 - t, x = -dt*log(dt);
+
+      if (b_area)  // relative precision at least 5e-4 (TODO: needs to be improved)
+        res[0] = fA*1.5813805352231757866*(1 +
+                  x*(4.594554413287052 + x*(-1245.4790121122287 + x*(243845.3577835218 +
+                  x*(-2.8219247906331234e7 + x*(2.0127896358212492e9 + x*(-9.093236214564798e10 +
+                  x*(2.6061015149560093e12 + x*(-4.5884621078847016e13 + x*(4.5244263495519475e14 -
+                  x*1.9119108035814095e15)))))))))
+                );
+
+      if (b_vol)  // relative precision at least < 1e-6  (TODO: needs to be improved)
+        res[1] = fV*1.8262651430357240475*(1 +
+                  x*(0.7365011921183654 + x*(-11.03316678207779 + x*(2169.5985596460173 +
+                  x*(-324138.0830754657 + x*(3.2588437535946e7 + x*(-2.218336338588482e9 +
+                  x*(1.0333951143704353e11 + x*(-3.2930847929035923e12 + x*(7.052113673085739e13 +
+                  x*(-9.696818248973192e14 + x*(7.730465161013786e15 - x*2.7152921736289536e16)))))))))))
+                );
 
     } else {
 
       T r[glq_n];
       for (int i = 0; i < glq_n; ++i) r[i] = radius_F(t*glq_c[i]);
 
-      // = w.r^2
+      // = perform integral F[t (1-x^2)] sqrt[ F[t(1-x^2)]^2  + (2 t x sqrt(1-x^2) DF[t(1-x^2)])^2 ]
       if (b_area) {
+
+        T tmp;
+
         res[0] = 0;
-        for (int i = 0; i < glq_n; ++i) res[0] += utils::sqr(r[i])*glq_w[i];
+        for (int i = 0; i < glq_n; ++i) {
+          tmp = utils::sqr(2*t*glq_x[i]*radius_dF(t*glq_c[i]))*glq_c[i];
+          res[0] += glq_w[i]*r[i]*std::sqrt(r[i]*r[i] + tmp);
+        }
         res[0] *= fA;
       }
 
-      // = w.r^3
+      // = w.r^3,  perform interal F[t (1-x^2)]^3
       if (b_vol) {
         res[1] = 0;
         for (int i = 0; i < glq_n; ++i) res[1] += utils::cube(r[i])*glq_w[i];
@@ -367,15 +393,47 @@ namespace rot_star {
 
     const T qmax = 1.8262651430357240475;
 
-    if (q-qmax >= qmax*eps1) {
+    T  dq = q - qmax, bq = qmax*eps1;
+
+    if (dq >=  bq) {
       std::cerr << "rotstar::Omega_at_vol::Volume is too large for given omega.\n";
       return std::numeric_limits<T>::quiet_NaN();
     }
 
+
     //
-    // Limiting case: Largest volume, t = 1
+    // Limiting cases (analysis in rot_star_vol.nb):
     //
-    if (std::abs(q - qmax) <= eps1*qmax) return 1.5*std::cbrt(w2);
+
+    // a) Largest volume, q approx qmax
+
+    if (std::abs(dq) <= bq) return 1.5*std::cbrt(w2);
+
+
+    if (dq > -0.05*qmax){     // t in [0.99, 1]
+
+      // 1 - q/qmax approx P(-dt log(dt)) dt = 1-t, P - polyonmial
+      // rel prec 0.5, abs prec 5 10^-6
+
+      T u  = (-dq)/qmax,
+        x = u*(1.200887975266528 + u*(-8.992661466561763 + u*(1822.855902613968 +
+            u*(-303625.528250068 +  u*(4.112655134325422e7 + u*(-5.599180842143917e9 +
+            u*(8.450019254341406e11 + u*(-1.336993456166079e14 + u*(2.138613649934939e16 -
+            u*3.475208767290607e18))))))))),
+        dt = (x == 0 ? 0: -x/utils::lambertW1(-x));   // solving x = -log[dt] dt
+
+      return 1.5*std::cbrt(w2/(1 - dt));
+    }
+
+    // b) Small volumes, q < 0.15, rel precision < 2e-15 in t
+    if (q <= 0.15) {
+      T t = q*(1. + q*(-0.2962962962962963 + q*(0.03511659807956104 +
+              q*(-0.003716042124821274 + q*(0.00002936132049241501 +
+                q*(-0.00007196983608915194 + q*(-0.00002254859800367821 +
+                  q*(-9.102117050804887e-6 + q*(-3.728674939944071e-6 + q*(-1.579168103226893e-6 -q*6.857110714751238e-7))))))))));
+
+      return 1.5*std::cbrt(w2/t);
+    }
 
     //
     // All other cases
@@ -411,12 +469,12 @@ namespace rot_star {
 
     int it = 0;
 
-    T t = utils::lin_interp<T>(q, data_n, data_tv, data_t),
+    T t = utils::lin_interp<T>(q, data_n, data_tv, data_t),  // approx. t from lin. interp. of (vt, t)
       r[3][glq_n], dt, v, dv;
 
     do {
 
-      if ( t < 0.1) {
+      if ( t < 0.1) {   // use series expansion of v
         // calc v(t)
         v = 1. + t*(0.2962962962962962963 + t*(0.1404663923182441701 + t*(0.081752926746068035506 +
               t*(0.053437603296195312995 + t*(0.037645760415864089963 + t*(0.027947035815440008177 +
@@ -427,7 +485,7 @@ namespace rot_star {
              t*(0.21375041318478125198 + t*(0.18822880207932044981 + t*(0.16768221489264004906 +
              t*(0.15096270283399119014 + t*(0.13716313524320678624 + (0.12561255543325253056 +
              0.11581901833126434375*t)*t)))))));
-      } else {
+      } else {      // use integration to obtain v
 
         for (int i = 0; i < glq_n; ++i) {
           r[0][i] = radius_F(t*glq_c[i]);

@@ -2624,6 +2624,9 @@ static PyObject *rotstar_misaligned_Omega_at_vol(PyObject *self, PyObject *args,
 
   auto fname = "rotstar_misaligned_Omega_at_vol"_s;
 
+  if (verbosity_level>=4)
+    report_stream << fname << "::START" << std::endl;
+
   //
   // Reading arguments
   //
@@ -2648,12 +2651,25 @@ static PyObject *rotstar_misaligned_Omega_at_vol(PyObject *self, PyObject *args,
     return NULL;
   }
 
+  if (verbosity_level>=4)
+    report_stream << fname
+      << "::vol= " << std::to_string(vol)
+      << " omega=" << std::to_string(omega) << std::endl;
+
+
   double Omega = rot_star::Omega_at_vol(vol, omega);
+
+  if (verbosity_level>=4)
+    report_stream << fname
+      << "::rot_star::Omega_at_vol, Omega= " << std::to_string(Omega) << std::endl;
 
   if (std::isnan(Omega)){
     raise_exception(fname + "::Problem determining Omega. See cerr outputs.");
     return NULL;
   }
+
+  if (verbosity_level>=4)
+    report_stream << fname << "::END" << std::endl;
 
   return PyFloat_FromDouble(Omega);
 }
@@ -4048,7 +4064,7 @@ static PyObject *roche_misaligned_Omega(PyObject *self, PyObject *args) {
 
     Omega(x,y,z) =  1/r1 + q [1/r2 - x/delta^2] + 1/2 F^2(1 + q) (x^2 + y^2)
     r1 = sqrt(x^2 + y^2 + z^2)
-    r1 = sqrt((x-delta)^2 + y^2 + z^2)
+    r2 = sqrt((x-delta)^2 + y^2 + z^2)
 
   Python:
 

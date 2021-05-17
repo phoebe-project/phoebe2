@@ -5,7 +5,7 @@ from phoebe import c, u
 import libphoebe
 
 
-def rotfreq_to_omega(rotfreq, scale=c.R_sun.si.value, solar_units=False):
+def rotfreq_to_omega(rotfreq, M_star, scale=c.R_sun.si.value, solar_units=False):
     """
     Translate from rotation frequency `rotfreq` to `omega`.
 
@@ -13,7 +13,8 @@ def rotfreq_to_omega(rotfreq, scale=c.R_sun.si.value, solar_units=False):
 
     Arguments
     ----------
-    * `rotfreq`
+    * `rotfreq` (float): [u.rad/u.d]
+    * `M_star` (float): mass of the star (see `solar_units` for units)
     * `scale` (float, optional, default=c.R_sun.si.value)
     * `solar_units` (bool, optional, default=False): whether `scale` is provided
         in solar units or SI.
@@ -22,13 +23,14 @@ def rotfreq_to_omega(rotfreq, scale=c.R_sun.si.value, solar_units=False):
     ---------
     * float
     """
+
     if solar_units:
-        omega = rotfreq / (2*np.pi) / np.sqrt(c.GM_sun.to(u.solRad**3/u.d**2).value/scale**3)
+        omega = rotfreq / np.sqrt(M_star * c.G.to(u.solRad**3/(u.solMass*u.d**2)).value/scale**3)
     else:
         # then SI units
-        omega = rotfreq / (2*np.pi) / np.sqrt(c.GM_sun.value/scale**3)
+        omega = rotfreq / np.sqrt(M_star * c.G.value/scale**3)
 
-    # print "*** rotstar.rotfreq_to_omega", rotfreq, scale, solar_units, omega
+    # ~ print("*** rotstar.rotfreq_to_omega", rotfreq, scale, solar_units, omega)
 
     return omega
 
