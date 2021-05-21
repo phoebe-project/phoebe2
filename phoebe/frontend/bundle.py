@@ -19,7 +19,7 @@ import pickle as _pickle
 from inspect import getsource as _getsource
 
 from scipy.optimize import curve_fit as cfit
-
+from tqdm import tqdm as _tqdm
 
 # PHOEBE
 # ParameterSet, Parameter, FloatParameter, send_if_client, etc
@@ -42,6 +42,7 @@ from phoebe.solverbackends import solverbackends as _solverbackends
 from phoebe.distortions import roche
 from phoebe.frontend import io
 from phoebe.atmospheres.passbands import list_installed_passbands, list_online_passbands, get_passband, update_passband, _timestamp_to_dt
+from phoebe import pool as _pool
 from phoebe.dependencies import distl as _distl
 from phoebe.dependencies import crimpl as _crimpl
 from phoebe.utils import _bytes, parse_json, _get_masked_times, _get_masked_compute_times
@@ -8629,7 +8630,7 @@ class Bundle(ParameterSet):
                                                          to_uniforms=to_uniforms,
                                                          keys='uniqueid',
                                                          parameters=parameters,
-                                                         require_limits=require_limits,
+                                                         require_limits=require_limits or require_checks or require_compute,
                                                          require_priors=require_priors,
                                                          allow_non_dc=False)
 
@@ -8645,48 +8646,45 @@ class Bundle(ParameterSet):
         sampled_values = dc.sample(size=sample_size).T
 
         if require_checks or require_compute:
-            # TODO: make use of multiprocessing/MPI here?
-            b_copy = self.copy()
-            # print("*** require_checks={}, require_compute={}".format(require_checks, require_compute))
-            for i, sample_per_param in enumerate(sampled_values.T):
-                # print("*** checking sample #", i)
-                success = False
-                while not success:
-                    for uniqueid, sample_value in zip(uniqueids, sample_per_param):
-                        try:
-                            b_copy.set_value(uniqueid=uniqueid, value=sample_value, **_skip_filter_checks)
-                        except:
-                            success = False
-                        else:
-                            success = True
+            def _progress(*args):
+                global _pbar
+                if _pbar is not None:
+                    _pbar.update(1)
 
-                    compute_for_checks = None
-                    if require_compute not in [True, False]:
-                        compute_for_checks = require_compute
-                    elif require_checks not in [True, False]:
-                        compute_for_checks = require_checks
+            global _pbar
+            if kwargs.get('progressbar', True):
+                _pbar = _tqdm(total=sample_size)
+            else:
+                _pbar = None
 
-                    if (require_checks or require_compute) and success:
-                        if not b_copy.run_checks_compute(compute=compute_for_checks).passed:
-                            # print("*** run checks failed, drawing new value")
-                            replacement_values = dc.sample(size=1)
-                            sampled_values.T[i] = replacement_values
-                            sample_per_param = replacement_values[0]
-                            success = False
-                        else:
-                            success = True
 
-                    if require_compute and success:
-                        try:
-                            b_copy.run_compute(compute=compute_for_checks, skip_checks=True, progressbar=False, model='test', overwrite=True)
-                        except Exception as e:
-                            # print("*** compute failed, drawing new value: ", e)
-                            replacement_values = dc.sample(size=1)
-                            sampled_values.T[i] = replacement_values
-                            sample_per_param = replacement_values[0]
-                            success = False
-                        else:
-                            success = True
+            if mpi.within_mpirun:
+                logger.info("require conditions using MPI")
+                # print("*** require conditions using MPI")
+                pool = _pool.MPIPool()
+                is_master = pool.is_master()
+            elif conf.multiprocessing_nprocs==0 or sample_size == 1:
+                logger.info("require conditions: serial mode")
+                # print("*** require conditions: serial mode")
+                pool = _pool.SerialPool()
+                is_master = True
+            else:
+                logger.info("require conditions using multiprocessing with {} procs".format(conf.multiprocessing_nprocs))
+                # print("*** require conditions using multiprocessing with {} procs".format(conf.multiprocessing_nprocs))
+                pool = _pool.MultiPool(processes=conf._multiprocessing_nprocs)
+                is_master = True
+
+            if is_master:
+                args_per_sample = [(self.copy(), uniqueids, sample_per_param, dc, require_compute, require_checks) for sample_per_param in sampled_values.T]
+                sampled_values = np.asarray(list(pool.map(backends._test_single_sample, args_per_sample, callback=_progress))).T
+                if _pbar is not None:
+                    _pbar.close()
+            else:
+                pool.wait()
+                return
+
+            if pool is not None:
+                pool.close()
 
         ret = {}
         changed_params = []

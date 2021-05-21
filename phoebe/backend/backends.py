@@ -674,6 +674,47 @@ def _call_run_single_model(args):
 
             return model_ps.to_json(), success_samples, failed_samples
 
+def _test_single_sample(args):
+    b_copy, uniqueids, sample_per_param, dc, require_compute, require_checks = args
+    success = False
+    while not success:
+        for uniqueid, sample_value in zip(uniqueids, sample_per_param):
+            try:
+                b_copy.set_value(uniqueid=uniqueid, value=sample_value, **_skip_filter_checks)
+            except:
+                success = False
+            else:
+                success = True
+
+        compute_for_checks = None
+        if require_compute not in [True, False]:
+            compute_for_checks = require_compute
+        elif require_checks not in [True, False]:
+            compute_for_checks = require_checks
+
+        if (require_checks or require_compute) and success:
+            if not b_copy.run_checks_compute(compute=compute_for_checks).passed:
+                # print("*** run checks failed, drawing new value")
+                replacement_values = dc.sample(size=1)
+                sample_per_param = replacement_values[0]
+                success = False
+            else:
+                success = True
+
+        if require_compute and success:
+            try:
+                b_copy.run_compute(compute=compute_for_checks, skip_checks=True, progressbar=False, model='test', overwrite=True)
+            except Exception as e:
+                # print("*** compute failed, drawing new value: ", e)
+                replacement_values = dc.sample(size=1)
+                sample_per_param = replacement_values[0]
+                success = False
+            else:
+                success = True
+
+    return sample_per_param
+
+
 
 class SampleOverModel(object):
     def __init__(self):
