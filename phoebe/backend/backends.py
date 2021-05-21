@@ -52,9 +52,11 @@ else:
 try:
     from tqdm import tqdm as _tqdm
 except ImportError:
+    _has_tqdm = False
     def _progressbar(args, total=None, show_progressbar=None):
         return args
 else:
+    _has_tqdm = True
     def _progressbar(args, total=None, show_progressbar=True):
         if show_progressbar:
             return _tqdm(args, total=total)
@@ -627,6 +629,7 @@ def _call_run_single_model(args):
     b, samples, sample_kwargs, compute, dataset, times, compute_kwargs, expose_samples, expose_failed, i, allow_retries = args
     # override sample_from
     compute_kwargs['sample_from'] = []
+    compute_kwargs['progressbar'] = False
 
     success_samples = []
     failed_samples = {}
@@ -673,6 +676,7 @@ def _call_run_single_model(args):
                 # TODO: remove the list comprehension here once the bug is fixed in distributions that is sometimes returning an array with one entry
                 success_samples += list([s[0] if isinstance(s, np.ndarray) else s for s in samples.values()])
                 # success_samples += list(samples.values())
+
             return model_ps.to_json(), success_samples, failed_samples
 
 
@@ -709,7 +713,7 @@ class SampleOverModel(object):
             pool = _pool.SerialPool()
             is_master = True
         else:
-            logger.info("run_compute sample_from using MPI with {} procs".format(conf.multiprocessing_nprocs))
+            logger.info("run_compute sample_from using multiprocessing with {} procs".format(conf.multiprocessing_nprocs))
             pool = _pool.MultiPool(processes=conf._multiprocessing_nprocs)
             is_master = True
 
@@ -760,16 +764,30 @@ class SampleOverModel(object):
                 sample_num = 1
                 sample_mode = 'all'
 
+            global _active_pbar
+            if _has_tqdm and kwargs.get('progressbar', True):
+                _active_pbar = _tqdm(total=sample_num)
+            else:
+                _active_pbar = None
+
+            def _sample_progress(*args):
+                global _active_pbar
+                if _active_pbar is not None:
+                    _active_pbar.update(1)
+
             bexcl = b.copy()
             bexcl.remove_parameters_all(context=['model', 'solver', 'solutoin', 'figure'], **_skip_filter_checks)
             bexcl.remove_parameters_all(kind=['orb', 'mesh'], context='dataset', **_skip_filter_checks)
             args_per_sample = [(bexcl.copy(), {k:v[i] for k,v in sample_dict.items()}, sample_kwargs, compute, dataset, times, compute_kwargs, expose_samples, expose_failed, i, allow_retries) for i in range(sample_num)]
-            models_success_failed = list(pool.map(_call_run_single_model, args_per_sample))
+            models_success_failed = list(pool.map(_call_run_single_model, args_per_sample, callback=_sample_progress))
         else:
             pool.wait()
 
         if pool is not None:
             pool.close()
+
+        if _active_pbar is not None:
+            _active_pbar.close()
 
         # restore previous MPI state
         mpi._within_mpirun = within_mpirun

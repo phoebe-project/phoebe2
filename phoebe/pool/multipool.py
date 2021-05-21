@@ -65,7 +65,7 @@ class MultiPool(Pool):
     def enabled():
         return True
 
-    def map(self, func, iterable, chunksize=None, callback=None):
+    def map(self, func, iterable, callback=None):
         """
         Equivalent to the built-in ``map()`` function and
         :meth:`multiprocessing.pool.Pool.map()`, without catching
@@ -94,25 +94,9 @@ class MultiPool(Pool):
             A list of results from the output of each ``worker()`` call.
 
         """
-
-        if callback is None:
-            callbackwrapper = None
-        else:
-            callbackwrapper = CallbackWrapper(callback)
-
-        # The key magic is that we must call r.get() with a timeout, because
-        # a Condition.wait() without a timeout swallows KeyboardInterrupts.
-        r = self.map_async(func, iterable, chunksize=chunksize,
-                           callback=callbackwrapper)
-
-        while True:
-            try:
-                return r.get(self.wait_timeout)
-
-            except TimeoutError:
-                pass
-
-            except KeyboardInterrupt:
-                self.terminate()
-                self.join()
-                raise
+        ret = []
+        for res in self.imap(func, iterable):
+            if callback is not None:
+                callback(res)
+            ret.append(res)
+        return ret
