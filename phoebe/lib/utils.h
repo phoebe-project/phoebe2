@@ -926,6 +926,34 @@ namespace utils {
 
 
   /*
+    Corrected version of flt
+  */
+  template <class T>
+  int flt0(const T & t, const T *a, const int &n) {
+
+    if (t > a[n-1]) return -1;
+    if (t < a[0]) return 0;
+
+    if (t == a[0])  return 1;
+    if (t == a[n-1]) return n-1;
+
+    int low = 0, high = n, mid;
+
+    while (low != high) {
+
+      mid = (low + high) >> 1;
+
+      if (a[mid] <= t)
+        low = mid + 1;
+      else
+        high = mid;
+    }
+
+    return low;
+  }
+
+
+  /*
     Linear interpolation of points
 
       (x_i,y_i) i = 0, ..., n -1
@@ -942,11 +970,11 @@ namespace utils {
   template <class T>
   T lin_interp(const T & t, const int & n, const T *x, const T *y){
 
-    int i  = flt(t, x, n);
+    int i  = flt0(t, x, n);
 
-    if (i == 0 || i == -1) return std::numeric_limits<T>::quiet_NaN();
+    if (i < 1) return std::numeric_limits<T>::quiet_NaN();
 
-    return (y[i]*(x[i] - t) + y[i-1]*(t - x[i-1]))/(x[i] - x[i-1]);
+    return (y[i-1]*(x[i] - t) + y[i]*(t - x[i-1]))/(x[i] - x[i-1]);
   }
 
   /*
