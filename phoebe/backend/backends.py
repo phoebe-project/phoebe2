@@ -49,19 +49,14 @@ except ImportError:
 else:
     _use_ellc = True
 
-try:
-    from tqdm import tqdm as _tqdm
-except ImportError:
-    _has_tqdm = False
-    def _progressbar(args, total=None, show_progressbar=None):
+
+from tqdm import tqdm as _tqdm
+
+def _progressbar(args, total=None, show_progressbar=True):
+    if show_progressbar:
+        return _tqdm(args, total=total)
+    else:
         return args
-else:
-    _has_tqdm = True
-    def _progressbar(args, total=None, show_progressbar=True):
-        if show_progressbar:
-            return _tqdm(args, total=total)
-        else:
-            return args
 
 from scipy.stats import norm as _norm
 
@@ -765,7 +760,7 @@ class SampleOverModel(object):
                 sample_mode = 'all'
 
             global _active_pbar
-            if _has_tqdm and kwargs.get('progressbar', True):
+            if kwargs.get('progressbar', True):
                 _active_pbar = _tqdm(total=sample_num)
             else:
                 _active_pbar = None

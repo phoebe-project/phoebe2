@@ -40,12 +40,7 @@ except ImportError:
 else:
     _use_dynesty = True
 
-try:
-    from tqdm import tqdm as _tqdm
-except ImportError:
-    _has_tqdm = False
-else:
-    _has_tqdm = True
+from tqdm import tqdm as _tqdm
 
 try:
     from astropy.timeseries import BoxLeastSquares as _BoxLeastSquares
@@ -1958,7 +1953,7 @@ class _ScipyOptimizeBaseBackend(BaseSolverBackend):
                      'solution': _solution}
 
         global _use_progressbar
-        if _has_tqdm and kwargs.get('progressbar', False):
+        if kwargs.get('progressbar', False):
             global _minimize_iter
             _minimize_iter = 0
             global _minimize_pbar
