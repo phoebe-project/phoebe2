@@ -8032,7 +8032,11 @@ class Bundle(ParameterSet):
                 kwargs.setdefault('include_constrained', False)
                 kwargs.setdefault('to_univariates', False)
                 kwargs.setdefault('combine', self.get_value(qualifier='{}_combine'.format(ps.qualifier), check_visible=False, check_default=False, **{k:v for k,v in ps.meta.items() if k not in ['qualifier']}))
-                kwargs.setdefault('within_parameter_limits', True)
+
+                kwargs.setdefault('require_limits', False)
+                kwargs.setdefault('require_checks', False)
+                kwargs.setdefault('require_compute', False)
+                kwargs.setdefault('require_priors', False)
                 return self._distribution_collection_defaults(ps.get_value(expand=True, **{ps.qualifier: kwargs.get(ps.qualifier, None)}), **kwargs)
 
             elif ps.context == 'solver':
@@ -8046,11 +8050,20 @@ class Bundle(ParameterSet):
                     if ps.qualifier in ['priors']:
                         kwargs.setdefault('include_constrained', True)
                         kwargs.setdefault('to_univariates', False)
-                        kwargs.setdefault('within_parameter_limits', False)
+                        kwargs.setdefault('require_limits', False)
+                        kwargs.setdefault('require_checks', False)
+                        kwargs.setdefault('require_compute', False)
+                        kwargs.setdefault('require_priors', False)
+
                     elif ps.qualifier in ['init_from']:
                         kwargs.setdefault('include_constrained', False)
                         kwargs.setdefault('to_univariates', False)
-                        kwargs.setdefault('within_parameter_limits', True)
+
+                        requires = self.get_value(qualifier='init_from_requires', expand=True, check_visible=False, solver=ps.solver)
+                        kwargs.setdefault('require_limits', 'limits' in requires)
+                        kwargs.setdefault('require_checks', self.get_value(qualifier='compute', solver=ps.solver, **_skip_filter_checks) if 'checks' in requires else False)
+                        kwargs.setdefault('require_compute', self.get_value(qualifier='compute', solver=ps.solver, **_skip_filter_checks) if 'compute' in requires else False)
+                        kwargs.setdefault('require_priors', 'priors@{}'.format(ps.solver) if 'priors' in requires else False)
                     else:
                         raise NotImplementedError("get_distribution_collection for solver kind='{}' and qualifier='{}' not implemented".format(kind, ps.qualifier))
 
@@ -8059,7 +8072,14 @@ class Bundle(ParameterSet):
                         # TODO: need to support flattening to univariates
                         kwargs.setdefault('include_constrained', False)
                         kwargs.setdefault('to_univariates', True)
-                        kwargs.setdefault('within_parameter_limits', True)
+
+                        requires = self.get_value(qualifier='priors_requires', expand=True, check_visible=False, solver=ps.solver)
+                        kwargs.setdefault('require_limits', 'limits' in requires)
+                        kwargs.setdefault('require_checks', self.get_value(qualifier='compute', solver=ps.solver, **_skip_filter_checks) if 'checks' in requires else False)
+                        kwargs.setdefault('require_compute', self.get_value(qualifier='compute', solver=ps.solver, **_skip_filter_checks) if 'compute' in requires else False)
+                        kwargs.setdefault('require_priors', False)
+
+
                     else:
                         raise NotImplementedError("get_distribution_collection for solver kind='{}' and qualifier='{}' not implemented".format(kind, ps.qualifier))
 
@@ -8068,7 +8088,7 @@ class Bundle(ParameterSet):
                         kwargs.setdefault('include_constrained', True)
                         kwargs.setdefault('to_univariates', True)
                         kwargs.setdefault('to_uniforms', self.get_value('{}_sigma'.format(ps.qualifier), check_visible=False, check_default=False, **{k:v for k,v in ps.meta.items() if k not in ['qualifier']}))
-                        kwargs.setdefault('within_parameter_limits', False)
+                        kwargs.setdefault('require_limits', False)
 
                 else:
                     raise NotImplementedError("get_distribution_collection for solver kind='{}' not implemented".format(kind))
@@ -8105,12 +8125,15 @@ class Bundle(ParameterSet):
         include_constrained = kwargs.get('include_constrained', False)
         to_univariates = kwargs.get('to_univariates', False)
         to_uniforms = kwargs.get('to_uniforms', False)
-        within_parameter_limits = kwargs.get('within_parameter_limits', False)
+        require_limits = kwargs.get('require_limits', False)
+        require_checks = kwargs.get('require_checks', False)
+        require_compute = kwargs.get('require_compute', False)
+        require_priors = kwargs.get('require_priors', False)
 
         if to_uniforms and not to_univariates:
             raise ValueError("to_univariates must be True in order to use to_uniforms")
 
-        return filters, combine, include_constrained, to_univariates, to_uniforms, within_parameter_limits
+        return filters, combine, include_constrained, to_univariates, to_uniforms, require_limits, require_checks, require_compute, require_priors
 
     def get_distribution_collection(self, twig=None,
                                     keys='twig', set_labels=True,
@@ -8170,11 +8193,20 @@ class Bundle(ParameterSet):
             constraints).  An error may be raised if any matching parameters
             are not included in the original DistributionCollection or available
             through propagated constraints.
-        * `within_parameter_limits` (bool, optional): whether to
-            require distribution to be within parameter limits (by including &
-            with a uniform distribution if otherwise would extend beyone limits).
-            Will default to True if `twig` points to `sample_from@compute`,
-            `init_from@emcee`, or `priors@dynesty`, otherwise will default to False.
+        * `require_limits` (bool, optional): whether to
+            require samples from the distibution(s) to be within parameter limits
+            (by including `&` with a uniform distribution if otherwise would extend
+            beyond limits).  If `twig` points to `init_from@emcee` or `priors@dynesty`,
+            will default to whether 'limits' is in the `init_from_requires` or `priors_requires`
+            parameter, respectively.  Otherwise will default to False.
+        * `require_priors` (string, list, or False, optional): whether to
+            require samples from the distribution(s) to result in a finite
+            probability from a set of priors.  If not False, `require_priors`
+            will be passed directly as `twig` to <phoebe.frontend.bundle.Bundle.get_distribution_collection>
+            and any uniform distributions in the resulting distribution collection
+            will be combined with `&` logic.  Will default to the relevant
+            priors if `twig` points to `init_from@ecmee` and 'priors' is
+            in `init_from_requires`.  Otherwise will default to False.
         * `**kwargs`: additional keyword arguments are used for filtering.
             `twig` and `**kwargs` must result in either a single supported
             parameter in a solver ParameterSet, or a ParameterSet of distribution
@@ -8256,7 +8288,7 @@ class Bundle(ParameterSet):
 
 
         if 'distribution_filters' not in kwargs.keys():
-            distribution_filters, combine, include_constrained, to_univariates, to_uniforms, within_parameter_limits = self._distribution_collection_defaults(twig=twig, **kwargs)
+            distribution_filters, combine, include_constrained, to_univariates, to_uniforms, require_limits, require_checks, require_compute, require_priors = self._distribution_collection_defaults(twig=twig, **kwargs)
         else:
             # INTERNAL USE ONLY, probably
             distribution_filters = kwargs.get('distribution_filters')
@@ -8264,7 +8296,9 @@ class Bundle(ParameterSet):
             include_constrained = kwargs.get('include_constrained', True)
             to_univariates = kwargs.get('to_univariates', False)
             to_uniforms = kwargs.get('to_uniforms', False)
-            within_parameter_limits = kwargs.get('within_parameter_limits', False)
+            require_limits = kwargs.get('require_limits', False)
+            # NOTE: get_distribution_collection does not support require_checks or require_compute
+            require_priors = kwargs.get('require_priors', False)
 
         # NOTE: in python3 we could do this with booleans and nonlocal variables,
         # but for python2 support we can only fake it by mutating a dictionary.
@@ -8416,7 +8450,7 @@ class Bundle(ParameterSet):
         if kwargs.get('return_dc', True):
             ret_dists += [uid_dist_dict.get(uid) for uid in uniqueids]
 
-            if within_parameter_limits:
+            if require_limits:
                 for i, uniqueid in enumerate(uniqueids):
                     # check if ret_dists[i] is fully within parameter limits
                     param = self.get_parameter(uniqueid=uniqueid, **_skip_filter_checks)
@@ -8425,6 +8459,13 @@ class Bundle(ParameterSet):
                     if np.any([np.isfinite(ret_dists[i].logpdf(limit.value)) for limit in param.limits if limit is not None]):
                         # NOTE: uniform cannot have an infinite bound, so instead we'll use the ppf at 1e-6 (or 1e-6) to get close to the original distribution limits
                         ret_dists[i] = ret_dists[i] & _distl.uniform(param.limits[0].value if param.limits[0] is not None else ret_dists[i].ppf(1e-6), param.limits[1].value if param.limits[1] is not None else ret_dists[i].ppf(1-1e-6), unit=param.default_unit)
+
+            if require_priors:
+                priors_dc, priors_uniqueids = self.get_distribution_collection(require_priors, keys='uniqueid')
+                for prior, prior_uniqueid in zip(priors_dc.dists, priors_uniqueids):
+                    if prior.__class__.__name__ == 'Uniform':
+                        index = uniqueids.index(prior_uniqueid)
+                        ret_dists[index] = ret_dists[i] & prior.copy()
 
             dc = _distl.DistributionCollection(*ret_dists)
         else:
@@ -8501,11 +8542,37 @@ class Bundle(ParameterSet):
             constraints).  An error may be raised if any matching parameters
             are not included in the original DistributionCollection or available
             through propagated constraints.
-        * `within_parameter_limits` (bool, optional): whether to
-            require distribution to be within parameter limits (by including &
-            with a uniform distribution if otherwise would extend beyone limits).
-            Will default to True if `twig` points to `sample_from@compute`,
-            `init_from@emcee`, or `priors@dynesty`, otherwise will default to False.
+        * `require_limits` (bool, optional): whether to
+            require samples from the distibution(s) to be within parameter limits
+            (by including `&` with a uniform distribution if otherwise would extend
+            beyond limits).  If `twig` points to `init_from@emcee` or `priors@dynesty`,
+            will default to whether 'limits' is in the `init_from_requires` or `priors_requires`
+            parameter, respectively.  Otherwise will default to False.
+        * `require_checks` (bool or string, optional): whether to require samples
+            from the distribution(s) to pass compute and system checks.  Any
+            drawn value that does not pass checks will be redrawn.  If True, will
+            run for all attached compute options.  If a string, will run for the
+            passed compute label.  Will default to the relevant compute label if
+            `twig` points to `init_from@emcee` or `priors@dynesty` and 'checks'
+            or 'compute' is in `init_from_requires` or `priors_requires` parameter,
+            respectively.  Otherwise will default to False.
+        * `require_compute` (bool or string, optional): whether to require samples
+            from the distribution(s) to succesfully run a forward model (and
+            therefore includes `require_checks` and `require_limits`).  Any drawn
+            value that results in an error will be redrawn.  If a string, will
+            run for the passed compute label.  True will only be allowed if a
+            single set of compute options exist.  Will default to the relevant
+            compute label if `twig` points to `init_from@emcee` or `priors@dynesty`
+            and 'compute' is in `init_from_requires` or `priors_requires` parameter,
+            respectively.  Otherwise will default to False.
+        * `require_priors` (string, list, or False, optional): whether to
+            require samples from the distribution(s) to result in a finite
+            probability from a set of priors.  If not False, `require_priors`
+            will be passed directly as `twig` to <phoebe.frontend.bundle.Bundle.get_distribution_collection>
+            and any uniform distributions in the resulting distribution collection
+            will be combined with `&` logic.  Will default to the relevant
+            priors if `twig` points to `init_from@ecmee` and 'priors' is
+            in `init_from_requires`.  Otherwise will default to False.
         * `**kwargs`: additional keyword arguments are used for filtering.
             `twig` and `**kwargs` must result in either a single supported
             parameter in a solver ParameterSet, or a ParameterSet of distribution
@@ -8535,7 +8602,7 @@ class Bundle(ParameterSet):
             raise ValueError("cannot use set_value and sample_size together")
 
         if 'distribution_filters' not in kwargs.keys():
-            distribution_filters, combine, include_constrained, to_univariates, to_uniforms, within_parameter_limits = self._distribution_collection_defaults(twig=twig, **kwargs)
+            distribution_filters, combine, include_constrained, to_univariates, to_uniforms, require_limits, require_checks, require_compute, require_priors = self._distribution_collection_defaults(twig=twig, **kwargs)
         else:
             # INTERNAL USE ONLY, probably
             distribution_filters = kwargs.get('distribution_filters')
@@ -8543,7 +8610,10 @@ class Bundle(ParameterSet):
             include_constrained = kwargs.get('include_constrained', True)
             to_univariates = kwargs.get('to_univariates', False)
             to_uniforms = kwargs.get('to_uniforms', False)
-            within_parameter_limits = kwargs.get('within_parameter_limits', False)
+            require_limits = kwargs.get('require_limits', False)
+            require_checks = kwargs.get('require_checks', False)
+            require_compute = kwargs.get('require_compute', False)
+            require_priors = kwargs.get('require_priors', False)
 
         if include_constrained and set_value:
             raise ValueError("cannot use include_constrained=True and set_value together")
@@ -8559,8 +8629,13 @@ class Bundle(ParameterSet):
                                                          to_uniforms=to_uniforms,
                                                          keys='uniqueid',
                                                          parameters=parameters,
-                                                         within_parameter_limits=within_parameter_limits,
+                                                         require_limits=require_limits,
+                                                         require_priors=require_priors,
                                                          allow_non_dc=False)
+
+        # require_limits and require_priors are already handled in the returned
+        # objects.  But we need to TEST any sampled values are redraw if necessary
+        # according to require_checks and require_compute
 
         if isinstance(dc, _distl._distl.DistributionCollection) and np.all([isinstance(dist, _distl._distl.Delta) for dist in dc.dists]):
             if sample_size is not None and sample_size > 1:
@@ -8568,6 +8643,50 @@ class Bundle(ParameterSet):
                 N = 1
 
         sampled_values = dc.sample(size=sample_size).T
+
+        if require_checks or require_compute:
+            # TODO: make use of multiprocessing/MPI here?
+            b_copy = self.copy()
+            # print("*** require_checks={}, require_compute={}".format(require_checks, require_compute))
+            for i, sample_per_param in enumerate(sampled_values.T):
+                # print("*** checking sample #", i)
+                success = False
+                while not success:
+                    for uniqueid, sample_value in zip(uniqueids, sample_per_param):
+                        try:
+                            b_copy.set_value(uniqueid=uniqueid, value=sample_value, **_skip_filter_checks)
+                        except:
+                            success = False
+                        else:
+                            success = True
+
+                    compute_for_checks = None
+                    if require_compute not in [True, False]:
+                        compute_for_checks = require_compute
+                    elif require_checks not in [True, False]:
+                        compute_for_checks = require_checks
+
+                    if (require_checks or require_compute) and success:
+                        if not b_copy.run_checks_compute(compute=compute_for_checks).passed:
+                            # print("*** run checks failed, drawing new value")
+                            replacement_values = dc.sample(size=1)
+                            sampled_values.T[i] = replacement_values
+                            sample_per_param = replacement_values[0]
+                            success = False
+                        else:
+                            success = True
+
+                    if require_compute and success:
+                        try:
+                            b_copy.run_compute(compute=compute_for_checks, skip_checks=True, progressbar=False, model='test', overwrite=True)
+                        except Exception as e:
+                            # print("*** compute failed, drawing new value: ", e)
+                            replacement_values = dc.sample(size=1)
+                            sampled_values.T[i] = replacement_values
+                            sample_per_param = replacement_values[0]
+                            success = False
+                        else:
+                            success = True
 
         ret = {}
         changed_params = []
@@ -8589,6 +8708,8 @@ class Bundle(ParameterSet):
             if user_interactive_constraints:
                 conf.interactive_constraints_on()
             return _return_ps(self, ParameterSet(changed_params))
+        elif kwargs.get('return_as_array', False):
+            return sampled_values
         else:
             # ret is a dictionary
             return ret
@@ -8646,11 +8767,37 @@ class Bundle(ParameterSet):
             constraints).  An error may be raised if any matching parameters
             are not included in the original DistributionCollection or available
             through propagated constraints.
-        * `within_parameter_limits` (bool, optional): whether to
-            require distribution to be within parameter limits (by including &
-            with a uniform distribution if otherwise would extend beyone limits).
-            Will default to True if `twig` points to `sample_from@compute`,
-            `init_from@emcee`, or `priors@dynesty`, otherwise will default to False.
+        * `require_limits` (bool, optional): whether to
+            require samples from the distibution(s) to be within parameter limits
+            (by including `&` with a uniform distribution if otherwise would extend
+            beyond limits).  If `twig` points to `init_from@emcee` or `priors@dynesty`,
+            will default to whether 'limits' is in the `init_from_requires` or `priors_requires`
+            parameter, respectively.  Otherwise will default to False.
+        * `require_checks` (bool or string, optional): whether to require samples
+            from the distribution(s) to pass compute and system checks.  Any
+            drawn value that does not pass checks will be redrawn.  If True, will
+            run for all attached compute options.  If a string, will run for the
+            passed compute label.  Will default to the relevant compute label if
+            `twig` points to `init_from@emcee` or `priors@dynesty` and 'checks'
+            or 'compute' is in `init_from_requires` or `priors_requires` parameter,
+            respectively.  Otherwise will default to False.
+        * `require_compute` (bool or string, optional): whether to require samples
+            from the distribution(s) to succesfully run a forward model (and
+            therefore includes `require_checks` and `require_limits`).  Any drawn
+            value that results in an error will be redrawn.  If a string, will
+            run for the passed compute label.  True will only be allowed if a
+            single set of compute options exist.  Will default to the relevant
+            compute label if `twig` points to `init_from@emcee` or `priors@dynesty`
+            and 'compute' is in `init_from_requires` or `priors_requires` parameter,
+            respectively.  Otherwise will default to False.
+        * `require_priors` (string, list, or False, optional): whether to
+            require samples from the distribution(s) to result in a finite
+            probability from a set of priors.  If not False, `require_priors`
+            will be passed directly as `twig` to <phoebe.frontend.bundle.Bundle.get_distribution_collection>
+            and any uniform distributions in the resulting distribution collection
+            will be combined with `&` logic.  Will default to the relevant
+            priors if `twig` points to `init_from@ecmee` and 'priors' is
+            in `init_from_requires`.  Otherwise will default to False.
         * `plot_uncertainties` (bool or list, optional, default=True): whether
             to plot uncertainties (as contours on 2D plots, vertical lines
             on histograms, and in the axes titles).  If True, defaults to `[1,2,3]`.
@@ -8678,13 +8825,29 @@ class Bundle(ParameterSet):
                 plot_kwargs[k] = kwargs.pop(k)
             elif k == 'sample_size':
                 plot_kwargs['size'] = kwargs.pop('sample_size')
-        dc, uniqueids = self.get_distribution_collection(twig=twig, set_labels=set_labels, keys='uniqueid', parameters=parameters, **kwargs)
+
+        distribution_filters, combine, include_constrained, to_univariates, to_uniforms, require_limits, require_checks, require_compute, require_priors = self._distribution_collection_defaults(twig=twig, **kwargs)
+
+        if require_checks or require_compute:
+            dc, uniqueids = self.get_distribution_collection(twig=twig, set_labels=set_labels, keys='uniqueid', parameters=parameters, check_limits=False, check_priors=False, **{k:v for k,v in kwargs.items() if k not in ['check_limits', 'check_priors']})
+            plot_kwargs['size'] = 500
+        else:
+            samples = None
+            dc, uniqueids = self.get_distribution_collection(twig=twig, set_labels=set_labels, keys='uniqueid', parameters=parameters, **kwargs)
+
         if 'size' not in plot_kwargs.keys():
             ps = self.filter(uniqueid=uniqueids, **_skip_filter_checks)
             constraint_funcs = [p.is_constraint.constraint_func for p in ps.to_list() if p.is_constraint is not None]
             if np.any([cf in ['requiv_detached_max', 'requiv_single_max', 'requiv_contact_min'] for cf in constraint_funcs]):
                 plot_kwargs['size'] = 1e3
-        return dc.plot(show=show, **plot_kwargs)
+
+
+        if require_checks or require_compute:
+            samples = self.sample_distribution_collection(twig=twig, parameters=parameters, sample_size=int(plot_kwargs.get('size', int(1e3))), return_as_array=True, **kwargs)
+        else:
+            samples = None
+
+        return dc.plot(samples=samples.T if samples is not None else None, show=show, **plot_kwargs)
 
     def uncertainties_from_distribution_collection(self, twig=None,
                                                    parameters=None,
@@ -8742,11 +8905,20 @@ class Bundle(ParameterSet):
             constraints).  An error may be raised if any matching parameters
             are not included in the original DistributionCollection or available
             through propagated constraints.
-        * `within_parameter_limits` (bool, optional): whether to
-            require distribution to be within parameter limits (by including &
-            with a uniform distribution if otherwise would extend beyone limits).
-            Will default to True if `twig` points to `sample_from@compute`,
-            `init_from@emcee`, or `priors@dynesty`, otherwise will default to False.
+        * `require_limits` (bool, optional): whether to
+            require samples from the distibution(s) to be within parameter limits
+            (by including `&` with a uniform distribution if otherwise would extend
+            beyond limits).  If `twig` points to `init_from@emcee` or `priors@dynesty`,
+            will default to whether 'limits' is in the `init_from_requires` or `priors_requires`
+            parameter, respectively.  Otherwise will default to False.
+        * `require_priors` (string, list, or False, optional): whether to
+            require samples from the distribution(s) to result in a finite
+            probability from a set of priors.  If not False, `require_priors`
+            will be passed directly as `twig` to <phoebe.frontend.bundle.Bundle.get_distribution_collection>
+            and any uniform distributions in the resulting distribution collection
+            will be combined with `&` logic.  Will default to the relevant
+            priors if `twig` points to `init_from@ecmee` and 'priors' is
+            in `init_from_requires`.  Otherwise will default to False.
         * `**kwargs`: all additional keyword arguments are passed directly to
             <phoebe.frontend.bundle.Bundle.get_distribution_collection>.
 

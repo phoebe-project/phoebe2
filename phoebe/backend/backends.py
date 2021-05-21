@@ -733,13 +733,16 @@ class SampleOverModel(object):
 
             # samples = range(sample_num)
             # note: sample_from can be any combination of solutions and distributions
-            distribution_filters, combine, include_constrained, to_univariates, to_uniforms, within_parameter_limits = b._distribution_collection_defaults(qualifier='sample_from', context='compute', compute=compute_ps.compute, **kwargs)
+            distribution_filters, combine, include_constrained, to_univariates, to_uniforms, require_limits, require_checks, require_compute, require_priors = b._distribution_collection_defaults(qualifier='sample_from', context='compute', compute=compute_ps.compute, **kwargs)
             sample_kwargs = {'distribution_filters': distribution_filters,
                              'combine': combine,
                              'include_constrained': include_constrained,
                              'to_univariates': to_univariates,
                              'to_uniforms': to_uniforms,
-                             'within_parameter_limits': within_parameter_limits}
+                             'require_limits': require_limits,
+                             'require_checks': require_checks,
+                             'require_compute': require_compute,
+                             'require_priors': require_priors}
 
             sample_dict = b.sample_distribution_collection(N=sample_num,
                                                 keys='uniqueid',

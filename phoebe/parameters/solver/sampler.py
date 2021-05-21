@@ -86,6 +86,11 @@ def emcee(**kwargs):
         first: ignore duplicate entries and take the first in the init_from parameter.
         and: combine duplicate entries via AND logic, dropping covariances.
          or: combine duplicate entries via OR logic, dropping covariances.
+    * `init_from_requires` (string or list, optional, default=['limits', 'priors']):
+        Requirements to apply to the initializing distribution.  Including all
+        checks prevents walkers from initializing at `lnprob=-inf`, but does add
+        overhead.  See <phoebe.frontend.bundle.Bundle.sample_distribution_collection>
+        for explanation of each option.
     * `priors` (list, optional, default=[]): distribution(s) to use for priors
         (constrained and unconstrained parameters will be included, covariances
         will be respected except for distributions merge via `priors_combine`)
@@ -130,6 +135,7 @@ def emcee(**kwargs):
     params += [ChoiceParameter(qualifier='continue_from', value=kwargs.get('continue_from', 'None'), choices=['None'], description='continue the MCMC run from an existing emcee solution.  Chains will be appended to existing chains (so it is safe to overwrite the existing solution).  If None, will start a new run using init_from.')]
     params += [SelectParameter(visible_if='continue_from:None', qualifier='init_from', value=kwargs.get('init_from', []), choices=[], description='distribution(s) to initialize samples from (all unconstrained parameters with attached distributions will be sampled/fitted, constrained parameters will be ignored, covariances will be respected)')]
     params += [ChoiceParameter(visible_if='continue_from:None,init_from:<notempty>', qualifier='init_from_combine', value=kwargs.get('init_from_combine', 'first'), choices=['first', 'and', 'or'], description='Method to use to combine multiple distributions from init_from for the same parameter.  first: ignore duplicate entries and take the first in the init_from parameter. and: combine duplicate entries via AND logic, dropping covariances.  or: combine duplicate entries via OR logic, dropping covariances.')]
+    params += [SelectParameter(visible_if='contine_from:None,init_from:<notempty>', qualifier='init_from_requires', value=kwargs.get('init_from_requires', ['limits', 'priors']), choices=['limits', 'checks', 'compute', 'priors'], description='Requirements to apply to the initializing distribution.  Including all checks prevents walkers from initializing at lnprob=-inf, but does add overhead.')]
 
     params += [SelectParameter(qualifier='priors', value=kwargs.get('priors', []), choices=[], description='distribution(s) to use for priors (constrained and unconstrained parameters will be included, covariances will be respected except for distributions merge via priors_combine)')]
     params += [ChoiceParameter(visible_if='priors:<notempty>', qualifier='priors_combine', value=kwargs.get('priors_combine', 'and'), choices=['first', 'and', 'or'], description='Method to use to combine multiple distributions from priors for the same parameter.  first: ignore duplicate entries and take the first in the priors parameter. and: combine duplicate entries via AND logic, dropping covariances.  or: combine duplicate entries via OR logic, dropping covariances.')]
@@ -213,6 +219,11 @@ def dynesty(**kwargs):
         first: ignore duplicate entries and take the first in the priors parameter.
         and: combine duplicate entries via AND logic, dropping covariances.
         or: combine duplicate entries via OR logic, dropping covariances.
+    * `priors_require` (string or list, optional, default=['limits']):
+        Requirements to apply to the initializing distribution.  Including all
+        checks prevents walkers from initializing at `lnprob=-inf`, but does add
+        overhead.  See <phoebe.frontend.bundle.Bundle.sample_distribution_collection>
+        for explanation of each option.
     * `nlive` (int, optional, default=100): number of live points.   Larger
         numbers result in a more finely sampled posterior (more accurate evidence),
         but also a larger number of iterations required to converge.
@@ -246,6 +257,7 @@ def dynesty(**kwargs):
 
     params += [SelectParameter(qualifier='priors', value=kwargs.get('priors', []), choices=[], description='distribution(s) to use for priors (as dynesty samples directly from the prior, constrained parameters will be ignored, covariances will be dropped)')]
     params += [ChoiceParameter(visible_if='priors:<notempty>', qualifier='priors_combine', value=kwargs.get('priors_combine', 'and'), choices=['first', 'and', 'or'], description='Method to use to combine multiple distributions from priors for the same parameter. first: ignore duplicate entries and take the first in the priors parameter. and: combine duplicate entries via AND logic, dropping covariances.  or: combine duplicate entries via OR logic, dropping covariances.')]
+    params += [SelectParameter(visible_if='priors:<notempty>', qualifier='priors_require', value=kwargs.get('priors_require', ['limits']), choices=['limits', 'checks', 'compute'], description='Requirements to apply to the priors distribution.  Including all checks prevent initializing at lnprob=-inf, but does add overhead.')]
 
     params += [IntParameter(qualifier='nlive', value=kwargs.get('nlive', 100), limits=(1,1e12), description='number of live points.   Larger numbers result in a more finely sampled posterior (more accurate evidence), but also a larger number of iterations required to converge.')]
     params += [IntParameter(qualifier='maxiter', value=kwargs.get('maxiter', 100), limits=(1,1e12), description='maximum number of iterations')]
