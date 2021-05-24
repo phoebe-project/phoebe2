@@ -1288,6 +1288,7 @@ class EmceeBackend(BaseSolverBackend):
 
             init_from = kwargs.get('init_from')
             init_from_combine = kwargs.get('init_from_combine')
+            init_from_requires = kwargs.get('init_from_requires')
             priors = kwargs.get('priors')
             priors_combine = kwargs.get('priors_combine')
 
@@ -1311,17 +1312,20 @@ class EmceeBackend(BaseSolverBackend):
 
                 expose_failed = kwargs.get('expose_failed')
 
-                # TODO: implement within_distribution_collection=None option to automatically & by any uniforms/deltas in other dc
-                dc, params_uniqueids = b.get_distribution_collection(distribution=init_from,
-                                                                     combine=init_from_combine,
-                                                                     include_constrained=False,
-                                                                     within_parameter_limits=True,
-                                                                     keys='uniqueid')
-
+                logger.info("initializing {} walker positions".format(nwalkers))
+                dc, params_uniqueids, p0 = b.sample_distribution_collection(distribution=init_from,
+                                                                            combine=init_from_combine,
+                                                                            include_constrained=False,
+                                                                            require_limits='limits' in init_from_requires,
+                                                                            require_checks=compute if 'checks' in init_from_requires else False,
+                                                                            require_compute=compute if 'compute' in init_from_requires else False,
+                                                                            require_priors='priors@{}'.format(solver) if 'priors' in init_from_requires else False,
+                                                                            sample_size=nwalkers,
+                                                                            progressbar=False,
+                                                                            return_dc_uniqueids_array=True,
+                                                                            )
 
                 wrap_central_values = _wrap_central_values(b, dc, params_uniqueids)
-
-                p0 = dc.sample(size=nwalkers).T
                 params_units = [dist.unit.to_string() for dist in dc.dists]
 
                 continued_failed_samples = {}

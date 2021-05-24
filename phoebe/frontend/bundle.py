@@ -8721,8 +8721,8 @@ class Bundle(ParameterSet):
             if user_interactive_constraints:
                 conf.interactive_constraints_on()
             return _return_ps(self, ParameterSet(changed_params))
-        elif kwargs.get('return_as_array', False):
-            return sampled_values
+        elif kwargs.get('return_dc_uniqueids_array', False):
+            return dc, uniqueids, sampled_values
         else:
             # ret is a dictionary
             return ret
@@ -8856,7 +8856,7 @@ class Bundle(ParameterSet):
 
 
         if require_checks or require_compute:
-            samples = self.sample_distribution_collection(twig=twig, parameters=parameters, sample_size=int(plot_kwargs.get('size', int(1e3))), return_as_array=True, **kwargs)
+            _, _, samples = self.sample_distribution_collection(twig=twig, parameters=parameters, sample_size=int(plot_kwargs.get('size', int(1e3))), return_dc_uniqueids_array=True, **kwargs)
         else:
             samples = None
 
