@@ -257,7 +257,8 @@ def dynesty(**kwargs):
 
     params += [SelectParameter(qualifier='priors', value=kwargs.get('priors', []), choices=[], description='distribution(s) to use for priors (as dynesty samples directly from the prior, constrained parameters will be ignored, covariances will be dropped)')]
     params += [ChoiceParameter(visible_if='priors:<notempty>', qualifier='priors_combine', value=kwargs.get('priors_combine', 'and'), choices=['first', 'and', 'or'], description='Method to use to combine multiple distributions from priors for the same parameter. first: ignore duplicate entries and take the first in the priors parameter. and: combine duplicate entries via AND logic, dropping covariances.  or: combine duplicate entries via OR logic, dropping covariances.')]
-    params += [SelectParameter(visible_if='priors:<notempty>', qualifier='priors_require', value=kwargs.get('priors_require', ['limits']), choices=['limits', 'checks', 'compute'], description='Requirements to apply to the priors distribution.  Including all checks prevent initializing at lnprob=-inf, but does add overhead.')]
+    # TODO: add support for priors_require=checks/compute?  Would then need to rewrite how dynesty samples, which may not be worth the overhead
+    params += [SelectParameter(visible_if='priors:<notempty>', qualifier='priors_require', value=kwargs.get('priors_require', ['limits']), choices=['limits'], description='Requirements to apply to the priors distribution.')]
 
     params += [IntParameter(qualifier='nlive', value=kwargs.get('nlive', 100), limits=(1,1e12), description='number of live points.   Larger numbers result in a more finely sampled posterior (more accurate evidence), but also a larger number of iterations required to converge.')]
     params += [IntParameter(qualifier='maxiter', value=kwargs.get('maxiter', 100), limits=(1,1e12), description='maximum number of iterations')]
