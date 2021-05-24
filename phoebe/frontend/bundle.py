@@ -8684,8 +8684,14 @@ class Bundle(ParameterSet):
                 is_master = True
 
             if is_master:
-                args_per_sample = [(self.copy(), uniqueids, sample_per_param, dc, require_compute, require_checks) for sample_per_param in sampled_values.T]
+                if sample_size is None:
+                    sampled_values_T = [sampled_values.T]
+                else:
+                    sampled_values_T = sampled_values.T
+                args_per_sample = [(self.copy(), uniqueids, sample_per_param, dc, require_compute, require_checks) for sample_per_param in sampled_values_T]
                 sampled_values = np.asarray(list(pool.map(backends._test_single_sample, args_per_sample, callback=_progress))).T
+                if sample_size is None:
+                    sampled_values = sampled_values[:,0]
                 if _pbar is not None:
                     _pbar.close()
             else:
