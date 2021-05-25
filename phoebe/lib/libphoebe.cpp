@@ -10169,8 +10169,8 @@ static PyObject *wd_readdata(PyObject *self, PyObject *args, PyObject *keywds) {
   //
 
   int len[2] = {
-		wd_atm::read_data<double, wd_atm::N_planck>(PyString_AsString(ofilename_planck), planck_table),
-		wd_atm::read_data<double, wd_atm::N_atm>(PyString_AsString(ofilename_atm), atm_table)
+    wd_atm::read_data<double, wd_atm::N_planck>(PyString_AsString(ofilename_planck), planck_table),
+    wd_atm::read_data<double, wd_atm::N_atm>(PyString_AsString(ofilename_atm), atm_table)
 	};
 
   //
@@ -10178,13 +10178,17 @@ static PyObject *wd_readdata(PyObject *self, PyObject *args, PyObject *keywds) {
   //
   std::string err_msg;
 
-  if (len[0] < 0)
-    err_msg = "\nProblem opening the planck file:"_s + PyString_AsString(ofilename_planck);
+  if (len[0] == -1)
+    err_msg = "\nProblem opening the planck file: \""_s + PyString_AsString(ofilename_planck) + "\"."_s;
+  else if (len[1] == -2)
+    err_msg = "\nPlanck file:\""_s + PyString_AsString(ofilename_planck)+ "\"likely does not exist."_s;
   else if (len[0] != wd_atm::N_planck)
     err_msg = "\nWrong size read, len= "_s + std::to_string(len[0]) + " len_expected="_s + std::to_string(wd_atm::N_planck);
 
-  if (len[1] < 0)
-    err_msg += "\nProblem opening the atm file:"_s + PyString_AsString(ofilename_atm);
+  if (len[1] == -1)
+    err_msg += "\nProblem opening the atm file:\""_s + PyString_AsString(ofilename_atm) + "\"."_s;
+  else if (len[1] == -2)
+    err_msg = "\nAtm file:\""_s + PyString_AsString(ofilename_atm)+ "\"likely does not exist."_s;
   else if (len[1] != wd_atm::N_atm)
     err_msg += "\nWrong size read, len= "_s + std::to_string(len[1]) + " len_expected="_s + std::to_string(wd_atm::N_atm);
 

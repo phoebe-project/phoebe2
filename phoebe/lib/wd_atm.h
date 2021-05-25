@@ -78,6 +78,11 @@ namespace wd_atm {
 
     Output:
       data - array of length n
+
+    Return:
+      -1 : if problem with opening the file
+      -2 : file likely does not exist
+      len : record read
   */
   template <class T, int n>
   int read_data(const char *filename, T *data) {
@@ -85,7 +90,9 @@ namespace wd_atm {
     // store data in a string
     std::string s;
     std::ifstream in(filename, std::ios::in | std::ios::binary);
-    if (!in.is_open()) return 0;
+
+    if (in.fail()) return -2;
+    if (!in.is_open()) return -1;
 
     in.seekg(0, std::ios::end);
     s.resize(in.tellg());
