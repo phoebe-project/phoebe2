@@ -236,7 +236,7 @@ def _get_combined_lc(b, datasets, combine, phase_component=None, mask=True, norm
 
         if len(ds_sigmas) == 0:
             # TODO: option for this???
-            ds_sigmas = 0.001*fluxes.mean()*np.ones(len(fluxes))
+            ds_sigmas = np.full_like(ds_fluxes, fill_value=0.001*ds_fluxes.mean())
 
         if normalize:
             if combine == 'max':
