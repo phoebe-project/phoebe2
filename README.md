@@ -84,6 +84,9 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.3.42 - RV plotting bugfix
+* fixes plotting RVs when compute_times is provided instead of times.  Previously would raise an error that the 'rvs' parameter could not be found as it is hidden in the dataset.
+
 ### 2.3.41 - estimators missing sigmas bugfix
 * fixes handling of default sigmas within LC estimators when no sigmas are provided in the dataset.
 
