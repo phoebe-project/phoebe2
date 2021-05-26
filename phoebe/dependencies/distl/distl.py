@@ -4065,7 +4065,10 @@ class DistributionCollection(BaseDistlObject):
         ----------
         * ValueError: if `values` is None, but no cached samples are available.
         """
-        return self._method_on_values('logpdf', 'sum', values, as_univariates)
+        ret_ = self._method_on_values('logpdf', 'sum', values, as_univariates)
+        if isinstance(ret_, _np.ndarray) and len(ret_)==1:
+            return ret_[0]
+        return ret_
 
     def cdf(self, values=None, as_univariates=False):
         """
