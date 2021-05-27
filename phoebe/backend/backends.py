@@ -675,7 +675,7 @@ def _call_run_single_model(args):
             return model_ps.to_json(), success_samples, failed_samples
 
 def _test_single_sample(args):
-    b_copy, uniqueids, sample_per_param, dc, require_compute, require_checks = args
+    b_copy, uniqueids, sample_per_param, dc, require_priors, require_compute, require_checks, allow_retries = args
     success = False
     while not success:
         for uniqueid, sample_value in zip(uniqueids, sample_per_param):
@@ -692,11 +692,13 @@ def _test_single_sample(args):
         elif require_checks not in [True, False]:
             compute_for_checks = require_checks
 
+        if require_priors and success:
+            logp = b_copy.calculate_lnp(require_priors, include_constrained=True)
+            if not np.isfinite(logp):
+                success = False
+
         if (require_checks or require_compute) and success:
             if not b_copy.run_checks_compute(compute=compute_for_checks).passed:
-                # print("*** run checks failed, drawing new value")
-                replacement_values = dc.sample(size=1)
-                sample_per_param = replacement_values[0]
                 success = False
             else:
                 success = True
@@ -705,12 +707,17 @@ def _test_single_sample(args):
             try:
                 b_copy.run_compute(compute=compute_for_checks, skip_checks=True, progressbar=False, model='test', overwrite=True)
             except Exception as e:
-                # print("*** compute failed, drawing new value: ", e)
-                replacement_values = dc.sample(size=1)
-                sample_per_param = replacement_values[0]
                 success = False
             else:
                 success = True
+
+        if not success:
+            if allow_retries:
+                allow_retries -= 1
+                replacement_values = dc.sample(size=1)
+                sample_per_param = replacement_values[0]
+            else:
+                raise ValueError("single sample exceeded number of allowed retries.  Check sampling distribution to make sure enough valid entries exist.")
 
     return sample_per_param
 

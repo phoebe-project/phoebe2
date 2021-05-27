@@ -3873,7 +3873,8 @@ class DistributionCollection(BaseDistlObject):
         # first well expand any Composite distributions to access the underlying
         # distributions
         def unpack_dists(dist):
-            if isinstance(dist, Composite):
+            if isinstance(dist, Composite) and dist.math not in ['__and__', '__or__']:
+                # and/or are flattened to univariates, so we only want to expose them once
                 dists = []
                 for dist in dist.dists:
                     dists += unpack_dists(dist)
