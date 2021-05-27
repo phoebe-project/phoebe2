@@ -8490,13 +8490,14 @@ class Bundle(ParameterSet):
 
                 for prior, prior_uniqueid in zip(priors_dc.dists, priors_uniqueids):
                     i = uniqueids.index(prior_uniqueid)
+                    param = self.get_parameter(uniqueid=prior_uniqueid, **_skip_filter_checks)
                     label = ret_dists[i].label
                     label_latex = ret_dists[i].label_latex
                     if prior.__class__.__name__ == 'Uniform':
-                        # print("*** applying prior directly")
+                        # print("*** applying prior directly to {}".format(param.twig))
                         ret_dists[i] = ret_dists[i] & prior.copy()
                     else:
-                        # print("*** applying prior from ppf")
+                        # print("*** applying prior from ppf to {}".format(param.twig))
                         require_priors = False # to return that we couldn't fully account for priors
                         ret_dists[i] = ret_dists[i] & _distl.uniform(prior.ppf(1e-6), prior.ppf(1-1e-6), label=label, unit=param.default_unit)
                     ret_dists[i].label = label
