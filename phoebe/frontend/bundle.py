@@ -8879,7 +8879,7 @@ class Bundle(ParameterSet):
         if require_checks or require_compute or require_priors:
             dc, uniqueids, require_limits_success, require_priors_success = self.get_distribution_collection(twig=twig, set_labels=set_labels, keys='uniqueid', parameters=parameters, ignore_require_exception=True, return_require=True, **kwargs)
             if require_checks or require_compute or (require_priors and not require_priors_success):
-                plot_kwargs['size'] = 500
+                plot_kwargs.setdefault('size', 500)
         else:
             samples = None
             dc, uniqueids = self.get_distribution_collection(twig=twig, set_labels=set_labels, keys='uniqueid', parameters=parameters, **kwargs)
@@ -8888,8 +8888,7 @@ class Bundle(ParameterSet):
             ps = self.filter(uniqueid=uniqueids, **_skip_filter_checks)
             constraint_funcs = [p.is_constraint.constraint_func for p in ps.to_list() if p.is_constraint is not None]
             if np.any([cf in ['requiv_detached_max', 'requiv_single_max', 'requiv_contact_min'] for cf in constraint_funcs]):
-                plot_kwargs['size'] = 1e3
-
+                plot_kwargs.setdefault('size', 1e3)
 
         if require_checks or require_compute or (require_priors and not require_priors_success):
             _, _, samples = self.sample_distribution_collection(twig=twig, parameters=parameters, sample_size=int(plot_kwargs.get('size', int(1e3))), return_dc_uniqueids_array=True, **kwargs)
