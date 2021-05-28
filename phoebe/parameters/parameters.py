@@ -5012,14 +5012,14 @@ class ParameterSet(object):
                     # but in order to handle the possibility of indexes in array parameters
                     # we need to find the matches in adopt_uniqueids which includes the index
                     if kwargs.get('y', None):
-                        y = kwargs.get('y')
+                        ys = kwargs.get('y')
                         if isinstance(ys, str):
                             ys = [ys]
 
                         # ys are currently assumed to twigs (with or without indices)
                         # we need a list of uniqueids, including indices when necessary
                         def _uniqueids_for_y(fitted_ps, twig=None):
-                            y, index = _extract_index_from_string(y)
+                            y, index = _extract_index_from_string(twig)
                             p = fitted_ps.get_parameter(twig=y, **_skip_filter_checks)
                             if index is None:
                                 if p.__class__.__name__ == 'FloatArrayParameter':
