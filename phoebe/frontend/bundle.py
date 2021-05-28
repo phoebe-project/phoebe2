@@ -8464,7 +8464,7 @@ class Bundle(ParameterSet):
                 if np.any([isinstance(d, _distl.distl.BaseMultivariateSliceDistribution) for d in ret_dists]):
                     if not kwargs.get('ignore_require_exception', False):
                         raise ValueError("cannot use require_priors for non-univariate distributions (within get_distribution_collection).  Pass require_priors=False or to_univariates=True or sample/plot directly.")
-                    reqire_priors = False
+                    require_priors = False
 
             if require_limits:
                 for i, uniqueid in enumerate(uniqueids):
