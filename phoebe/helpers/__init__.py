@@ -1,5 +1,6 @@
 import numpy as np
 from copy import deepcopy as _deepcopy
+from scipy.special import erfinv as _erfinv
 
 from phoebe import u
 
@@ -154,6 +155,110 @@ def process_mcmc_chains(lnprobabilities, samples, burnin=0, thin=1, lnprob_cutof
         # samples 3D (niters (after burning,thin), nwalkers, nparameters)
 
     return lnprobabilities, samples
+
+def acf(ts, lags=0, submean=False, normed=True):
+    """
+    Compute the autocorrelation function of any input array.
+
+    See also:
+    * <phoebe.helpers.acf_from_solution>
+
+    Arguments
+    ------------
+    * `ts`
+    * `lags`
+    * `submean`
+    * `normed`
+
+    Returns
+    -----------
+    * (array): autocorrelation function
+    """
+    lags = len(ts) if lags==0 else lags
+    c0 = np.sum((ts-ts.mean())**2)/len(ts) if normed else 1.0
+    if submean:
+        acf = np.array([np.sum((ts[k:]-ts[k:].mean())*(ts[:len(ts)-k]-ts[:len(ts)-k].mean()))/c0/len(ts) for k in range(lags)])
+    else:
+        acf = np.array([np.sum((ts[k:]-ts.mean())*(ts[:len(ts)-k]-ts.mean()))/c0/len(ts) for k in range(lags)])
+
+    return acf
+
+def acf_ci(lents, p=0.05):
+    return np.sqrt(2)*_erfinv(1-p)/np.sqrt(lents)
+
+
+def process_acf(lnprobabilities, samples, nlags=0):
+    """
+    """
+    niters, nwalkers, nparams = samples.shape
+
+    if nlags > niters:
+        raise ValueError("nlags must be <= number of remaining iterations (after burnin)")
+
+    ret = [np.array([acf(lnprobabilities[:,iwalker], lags=nlags) for iwalker in range(nwalkers)])]
+
+    for iparam in range(nparams):
+        ret.append(np.array([acf(samples[:,iwalker,iparam], lags=nlags) for iwalker in range(nwalkers)]))
+
+    return ret, acf_ci(niters)
+
+def process_acf_from_solution(b, solution, nlags=None, burnin=None, lnprob_cutoff=None, adopt_parameters=None):
+    """
+    Compute the autocorrelation function from an emcee solution.
+
+    See also:
+    * <phoebe.helpers.process_acf>
+    * <phoebe.helpers.acf>
+    * <phoebe.helpers.acf_ci>
+
+    Arguments
+    --------------
+    * `b` (<phoebe.frontend.bundle.Bundle>): the Bundle
+    * `solution` (string): solution label
+    * `nlags` (int, optional, default=None): If not None, will override the
+        value in the solution.
+    * `burnin` (int, optional, default=None): If not None, will override
+        the value in the solution.
+    * `lnprob_cutoff` (float, optional, default=None): If not None, will override
+        the value in the solution.
+    * `adopt_parameters` (list, optional, default=None): If not None, will
+        override the value in the solution.
+
+    Returns
+    ------------
+    * (dictionary, float) dictionary with keys being the parameter twigs
+        (or 'lnprobabilities') and values being the output of <phoebe.helpers.acf>
+        (array with shape (nwalkers, niters after burnin)) and float being the
+        confidence intervale from <phoebe.helpers.acf_ci>.
+    """
+    solution_ps = b.get_solution(solution=solution, **_skip_filter_checks)
+    if solution_ps.kind != 'emcee':
+        raise TypeError("solution does not point to an emcee solution")
+
+    lnprobabilities, samples = process_mcmc_chains_from_solution(b,
+                                                                 solution,
+                                                                 burnin=burnin,
+                                                                 thin=1,
+                                                                 lnprob_cutoff=lnprob_cutoff,
+                                                                 adopt_parameters=adopt_parameters,
+                                                                 flatten=False)
+
+
+    nlags = solution_ps.get_value(qualifier='nlags', nlags=nlags, **_skip_filter_checks)
+
+    acfs, acf_ci = process_acf(lnprobabilities, samples, nlags)
+
+    if adopt_parameters is None:
+        adopt_parameters = solution_ps.get_value(qualifier='fitted_twigs', **_skip_filter_checks)
+
+    keys = ['lnprobabilities'] + list(adopt_parameters)
+    if len(keys) != len(acfs):
+        # TODO: if adopt_parameters has a wildcard, we may instead want to get the indices and manually retrieve the matching twigs/uniqueids
+        raise ValueError("adopt_parameters length does not match returned length of samples")
+
+    acf_dict = {k: acf for k,acf in zip(keys, acfs)}
+    return acf_dict, acf_ci
+
 
 def get_emcee_object_from_solution(b, solution, adopt_parameters=None):
     """
