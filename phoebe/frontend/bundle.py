@@ -8456,12 +8456,12 @@ class Bundle(ParameterSet):
         if kwargs.get('return_dc', True):
             ret_dists += [uid_dist_dict.get(uid) for uid in uniqueids]
             if require_limits:
-                if not np.all([isinstance(d, _distl.distl.BaseUnivariateDistribution) for d in ret_dists]):
+                if np.any([isinstance(d, _distl.distl.BaseMultivariateSliceDistribution) for d in ret_dists]):
                     if not kwargs.get('ignore_require_exception', False):
                         raise ValueError("cannot use require_limits for non-univariate distributions (within get_distribution_collection).  Pass require_limits=False or to_univariates=True or sample/plot directly.")
                     require_limits = False
             if require_priors:
-                if not np.all([isinstance(d, _distl.distl.BaseUnivariateDistribution) for d in ret_dists]):
+                if np.any([isinstance(d, _distl.distl.BaseMultivariateSliceDistribution) for d in ret_dists]):
                     if not kwargs.get('ignore_require_exception', False):
                         raise ValueError("cannot use require_priors for non-univariate distributions (within get_distribution_collection).  Pass require_priors=False or to_univariates=True or sample/plot directly.")
                     reqire_priors = False
