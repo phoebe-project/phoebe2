@@ -8482,10 +8482,10 @@ class Bundle(ParameterSet):
 
             if require_priors:
                 priors_dc, priors_uniqueids = self.get_distribution_collection(require_priors, include_constrained=True, keys='uniqueid')
-                if np.any([isinstance(d, _distl.distl.Composite) and d.math in ['__or__'] for d in priors_dc.dists_unpacked]):
+                if np.any([(isinstance(d, _distl.distl.Composite) and d.math in ['__or__']) or isinstance(d, _distl.distl.BaseMultivariateSliceDistribution) for d in priors_dc.dists_unpacked]):
                     # then we can still apply the ppf for the wide-bounds before sampling, but should raise an error if calling directly from get_distribution_collection
                     if not kwargs.get('ignore_require_exception', False):
-                        raise ValueError("cannot use require_priors for priors with or logic (within get_distribution_collection).  Pass require_priors=False or sample/plot directly.")
+                        raise ValueError("cannot use require_priors for priors with OR logic or multivariate covariances (within get_distribution_collection).  Pass require_priors=False or sample/plot directly.")
                     require_priors = False
 
                 for prior, prior_uniqueid in zip(priors_dc.dists, priors_uniqueids):
