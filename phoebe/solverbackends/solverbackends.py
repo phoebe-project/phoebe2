@@ -1321,7 +1321,7 @@ class EmceeBackend(BaseSolverBackend):
                                                                             require_compute=compute if 'compute' in init_from_requires else False,
                                                                             require_priors='priors@{}'.format(solver) if 'priors' in init_from_requires else False,
                                                                             sample_size=nwalkers,
-                                                                            progressbar=False,
+                                                                            progressbar=kwargs.get('progressbar', False),
                                                                             return_dc_uniqueids_array=True,
                                                                             )
 
