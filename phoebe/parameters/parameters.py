@@ -5082,6 +5082,62 @@ class ParameterSet(object):
 
                             # TODO: support for c = twig/lnprobabilities
                             return_ += [kwargs]
+                elif style in ['acf', 'acf_lnprobabilities']:
+                    nlags = ps.get_value(qualifier='nlags', nlags=kwargs.get('nlags', None), **_skip_filter_checks)
+
+                    kwargs['plot_package'] = 'autofig'
+                    if 'parameters' in kwargs.keys():
+                        raise ValueError("cannot currently plot {} while providing parameters.  Pass or set adopt_parameters to plot a subset of available parameters".format(style))
+                    kwargs['autofig_method'] = 'plot'
+                    kwargs.setdefault('marker', 'None')
+                    kwargs.setdefault('linestyle', 'solid')
+
+                    fitted_uniqueids = self._bundle.get_value(qualifier='fitted_uniqueids', context='solution', solution=ps.solution, **_skip_filter_checks)
+                    # fitted_twigs = self._bundle.get_value(qualifier='fitted_twigs', context='solution', solution=ps.solution, **_skip_filter_checks)
+                    fitted_units = self._bundle.get_value(qualifier='fitted_units', context='solution', solution=ps.solution, **_skip_filter_checks)
+                    fitted_ps = self._bundle.filter(uniqueid=list(fitted_uniqueids), **_skip_filter_checks)
+                    lnprobabilities_proc, samples_proc = _helpers.process_mcmc_chains(lnprobabilities, samples, burnin, 1, lnprob_cutoff, adopt_inds, flatten=False)
+                    acf_proc, ci_proc = _helpers.process_acf(lnprobabilities_proc, samples_proc, nlags)
+                    # acf_proc [parameter, nwalkers, lag]
+                    # ci_proc (float)
+
+                    c = kwargs.get('c', None)
+                    kwargs_orig = _deepcopy(kwargs)
+
+                    plot_uniqueids = adopt_uniqueids if style=='acf' else [0]
+                    for plot_uniqueid in plot_uniqueids:
+                        if style=='acf':
+                            parameter_ind = list(adopt_uniqueids).index(plot_uniqueid)
+                            _, index = _extract_index_from_string(plot_uniqueid)
+                            yparam = fitted_ps.get_parameter(uniqueid=plot_uniqueid, **_skip_filter_checks)
+                        else:
+                            parameter_ind = -1  # to force the lnprobability in position 0
+
+                        for walker_ind in range(acf_proc[parameter_ind+1].shape[0]):
+                            kwargs = _deepcopy(kwargs_orig)
+
+                            if c is None:
+                                pass
+                            else:
+                                # assume named color?
+                                kwargs['c'] = c
+
+                            # this needs to be the unflattened version
+                            acf_y = acf_proc[parameter_ind+1][walker_ind, :]
+
+                            kwargs['x'] = np.arange(len(acf_y), dtype=float)
+                            kwargs['xlabel'] = 'lag (nlags={}, burnin={}, lnprob_cutoff={})'.format(nlags, burnin, lnprob_cutoff)
+
+                            kwargs['y'] = acf_y
+                            kwargs['ylabel'] = 'normalized autocorrelation ({})'.format('lnprobabilities' if style=='acf_lnprobabilities' else _corner_twig(yparam, index=index))
+
+                            # TODO: support for c = twig/lnprobabilities
+                            axhline_u =  {'plot_package': 'autofig', 'autofig_method': 'plot', 'color': 'k', 'linestyle': 'dashed', 'axhline': True, 'y': ci_proc}
+                            axhline_l =  {'plot_package': 'autofig', 'autofig_method': 'plot', 'color': 'k', 'linestyle': 'dashed', 'axhline': True, 'y': -ci_proc}
+                            return_ += [kwargs, axhline_u, axhline_l]
+
+
+
                 else:
                     raise NotImplementedError()
 
@@ -5715,7 +5771,7 @@ class ParameterSet(object):
 
                 elif plot_package == 'autofig':
                     y = plot_kwargs.get('y', [])
-                    axvline = plot_kwargs.pop('axvline', False)
+                    axvline = plot_kwargs.pop('axvline', False) or plot_kwargs.pop('axhline', False)
                     if axvline or (isinstance(y, u.Quantity) and isinstance(y.value, float)) or (hasattr(y, 'value') and isinstance(y.value, float)):
                         pass
                     elif not len(y):
