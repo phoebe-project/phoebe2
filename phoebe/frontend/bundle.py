@@ -8701,11 +8701,23 @@ class Bundle(ParameterSet):
                 _pbar = None
 
 
+            within_mpirun = mpi.within_mpirun
+            mpi_enabled = mpi.enabled
+
+            if kwargs.get('pool', None):
+                pool = kwargs.get('pool')
+                is_master = True
             if mpi.within_mpirun:
                 logger.info("require conditions using MPI")
                 # print("*** require conditions using MPI")
                 pool = _pool.MPIPool()
                 is_master = pool.is_master()
+
+                # temporarily disable MPI within run_compute to disabled parallelizing
+                # per-time.
+                mpi._within_mpirun = False
+                mpi._enabled = False
+
             elif conf.multiprocessing_nprocs==0 or sample_size == 1:
                 logger.info("require conditions: serial mode")
                 # print("*** require conditions: serial mode")
@@ -8733,7 +8745,11 @@ class Bundle(ParameterSet):
                 pool.wait()
                 return
 
-            if pool is not None:
+            # restore previous MPI state
+            mpi._within_mpirun = within_mpirun
+            mpi._enabled = mpi_enabled
+
+            if pool is not None and 'pool' not in kwargs.keys():
                 pool.close()
 
         ret = {}

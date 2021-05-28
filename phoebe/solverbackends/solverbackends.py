@@ -1323,6 +1323,7 @@ class EmceeBackend(BaseSolverBackend):
                                                                             sample_size=nwalkers,
                                                                             progressbar=kwargs.get('progressbar', False),
                                                                             return_dc_uniqueids_array=True,
+                                                                            pool=pool
                                                                             )
 
                 wrap_central_values = _wrap_central_values(b, dc, params_uniqueids)
@@ -1420,7 +1421,7 @@ class EmceeBackend(BaseSolverBackend):
             sargs = {}
             sargs['iterations'] = niters
             sargs['progress'] = kwargs.get('progressbar', False)
-            sargs['skip_initial_state_check'] = False
+            sargs['skip_initial_state_check'] = continue_from is not 'None' or 'compute' in init_from_requires
 
 
             logger.debug("sampler.sample(p0, {})".format(sargs))
