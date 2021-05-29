@@ -5096,7 +5096,10 @@ class ParameterSet(object):
                     # fitted_twigs = self._bundle.get_value(qualifier='fitted_twigs', context='solution', solution=ps.solution, **_skip_filter_checks)
                     fitted_units = self._bundle.get_value(qualifier='fitted_units', context='solution', solution=ps.solution, **_skip_filter_checks)
                     fitted_ps = self._bundle.filter(uniqueid=list(fitted_uniqueids), **_skip_filter_checks)
+
                     lnprobabilities_proc, samples_proc = _helpers.process_mcmc_chains(lnprobabilities, samples, burnin, 1, lnprob_cutoff, adopt_inds, flatten=False)
+                    if nlags == 0:
+                        nlags = samples_proc.shape[0]
                     acf_proc, ci_b_proc, ci_proc = _helpers.process_acf(lnprobabilities_proc, samples_proc, nlags)
                     # acf_proc [parameter, nwalkers, lag]
                     # acf_b_proc [parameters, nwalkers, lag]

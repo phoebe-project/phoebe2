@@ -1184,7 +1184,7 @@ class EmceeBackend(BaseSolverBackend):
         solution_params += [_parameters.ArrayParameter(qualifier='autocorr_times', value=[], readonly=True, description='measured autocorrelation time with shape (len(fitted_twigs)) before applying burnin/thin.  To access with a custom burnin/thin, see phoebe.helpers.get_emcee_object_from_solution')]
         solution_params += [_parameters.IntParameter(qualifier='burnin', value=0, limits=(0,1e6), description='burnin to use when adopting/plotting the solution')]
         solution_params += [_parameters.IntParameter(qualifier='thin', value=1, limits=(1,1e6), description='thin to use when adopting/plotting the solution')]
-        solution_params += [_parameters.IntParameter(qualifier='nlags', value=1, limit=(1,1e6), description='number of lags to use when computing/plotting the autocorrelation function')]
+        solution_params += [_parameters.IntParameter(qualifier='nlags', value=1, limit=(1,1e6), description='number of lags to use when computing/plotting the autocorrelation function.  If 0, will default to niters-burnin.')]
         solution_params += [_parameters.FloatParameter(qualifier='lnprob_cutoff', value=-np.inf, default_unit=u.dimensionless_unscaled, description='lower limit cuttoff on lnproabilities to use when adopting/plotting the solution')]
 
         solution_params += [_parameters.FloatParameter(qualifier='progress', value=0, limits=(0,100), default_unit=u.dimensionless_unscaled, advanced=True, readonly=True, description='percentage of requested iterations completed')]
