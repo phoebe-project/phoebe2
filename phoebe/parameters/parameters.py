@@ -264,7 +264,7 @@ _forbidden_labels += ['nwalkers', 'niters', 'priors', 'priors_requires', 'init_f
                       'priors_combine', 'maxiter', 'maxfev', 'adaptive',
                       'xatol', 'fatol', 'bounds', 'bounds_combine', 'bounds_sigma',
                       'strategy', 'popsize', 'continue_from', 'init_from_combine',
-                      'burnin_factor', 'thin_factor', 'progress_every_niters',
+                      'burnin_factor', 'thin_factor', 'nlags_factor', 'progress_every_niters',
                       'nlive', 'maxcall', 'lc_geometry', 'rv_geometry', 'lc_periodogram', 'rv_periodogram', 'ebai',
                       'nelder_mead', 'differential_evolution', 'cg', 'powell', 'emcee', 'dynesty']
 
@@ -276,7 +276,7 @@ _forbidden_labels += ['primary_width', 'secondary_width',
                       'fitted_uniqueids', 'fitted_twigs', 'fitted_values', 'fitted_units',
                       'adopt_parameters', 'adopt_distributions', 'distributions_convert', 'distributions_bins',
                       'failed_samples', 'lnprobabilities', 'acceptance_fractions',
-                      'autocorr_time', 'burnin', 'thin', 'lnprob_cutoff',
+                      'autocorr_time', 'burnin', 'thin', 'lnprob_cutoff', 'nlags',
                       'progress',
                       'period_factor', 'power',
                       'nlive', 'niter', 'ncall', 'eff', 'samples', 'samples_id', 'samples_it', 'samples_u',
