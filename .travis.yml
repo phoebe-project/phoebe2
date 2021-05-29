@@ -10,7 +10,7 @@ env:
   global:
     # Set defaults to avoid repeating in most cases
     - CONDA_DEPENDENCIES='scipy matplotlib sympy requests mpi4py'
-    - PIP_DEPENDENCIES='nose rebound requests mpi4py pytest asdf'
+    - PIP_DEPENDENCIES='nose rebound requests mpi4py pytest asdf tqdm corner'
     - NOSETESTS=1
     - BENCHMARK=0
     - PHOEBE_ENABLE_PLOTTING='FALSE'
