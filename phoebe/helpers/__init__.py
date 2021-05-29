@@ -1,6 +1,7 @@
 import numpy as np
 from copy import deepcopy as _deepcopy
 from scipy.special import erfinv as _erfinv
+from scipy.stats import norm as _norm
 
 from phoebe import u
 
@@ -156,17 +157,18 @@ def process_mcmc_chains(lnprobabilities, samples, burnin=0, thin=1, lnprob_cutof
 
     return lnprobabilities, samples
 
-def acf(ts, lags=0, submean=False, normed=True):
+def acf(ts, nlags=0, submean=False, normed=True):
     """
     Compute the autocorrelation function of any input array.
 
     See also:
-    * <phoebe.helpers.acf_from_solution>
+    * <phoebe.helpers.process_acf>
+    * <phoebe.helpers.process_acf_from_solution>
 
     Arguments
     ------------
     * `ts`
-    * `lags`
+    * `nlags`
     * `submean`
     * `normed`
 
@@ -174,33 +176,74 @@ def acf(ts, lags=0, submean=False, normed=True):
     -----------
     * (array): autocorrelation function
     """
-    lags = len(ts) if lags==0 else lags
+    nlags = len(ts) if nlags==0 else nlags
     c0 = np.sum((ts-ts.mean())**2)/len(ts) if normed else 1.0
     if submean:
-        acf = np.array([np.sum((ts[k:]-ts[k:].mean())*(ts[:len(ts)-k]-ts[:len(ts)-k].mean()))/c0/len(ts) for k in range(lags)])
+        acf = np.array([np.sum((ts[k:]-ts[k:].mean())*(ts[:len(ts)-k]-ts[:len(ts)-k].mean()))/c0/len(ts) for k in range(nlags)])
     else:
-        acf = np.array([np.sum((ts[k:]-ts.mean())*(ts[:len(ts)-k]-ts.mean()))/c0/len(ts) for k in range(lags)])
+        acf = np.array([np.sum((ts[k:]-ts.mean())*(ts[:len(ts)-k]-ts.mean()))/c0/len(ts) for k in range(nlags)])
 
     return acf
 
 def acf_ci(lents, p=0.05):
     return np.sqrt(2)*_erfinv(1-p)/np.sqrt(lents)
 
+def acf_ci_bartlett(lents, acf, p=0.05):
+    vacf = np.ones_like(acf)/lents
+    vacf[0] = 0
+    vacf[1] = 1/lents
+    vacf[2:] *= 1+2*np.cumsum(acf[1:-1]**2)
+    return _norm.ppf(1-p/2) * np.sqrt(vacf)
+
 
 def process_acf(lnprobabilities, samples, nlags=0):
     """
+    Compute the autocorrelation function from input lnprobabilities and samples.
+
+    To apply burnin, call <phoebe.helpers.process_mcmc_chains> first or use
+    <phoebe.helpers.process_acf_from_solution> instead.
+
+    See also:
+    * <phoebe.helpers.process_acf_from_solution>
+    * <phoebe.helpers.acf>
+    * <phoebe.helpers.acf_ci_bartlett>
+    * <phoebe.helpers.acf_ci>
+
+    Arguments
+    ---------------
+    * `lnprobabilities` (array): array of all lnprobabilites as returned by MCMC.
+        Should have shape: (`niters`, `nwalkers`).
+    * `samples` (array): array of all samples from the chains as returned by MCMC.
+        Should have shape: (`niters`, `nwalkers`, `nparams`).
+    * `nlags` (int, optional, default=0): number of lags to use.  Passed
+        directly to <phoebe.helpers.acf>.  If 0, will default to the number
+        of iterations in `lnprobabilities` and `samples`.
+
+    Returns
+    ---------------
+    * (list of arrays, list of arrays, float): output from <phoebe.helpers.acf>
+        for `lnprobabilities` and each parameter in `samples`, output from
+        <phoebe.helpers.acf_ci_bartlett> for `lnprobabilities_proc` and each
+        parameter in `samples`, output from <phoebe.helpers.acf_ci>.
     """
     niters, nwalkers, nparams = samples.shape
 
     if nlags > niters:
         raise ValueError("nlags must be <= number of remaining iterations (after burnin)")
+    if nlags == 1:
+        raise ValueError("nlags must be > 1")
 
-    ret = [np.array([acf(lnprobabilities[:,iwalker], lags=nlags) for iwalker in range(nwalkers)])]
+    acfs = [np.array([acf(lnprobabilities[:,iwalker], nlags=nlags) for iwalker in range(nwalkers)])]
 
     for iparam in range(nparams):
-        ret.append(np.array([acf(samples[:,iwalker,iparam], lags=nlags) for iwalker in range(nwalkers)]))
+        acfs.append(np.array([acf(samples[:,iwalker,iparam], nlags=nlags) for iwalker in range(nwalkers)]))
 
-    return ret, acf_ci(niters)
+    ci_bartletts = [np.array([acf_ci_bartlett(niters, acfs[iparam][iwalker]) for iwalker in range(nwalkers)]) for iparam in range(len(acfs))]
+
+    # acfs list with length nparams+1 of arrays vs lag
+    # ci_bartletts with length nparams+1 of arrays vs lag
+    # acf_ci float
+    return acfs, ci_bartletts, acf_ci(niters)
 
 def process_acf_from_solution(b, solution, nlags=None, burnin=None, lnprob_cutoff=None, adopt_parameters=None):
     """
@@ -209,6 +252,7 @@ def process_acf_from_solution(b, solution, nlags=None, burnin=None, lnprob_cutof
     See also:
     * <phoebe.helpers.process_acf>
     * <phoebe.helpers.acf>
+    * <phoebe.helpers.acf_ci_bartlett>
     * <phoebe.helpers.acf_ci>
 
     Arguments
@@ -226,9 +270,11 @@ def process_acf_from_solution(b, solution, nlags=None, burnin=None, lnprob_cutof
 
     Returns
     ------------
-    * (dictionary, float) dictionary with keys being the parameter twigs
+    * (dictionary, dictionary, float) dictionary with keys being the parameter twigs
         (or 'lnprobabilities') and values being the output of <phoebe.helpers.acf>
-        (array with shape (nwalkers, niters after burnin)) and float being the
+        (array with shape (nwalkers, nlags)), dictionary with keys being the
+        parameter twigs (or 'lnprobabilities') and values being the output
+        of <phoebe.helpers.acf_ci_bartlett), and float being the
         confidence intervale from <phoebe.helpers.acf_ci>.
     """
     solution_ps = b.get_solution(solution=solution, **_skip_filter_checks)
@@ -246,7 +292,7 @@ def process_acf_from_solution(b, solution, nlags=None, burnin=None, lnprob_cutof
 
     nlags = solution_ps.get_value(qualifier='nlags', nlags=nlags, **_skip_filter_checks)
 
-    acfs, acf_ci = process_acf(lnprobabilities, samples, nlags)
+    acfs, acf_bartletts, acf_ci = process_acf(lnprobabilities, samples, nlags)
 
     if adopt_parameters is None:
         adopt_parameters = solution_ps.get_value(qualifier='fitted_twigs', **_skip_filter_checks)
@@ -257,7 +303,8 @@ def process_acf_from_solution(b, solution, nlags=None, burnin=None, lnprob_cutof
         raise ValueError("adopt_parameters length does not match returned length of samples")
 
     acf_dict = {k: acf for k,acf in zip(keys, acfs)}
-    return acf_dict, acf_ci
+    acf_bartletts = {k: acf_bartlett for k,acf_bartlett in zip(keys, acf_bartletts)}
+    return acf_dict, acf_bartletts, acf_ci
 
 
 def get_emcee_object_from_solution(b, solution, adopt_parameters=None):

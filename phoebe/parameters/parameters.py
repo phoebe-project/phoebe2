@@ -5097,8 +5097,9 @@ class ParameterSet(object):
                     fitted_units = self._bundle.get_value(qualifier='fitted_units', context='solution', solution=ps.solution, **_skip_filter_checks)
                     fitted_ps = self._bundle.filter(uniqueid=list(fitted_uniqueids), **_skip_filter_checks)
                     lnprobabilities_proc, samples_proc = _helpers.process_mcmc_chains(lnprobabilities, samples, burnin, 1, lnprob_cutoff, adopt_inds, flatten=False)
-                    acf_proc, ci_proc = _helpers.process_acf(lnprobabilities_proc, samples_proc, nlags)
+                    acf_proc, ci_b_proc, ci_proc = _helpers.process_acf(lnprobabilities_proc, samples_proc, nlags)
                     # acf_proc [parameter, nwalkers, lag]
+                    # acf_b_proc [parameters, nwalkers, lag]
                     # ci_proc (float)
 
                     c = kwargs.get('c', None)
@@ -5113,7 +5114,8 @@ class ParameterSet(object):
                         else:
                             parameter_ind = -1  # to force the lnprobability in position 0
 
-                        for walker_ind in range(acf_proc[parameter_ind+1].shape[0]):
+                        nwalkers = acf_proc[parameter_ind+1].shape[0]
+                        for walker_ind in range(nwalkers):
                             kwargs = _deepcopy(kwargs_orig)
 
                             if c is None:
@@ -5124,19 +5126,37 @@ class ParameterSet(object):
 
                             # this needs to be the unflattened version
                             acf_y = acf_proc[parameter_ind+1][walker_ind, :]
-
-                            kwargs['x'] = np.arange(len(acf_y), dtype=float)
+                            x = np.arange(len(acf_y), dtype=float)
+                            kwargs['x'] = x
                             kwargs['xlabel'] = 'lag (nlags={}, burnin={}, lnprob_cutoff={})'.format(nlags, burnin, lnprob_cutoff)
 
                             kwargs['y'] = acf_y
                             kwargs['ylabel'] = 'normalized autocorrelation ({})'.format('lnprobabilities' if style=='acf_lnprobabilities' else _corner_twig(yparam, index=index))
 
-                            # TODO: support for c = twig/lnprobabilities
-                            axhline_u =  {'plot_package': 'autofig', 'autofig_method': 'plot', 'color': 'k', 'linestyle': 'dashed', 'axhline': True, 'y': ci_proc}
-                            axhline_l =  {'plot_package': 'autofig', 'autofig_method': 'plot', 'color': 'k', 'linestyle': 'dashed', 'axhline': True, 'y': -ci_proc}
-                            return_ += [kwargs, axhline_u, axhline_l]
+                            ci_b = ci_b_proc[parameter_ind+1][walker_ind, :]
+                            ci_b_fb = {'plot_package': 'autofig',
+                                       'autofig_method': 'fill_between',
+                                       'color': 'k',
+                                       'alpha': 0.5 / nwalkers,
+                                       'x': x,
+                                       'y':np.array([-1*ci_b,ci_b]).T}
 
+                            return_ += [kwargs, ci_b_fb]
 
+                        axhline_u =  {'plot_package': 'autofig',
+                                      'autofig_method': 'plot',
+                                      'color': 'k',
+                                      'linestyle': 'dashed',
+                                      'axhline': True,
+                                      'y': ci_proc}
+                        axhline_l =  {'plot_package': 'autofig',
+                                      'autofig_method': 'plot',
+                                      'color': 'k',
+                                      'linestyle': 'dashed',
+                                      'axhline': True,
+                                      'y': -ci_proc}
+
+                        return_ += [axhline_u, axhline_l]
 
                 else:
                     raise NotImplementedError()
