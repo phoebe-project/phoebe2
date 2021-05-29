@@ -253,7 +253,7 @@ _forbidden_labels += ['enabled', 'dynamics_method', 'ltte', 'comments',
                       ]
 
 # from solver:
-_forbidden_labels += ['nwalkers', 'niters', 'priors', 'init_from',
+_forbidden_labels += ['nwalkers', 'niters', 'priors', 'priors_requires', 'init_from', 'init_from_requires',
                       'lc_datasets', 'rv_datasets', 'lc_combine',
                       'phase_bin', 'phase_nbins',
                       'algorithm', 'duration', 'minimum_n_cycles', 'frequency_factor',

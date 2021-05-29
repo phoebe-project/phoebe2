@@ -49,17 +49,14 @@ except ImportError:
 else:
     _use_ellc = True
 
-try:
-    from tqdm import tqdm as _tqdm
-except ImportError:
-    def _progressbar(args, total=None, show_progressbar=None):
+
+from tqdm import tqdm as _tqdm
+
+def _progressbar(args, total=None, show_progressbar=True):
+    if show_progressbar:
+        return _tqdm(args, total=total)
+    else:
         return args
-else:
-    def _progressbar(args, total=None, show_progressbar=True):
-        if show_progressbar:
-            return _tqdm(args, total=total)
-        else:
-            return args
 
 from scipy.stats import norm as _norm
 
@@ -627,6 +624,7 @@ def _call_run_single_model(args):
     b, samples, sample_kwargs, compute, dataset, times, compute_kwargs, expose_samples, expose_failed, i, allow_retries = args
     # override sample_from
     compute_kwargs['sample_from'] = []
+    compute_kwargs['progressbar'] = False
 
     success_samples = []
     failed_samples = {}
@@ -673,7 +671,56 @@ def _call_run_single_model(args):
                 # TODO: remove the list comprehension here once the bug is fixed in distributions that is sometimes returning an array with one entry
                 success_samples += list([s[0] if isinstance(s, np.ndarray) else s for s in samples.values()])
                 # success_samples += list(samples.values())
+
             return model_ps.to_json(), success_samples, failed_samples
+
+def _test_single_sample(args):
+    b_copy, uniqueids, sample_per_param, dc, require_priors, require_compute, require_checks, allow_retries = args
+    success = False
+    while not success:
+        for uniqueid, sample_value in zip(uniqueids, sample_per_param):
+            try:
+                b_copy.set_value(uniqueid=uniqueid, value=sample_value, **_skip_filter_checks)
+            except:
+                success = False
+            else:
+                success = True
+
+        compute_for_checks = None
+        if require_compute not in [True, False]:
+            compute_for_checks = require_compute
+        elif require_checks not in [True, False]:
+            compute_for_checks = require_checks
+
+        if require_priors and success:
+            logp = b_copy.calculate_lnp(require_priors, include_constrained=True)
+            if not np.isfinite(logp):
+                success = False
+
+        if (require_checks or require_compute) and success:
+            if not b_copy.run_checks_compute(compute=compute_for_checks).passed:
+                success = False
+            else:
+                success = True
+
+        if require_compute and success:
+            try:
+                b_copy.run_compute(compute=compute_for_checks, skip_checks=True, progressbar=False, model='test', overwrite=True)
+            except Exception as e:
+                success = False
+            else:
+                success = True
+
+        if not success:
+            if allow_retries:
+                allow_retries -= 1
+                replacement_values = dc.sample(size=1)
+                sample_per_param = replacement_values[0]
+            else:
+                raise ValueError("single sample exceeded number of allowed retries.  Check sampling distribution to make sure enough valid entries exist.")
+
+    return sample_per_param
+
 
 
 class SampleOverModel(object):
@@ -709,7 +756,7 @@ class SampleOverModel(object):
             pool = _pool.SerialPool()
             is_master = True
         else:
-            logger.info("run_compute sample_from using MPI with {} procs".format(conf.multiprocessing_nprocs))
+            logger.info("run_compute sample_from using multiprocessing with {} procs".format(conf.multiprocessing_nprocs))
             pool = _pool.MultiPool(processes=conf._multiprocessing_nprocs)
             is_master = True
 
@@ -733,13 +780,16 @@ class SampleOverModel(object):
 
             # samples = range(sample_num)
             # note: sample_from can be any combination of solutions and distributions
-            distribution_filters, combine, include_constrained, to_univariates, to_uniforms, within_parameter_limits = b._distribution_collection_defaults(qualifier='sample_from', context='compute', compute=compute_ps.compute, **kwargs)
+            distribution_filters, combine, include_constrained, to_univariates, to_uniforms, require_limits, require_checks, require_compute, require_priors = b._distribution_collection_defaults(qualifier='sample_from', context='compute', compute=compute_ps.compute, **kwargs)
             sample_kwargs = {'distribution_filters': distribution_filters,
                              'combine': combine,
                              'include_constrained': include_constrained,
                              'to_univariates': to_univariates,
                              'to_uniforms': to_uniforms,
-                             'within_parameter_limits': within_parameter_limits}
+                             'require_limits': require_limits,
+                             'require_checks': require_checks,
+                             'require_compute': require_compute,
+                             'require_priors': require_priors}
 
             sample_dict = b.sample_distribution_collection(N=sample_num,
                                                 keys='uniqueid',
@@ -757,16 +807,30 @@ class SampleOverModel(object):
                 sample_num = 1
                 sample_mode = 'all'
 
+            global _active_pbar
+            if kwargs.get('progressbar', True):
+                _active_pbar = _tqdm(total=sample_num)
+            else:
+                _active_pbar = None
+
+            def _sample_progress(*args):
+                global _active_pbar
+                if _active_pbar is not None:
+                    _active_pbar.update(1)
+
             bexcl = b.copy()
             bexcl.remove_parameters_all(context=['model', 'solver', 'solutoin', 'figure'], **_skip_filter_checks)
             bexcl.remove_parameters_all(kind=['orb', 'mesh'], context='dataset', **_skip_filter_checks)
             args_per_sample = [(bexcl.copy(), {k:v[i] for k,v in sample_dict.items()}, sample_kwargs, compute, dataset, times, compute_kwargs, expose_samples, expose_failed, i, allow_retries) for i in range(sample_num)]
-            models_success_failed = list(pool.map(_call_run_single_model, args_per_sample))
+            models_success_failed = list(pool.map(_call_run_single_model, args_per_sample, callback=_sample_progress))
         else:
             pool.wait()
 
         if pool is not None:
             pool.close()
+
+        if _active_pbar is not None:
+            _active_pbar.close()
 
         # restore previous MPI state
         mpi._within_mpirun = within_mpirun

@@ -40,12 +40,7 @@ except ImportError:
 else:
     _use_dynesty = True
 
-try:
-    from tqdm import tqdm as _tqdm
-except ImportError:
-    _has_tqdm = False
-else:
-    _has_tqdm = True
+from tqdm import tqdm as _tqdm
 
 try:
     from astropy.timeseries import BoxLeastSquares as _BoxLeastSquares
@@ -1295,6 +1290,7 @@ class EmceeBackend(BaseSolverBackend):
 
             init_from = kwargs.get('init_from')
             init_from_combine = kwargs.get('init_from_combine')
+            init_from_requires = kwargs.get('init_from_requires')
             priors = kwargs.get('priors')
             priors_combine = kwargs.get('priors_combine')
 
@@ -1319,17 +1315,21 @@ class EmceeBackend(BaseSolverBackend):
 
                 expose_failed = kwargs.get('expose_failed')
 
-                # TODO: implement within_distribution_collection=None option to automatically & by any uniforms/deltas in other dc
-                dc, params_uniqueids = b.get_distribution_collection(distribution=init_from,
-                                                                     combine=init_from_combine,
-                                                                     include_constrained=False,
-                                                                     within_parameter_limits=True,
-                                                                     keys='uniqueid')
-
+                logger.info("initializing {} walker positions".format(nwalkers))
+                dc, params_uniqueids, p0 = b.sample_distribution_collection(distribution=init_from,
+                                                                            combine=init_from_combine,
+                                                                            include_constrained=False,
+                                                                            require_limits='limits' in init_from_requires,
+                                                                            require_checks=compute if 'checks' in init_from_requires else False,
+                                                                            require_compute=compute if 'compute' in init_from_requires else False,
+                                                                            require_priors='priors@{}'.format(solver) if 'priors' in init_from_requires else False,
+                                                                            sample_size=nwalkers,
+                                                                            progressbar=kwargs.get('progressbar', False),
+                                                                            return_dc_uniqueids_array=True,
+                                                                            pool=pool
+                                                                            )
 
                 wrap_central_values = _wrap_central_values(b, dc, params_uniqueids)
-
-                p0 = dc.sample(size=nwalkers).T
                 params_units = [dist.unit.to_string() for dist in dc.dists]
 
                 continued_failed_samples = {}
@@ -1424,7 +1424,7 @@ class EmceeBackend(BaseSolverBackend):
             sargs = {}
             sargs['iterations'] = niters
             sargs['progress'] = kwargs.get('progressbar', False)
-            sargs['skip_initial_state_check'] = False
+            sargs['skip_initial_state_check'] = continue_from is not 'None' or 'compute' in init_from_requires
 
 
             logger.debug("sampler.sample(p0, {})".format(sargs))
@@ -1965,7 +1965,7 @@ class _ScipyOptimizeBaseBackend(BaseSolverBackend):
                      'solution': _solution}
 
         global _use_progressbar
-        if _has_tqdm and kwargs.get('progressbar', False):
+        if kwargs.get('progressbar', False):
             global _minimize_iter
             _minimize_iter = 0
             global _minimize_pbar

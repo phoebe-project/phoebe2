@@ -3873,7 +3873,8 @@ class DistributionCollection(BaseDistlObject):
         # first well expand any Composite distributions to access the underlying
         # distributions
         def unpack_dists(dist):
-            if isinstance(dist, Composite):
+            if isinstance(dist, Composite) and dist.math not in ['__and__', '__or__']:
+                # and/or are flattened to univariates, so we only want to expose them once
                 dists = []
                 for dist in dist.dists:
                     dists += unpack_dists(dist)
@@ -4310,7 +4311,7 @@ class DistributionCollection(BaseDistlObject):
         models = _np.array([func(x, *sample_args[i], **func_kwargs) for i in range(N)])
         return models
 
-    def plot_sample(self, size=1e5, **kwargs):
+    def plot_sample(self, size=1e5, samples=None, **kwargs):
         """
 
         Arguments
@@ -4353,7 +4354,9 @@ class DistributionCollection(BaseDistlObject):
 
         titles_sigma = kwargs.pop('titles_sigma', False)
 
-        fig = corner.corner(self.sample(size=int(size), cache_sample=False),
+        samples = samples if samples is not None else self.sample(size=int(size), cache_sample=False)
+
+        fig = corner.corner(samples,
                              labels=kwargs.pop('labels', [dist._xlabel() for dist in self.dists]),
                              range=kwargs.pop('range', [_range(dist) for dist in self.dists]),
                              quantiles=kwargs.pop('quantiles', None),
