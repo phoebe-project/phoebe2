@@ -13669,7 +13669,7 @@ class Bundle(ParameterSet):
 
         self._attach_params(result_ps, override_tags=True, new_uniqueids=new_uniqueids, **metawargs)
 
-        ret_ps = self.get_solution(solution=solution if solution is not None else result_ps.solutions)
+        ret_ps = self.get_solution(solution=solution if solution is not None else result_ps.solutions, **_skip_filter_checks)
 
         # attempt to map fitted_twigs -> fitted_uniqueids if not all match now, to prevent having to continuously repeat
         fitted_uniqueids = ret_ps.get_value(qualifier='fitted_uniqueids', **_skip_filter_checks)
