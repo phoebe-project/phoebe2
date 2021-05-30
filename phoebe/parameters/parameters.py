@@ -2917,7 +2917,7 @@ class ParameterSet(object):
 
         return _return(params, force_ps, method, mindex)
 
-    def exclude(self, twig=None, check_visible=False, check_default=True, **kwargs):
+    def exclude(self, twig=None, check_visible=False, check_default=False, **kwargs):
         """
         Exclude the results from this filter from the current
         <phoebe.parameters.ParameterSet>.
@@ -2936,12 +2936,12 @@ class ParameterSet(object):
             into any of the meta-tags.  Example: instead of
             `b.filter(context='component', component='starA')`, you
             could do `b.filter('starA@component')`.
-        * `check_visible` (bool, optional, default=True): whether to NOT hide invisible
-            parameters.  These are usually parameters that do not
+        * `check_visible` (bool, optional, default=False): whether to NOT exclude
+            invisible parameters.  These are usually parameters that do not
             play a role unless the value of another parameter meets
             some condition.
-        * `check_default` (bool, optional, default=True): whether to exclude parameters which
-            have a _default tag (these are parameters which solely exist
+        * `check_default` (bool, optional, default=False): whether to NOT
+            exclude parameters which have a _default tag (these are parameters which solely exist
             to provide defaults for when new parameters or datasets are
             added and the parameter needs to be copied appropriately).
             Defaults to True.
