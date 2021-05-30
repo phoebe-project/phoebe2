@@ -920,6 +920,9 @@ class Bundle(ParameterSet):
                     if param.component is None and param.dataset is None: continue
                     b.set_value(qualifier=param.qualifier, compute=compute, dataset=param.dataset, component=param.component, value=param.get_value(), **_skip_filter_checks)
 
+            # just in case the values aren't valid (for continue_from, etc), let's update
+            b._handle_solution_choiceparams()
+            b._handle_solution_selectparams()
             for solver in b.filter(context='solver', **_skip_filter_checks).solvers:
                 logger.info("attempting to update solver='{}' to new version requirements".format(solver))
                 ps_solver = b.filter(context='solver', solver=solver, **_skip_filter_checks)
