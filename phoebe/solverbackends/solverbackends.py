@@ -1179,6 +1179,7 @@ class EmceeBackend(BaseSolverBackend):
         solution_params += [_parameters.ArrayParameter(qualifier='autocorr_times', value=[], readonly=True, description='measured autocorrelation time with shape (len(fitted_twigs)) before applying burnin/thin.  To access with a custom burnin/thin, see phoebe.helpers.get_emcee_object_from_solution')]
         solution_params += [_parameters.IntParameter(qualifier='burnin', value=0, limits=(0,1e6), description='burnin to use when adopting/plotting the solution')]
         solution_params += [_parameters.IntParameter(qualifier='thin', value=1, limits=(1,1e6), description='thin to use when adopting/plotting the solution')]
+        solution_params += [_parameters.IntParameter(qualifier='nlags', value=1, limit=(1,1e6), description='number of lags to use when computing/plotting the autocorrelation function.  If 0, will default to niters-burnin.')]
         solution_params += [_parameters.FloatParameter(qualifier='lnprob_cutoff', value=-np.inf, default_unit=u.dimensionless_unscaled, description='lower limit cuttoff on lnproabilities to use when adopting/plotting the solution')]
 
         solution_params += [_parameters.FloatParameter(qualifier='progress', value=0, limits=(0,100), default_unit=u.dimensionless_unscaled, advanced=True, readonly=True, description='percentage of requested iterations completed')]
@@ -1208,6 +1209,7 @@ class EmceeBackend(BaseSolverBackend):
                      {'qualifier': 'autocorr_times', 'value': autocorr_times},
                      {'qualifier': 'burnin', 'value': burnin},
                      {'qualifier': 'thin', 'value': thin},
+                     {'qualifier': 'nlags', 'value': nlags},
                      {'qualifier': 'progress', 'value': progress}]
 
             if expose_failed:
@@ -1296,6 +1298,7 @@ class EmceeBackend(BaseSolverBackend):
 
             burnin_factor = kwargs.get('burnin_factor')
             thin_factor = kwargs.get('thin_factor')
+            nlags_factor = kwargs.get('nlags_factor')
 
             solution_ps = kwargs.get('solution_ps')
             solution = kwargs.get('solution')
@@ -1453,9 +1456,13 @@ class EmceeBackend(BaseSolverBackend):
                         thin = int(thin_factor * np.nanmin(autocorr_times))
                         if thin==0:
                             thin = 1
+                        nlags = int(nlags_factor * np.nanmax(autocorr_times))
+                        if nlags < sampler.iteration - burnin:
+                            nlags = sampler.iteration - burnin
                     else:
                         burnin =0
                         thin = 1
+                        nlags = 1
 
                     if progress_every_niters > 0:
                         logger.info("emcee: saving output from iteration {}".format(sampler.iteration))

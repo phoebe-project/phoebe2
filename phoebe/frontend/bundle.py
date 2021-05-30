@@ -906,7 +906,7 @@ class Bundle(ParameterSet):
             b._attach_params(_setting.settings(**existing_values_settings), context='setting')
 
 
-            for compute in b.filter(context='compute').computes:
+            for compute in b.filter(context='compute', **_skip_filter_checks).computes:
                 logger.info("attempting to update compute='{}' to new version requirements".format(compute))
                 ps_compute = b.filter(context='compute', compute=compute, **_skip_filter_checks)
                 compute_kind = ps_compute.kind
@@ -920,13 +920,24 @@ class Bundle(ParameterSet):
                     if param.component is None and param.dataset is None: continue
                     b.set_value(qualifier=param.qualifier, compute=compute, dataset=param.dataset, component=param.component, value=param.get_value(), **_skip_filter_checks)
 
-            for solver in b.filter(context='solver').solvers:
+            for solver in b.filter(context='solver', **_skip_filter_checks).solvers:
                 logger.info("attempting to update solver='{}' to new version requirements".format(solver))
                 ps_solver = b.filter(context='solver', solver=solver, **_skip_filter_checks)
                 solver_kind = ps_solver.kind
                 dict_solver = _ps_dict(ps_solver)
                 b.remove_solver(solver, context=['solver'])
                 b.add_solver(solver_kind, solver=solver, check_label=False, overwrite=True, **dict_solver)
+
+            for solution in b.filter(context='solution', kind='emcee', **_skip_filter_checks).solutions:
+                burnin = b.get_value(qualifier='burnin', solution=solution, **_skip_filter_checks)
+                niters = b.get_value(qualifier='niters', solution=solution, **_skip_filter_checks)
+                autocorr_times = b.get_value(qualifier='autocorr_times', solution=solution, **_skip_filter_checks)
+                nlags_default = 3 * np.max(autocorr_times)
+                if nlags_default > niters-burnin:
+                    nlags_default = niters-burnin
+
+                p = IntParameter(qualifier='nlags', value=nlags_default, limit=(1,1e6), description='number of lags to use when computing/plotting the autocorrelation function')
+                b._attach_params([p], context='solution', solution='round_1', kind='emcee')
 
 
         if conf_interactive_checks:
