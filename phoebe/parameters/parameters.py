@@ -3190,13 +3190,7 @@ class ParameterSet(object):
 
         param = self.get_parameter(twig=twig, **kwargs)
 
-        if param.qualifier in kwargs.keys():
-            # then we have an "override" value that was passed, and we should
-            # just return that.
-            # Example b.get_value('teff', teff=6000) returns 6000
-            return kwargs.get(param.qualifier)
-
-        return param.get_quantity(unit=unit, t=t)
+        return param.get_quantity(unit=unit, t=t, **{k: v for k,v in kwargs.items() if k==param.qualifier})
 
     def set_quantity(self, twig=None, value=None, **kwargs):
         """
@@ -9497,8 +9491,6 @@ class FloatParameter(Parameter):
         types.  See the documentation of <phoebe.parameters.FloatParameter.get_quantity>
         for full details.
         """
-        default = super(FloatParameter, self).get_value(**kwargs)
-        if default is not None: return self._check_type(default)
         quantity = self.get_quantity(unit=unit, t=t,
                                      **kwargs)
         if hasattr(quantity, 'value'):
@@ -9539,9 +9531,8 @@ class FloatParameter(Parameter):
         default = super(FloatParameter, self).get_value(**kwargs) # <- note this is calling get_value on the Parameter object
         if default is not None:
             value = self._check_type(default)
-            if isinstance(default, u.Quantity):
-                return value
-            return value * self.default_unit
+            if not isinstance(value, u.Quantity):
+                value = value * self.default_unit
         else:
             value = self._value
 
@@ -9630,6 +9621,12 @@ class FloatParameter(Parameter):
     def _check_type(self, value):
         # we do this separately so that FloatArrayParameter can keep this set_value
         # and just subclass _check_type
+        if isinstance(value, tuple) and len(value)==2 and (isinstance(value[0], float) or isinstance(value[0], int)):
+            if isinstance(value[1], str):
+                value = value[0] * u.Unit(value[1])
+            elif isinstance(value[1], u.Unit):
+                value = value[0] * value[1]
+
         if isinstance(value, u.Quantity):
             if not (isinstance(value.value, float) or isinstance(value.value, int)):
                 raise ValueError("value could not be cast to float")
