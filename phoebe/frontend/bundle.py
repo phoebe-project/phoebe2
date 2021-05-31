@@ -6556,7 +6556,8 @@ class Bundle(ParameterSet):
             overwrite_ps = self.remove_dataset(dataset=kwargs['dataset'], during_overwrite=True)
             # check the label again, just in case kwargs['dataset'] belongs to
             # something other than dataset
-            self._check_label(kwargs['dataset'], allow_overwrite=False)
+            # we'll exclude the dataset as features (GPs) may still be tagged
+            self.exclude(dataset=kwargs['dataset'])._check_label(kwargs['dataset'], allow_overwrite=False)
 
         self._attach_params(params, **ds_metawargs)
 
