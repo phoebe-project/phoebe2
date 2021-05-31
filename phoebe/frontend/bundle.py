@@ -936,7 +936,7 @@ class Bundle(ParameterSet):
                 niters = b.get_value(qualifier='niters', solution=solution, **_skip_filter_checks)
                 autocorr_times = b.get_value(qualifier='autocorr_times', solution=solution, **_skip_filter_checks)
                 nlags_default = 3 * np.nanmax(autocorr_times)
-                if nlags_default > niters-burnin:
+                if np.isnan(nlags_default) or nlags_default > niters-burnin:
                     nlags_default = niters-burnin
 
                 p = IntParameter(qualifier='nlags', value=int(nlags_default), limit=(1,1e6), description='number of lags to use when computing/plotting the autocorrelation function')
