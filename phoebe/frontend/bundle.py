@@ -935,11 +935,11 @@ class Bundle(ParameterSet):
                 burnin = b.get_value(qualifier='burnin', solution=solution, **_skip_filter_checks)
                 niters = b.get_value(qualifier='niters', solution=solution, **_skip_filter_checks)
                 autocorr_times = b.get_value(qualifier='autocorr_times', solution=solution, **_skip_filter_checks)
-                nlags_default = 3 * np.max(autocorr_times)
+                nlags_default = 3 * np.nanmax(autocorr_times)
                 if nlags_default > niters-burnin:
                     nlags_default = niters-burnin
 
-                p = IntParameter(qualifier='nlags', value=nlags_default, limit=(1,1e6), description='number of lags to use when computing/plotting the autocorrelation function')
+                p = IntParameter(qualifier='nlags', value=int(nlags_default), limit=(1,1e6), description='number of lags to use when computing/plotting the autocorrelation function')
                 b._attach_params([p], context='solution', solution='round_1', kind='emcee')
 
 
