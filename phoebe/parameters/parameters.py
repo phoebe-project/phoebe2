@@ -4917,6 +4917,7 @@ class ParameterSet(object):
                 styles = [styles]
 
             return_ = []
+            c = kwargs.get('c', None)
             for style in styles:
                 kwargs = _deepcopy(kwargs)
 
@@ -4948,7 +4949,6 @@ class ParameterSet(object):
                     lnprobabilities_proc = _deepcopy(lnprobabilities_proc)
                     lnprobabilities_proc[lnprobabilities_proc < lnprob_cutoff] = np.nan
 
-                    c = kwargs.get('c', None)
                     if c is not None:
                         fitted_uniqueids = self._bundle.get_value(qualifier='fitted_uniqueids', context='solution', solution=ps.solution, **_skip_filter_checks)
                         fitted_ps = self._bundle.filter(uniqueid=list(fitted_uniqueids), **_skip_filter_checks)
@@ -4970,6 +4970,11 @@ class ParameterSet(object):
 
                         if c is None:
                             pass
+                        elif c == 'lnprobabilities':
+                            # we only need to get this once and can re-use it per-parameter/walker
+                            kwargs['c'] = lnprobabilities_proc[:, walker_ind]
+                            kwargs['clabel'] = _plural_to_singular_get(c)
+                            kwargs['cqualifier'] = c
                         elif len(fitted_ps.filter(twig=c, **_skip_filter_checks).to_list()):
                             match_params = fitted_ps.filter(twig=c, **_skip_filter_checks)
                             if len(match_params) > 1:
@@ -5030,7 +5035,6 @@ class ParameterSet(object):
                     else:
                         plot_uniqueids = adopt_uniqueids
 
-                    c = kwargs.get('c', None)
                     if c is not None:
                         _, samples_proc_all = _helpers.process_mcmc_chains(lnprobabilities, samples, burnin, thin, lnprob_cutoff, flatten=False)
                     kwargs_orig = _deepcopy(kwargs)
@@ -5099,7 +5103,6 @@ class ParameterSet(object):
                     # acf_b_proc [parameters, nwalkers, lag]
                     # ci_proc (float)
 
-                    c = kwargs.get('c', None)
                     kwargs_orig = _deepcopy(kwargs)
 
                     plot_uniqueids = adopt_uniqueids if style=='acf' else [0]
