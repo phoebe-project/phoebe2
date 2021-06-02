@@ -12783,7 +12783,7 @@ class Bundle(ParameterSet):
         """
         use_server = kwargs.get('use_server', kwargs.get('server', self.get_value(qualifier='use_server', solver=solver, context='solver', **_skip_filter_checks)))
         if use_server == 'compute':
-            use_server = self.get_value(qualifier='use_server', compute=self.get_value(qualifier='compute', solver=solver, context='solver', **_skip_filter_checks), **_skip_filter_checks)
+            use_server = self.get_value(qualifier='use_server', compute=self.get_value(qualifier='compute', solver=solver, context='solver', **_skip_filter_checks), context='compute', **_skip_filter_checks)
 
         solver, solution, compute, solver_ps = self._prepare_solver(solver, solution, from_export=True, **kwargs)
         script_fname, out_fname = self._write_export_solver_script(script_fname, out_fname, solver, solution, autocontinue, use_server, import_from_older, log_level, kwargs)
