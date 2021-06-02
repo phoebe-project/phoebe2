@@ -1235,7 +1235,20 @@ class EmceeBackend(BaseSolverBackend):
             global failed_samples_buffer
             failed_samples_buffer = []
 
-            if mpi.nprocs > kwargs.get('nwalkers') and b.get_compute(compute=compute, **_skip_filter_checks).kind == 'phoebe':
+            compute_kind = b.get_compute(compute=compute, **_skip_filter_checks).kind
+            supports_per_time = False
+            if compute_kind == 'phoebe':
+                # check to see if any of the enabled datasets support per-time parallelization
+                enabled_datasets = b.filter(qualifier='enabled', compute=compute, context='compute', value=True, **_skip_filter_checks).datasets
+                enabled_dataset_kinds = b.filter(dataset=enabled_datasets, context='dataset', **_skip_filter_checks).kinds
+
+                if 'lc' in enabled_dataset_kinds or 'lp' in enabled_dataset_kinds:
+                    supports_per_time = True
+                elif 'rv' in enabled_dataset_kinds and 'flux-weighted' in [p.get_value() for p in b.filter(qualifier='rv_method', compute=compute, dataset=enabled_datasets, context='compute', **_skip_filter_checks).to_list()]:
+                    supports_per_time = True
+                # otherwise we just have orbits and/or dynamical RVs, so we'll leave supports_per_time=False
+
+            if mpi.nprocs > kwargs.get('nwalkers') and supports_per_time:
                 logger.info("nprocs > nwalkers: using per-time parallelization and emcee in serial")
 
                 # we'll keep MPI at the per-compute level, so we'll pass
@@ -1617,9 +1630,9 @@ class DynestyBackend(BaseSolverBackend):
         within_mpirun = mpi.within_mpirun
         mpi_enabled = mpi.enabled
 
-        # emcee handles workers itself.  So here we'll just take the workers
+        # dynesty handles workers itself.  So here we'll just take the workers
         # from our own waiting loop in phoebe's __init__.py and subscribe them
-        # to emcee's pool.
+        # to dynesty's pool.
         if mpi.within_mpirun:
             logger.info("dynesty: using MPI pool")
 
