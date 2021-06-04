@@ -3665,8 +3665,15 @@ class ParameterSet(object):
             raise NotImplementedError("calculate_residuals not implemented for dataset with kind='{}' (model={}, dataset={}, component={})".format(dataset_kind, model, dataset, component))
 
 
-        dataset_param = dataset_ps.get_parameter(qualifier, component=component, **_skip_filter_checks)
-        model_param = model_ps.get_parameter(qualifier, **_skip_filter_checks)
+        dataset_param_ps = dataset_ps.filter(qualifier=qualifier, component=component, **_skip_filter_checks)
+        if len(dataset_param_ps.to_list()) > 1:
+            raise ValueError("filter (dataset={}, qualifier={}, component={}) resulted in more than one parameter".format(dataset_ps.dataset, qualifier, component))
+        elif len(dataset_param_ps.to_list()) == 0:
+            raise ValueError("filter (dataset={}, qualifier={}, component={}) resulted in no parameters".format(dataset_ps.dataset, qualifier, component))
+        else:
+            dataset_param = dataset_param_ps.to_list()[0]
+        dataset_param = dataset_ps.get_parameter(qualifier=qualifier, component=component, **_skip_filter_checks)
+        model_param = model_ps.get_parameter(qualifier=qualifier, **_skip_filter_checks)
 
         # TODO: do we need to worry about conflicting units?
         # NOTE: this should automatically handle interpolating in phases, if necessary
@@ -3684,6 +3691,22 @@ class ParameterSet(object):
             else:
                 return residuals
 
+        if not len(dataset_param.get_value()) == len(times):
+            if len(dataset_param.get_value())==0:
+                # then the dataset was empty, so let's just return an empty array
+                if return_interp_model:
+                    if as_quantity:
+                        return np.asarray([]) * dataset_param.default_unit, np.asarray([]) * dataset_param.default_unit
+                    else:
+                        return np.asarray([]), np.asarray([])
+                else:
+                    if as_quantity:
+                        return np.asarray([]) * dataset_param.default_unit
+                    else:
+                        return np.asarray([])
+            else:
+                raise ValueError("{}@{}@{} and {}@{}@{} do not have the same length, cannot compute residuals".format(qualifier, component, dataset, 'times', component, dataset))
+
         mask_enabled = dataset_ps.get_value(qualifier='mask_enabled', default=False, mask_enabled=mask_enabled, **_skip_filter_checks)
         if mask_enabled:
             mask_phases = dataset_ps.get_value(qualifier='mask_phases', mask_phases=mask_phases, **_skip_filter_checks)
@@ -3697,15 +3720,6 @@ class ParameterSet(object):
 
                 times = times[inds]
 
-        elif not len(dataset_param.get_value()) == len(times):
-            if len(dataset_param.get_value())==0:
-                # then the dataset was empty, so let's just return an empty array
-                if as_quantity:
-                    return np.asarray([]) * dataset_param.default_unit
-                else:
-                    return np.asarray([])
-            else:
-                raise ValueError("{}@{}@{} and {}@{}@{} do not have the same length, cannot compute residuals".format(qualifier, component, dataset, 'times', component, dataset))
 
         if dataset_param.default_unit != model_param.default_unit:
             raise ValueError("model and dataset do not have the same default_unit, cannot interpolate")
