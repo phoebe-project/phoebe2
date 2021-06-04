@@ -940,7 +940,7 @@ class Bundle(ParameterSet):
                     nlags_default = niters-burnin
 
                 p = IntParameter(qualifier='nlags', value=int(nlags_default), limit=(1,1e6), description='number of lags to use when computing/plotting the autocorrelation function')
-                b._attach_params([p], context='solution', solution='round_1', kind='emcee')
+                b._attach_params([p], context='solution', solution=solution, kind='emcee')
 
 
         if conf_interactive_checks:
