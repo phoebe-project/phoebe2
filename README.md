@@ -84,6 +84,10 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.3.43 - RV SB1 residuals bugfix
+* fixes silently ignoring component (while calculating residuals, chi2, etc) in an RV dataset in which times are provided, but observational RVs are not.
+* improves error messages in calculate_residuals when resulting in no or more than one matches.
+
 ### 2.3.42 - RV plotting bugfix
 * fixes plotting RVs when compute_times is provided instead of times.  Previously would raise an error that the 'rvs' parameter could not be found as it is hidden in the dataset.
 
