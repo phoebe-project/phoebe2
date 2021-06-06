@@ -10771,6 +10771,34 @@ class Bundle(ParameterSet):
             for envelope in self.hierarchy.get_envelopes():
                 self.set_value(qualifier='ntriangles', compute=kwargs['compute'], component=envelope, value=3000, check_visible=False)
 
+        for k,v in kwargs.items():
+            # if just a value, should already have been applied
+            if isinstance(v, dict):
+                for twig, value in v.items():
+                    ps = self.filter(qualifier=k,
+                                     compute=kwargs['compute'],
+                                     check_visible=False,
+                                     check_default=False,
+                                     ignore_none=True)
+
+                    if len(ps.filter(twig, check_visible=False, check_default=False).to_list()) >= 1:
+                        logger.debug("setting value of compute parameter: qualifier={}, twig={}, value={}".format(k, twig, value))
+                        try:
+                            self.set_value_all(twig,
+                                               qualifier=k,
+                                               compute=kwargs['compute'],
+                                               value=value,
+                                               check_visible=False,
+                                               check_default=False,
+                                               ignore_none=True)
+                        except Exception as err:
+                            self.remove_compute(compute=kwargs['compute'])
+                            raise ValueError("could not set value for {}={} with error: '{}'. Compute has not been added".format(k, v, str(err)))
+                    else:
+                        self.remove_compute(compute=kwargs['compute'])
+                        raise ValueError("could not set value for {}={}.  No valid match found for '{}' in {}.  Compute has not been added".format(k, v, twig, ps.twigs))
+
+
         ret_ps = self.get_compute(check_visible=False, check_default=False, **metawargs)
 
         # since we've already processed (so that we can get the new qualifiers),
