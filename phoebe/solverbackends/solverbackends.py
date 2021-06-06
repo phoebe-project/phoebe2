@@ -394,6 +394,12 @@ def _to_twig_with_index(twig, index):
     else:
         return '{}[{}]@{}'.format(twig.split('@')[0], index, '@'.join(twig.split('@')[1:]))
 
+def _to_uniqueid_with_index(uniqueid, index):
+    if index is None:
+        return uniqueid
+    else:
+        return '{}[{}]'.format(uniqueid, index)
+
 
 class BaseSolverBackend(object):
     def __init__(self):
@@ -1342,6 +1348,9 @@ class EmceeBackend(BaseSolverBackend):
                                                                             pool=pool
                                                                             )
 
+                params_uniqueids_and_indices = [_extract_index_from_string(uid) for uid in params_uniqueids]
+                params_twigs = [_to_twig_with_index(b.get_parameter(uniqueid=uniqueid, **_skip_filter_checks).twig, index) for uniqueid, index in params_uniqueids_and_indices]
+
                 wrap_central_values = _wrap_central_values(b, dc, params_uniqueids)
                 params_units = [dist.unit.to_string() for dist in dc.dists]
 
@@ -1354,16 +1363,23 @@ class EmceeBackend(BaseSolverBackend):
                 wrap_central_values = continue_from_ps.get_value(qualifier='wrap_central_values', **_skip_filter_checks)
                 params_uniqueids = continue_from_ps.get_value(qualifier='fitted_uniqueids', **_skip_filter_checks)
 
-                if not np.all([uniqueid in b.uniqueids for uniqueid in params_uniqueids]):
+                if not np.all([uniqueid.split('[')[0] in b.uniqueids for uniqueid in params_uniqueids]):
                     logger.info("continue_from uniqueid matches not found, falling back on twigs")
                     params_twigs = continue_from_ps.get_value(qualifier='fitted_twigs', **_skip_filter_checks)
                     original_params_uniqueids = list(params_uniqueids)
-                    params_uniqueids = [b.get_parameter(twig=twig, **_skip_filter_checks).uniqueid for twig in params_twigs]
+                    params_twigs_and_indices = [_extract_index_from_string(t) for t in params_twigs]
+                    params_uniqueids = [_to_uniqueid_with_index(b.get_parameter(twig=twig, **_skip_filter_checks).uniqueid, index) for twig, index in params_twigs_and_indices]
+
 
                     if np.all([uniqueid in original_params_uniqueids for uniqueid in wrap_central_values.keys()]):
                         # then we can successfully map the old uniqueids to new uniqueids... otherwise the following
                         # if statement will trigger re-creating the wrapping rules
                         wrap_central_values = {params_uniqueids[original_params_uniqueids.index(k)]: v for k,v in wrap_central_values.items()}
+
+                else:
+                    params_uniqueids_and_indices = [_extract_index_from_string(uid) for uid in params_uniqueids]
+                    params_twigs = [_to_twig_with_index(b.get_parameter(uniqueid=uniqueid, **_skip_filter_checks).twig, index) for uniqueid, index in params_uniqueids_and_indices]
+
 
                 if not np.all([uniqueid in b.uniqueids for uniqueid in wrap_central_values.keys()]):
                     # this really shouldn't happen... but if the bundle was
@@ -1405,9 +1421,6 @@ class EmceeBackend(BaseSolverBackend):
                 nwalkers = int(p0.shape[-1])
 
                 start_iteration = continued_lnprobabilities.shape[0]
-
-            params_uniqueids_and_indices = [_extract_index_from_string(uid) for uid in params_uniqueids]
-            params_twigs = [_to_twig_with_index(b.get_parameter(uniqueid=uniqueid, **_skip_filter_checks).twig, index) for uniqueid, index in params_uniqueids_and_indices]
 
             esargs['pool'] = pool
             esargs['nwalkers'] = nwalkers
