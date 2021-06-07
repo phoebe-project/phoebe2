@@ -11164,7 +11164,7 @@ class Bundle(ParameterSet):
             script.append("phoebe.logger('{}');".format(log_level))
         # TODO: can we skip other models
         # or datasets (except times and only for run_compute but not run_solver)
-        exclude_qualifiers = ['detached_job']
+        exclude_qualifiers = ['detached_job', 'failed_samples']
         exclude_contexts = ['model', 'figure', 'constraint', 'solver']  # NOTE: need server for kwargs check on use_server
         sample_from = self.get_value(qualifier='sample_from', compute=compute, sample_from=kwargs.get('sample_from', None), default=[], expand=True)
         exclude_distributions = [dist for dist in self.distributions if dist not in sample_from]
@@ -12679,7 +12679,7 @@ class Bundle(ParameterSet):
             script.append("phoebe.logger('{}');".format(log_level))
         # TODO: can we skip other models
         # or datasets (except times and only for run_compute but not run_solver)
-        exclude_qualifiers = ['detached_job']
+        exclude_qualifiers = ['detached_job', 'failed_samples']
         exclude_contexts = ['model', 'figure'] # NOTE: need server for kwargs check on use_server
         continue_from = self.get_value(qualifier='continue_from', solver=solver, continue_from=kwargs.get('continue_from', None), default='')
         exclude_solutions = [sol for sol in self.solutions if sol!=continue_from]
