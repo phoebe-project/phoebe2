@@ -1450,7 +1450,7 @@ class EmceeBackend(BaseSolverBackend):
             sargs = {}
             sargs['iterations'] = niters
             sargs['progress'] = kwargs.get('progressbar', False)
-            sargs['skip_initial_state_check'] = continue_from is not 'None' or 'compute' in init_from_requires
+            sargs['skip_initial_state_check'] = continue_from != 'None' or 'compute' in init_from_requires
 
 
             logger.debug("sampler.sample(p0, {})".format(sargs))
