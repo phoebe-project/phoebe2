@@ -84,6 +84,9 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.3.44 - add_component/figure bugfix
+* fixes bug in assigning parameter tags when passing function (as kind) to add_component or add_figure.
+
 ### 2.3.43 - RV SB1 residuals bugfix
 * fixes silently ignoring component (while calculating residuals, chi2, etc) in an RV dataset in which times are provided, but observational RVs are not.
 * improves error messages in calculate_residuals when resulting in no or more than one matches.

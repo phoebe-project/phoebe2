@@ -5303,17 +5303,16 @@ class Bundle(ParameterSet):
         """
 
         func = _get_add_func(_component, kind)
-
-        fname = func.__name__
+        kind = func.__name__
 
         if kwargs.get('component', False) is None:
             # then we want to apply the default below, so let's pop for now
             _ = kwargs.pop('component')
 
         kwargs.setdefault('component',
-                          self._default_label(fname,
+                          self._default_label(kind,
                                               **{'context': 'component',
-                                                 'kind': fname}))
+                                                 'kind': kind}))
 
         if kwargs.pop('check_label', True):
             self._check_label(kwargs['component'], allow_overwrite=kwargs.get('overwrite', False))
@@ -5323,7 +5322,7 @@ class Bundle(ParameterSet):
 
         metawargs = {'context': 'component',
                      'component': kwargs['component'],
-                     'kind': fname}
+                     'kind': kind}
 
         if kwargs.get('overwrite', False):
             overwrite_ps = self.remove_component(component=kwargs['component'], during_overwrite=True)
@@ -8349,19 +8348,18 @@ class Bundle(ParameterSet):
         """
 
         func = _get_add_func(_figure, kind)
-
-        fname = func.__name__
+        kind = func.__name__
 
         if kwargs.get('figure', False) is None:
             # then we want to apply the default below, so let's pop for now
             _ = kwargs.pop('figure')
 
 
-        default_label_base = {'distribution_collection': 'dc'}.get(fname, fname)
+        default_label_base = {'distribution_collection': 'dc'}.get(kind, kind)
         kwargs.setdefault('figure',
                           self._default_label(default_label_base+'fig',
                                               **{'context': 'figure',
-                                                 'kind': fname}))
+                                                 'kind': kind}))
 
         if kwargs.pop('check_label', True):
             self._check_label(kwargs['figure'], allow_overwrite=kwargs.get('overwrite', False))
@@ -8373,7 +8371,7 @@ class Bundle(ParameterSet):
 
         metawargs = {'context': 'figure',
                      'figure': kwargs['figure'],
-                     'kind': fname}
+                     'kind': kind}
 
         if kwargs.get('overwrite', False):
             overwrite_ps = self.remove_figure(figure=kwargs['figure'], during_overwrite=True)
