@@ -90,14 +90,14 @@ def check_unix_compiler(plat, plat_ver, compiler, extensions, compiler_name):
   # GCC compiler
   if re.search(r'gcc', compiler_name) or re.search(r'^g\+\+', compiler_name):
     name = 'gcc'
-    compiler_found = True
     ver = find_version_gcc(s)
-    if ver != '': version_ok = LooseVersion(ver) >= LooseVersion("5.0")
+    if ver != '':
+        compiler_found = True
+        version_ok = LooseVersion(ver) >= LooseVersion("5.0")
 
   # LLVm clang compiler
   elif re.search(r'^clang', compiler_name):
     name = 'clang'
-    compiler_found = True
 
     # https://stackoverflow.com/questions/19774778/when-is-it-necessary-to-use-use-the-flag-stdlib-libstdc
     if plat == 'Darwin':
@@ -110,6 +110,7 @@ def check_unix_compiler(plat, plat_ver, compiler, extensions, compiler_name):
     ver = find_version_clang(s)
 
     if ver != '':
+      compiler_found = True
       if ver[0] == 'clang': # CLANG version
         version_ok = LooseVersion(ver[1]) >= LooseVersion("3.3")
       else:                 # LLVM version
@@ -118,10 +119,11 @@ def check_unix_compiler(plat, plat_ver, compiler, extensions, compiler_name):
   # Intel compilers
   elif re.search(r'^icc', compiler_name) or re.search(r'^icpc', compiler_name):
     name = 'icc'
-    compiler_found = True
 
     ver = find_version_intel(s)
-    version_ok = LooseVersion(ver) >= LooseVersion("16")
+    if ver != '':
+      compiler_found = True
+      version_ok = LooseVersion(ver) >= LooseVersion("16")
 
   # compiler could be masquerading under different name
   # check this out:
@@ -178,6 +180,9 @@ def check_unix_compiler(plat, plat_ver, compiler, extensions, compiler_name):
         if name == 'icc':
           version_ok = LooseVersion(ver) >= LooseVersion("1600")
           compiler_found = True
+      else:
+          compiler_found = True
+          # we'll raise a warning later since version_ok = False
     except:
       print("Unable to build a test program to determine the compiler.")
       status = False
@@ -190,6 +195,9 @@ def check_unix_compiler(plat, plat_ver, compiler, extensions, compiler_name):
   if compiler_found:
     if version_ok:
       print("Ready to compile with %s %s." % (name, ver))
+      status = True
+    elif not len(ver.strip()):
+      print("Could not parse version of compiler %s.  PHOEBE requires gcc 5.0, clang 3.3, or icc 1600 or above.  Attempting compilation anyways." % (name))
       status = True
     else:
       print("Compiler is too old. PHOEBE requires gcc 5.0, clang 3.3, or icc 1600 or above.\nThe found compiler is %s %s." % (name, ver))
