@@ -283,9 +283,9 @@ class import_check(Command):
       import corner
       corner_version = corner.__version__
       if LooseVersion(corner_version) < LooseVersion('2.0.0'):
-        optional.append('corner 2.0+')
+        required.append('corner 2.0+')
     except:
-      optional.append('corner')
+      required.append('corner')
     try:
       import sympy
       sympy_version = sympy.__version__
