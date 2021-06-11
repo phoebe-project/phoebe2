@@ -8511,6 +8511,11 @@ class Bundle(ParameterSet):
                     require_priors = False
 
                 for prior, prior_uniqueid in zip(priors_dc.dists, priors_uniqueids):
+                    if prior_uniqueid not in uniqueids:
+                        # TODO: check if prior is on a parameter constrained by any parameter in the distribution
+                        require_priors = False # to return that we couldn't fully account for priors
+                        continue
+
                     i = uniqueids.index(prior_uniqueid)
                     param = self.get_parameter(uniqueid=prior_uniqueid, **_skip_filter_checks)
                     label = ret_dists[i].label
