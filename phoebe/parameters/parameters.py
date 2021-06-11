@@ -12044,6 +12044,9 @@ class ConstraintParameter(Parameter):
 
         # cannot be at the top, or will cause circular import
         from . import constraint
+        if self.constraint_func == 'custom':
+            raise NotImplementedError("custom constraints are not flippable (yet)")
+
         if self.constraint_func is not None and hasattr(constraint, self.constraint_func):
             # then let's see if the method is capable of resolving for use
             # try:
