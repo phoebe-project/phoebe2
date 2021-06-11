@@ -10958,7 +10958,7 @@ class Bundle(ParameterSet):
         if model in self.models and kwargs.get('overwrite', model=='latest'):
             # NOTE: default (instead of detached_job=) is correct here
             if self.get_value(qualifier='detached_job', model=model, context='model', default='loaded') not in ['loaded', 'error', 'killed']:
-                raise ValueError("model '{}' cannot be overwritten until it is complete and loaded.".format(model))
+                raise ValueError("model '{}' cannot be overwritten until it is complete and loaded (or killed).".format(model))
             if model=='latest':
                 logger.warning("overwriting model: {}".format(model))
             else:
