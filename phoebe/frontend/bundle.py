@@ -8104,6 +8104,13 @@ class Bundle(ParameterSet):
                         kwargs.setdefault('to_uniforms', self.get_value('{}_sigma'.format(ps.qualifier), check_visible=False, check_default=False, **{k:v for k,v in ps.meta.items() if k not in ['qualifier']}))
                         kwargs.setdefault('require_limits', False)
 
+                elif ps.qualifier in ['priors']:
+                    kwargs.setdefault('include_constrained', True)
+                    kwargs.setdefault('to_univariates', False)
+                    kwargs.setdefault('require_limits', False)
+                    kwargs.setdefault('require_checks', False)
+                    kwargs.setdefault('require_compute', False)
+                    kwargs.setdefault('require_priors', False)
                 else:
                     raise NotImplementedError("get_distribution_collection for solver kind='{}' not implemented".format(kind))
 
