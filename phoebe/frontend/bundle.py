@@ -932,15 +932,17 @@ class Bundle(ParameterSet):
                 b.add_solver(solver_kind, solver=solver, check_label=False, overwrite=True, **dict_solver)
 
             for solution in b.filter(context='solution', kind='emcee', **_skip_filter_checks).solutions:
-                burnin = b.get_value(qualifier='burnin', solution=solution, **_skip_filter_checks)
-                niters = b.get_value(qualifier='niters', solution=solution, **_skip_filter_checks)
-                autocorr_times = b.get_value(qualifier='autocorr_times', solution=solution, **_skip_filter_checks)
-                nlags_default = 3 * np.nanmax(autocorr_times)
-                if np.isnan(nlags_default) or nlags_default > niters-burnin:
-                    nlags_default = niters-burnin
+                solution_ps = b.get_solution(solution=solution)
+                if 'nlags' not in solution_ps.qualifiers:
+                    burnin = solution_ps.get_value(qualifier='burnin', **_skip_filter_checks)
+                    niters = solution_ps.get_value(qualifier='niters', **_skip_filter_checks)
+                    autocorr_times = solution_ps.get_value(qualifier='autocorr_times', **_skip_filter_checks)
+                    nlags_default = 3 * np.nanmax(autocorr_times)
+                    if np.isnan(nlags_default) or nlags_default > niters-burnin:
+                        nlags_default = niters-burnin
 
-                p = IntParameter(qualifier='nlags', value=int(nlags_default), limit=(1,1e6), description='number of lags to use when computing/plotting the autocorrelation function')
-                b._attach_params([p], context='solution', solution=solution, kind='emcee')
+                    p = IntParameter(qualifier='nlags', value=int(nlags_default), limit=(1,1e6), description='number of lags to use when computing/plotting the autocorrelation function')
+                    b._attach_params([p], context='solution', solution=solution, compute=solution_ps.compute, kind='emcee')
 
 
         if conf_interactive_checks:
