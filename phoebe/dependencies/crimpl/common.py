@@ -365,7 +365,7 @@ class Server(object):
             logenv_cmd = self.ssh_cmd.format("echo \'{}\' > {}".format(conda_env, _os.path.join(directory, "crimpl-conda-environment")))
 
         # TODO: use job subdirectory for server_path
-        scp_cmd = self.scp_cmd_to.format(local_path=" ".join([script_fname]+files), server_path=directory+"/")
+        scp_cmd = self.scp_cmd_to.format(local_path=" ".join([script_fname]+[_os.path.normpath(f).replace(' ', '\ ') for f in files]), server_path=directory+"/")
 
         if use_slurm:
             remote_script = _os.path.join(directory, _os.path.basename(script_fname))
