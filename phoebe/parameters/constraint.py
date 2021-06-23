@@ -1459,7 +1459,7 @@ def requivratio(b, orbit=None, solve_for=None, **kwargs):
                 requiv1.is_constraint.flip_for('requiv@{}'.format(requiv1.component), force=True)
             elif requiv2.is_constraint:
                 requiv2.is_constraint.constraint_kwargs['requivratio_constrained'] = True
-                requiv2.is_constraint.flip_for('requiv@'.format(requiv2.component), force=True)
+                requiv2.is_constraint.flip_for('requiv@{}'.format(requiv2.component), force=True)
 
     elif solve_for in [requiv1]:
         lhs = requiv1
