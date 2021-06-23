@@ -180,7 +180,7 @@ class Server(object):
         if conda_env is None:
             conda_env = 'default'
 
-        python_version = _sys.version.split()[0]
+        python_version = ".".join(_sys.version.split()[0].split(".")[:-1])
         if isolate_env and job_name is not None:
             # need to check to see if the server environment needs to be created and/or cloned
             conda_envs_dict = self._get_conda_envs_dict(job_name=job_name)
@@ -206,7 +206,7 @@ class Server(object):
 
             # create the environment at the server level
             envpath = _os.path.join(self.directory, "crimpl-envs", conda_env)
-            cmd = "conda create -p {envpath} -y {default_deps} python={python_version}".format(envpath=envpath, default_deps=default_deps, python_version=python_version)
+            cmd = "conda create -p {envpath} -y {default_deps} python>={python_version}".format(envpath=envpath, default_deps=default_deps, python_version=python_version)
 
         if run_cmd:
             return self._run_server_cmd(cmd), envpath
