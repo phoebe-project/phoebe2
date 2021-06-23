@@ -84,6 +84,9 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.3.45 - requivsumfrac constraint flipping bugfix
+* fixes bug in flipping requivsumfrac constraint for requivratio when requiv of the secondary star is already constrained
+
 ### 2.3.44 - add_component/figure bugfix
 * fixes bug in assigning parameter tags when passing function (as kind) to add_component or add_figure.
 
