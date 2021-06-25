@@ -274,7 +274,7 @@ def process_acf_from_solution(b, solution, nlags=None, burnin=None, lnprob_cutof
         (or 'lnprobabilities') and values being the output of <phoebe.helpers.acf>
         (array with shape (nwalkers, nlags)), dictionary with keys being the
         parameter twigs (or 'lnprobabilities') and values being the output
-        of <phoebe.helpers.acf_ci_bartlett), and float being the
+        of <phoebe.helpers.acf_ci_bartlett>, and float being the
         confidence intervale from <phoebe.helpers.acf_ci>.
     """
     solution_ps = b.get_solution(solution=solution, **_skip_filter_checks)
