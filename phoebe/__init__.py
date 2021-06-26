@@ -17,7 +17,7 @@ Available environment variables:
 
 """
 
-__version__ = '2.3.45'
+__version__ = '2.3.46'
 
 import os as _os
 import sys as _sys
