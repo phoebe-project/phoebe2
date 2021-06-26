@@ -5610,12 +5610,11 @@ class Bundle(ParameterSet):
         return deps_pip, deps_other
 
     @send_if_client
-    def add_feature(self, kind, component=None, dataset=None,
+    def add_feature(self, kind, component=None, dataset=None, solver=None,
                     return_changes= False, **kwargs):
         """
-        Add a new feature (spot, gaussian process, etc) to a component or
-        dataset in the system.  If not
-        provided, `feature` (the name of the new feature) will be created
+        Add a new feature (spot, gaussian process, etc) to a component, dataset,
+        or solver.  If not provided, `feature` (the name of the new feature) will be created
         for you and can be accessed by the `feature` attribute of the returned
         <phoebe.parameters.ParameterSet>.
 
@@ -5634,10 +5633,11 @@ class Bundle(ParameterSet):
         * <phoebe.parameters.feature.spot>
         * <phoebe.parameters.feature.gp_sklearn>
         * <phoebe.parameters.feature.gp_celerite2>
+        * <phoebe.parameters.feature.emcee_move>
 
-        See the entries above to see the valid kinds for `component` and `dataset`
-        based on the type of feature.  An error will be raised if the passed value
-        for `component` and/or `dataset` are not allowed by the type of feature
+        See the entries above to see the valid kinds for `component`, `dataset`,
+        and `solver` based on the type of feature.  An error will be raised if the passed value
+        for `component`, `dataset`, or `solver` are not allowed by the type of feature
         with kind `kind`.
 
         Arguments
@@ -5652,6 +5652,8 @@ class Bundle(ParameterSet):
             feature.  Required for features that must be attached to a component.
         * `dataset` (string, optional): name of the dataset to attach the feature.
             Required for features that must be attached to a dataset.
+        * `solver` (string, optional): name of the solver to attach the feature.
+            Required for features that must be attached to a solver.
         * `feature` (string, optional): name of the newly-created feature.
         * `overwrite` (boolean, optional, default=False): whether to overwrite
             an existing feature with the same `feature` tag.  If False,
@@ -5710,11 +5712,23 @@ class Bundle(ParameterSet):
         if not _feature._dataset_allowed_for_feature(func.__name__, dataset_kind):
             raise ValueError("{} does not support dataset with kind {}".format(func.__name__, dataset_kind))
 
+        if solver is not None:
+            if solver not in self.solvers:
+                raise ValueError("solver '{}' not one of {}".format(solver, self.solvers))
+
+            solver_kind = self.filter(solver=solver, context='solver').kind
+        else:
+            solver_kind = None
+
+        if not _feature._solver_allowed_for_feature(func.__name__, solver_kind):
+            raise ValueError("{} does not support solver with kind {}".format(func.__name__, solver_kind))
+
         params, constraints = func(**kwargs)
 
         metawargs = {'context': 'feature',
                      'component': component,
                      'dataset': dataset,
+                     'solver': solver,
                      'feature': kwargs['feature'],
                      'kind': func.__name__}
 
