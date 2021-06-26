@@ -115,7 +115,7 @@ def phoebe(**kwargs):
     params += _server_params(**kwargs)
 
     params += [BoolParameter(qualifier='enabled', copy_for={'context': 'dataset', 'dataset': '*'}, dataset='_default', value=kwargs.get('enabled', True), description='Whether to create synthetics in compute/solver run')]
-    params += [BoolParameter(qualifier='enabled', copy_for={'context': 'feature', 'feature': '*'}, feature='_default', value=kwargs.get('enabled', True), description='Whether to enable the feature in compute/solver run')]
+    params += [BoolParameter(qualifier='enabled', copy_for={'context': 'feature', 'kind': ['spot', 'gp_sklearn', 'gp_celerite2'], 'feature': '*'}, feature='_default', value=kwargs.get('enabled', True), description='Whether to enable the feature in compute/solver run')]
     params += [BoolParameter(visible_if='ds_has_enabled_feature:gp_*', qualifier='gp_exclude_phases_enabled', value=kwargs.get('gp_exclude_phases_enabled', True), copy_for={'kind': ['lc', 'rv', 'lp'], 'dataset': '*'}, dataset='_default', description='Whether to apply the mask in gp_exclude_phases during gaussian process fitting.')]
     params += [FloatArrayParameter(visible_if='ds_has_enabled_feature:gp_*,gp_exclude_phases_enabled:True', qualifier='gp_exclude_phases', value=kwargs.get('gp_exclude_phases', []), copy_for={'kind': ['lc', 'rv', 'lp'], 'dataset': '*'}, dataset='_default', default_unit=u.dimensionless_unscaled, required_shape=[None, 2], description='List of phase-tuples.  Any observations inside the range set by any of the tuples will be ignored by the gaussian process features.')]
 
