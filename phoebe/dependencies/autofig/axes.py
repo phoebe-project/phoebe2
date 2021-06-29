@@ -1267,15 +1267,21 @@ class Axes(object):
             ax.set_zlabel(self.z.label_with_units)
 
         xlim = self.x.get_lim(i=i)
-        if not np.any(np.isnan(xlim)):
+        if (isinstance(xlim, tuple) and xlim==(None, None)):
+            pass
+        elif not np.any(np.isnan(xlim)):
             ax.set_xlim(xlim)
         ylim = self.y.get_lim(i=i)
-        if not np.any(np.isnan(ylim)):
+        if (isinstance(ylim, tuple) and ylim==(None, None)):
+            pass
+        elif not np.any(np.isnan(ylim)):
             ax.set_ylim(ylim)
 
         if axes_3d:
             zlim = self.z.get_lim(i=i)
-            if not np.any(np.isnan(zlim)):
+            if (isinstance(zlim, tuple) and zlim==(None, None)):
+                pass
+            elif not np.any(np.isnan(zlim)):
                 ax.set_zlim(zlim)
 
             elev_current = self.elev.get_value(i=i)
