@@ -1087,7 +1087,7 @@ class Bundle(ParameterSet):
             if starB != 'secondary':
                 b.rename_component(secondary, starB)
             if orbit != 'binary':
-                b.rename_component('binary', 'orbit')
+                b.rename_component('binary', orbit)
 
             if semidetached == starA or semidetached is True:
                 b.add_constraint('semidetached', component=starA)
