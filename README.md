@@ -84,6 +84,11 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.3.47 - calculate_lnp bugfix
+* fixes calculate_lnp to more robustly handle parameter matching for both the constrained and unconstrained case
+* fixes default_binary constructor when overriding label of the 'binary' orbit
+* fixes typo in ellc backend for the period==1 case
+
 ### 2.3.46 - rvperiodogram SB1 bugfix
 
 * fixes handling of SB1s (RVs with a single component) in the rv_periodogram estimator
@@ -230,79 +235,79 @@ CHANGELOG
 * checking for available passband updates on import now correctly respects the PHOEBE_ENABLE_ONLINE_PASSBANDS environment variable.
 * failed online passbands connection error messages are now only included in the log once (per processor) to avoid spamming the log (but are shown by default when manually calling phoebe.list_online_passbands).
 
-### 2.3.18 - estimator.ebai with wide eclipse fix (attempt 2)
+### 2.3.18 - estimator.ebai with wide eclipse bugfix (attempt 2)
 
 * actually fixes bug (see 2.3.13) that raised internal error when running ebai on an eclipse with width larger than 0.25 in phase.  Note that these systems will still return nans as ebai is not well-suited to these systems, but the internal error will no longer occur.
 
-### 2.3.17 - optimizer MPI fix
+### 2.3.17 - optimizer MPI bugfix
 
 * enables parallelization (per-time or per-dataset) for optimizers.
 
-### 2.3.16 - rv_geometry with different lengths fix
+### 2.3.16 - rv_geometry with different lengths bugfix
 
 * fixes estimator.rv_geometry when primary and secondary component have different times.
 
-### 2.3.15 - alternate backends with l3_frac and dataset-scaled fix
+### 2.3.15 - alternate backends with l3_frac and dataset-scaled bugfix
 
 * fix bug in applying l3_frac within dataset scaling (pblum_mode='dataset-scaled') when using alternate backends.
 
-### 2.3.14 - import_solution with uniqueid mismatch fix
+### 2.3.14 - import_solution with uniqueid mismatch bugfix
 
 * fix bug where falling back on twigs when importing a solution on a different bundle failed.  It is still suggested to save the bundle and import solutions on the bundle used when calling export_solver.
 
-### 2.3.13 - estimator.ebai with wide eclipse fix
+### 2.3.13 - estimator.ebai with wide eclipse bugfix
 
 * fix bug (but not really - see 2.3.18) that raised internal error when running ebai on an eclipse with width larger than 0.25 in phase.  Note that these systems will still return nans as ebai is not well-suited to these systems, but the internal error will no longer occur.  
 
-### 2.3.12 - plot univariate distributions latex label fix
+### 2.3.12 - plot univariate distributions latex label bugfix
 
 * fix bug in the latex labels on plots when converting from multivariate to univariate distributions.
 
-### 2.3.11 - continue_from run_checks fix
+### 2.3.11 - continue_from run_checks bugfix
 
 * fix bug where run_checks raised an error for an empty init_from if continue_from was set.
 
-### 2.3.10 - alternate backend atm fix
+### 2.3.10 - alternate backend atm bugfix
 
 * fix bug where atm parameter was ignored during passband luminosity scaling while using an alternate backend, resulting in an atmosphere out-of-bounds error in some situations.
 
-### 2.3.9 - online passbands fix
+### 2.3.9 - online passbands bugfix
 
 * stop attempting to query online passbands after three failed attempts to avoid significant time cost otherwise.
 
-### 2.3.8 - plotting exclusion fix
+### 2.3.8 - plotting exclusion bugfix
 
 * fix bug where datasets were excluded from plotting if not in any models
 * fix syntax error in run_checks
 
-### 2.3.7 - kwargs errors fix
+### 2.3.7 - kwargs errors bugfix
 
 * fix small bugs that could raise errors when passing some filter kwargs to `run_solver` or `sample_distribution_collection`
 
-### 2.3.6 - GP run_checks fix
+### 2.3.6 - GP run_checks bugfix
 
 * fix check for presence of observational data during run_checks to only consider datasets with attached gaussian processes (GPs)
 
-### 2.3.5 - lp run_checks fix
+### 2.3.5 - lp run_checks bugfix
 
 * fix length comparison of flux_densities and wavelengths during run_checks
 
-### 2.3.4 - passband/extinction hotfix
+### 2.3.4 - passband/extinction bugfix
 
 * fixed Gordon extinction coefficient calculation in line with erratum http://dx.doi.org/10.1088/0004-637X/705/2/1320.
 * added check to require updating affected-passbands (versions at tables.phoebe-project.org have been updated)
 * removed duplicate Passband methods causing ld/ldint passband computations to fail
 
-### 2.3.3 - latex representation hotfix
+### 2.3.3 - latex representation bugfix
 
 * fix the latex representation string for `fillout_factor`, `pot`, `pot_min`,
   and `pot_max` parameters in a contact binary.
 
-### 2.3.2 - manifest to include readme hotfix
+### 2.3.2 - manifest to include readme bugfix
 
 * manually include README.md in MANIFEST.in to avoid build errors from pip
 
-### 2.3.1 - pip install hotfix
+### 2.3.1 - pip install bugfix
 
 * removes m2r as an (unlisted) build-dependency.  m2r is only required to build the submission to submit to pypi, but is not required to install or run phoebe locally.
 
@@ -325,13 +330,13 @@ CHANGELOG
 * Numerous small bugfixes and enhancements
 
 
-### 2.2.2 - kwargs hotfix
+### 2.2.2 - kwargs bugfix
 
 * fix overriding mesh_init_phi as kwarg to run_compute
 * fix pblum computation to not require irrad_method kwarg
 * fix bundle representation to exclude hidden parameters
 
-### 2.2.1 - g++/gcc version check hotfix
+### 2.2.1 - g++/gcc version check bugfix
 
 * Improves the detection of g++/gcc version to compare against requirements during setup.
 
@@ -350,88 +355,88 @@ CHANGELOG
 * Constraint for logg.
 * Account for time-dependence (dpdt/dperdt) in t0 constraints.
 
-### 2.1.17 - ignore fits passbands hotfix
+### 2.1.17 - ignore fits passbands bugfix
 
 * Future-proof to ignore for passband files with extensions other than ".pb"
   which may be introduced in future versions of PHOEBE.
 
-### 2.1.16 - eccentric/misaligned irradiation hotfix
+### 2.1.16 - eccentric/misaligned irradiation bugfix
 
 * Fixes bug where irradiation was over-optimized and not recomputed as needed for
   eccentric or misaligned orbits.  Introduced in the optimizations in 2.1.6.
 
-### 2.1.15 - spots hotfix
+### 2.1.15 - spots bugfix
 
 * Fixes 'long' location of spots on single stars.
 * Fixes treatment of spots on secondary 'half' of contact systems.
 * Fixes loading legacy files with a spot that has source of 0 due to a bug in legacy.
 * Fixes overriding 'ntriangles' by passing keyword argument to run_compute.
 
-### 2.1.14 - contacts inclination RVs hotfix
+### 2.1.14 - contacts inclination RVs bugfix
 
 * Fixes the polar rotation axis for RVs in contact systems with non-90 inclinations
   by re-enabling the alignment (pitch, yaw) constraints and enforcing them to be 0.
 
-### 2.1.13 - constraint flip loop hotfix
+### 2.1.13 - constraint flip loop bugfix
 
 * Fixes infinite loop when trying to flip esinw AND ecosw
 * Adds ability to flip mass (Kepler's third law) to solve for q
 * Fixes bug introduced in 2.1.9 in which out-of-limits constrained parameters in
 an envelope were being raised before all constraints could resolve successfully.
 
-### 2.1.12 - legacy ephemeris and kwargs checks hotfix
+### 2.1.12 - legacy ephemeris and kwargs checks bugfix
 
 * Fixes applying t0 when importing legacy dataset which use phase.
 * Fixes ignoring other compute options when running checks on kwargs during run_compute.
 
-### 2.1.11 - legacy dataset import hotfix
+### 2.1.11 - legacy dataset import bugfix
 
 * Fixes loading legacy datasets which use phase (by translating to time with the current ephemeris).
 * Fixes loading legacy datasets with errors in magnitudes (by converting to errors in flux units).
 * Fixes plotting RV datasets in which only one component has times (which is often the case when importing from a legacy file).
 
-### 2.1.10 - ldint hotfix
+### 2.1.10 - ldint bugfix
 
 * Removes ldint from the weights in the computations of RVs and LPs.
 
-### 2.1.9 - limits hotfix
+### 2.1.9 - limits bugfix
 
 * Fixes a bug where parameter limits were not being checked and out-of-limits errors not raised correctly.
 
-### 2.1.8 - mesh convergence hotfix
+### 2.1.8 - mesh convergence bugfix
 
 * Fixes a bug where certain parameters would cause the meshing algorithm to fail to converge.  With this fix, up to 4 additional attempts will be made with random initial starting locations which should converge for most cases.
 
-### 2.1.7 - comparison operators hotfix
+### 2.1.7 - comparison operators bugfix
 
 * Fixes a bug where comparisons between Parameters/ParameterSets and values were returning nonsensical values.
 * Comparing ParameterSets with any object will now return a NotImplementedError
 * Comparing Parameters will compare against the value or quantity, with default units when applicable.
 * Comparing equivalence between two Parameter objects will compare the uniqueids of the Parameters, NOT the values.
 
-### 2.1.6 - optimization hotfix
+### 2.1.6 - optimization bugfix
 
 * Fixes a bug where automatic detection of eclipses was failing to properly fallback on only detecting the horizon.
 * Introduces several other significant optimizations, particularly in run_compute.
 
-### 2.1.5 - single star get_orbits and line-profile hotfix
+### 2.1.5 - single star get_orbits and line-profile bugfix
 
 * Fixes a bug in hierarchy.get_orbits() for a single star hierarchy which resulted in an error being raised while computing line-profiles.
 
-### 2.1.4 - freq constraint hotfix
+### 2.1.4 - freq constraint bugfix
 
 * This fixes the inversion of the frequency constraint when flipping to solve for period.
 
-### 2.1.3 - overflow error for semidetached systems hotfix
+### 2.1.3 - overflow error for semidetached systems bugfix
 
 * Semi-detached systems could raise an error in the backend caused by the volume being slightly over the critical value when translating between requiv in solar units to volume in unitless/roche units.  When this numerical discrepancy is detected, the critical value is now adopted and a warning is sent via the logger.
 
-### 2.1.2 - constraints in solar units hotfix
+### 2.1.2 - constraints in solar units bugfix
 
 * All constraints are now executed (by default) in solar units instead of SI.  The Kepler's third law constraint (constraining mass by default) failed to have sufficient precision in SI, resulting in inaccurate masses.  Furthermore, if the constraint was flipped, inaccurate values of sma could be passed to the backend, resulting in overflow in the semi-detached case.
 * Bundles created before 2.1.2 and imported into 2.1.2+ will continue to use SI units for constraints and should function fine, but will not benefit from this update and will be incapable of changing the system hierarchy.
 
-### 2.1.1 - MPI detection hotfix
+### 2.1.1 - MPI detection bugfix
 
 * PHOEBE now detects if its within MPI on various different MPI installations (previously only worked for openmpi).
 
@@ -454,45 +459,45 @@ an envelope were being raised before all constraints could resolve successfully.
 * Permanently rename 'long' parameter for spots (see note in 2.0.2 release below)
 * Numerous other minor bug fixes and improvements
 
-### 2.0.11 - astropy version dependency hotfix
+### 2.0.11 - astropy version dependency bugfix
 
 * Set astropy dependency to be >=1.0 and < 3.0 (as astropy 3.0 requires python 3)
 
-### 2.0.10 - legacy import extraneous spaces hotfix
+### 2.0.10 - legacy import extraneous spaces bugfix
 
 * Handle ignoring extraneous spaces when importing a PHOEBE legacy file.
 
 
-### 2.0.9 - \_default Parameters hotfix
+### 2.0.9 - \_default Parameters bugfix
 
 * Previously, after loading from a JSON file, new datasets were ignored by run_compute because the \_default Parameters (such as 'enabled') were not stored and loaded correctly.  This has now been fixed.
 * PS.datasets/components now hides the (somewhat confusing) \_default entries.
 * unicode handling in filtering is improved to make sure the copying rules from JSON are followed correctly when loaded as unicodes instead of strings.
 
-### 2.0.8 - contacts hotfix
+### 2.0.8 - contacts bugfix
 
 * Remove unused Parameters from the Bundle
 * Improvement in finding the boundary between the two components of a contact system
 
-### 2.0.7 - legacy import/export hotfix
+### 2.0.7 - legacy import/export bugfix
 
 * Handle missing parameters when importing/exporting so that a Bundle exported to a PHOEBE legacy file can successfully be reimported
 * Handle importing standard weight from datasets and converting to sigma
 
-### 2.0.6 - unit conversion hotfix
+### 2.0.6 - unit conversion bugfix
 
 * When requesting unit conversion from the frontend, astropy will now raise an error if the units are not compatible.
 
-### 2.0.5 - semi-detached hotfix
+### 2.0.5 - semi-detached bugfix
 
 * Fixed bug in which importing a PHOEBE legacy file of a semi-detached system failed to set the correct potential for the star filling its roche lobe.  This only affects the importer itself.
 * Implemented 'critical_rpole' and 'critical_potential' constraints.
 
-### 2.0.4 - vgamma temporary hotfix
+### 2.0.4 - vgamma temporary bugfix
 
 * The definition of vgamma in 2.0.* is in the direction of positive z rather than positive RV.  For the sake of maintaining backwards-compatibility, this will remain unchanged for 2.0.* releases but will be fixed in the 2.1 release to be in the direction of positive RV.  Until then, this bugfix handles converting to and from PHOEBE legacy correctly so that running the PHOEBE 2 and legacy backends gives consistent results.
 
-### 2.0.3 - t0_supconj/t0_perpass hotfix
+### 2.0.3 - t0_supconj/t0_perpass bugfix
 
 * Fixed constraint that defines the relation between t0_perpass and t0_supconj.
 * Implement new 't0_ref' parameter which corresponds to legacy's 'HJD0'.
@@ -502,14 +507,14 @@ an envelope were being raised before all constraints could resolve successfully.
 * Fixed the ability for multiple spots to be attached to the same component.
 * Raise an error if attempting to attach spots to an unsupported component.  Note: spots are currently not supported for contact systems.
 
-### 2.0.2 - spots hotfix
+### 2.0.2 - spots bugfix
 
 * If using spots, it is important that you use 2.0.2 or later as there were several important bug fixes in this release.
 * 'colon' parameter for spots has been renamed to 'long' (as its not actually colongitude).  For 2.0.X releases, the 'colon' parameter will remain as a constrained parameter to avoid breaking any existing scripts, but will be removed with the 2.1.0 release.
 * Features (including spots) have been fixed to correctly save and load to file.
 * Corotation of spots is now enabled: if the 'syncpar' parameter is not unity, the spots will correctly corotate with the star.  The location of the spot (defined by 'colat' and 'long' parameters) is defined such that the long=0 points to the companion star at t0.  That coordinate system then rotates with the star according to 'syncpar'.
 
-### 2.0.1 - ptfarea/pbspan hotfix
+### 2.0.1 - ptfarea/pbspan bugfix
 
 * Definition of flux and luminosity now use ptfarea instead of pbspan.  In the bolometric case, these give the same quantity. This discrepancy was absorbed entirely by pblum scaling, so relative fluxes should not be affected, but the underlying absolute luminosities were incorrect for passbands (non-bolometric).  In addition to under-the-hood changes, the exposed mesh column for 'pbspan' is now removed and replaced with 'ptfarea', but as this is not yet a documented column, should not cause backwards-compatibility issues.  
 
