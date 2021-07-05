@@ -8320,12 +8320,13 @@ class Bundle(ParameterSet):
                                                          **kwargs)
 
         # uniqueids needs to correspond to dc.dists_unpacked, not dc.dists
-        if len(dc.dists_unpacked) != len(uniqueids):
+        if len(dc.dists_unpacked) == len(uniqueids):
+            values = [self.get_value(uniqueid=uid, unit=dist.unit, **_skip_filter_checks) for uid, dist in zip(uniqueids, dc.dists_unpacked)]
+        elif len(dc.dists) == len(uniqueids):
+            values = [self.get_value(uniqueid=uid, unit=dist.unit, **_skip_filter_checks) for uid, dist in zip(uniqueids, dc.dists)]
+        else:
             ps = self.exclude(context=['distribution', 'constraint'], **_skip_filter_checks)
             values = [ps.get_value(twig=dist.label, unit=dist.unit, **_skip_filter_checks) for dist in dc.dists_unpacked]
-        else:
-            # then we can do the faster lookup by uniqueid
-            values = [self.get_value(uniqueid=uid, unit=dist.unit, **_skip_filter_checks) for uid, dist in zip(uniqueids, dc.dists_unpacked)]
 
         try:
             return dc.logpdf(values, as_univariates=False)
