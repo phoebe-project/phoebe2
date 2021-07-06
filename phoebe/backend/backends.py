@@ -1534,7 +1534,7 @@ class LegacyBackend(BaseBackendByDataset):
 
         # check whether phoebe legacy is installed
         if not _use_phb1:
-            raise ImportError("phoebeBackend for phoebe legacy not found")
+            raise ImportError("phoebeBackend for phoebe legacy not found.  Install (see phoebe-project.org/1.0) and restart phoebe")
 
         if len(starrefs)!=2:
             raise ValueError("only binaries are supported by legacy backend")
@@ -1853,7 +1853,7 @@ class PhotodynamBackend(BaseBackendByDataset):
         # check whether photodynam is installed
         out = commands.getoutput('photodynam')
         if 'not found' in out:
-            raise ImportError('photodynam executable not found')
+            raise ImportError('photodynam executable not found.  Install manually and try again.')
 
 
     def _worker_setup(self, b, compute, infolist, **kwargs):
@@ -2080,7 +2080,7 @@ class JktebopBackend(BaseBackendByDataset):
         # check whether jktebop is installed
         out = commands.getoutput('jktebop')
         if 'not found' in out:
-            raise ImportError('jktebop executable not found.')
+            raise ImportError('jktebop executable not found.  Install manually and try again.')
         version = out.split('JKTEBOP  ')[1].split(' ')[0]
         try:
             version_int = int(float(version[1:]))
@@ -2422,7 +2422,7 @@ class EllcBackend(BaseBackendByDataset):
     def run_checks(self, b, compute, times=[], **kwargs):
         # check whether ellc is installed
         if not _use_ellc:
-            raise ImportError("could not import ellc")
+            raise ImportError("could not import ellc.  Install (pip install ellc) and restart phoebe")
 
         if not (hasattr(ellc, 'lc') and hasattr(ellc, 'rv')):
             try:

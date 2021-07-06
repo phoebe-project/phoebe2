@@ -960,7 +960,7 @@ class Lc_PeriodogramBackend(_PeriodogramBaseBackend):
     """
     def run_checks(self, b, solver, compute, **kwargs):
         if not _use_astropy_timeseries:
-            raise ImportError("astropy.timeseries not installed (requires astropy 3.2+)")
+            raise ImportError("astropy.timeseries not installed (requires astropy 3.2+). Update astropy and restart phoebe.")
 
         solver_ps = b.get_solver(solver=solver, **_skip_filter_checks)
         if not len(solver_ps.get_value(qualifier='lc_datasets', expand=True, lc_datasets=kwargs.get('lc_datasets', None))):
@@ -982,7 +982,7 @@ class Rv_PeriodogramBackend(_PeriodogramBaseBackend):
     """
     def run_checks(self, b, solver, compute, **kwargs):
         if not _use_astropy_timeseries:
-            raise ImportError("astropy.timeseries not installed (requires astropy 3.2+)")
+            raise ImportError("astropy.timeseries not installed (requires astropy 3.2+).  Update astropy and restart phoebe.")
 
         solver_ps = b.get_solver(solver=solver, **_skip_filter_checks)
         if not len(solver_ps.get_value(qualifier='rv_datasets', expand=True, rv_datasets=kwargs.get('rv_datasets', None))):
@@ -1134,14 +1134,14 @@ class EmceeBackend(BaseSolverBackend):
         # check whether emcee is installed
 
         if not _use_emcee:
-            raise ImportError("could not import emcee")
+            raise ImportError("could not import emcee.  Install (pip install emcee) and restart phoebe.")
 
         try:
             if LooseVersion(emcee.__version__) < LooseVersion("3.0.0"):
-                raise ImportError("emcee backend requires emcee 3.0+, {} found".format(emcee.__version__))
+                raise ImportError("emcee backend requires emcee 3.0+, {} found.  Update emcee and restart phoebe.".format(emcee.__version__))
         except ValueError:
             # see https://github.com/phoebe-project/phoebe2/issues/378
-            raise ImportError("emcee backend requires a stable release of emcee 3.0+, {} found".format(emcee.__version__))
+            raise ImportError("emcee backend requires a stable release of emcee 3.0+, {} found.  Update emcee and restart phoebe.".format(emcee.__version__))
 
         solver_ps = b.get_solver(solver=solver, **_skip_filter_checks)
         if not len(solver_ps.get_value(qualifier='init_from', init_from=kwargs.get('init_from', None), **_skip_filter_checks)) and solver_ps.get_value(qualifier='continue_from', continue_from=kwargs.get('continue_from', None), **_skip_filter_checks)=='None':
@@ -1542,7 +1542,7 @@ class DynestyBackend(BaseSolverBackend):
         # check whether emcee is installed
 
         if not _use_dynesty:
-            raise ImportError("could not import dynesty")
+            raise ImportError("could not import dynesty.  Install (pip install dynesty) and restart phoebe.")
 
         solver_ps = b.get_solver(solver=solver, **_skip_filter_checks)
         if not len(solver_ps.get_value(qualifier='priors', init_from=kwargs.get('priors', None))):

@@ -1707,7 +1707,7 @@ class Bundle(ParameterSet):
         """
         if as_client:
             if not _can_client:
-                raise ImportError("dependencies to support client mode not met - see docs")
+                raise ImportError("dependencies to support client mode not met - see docs to install and restart phoebe")
 
             if as_client is True:
                 server = 'localhost:5555'
@@ -11889,7 +11889,7 @@ class Bundle(ParameterSet):
                         # NOTE: this is already in run_checks_compute, so this error
                         # should never be raised
                         if not _use_celerite:
-                            raise ImportError("gaussian processes require celerite to be installed")
+                            raise ImportError("gaussian processes require celerite to be installed.  Install (pip install celerite) and restart phoebe.")
 
                         # NOTE: only those exposed in feature.gaussian_process
                         # will be available to the user (we don't allow jitter, for example)
