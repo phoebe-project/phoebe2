@@ -10403,7 +10403,11 @@ class ArrayParameter(Parameter):
         self._readonly_check(**kwargs)
 
         _orig_value = _deepcopy(self._value)
-        self._value = np.array(value)
+        if self.qualifier in ['mask_phases', 'fitted_values', 'initial_values']:
+            # avoid the ragged sequence deprecation warning
+            self._value = np.asarray(value, dtype=object)
+        else:
+            self._value = np.asarray(value)
 
 
 class HierarchyParameter(StringParameter):
