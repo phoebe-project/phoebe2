@@ -3591,11 +3591,11 @@ class ParameterSet(object):
         ps = self.filter(twig=twig, **kwargs)
 
         # ensure all parameters are float parameters and can set to the passed unit
-        not_floats = [param.twig for param in ps.to_list() if not isinstance(param, FloatParameter)]
-        if len(not_floats):
-            raise ValueError("all matching parameters must be FloatParameters (and have units).  The following are not: {}".format(not_floats))
+        not_units = [param.twig for param in ps.to_list() if not hasattr(param, 'default_unit')]
+        if len(not_units):
+            raise ValueError("all matching parameters must have units.  The following are not: {}".format(not_units))
 
-        not_valid = [param.twig for param in ps.to_list() if unit not in param.get_equivalent_units()]
+        not_valid = [param.twig for param in ps.to_list() if unit not in param.get_valid_units()]
         if len(not_valid):
             raise ValueError("{} must be a valid unit for all matching parameters.  {} is not valid for: {}".format(unit, unit, not_valid))
 
@@ -9093,7 +9093,23 @@ class FloatParameter(Parameter):
 
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
-    def get_equivalent_units(self):
+    @property
+    def valid_units(self):
+        """
+        List valid units that can be converted from <phoebe.parameters.FloatParameter.default_unit>
+
+        See also:
+        * <phoebe.parameters.FloatParameter.default_unit>
+        * <phoebe.parameters.FloatParameter.set_default_unit>
+
+        Returns
+        -----------
+        * (list)
+        """
+
+        return self.get_valid_units()
+
+    def get_valid_units(self):
         """
         List valid units that can be converted from <phoebe.parameters.FloatParameter.default_unit>
 
@@ -11519,6 +11535,36 @@ class ConstraintParameter(Parameter):
                 kwargs['context'] = [c for c in self._bundle.contexts if c!='constraint']
                 return self._bundle.get_parameter(**kwargs)
             raise ValueError("no result found for {} in bundle after checking in {}".format(kwargs, vars.twigs))
+
+    @property
+    def valid_units(self):
+        """
+        List valid units that can be converted from <phoebe.parameters.ConstraintParameter.default_unit>
+
+        See also:
+        * <phoebe.parameters.ConstraintParameter.default_unit>
+        * <phoebe.parameters.ConstraintParameter.set_default_unit>
+
+        Returns
+        -----------
+        * (list)
+        """
+
+        return self.get_valid_units()
+
+    def get_valid_units(self):
+        """
+        List valid units that can be converted from <phoebe.parameters.ConstraintParameter.default_unit>
+
+        See also:
+        * <phoebe.parameters.ConstraintParameter.default_unit>
+        * <phoebe.parameters.ConstraintParameter.set_default_unit>
+
+        Returns
+        -----------
+        * (list)
+        """
+        return self.default_unit.find_equivalent_units()
 
     @property
     def default_unit(self):
