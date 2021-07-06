@@ -3523,7 +3523,7 @@ class ParameterSet(object):
                 unit = twig
                 twig = None
 
-            elif not len(self.filter(twig=twig, check_default=check_default, **kwargs)):
+            elif not len(self.filter(twig=twig, **kwargs)):
                 unit = twig
                 twig = None
 
