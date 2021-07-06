@@ -325,7 +325,7 @@ _twig_delims = ' \t\n`~!#$%^&)-=+]{}\\|;,<>/:'
 
 
 _singular_to_plural = {'time': 'times', 'phase': 'phases', 'flux': 'fluxes', 'sigma': 'sigmas',
-                       'rv': 'rvs', 'flux_density': 'flux_densities',
+                       'rv': 'rvs', 'wavelength': 'wavelengths', 'flux_density': 'flux_densities',
                        'time_ecl': 'time_ecls', 'time_ephem': 'time_ephems', 'N': 'Ns',
                        'x': 'xs', 'y': 'ys', 'z': 'zs', 'vx': 'vxs', 'vy': 'vys',
                        'vz': 'vzs', 'nx': 'nxs', 'ny': 'nys', 'nz': 'nzs',
