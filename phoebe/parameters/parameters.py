@@ -3589,6 +3589,16 @@ class ParameterSet(object):
                 twig = None
 
         ps = self.filter(twig=twig, **kwargs)
+
+        # ensure all parameters are float parameters and can set to the passed unit
+        not_floats = [param.twig for param in ps.to_list() if not isinstance(param, FloatParameter)]
+        if len(not_floats):
+            raise ValueError("all matching parameters must be FloatParameters (and have units).  The following are not: {}".format(not_floats))
+
+        not_valid = [param.twig for param in ps.to_list() if unit not in param.get_equivalent_units()]
+        if len(not_valid):
+            raise ValueError("{} must be a valid unit for all matching parameters.  {} is not valid for: {}".format(unit, unit, not_valid))
+
         for param in ps.to_list():
             param.set_default_unit(unit)
 
@@ -9082,6 +9092,20 @@ class FloatParameter(Parameter):
             self._dict_fields_other += ['timederiv']
 
         self._dict_fields = _meta_fields_all + self._dict_fields_other
+
+    def get_equivalent_units(self):
+        """
+        List valid units that can be converted from <phoebe.parameters.FloatParameter.default_unit>
+
+        See also:
+        * <phoebe.parameters.FloatParameter.default_unit>
+        * <phoebe.parameters.FloatParameter.set_default_unit>
+
+        Returns
+        -----------
+        * (list)
+        """
+        return self.default_unit.find_equivalent_units()
 
     @property
     def default_unit(self):
