@@ -4586,19 +4586,31 @@ class Bundle(ParameterSet):
                 fit_ps = None
 
 
-            if solver_kind in ['emcee'] and solver_ps.get_value(qualifier='continue_from', continue_from=kwargs.get('continue_from', None), **_skip_filter_checks) == 'None':
-                # check to make sure twice as many params as walkers
-                nwalkers = solver_ps.get_value(qualifier='nwalkers', nwalkers=kwargs.get('nwalkers', None), **_skip_filter_checks)
+            if solver_kind in ['emcee']:
+                continue_from = solver_ps.get_value(qualifier='continue_from', continue_from=kwargs.get('continue_from', None), **_skip_filter_checks)
+                if continue_from == 'None':
+                    # check to make sure twice as many params as walkers
+                    nwalkers = solver_ps.get_value(qualifier='nwalkers', nwalkers=kwargs.get('nwalkers', None), **_skip_filter_checks)
 
-                # init_from_uniqueids should already be calculated above in call to get_distribution_collection
-                if nwalkers < 2*len(init_from_uniqueids):
-                    # TODO: double check this logic
-                    report.add_item(self,
-                                    "nwalkers must be at least 2*init_from = {}".format(2*len(init_from_uniqueids)),
-                                    [solver_ps.get_parameter(qualifier='nwalkers', **_skip_filter_checks),
-                                     solver_ps.get_parameter(qualifier='init_from', **_skip_filter_checks)
-                                    ]+addl_parameters,
-                                    True, 'run_solver')
+                    # init_from_uniqueids should already be calculated above in call to get_distribution_collection
+                    if nwalkers < 2*len(init_from_uniqueids):
+                        # TODO: double check this logic
+                        report.add_item(self,
+                                        "nwalkers must be at least 2*init_from = {}".format(2*len(init_from_uniqueids)),
+                                        [solver_ps.get_parameter(qualifier='nwalkers', **_skip_filter_checks),
+                                         solver_ps.get_parameter(qualifier='init_from', **_skip_filter_checks)
+                                        ]+addl_parameters,
+                                        True, 'run_solver')
+                else:
+                    continue_from_iter = solver_ps.get_value(qualifier='continue_from_iter', continue_from_iter=kwargs.get('continue_from_iter', None), default=-1, **_skip_filter_checks)
+                    niters = self.get_value(qualifier='niters', solution=continue_from, **_skip_filter_checks)
+                    if abs(continue_from_iter) > niters:
+                        report.add_item(self,
+                                        "abs(continue_from_iter) must not be larger than completed niters@{}={}".format(continue_from, niters),
+                                        [solver_ps.get_parameter(qualifier='continue_from_iter', **_skip_filter_checks),
+                                         solver_ps.get_parameter(qualifier='continue_from', **_skip_filter_checks),
+                                        ]+addl_parameters,
+                                        True, 'run_solver')
 
             if solver_kind in ['emcee', 'dynesty']:
                 offending_parameters = self.filter(qualifier='pblum_mode', dataset=lc_datasets+rv_datasets, value='dataset-scaled', **_skip_filter_checks)

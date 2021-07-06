@@ -1306,6 +1306,7 @@ class EmceeBackend(BaseSolverBackend):
             niters = kwargs.get('niters')
             nwalkers = kwargs.get('nwalkers')
             continue_from = kwargs.get('continue_from')
+            continue_from_iter = kwargs.get('continue_from_iter')
 
             init_from = kwargs.get('init_from')
             init_from_combine = kwargs.get('init_from_combine')
@@ -1386,7 +1387,7 @@ class EmceeBackend(BaseSolverBackend):
                     # re-created, then we probably don't even have the original
                     # distributions.... so we're forced using the samples from the solution
                     logger.warning("wrap_central_values uniqueid matches not found, recreating wrapping rules based on last samples")
-                    samples_last_iter = continue_from_ps.get_value(qualifier='samples', **_skip_filter_checks)[-1, :, :]
+                    samples_last_iter = continue_from_ps.get_value(qualifier='samples', **_skip_filter_checks)[continue_from_iter, :, :]
                     wrap_central_values = {}
                     for i, uniqueid in enumerate(params_uniqueids):
 
@@ -1396,7 +1397,7 @@ class EmceeBackend(BaseSolverBackend):
                             wrap_central_values[uniqueid] = np.median(samples_this_param)
 
                 params_units = continue_from_ps.get_value(qualifier='fitted_units', **_skip_filter_checks)
-                continued_samples = continue_from_ps.get_value(qualifier='samples', **_skip_filter_checks)
+                continued_samples = continue_from_ps.get_value(qualifier='samples', **_skip_filter_checks)[:continue_from_iter, :, :]
                 expose_failed = 'failed_samples' in continue_from_ps.qualifiers
                 kwargs['expose_failed'] = expose_failed # needed for _get_packet_and_solution
                 if expose_failed:
@@ -1409,7 +1410,7 @@ class EmceeBackend(BaseSolverBackend):
                 # # continued_accepted [iterations, walkers]
                 continued_acceptance_fractions = continue_from_ps.get_value(qualifier='acceptance_fractions', **_skip_filter_checks)
                 # continued_acceptance_fractions [iterations, walkers]
-                continued_lnprobabilities = continue_from_ps.get_value(qualifier='lnprobabilities', **_skip_filter_checks)
+                continued_lnprobabilities = continue_from_ps.get_value(qualifier='lnprobabilities', **_skip_filter_checks)[:continue_from_iter]
                 # continued_lnprobabilities [iterations, walkers]
 
                 # fake a backend object from the previous solution so that emcee
