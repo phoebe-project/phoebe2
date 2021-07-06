@@ -1480,7 +1480,7 @@ class EmceeBackend(BaseSolverBackend):
                     if np.any(~np.isnan(autocorr_times)):
                         burnin = int(burnin_factor * np.nanmax(autocorr_times))
                         thin = int(thin_factor * np.nanmin(autocorr_times))
-                        if thin==0:
+                        if thin < 1:
                             thin = 1
                         nlags = int(nlags_factor * np.nanmax(autocorr_times))
                         if nlags < sampler.iteration - burnin:
