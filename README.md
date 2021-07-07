@@ -84,7 +84,12 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.3.48 - mu atm out-of-bounds bugfix
+
+* fixes atmosphere out-of-bounds error caused by mu that should be exactly 0 or 1, but numerically out-of-bounds.
+
 ### 2.3.47 - calculate_lnp bugfix
+
 * fixes calculate_lnp to more robustly handle parameter matching for both the constrained and unconstrained case
 * fixes default_binary constructor when overriding label of the 'binary' orbit
 * fixes typo in ellc backend for the period==1 case
