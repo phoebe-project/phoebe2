@@ -2760,6 +2760,10 @@ class Passband:
         """
         # TODO: improve docstring
 
+        # make sure we're not suffering from rounding issues in mu:
+        mu[np.isclose(mu, 1)] = 1-1e-12
+        mu[np.isclose(mu, 0)] = 1e-12
+
         if ld_func == 'interp':
             # The 'interp' LD function works only for model atmospheres:
             if atm == 'ck2004' and 'ck2004:Imu' in self.content:
