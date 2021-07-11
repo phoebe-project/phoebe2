@@ -84,6 +84,11 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.3.49 - requivsumfrac flipping bugfix
+
+* fix remaining cases for flipping requivsumfrac constraint (see 2.3.45 bugfix release for the partial fix for some, but not all, cases)
+* migrate from Travis CI to GitHub actions for CI testing
+
 ### 2.3.48 - mu atm out-of-bounds bugfix
 
 * fixes atmosphere out-of-bounds error caused by mu that should be exactly 0 or 1, but numerically out-of-bounds.
