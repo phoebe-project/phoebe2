@@ -2,9 +2,10 @@ import phoebe
 from phoebe import u
 import numpy as np
 import matplotlib.pyplot as plt
+import os
 
 
-def test_binary(plot=False):
+def test_binary(plot=False, gen_comp=False):
 
     cb = phoebe.Bundle.default_binary(contact_binary=True)
     cb.flip_constraint('pot', solve_for='requiv@primary')
@@ -20,7 +21,8 @@ def test_binary(plot=False):
     cb.add_dataset('rv', time=times, dataset='rv01')
 
     cb.add_compute('phoebe', ntriangles=4000, compute='phoebe2', mesh_method='marching')
-    cb.add_compute('legacy', gridsize=100, compute='phoebe1')
+    if gen_comp:
+        cb.add_compute('legacy', gridsize=100, compute='phoebe1')
 
     cb.set_value_all('atm', 'extern_planckint')
 
@@ -41,8 +43,12 @@ def test_binary(plot=False):
 
     print("running phoebe2 model...")
     cb.run_compute(compute='phoebe2', irrad_method='none', model='phoebe2model')
-    print("running phoebe1 model...")
-    cb.run_compute(compute='phoebe1', refl_num=0, model='phoebe1model')
+    if gen_comp:
+        print("running phoebe1 model...")
+        cb.run_compute(compute='phoebe1', refl_num=0, model='phoebe1model')
+        cb.filter(model='phoebe1model').save('test_cbs.comp.model')
+    else:
+        cb.import_model(os.path.join(os.path.dirname(__file__), 'test_cbs.comp.model'), model='phoebe1model')
 
     phoebe2_val_lc = cb.get_value('fluxes@phoebe2model')
     phoebe1_val_lc = cb.get_value('fluxes@phoebe1model')
@@ -70,4 +76,4 @@ def test_binary(plot=False):
 if __name__ == '__main__':
     logger = phoebe.logger(clevel='debug')
 
-    cb = test_binary(plot=True)
+    cb = test_binary(plot=True, gen_comp=True)

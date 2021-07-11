@@ -337,9 +337,15 @@ def _get_combined_rv(b, datasets, components, phase_component=None, mask=True, n
                     rvc_rvs = rvc_rvs[inds]
                     rvc_sigmas = rvc_sigmas[inds]
 
+            if not len(rvc_times):
+                continue
+
             c_times = np.append(c_times, rvc_times)
             c_rvs = np.append(c_rvs, rvc_rvs)
             c_sigmas = np.append(c_sigmas, rvc_sigmas)
+
+        if not len(c_rvs):
+            continue
 
         if normalize:
             c_rvs_max = abs(c_rvs).max()

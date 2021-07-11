@@ -2773,7 +2773,7 @@ class EllcBackend(BaseBackendByDataset):
 
             if flux_weighted and period_anom == 1.0: # add VersionCheck once bug fixed (https://github.com/pmaxted/ellc/issues/4)
                 logger.warning("ellc does not allow period=1.0 with flux_weighted RVs (see  https://github.com/pmaxted/ellc/issues/4).  Overriding period to 1.0+1e-6 for {}@{}".format(info['component'], info['dataset']))
-                period += 1e-6
+                period_anom += 1e-6
             # enable once exptime for RVs is supported in PHOEBE
             # t_exp = b.get_value(qualifier='exptime', dataset=info['dataset'], context='dataset')
             t_exp = 0

@@ -1159,7 +1159,7 @@ class Bundle(ParameterSet):
             if starB != 'secondary':
                 b.rename_component(secondary, starB)
             if orbit != 'binary':
-                b.rename_component('binary', 'orbit')
+                b.rename_component('binary', orbit)
 
             if semidetached == starA or semidetached is True:
                 b.add_constraint('semidetached', component=starA)
@@ -4488,6 +4488,13 @@ class Bundle(ParameterSet):
                                             +addl_parameters,
                                             True, 'run_solver')
 
+                        if np.any(sigmas==0):
+                            report.add_item(self,
+                                            "sigmas cannot contain zeros",
+                                            self.filter(qualifier=['sigmas'], dataset=dataset, component=component, context='dataset', **_skip_filter_checks)
+                                            +addl_parameters,
+                                            True, 'run_solver')
+
 
 
             if 'lc_datasets' in solver_ps.qualifiers:
@@ -4498,6 +4505,26 @@ class Bundle(ParameterSet):
                                     [solver_ps.get_parameter(qualifier='lc_datasets', **_skip_filter_checks)
                                     ]+addl_parameters,
                                     True, 'run_solver')
+
+                for dataset in lc_datasets:
+                    component = None
+                    sigmas = self.get_value(qualifier='sigmas', dataset=dataset, component=component, context='dataset', **_skip_filter_checks)
+
+                    if np.any(np.isnan(sigmas)):
+                        report.add_item(self,
+                                        "sigmas cannot contain any nans",
+                                        self.filter(qualifier=['sigmas'], dataset=dataset, component=component, context='dataset', **_skip_filter_checks)
+                                        +addl_parameters,
+                                        True, 'run_solver')
+
+                    if np.any(sigmas==0):
+                        report.add_item(self,
+                                        "sigmas cannot contain zeros",
+                                        self.filter(qualifier=['sigmas'], dataset=dataset, component=component, context='dataset', **_skip_filter_checks)
+                                        +addl_parameters,
+                                        True, 'run_solver')
+
+
             elif 'compute' in solver_ps.qualifiers:
                 lc_datasets = self.filter(dataset=self.filter(qualifier='enabled', value=True, compute=compute, context='compute', **_skip_filter_checks).datasets, kind='lc', context='dataset', **_skip_filter_checks).datasets
             else:
@@ -4511,6 +4538,28 @@ class Bundle(ParameterSet):
                                     [solver_ps.get_parameter(qualifier='rv_datasets', **_skip_filter_checks)
                                     ]+addl_parameters,
                                     True, 'run_solver')
+
+                for dataset in rv_datasets:
+                    for time_param in self.filter(qualifier='times', dataset=dataset, context='dataset', **_skip_filter_checks).to_list():
+                        component = time_param.component
+                        if not len(time_param.get_value()):
+                            continue
+                        sigmas = self.get_value(qualifier='sigmas', dataset=dataset, component=component, context='dataset', **_skip_filter_checks)
+
+                        if np.any(np.isnan(sigmas)):
+                            report.add_item(self,
+                                            "sigmas cannot contain any nans",
+                                            self.filter(qualifier=['sigmas'], dataset=dataset, component=component, context='dataset', **_skip_filter_checks)
+                                            +addl_parameters,
+                                            True, 'run_solver')
+
+                        if np.any(sigmas==0):
+                            report.add_item(self,
+                                            "sigmas cannot contain zeros",
+                                            self.filter(qualifier=['sigmas'], dataset=dataset, component=component, context='dataset', **_skip_filter_checks)
+                                            +addl_parameters,
+                                            True, 'run_solver')
+
             elif 'compute' in solver_ps.qualifiers:
                 rv_datasets = self.filter(dataset=self.filter(qualifier='enabled', value=True, compute=compute, context='compute', **_skip_filter_checks).datasets, kind='rv', context='dataset', **_skip_filter_checks).datasets
             else:

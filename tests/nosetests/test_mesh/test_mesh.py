@@ -5,8 +5,9 @@ import phoebe
 from phoebe import u
 import numpy as np
 import matplotlib.pyplot as plt
+import os
 
-def _phoebe_v_legacy_lc_protomesh(b, gridsize=10, plot=False):
+def _phoebe_v_legacy_lc_protomesh(b, gridsize=10, plot=False, gen_comp=False):
     """
     """
 
@@ -30,7 +31,11 @@ def _phoebe_v_legacy_lc_protomesh(b, gridsize=10, plot=False):
     #turn off albedos (legacy requirement)
     b.set_value_all('irrad_frac_refl_bol',  0.0)
 
-    b.run_compute('phoebe1', model='phoebe1model', refl_num=0)
+    if gen_comp:
+        b.run_compute('phoebe1', model='phoebe1model', refl_num=0)
+        b.filter(model='phoebe1model').save('test_mesh.comp.model')
+    else:
+        b.import_model(os.path.join(os.path.dirname(__file__), 'test_mesh.comp.model'), model='phoebe1model')
     b.run_compute('phoebe2', model='phoebe2model', irrad_method='none')
 
 
@@ -106,7 +111,7 @@ def _phoebe_v_legacy_lc_protomesh(b, gridsize=10, plot=False):
 
 
 
-def test_binary(plot=False):
+def test_binary(plot=False, gen_comp=False):
     """
     """
 
@@ -116,7 +121,7 @@ def test_binary(plot=False):
     # TODO: once ps.copy is implemented, just send b.copy() to each of these
 
     b = phoebe.Bundle.default_binary()
-    _phoebe_v_legacy_lc_protomesh(b, plot=plot)
+    _phoebe_v_legacy_lc_protomesh(b, plot=plot, gen_comp=gen_comp)
 
     phoebe.devel_off() # reset for future tests
 
@@ -124,4 +129,4 @@ if __name__ == '__main__':
     logger = phoebe.logger('debug')
 
 
-    test_binary(plot=True)
+    test_binary(plot=True, gen_comp=True)

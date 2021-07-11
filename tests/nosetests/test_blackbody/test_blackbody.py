@@ -5,9 +5,10 @@ import phoebe
 from phoebe import u
 import numpy as np
 import matplotlib.pyplot as plt
+import os
 
 
-def test_binary(plot=False):
+def test_binary(plot=False, gen_comp=False):
     b = phoebe.Bundle.default_binary()
 
     # Two spherical suns
@@ -17,7 +18,8 @@ def test_binary(plot=False):
 
     b.add_dataset('lc', times=np.linspace(0,100,21))
     b.add_compute('phoebe', compute='phoebe2')
-    b.add_compute('legacy', compute='phoebe1')
+    if gen_comp:
+        b.add_compute('legacy', compute='phoebe1')
 
     # set matching atmospheres
     b.set_value_all('atm', 'extern_planckint')
@@ -36,8 +38,13 @@ def test_binary(plot=False):
 
     if plot: print("running phoebe2 model...")
     b.run_compute(compute='phoebe2', irrad_method='none', model='phoebe2model')
-    if plot: print("running phoebe1 model...")
-    b.run_compute(compute='phoebe1', refl_num=0, model='phoebe1model')
+    if gen_comp:
+        if plot: print("running phoebe1 model...")
+        b.run_compute(compute='phoebe1', refl_num=0, model='phoebe1model')
+        b.filter(model='phoebe1model').save('test_blackbody.comp.model')
+    else:
+        b.import_model(os.path.join(os.path.dirname(__file__), 'test_blackbody.comp.model'), model='phoebe1model')
+
 
     phoebe2_val = b.get_value('fluxes@phoebe2model')
     phoebe1_val = b.get_value('fluxes@phoebe1model')
@@ -53,4 +60,4 @@ if __name__ == '__main__':
     logger = phoebe.logger(clevel='INFO')
 
 
-    b = test_binary(plot=True)
+    b = test_binary(plot=True, gen_comp=True)
