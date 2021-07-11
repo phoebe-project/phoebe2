@@ -5,14 +5,16 @@ import phoebe
 from phoebe import u
 import numpy as np
 import matplotlib.pyplot as plt
+import os
 
 
-def test_binary(plot=False):
+def test_binary(plot=False, gen_comp=False):
     b = phoebe.Bundle.default_binary()
 
     b.add_dataset('lc', times=phoebe.linspace(0,1,21))
     b.add_compute('phoebe', irrad_method='none', compute='phoebe2')
-    b.add_compute('legacy', refl_num=0, compute='phoebe1')
+    if gen_comp:
+        b.add_compute('legacy', refl_num=0, compute='phoebe1')
 
     # set matching atmospheres
     b.set_value_all('atm', 'extern_planckint')
@@ -39,8 +41,12 @@ def test_binary(plot=False):
 
         if plot: print("running phoebe2 model...")
         b.run_compute(compute='phoebe2', model='phoebe2model', overwrite=True)
-        if plot: print("running phoebe1 model...")
-        b.run_compute(compute='phoebe1', model='phoebe1model', overwrite=True)
+        if gen_comp:
+            if plot: print("running phoebe1 model...")
+            b.run_compute(compute='phoebe1', model='phoebe1model', overwrite=True)
+            b.filter(model='phoebe1model').save('test_l3_{}.comp.model'.format(l3_mode))
+        else:
+            b.import_model(os.path.join(os.path.dirname(__file__), 'test_l3_{}.comp.model'.format(l3_mode)), model='phoebe1model', overwrite=True)
 
         phoebe2_val = b.get_value('fluxes@phoebe2model')
         phoebe1_val = b.get_value('fluxes@phoebe1model')
@@ -58,4 +64,4 @@ if __name__ == '__main__':
     logger = phoebe.logger(clevel='INFO')
 
 
-    b = test_binary(plot=True)
+    b = test_binary(plot=True, gen_comp=True)

@@ -5,8 +5,9 @@ import phoebe
 from phoebe import u
 import numpy as np
 import matplotlib.pyplot as plt
+import os
 
-def test_binary(plot=False):
+def test_binary(plot=False, gen_comp=False):
     b = phoebe.Bundle.default_binary()
 
     b.add_spot(component='primary', relteff=0.9, radius=20, colat=45, long=90, feature='spot01')
@@ -14,7 +15,8 @@ def test_binary(plot=False):
     b.add_dataset('lc', times=np.linspace(0,1,26))
     b.add_dataset('mesh', times=[0], columns=['teffs'])
     b.add_compute('phoebe', compute='phoebe2')
-    b.add_compute('legacy', compute='phoebe1')
+    if gen_comp:
+        b.add_compute('legacy', compute='phoebe1')
 
     # set matching atmospheres
     b.set_value_all('atm', 'extern_planckint')
@@ -34,8 +36,12 @@ def test_binary(plot=False):
 
     print("running phoebe2 model...")
     b.run_compute(compute='phoebe2', irrad_method='none', model='phoebe2model')
-    print("running phoebe1 model...")
-    b.run_compute(compute='phoebe1', refl_num=0, model='phoebe1model')
+    if gen_comp:
+        print("running phoebe1 model...")
+        b.run_compute(compute='phoebe1', refl_num=0, model='phoebe1model')
+        b.filter(model='phoebe1model').save('test_spots.comp.model')
+    else:
+        b.import_model(os.path.join(os.path.dirname(__file__), 'test_spots.comp.model'), model='phoebe1model')
 
     phoebe2_val = b.get_value('fluxes@phoebe2model')
     phoebe1_val = b.get_value('fluxes@phoebe1model')
@@ -56,4 +62,4 @@ if __name__ == '__main__':
     logger = phoebe.logger(clevel='DEBUG')
 
 
-    b = test_binary(plot=True)
+    b = test_binary(plot=True, gen_comp=True)
