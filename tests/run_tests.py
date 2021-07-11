@@ -13,7 +13,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import os
 import sys
-import commands
+import subprocess
 
 if len(sys.argv)==1:
     do = ['tutorials', 'doctests', 'nosetests', 'pylint', 'benchmark']
@@ -38,7 +38,7 @@ if 'nosetests' in do:
     os.chdir(os.path.join(cwd, 'nosetests'))
     # import nose
     # nose.run()
-    out = commands.getoutput('nosetests -xv')
+    out = subprocess.check_output('nosetests -xv', shell=True, stderr=subprocess.DEVNULL).decode('utf-8').strip()
     if 'FAILED' in out:
         print("NOSETESTS FAILED: \n{}".format(out))
         exit()
@@ -47,7 +47,7 @@ if 'nosetests' in do:
 if 'pylint' in do:
     print("TESTING PYTHON STYLE VIA PYLINT...")
     print("TODO: support style checks")
-    out = commands.getoutput('pylint phoebe')
+    out = subprocess.check_output('pylint phoebe', shell=True, stderr=subprocess.DEVNULL).decode('utf-8').strip()
 
 # TODO: run API doctests
 if 'doctests' in do:
@@ -57,8 +57,10 @@ if 'doctests' in do:
 if 'benchmark' in do or 'benchmarks' in do:
     print("RUNNING BENCHMARKS...")
 
-    branch_name =  os.environ.get('TRAVIS_BRANCH', commands.getoutput('git rev-parse --symbolic-full-name --abbrev-ref HEAD'))
-    commit_hash = os.environ.get('TRAVIS_COMMIT', commands.getoutput('git log -n 1 --pretty=format:"%H"'))
+    branch_name =  subprocess.check_output('git rev-parse --symbolic-full-name --abbrev-ref HEAD', shell=True, stderr=subprocess.DEVNULL).decode('utf-8').strip()
+    commit_hash = subprocess.check_output('git log -n 1 --pretty=format:"%H"', shell=True, stderr=subprocess.DEVNULL).decode('utf-8').strip()
+
+    print("   branch: {}, commit: {}".format(branch_name, commit_hash))
 
     os.chdir(os.path.join(cwd, 'benchmark'))
     times = {}
@@ -67,13 +69,9 @@ if 'benchmark' in do or 'benchmarks' in do:
         f_profile = f_py.split('.py')[0]+'.profile'
         print("running {} to create {}".format(f_py, f_profile))
 
-        out  = commands.getoutput('time python -m cProfile -o {} {}'.format(f_profile, f_py))
-        if out[:9] == "Traceback":
-            print("{} failed".format(fname))
-            continue
-        times[f_py] = float(out.split()[-9].split('user')[0])
-
-
+        out = subprocess.check_output('time python {}'.format(f_py), shell=True, stderr=subprocess.STDOUT).decode('utf-8')
+        times[f_py] = float(out.split('user')[0])
+        print("   {} s".format(times[f_py]))
 
         f_result_fname = f_py.split('.py')[0]+'.log'
         f_result = open(f_result_fname, 'a')
@@ -99,6 +97,7 @@ if 'benchmark' in do or 'benchmarks' in do:
                     continue
 
         fig = plt.figure()
+        fig.clf()
         ax = fig.add_subplot(111)
         for branch, benchmark_ts in branches.items():
             ax.plot(range(len(benchmark_ts)), benchmark_ts, 'o', label=branch)

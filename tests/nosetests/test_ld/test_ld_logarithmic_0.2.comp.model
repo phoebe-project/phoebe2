@@ -1,0 +1,123 @@
+[
+{
+"Class": "FloatArrayParameter",
+"compute": "phoebe1",
+"context": "model",
+"copy_for": {},
+"dataset": "lc01",
+"default_unit": "d",
+"description": "Model (synthetic) times",
+"kind": "lc",
+"model": "phoebe1model",
+"qualifier": "times",
+"readonly": true,
+"required_shape": [
+null
+],
+"value": [
+0.0,
+0.05,
+0.1,
+0.15000000000000002,
+0.2,
+0.25,
+0.30000000000000004,
+0.35000000000000003,
+0.4,
+0.45,
+0.5,
+0.55,
+0.6000000000000001,
+0.65,
+0.7000000000000001,
+0.75,
+0.8,
+0.8500000000000001,
+0.9,
+0.9500000000000001,
+1.0
+]
+},
+{
+"Class": "FloatArrayParameter",
+"compute": "phoebe1",
+"context": "model",
+"copy_for": {},
+"dataset": "lc01",
+"default_unit": "W / m2",
+"description": "Model (synthetic) flux",
+"kind": "lc",
+"model": "phoebe1model",
+"qualifier": "fluxes",
+"readonly": true,
+"value": [
+0.9879152915351281,
+1.8911642367656603,
+1.9843902489056533,
+1.9931647462023525,
+2.000508071838249,
+2.0036318652500764,
+2.0005080718382504,
+1.9931647462023527,
+1.984390248905652,
+1.8911765650046475,
+0.9879152915351257,
+1.8911642367656607,
+1.9843902489056524,
+1.9931647462023525,
+2.00050807183825,
+2.003631865250077,
+2.000508071838249,
+1.993164746202352,
+1.9843902489056529,
+1.891176565004647,
+0.9879152915351281
+]
+},
+{
+"Class": "StringParameter",
+"compute": "phoebe1",
+"context": "model",
+"copy_for": false,
+"description": "User-provided comments for this model.  Feel free to place any notes here.",
+"model": "phoebe1model",
+"qualifier": "comments",
+"value": ""
+},
+{
+"Class": "ChoiceParameter",
+"choices": [
+"black",
+"blue",
+"orange",
+"green",
+"red",
+"purple",
+"ping",
+"pink",
+"yellow"
+],
+"context": "figure",
+"copy_for": false,
+"description": "Color to use for figures in which color_source is set to model",
+"model": "phoebe1model",
+"qualifier": "color",
+"value": "orange"
+},
+{
+"Class": "ChoiceParameter",
+"choices": [
+"None",
+"solid",
+"dashed",
+"dotted",
+"dashdot"
+],
+"context": "figure",
+"copy_for": false,
+"description": "Linestyle to use for figures in which linestyle_source is set to model",
+"model": "phoebe1model",
+"qualifier": "linestyle",
+"value": "dashed"
+}
+]

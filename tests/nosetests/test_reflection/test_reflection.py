@@ -5,8 +5,9 @@ import phoebe
 from phoebe import u
 import numpy as np
 import matplotlib.pyplot as plt
+import os
 
-def test_binary(plot=False):
+def test_binary(plot=False, gen_comp=False):
     b = phoebe.Bundle.default_binary()
 
     b.set_value('sma', component='binary', value=3.0)
@@ -22,7 +23,8 @@ def test_binary(plot=False):
     if plot:
         b.add_dataset('mesh', times=[0.0])
     b.add_compute('phoebe', compute='phoebe2', irrad_method='wilson')
-    b.add_compute('legacy', compute='phoebe1', refl_num=5)
+    if gen_comp:
+        b.add_compute('legacy', compute='phoebe1', refl_num=5)
 
     # set matching atmospheres
     b.set_value_all('atm', 'extern_planckint')
@@ -40,10 +42,14 @@ def test_binary(plot=False):
         if plot: print("alb = {}".format(alb))
         b.set_value_all('irrad_frac_refl_bol', alb)
 
-        if plot:print("running phoebe2 model...")
+        if plot: print("running phoebe2 model...")
         b.run_compute(compute='phoebe2', ntriangles=1000, model='phoebe2model', overwrite=True)
-        if plot:print("running phoebe1 model...")
-        b.run_compute(compute='phoebe1', gridsize=30, model='phoebe1model', overwrite=True)
+        if gen_comp:
+            if plot: print("running phoebe1 model...")
+            b.run_compute(compute='phoebe1', gridsize=30, model='phoebe1model', overwrite=True)
+            b.filter(model='phoebe1model').save('test_reflection_binary_{}.comp.model'.format(alb))
+        else:
+            b.import_model(os.path.join(os.path.dirname(__file__), 'test_reflection_binary_{}.comp.model'.format(alb)), model='phoebe1model', overwrite=True)
 
         phoebe2_val = b.get_value('fluxes@phoebe2model')
         phoebe1_val = b.get_value('fluxes@phoebe1model')
@@ -59,7 +65,7 @@ def test_binary(plot=False):
 
     return b
 
-def test_binary_ecc(plot=False):
+def test_binary_ecc(plot=False, gen_comp=False):
     b = phoebe.Bundle.default_binary()
 
     b.set_value('sma', component='binary', value=3.0)
@@ -74,7 +80,8 @@ def test_binary_ecc(plot=False):
     if plot:
         b.add_dataset('mesh', times=[0.0])
     b.add_compute('phoebe', compute='phoebe2', irrad_method='wilson')
-    b.add_compute('legacy', compute='phoebe1', refl_num=5)
+    if gen_comp:
+        b.add_compute('legacy', compute='phoebe1', refl_num=5)
 
     # set matching atmospheres
     b.set_value_all('atm', 'extern_planckint')
@@ -92,10 +99,14 @@ def test_binary_ecc(plot=False):
         if plot: print("alb = {}".format(alb))
         b.set_value_all('irrad_frac_refl_bol', alb)
 
-        if plot:print("running phoebe2 model...")
+        if plot: print("running phoebe2 model...")
         b.run_compute(compute='phoebe2', ntriangles=1000, model='phoebe2model', overwrite=True)
-        if plot:print("running phoebe1 model...")
-        b.run_compute(compute='phoebe1', gridsize=30, model='phoebe1model', overwrite=True)
+        if gen_comp:
+            if plot: print("running phoebe1 model...")
+            b.run_compute(compute='phoebe1', gridsize=30, model='phoebe1model', overwrite=True)
+            b.filter(model='phoebe1model').save('test_reflection_ecc_{}.comp.model'.format(alb))
+        else:
+            b.import_model(os.path.join(os.path.dirname(__file__), 'test_reflection_ecc_{}.comp.model'.format(alb)), model='phoebe1model', overwrite=True)
 
         phoebe2_val = b.get_value('fluxes@phoebe2model')
         phoebe1_val = b.get_value('fluxes@phoebe1model')
@@ -111,7 +122,7 @@ def test_binary_ecc(plot=False):
 
     return b
 
-def test_contact(plot=False):
+def test_contact(plot=False, gen_comp=False):
 
     b = phoebe.default_binary(contact_binary=True)
 
@@ -126,7 +137,8 @@ def test_contact(plot=False):
     if plot:
         b.add_dataset('mesh', times=[0.0])
     b.add_compute('phoebe', compute='phoebe2', irrad_method='wilson')
-    b.add_compute('legacy', compute='phoebe1', refl_num=5, morphology = 'Overcontact binary not in thermal contact')
+    if gen_comp:
+        b.add_compute('legacy', compute='phoebe1', refl_num=5, morphology = 'Overcontact binary not in thermal contact')
 
     # set matching atmospheres
     b.set_value_all('atm', 'extern_planckint')
@@ -146,8 +158,12 @@ def test_contact(plot=False):
 
         if plot: print("running phoebe2 model...")
         b.run_compute(compute='phoebe2', ntriangles=1000, model='phoebe2model', overwrite=True)
-        if plot: print("running phoebe1 model...")
-        b.run_compute(compute='phoebe1', gridsize=30, model='phoebe1model', overwrite=True)
+        if gen_comp:
+            if plot: print("running phoebe1 model...")
+            b.run_compute(compute='phoebe1', gridsize=30, model='phoebe1model', overwrite=True)
+            b.filter(model='phoebe1model').save('test_reflection_contact_{}.comp.model'.format(alb))
+        else:
+            b.import_model(os.path.join(os.path.dirname(__file__), 'test_reflection_contact_{}.comp.model'.format(alb)), model='phoebe1model', overwrite=True)
 
         phoebe2_val = b.get_value('fluxes@phoebe2model')
         phoebe1_val = b.get_value('fluxes@phoebe1model')
@@ -169,6 +185,6 @@ def test_contact(plot=False):
 if __name__ == '__main__':
     logger = phoebe.logger(clevel='INFO')
 
-    b = test_binary(plot=True)
-    b = test_binary_ecc(plot=True)
-    b = test_contact(plot=True)
+    b = test_binary(plot=True, gen_comp=True)
+    b = test_binary_ecc(plot=True, gen_comp=True)
+    b = test_contact(plot=True, gen_comp=True)

@@ -1,6 +1,7 @@
 
 import numpy as np
 import phoebe
+phoebe.progressbars_off()
 
 b = phoebe.Bundle.default_binary()
 
