@@ -84,6 +84,12 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.3.50 - contact binary estimators bugfix
+
+* rv_geometry: explicitly look for RVs attached to stars (not envelopes, which raised a lookup error).
+* run_checks_solver: run compatibility checks between solver and hierarchies.  Contact binaries are not supported by lc_geometry or ebai, single stars are not supported by lc_geometry, ebai, or rv_geometry.
+
+
 ### 2.3.49 - requivsumfrac flipping bugfix
 
 * fix remaining cases for flipping requivsumfrac constraint (see 2.3.45 bugfix release for the partial fix for some, but not all, cases)
