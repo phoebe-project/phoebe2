@@ -701,7 +701,7 @@ class Rv_GeometryBackend(BaseSolverBackend):
 
         # TODO: one for each component
         orbit = kwargs.get('orbit')
-        starrefs = b.hierarchy.get_children_of(orbit)
+        starrefs = b.hierarchy.get_stars_of_children_of(orbit)
         for starref in starrefs:
             solution_params += [_parameters.FloatArrayParameter(qualifier='input_phases', component=starref, value=[], readonly=True, default_unit=u.dimensionless_unscaled, description='input phases (after binning, if applicable) for geometry estimate')]
             solution_params += [_parameters.FloatArrayParameter(qualifier='input_rvs', component=starref, value=[], readonly=True, default_unit=u.km/u.s, description='input RVs (after binning, if applicable) used for geometry estimate')]
@@ -729,7 +729,7 @@ class Rv_GeometryBackend(BaseSolverBackend):
             # TODO: we need to tell the workers to join the pool for time-parallelization?
 
         orbit = kwargs.get('orbit')
-        starrefs = b.hierarchy.get_children_of(orbit)
+        starrefs = b.hierarchy.get_stars_of_children_of(orbit)
 
         phase_bin = kwargs.get('phase_bin', False)
         if phase_bin:
@@ -994,7 +994,7 @@ class Rv_PeriodogramBackend(_PeriodogramBaseBackend):
         # TODO: check to make sure rvs exist, etc
 
     def get_observations(self, b, **kwargs):
-        times, phases, rvs, sigmas = _get_combined_rv(b, kwargs.get('rv_datasets'), components=b.hierarchy.get_children_of(kwargs.get('component', None)), phase_component=kwargs.get('component'), mask=False, normalize=True, mirror_secondary=True, phase_sorted=False)
+        times, phases, rvs, sigmas = _get_combined_rv(b, kwargs.get('rv_datasets'), components=b.hierarchy.get_stars_of_children_of(kwargs.get('component', None)), phase_component=kwargs.get('component'), mask=False, normalize=True, mirror_secondary=True, phase_sorted=False)
 
         # print("***", times.shape, rvs.shape)
         # import matplotlib.pyplot as plt
