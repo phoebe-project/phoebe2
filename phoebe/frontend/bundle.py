@@ -4099,10 +4099,27 @@ class Bundle(ParameterSet):
                                 False
                                 )
 
+        is_single = len(self.hierarchy.get_stars()) == 1
+        is_cb = len(self.hierarchy.get_envelopes()) > 0
 
         for solver in solvers:
             solver_ps = self.get_solver(solver=solver, **_skip_filter_checks)
             solver_kind = solver_ps.kind
+
+            if is_single and solver_kind in ['lc_geometry', 'ebai', 'rv_geometry']:
+                report.add_item(self,
+                                "{} does not support single stars".format(solver_kind),
+                                [self.hierarchy]+addl_parameters,
+                                True, 'run_solver')
+
+            elif is_cb and solver_kind in ['lc_geometry', 'ebai']:
+                report.add_item(self,
+                                "{} does not support contact binaries".format(solver_kind),
+                                [self.hierarchy]+addl_parameters,
+                                True, 'run_solver')
+
+
+
             if 'compute' in solver_ps.qualifiers:
                 # NOTE: we can't pass compute as a kwarg to get_value or it will be used as a filter instead... which means technically we can't be sure compute is in self.computes
                 compute = kwargs.get('compute', solver_ps.get_value(qualifier='compute', **_skip_filter_checks))
