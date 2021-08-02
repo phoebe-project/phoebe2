@@ -128,6 +128,8 @@ a function for that.
 TODO: eventually consider adopting this as a "base" unit
 """
 _physical_types_to_solar = {'length': 'solRad',
+                            'area': 'solRad2',
+                            'volume': 'solRad3',
                             'mass': 'solMass',
                             'temperature': 'solTeff',
                             'power': 'solLum',
@@ -138,6 +140,8 @@ _physical_types_to_solar = {'length': 'solRad',
                             'dimensionless': ''}
 
 _physical_types_to_si = {'length': 'm',
+                         'area': 'm2',
+                         'volume': 'm3',
                             'mass': 'kg',
                             'temperature': 'K',
                             'power': 'W',
@@ -152,11 +156,11 @@ def _get_physical_type(object):
     if hasattr(object, 'physical_type'):
         unit = object
     elif isinstance(object, u.Quantity):
-        unit = object.unit
+        return _get_physical_type(object.unit)
     else:
         raise NotImplementedError("object {} with type={} not supported for _get_physical_type".format(object, type(object)))
 
-    return unit.physical_type
+    return str(unit.physical_type)
 
 def can_convert_to_solar(object):
     return _get_physical_type(object) in _physical_types_to_solar.keys()
