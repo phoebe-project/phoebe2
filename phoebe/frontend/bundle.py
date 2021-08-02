@@ -7150,6 +7150,19 @@ class Bundle(ParameterSet):
                 changes.append(param)
         return changes
 
+    def run_all_constraints(self):
+        """
+        Run all constraints.  May be necessary if a previous bundle was saved while
+        there were failed/delayed constraints, since those are not stored.
+        """
+        changes = []
+        for constraint_id in [p.uniqueid for p in self.filter(context='constraint', **_skip_filter_checks).to_list()]:
+            previous_value = self.get_parameter(uniqueid=constraint_id, **_skip_filter_checks).constrained_parameter.value
+            param = self.run_constraint(uniqueid=constraint_id, return_parameter=True, skip_kwargs_checks=True, suppress_error=False)
+            if param not in changes and param.value != previous_value:
+                changes.append(param)
+        return changes
+
 
     def _add_single_distribution(self, twig=None, value=None, return_changes=False, **kwargs):
         """
