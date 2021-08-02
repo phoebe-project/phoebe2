@@ -84,6 +84,11 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.3.51 - units physical type astropy update bugfix
+
+* fixes parsing the physical type of a unit in latest releases of astropy.  Without this fix, some constraints may fail to run.  
+* if bundles were exported with failed constraints, call the newly implemented b.run_all_constraints.
+
 ### 2.3.50 - contact binary estimators bugfix
 
 * rv_geometry: explicitly look for RVs attached to stars (not envelopes, which raised a lookup error).
