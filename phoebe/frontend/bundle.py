@@ -877,6 +877,7 @@ class Bundle(ParameterSet):
             # call set_hierarchy to force mass constraints to be rebuilt
             b.set_hierarchy()
 
+        b.run_all_constraints()
         return b
 
 

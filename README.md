@@ -87,7 +87,7 @@ CHANGELOG
 ### 2.3.51 - units physical type astropy update bugfix
 
 * fixes parsing the physical type of a unit in latest releases of astropy.  Without this fix, some constraints may fail to run.  
-* if bundles were exported with failed constraints, call the newly implemented b.run_all_constraints.
+* implements a new b.run_all_constraints, which is now automatically called when importing from a file in case any constraints were in the failed state.
 
 ### 2.3.50 - contact binary estimators bugfix
 
