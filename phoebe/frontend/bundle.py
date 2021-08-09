@@ -7704,8 +7704,13 @@ class Bundle(ParameterSet):
         for constraint_id in [p.uniqueid for p in self.filter(context='constraint', **_skip_filter_checks).to_list()]:
             previous_value = self.get_parameter(uniqueid=constraint_id, **_skip_filter_checks).constrained_parameter.value
             param = self.run_constraint(uniqueid=constraint_id, return_parameter=True, skip_kwargs_checks=True, suppress_error=False)
-            if param not in changes and param.value != previous_value:
-                changes.append(param)
+            if param not in changes:
+                if isinstance(param.value, np.ndarray):
+                    if not np.all(param.value == previous_value):
+                        changes.append(param)
+
+                elif param.value != previous_value:
+                    changes.append(param)
         return changes
 
 
