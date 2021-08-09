@@ -949,6 +949,7 @@ class Bundle(ParameterSet):
             logger.debug("re-enabling interactive_checks")
             conf._interactive_checks = True
 
+        b.run_all_constraints()
         return b
 
 
@@ -4381,10 +4382,27 @@ class Bundle(ParameterSet):
                                 False
                                 )
 
+        is_single = len(self.hierarchy.get_stars()) == 1
+        is_cb = len(self.hierarchy.get_envelopes()) > 0
 
         for solver in solvers:
             solver_ps = self.get_solver(solver=solver, **_skip_filter_checks)
             solver_kind = solver_ps.kind
+
+            if is_single and solver_kind in ['lc_geometry', 'ebai', 'rv_geometry']:
+                report.add_item(self,
+                                "{} does not support single stars".format(solver_kind),
+                                [self.hierarchy]+addl_parameters,
+                                True, 'run_solver')
+
+            elif is_cb and solver_kind in ['lc_geometry', 'ebai']:
+                report.add_item(self,
+                                "{} does not support contact binaries".format(solver_kind),
+                                [self.hierarchy]+addl_parameters,
+                                True, 'run_solver')
+
+
+
             if 'use_server' in solver_ps.qualifiers and run_checks_server:
                 use_server = kwargs.get('use_server', solver_ps.get_value(qualifier='use_server', **_skip_filter_checks))
                 addl_parameters = [solver_ps.get_parameter(qualifier='use_server', **_skip_filter_checks)]
@@ -7674,6 +7692,19 @@ class Bundle(ParameterSet):
             logger.debug("run_failed_constraints: {}".format(constraint_id))
             param = self.run_constraint(uniqueid=constraint_id, return_parameter=True, skip_kwargs_checks=True, suppress_error=False)
             if param not in changes:
+                changes.append(param)
+        return changes
+
+    def run_all_constraints(self):
+        """
+        Run all constraints.  May be necessary if a previous bundle was saved while
+        there were failed/delayed constraints, since those are not stored.
+        """
+        changes = []
+        for constraint_id in [p.uniqueid for p in self.filter(context='constraint', **_skip_filter_checks).to_list()]:
+            previous_value = self.get_parameter(uniqueid=constraint_id, **_skip_filter_checks).constrained_parameter.value
+            param = self.run_constraint(uniqueid=constraint_id, return_parameter=True, skip_kwargs_checks=True, suppress_error=False)
+            if param not in changes and param.value != previous_value:
                 changes.append(param)
         return changes
 

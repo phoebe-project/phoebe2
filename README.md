@@ -12,7 +12,7 @@ PHOEBE 2.3
   <a href="http://phoebe-project.org/install"><img src="https://img.shields.io/badge/python-3.6+-blue.svg"/></a>
   <a href="https://github.com/phoebe-project/phoebe2/blob/master/LICENSE"><img src="https://img.shields.io/badge/license-GPL3-blue.svg"/></a>
   <a href="https://github.com/phoebe-project/phoebe2/actions/workflows/ci-nosetests.yml?query=branch%3Amaster"><img src="https://github.com/phoebe-project/phoebe2/actions/workflows/ci-nosetests.yml/badge.svg?branch=master"/></a>
-  <a href="http://phoebe-project.org/docs"><img src="https://img.shields.io/badge/docs-passing-success.svg"/></a>
+  <a href="http://phoebe-project.org/docs/2.3"><img src="https://github.com/phoebe-project/phoebe2-docs/actions/workflows/build-docs.yml/badge.svg?branch=2.3"/></a>
 <br/>
   <a href="https://ui.adsabs.harvard.edu/abs/2016ApJS..227...29P"><img src="https://img.shields.io/badge/ApJS-Prsa+2016-lightgrey.svg"/></a>
   <a href="https://ui.adsabs.harvard.edu/abs/2018ApJS..237...26H"><img src="https://img.shields.io/badge/ApJS-Horvat+2018-lightgrey.svg"/></a>
@@ -83,6 +83,17 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 
 CHANGELOG
 ----------
+
+### 2.3.51 - units physical type astropy update bugfix
+
+* fixes parsing the physical type of a unit in latest releases of astropy.  Without this fix, some constraints may fail to run.  
+* implements a new b.run_all_constraints, which is now automatically called when importing from a file in case any constraints were in the failed state.
+
+### 2.3.50 - contact binary estimators bugfix
+
+* rv_geometry: explicitly look for RVs attached to stars (not envelopes, which raised a lookup error).
+* run_checks_solver: run compatibility checks between solver and hierarchies.  Contact binaries are not supported by lc_geometry or ebai, single stars are not supported by lc_geometry, ebai, or rv_geometry.
+
 
 ### 2.3.49 - requivsumfrac flipping bugfix
 
