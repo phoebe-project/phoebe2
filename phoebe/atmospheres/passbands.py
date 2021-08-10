@@ -725,34 +725,6 @@ class Passband:
             pb = lambda w: self._planck(w, Teff)*self.ptf(w)
             return integrate.quad(pb, self.wl[0], self.wl[-1])[0]/self.ptf_area
 
-    def _bindex_blackbody(self, Teff, photon_weighted=False):
-        """
-        Computes the mean boosting index using blackbody atmosphere:
-
-        B_pb^E = \int_\lambda I(\lambda) P(\lambda) B(\lambda) d\lambda / \int_\lambda I(\lambda) P(\lambda) d\lambda
-        B_pb^P = \int_\lambda \lambda I(\lambda) P(\lambda) B(\lambda) d\lambda / \int_\lambda \lambda I(\lambda) P(\lambda) d\lambda
-
-        Superscripts E and P stand for energy and photon, respectively.
-
-        Arguments
-        ----------
-        * `Teff` (float/array): effective temperature in K
-        * `photon_weighted` (bool, optional, default=False): photon/energy switch
-
-        Returns
-        ------------
-        * mean boosting index using blackbody atmosphere.
-        """
-
-        if photon_weighted:
-            num   = lambda w: w*self._planck(w, Teff)*self.ptf(w)*self._planck_spi(w, Teff)
-            denom = lambda w: w*self._planck(w, Teff)*self.ptf(w)
-            return integrate.quad(num, self.wl[0], self.wl[-1], epsabs=1e10, epsrel=1e-8)[0]/integrate.quad(denom, self.wl[0], self.wl[-1], epsabs=1e10, epsrel=1e-6)[0]
-        else:
-            num   = lambda w: self._planck(w, Teff)*self.ptf(w)*self._planck_spi(w, Teff)
-            denom = lambda w: self._planck(w, Teff)*self.ptf(w)
-            return integrate.quad(num, self.wl[0], self.wl[-1], epsabs=1e10, epsrel=1e-8)[0]/integrate.quad(denom, self.wl[0], self.wl[-1], epsabs=1e10, epsrel=1e-6)[0]
-
     def compute_blackbody_response(self, Teffs=None):
         """
         Computes blackbody intensities across the entire range of
@@ -2877,15 +2849,37 @@ class Passband:
             raise ValueError('Atmosphere parameters out of bounds: Teff=%s, logg=%s, abun=%s' % (Teff[nanmask], logg[nanmask], abun[nanmask]))
         return retval
 
-    def _bindex_ck2004(self, Teff, logg, abun, mu, atm, photon_weighted=False):
-        grid = self._ck2004_boosting_photon_grid if photon_weighted else self._ck2004_boosting_energy_grid
-        if not hasattr(Teff, '__iter__'):
-            req = np.array(((Teff, logg, abun, mu),))
-            bindex = libphoebe.interp(req, self._ck2004_intensity_axes, grid)[0][0]
-        else:
-            req = np.vstack((Teff, logg, abun, mu)).T
-            bindex = libphoebe.interp(req, self._ck2004_intensity_axes, grid).T[0]
+    def _bindex_blackbody(self, Teff, photon_weighted=False):
+        """
+        Computes the mean boosting index using blackbody atmosphere:
 
+        B_pb^E = \int_\lambda I(\lambda) P(\lambda) B(\lambda) d\lambda / \int_\lambda I(\lambda) P(\lambda) d\lambda
+        B_pb^P = \int_\lambda \lambda I(\lambda) P(\lambda) B(\lambda) d\lambda / \int_\lambda \lambda I(\lambda) P(\lambda) d\lambda
+
+        Superscripts E and P stand for energy and photon, respectively.
+
+        Arguments
+        ----------
+        * `Teff` (float/array): effective temperature in K
+        * `photon_weighted` (bool, optional, default=False): photon/energy switch
+
+        Returns
+        ------------
+        * mean boosting index using blackbody atmosphere.
+        """
+
+        if photon_weighted:
+            num   = lambda w: w*self._planck(w, Teff)*self.ptf(w)*self._planck_spi(w, Teff)
+            denom = lambda w: w*self._planck(w, Teff)*self.ptf(w)
+            return integrate.quad(num, self.wl[0], self.wl[-1], epsabs=1e10, epsrel=1e-8)[0]/integrate.quad(denom, self.wl[0], self.wl[-1], epsabs=1e10, epsrel=1e-6)[0]
+        else:
+            num   = lambda w: self._planck(w, Teff)*self.ptf(w)*self._planck_spi(w, Teff)
+            denom = lambda w: self._planck(w, Teff)*self.ptf(w)
+            return integrate.quad(num, self.wl[0], self.wl[-1], epsabs=1e10, epsrel=1e-8)[0]/integrate.quad(denom, self.wl[0], self.wl[-1], epsabs=1e10, epsrel=1e-6)[0]
+
+    def _bindex_ck2004(self, req, atm, photon_weighted=False):
+        grid = self._ck2004_boosting_photon_grid if photon_weighted else self._ck2004_boosting_energy_grid
+        bindex = libphoebe.interp(req, self._ck2004_intensity_axes, grid).T[0]
         return bindex
 
     def bindex(self, Teff=5772., logg=4.43, abun=0.0, mu=1.0, atm='ck2004', photon_weighted=False):
@@ -2910,11 +2904,14 @@ class Passband:
             or 'blackbody').
         """
         # TODO: implement phoenix boosting.
+        raise NotImplementedError('Doppler boosting is currently offline for review.')
+
+        req = _tabulate((Teff, logg, abun, mu))
 
         if atm == 'ck2004':
-            retval = self._bindex_ck2004(Teff, logg, abun, mu, atm, photon_weighted)
+            retval = self._bindex_ck2004(req, atm, photon_weighted)
         elif atm == 'blackbody':
-            retval = self._bindex_blackbody(Teff, photon_weighted=photon_weighted)
+            retval = self._bindex_blackbody(req[:,0], photon_weighted=photon_weighted)
         else:
             raise NotImplementedError('atm={} not supported'.format(atm))
 
