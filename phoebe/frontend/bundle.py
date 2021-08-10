@@ -8944,9 +8944,9 @@ class Bundle(ParameterSet):
                 else:
                     photon_weighted = self.get_value(qualifier='intens_weighting', dataset=ldcs_param.dataset, context='dataset', check_visible=False) == 'photon'
                 logger.info("{} ld_coeffs lookup for dataset='{}' component='{}' passband='{}' from ld_coeffs_source='{}'".format(ld_func, ldcs_param.dataset, ldcs_param.component, passband, ldcs))
-                logger.debug("pb.interpole_ld_coeffs(teff={} logg={}, abun={}, ld_coeffs={} ld_func={} photon_weighted={})".format(teff, logg, abun, ldcs, ld_func, photon_weighted))
+                logger.debug("pb.interpolate_ldcoeffs(teff={} logg={}, abun={}, ld_coeffs={} ld_func={} photon_weighted={})".format(teff, logg, abun, ldcs, ld_func, photon_weighted))
                 try:
-                    ld_coeffs = pb.interpolate_ldcoeffs(teff, logg, abun, ldcs, ld_func, photon_weighted)
+                    ld_coeffs = pb.interpolate_ldcoeffs(teff, logg, abun, ldcs, ld_func, photon_weighted)[0]
                 except ValueError as err:
                     if str(err).split(":")[0] == 'Atmosphere parameters out of bounds':
                         # let's override with a more helpful error message
@@ -9395,7 +9395,6 @@ class Bundle(ParameterSet):
                         required_content += ['{}:ldint'.format(atms[component])]
                     pb = get_passband(passband, content=required_content)
 
-                    # TODO: why is Inorm returning an array when passing all floats but ldint isn't??
                     try:
                         Inorm = pb.Inorm(Teff=teffs[component], logg=loggs[component],
                                          abun=abuns[component], atm=atms[component],
@@ -9414,7 +9413,7 @@ class Bundle(ParameterSet):
                         ldint = pb.ldint(Teff=teffs[component], logg=loggs[component],
                                          abun=abuns[component],
                                          ldatm=atms[component], ld_func=ld_func, ld_coeffs=ld_coeffs,
-                                         photon_weighted=intens_weighting=='photon')
+                                         photon_weighted=intens_weighting=='photon')[0]
                     except ValueError as err:
                         if str(err).split(":")[0] == 'Atmosphere parameters out of bounds':
                             # let's override with a more helpful error message
