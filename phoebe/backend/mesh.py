@@ -675,7 +675,7 @@ class ProtoMesh(object):
                             for iv,vertex in enumerate(triangle):
                                 copy[k][it][iv] = index_mapping[vertex]
                     except KeyError:
-                        raise TypeError('Mesh failed or incomplete. Try increasing the number of triangles!')
+                        raise TypeError('Mesh failed or incomplete. Try increasing the number of triangles (ntriangles)!')
 
 
             elif len(current_value) == len(bool_per_vertex):
