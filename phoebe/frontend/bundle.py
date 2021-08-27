@@ -109,6 +109,12 @@ def _get_add_func(mod, func, return_none_if_not_found=False):
         raise ValueError("could not find callable function in {}.{}"
                          .format(mod, func))
 
+def _is_equiv_array_or_float(value1, value2):
+    if hasattr(value1, '__iter__'):
+        return np.all(value1==value2)
+    else:
+        return value1==value2
+
 
 class RunChecksItem(object):
     def __init__(self, b, message, param_uniqueids=[], fail=True, affects_methods=[]):
@@ -7160,7 +7166,7 @@ class Bundle(ParameterSet):
         for constraint_id in [p.uniqueid for p in self.filter(context='constraint', **_skip_filter_checks).to_list()]:
             previous_value = self.get_parameter(uniqueid=constraint_id, **_skip_filter_checks).constrained_parameter.value
             param = self.run_constraint(uniqueid=constraint_id, return_parameter=True, skip_kwargs_checks=True, suppress_error=False)
-            if param not in changes and param.value != previous_value:
+            if param not in changes and not _is_equiv_array_or_float(param.value, previous_value):
                 changes.append(param)
         return changes
 
