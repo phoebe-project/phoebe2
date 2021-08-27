@@ -458,11 +458,11 @@ def get_unit_in_system(original_unit, system):
         original_unit = u.Unit(original_unit)
 
     if system.lower() == 'si':
-        if original_unit.physical_type not in u._physical_types_to_si.keys():
+        if u._get_physical_type(original_unit) not in u._physical_types_to_si.keys():
             raise ValueError("cannot convert {} to {}".format(original_unit, system))
         return u.Unit(u._physical_types_to_si.get(u._get_physical_type(original_unit)))
     elif system.lower() == 'solar':
-        if original_unit.physical_type not in u._physical_types_to_solar.keys():
+        if u._get_physical_type(original_unit) not in u._physical_types_to_solar.keys():
             raise ValueError("cannot convert {} to {}".format(original_unit, system))
         return u._physical_types_to_solar.get(u._get_physical_type(original_unit))
     else:
