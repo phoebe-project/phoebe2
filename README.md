@@ -84,6 +84,10 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.3.52 - run_all_constraints support for array parameters bugfix
+
+* fixes new run_all_constraints (new in 2.3.51) method to work on array parameters (compute_times/compute_phases).
+
 ### 2.3.51 - units physical type astropy update bugfix
 
 * fixes parsing the physical type of a unit in latest releases of astropy.  Without this fix, some constraints may fail to run.  
