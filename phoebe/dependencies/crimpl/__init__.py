@@ -2,17 +2,21 @@
 import os as _os
 import subprocess as _subprocess
 import json as _json
+
 from .common import __version__, _run_cmd
-from .awsec2 import AWSEC2Job, AWSEC2Server, list_awsec2_volumes, list_awsec2_instances, terminate_awsec2_instance, delete_awsec2_volume, terminate_all_awsec2_instances, delete_all_awsec2_volumes
-from .remoteslurm import RemoteSlurmJob, RemoteSlurmServer
+
 from .localthread import LocalThreadJob, LocalThreadServer
+from .remotethread import RemoteThreadJob, RemoteThreadServer
+from .remoteslurm import RemoteSlurmJob, RemoteSlurmServer
+from .awsec2 import AWSEC2Job, AWSEC2Server, list_awsec2_volumes, list_awsec2_instances, terminate_awsec2_instance, delete_awsec2_volume, terminate_all_awsec2_instances, delete_all_awsec2_volumes
 
 
 def list_servers():
     """
     List server configurations already saved.
 
-    These can be opened via <crimpl.open>
+    These can be opened via <crimpl.load_server> and removed with
+    <crimpl.remove_server>.
 
     Returns
     ----------
@@ -30,7 +34,8 @@ def load_server(name):
 
     Returns
     ----------
-    * the appropriate server object
+    * the appropriate server object (<LocalThreadServer>, <RemoteThreadServer>,
+        <RemoteSlurmServer>, <AWSEC2Server>)
     """
     filename = _os.path.join(_os.path.expanduser("~/.crimpl/servers"), "{}.json".format(name))
     if not _os.path.exists(filename):
@@ -43,3 +48,12 @@ def load_server(name):
     classname = d.pop('crimpl')
     version = d.pop('crimpl.version', None)
     return globals().get(classname)(**d)
+
+def remove_server(name):
+    """
+    Remove a server configuration from disk (this is not reversible!)
+    """
+    filename = _os.path.join(_os.path.expanduser("~/.crimpl/servers"), "{}.json".format(name))
+    if not _os.path.exists(filename):
+        raise ValueError("could not find configuration at {}".format(filename))
+    _os.remove(filename)

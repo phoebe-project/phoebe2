@@ -4,8 +4,9 @@ import os as _os
 import subprocess as _subprocess
 
 from . import common as _common
+from . import remotethread as _remotethread
 
-class RemoteSlurmJob(_common.ServerJob):
+class RemoteSlurmJob(_remotethread.RemoteThreadJob):
     def __init__(self, server=None,
                  job_name=None,
                  conda_env=None, isolate_env=False,
@@ -41,7 +42,7 @@ class RemoteSlurmJob(_common.ServerJob):
             be done at the server level, but requires passing `conda_env`.
             Will raise an error if `isolate_env=True` and `conda_env=False`.
         * `nprocs` (int, optional, default=4): default number of procs to use
-            when calling <RemoteSlurmJob.submit_job>
+            when calling <RemoteSlurmJob.submit_script>
         * `slurm_id` (int, optional, default=None): internal id of the remote
             slurm job.  If unknown, this will be determined automatically.
             Do **NOT** set `slurm_id` for a new <RemoteSlurmJob> instance.
@@ -58,8 +59,6 @@ class RemoteSlurmJob(_common.ServerJob):
                 connect_to_existing = False
             else:
                 connect_to_existing = True
-
-        # run ls on
 
         job_matches = [j for j in server.existing_jobs if j == job_name or job_name is None]
 
@@ -81,15 +80,12 @@ class RemoteSlurmJob(_common.ServerJob):
         super().__init__(server, job_name,
                          conda_env=conda_env,
                          isolate_env=isolate_env,
-                         job_submitted=connect_to_existing)
-
-    def __repr__(self):
-        return "<RemoteSlurmJob job_name={}>".format(self.job_name)
+                         connect_to_existing=connect_to_existing)
 
     @property
     def nprocs(self):
         """
-        Default number of processors to use when calling <RemoteSlurm.submit_job>.
+        Default number of processors to use when calling <<class>.submit_script>.
 
         Returns
         ---------
@@ -254,24 +250,7 @@ class RemoteSlurmJob(_common.ServerJob):
         * TypeError: if `script` or `files` are not valid types.
         * ValueError: if the files referened by `script` or `files` are not valid.
         """
-        cmds = self.server._submit_script_cmds(script, files, [],
-                                               use_slurm=False,
-                                               directory=self.remote_directory,
-                                               conda_env=self.conda_env,
-                                               isolate_env=self.isolate_env,
-                                               job_name=None,
-                                               terminate_on_complete=False,
-                                               use_nohup=False,
-                                               install_conda=False)
-        if trial_run:
-            return cmds
-
-        for cmd in cmds:
-            # TODO: get around need to add IP to known hosts (either by
-            # expecting and answering yes, or by looking into subnet options)
-            _common._run_cmd(cmd)
-
-        return
+        return super().run_script(script, files=files, trial_run=trial_run)
 
     def submit_script(self, script, files=[],
                       slurm_job_name=None,
@@ -320,6 +299,7 @@ class RemoteSlurmJob(_common.ServerJob):
         * `mail_type` (string, optional, default='END,FAIL'): conditions to notify
             by email to `mail_user`.  Prepended to `script` as "#SBATCH --mail_user=mail_user".
         * `mail_user` (string, optional, default=None): email to send notifications.
+            If not provided or None, will default to the value in <RemoteSlurmServer.mail_user>.
             Prepended to `script` as "#SBATCH --mail_user=mail_user"
         * `ignore_files` (list, optional, default=[]): list of filenames on the
             remote server to ignore when calling <<class>.check_output>
@@ -361,7 +341,7 @@ class RemoteSlurmJob(_common.ServerJob):
                                                nprocs=nprocs,
                                                walltime=walltime,
                                                mail_type=mail_type,
-                                               mail_user=mail_user)
+                                               mail_user=mail_user if mail_user is not None else self.server.mail_user)
 
         if trial_run:
             return cmds
@@ -371,7 +351,7 @@ class RemoteSlurmJob(_common.ServerJob):
             # TODO: get around need to add IP to known hosts (either by
             # expecting and answering yes, or by looking into subnet options)
 
-            out = _common._run_cmd(cmd)
+            out = self.server._run_server_cmd(cmd)
             if "sbatch" in cmd:
                 self._slurm_id = out.split(' ')[-1]
 
@@ -406,9 +386,10 @@ class RemoteSlurmJob(_common.ServerJob):
 
 
 
-class RemoteSlurmServer(_common.SSHServer):
+class RemoteSlurmServer(_remotethread.RemoteThreadServer):
     _JobClass = RemoteSlurmJob
-    def __init__(self, host, directory='~/crimpl', server_name=None):
+    def __init__(self, host, directory='~/crimpl', ssh='ssh', scp='scp',
+                 mail_user=None, server_name=None):
         """
         Connect to a remote server running a Slurm scheduler.
 
@@ -422,80 +403,42 @@ class RemoteSlurmServer(_common.SSHServer):
         * `directory` (string, optional, default='~/crimpl'): root directory of all
             jobs to run on the remote server.  The directory will be created
             if it does not already exist.
+        * `ssh` (string, optional, default='ssh'): command (and any arguments in
+            addition to `host`) to ssh to the remote server.
+        * `scp` (string, optional, default='scp'): command (and any arguments)
+            to copy files to the remote server.
+        * `mail_user` (string, optional, default=None): email to send notifications.
+            If not provided or None, will default to the value in <RemoteSlurmServer.mail_user>.
+            Prepended to `script` as "#SBATCH --mail_user=mail_user"
         * `server_name` (string): name to assign to the server.  If not provided,
             will be adopted automatically from `host` and available from
             <RemoteSlurmServer.server_name>.
         """
-        self._host = host
-
-        if server_name is None:
-            server_name = host.split("@")[-1]
-
-        self._server_name = server_name
-
-        super().__init__(directory)
-        self._dict_keys = ['host', 'directory']
-
-    def __repr__(self):
-        return "<RemoteSlurmServer host={} directory={}>".format(self.host, self.directory)
+        super().__init__(host, directory, ssh, scp)
+        self.mail_user = mail_user
+        self._dict_keys += ['mail_user']
 
     @property
-    def server_name(self):
+    def mail_user(self):
         """
-        internal name of the server.
-
-        Returns
-        ----------
-        * (string)
+        Default email to send notification from the slurm scheduler when calling
+        <RemoteSlurmServer.submit_job> or <RemoteSlurmJob.submit_script>.
         """
-        return self._server_name
+        return self._mail_user
 
-    @property
-    def host(self):
-        """
-        host of the remote machine.  Should be passwordless ssh-able for the current user
+    @mail_user.setter
+    def mail_user(self, mail_user):
+        if mail_user is None:
+            self._mail_user = None
+            return
 
-        Returns
-        ---------
-        * (string)
-        """
-        return self._host
+        if not isinstance(mail_user, str):
+            raise TypeError("mail_user must be a string or None")
 
-    @property
-    def _ssh_cmd(self):
-        """
-        ssh command to the server
+        if "@" not in mail_user:
+            raise ValueError("mail_user must be a valid email address (with an @ symbol)")
 
-        Returns
-        ----------
-        * (string)
-        """
-
-        return "ssh {}".format(self.host)
-
-    @property
-    def scp_cmd_to(self):
-        """
-        scp command to copy files to the server.
-
-        Returns
-        ----------
-        * (string): command with "{}" placeholders for `local_path` and `server_path`.
-        """
-
-        return "scp {local_path} %s:{server_path}" % (self.host)
-
-    @property
-    def scp_cmd_from(self):
-        """
-        scp command to copy files from the server.
-
-        Returns
-        ----------
-        * (string): command with "{}" placeholders for `server_path` and `local_path`.
-        """
-
-        return "scp %s:{server_path} {local_path}" % (self.host)
+        self._mail_user = mail_user
 
     @property
     def squeue(self):
@@ -508,7 +451,7 @@ class RemoteSlurmServer(_common.SSHServer):
         -----------
         * (string)
         """
-        return self.server._run_server_cmd("squeue")
+        return self._run_server_cmd("squeue")
 
     @property
     def sinfo(self):
@@ -519,18 +462,7 @@ class RemoteSlurmServer(_common.SSHServer):
         -----------
         * (string)
         """
-        return self.server._run_server_cmd("sinfo")
-
-    @property
-    def ls(self):
-        """
-        Run and return the output of `ls` on the server (for all jobs).
-
-        Returns
-        -----------
-        * (string)
-        """
-        return self.server._run_server_cmd("ls")
+        return self._run_server_cmd("sinfo")
 
     def create_job(self, job_name=None,
                    conda_env=None, isolate_env=False,
@@ -656,22 +588,4 @@ class RemoteSlurmServer(_common.SSHServer):
         * TypeError: if `script` or `files` are not valid types.
         * ValueError: if the files referened by `script` or `files` are not valid.
         """
-        cmds = self._submit_script_cmds(script, files, [],
-                                        use_slurm=False,
-                                        directory=self.directory,
-                                        conda_env=conda_env,
-                                        isolate_env=False,
-                                        job_name=None,
-                                        terminate_on_complete=False,
-                                        use_nohup=False,
-                                        install_conda=False)
-
-        if trial_run:
-            return cmds
-
-        for cmd in cmds:
-            # TODO: get around need to add IP to known hosts (either by
-            # expecting and answering yes, or by looking into subnet options)
-            _common._run_cmd(cmd)
-
-        return
+        return super().run_script(script, files=files, conda_env=conda_env, trial_run=trial_run)

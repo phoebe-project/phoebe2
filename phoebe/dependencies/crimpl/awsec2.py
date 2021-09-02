@@ -897,17 +897,6 @@ class AWSEC2Server(_common.SSHServer):
         return "<AWSEC2Server server_name={} volumeId={} instanceId={}>".format(self.server_name, self.volumeId, self.instanceId)
 
     @property
-    def server_name(self):
-        """
-        internal name of the server.
-
-        Returns
-        ----------
-        * (string)
-        """
-        return self._server_name
-
-    @property
     def volumeId(self):
         """
         AWS internal volumeId for the **server** volume

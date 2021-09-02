@@ -5,26 +5,31 @@ import subprocess as _subprocess
 
 from . import common as _common
 
-class LocalThreadJob(_common.ServerJob):
+class RemoteThreadJob(_common.ServerJob):
     def __init__(self, server=None,
                  job_name=None,
                  conda_env=None, isolate_env=False,
+                 nprocs=None,
                  connect_to_existing=None):
         """
-        Create and submit a job on a <LocalThreadServer>.
+        Create and submit a job on a <RemoteThreadServer>.
 
-        Under-the-hood, this creates a subdirectory in <LocalThreadServer.directory>
+        Under-the-hood, this creates a subdirectory in <RemoteThreadServer.directory>
         based on the provided or assigned `job_name`.  All submitted scripts/files
-        (through either <LocalThreadJob.run_script> or <LocalThreadJob.submit_script>)
+        (through either <RemoteThreadJob.run_script> or <RemoteThreadJob.submit_script>)
         are copied to and run in this directory.
+
+        Using multiple processors is left to the user to pass the appropriate `mpirun`
+        command (for example) to <RemoteThreadJob.run_script> or <RemoteThreadJob.submit_script>.
 
         Arguments
         -------------
-        * `server` (<LocalThreadServer>, optional, default=None): server to
-            use when running the job.
+        * `server` (<RemoteThreadServer>, optional, default=None): server to
+            use when running the job.  If `server` is not provided, `host` must
+            be provided.
         * `job_name` (string, optional, default=None): name for this job instance.
             If not provided, one will be created from the current datetime and
-            accessible through <LocalThreadJob.job_name>.  This `job_name` will
+            accessible through <RemoteThreadJob.job_name>.  This `job_name` will
             be necessary to reconnect to a previously submitted job.
         * `conda_env` (string or None, optional, default=None): name of
             the conda environment to use for the job or False to not use a
@@ -45,8 +50,6 @@ class LocalThreadJob(_common.ServerJob):
                 connect_to_existing = False
             else:
                 connect_to_existing = True
-
-        # run ls on
 
         job_matches = [j for j in server.existing_jobs if j == job_name or job_name is None]
 
@@ -69,18 +72,7 @@ class LocalThreadJob(_common.ServerJob):
                          job_submitted=connect_to_existing)
 
     @property
-    def remote_directory(self):
-        """
-        Access the **job** subdirectory location in the server directory.
-
-        Returns
-        ----------
-        * (string)
-        """
-        return _os.path.join(self.server.directory, "crimpl-job-{}".format(self.job_name))
-
-    @property
-    def pid(self):
+    def _pid(self):
         """
         """
         if self.job_status != 'running':
@@ -96,7 +88,7 @@ class LocalThreadJob(_common.ServerJob):
         -----------
         * (string)
         """
-        self.server._run_server_cmd("kill -9 {}".format(self.pid))
+        self.server._run_server_cmd("kill -9 {}".format(self._pid))
         self.server._run_server_cmd("echo \'killed\' > {}/crimpl-job.status".format(self.remote_directory))
 
     def run_script(self, script, files=[], trial_run=False):
@@ -107,15 +99,15 @@ class LocalThreadJob(_common.ServerJob):
         This is useful for short installation/setup scripts that do not belong
         in the scheduled job.
 
-        The resulting `script` and `files` are copied to <LocalThreadJob.remote_directory>
-        in the server directory and then `script` is executed.
+        The resulting `script` and `files` are copied to <RemoteThreadJob.remote_directory>
+        on the remote server and then `script` is executed via ssh.
 
-        See <LocalThreadJob.submit_script> to submit a script via the slurm scheduler
+        See <RemoteThreadJob.submit_script> to submit a script
         and leave running in the background on the server.
 
         Arguments
         ----------------
-        * `script` (string or list): shell script to run in the server directory,
+        * `script` (string or list): shell script to run on the remote server,
             including any necessary installation steps.  Note that the script
             can call any other scripts in `files`.  If a string, must be the
             path of a valid file which will be copied to the server.  If a list,
@@ -143,6 +135,7 @@ class LocalThreadJob(_common.ServerJob):
                                                conda_env=self.conda_env,
                                                isolate_env=self.isolate_env,
                                                job_name=None,
+                                               terminate_on_complete=False,
                                                use_nohup=False,
                                                install_conda=False)
         if trial_run:
@@ -151,28 +144,30 @@ class LocalThreadJob(_common.ServerJob):
         for cmd in cmds:
             # TODO: get around need to add IP to known hosts (either by
             # expecting and answering yes, or by looking into subnet options)
-            _common._run_cmd(cmd)
+            self.server._run_server_cmd(cmd)
 
         return
 
     def submit_script(self, script, files=[],
+                      nprocs=None,
                       ignore_files=[],
                       wait_for_job_status=False,
                       trial_run=False):
         """
         Submit a script to the server in the <<class>.conda_env>.
 
-        This will copy `script` and `files` to <LocalThreadJob.remote_directory>
-        in the server directory and run in a thread.
-        To check on its status, see <LocalThreadJob.job_status>.
+        This will copy `script` (modified with the provided slurm options) and
+        `files` to <RemoteThreadJob.remote_directory> on the remote server and
+        run the script in a thread (without a scheduler).  To check on its status,
+        see <RemoteThreadJob.job_status>.
 
-        To check on any expected output files, call <LocalThreadJob.check_output>.
+        To check on any expected output files, call <RemoteThreadJob.check_output>.
 
-        See <LocalThreadJob.run_script> to run a script and wait for it to complete.
+        See <RemoteThreadJob.run_script> to run a script and wait for it to complete.
 
         Arguments
         ----------------
-        * `script` (string or list): shell script to run in the server directory,
+        * `script` (string or list): shell script to run on the remote server,
             including any necessary installation steps.  Note that the script
             can call any other scripts in `files`.  If a string, must be the
             path of a valid file which will be copied to the server.  If a list,
@@ -181,26 +176,25 @@ class LocalThreadJob(_common.ServerJob):
         * `files` (list, optional, default=[]): list of paths to additional files
             to copy to the server required in order to successfully execute
             `script`.
-        * `ignore_files` (list, optional, default=[]): list of filenames in the
-            server directory to ignore when calling <<class>.check_output>
+        * `ignore_files` (list, optional, default=[]): list of filenames on the
+            remote server to ignore when calling <<class>.check_output>
         * `wait_for_job_status` (bool or string or list, optional, default=False):
             Whether to wait for a specific job_status.  If True, will default to
-            'complete'.  See also <LocalThreadJob.wait_for_job_status>.
+            'complete'.  See also <RemoteThreadJob.wait_for_job_status>.
         * `trial_run` (bool, optional, default=False): if True, the commands
             that would be sent to the server are returned but not executed.
 
         Returns
         ------------
-        * <LocalThreadJob>
+        * <RemoteThreadJob>
 
         Raises
         ------------
         * ValueError: if a script has already been submitted within this
-            <LocalThreadJob> instance.
+            <RemoteThreadJob> instance.
         * TypeError: if `script` or `files` are not valid types.
         * ValueError: if the files referened by `script` or `files` are not valid.
         """
-
         if "crimpl_submit_script.sh" in self.ls:
             raise ValueError("job already submitted.  Create a new job or call resubmit_job")
 
@@ -222,7 +216,7 @@ class LocalThreadJob(_common.ServerJob):
             # expecting and answering yes, or by looking into subnet options)
 
             if cmd is None: continue
-            _common._run_cmd(cmd, detach="nohup" in cmd)
+            self.server._run_server_cmd(cmd, detach="nohup" in cmd)
 
         self._job_submitted = True
         self._input_files = None
@@ -231,6 +225,9 @@ class LocalThreadJob(_common.ServerJob):
             self.wait_for_job_status(wait_for_job_status)
 
         return self
+
+        if self._slurm_id is not None:
+            raise ValueError("a job is already submitted.")
 
     def resubmit_script(self):
         """
@@ -247,103 +244,113 @@ class LocalThreadJob(_common.ServerJob):
 
 
 
-class LocalThreadServer(_common.Server):
-    _JobClass = LocalThreadJob
-    def __init__(self, directory='~/crimpl', server_name=None):
-        """
-        Run scripts and jobs in threads in an isolated directory on the local machine.
 
-        To create a new job, use <LocalThreadServer.create_job> or to connect
-        to a previously created job, use <LocalThreadServer.get_job>.
+class RemoteThreadServer(_common.SSHServer):
+    _JobClass = RemoteThreadJob
+    def __init__(self, host, directory='~/crimpl', ssh='ssh', scp='scp',
+                 server_name=None):
+        """
+        Connect to a remote server running jobs in threads (no scheduler).
+
+        To create a new job, use <RemoteThreadServer.create_job> or to connect
+        to a previously created job, use <RemoteThreadServer.get_job>.
 
         Arguments
         -----------
+        * `host` (string): host of the remote server.  Must be passwordless ssh-able.
+            See <RemoteThreadServer.host>
         * `directory` (string, optional, default='~/crimpl'): root directory of all
-            jobs to run in the server directory.  The directory will be created
+            jobs to run on the remote server.  The directory will be created
             if it does not already exist.
+        * `ssh` (string, optional, default='ssh'): command (and any arguments in
+            addition to `host`) to ssh to the remote server.
+        * `scp` (string, optional, default='scp'): command (and any arguments)
+            to copy files to the remote server.
         * `server_name` (string): name to assign to the server.  If not provided,
             will be adopted automatically from `host` and available from
-            <LocalThreadServer.server_name>.
+            <RemoteThreadServer.server_name>.
         """
-        if server_name is None:
-            server_name = "local:{}".format(_os.path.basename(directory.strip("/")))
+        self._host = host
 
+        if server_name is None:
+            server_name = host.split("@")[-1]
+
+        self._ssh = ssh
+        self._scp = scp
         self._server_name = server_name
 
         super().__init__(directory)
-        self._dict_keys = ['directory']
-
-    def _run_server_cmd(self, cmd, exportpath=None):
-        if exportpath is None:
-            exportpath = 'conda' in cmd or 'crimpl_script.sh' in cmd
-
-        if exportpath:
-            cmd = "source {}/exportpath.sh; {}".format(self.directory, cmd)
-        else:
-            cmd = cmd
-
-        return _common._run_cmd(cmd)
+        self._dict_keys = ['host', 'directory', 'ssh', 'scp']
 
     @property
-    def directory(self):
-        return _os.path.abspath(_os.path.expanduser(self._directory))
+    def ssh(self):
+        """
+        """
+        return self._ssh
+
+    @property
+    def scp(self):
+        """
+        """
+        return self._scp
+
+    @property
+    def host(self):
+        """
+        host of the remote machine.  Should be passwordless ssh-able for the current user
+
+        Returns
+        ---------
+        * (string)
+        """
+        return self._host
+
+    @property
+    def _ssh_cmd(self):
+        """
+        ssh command to the server
+
+        Returns
+        ----------
+        * (string)
+        """
+
+        return "{} {}".format(self.ssh, self.host)
 
     @property
     def scp_cmd_to(self):
         """
-        scp (cp in this case) command to copy files to the server directory.
+        scp command to copy files to the server.
 
         Returns
         ----------
         * (string): command with "{}" placeholders for `local_path` and `server_path`.
         """
 
-        return "cp {local_path} {server_path}"
+        return "%s {local_path} %s:{server_path}" % (self.scp, self.host)
 
     @property
     def scp_cmd_from(self):
         """
-        scp (cp in this case) command to copy files from the server directory.
+        scp command to copy files from the server.
 
         Returns
         ----------
         * (string): command with "{}" placeholders for `server_path` and `local_path`.
         """
 
-        return "cp {server_path} {local_path}"
-
-    @property
-    def ssh_cmd(self):
-        """
-        ssh command to the server
-
-        Returns
-        ----------
-        * (string): command with "{}" placeholders for the command to run in the server directory.
-        """
-        return "source %s/exportpath.sh; {}" % (self.directory)
-
-    @property
-    def ls(self):
-        """
-        Run and return the output of `ls` on the server directory (for all jobs).
-
-        Returns
-        -----------
-        * (string)
-        """
-        return self.server._run_server_cmd("ls")
+        return "%s %s:{server_path} {local_path}" % (self.scp, self.host)
 
     def create_job(self, job_name=None,
                    conda_env=None, isolate_env=False):
         """
-        Create a child <LocalThreadJob> instance.
+        Create a child <RemoteThreadJob> instance.
 
         Arguments
         -----------
         * `job_name` (string, optional, default=None): name for this job instance.
             If not provided, one will be created from the current datetime and
-            accessible through <LocalThreadJob.job_name>.  This `job_name` will
+            accessible through <RemoteThreadJob.job_name>.  This `job_name` will
             be necessary to reconnect to a previously submitted job.
         * `conda_env` (string or None, optional, default=None): name of
             the conda environment to use for the job or False to not use a
@@ -361,7 +368,7 @@ class LocalThreadServer(_common.Server):
 
         Returns
         ---------
-        * <LocalThreadJob>
+        * <RemoteThreadJob>
         """
         return self._JobClass(server=self, job_name=job_name,
                               conda_env=conda_env,
@@ -375,22 +382,21 @@ class LocalThreadServer(_common.Server):
                    wait_for_job_status=False,
                    trial_run=False):
         """
-        Shortcut to <LocalThreadServer.create_job> followed by <LocalThreadJob.submit_script>.
+        Shortcut to <RemoteThreadServer.create_job> followed by <RemoteThreadJob.submit_script>.
 
         Arguments
         --------------
-        * `script`: passed to <LocalThreadJob.submit_script>
-        * `files`: passed to <LocalThreadJob.submit_script>
-        * `job_name`: passed to <LocalThreadServer.create_job>
-        * `conda_env`: passed to <LocalThreadServer.create_job>
-        * `isolate_env`: passed to <LocalThreadServer.create_job>
-        * `ignore_files`: passed to <LocalThreadJob.submit_script>
-        * `wait_for_job_status`: passed to <LocalThreadJob.submit_script>
-        * `trial_run`: passed to <LocalThreadJob.submit_script>
+        * `script`: passed to <RemoteThreadJob.submit_script>
+        * `files`: passed to <RemoteThreadJob.submit_script>
+        * `conda_env`: passed to <RemoteThreadServer.create_job>
+        * `isolate_env`: passed to <RemoteThreadServer.create_job>
+        * `ignore_files`: passed to <RemoteThreadJob.submit_script>
+        * `wait_for_job_status`: passed to <RemoteThreadJob.submit_script>
+        * `trial_run`: passed to <RemoteThreadJob.submit_script>
 
         Returns
         --------------
-        * <LocalThreadJob>
+        * <RemoteThreadJob>
         """
         j = self.create_job(job_name=job_name,
                             conda_env=conda_env,
@@ -403,27 +409,27 @@ class LocalThreadServer(_common.Server):
 
     def run_script(self, script, files=[], conda_env=None, trial_run=False):
         """
-        Run a script in the server directory in the `conda_env`, and wait for it to complete.
+        Run a script on the server in the `conda_env`, and wait for it to complete.
 
-        The files are copied and executed in <LocalThreadServer.directory> directly
-        (whereas <LocalThreadJob> scripts are executed in subdirectories).
+        The files are copied and executed in <RemoteThreadServer.directory> directly
+        (whereas <RemoteThreadJob> scripts are executed in subdirectories).
 
         This is useful for short installation/setup scripts that do not belong
         in the scheduled job.
 
-        The resulting `script` and `files` are copied to <LocalThreadServer.directory>
-        and then `script` is executed.
+        The resulting `script` and `files` are copied to <RemoteThreadServer.directory>
+        on the remote server and then `script` is executed via ssh.
 
         Arguments
         ----------------
-        * `script` (string or list): shell script to run in the server directory,
+        * `script` (string or list): shell script to run on the remote server,
             including any necessary installation steps.  Note that the script
             can call any other scripts in `files`.  If a string, must be the
             path of a valid file which will be copied to the server.  If a list,
             must be a list of commands (i.e. a newline will be placed between
             each item in the list and sent as a single script to the server).
         * `files` (list, optional, default=[]): list of paths to additional files
-            to copy to the server directory required in order to successfully execute
+            to copy to the server required in order to successfully execute
             `script`.
         * `conda_env` (string or None, optional, default=None): name of
             the conda environment to run the script or False to not use a
@@ -448,6 +454,7 @@ class LocalThreadServer(_common.Server):
                                         conda_env=conda_env,
                                         isolate_env=False,
                                         job_name=None,
+                                        terminate_on_complete=False,
                                         use_nohup=False,
                                         install_conda=False)
 
@@ -457,6 +464,6 @@ class LocalThreadServer(_common.Server):
         for cmd in cmds:
             # TODO: get around need to add IP to known hosts (either by
             # expecting and answering yes, or by looking into subnet options)
-            _common._run_cmd(cmd)
+            self._run_server_cmd(cmd)
 
         return
