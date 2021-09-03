@@ -3385,7 +3385,6 @@ class Bundle(ParameterSet):
 
             pb = pbparam.get_value()
 
-            pb_needs_Inorm = True
             pb_needs_Imu = True
             pb_needs_ld = True #np.any([p.get_value()!='interp' for p in self.filter(qualifier='ld_mode', dataset=pbparam.dataset, context='dataset', **_skip_filter_checks).to_list()])
             pb_needs_ldint = True
@@ -3415,15 +3414,14 @@ class Bundle(ParameterSet):
 
                 if atm not in installed_pbs.get(pb, {}).get('atms', []):
                     if atm in online_pbs.get(pb, {}).get('atms', []):
-                        missing_pb_content += ['{}:Inorm'.format(atm)]
+                        missing_pb_content += ['{}:Imu'.format(atm)]
                     else:
                         report.add_item(self,
                                         "'{}' passband ({}) does not support atm='{}' ({}).".format(pb, pbparam.twig, atm, atmparam.twig),
                                         [pbparam, atmparam],
                                         True)
 
-                for check,content in [(pb_needs_Inorm, '{}:Inorm'.format(atm)),
-                                      (pb_needs_Imu and atm not in ['extern_planckint', 'extern_atmx', 'blackbody'], '{}:Imu'.format(atm)),
+                for check,content in [(pb_needs_Imu and atm not in ['extern_planckint', 'extern_atmx', 'blackbody'], '{}:Imu'.format(atm)),
                                       (pb_needs_ld and atm not in ['extern_planckint', 'extern_atmx', 'blackbody'], '{}:ld'.format(atm)),
                                       (pb_needs_ldint and atm not in ['extern_planckint', 'extern_atmx', 'blackbody'], '{}:ldint'.format(atm)),
                                       (pb_needs_ext, '{}:ext'.format(atm)),
@@ -3604,7 +3602,7 @@ class Bundle(ParameterSet):
                                             True, 'run_compute')
                         else:
                             atm = self.get_value(qualifier='atm', component=component, compute=compute, context='compute', atm=kwargs.get('atm', None), **_skip_filter_checks)
-                            if atm not in ['ck2004', 'phoenix']:
+                            if atm not in ['ck2004', 'phoenix', 'tmap']:
                                 if 'ck2004' in self.get_parameter(qualifier='atm', component=component, compute=compute, context='compute', atm=kwargs.get('atm', None), **_skip_filter_checks).choices:
                                     report.add_item(self,
                                                     "ld_mode='interp' not supported by atm='{}'.  Either change atm@{}@{} or ld_mode@{}@{}.".format(atm, component, compute, component, dataset),
@@ -9390,7 +9388,7 @@ class Bundle(ParameterSet):
                     if atms[component] == 'blackbody' and ld_mode!='manual':
                         raise NotImplementedError("pblum_method='stefan-boltzmann' not currently implemented for atm='blackbody' unless ld_mode='manual'")
 
-                    required_content = ['{}:Inorm'.format(atms[component])]
+                    required_content = ['{}:Imu'.format(atms[component])]
                     if atms[component] != 'blackbody':
                         required_content += ['{}:ldint'.format(atms[component])]
                     pb = get_passband(passband, content=required_content)
