@@ -369,7 +369,7 @@ class Passband:
 
         return
 
-    def save(self, archive, overwrite=True, update_timestamp=True, history_entry=''):
+    def save(self, archive, overwrite=True, update_timestamp=True, export_inorm_tables=False, history_entry=''):
         """
         Saves the passband file in the fits format.
 
@@ -380,6 +380,10 @@ class Passband:
             existing file with the same filename as provided in `archive`
         * `update_timestamp` (bool, optional, default=True): whether to update
             the stored timestamp with the current time.
+        * `export_inorm_tables` (bool, optional, default=False): Inorm tables
+            have been deprecated since phoebe 2.4; for backwards compatibility
+            we still may need to export them to fits files so that pre-2.4
+            versions can use the same passband files.
         * `history_entry` (string, optional): history entry to append to the
             fits file.  Note that previous entries will be maintained if
             (and only if) overwriting an existing file with `overwrite=True`.
@@ -478,6 +482,10 @@ class Passband:
             data.append(fits.ImageHDU(self._ck2004_Imu_energy_grid, name='CKFEGRID'))
             data.append(fits.ImageHDU(self._ck2004_Imu_photon_grid, name='CKFPGRID'))
 
+            if export_inorm_tables:
+                data.append(fits.ImageHDU(self._ck2004_Imu_energy_grid[...,-1,:], name='CKNEGRID'))
+                data.append(fits.ImageHDU(self._ck2004_Imu_photon_grid[...,-1,:], name='CKNPGRID'))
+
         if 'ck2004:ld' in self.content:
             data.append(fits.ImageHDU(self._ck2004_ld_energy_grid, name='CKLEGRID'))
             data.append(fits.ImageHDU(self._ck2004_ld_photon_grid, name='CKLPGRID'))
@@ -494,6 +502,10 @@ class Passband:
             data.append(fits.ImageHDU(self._phoenix_Imu_energy_grid, name='PHFEGRID'))
             data.append(fits.ImageHDU(self._phoenix_Imu_photon_grid, name='PHFPGRID'))
 
+            if export_inorm_tables:
+                data.append(fits.ImageHDU(self._phoenix_Imu_energy_grid[...,-1,:], name='PHNEGRID'))
+                data.append(fits.ImageHDU(self._phoenix_Imu_photon_grid[...,-1,:], name='PHNPGRID'))
+
         if 'phoenix:ld' in self.content:
             data.append(fits.ImageHDU(self._phoenix_ld_energy_grid, name='PHLEGRID'))
             data.append(fits.ImageHDU(self._phoenix_ld_photon_grid, name='PHLPGRID'))
@@ -509,6 +521,10 @@ class Passband:
         if 'tmap:Imu' in self.content:
             data.append(fits.ImageHDU(self._tmap_Imu_energy_grid, name='TMFEGRID'))
             data.append(fits.ImageHDU(self._tmap_Imu_photon_grid, name='TMFPGRID'))
+
+            if export_inorm_tables:
+                data.append(fits.ImageHDU(self._tmap_Imu_energy_grid[...,-1,:], name='TMNEGRID'))
+                data.append(fits.ImageHDU(self._tmap_Imu_photon_grid[...,-1,:], name='TMNPGRID'))
 
         if 'tmap:ld' in self.content:
             data.append(fits.ImageHDU(self._tmap_ld_energy_grid, name='TMLEGRID'))
