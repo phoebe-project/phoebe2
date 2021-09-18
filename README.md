@@ -84,6 +84,11 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.3.54 - distribution bugfix
+
+* updates `distl` to convert units with recent changes to astropy.  See also the changes in 2.3.51 and 2.3.52.
+* fixes median introduced in 2.3.52 to act on distribution object instead of just arrays.
+
 ### 2.3.53 - adopt_solution adopt_values bugfix
 
 * adopting a solution with `adopt_values=True` for a sampler solver will now adopt the median from the samples rather than the mean, to be consistent with the central values reported by the distributions themselves.
