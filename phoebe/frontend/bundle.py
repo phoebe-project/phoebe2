@@ -13626,9 +13626,10 @@ class Bundle(ParameterSet):
                         changed_params.append(param)
 
                     if index is None:
-                        param.set_value(value=dist.slice(i).mean(), unit=dist.slice(i).unit)
+                        # NOTE: .median() is necesary over np.median() since its acting on a distl object
+                        param.set_value(value=dist.slice(i).median(), unit=dist.slice(i).unit)
                     else:
-                        param.set_index_value(index=index, value=dist.slice(i).mean(), unit=dist.slice(i).unit)
+                        param.set_index_value(index=index, value=dist.slice(i).median(), unit=dist.slice(i).unit)
 
         else:
             fitted_values = solution_ps.get_value(qualifier='fitted_values', **_skip_filter_checks)

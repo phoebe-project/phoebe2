@@ -68,24 +68,28 @@ _math_funcs = {'__div__': lambda x,y: x/y,
 _builtin_attrs = ['unit', 'label', 'wrap_at', 'dimension', 'dist_constructor_argnames', 'dist_constructor_args', 'dist_constructor_func', 'dist_constructor_object']
 
 _physical_types_to_solar = {'length': 'solRad',
-                         'mass': 'solMass',
-                         'temperature': 'solTeff',
-                         'power': 'solLum',
-                         'time': 'd',
-                         'speed': 'solRad/d',
-                         'angle': 'rad',
-                         'angular speed': 'rad/d',
-                         'dimensionless': ''}
+                            'area': 'solRad2',
+                            'volume': 'solRad3',
+                            'mass': 'solMass',
+                            'temperature': 'solTeff',
+                            'power': 'solLum',
+                            'time': 'd',
+                            'speed': 'solRad/d',
+                            'angle': 'rad',
+                            'angular speed': 'rad/d',
+                            'dimensionless': ''}
 
 _physical_types_to_si = {'length': 'm',
-                            'mass': 'kg',
-                            'temperature': 'K',
-                            'power': 'W',
-                            'time': 's',
-                            'speed': 'm/s',
-                            'angle': 'rad',
-                            'angular speed': 'rad/s',
-                            'dimensionless': ''}
+                         'area': 'm2',
+                         'volume': 'm3',
+                         'mass': 'kg',
+                         'temperature': 'K',
+                         'power': 'W',
+                         'time': 's',
+                         'speed': 'm/s',
+                         'angle': 'rad',
+                         'angular speed': 'rad/s',
+                         'dimensionless': ''}
 
 def _uniqueid(n=20):
     return ''.join(_random.SystemRandom().choice(
@@ -2102,7 +2106,7 @@ class BaseUnivariateDistribution(BaseDistribution):
         -------------
         * distribution object
         """
-        physical_type = self.unit.physical_type
+        physical_type = str(self.unit.physical_type)
 
         if physical_type not in _physical_types_to_solar.keys():
             raise NotImplementedError("cannot convert object with physical_type={} to solar units".format(physical_type))
