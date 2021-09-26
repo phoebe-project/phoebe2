@@ -84,6 +84,10 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.3.55 - sample_distribution_collection index bugfix
+
+* fixes handling distributions on array parameters within sample_distribution_collection.
+
 ### 2.3.54 - distribution bugfix
 
 * updates `distl` to convert units with recent changes to astropy.  See also the changes in 2.3.51 and 2.3.52.
