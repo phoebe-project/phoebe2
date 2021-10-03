@@ -8117,7 +8117,7 @@ class Bundle(ParameterSet):
 
             if set_value:
                 if index is None:
-                    ref_param.set_value(sampled_value, index=index, unit=unit)
+                    ref_param.set_value(sampled_value, unit=unit)
                 else:
                     ref_param.set_index_value(index, sampled_value, unit=unit)
 

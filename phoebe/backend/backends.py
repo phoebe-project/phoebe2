@@ -12,6 +12,7 @@ import itertools
 
 from phoebe.parameters import dataset as _dataset
 from phoebe.parameters import StringParameter, DictParameter, ArrayParameter, ParameterSet
+from phoebe.parameters.parameters import _extract_index_from_string
 from phoebe import dynamics
 from phoebe.backend import universe, etvs, horizon_analytic
 from phoebe.atmospheres import passbands
@@ -633,6 +634,7 @@ def _call_run_single_model(args):
     while True:
         # print("trying with samples={}".format(samples))
         for uniqueid, value in samples.items():
+            uniqueid, index = _extract_index_from_string(uniqueid)
 
             # TODO: for some reason when redrawing we're getting arrays with length
             # one as if we had passed N=1 to sample_distribution_collection.  For now, we'll
@@ -640,8 +642,12 @@ def _call_run_single_model(args):
             if isinstance(value, np.ndarray):
                 value = value[0]
             # print("setting uniqueid={}, value={}".format(uniqueid, value))
+            ref_param = b.get_parameter(uniqueid=uniqueid, **_skip_filter_checks)
             try:
-                b.set_value(uniqueid=uniqueid, value=value, **_skip_filter_checks)
+                if index is None:
+                    ref_param.set_value(value, unit=unit)
+                else:
+                    ref_param.set_index_value(index, value, unit=unit)
             except Exception as err:
                 if expose_samples:
                     msg = _simplify_error_message(err)

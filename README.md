@@ -86,7 +86,7 @@ CHANGELOG
 
 ### 2.3.55 - sample_distribution_collection index bugfix
 
-* fixes handling distributions on array parameters within sample_distribution_collection.
+* fixes handling distributions on array parameters within sample_distribution_collection and run_compute(sample_from).
 
 ### 2.3.54 - distribution bugfix
 
