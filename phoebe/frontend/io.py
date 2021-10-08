@@ -295,7 +295,7 @@ def load_lc_data(filename, indep, dep, indweight=None, mzero=None, bundle=None, 
         logger.warning("Could not load data file referenced at {}. Dataset will be empty.".format(load_file))
         return {}
     ncol = len(lcdata[0])
-
+    
     #check if there are enough columns for errors
     if ncol >= 3:
         sigma = True
@@ -791,7 +791,9 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True,
             lcpt = np.vstack((lcpt,ftia,fti_expa,fti_ovsa))#, fti_tsa))
 
             fti_ind = False
+            
 
+#        if not fti_ind:
 
 #        if not fti_ind:
 
@@ -1770,7 +1772,7 @@ def pass_to_legacy(eb, compute=None, **kwargs):
                 param = None
 
             if param != None:
-
+                
                 val, ptype = par_value(param)
 
                 if param.qualifier == 'pblum':
@@ -1928,12 +1930,15 @@ def pass_to_legacy(eb, compute=None, **kwargs):
 
                 val, ptype = par_value(param)
                 pname = ret_parname(param.qualifier, comp_int=None, dtype='spots', dnum = y+1, ptype=ptype)
+                for y in range(len(pname)):    
+                    legacy_dict[pname[y]] = val[y]
+            #    parnames.extend(pname)
+            #    parvals.extend(val)
 
                 for z in range(len(pname)):
                     legacy_dict[pname[z]] = val[z]
             #    parnames.extend(pname)
             #    parvals.extend(val)
-
 
 #loop through the orbit
 

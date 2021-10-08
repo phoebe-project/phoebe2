@@ -5,6 +5,7 @@ import phoebe
 from phoebe import u
 import numpy as np
 import matplotlib.pyplot as plt
+import os
 
 def _get_ld_coeffs(ld_coeff, ld_func, ld_mode='manual'):
     # length of ld_coeffs depends on ld_func
@@ -23,14 +24,15 @@ def _get_ld_coeffs(ld_coeff, ld_func, ld_mode='manual'):
 
     return ld_coeffs
 
-def test_binary(plot=False):
+def test_binary(plot=False, gen_comp=False):
     b = phoebe.Bundle.default_binary()
 
 
     period = b.get_value('period@binary')
     b.add_dataset('lc', times=np.linspace(0,period,21))
     b.add_compute('phoebe', irrad_method='none', compute='phoebe2')
-    b.add_compute('legacy', refl_num=0, compute='phoebe1')
+    if gen_comp:
+        b.add_compute('legacy', refl_num=0, compute='phoebe1')
 
 
     # set matching limb-darkening for bolometric
@@ -109,16 +111,20 @@ def test_binary(plot=False):
 
             b.run_compute(compute='phoebe2', model='phoebe2model', overwrite=True)
 
-            if plot:
-                print("running phoebe1 model atm={}, ld_func={}, ld_coeffs={}, ld_coeffs_source={}...".format(atm_ph1, ld_func_ph1, ld_coeffs_ph1, ld_coeffs_source))
+            if gen_comp:
+                if plot:
+                    print("running phoebe1 model atm={}, ld_func={}, ld_coeffs={}, ld_coeffs_source={}...".format(atm_ph1, ld_func_ph1, ld_coeffs_ph1, ld_coeffs_source))
 
-            b.set_value_all('atm@phoebe1', atm_ph1)
-            b.set_value_all('ld_mode', 'manual')
-            b.set_value_all('ld_func', ld_func_ph1)
-            if ld_coeffs_ph1 is not None:
-                b.set_value_all('ld_coeffs', ld_coeffs_ph1, check_visible=False)
+                b.set_value_all('atm@phoebe1', atm_ph1)
+                b.set_value_all('ld_mode', 'manual')
+                b.set_value_all('ld_func', ld_func_ph1)
+                if ld_coeffs_ph1 is not None:
+                    b.set_value_all('ld_coeffs', ld_coeffs_ph1, check_visible=False)
 
-            b.run_compute(compute='phoebe1', model='phoebe1model', overwrite=True)
+                b.run_compute(compute='phoebe1', model='phoebe1model', overwrite=True)
+                b.filter(model='phoebe1model').save('test_ld_{}_{}.comp.model'.format(ld_func, ld_coeff))
+            else:
+                b.import_model(os.path.join(os.path.dirname(__file__), 'test_ld_{}_{}.comp.model'.format(ld_func, ld_coeff)), model='phoebe1model', overwrite=True)
 
             phoebe2_val = b.get_value('fluxes@phoebe2model')
             phoebe1_val = b.get_value('fluxes@phoebe1model')
@@ -132,13 +138,14 @@ def test_binary(plot=False):
             assert(np.allclose(phoebe2_val, phoebe1_val, rtol=5e-3 if exact_comparison else 0.3, atol=0.))
 
 
+    b.set_value_all('ld_mode', 'manual')
     for atm in ['ck2004', 'blackbody']:
         # don't need much time-resolution at all since we're just using median
         # to compare
         b.set_value('times@dataset', np.linspace(0,3,11))
         b.set_value_all('atm@phoebe2', atm)
 
-        for ld_func in b.get('ld_func', component='primary').choices:
+        for ld_func in b.get_parameter('ld_func', component='primary').choices:
             # now we just want to make sure the median value doesn't change
             # as a function of ld_coeffs - to make sure the pblum scaling is
             # accounting for limb-darkening correctly.
@@ -197,4 +204,4 @@ if __name__ == '__main__':
     logger = phoebe.logger(clevel='INFO')
 
 
-    b = test_binary(plot=False)
+    b = test_binary(plot=False, gen_comp=True)

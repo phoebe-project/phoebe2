@@ -78,6 +78,10 @@ namespace wd_atm {
 
     Output:
       data - array of length n
+    
+    Return:
+      -1 : if problem with opening the file
+      len : record read
   */
   template <class T, int n>
   int read_data(const char *filename, T *data) {
@@ -85,7 +89,7 @@ namespace wd_atm {
     // store data in a string
     std::string s;
     std::ifstream in(filename, std::ios::in | std::ios::binary);
-    if (!in.is_open()) return 0;
+    if (!in.is_open()) return -1;
 
     in.seekg(0, std::ios::end);
     s.resize(in.tellg());
@@ -93,7 +97,7 @@ namespace wd_atm {
     in.read((char*)s.data(), s.size());
     in.close();
 
-    // replace D with E, FORTRAN JOKE ON HUMANITY
+    // replace D with E, FORTRAN's JOKE ON HUMANITY
     std::replace(s.begin(), s.end(), 'D', 'E');
 
     // read word by word from a string

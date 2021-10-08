@@ -45,7 +45,7 @@ except ImportError:
 else:
     _has_dill = True
 
-__version__ = '0.2.0'
+__version__ = '0.3.1'
 version = __version__
 
 _math_symbols = {'__mul__': '*', '__add__': '+', '__sub__': '-',
@@ -68,24 +68,28 @@ _math_funcs = {'__div__': lambda x,y: x/y,
 _builtin_attrs = ['unit', 'label', 'wrap_at', 'dimension', 'dist_constructor_argnames', 'dist_constructor_args', 'dist_constructor_func', 'dist_constructor_object']
 
 _physical_types_to_solar = {'length': 'solRad',
-                         'mass': 'solMass',
-                         'temperature': 'solTeff',
-                         'power': 'solLum',
-                         'time': 'd',
-                         'speed': 'solRad/d',
-                         'angle': 'rad',
-                         'angular speed': 'rad/d',
-                         'dimensionless': ''}
+                            'area': 'solRad2',
+                            'volume': 'solRad3',
+                            'mass': 'solMass',
+                            'temperature': 'solTeff',
+                            'power': 'solLum',
+                            'time': 'd',
+                            'speed': 'solRad/d',
+                            'angle': 'rad',
+                            'angular speed': 'rad/d',
+                            'dimensionless': ''}
 
 _physical_types_to_si = {'length': 'm',
-                            'mass': 'kg',
-                            'temperature': 'K',
-                            'power': 'W',
-                            'time': 's',
-                            'speed': 'm/s',
-                            'angle': 'rad',
-                            'angular speed': 'rad/s',
-                            'dimensionless': ''}
+                         'area': 'm2',
+                         'volume': 'm3',
+                         'mass': 'kg',
+                         'temperature': 'K',
+                         'power': 'W',
+                         'time': 's',
+                         'speed': 'm/s',
+                         'angle': 'rad',
+                         'angular speed': 'rad/s',
+                         'dimensionless': ''}
 
 def _uniqueid(n=20):
     return ''.join(_random.SystemRandom().choice(
@@ -460,20 +464,20 @@ def is_unit_or_unitstring_or_none(value):
 def is_bool(value):
     if isinstance(value, bool):
         return value
-    raise TypeError("must be boolean")
+    raise TypeError("must be boolean, got {} ({})".format(value, type(value)))
 
 def is_float(value):
     try:
         value = float(value)
     except:
-        raise TypeError("must be a float")
+        raise TypeError("must be a float, got {} ({})".format(value, type(value)))
     else:
         return value
 
 def is_int(value):
     if isinstance(value, int):
         return value
-    raise TypeError('must be an integer')
+    raise TypeError("must be an integer, got {} ({})".format(value, type(value)))
 
 def is_int_positive(value):
     if isinstance(value, int) and value > 0:
@@ -2102,7 +2106,7 @@ class BaseUnivariateDistribution(BaseDistribution):
         -------------
         * distribution object
         """
-        physical_type = self.unit.physical_type
+        physical_type = str(self.unit.physical_type)
 
         if physical_type not in _physical_types_to_solar.keys():
             raise NotImplementedError("cannot convert object with physical_type={} to solar units".format(physical_type))
@@ -2897,13 +2901,13 @@ class BaseMultivariateDistribution(BaseDistribution):
         d['distl'] = self.__class__.__name__
         d['distl.version'] = __version__
         d['uniqueid'] = self.uniqueid
-        if self.units is not None and 'units':
+        if self.units is not None:
             d['units'] = [u.to_string() if u is not None else None for u in self.units]
-        if self.labels is not None and 'labels':
+        if self.labels is not None:
             d['labels'] = self.labels
-        if self._labels_latex is not None and 'labels_latex':
+        if self._labels_latex is not None:
             d['labels_latex'] = self._labels_latex
-        if self.wrap_ats is not None and 'wrap_ats':
+        if self.wrap_ats is not None:
             d['wrap_ats'] = self.wrap_ats
 
         if exclude:
@@ -3255,7 +3259,8 @@ class BaseMultivariateDistribution(BaseDistribution):
         else:
             return qs_per_dim
 
-    def sample(self, size=None, dimension=None, seed=None, cache_sample=True):
+    def sample(self, size=None, dimension=None, seed=None, cache_sample=True,
+               unit=None, as_quantity=False):
         """
         Sample from the distribution.
 
@@ -3270,12 +3275,17 @@ class BaseMultivariateDistribution(BaseDistribution):
             prior to sampling.
         * `cache_sample` (bool, optional, default=True): whether to override the
             existing <<class>.cached_sample>.
+        * `unit` (None): NOT YET IMPLEMENTED will raise error if not None
+        * `as_quantity` (False): NOT YET IMPLEMENTED will raise error if not False
 
         Returns
         ---------
         * float or array: float if `size=None`, otherwise a numpy array with
             shape defined by `size`.
         """
+
+        if unit is not None or as_quantity:
+            raise NotImplementedError("unit and quantities not yet supported for multivariate distributions")
 
         # TODO: add support for per-dimension unit, wrap_at, as_quantity (and pass in to_mvhistogram)
         # TODO: add support for seed
@@ -3496,13 +3506,13 @@ class BaseMultivariateSliceDistribution(BaseUnivariateDistribution):
         d['uniqueid'] = self.uniqueid
         d['multivariate'] = self.multivariate.to_dict(exclude=exclude)
         d['dimension'] = self.dimension
-        if self._unit is not None and 'unit':
+        if self._unit is not None:
             d['unit'] = str(self._unit.to_string())
-        if self._label is not None and 'label':
+        if self._label is not None:
             d['label'] = self._label
-        if self._label_latex is not None and 'label_latex':
+        if self._label_latex is not None:
             d['label_latex'] = self._label_latex
-        if self._wrap_at is not None and 'wrap_at':
+        if self._wrap_at is not None:
             d['wrap_at'] = self._wrap_at
 
         if exclude:
@@ -3714,14 +3724,16 @@ class BaseMultivariateSliceDistribution(BaseUnivariateDistribution):
 
     ### SAMPLING & PLOTTING
 
-    def sample(self, size=None, wrap_at=None, seed=None, cache_sample=True):
+    def sample(self, size=None, wrap_at=None, seed=None, cache_sample=True,
+               unit=None, as_quantity=False):
         """
         Sample the underlying <<class>.multivariate> distribution in the dimension
         defined in <<class>.dimension>.
         """
 
         # TODO: support unit, wrap_at, as_quantity
-        return self.multivariate.sample(size=size, seed=seed, dimension=self.dimension, cache_sample=cache_sample)
+        return self.multivariate.sample(size=size, seed=seed, dimension=self.dimension, cache_sample=cache_sample,
+                                        unit=unit, as_quantity=as_quantity)
 
     def plot_sample(self, *args, **kwargs):
         if hasattr(self, 'bins'):
@@ -3865,7 +3877,8 @@ class DistributionCollection(BaseDistlObject):
         # first well expand any Composite distributions to access the underlying
         # distributions
         def unpack_dists(dist):
-            if isinstance(dist, Composite):
+            if isinstance(dist, Composite) and dist.math not in ['__and__', '__or__']:
+                # and/or are flattened to univariates, so we only want to expose them once
                 dists = []
                 for dist in dist.dists:
                     dists += unpack_dists(dist)
@@ -3958,7 +3971,7 @@ class DistributionCollection(BaseDistlObject):
             if not as_univariates and isinstance(dist_orig, BaseMultivariateSliceDistribution):
                 d = dist_orig.multivariate
             else:
-                d = dist_orig
+                d = dist_orig  #.to_univariate()?
 
             # if as_univariates then we want MVSlices with the same parent MV to be treated separately
             take_dimensions = not as_univariates and isinstance(dist_orig, BaseMultivariateSliceDistribution)
@@ -4044,7 +4057,7 @@ class DistributionCollection(BaseDistlObject):
             samples are available, a ValueError will be raised.
         * `as_univariates` (bool, optional, default=False): whether `values` corresponds
             to the passed distributions (<DistributionCollection.distributions>)
-            or the underlying unpacked distributions (<DistributionCollection.distributions_unpacked>).
+            or the underlying unpacked distributions (<DistributionCollection.dists_unpacked>).
             If the former (`as_univariates=False`), covariances will be respected
             from any underlying multivariate distributions.  If the latter
             (`as_univariates=True`) covariances will be ignored.
@@ -4057,7 +4070,10 @@ class DistributionCollection(BaseDistlObject):
         ----------
         * ValueError: if `values` is None, but no cached samples are available.
         """
-        return self._method_on_values('logpdf', 'sum', values, as_univariates)
+        ret_ = self._method_on_values('logpdf', 'sum', values, as_univariates)
+        if isinstance(ret_, _np.ndarray) and len(ret_)==1:
+            return ret_[0]
+        return ret_
 
     def cdf(self, values=None, as_univariates=False):
         """
@@ -4299,7 +4315,7 @@ class DistributionCollection(BaseDistlObject):
         models = _np.array([func(x, *sample_args[i], **func_kwargs) for i in range(N)])
         return models
 
-    def plot_sample(self, size=1e5, **kwargs):
+    def plot_sample(self, size=1e5, samples=None, **kwargs):
         """
 
         Arguments
@@ -4342,7 +4358,9 @@ class DistributionCollection(BaseDistlObject):
 
         titles_sigma = kwargs.pop('titles_sigma', False)
 
-        fig = corner.corner(self.sample(size=int(size), cache_sample=False),
+        samples = samples if samples is not None else self.sample(size=int(size), cache_sample=False)
+
+        fig = corner.corner(samples,
                              labels=kwargs.pop('labels', [dist._xlabel() for dist in self.dists]),
                              range=kwargs.pop('range', [_range(dist) for dist in self.dists]),
                              quantiles=kwargs.pop('quantiles', None),
@@ -6729,45 +6747,6 @@ class MVGaussian(BaseMultivariateDistribution):
         """
         return len(self.mean)
 
-
-    def uncertainties(self, sigma=1, tex=False, dimension=None):
-        """
-        Expose (symmetric) uncertainties for the distribution(s) at a given
-        value of `sigma` directly from <MVGaussian.mean> and <MVGaussian.cov>.
-
-        Arguments
-        -----------
-        * `sigma` (int, optional, default=1): number of standard deviations to
-            expose.
-        * `tex` (bool, optional, default=False): return as a formatted latex
-            string.
-        * `dimension` (int or string, optional, default=None): the label or index
-            of the dimension to use.
-
-        Returns
-        ---------
-        * if not `tex`: a list of triplets where each triplet is lower, median, upper
-        * if `tex`: <Latex> object with <Latex.as_latex> and <Latex.as_string> properties.
-
-        """
-
-        if dimension is None:
-            dimensions = range(self.ndimensions)
-        else:
-            dimensions = [self._get_dimension_index(dimension)]
-
-        if tex:
-            labels = [self.labels[d] if self.labels is not None else None for d in dimensions]
-            labels_latex = [self.labels_latex[d] if self.labels is not None else None for d in dimensions]
-            units = [self.units[d] if self.units is not None else None for d in dimensions]
-            means = [self.mean[d] for d in dimensions]
-            diagonal = self.cov.diagonal()
-            diagonals = [diagonal[d]*sigma for d in dimensions]
-            return _format_uncertainties_symmetric(labels, labels_latex, units, means, diagonals)
-        else:
-            return [[self.mean[i]-self.cov[i][i]*sigma, self.mean[i], self.mean[i]+self.cov[i][i]*sigma] for i in dimensions]
-
-
     def slice(self, dimension):
         """
         Take a single dimension from the multivariate distribution while
@@ -7245,7 +7224,8 @@ class MVHistogram(BaseMultivariateDistribution):
                            labels=[self.labels[d] for d in dimensions] if self.labels is not None else None,
                            wrap_ats=[self.wrap_ats[d] for d in dimensions] if self.wrap_ats is not None else None)
 
-    def sample(self, size=None, dimension=None, seed=None, cache_sample=True):
+    def sample(self, size=None, dimension=None, seed=None, cache_sample=True,
+               unit=None, as_quantity=False):
         """
 
         Arguments
@@ -7256,6 +7236,8 @@ class MVHistogram(BaseMultivariateDistribution):
             prior to sampling.
         * `cache_sample` (bool, optional, default=True): whether to override the
             existing <<class>.cached_sample>.
+        * `unit` (None): NOT YET IMPLEMENTED will raise error if not None
+        * `as_quantity` (False): NOT YET IMPLEMENTED will raise error if not False
 
         """
         # if dimension is not None:
@@ -7265,6 +7247,10 @@ class MVHistogram(BaseMultivariateDistribution):
         # else:
         #     bins = self.bins
         #     density = self.density
+
+        if unit is not None or as_quantity:
+            raise NotImplementedError("unit and quantities not yet supported for multivariate distributions")
+
 
         if isinstance(seed, dict):
             seed = seed.get(self.uniqueid, None)
@@ -7535,7 +7521,7 @@ class MVSamples(BaseMultivariateDistribution):
 
         Arguments
         --------------
-        * `samples` (np.array object with shape (nsamples, <MVSamples.ndimensions>)):
+        * `samples` (np.array object with shape (<MVSamples.nsamples>, <MVSamples.ndimensions>)):
             the samples.
         * `weights` (np.array object with shape (nsamples) or None, optional, default=None):
             weights for each entry in `samples`.  NOTE: only supported with scipy
@@ -7560,6 +7546,8 @@ class MVSamples(BaseMultivariateDistribution):
         --------
         * an <MVSamples> object
         """
+        # NOTE: the passed samples need to be transposed, so see the override
+        # in dist_constructor_args
         super(MVSamples, self).__init__(units, labels, labels_latex, wrap_ats,
                                         _stats.gaussian_kde, ('samples', 'bw_method') if StrictVersion(_scipy_version) < StrictVersion("1.2.0") else ('samples', 'bw_method', 'weights'),
                                         samples=samples, weights=weights, bw_method=bw_method,
@@ -7580,7 +7568,7 @@ class MVSamples(BaseMultivariateDistribution):
     @property
     def weights(self):
         """
-        weights for each entry in <Samples.samples>
+        weights for each sample in <Samples.samples> (nsamples)
         """
         return self._weights
 
@@ -7607,6 +7595,25 @@ class MVSamples(BaseMultivariateDistribution):
             return
         self._bw_method = is_float(value)
         self._dist_constructor_object_clear_cache()
+
+    @property
+    def dist_constructor_args(self):
+        """
+        Return the arguments to pass to the the underlying distribution
+        constructor (often the scipy.stats random variable generator function)
+
+        <MVSamples.samples> is transposed before passing on to gaussian_kde
+
+        See also:
+
+        * <<class>.dist_constructor_func>
+        * <<class>.dist_constructor_object>
+
+        Returns
+        -------
+        * tuple
+        """
+        return [getattr(self, a).T if a=='samples' else getattr(self,a) for a in self.dist_constructor_argnames]
 
     @property
     def ndimensions(self):
@@ -7733,7 +7740,8 @@ class MVSamples(BaseMultivariateDistribution):
         # TODO: manual implementation
         raise NotImplementedError()
 
-    def sample(self, size=None, dimension=None, seed=None, cache_sample=True):
+    def sample(self, size=None, dimension=None, seed=None, cache_sample=True,
+               unit=None, as_quantity=False):
         """
         Sample from the  samples (<MVSamples.samples> if <MVSamples.weights>
         is not provided, otherwise <MVSamples.samples_weighted>)
@@ -7746,8 +7754,15 @@ class MVSamples(BaseMultivariateDistribution):
             prior to sampling.
         * `cache_sample` (bool, optional, default=True): whether to override the
             existing <<class>.cached_sample>.
+        * `unit` (None): NOT YET IMPLEMENTED will raise error if not None
+        * `as_quantity` (False): NOT YET IMPLEMENTED will raise error if not False
+
 
         """
+
+        if unit is not None or as_quantity:
+            raise NotImplementedError("unit and quantities not yet supported for multivariate distributions")
+
 
         if isinstance(seed, dict):
             seed = seed.get(self.uniqueid, None)
@@ -7928,7 +7943,8 @@ class MVSamples(BaseMultivariateDistribution):
         Arguments
         -----------
         * `N` (int, optional, default=1e6): number of samples to use for
-            the histogram.
+            the histogram.  If N>=<MVSamples.nsamples>, <MVSamples.samples>
+            will be passed directly.
         * `bins` (int, optional, default=15): number of bins to use for the
             histogram.
         * `range` (tuple or None): range to use for the histogram.
@@ -7938,7 +7954,7 @@ class MVSamples(BaseMultivariateDistribution):
         * an <MVHistogram> object
         """
         # TODO: if sample is updated to take wrap_at/wrap_ats... pass wrap_at=False here
-        return MVHistogram.from_data(self.sample(size=int(N), cache_sample=False),
+        return MVHistogram.from_data(self.samples if N >= self.nsamples else self.sample(size=int(N), cache_sample=False),
                                      bins=bins, range=range,
                                      units=self.units,
                                      labels=self.labels, labels_latex=self._labels_latex,
@@ -8015,6 +8031,18 @@ class MVSamplesSlice(BaseMultivariateSliceDistribution):
         """
         return Samples(samples=self.samples, weights=self.weights, bw_method=self.bw_method, unit=self.unit).ppf(q, unit=unit, as_quantity=as_quantity, wrap_at=wrap_at)
 
+    # def pdf(self, x, unit=None, as_quantity=False, wrap_at=None):
+    #     """
+    #     See <Samples.pdf>
+    #     """
+    #     return Samples(samples=self.samples, weights=self.weights, bw_method=self.bw_method, unit=self.unit).pdf(x, unit=unit, as_quantity=as_quantity, wrap_at=wrap_at)
+    #
+    # def logpdf(self, x, unit=None, as_quantity=False, wrap_at=None):
+    #     """
+    #     See <Samples.logpdf>
+    #     """
+    #     return Samples(samples=self.samples, weights=self.weights, bw_method=self.bw_method, unit=self.unit).logpdf(x, unit=unit, as_quantity=as_quantity, wrap_at=wrap_at)
+
     def interval(self, alpha, unit=None, as_quantity=False, wrap_at=None):
         """
         See <Samples.interval>
@@ -8051,10 +8079,12 @@ class MVSamplesSlice(BaseMultivariateSliceDistribution):
 
 class BaseAroundGenerator(BaseDistlObject):
     def __init__(self, value=None, unit=None,
+                 frac=False,
                  label=None, label_latex=None, wrap_at=None,
                  **kwargs):
         self.value = value
         self.unit = unit
+        self.frac = frac
         self.label = label
         self.label_latex = label_latex
         self.wrap_at = wrap_at
@@ -8072,6 +8102,14 @@ class BaseAroundGenerator(BaseDistlObject):
 
         self._value = is_float(value)
 
+    @property
+    def frac(self):
+        return self._frac
+
+    @frac.setter
+    def frac(self, frac):
+        self._frac = is_bool(frac)
+
     # def __getattr__(self, attr):
     #     try:
     #         return super(BaseAroundGenerator, self).__getattr__(attr)
@@ -8081,8 +8119,9 @@ class BaseAroundGenerator(BaseDistlObject):
     #         else:
     #             raise ValueError("cannot access attribute of distl distribution object without setting value first")
 
-    def __call__(self, value=None, unit=None, label=None, label_latex=None, wrap_at=None):
+    def __call__(self, value=None, unit=None, frac=None, label=None, label_latex=None, wrap_at=None):
         unit = unit if unit is not None else self._unit
+        frac = frac if frac is not None else self._frac
         label = label if label is not None else self._label
         label_latex = label_latex if label_latex is not None else self._label_latex
         wrap_at = wrap_at if wrap_at is not None else self._wrap_at
@@ -8090,13 +8129,14 @@ class BaseAroundGenerator(BaseDistlObject):
         if value is None:
             raise ValueError("value must be passed or set in order to create distl distribution object")
 
-        return self.__create_distl__(value, unit, label, label_latex, wrap_at)
+        return self.__create_distl__(value, unit, frac, label, label_latex, wrap_at)
 
     def __repr__(self):
         descriptors = " ".join(["{}={}".format(k,getattr(self,k)) for k in self._descriptors])
         descriptors += " value={}".format(self.value if self.value is not None else "UNSET")
         if self.unit is not None:
             descriptors += " unit={}".format(self.unit)
+        descriptors += " frac={}".format(self.frac)
         if self.wrap_at is not None:
             descriptors += " wrap_at={}".format(self.wrap_at)
         if self.label is not None:
@@ -8209,15 +8249,16 @@ class BaseAroundGenerator(BaseDistlObject):
         d['distl'] = self.__class__.__name__
         d['distl.version'] = __version__
         d['uniqueid'] = self.uniqueid
-        if self.value is not None and 'value':
+        if self.value is not None :
             d['value'] = self.value
-        if self.unit is not None and 'unit':
+        if self.unit is not None:
             d['unit'] = str(self.unit.to_string())
-        if self.label is not None and 'label':
+        d['frac'] = self.frac
+        if self.label is not None:
             d['label'] = self.label
         if self._label_latex is not None:
             d['label_latex'] = self._label_latex
-        if self.wrap_at is not None and 'wrap_at':
+        if self.wrap_at is not None:
             d['wrap_at'] = self.wrap_at
 
         if exclude:
@@ -8324,7 +8365,7 @@ class BaseAroundGenerator(BaseDistlObject):
 
         _label = self.label
 
-        if self.unit is None or self.unit in [_units.dimensionless_unscaled]:
+        if self.unit is None or self.unit in [_units.dimensionless_unscaled] or self.frac:
             # then we'll just adopt the units without applying any scaling
             factor = 1.0
         else:
@@ -8471,6 +8512,7 @@ class Uniform_Around(BaseAroundGenerator):
 
     """
     def __init__(self, width, value=None, unit=None,
+                 frac=False,
                  label=None, label_latex=None, wrap_at=None,
                  uniqueid=None):
         """
@@ -8487,6 +8529,8 @@ class Uniform_Around(BaseAroundGenerator):
             and <Uniform.high> will be set based on the current value and `width`).
         * `value` (float, optional, default=None): the current face-value.
         * `unit` (astropy.units object, optional): the units of the provided values.
+        * `frac` (bool, optional, default=False): whether `width` is provided as
+            a fraction of `value` rather than in `unit`.
         * `label` (string, optional): a label for the distribution.  This is used
             for the x-label while plotting the distribution if `label_latex` is not provided,
             as well as a shorthand notation when creating a <Composite> distribution.
@@ -8501,10 +8545,14 @@ class Uniform_Around(BaseAroundGenerator):
         -----------
         * a <Uniform_Around> object.
         """
-        super(Uniform_Around, self).__init__(value, unit, label, label_latex, wrap_at, width=width, uniqueid=uniqueid)
+        super(Uniform_Around, self).__init__(value, unit, frac, label, label_latex, wrap_at, width=width, uniqueid=uniqueid)
 
-    def __create_distl__(self, value, unit, label, label_latex, wrap_at):
-        return Uniform(value-self._width/2, value+self._width/2, unit, label, label_latex, wrap_at)
+    def __create_distl__(self, value, unit, frac, label, label_latex, wrap_at):
+        if frac:
+            width = value * self._width
+        else:
+            width = self._width
+        return Uniform(value-width/2, value+width/2, unit, label, label_latex, wrap_at)
 
     @property
     def width(self):
@@ -8555,7 +8603,7 @@ class Delta_Around(BaseAroundGenerator):
     ```
 
     """
-    def __init__(self, value=None, unit=None, label=None, label_latex=None,
+    def __init__(self, value=None, unit=None, frac=False, label=None, label_latex=None,
                  wrap_at=None, uniqueid=None):
         """
         Create a <Delta_Around> object which, when called, will resolve
@@ -8569,6 +8617,7 @@ class Delta_Around(BaseAroundGenerator):
         --------------
         * `value` (float, optional, default=None): the current face-value.
         * `unit` (astropy.units object, optional): the units of the provided values.
+        * `frac` (bool, optional, default=False): ignored as <Delta> has no width parameter.
         * `label` (string, optional): a label for the distribution.  This is used
             for the x-label while plotting the distribution if `label_latex` is not provided,
             as well as a shorthand notation when creating a <Composite> distribution.
@@ -8583,9 +8632,9 @@ class Delta_Around(BaseAroundGenerator):
         --------
         * a <Delta> object
         """
-        super(Delta_Around, self).__init__(value, unit, label, label_latex, wrap_at, uniqueid=uniqueid)
+        super(Delta_Around, self).__init__(value, unit, frac, label, label_latex, wrap_at, uniqueid=uniqueid)
 
-    def __create_distl__(self, value, unit, label, label_latex, wrap_at):
+    def __create_distl__(self, value, unit, frac, label, label_latex, wrap_at):
         return Delta(value, unit, label, label_latex, wrap_at)
 
     def to_delta(self, value=None):
@@ -8626,7 +8675,7 @@ class Gaussian_Around(BaseAroundGenerator):
     ```
 
     """
-    def __init__(self, scale, value=None, unit=None, label=None, label_latex=None,
+    def __init__(self, scale, value=None, unit=None, frac=False, label=None, label_latex=None,
                  wrap_at=None, uniqueid=None):
         """
         Create a <Gaussian_Around> object which, when called, will resolve
@@ -8642,6 +8691,8 @@ class Gaussian_Around(BaseAroundGenerator):
             distribution.
         * `value` (float, optional, default=None): the current face-value.
         * `unit` (astropy.units object, optional): the units of the provided values.
+        * `frac` (bool, optional, default=False): whether `scale` is provided as
+            a fraction of `value` rather than in `unit`.
         * `label` (string, optional): a label for the distribution.  This is used
             for the x-label while plotting the distribution if `label_latex` is not provided,
             as well as a shorthand notation when creating a <Composite> distribution.
@@ -8655,10 +8706,14 @@ class Gaussian_Around(BaseAroundGenerator):
         --------
         * a <Gaussian_Around> object
         """
-        super(Gaussian_Around, self).__init__(value, unit, label, label_latex, wrap_at, scale=scale, uniqueid=uniqueid)
+        super(Gaussian_Around, self).__init__(value, unit, frac, label, label_latex, wrap_at, scale=scale, uniqueid=uniqueid)
 
-    def __create_distl__(self, value, unit, label, label_latex, wrap_at):
-        return Gaussian(value, self._scale, unit, label, label_latex, wrap_at)
+    def __create_distl__(self, value, unit, frac, label, label_latex, wrap_at):
+        if frac:
+            scale = value * self._scale
+        else:
+            scale = self._scale
+        return Gaussian(value, scale, unit, label, label_latex, wrap_at)
 
     @property
     def scale(self):

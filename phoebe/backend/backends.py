@@ -12,12 +12,14 @@ import itertools
 
 from phoebe.parameters import dataset as _dataset
 from phoebe.parameters import StringParameter, DictParameter, ArrayParameter, ParameterSet
+from phoebe.parameters.parameters import _extract_index_from_string
 from phoebe import dynamics
 from phoebe.backend import universe, etvs, horizon_analytic
 from phoebe.atmospheres import passbands
 from phoebe.distortions  import roche
 from phoebe.frontend import io
 import phoebe.frontend.bundle
+from phoebe.dependencies.nparray.nparray import Array as _nparrayArray
 from phoebe import u, c
 from phoebe import conf, mpi
 from phoebe import pool as _pool
@@ -48,17 +50,14 @@ except ImportError:
 else:
     _use_ellc = True
 
-try:
-    from tqdm import tqdm as _tqdm
-except ImportError:
-    def _progressbar(args, total=None, show_progressbar=None):
+
+from tqdm import tqdm as _tqdm
+
+def _progressbar(args, total=None, show_progressbar=True):
+    if show_progressbar:
+        return _tqdm(args, total=total)
+    else:
         return args
-else:
-    def _progressbar(args, total=None, show_progressbar=True):
-        if show_progressbar:
-            return _tqdm(args, total=total)
-        else:
-            return args
 
 from scipy.stats import norm as _norm
 
@@ -88,6 +87,8 @@ def _simplify_error_message(msg):
         msg = 'atm out-of-bounds during compute_pblums'
     elif 'Atmosphere parameters out of bounds' in msg:
         msg = 'atm out-of-bounds'
+    elif 'Could not compute ldint' in msg:
+        msg = 'could not compute ldint with provided atm and ld_mode'
     elif 'not compatible for ld_func' in msg:
         msg = 'ld_coeffs and ld_func incompatible'
     return msg
@@ -623,9 +624,10 @@ class BaseBackendByDataset(BaseBackend):
 
 def _call_run_single_model(args):
     # NOTE: b should be a deepcopy here to prevent conflicts
-    b, samples, sample_kwargs, compute, dataset, times, compute_kwargs, expose_samples, expose_failed, i = args
+    b, samples, sample_kwargs, compute, dataset, times, compute_kwargs, expose_samples, expose_failed, i, allow_retries = args
     # override sample_from
     compute_kwargs['sample_from'] = []
+    compute_kwargs['progressbar'] = False
 
     success_samples = []
     failed_samples = {}
@@ -633,6 +635,7 @@ def _call_run_single_model(args):
     while True:
         # print("trying with samples={}".format(samples))
         for uniqueid, value in samples.items():
+            uniqueid, index = _extract_index_from_string(uniqueid)
 
             # TODO: for some reason when redrawing we're getting arrays with length
             # one as if we had passed N=1 to sample_distribution_collection.  For now, we'll
@@ -640,8 +643,12 @@ def _call_run_single_model(args):
             if isinstance(value, np.ndarray):
                 value = value[0]
             # print("setting uniqueid={}, value={}".format(uniqueid, value))
+            ref_param = b.get_parameter(uniqueid=uniqueid, **_skip_filter_checks)
             try:
-                b.set_value(uniqueid=uniqueid, value=value, **_skip_filter_checks)
+                if index is None:
+                    ref_param.set_value(value, unit=unit)
+                else:
+                    ref_param.set_index_value(index, value, unit=unit)
             except Exception as err:
                 if expose_samples:
                     msg = _simplify_error_message(err)
@@ -661,14 +668,67 @@ def _call_run_single_model(args):
                 failed_samples[msg] = failed_samples.get(msg, []) + [list([s[0] if isinstance(s, np.ndarray) else s for s in samples.values()])]
                 # failed_samples[msg] = failed_samples.get(msg, []) + [list(samples.values())]
 
-            samples = b.sample_distribution_collection(N=None, keys='uniqueid', **sample_kwargs)
-            # continue the next iteration in the while loop
+            if allow_retries:
+                samples = b.sample_distribution_collection(N=None, keys='uniqueid', **sample_kwargs)
+                # continue the next iteration in the while loop
+                allow_retries -= 1
+            else:
+                raise ValueError("single model exceeded number of allowed retries.  Check sampling distribution to ensure physical models exist.  Latest model error: {}".format(err))
         else:
             if expose_samples:
                 # TODO: remove the list comprehension here once the bug is fixed in distributions that is sometimes returning an array with one entry
                 success_samples += list([s[0] if isinstance(s, np.ndarray) else s for s in samples.values()])
                 # success_samples += list(samples.values())
+
             return model_ps.to_json(), success_samples, failed_samples
+
+def _test_single_sample(args):
+    b_copy, uniqueids, sample_per_param, dc, require_priors, require_compute, require_checks, allow_retries = args
+    success = False
+    while not success:
+        for uniqueid, sample_value in zip(uniqueids, sample_per_param):
+            try:
+                b_copy.set_value(uniqueid=uniqueid, value=sample_value, **_skip_filter_checks)
+            except:
+                success = False
+            else:
+                success = True
+
+        compute_for_checks = None
+        if require_compute not in [True, False]:
+            compute_for_checks = require_compute
+        elif require_checks not in [True, False]:
+            compute_for_checks = require_checks
+
+        if require_priors and success:
+            logp = b_copy.calculate_lnp(require_priors, include_constrained=True)
+            if not np.isfinite(logp):
+                success = False
+
+        if (require_checks or require_compute) and success:
+            if not b_copy.run_checks_compute(compute=compute_for_checks).passed:
+                success = False
+            else:
+                success = True
+
+        if require_compute and success:
+            try:
+                b_copy.run_compute(compute=compute_for_checks, skip_checks=True, progressbar=False, model='test', overwrite=True)
+            except Exception as e:
+                success = False
+            else:
+                success = True
+
+        if not success:
+            if allow_retries:
+                allow_retries -= 1
+                replacement_values = dc.sample(size=1)
+                sample_per_param = replacement_values[0]
+            else:
+                raise ValueError("single sample exceeded number of allowed retries.  Check sampling distribution to make sure enough valid entries exist.")
+
+    return sample_per_param
+
 
 
 class SampleOverModel(object):
@@ -699,12 +759,12 @@ class SampleOverModel(object):
             logger.info("run_compute sample_from using MPI")
             pool = _pool.MPIPool()
             is_master = pool.is_master()
-        elif conf.multiprocessing_nprocs==0:
+        elif conf.multiprocessing_nprocs==0 or b.get_value(qualifier='sample_num', compute=compute, sample_num=kwargs.get('sample_num', None), **_skip_filter_checks) == 1:
             logger.info("run_compute sample_from: serial mode")
             pool = _pool.SerialPool()
             is_master = True
         else:
-            logger.info("run_compute sample_from using MPI with {} procs".format(conf.multiprocessing_nprocs))
+            logger.info("run_compute sample_from using multiprocessing with {} procs".format(conf.multiprocessing_nprocs))
             pool = _pool.MultiPool(processes=conf._multiprocessing_nprocs)
             is_master = True
 
@@ -728,33 +788,57 @@ class SampleOverModel(object):
 
             # samples = range(sample_num)
             # note: sample_from can be any combination of solutions and distributions
-            distribution_filters, combine, include_constrained, to_univariates, to_uniforms = b._distribution_collection_defaults(qualifier='sample_from', context='compute', compute=compute_ps.compute, **kwargs)
+            distribution_filters, combine, include_constrained, to_univariates, to_uniforms, require_limits, require_checks, require_compute, require_priors = b._distribution_collection_defaults(qualifier='sample_from', context='compute', compute=compute_ps.compute, **kwargs)
             sample_kwargs = {'distribution_filters': distribution_filters,
                              'combine': combine,
                              'include_constrained': include_constrained,
                              'to_univariates': to_univariates,
-                             'to_uniforms': to_uniforms}
+                             'to_uniforms': to_uniforms,
+                             'require_limits': require_limits,
+                             'require_checks': require_checks,
+                             'require_compute': require_compute,
+                             'require_priors': require_priors}
 
             sample_dict = b.sample_distribution_collection(N=sample_num,
                                                 keys='uniqueid',
                                                 **sample_kwargs)
+
+            # determine if ALL samples are the same
+            allow_retries = 10
+            if sample_num == 1:
+                allow_retries = 0
+            elif np.all([len(np.unique(v))==1 for v in sample_dict.values()]):
+                allow_retries = 0
 
             if len(list(sample_dict.values())[0]) == 1 and sample_mode != 'all':
                 logger.warning("only one sample, falling back on sample_mode='all', sample_num=1 instead of sample_mode='{}', sample_num={}".format(sample_mode, sample_num))
                 sample_num = 1
                 sample_mode = 'all'
 
+            global _active_pbar
+            if kwargs.get('progressbar', True):
+                _active_pbar = _tqdm(total=sample_num)
+            else:
+                _active_pbar = None
+
+            def _sample_progress(*args):
+                global _active_pbar
+                if _active_pbar is not None:
+                    _active_pbar.update(1)
+
             bexcl = b.copy()
             bexcl.remove_parameters_all(context=['model', 'solver', 'solutoin', 'figure'], **_skip_filter_checks)
             bexcl.remove_parameters_all(kind=['orb', 'mesh'], context='dataset', **_skip_filter_checks)
-            args_per_sample = [(bexcl.copy(), {k:v[i] for k,v in sample_dict.items()}, sample_kwargs, compute, dataset, times, compute_kwargs, expose_samples, expose_failed, i) for i in range(sample_num)]
-            # models = [_call_run_single_model(args) for args in args_per_sample]
-            models_success_failed = list(pool.map(_call_run_single_model, args_per_sample))
+            args_per_sample = [(bexcl.copy(), {k:v[i] for k,v in sample_dict.items()}, sample_kwargs, compute, dataset, times, compute_kwargs, expose_samples, expose_failed, i, allow_retries) for i in range(sample_num)]
+            models_success_failed = list(pool.map(_call_run_single_model, args_per_sample, callback=_sample_progress))
         else:
             pool.wait()
 
         if pool is not None:
             pool.close()
+
+        if _active_pbar is not None:
+            _active_pbar.close()
 
         # restore previous MPI state
         mpi._within_mpirun = within_mpirun
@@ -1118,7 +1202,12 @@ class PhoebeBackend(BaseBackendByTime):
                                          kind=kind,
                                          components=info['component'])
 
-                    rv = obs['rv']
+                    rv = obs['rv'] + b.get_value(qualifier='rv_offset',
+                                                 component=info['component'],
+                                                 dataset=info['dataset'],
+                                                 context='dataset',
+                                                unit=u.solRad/u.d,
+                                                 **_skip_filter_checks)
                 else:
                     # then rv_method == 'dynamical'
                     rv = -1*vzi[cind]
@@ -1451,7 +1540,7 @@ class LegacyBackend(BaseBackendByDataset):
 
         # check whether phoebe legacy is installed
         if not _use_phb1:
-            raise ImportError("phoebeBackend for phoebe legacy not found")
+            raise ImportError("phoebeBackend for phoebe legacy not found.  Install (see phoebe-project.org/1.0) and restart phoebe")
 
         if len(starrefs)!=2:
             raise ValueError("only binaries are supported by legacy backend")
@@ -1575,6 +1664,12 @@ class LegacyBackend(BaseBackendByDataset):
             phb1.setpar(proximity_par, rv_method=='flux-weighted')
 
             rvs = np.array(rv_call(tuple(info['times'].tolist()), rvind))
+            rvs += b.get_value(qualifier='rv_offset',
+                               component=info['component'],
+                               dataset=info['dataset'],
+                               context='dataset',
+                               unit=u.km/u.s,
+                               **_skip_filter_checks)
 
             packetlist.append(_make_packet('rvs',
                                            rvs*u.km/u.s,
@@ -1764,7 +1859,7 @@ class PhotodynamBackend(BaseBackendByDataset):
         # check whether photodynam is installed
         out = commands.getoutput('photodynam')
         if 'not found' in out:
-            raise ImportError('photodynam executable not found')
+            raise ImportError('photodynam executable not found.  Install manually and try again.')
 
 
     def _worker_setup(self, b, compute, infolist, **kwargs):
@@ -1991,7 +2086,7 @@ class JktebopBackend(BaseBackendByDataset):
         # check whether jktebop is installed
         out = commands.getoutput('jktebop')
         if 'not found' in out:
-            raise ImportError('jktebop executable not found.')
+            raise ImportError('jktebop executable not found.  Install manually and try again.')
         version = out.split('JKTEBOP  ')[1].split(' ')[0]
         try:
             version_int = int(float(version[1:]))
@@ -2333,7 +2428,7 @@ class EllcBackend(BaseBackendByDataset):
     def run_checks(self, b, compute, times=[], **kwargs):
         # check whether ellc is installed
         if not _use_ellc:
-            raise ImportError("could not import ellc")
+            raise ImportError("could not import ellc.  Install (pip install ellc) and restart phoebe")
 
         if not (hasattr(ellc, 'lc') and hasattr(ellc, 'rv')):
             try:
@@ -2499,7 +2594,51 @@ class EllcBackend(BaseBackendByDataset):
                     heat_1=heat_1, heat_2=heat_2,
                     lambda_1=lambda_1, lambda_2=lambda_2,
                     spots_1=spots_1, spots_2=spots_2,
-                    pblums=kwargs.get('pblums'))
+                    pblums=kwargs.get('pblums', {}))
+
+    def export(self, b, filename, compute, pblums, dataset, times):
+        infolist, new_syns = _extract_from_bundle(b, compute=compute,
+                                                  dataset=dataset,
+                                                  times=times, by_time=False)
+
+        setup_kwargs = self._worker_setup(b, compute, infolist, pblums=pblums)
+
+        if filename is not None:
+            f = open(filename, 'w')
+            f.write('import ellc\n\n')
+            # f.write('from phoebe.dependencies import nparray\n\n')
+
+        def _format_value(v):
+            # if isinstance(v, _nparrayArray):
+            #     return "nparray.from_dict({})".format(v.to_dict())
+            if hasattr(v, 'tolist'):
+                return v.tolist()
+            if isinstance(v, str):
+                return "\'{}\'".format(v)
+            return v
+
+        ret_dict = {}
+        for info in infolist:
+
+            ellc_kwargs = self._run_single_dataset(b, info, return_dict_only=True, **setup_kwargs)
+
+            ret_dict[info['dataset'] if info['kind'] == 'lc' else "{}@{}".format(info['dataset'], info['component'])] = {'function': info['kind'], 'kwargs': ellc_kwargs}
+            if filename is not None:
+                f.write("# dataset=\'{}\'\n".format(info['dataset']))
+
+                if info['kind'] == 'lc':
+                    f.write("fluxes_{} = ellc.lc({})\n\n".format(info['dataset'],
+                                                                 ", ".join(["{}={}".format(k,_format_value(v)) for k,v in ellc_kwargs.items()])))
+                else:
+                    f.write("rvs_{}_{} = ellc.rvs({})[{}]\n\n".format(info['dataset'], info['component'],
+                                                                      ", ".join(["{}={}".format(k,_format_value(v)) for k,v in ellc_kwargs.items()]),
+                                                                      b.hierarchy.get_primary_or_secondary(info['component'], return_ind=True)-1))
+
+
+        if filename is not None:
+            f.close()
+        return ret_dict
+
 
     def _run_single_dataset(self, b, info, **kwargs):
         """
@@ -2562,7 +2701,7 @@ class EllcBackend(BaseBackendByDataset):
         ld_2 = _ellc_ld_func.get(ds_ps.get_value(qualifier='ld_func', component=starrefs[1], **_skip_filter_checks))
         ldc_2 = ds_ps.get_value(qualifier='ld_coeffs', component=starrefs[1], **_skip_filter_checks)
 
-        pblums = kwargs.get('pblums').get(info['dataset'])
+        pblums = kwargs.get('pblums', {}).get(info['dataset'], {})
         sbratio = (pblums.get(starrefs[1])/b.get_value(qualifier='requiv', component=starrefs[1], context='component', unit=u.solRad, **_skip_filter_checks)**2)/(pblums.get(starrefs[0])/b.get_value(qualifier='requiv', component=starrefs[0], context='component', unit=u.solRad, **_skip_filter_checks)**2)
 
         if info['kind'] == 'lc':
@@ -2604,6 +2743,9 @@ class EllcBackend(BaseBackendByDataset):
                              exact_grav=exact_grav,
                              verbose=1)
 
+            if kwargs.get('return_dict_only', False):
+                return lc_kwargs
+
             logger.info("calling ellc.lc for dataset='{}'".format(info['dataset']))
             logger.debug("ellc.lc(**{})".format(lc_kwargs))
 
@@ -2637,7 +2779,7 @@ class EllcBackend(BaseBackendByDataset):
 
             if flux_weighted and period_anom == 1.0: # add VersionCheck once bug fixed (https://github.com/pmaxted/ellc/issues/4)
                 logger.warning("ellc does not allow period=1.0 with flux_weighted RVs (see  https://github.com/pmaxted/ellc/issues/4).  Overriding period to 1.0+1e-6 for {}@{}".format(info['component'], info['dataset']))
-                period += 1e-6
+                period_anom += 1e-6
             # enable once exptime for RVs is supported in PHOEBE
             # t_exp = b.get_value(qualifier='exptime', dataset=info['dataset'], context='dataset')
             t_exp = 0
@@ -2674,6 +2816,9 @@ class EllcBackend(BaseBackendByDataset):
                              spots_1=spots_1, spots_2=spots_2,
                              flux_weighted=flux_weighted,
                              verbose=1)
+
+            if kwargs.get('return_dict_only', False):
+                return rv_kwargs
 
             logger.info("calling ellc.rv for dataset='{}'".format(info['dataset']))
             logger.debug("ellc.rv(**{})".format(rv_kwargs))

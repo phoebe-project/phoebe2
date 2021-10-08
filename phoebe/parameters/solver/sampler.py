@@ -12,6 +12,12 @@ def _comments_params(**kwargs):
     params += [StringParameter(qualifier='comments', value=kwargs.get('comments', ''), description='User-provided comments for these solver-options.  Feel free to place any notes here - if not overridden, they will be copied to any resulting solutions.')]
     return params
 
+def _server_params(**kwargs):
+    params = []
+
+    params += [ChoiceParameter(qualifier='use_server', value=kwargs.get('use_server', 'compute'), choices=['none', 'compute'], description='Server to use when running the solver (or "none" to run locally).  If "compute", will use the server settings in the referenced compute options.')]
+    return params
+
 def emcee(**kwargs):
     """
     Create a <phoebe.parameters.ParameterSet> for solver options for the
@@ -80,6 +86,11 @@ def emcee(**kwargs):
         first: ignore duplicate entries and take the first in the init_from parameter.
         and: combine duplicate entries via AND logic, dropping covariances.
          or: combine duplicate entries via OR logic, dropping covariances.
+    * `init_from_requires` (string or list, optional, default=['limits', 'priors']):
+        Requirements to apply to the initializing distribution.  Including all
+        checks prevents walkers from initializing at `lnprob=-inf`, but does add
+        overhead.  See <phoebe.frontend.bundle.Bundle.sample_distribution_collection>
+        for explanation of each option.
     * `priors` (list, optional, default=[]): distribution(s) to use for priors
         (constrained and unconstrained parameters will be included, covariances
         will be respected except for distributions merge via `priors_combine`)
@@ -117,21 +128,25 @@ def emcee(**kwargs):
         <phoebe.parameters.Parameter> objects.
     """
     params = _comments_params(**kwargs)
+    params += _server_params(**kwargs)
 
     params += [ChoiceParameter(qualifier='compute', value=kwargs.get('compute', 'None'), choices=['None'], description='compute options to use for forward model')]
 
     params += [ChoiceParameter(qualifier='continue_from', value=kwargs.get('continue_from', 'None'), choices=['None'], description='continue the MCMC run from an existing emcee solution.  Chains will be appended to existing chains (so it is safe to overwrite the existing solution).  If None, will start a new run using init_from.')]
+    params += [IntParameter(visible_if='continue_from:!None', qualifier='continue_from_iter', value=kwargs.get('continue_from_iter', -1), advanced=True, limits=(None, None), default_unit=u.dimensionless_unscaled, description='Iteration from which to continue the previous run (supports negative indexing: -1 will continue from the last iteration.  Does not affect failed_samples or acceptance_fractions)')]
     params += [SelectParameter(visible_if='continue_from:None', qualifier='init_from', value=kwargs.get('init_from', []), choices=[], description='distribution(s) to initialize samples from (all unconstrained parameters with attached distributions will be sampled/fitted, constrained parameters will be ignored, covariances will be respected)')]
-    params += [ChoiceParameter(visible_if='continue_from:None,init_from:<notempty>', qualifier='init_from_combine', value=kwargs.get('init_from_combine', 'first'), choices=['first', 'and', 'or'], description='Method to use to combine multiple distributions from init_from for the same parameter.  first: ignore duplicate entries and take the first in the init_from parameter. and: combine duplicate entries via AND logic, dropping covariances.  or: combine duplicate entries via OR logic, dropping covariances.')]
+    params += [ChoiceParameter(visible_if='continue_from:None,init_from:<notempty>', qualifier='init_from_combine', value=kwargs.get('init_from_combine', 'first'), choices=['first', 'and', 'or'], advanced=True, description='Method to use to combine multiple distributions from init_from for the same parameter.  first: ignore duplicate entries and take the first in the init_from parameter. and: combine duplicate entries via AND logic, dropping covariances.  or: combine duplicate entries via OR logic, dropping covariances.')]
+    params += [SelectParameter(visible_if='continue_from:None,init_from:<notempty>', qualifier='init_from_requires', value=kwargs.get('init_from_requires', ['limits', 'priors']), choices=['limits', 'checks', 'compute', 'priors'], advanced=True, description='Requirements to apply to the initializing distribution.  Including all checks prevents walkers from initializing at lnprob=-inf, but does add overhead.  limits: apply parameter limits (cheap if init_from are univariates, otherwise requires testing samples).  priors: apply prior limits (directly if priors are uniform, otherwise from ppf at 1e-6 limits.  Cheap if init_from are univariates and priors do not contain OR logic, otherwise requires testing samples).  checks: test each sample to make sure it passes compute checks (and therefore includes limits).  compute: test each sample to make sure it successfully runs a forward model (and therefore includes checks and limits).')]
 
     params += [SelectParameter(qualifier='priors', value=kwargs.get('priors', []), choices=[], description='distribution(s) to use for priors (constrained and unconstrained parameters will be included, covariances will be respected except for distributions merge via priors_combine)')]
-    params += [ChoiceParameter(visible_if='priors:<notempty>', qualifier='priors_combine', value=kwargs.get('priors_combine', 'and'), choices=['first', 'and', 'or'], description='Method to use to combine multiple distributions from priors for the same parameter.  first: ignore duplicate entries and take the first in the priors parameter. and: combine duplicate entries via AND logic, dropping covariances.  or: combine duplicate entries via OR logic, dropping covariances.')]
+    params += [ChoiceParameter(visible_if='priors:<plural>', qualifier='priors_combine', value=kwargs.get('priors_combine', 'and'), choices=['first', 'and', 'or'], advanced=True, description='Method to use to combine multiple distributions from priors for the same parameter.  first: ignore duplicate entries and take the first in the priors parameter. and: combine duplicate entries via AND logic, dropping covariances.  or: combine duplicate entries via OR logic, dropping covariances.')]
 
     params += [IntParameter(visible_if='continue_from:None', qualifier='nwalkers', value=kwargs.get('nwalkers', 16), limits=(1,1e5), description='Number of walkers')]
     params += [IntParameter(qualifier='niters', value=kwargs.get('niters', 100), limits=(1,1e12), description='Number of iterations')]
 
-    params += [FloatParameter(qualifier='burnin_factor', value=kwargs.get('burnin_factor', 2), default_unit=u.dimensionless_unscaled, limits=(1, 1000), description='factor of max(autocorr_times) to apply for burnin (burnin not applied until adopting the solution)')]
-    params += [FloatParameter(qualifier='thin_factor', value=kwargs.get('thin_factor', 0.5), default_unit=u.dimensionless_unscaled, limits=(0.001, 1000), description='factor of min(autocorr_times) to apply for thinning (thinning not applied until adopting the solution)')]
+    params += [FloatParameter(qualifier='burnin_factor', value=kwargs.get('burnin_factor', 2), default_unit=u.dimensionless_unscaled, limits=(1, 1000), description='factor of max(autocorr_times) to apply for the default solution burnin (burnin not applied until adopting the solution)')]
+    params += [FloatParameter(qualifier='thin_factor', value=kwargs.get('thin_factor', 0), default_unit=u.dimensionless_unscaled, limits=(0, 1000), description='factor of min(autocorr_times) to apply for the default solution thinning (thinning not applied until adopting the solution).  If results in thin < 1, thin=1 will be adopted.')]
+    params += [FloatParameter(qualifier='nlags_factor', value=kwargs.get('nlags_factor', 3), default_unit=u.dimensionless_unscaled, limits=(0, 1000), description='factor of max(autocorr_times) to apply for the default solution nlags.  nlags only applied when accessing/plotting the autocorrelation function and will not default to larger than niters-burnin. If 0, nlags will default to 0 which will in turn default to nlags=niters-burnin.')]
 
     params += [IntParameter(qualifier='progress_every_niters', value=kwargs.get('progress_every_niters', 0), limits=(0,1e6), description='save the progress of the solution every n iterations.  The solution can only be recovered from an early termination by loading the bundle from a saved file and then calling b.import_solution(filename).  The filename of the saved file will default to solution.ps.progress within run_solver, or the output filename provided to export_solver suffixed with .progress.  If using detach=True within run_solver, attach job will load the progress and allow re-attaching until the job is completed.  If 0 will not save and will only return after completion.')]
 
@@ -206,6 +221,11 @@ def dynesty(**kwargs):
         first: ignore duplicate entries and take the first in the priors parameter.
         and: combine duplicate entries via AND logic, dropping covariances.
         or: combine duplicate entries via OR logic, dropping covariances.
+    * `priors_requires` (string or list, optional, default=['limits']):
+        Requirements to apply to the initializing distribution.  Including all
+        checks prevents walkers from initializing at `lnprob=-inf`, but does add
+        overhead.  See <phoebe.frontend.bundle.Bundle.sample_distribution_collection>
+        for explanation of each option.
     * `nlive` (int, optional, default=100): number of live points.   Larger
         numbers result in a more finely sampled posterior (more accurate evidence),
         but also a larger number of iterations required to converge.
@@ -233,11 +253,14 @@ def dynesty(**kwargs):
         <phoebe.parameters.Parameter> objects.
     """
     params = _comments_params(**kwargs)
+    params += _server_params(**kwargs)
 
     params += [ChoiceParameter(qualifier='compute', value=kwargs.get('compute', 'None'), choices=['None'], description='compute options to use for forward model')]
 
     params += [SelectParameter(qualifier='priors', value=kwargs.get('priors', []), choices=[], description='distribution(s) to use for priors (as dynesty samples directly from the prior, constrained parameters will be ignored, covariances will be dropped)')]
-    params += [ChoiceParameter(visible_if='priors:<notempty>', qualifier='priors_combine', value=kwargs.get('priors_combine', 'and'), choices=['first', 'and', 'or'], description='Method to use to combine multiple distributions from priors for the same parameter. first: ignore duplicate entries and take the first in the priors parameter. and: combine duplicate entries via AND logic, dropping covariances.  or: combine duplicate entries via OR logic, dropping covariances.')]
+    params += [ChoiceParameter(visible_if='priors:<plural>', qualifier='priors_combine', value=kwargs.get('priors_combine', 'and'), choices=['first', 'and', 'or'], advanced=True, description='Method to use to combine multiple distributions from priors for the same parameter. first: ignore duplicate entries and take the first in the priors parameter. and: combine duplicate entries via AND logic, dropping covariances.  or: combine duplicate entries via OR logic, dropping covariances.')]
+    # TODO: add support for priors_requires=checks/compute?  Would then need to rewrite how dynesty samples, which may not be worth the overhead
+    params += [SelectParameter(visible_if='priors:<notempty>', qualifier='priors_requires', value=kwargs.get('priors_requires', ['limits']), choices=['limits'], advanced=True, description='Requirements to apply to the priors distribution.   limits: apply parameter limits (cheap if init_from are univariates, otherwise requires testing samples).  ')]
 
     params += [IntParameter(qualifier='nlive', value=kwargs.get('nlive', 100), limits=(1,1e12), description='number of live points.   Larger numbers result in a more finely sampled posterior (more accurate evidence), but also a larger number of iterations required to converge.')]
     params += [IntParameter(qualifier='maxiter', value=kwargs.get('maxiter', 100), limits=(1,1e12), description='maximum number of iterations')]
