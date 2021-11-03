@@ -645,9 +645,9 @@ def _call_run_single_model(args):
             ref_param = b.get_parameter(uniqueid=uniqueid, **_skip_filter_checks)
             try:
                 if index is None:
-                    ref_param.set_value(value, unit=unit)
+                    ref_param.set_value(value)
                 else:
-                    ref_param.set_index_value(index, value, unit=unit)
+                    ref_param.set_index_value(index, value)
             except Exception as err:
                 if expose_samples:
                     msg = _simplify_error_message(err)
