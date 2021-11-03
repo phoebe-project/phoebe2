@@ -84,6 +84,10 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+# 2.3.56 - setup without m2r bugfix
+
+* fixes installation (on some machines) where m2r is not installed
+
 ### 2.3.55 - sample_distribution_collection index bugfix
 
 * fixes handling distributions on array parameters within sample_distribution_collection and run_compute(sample_from).
