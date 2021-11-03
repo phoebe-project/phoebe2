@@ -339,8 +339,8 @@ def _env_variable_bool(key, default):
 try:
     import m2r
 except ImportError:
-    with open('README.md', 'r') as fh:
-        long_description = fh.read()
+    with open('README.md', 'rb') as fh:
+        long_description = fh.read().decode("utf-8")
 else:
     long_description_s = m2r.parse_from_file("README.md").split('\n')
     long_description = "\n".join(long_description_s[long_description_s.index("INTRODUCTION"):])
@@ -367,7 +367,7 @@ setup (name = 'phoebe',
             'Programming Language :: Python :: 3 :: Only',
         ],
        python_requires='>=3.6, <4',
-       download_url = 'https://github.com/phoebe-project/phoebe2/tarball/2.3.54',
+       download_url = 'https://github.com/phoebe-project/phoebe2/tarball/2.3.56',
        packages = ['phoebe',
                    'phoebe.parameters', 'phoebe.parameters.solver', 'phoebe.parameters.figure',
                    'phoebe.frontend',
