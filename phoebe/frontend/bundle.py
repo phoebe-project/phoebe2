@@ -8112,16 +8112,25 @@ class Bundle(ParameterSet):
         ret = {}
         changed_params = []
         for sampled_value, uniqueid, unit in zip(sampled_values, uniqueids, [dist.unit for dist in dc.dists]):
+            uniqueid, index = _extract_index_from_string(uniqueid)
             ref_param = self.get_parameter(uniqueid=uniqueid, **_skip_filter_checks)
 
             if set_value:
-                ref_param.set_value(sampled_value, unit=unit)
+                if index is None:
+                    ref_param.set_value(sampled_value, unit=unit)
+                else:
+                    ref_param.set_index_value(index, sampled_value, unit=unit)
+
                 changed_params.append(ref_param)
             else:
+                k = getattr(ref_param, keys)
+                if index is not None:
+                    k += '[{}]'.format(index)
                 if as_quantity:
-                    ret[getattr(ref_param, keys)] = sampled_value * unit
+                    # this is the actual problem
+                    ret[k] = sampled_value * unit
                 else:
-                    ret[getattr(ref_param, keys)] = (sampled_value * unit).to(ref_param.default_unit).value
+                    ret[k] = (sampled_value * unit).to(ref_param.default_unit).value
 
 
         if set_value:
