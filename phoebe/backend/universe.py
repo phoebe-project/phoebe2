@@ -309,7 +309,7 @@ class System(object):
         """
 
 
-        if self.irrad_method is not 'none' and not ignore_effects:
+        if self.irrad_method != 'none' and not ignore_effects:
             # TODO: only for kinds that require intensities (i.e. not orbit or
             # dynamical RVs, etc)
             self.handle_reflection()
