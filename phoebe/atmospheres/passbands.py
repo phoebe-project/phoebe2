@@ -2178,16 +2178,10 @@ class Passband:
         }
 
         if ld_func not in s.keys():
-            raise ValueError(f'ld_func={ld_func} is invalid; valid options are linear, logarithmic, square_root, quadratic, power, all.')
+            raise ValueError(f'ld_func={ld_func} is invalid; valid options are {s.keys()}.')
 
-        if ldatm == 'ck2004' and 'ck2004:ld' not in self.content:
-            raise ValueError('Castelli & Kurucz (2004) limb darkening coefficients are not computed yet. Please compute them first.')
-
-        if ldatm == 'phoenix' and 'phoenix:ld' not in self.content:
-            raise ValueError('PHOENIX (Husser et al. 2013) limb darkening coefficients are not computed yet. Please compute them first.')
-
-        if ldatm == 'tmap' and 'tmap:ld' not in self.content:
-            raise ValueError('TMAP limb darkening coefficients are not computed yet. Please compute them first.')
+        if f'{ldatm}:ld' not in self.content:
+            raise ValueError(f'Limb darkening coefficients for ldatm={ldatm} are not available; please compute them first.')
 
         if ldatm == 'ck2004':
             axes = self._ck2004_intensity_axes[:-1]
