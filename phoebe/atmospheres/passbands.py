@@ -16,7 +16,7 @@ from astropy.table import Table
 import numpy as np
 from scipy import interpolate, integrate
 from scipy.optimize import curve_fit as cfit
-from scipy.spatial import KDTree
+from scipy.spatial import cKDTree
 from scipy.special import binom as binomial
 from datetime import datetime
 import libphoebe
@@ -603,7 +603,7 @@ class Passband:
                     # Rebuild the table of non-null indices for the nearest neighbor lookup:
                     self._ck2004_indices = np.argwhere(~np.isnan(self._ck2004_Imu_photon_grid[...,-1,:]))
                     non_nan_vertices = np.array([ [self._ck2004_intensity_axes[i][self._ck2004_indices[k][i]] for i in range(len(self._ck2004_intensity_axes)-1)] for k in range(len(self._ck2004_indices))])
-                    self.nntree['ck2004'] = KDTree(non_nan_vertices, copy_data=True)
+                    self.nntree['ck2004'] = cKDTree(non_nan_vertices, copy_data=True)
 
                     # Rebuild blending map:
                     self._ck2004_blending_region = (750., 0.5, 0.5)
@@ -636,7 +636,7 @@ class Passband:
                     # Rebuild the table of non-null indices for the nearest neighbor lookup:
                     self._phoenix_indices = np.argwhere(~np.isnan(self._phoenix_Imu_photon_grid[...,-1,:]))
                     non_nan_vertices = np.array([ [self._phoenix_intensity_axes[i][self._phoenix_indices[k][i]] for i in range(len(self._phoenix_intensity_axes)-1)] for k in range(len(self._phoenix_indices))])
-                    self.nntree['phoenix'] = KDTree(non_nan_vertices, copy_data=True)
+                    self.nntree['phoenix'] = cKDTree(non_nan_vertices, copy_data=True)
 
                     # Rebuild blending map:
                     self._phoenix_blending_region = (750., 0.5, 0.5)
@@ -669,7 +669,7 @@ class Passband:
                     # Rebuild the table of non-null indices for the nearest neighbor lookup:
                     self._tmap_indices = np.argwhere(~np.isnan(self._tmap_Imu_photon_grid[...,-1,:]))
                     non_nan_vertices = np.array([ [self._tmap_intensity_axes[i][self._tmap_indices[k][i]] for i in range(len(self._tmap_intensity_axes)-1)] for k in range(len(self._tmap_indices))])
-                    self.nntree['tmap'] = KDTree(non_nan_vertices, copy_data=True)
+                    self.nntree['tmap'] = cKDTree(non_nan_vertices, copy_data=True)
 
                     # Rebuild blending map:
                     self._tmap_blending_region = (750., 0.5, 0.5)
@@ -962,7 +962,7 @@ class Passband:
         # Build the table of non-null indices for the nearest neighbor lookup:
         self._ck2004_indices = np.argwhere(~np.isnan(self._ck2004_Imu_photon_grid[...,-1,:]))
         non_nan_vertices = np.array([ [self._ck2004_intensity_axes[i][self._ck2004_indices[k][i]] for i in range(len(self._ck2004_intensity_axes)-1)] for k in range(len(self._ck2004_indices))])
-        self.nntree['ck2004'] = KDTree(non_nan_vertices, copy_data=True)
+        self.nntree['ck2004'] = cKDTree(non_nan_vertices, copy_data=True)
 
         # Set up the blending region:
         self._ck2004_blending_region = (750., 0.5, 0.5)
@@ -1137,7 +1137,7 @@ class Passband:
         # Build the table of non-null indices for the nearest neighbor lookup:
         self._phoenix_indices = np.argwhere(~np.isnan(self._phoenix_Imu_photon_grid[...,-1,:]))
         non_nan_vertices = np.array([ [self._phoenix_intensity_axes[i][self._phoenix_indices[k][i]] for i in range(len(self._phoenix_intensity_axes)-1)] for k in range(len(self._phoenix_indices))])
-        self.nntree['phoenix'] = KDTree(non_nan_vertices, copy_data=True)
+        self.nntree['phoenix'] = cKDTree(non_nan_vertices, copy_data=True)
 
         # Set up the blending region:
         self._phoenix_blending_region = (750., 0.5, 0.5)
@@ -1310,7 +1310,7 @@ class Passband:
         # Build the table of non-null indices for the nearest neighbor lookup:
         self._tmap_indices = np.argwhere(~np.isnan(self._tmap_Imu_photon_grid[...,-1,:]))
         non_nan_vertices = np.array([ [self._tmap_intensity_axes[i][self._tmap_indices[k][i]] for i in range(len(self._tmap_intensity_axes)-1)] for k in range(len(self._tmap_indices))])
-        self.nntree['tmap'] = KDTree(non_nan_vertices, copy_data=True)
+        self.nntree['tmap'] = cKDTree(non_nan_vertices, copy_data=True)
 
         # Set up the blending region:
         self._tmap_blending_region = (750., 0.5, 0.5)
