@@ -3083,7 +3083,9 @@ class Passband:
         check_for_nans = True if extrapolate_mode == 'none' else False
 
         if atm == 'blackbody' and 'blackbody:Inorm' in self.content:
-            if ldatm == 'ck2004' and 'ck2004:Imu' in self.content:
+            if ldatm == 'none':
+                pass
+            elif ldatm == 'ck2004' and 'ck2004:Imu' in self.content:
                 axes = self._ck2004_intensity_axes[:-1]
                 ldint_grid = self._ck2004_ldint_photon_grid if photon_weighted else self._ck2004_ldint_energy_grid
                 ldint_tree = self.nntree['ck2004']
