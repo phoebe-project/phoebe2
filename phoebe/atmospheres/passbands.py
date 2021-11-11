@@ -873,7 +873,7 @@ class Passband:
 
             if verbose:
                 sys.stdout.write('\r' + '%0.0f%% done.' % (100*float(i+1)/len(models)))
-                sys.stdout.flush()                
+                sys.stdout.flush()
 
         if verbose:
             print('')
@@ -1170,7 +1170,7 @@ class Passband:
         """
 
         if verbose:
-            print('Computing TMAP (Reindl 2021, priv. comm.) specific passband intensities for %s:%s.' % (self.pbset, self.pbname))
+            print('Computing TMAP (Reindl et al. 2016, A&A, 587, 101; Reindl 2021, priv. comm.) specific passband intensities for %s:%s.' % (self.pbset, self.pbname))
 
         models = glob.glob(path+'/*fits')
         Nmodels = len(models)
@@ -1328,11 +1328,12 @@ class Passband:
     def compute_bb_reddening(self, Teffs=None, Ebv=None, Rv=None, verbose=False):
         """
         Computes mean effect of reddening (a weighted average) on passband using
-        blackbody atmosphere and CCM89 prescription of extinction.
+        blackbody atmosphere and Gordon et al. (2009, 2014) prescription of extinction.
 
         See also:
         * <phoebe.atmospheres.passbands.Passband.compute_ck2004_reddening>
         * <phoebe.atmospheres.passbands.Passband.compute_phoenix_reddening>
+        * <phoebe.atmospheres.passbands.Passband.compute_tmap_reddening>
 
         Arguments
         -----------
@@ -1404,7 +1405,7 @@ class Passband:
     def compute_ck2004_reddening(self, path, Ebv=None, Rv=None, verbose=False):
         """
         Computes mean effect of reddening (a weighted average) on passband using
-        ck2004 atmospheres and CCM89 prescription of extinction.
+        ck2004 atmospheres and Gordon et al. (2009, 2014) prescription of extinction.
 
         See also:
         * <phoebe.atmospheres.passbands.Passband.compute_bb_reddening>
@@ -1512,7 +1513,7 @@ class Passband:
     def compute_phoenix_reddening(self, path, Ebv=None, Rv=None, verbose=False):
         """
         Computes mean effect of reddening (a weighted average) on passband using
-        phoenix atmospheres and CCM89 prescription of extinction.
+        phoenix atmospheres and Gordon et al. (2009, 2014) prescription of extinction.
 
         See also:
         * <phoebe.atmospheres.passbands.Passband.compute_bb_reddening>
@@ -1612,6 +1613,115 @@ class Passband:
 
         if 'phoenix:ext' not in self.content:
             self.content.append('phoenix:ext')
+
+    def compute_tmap_reddening(self, path, Ebv=None, Rv=None, verbose=False):
+        """
+        Computes mean effect of reddening (a weighted average) on passband using tmap atmospheres and Gordon et al. (2009, 2014) prescription of extinction.
+
+        See also:
+        * <phoebe.atmospheres.passbands.Passband.compute_bb_reddening>
+        * <phoebe.atmospheres.passbands.Passband.compute_ck2004_reddening>
+        * <phoebe.atmospheres.passbands.Passband.compute_phoenix_reddening>
+
+        Arguments
+        ------------
+        * `path` (string): path to the directory containing tmap SEDs
+        * `Ebv` (float or None, optional, default=None): colour discrepancies E(B-V)
+        * `Rv` (float or None, optional, default=None): Extinction factor
+            (defined at Av / E(B-V) where Av is the visual extinction in magnitudes)
+        * `verbose` (bool, optional, default=False): switch to determine whether
+            computing progress should be printed on screen
+        """
+
+        if Ebv is None:
+            Ebv = np.linspace(0.,3.,30)
+
+        if Rv is None:
+            Rv = np.linspace(2.,6.,16)
+
+        models = glob.glob(path+'/*fits')
+        Nmodels = len(models)
+
+        NEbv = len(Ebv)
+        NRv = len(Rv)
+
+        Ns = NEbv*NRv
+        combos = Nmodels*Ns
+
+        Ebv1 = np.tile(np.repeat(Ebv, NRv), Nmodels)
+        Rv1 = np.tile(Rv, int(combos/NRv))
+
+        # auxilary matrix for storing Ebv and Rv per model
+        M = np.rollaxis(np.array([np.split(Ebv1*Rv1, Nmodels), np.split(Ebv1, Nmodels)]), 1)
+        M = np.ascontiguousarray(M)
+
+        # Store the length of the filename extensions for parsing:
+        offset = len(models[0])-models[0].rfind('.')
+
+        Teff, logg, abun = np.empty(Nmodels), np.empty(Nmodels), np.empty(Nmodels)
+
+        # extinctE , extinctP per model
+        extinctE , extinctP = np.empty((Nmodels, Ns)), np.empty((Nmodels, Ns))
+
+        if verbose:
+            print('Computing TMAP passband extinction corrections for %s:%s. This will take a while.' % (self.pbset, self.pbname))
+
+        # Covered wavelengths in the fits tables:
+        wavelengths = np.arange(900., 39999.501, 0.5)/1e10 # AA -> m
+
+        for i, model in enumerate(models):
+            with fits.open(model) as hdu:
+                intensities = hdu[0].data[-1,:]*1e7  # erg/s/cm^2/A -> W/m^3
+            spc = np.vstack((wavelengths, intensities))
+
+            model = model[model.rfind('/')+1:] # get relative pathname
+            Teff[i] = float(model[1:6])
+            logg[i] = float(model[7:9])/10
+            abun[i] = float(model[10:12])/10 * (-1 if model[9] == 'M' else 1)
+
+            sel = (spc[0] >= self.ptf_table['wl'][0]) & (spc[0] <= self.ptf_table['wl'][-1])
+
+            wl = spc[0][sel]
+            fl = spc[1][sel]
+
+            fl *= self.ptf(wl)
+            flP = fl*wl
+
+            # Alambda = np.matmul(libphoebe.CCM89_extinction(wl), M[i])
+            Alambda = np.matmul(libphoebe.gordon_extinction(wl), M[i])
+            flux_frac = np.exp(-0.9210340371976184*Alambda)             #10**(-0.4*Alambda)
+
+            extinctE[i], extinctP[i] = np.dot([fl/fl.sum(), flP/flP.sum()], flux_frac)
+
+            if verbose:
+                sys.stdout.write('\r' + '%0.0f%% done.' % (100*i/(Nmodels-1)))
+                sys.stdout.flush()
+
+        if verbose:
+            print('')
+
+        # Store axes (Teff, logg, abun) and the full grid of Inorm, with
+        # nans where the grid isn't complete.
+        self._tmap_extinct_axes = (np.unique(Teff), np.unique(logg), np.unique(abun), np.unique(Ebv), np.unique(Rv))
+
+        Teff = np.repeat(Teff, Ns)
+        logg = np.repeat(logg, Ns)
+        abun = np.repeat(abun, Ns)
+
+        self._tmap_extinct_energy_grid = np.nan*np.ones((len(self._tmap_extinct_axes[0]), len(self._tmap_extinct_axes[1]), len(self._tmap_extinct_axes[2]), len(self._tmap_extinct_axes[3]), len(self._tmap_extinct_axes[4]), 1))
+        self._tmap_extinct_photon_grid = np.copy(self._tmap_extinct_energy_grid)
+
+        flatE = extinctE.flat
+        flatP = extinctP.flat
+
+        for i in range(combos):
+            t = (Teff[i] == self._tmap_extinct_axes[0], logg[i] == self._tmap_extinct_axes[1], abun[i] == self._tmap_extinct_axes[2], Ebv1[i] == self._tmap_extinct_axes[3], Rv1[i] == self._tmap_extinct_axes[4], 0)
+            self._tmap_extinct_energy_grid[t] = flatE[i]
+            self._tmap_extinct_photon_grid[t] = flatP[i]
+
+        if 'tmap:ext' not in self.content:
+            self.content.append('tmap:ext')
+
 
     def _rescale_phoenix_intensities(self, mu_interp, mu_phoenix, intensity_phoenix):
         '''
@@ -2480,7 +2590,7 @@ class Passband:
             # is all integer math so we can compare with == instead of np.isclose().
             sep = (np.abs(ics-ic)).sum(axis=1)
             corners = np.argwhere(sep == sep.min()).flatten()
-            
+
             bbints = []
             for corner in corners:
                 slc = tuple([slice(ics[corner][k], ics[corner][k]+2) for k in range(len(ics[corner]))])
@@ -2516,7 +2626,7 @@ class Passband:
         nan_indices = np.argwhere(nanmask).flatten()
 
         # if we are here, it means that there are nans. Now we switch on extrapolate_mode:
-        if extrapolate_mode == 'none': 
+        if extrapolate_mode == 'none':
             raise ValueError(f'Atmosphere parameters out of bounds: atm=ck2004, photon_weighted={photon_weighted}, Teff={Teff[nanmask]}, logg={logg[nanmask]}, abun={abun[nanmask]}')
         elif extrapolate_mode == 'nearest':
             for k in nan_indices:
@@ -2609,7 +2719,7 @@ class Passband:
                     alpha = blending_function(distance)
                     # print('  orthogonal distance:', distance)
                     # print('  alpha:', alpha)
-        
+
                     blint = (1-alpha)*bbint + alpha*ckint
                     # print('  blint:', blint)
 
@@ -2637,7 +2747,7 @@ class Passband:
         nan_indices = np.argwhere(nanmask).flatten()
 
         # if we are here, it means that there are nans. Now we switch on extrapolate_mode:
-        if extrapolate_mode == 'none': 
+        if extrapolate_mode == 'none':
             raise ValueError(f'Atmosphere parameters out of bounds: atm=phoenix, photon_weighted={photon_weighted}, Teff={Teff[nanmask]}, logg={logg[nanmask]}, abun={abun[nanmask]}')
         elif extrapolate_mode == 'nearest':
             for k in nan_indices:
@@ -2731,7 +2841,7 @@ class Passband:
                     alpha = blending_function(distance)
                     # print('  orthogonal distance:', distance)
                     # print('  alpha:', alpha)
-        
+
                     blint = (1-alpha)*bbint + alpha*atmint
                     # print('  blint:', blint)
 
@@ -2759,7 +2869,7 @@ class Passband:
         nan_indices = np.argwhere(nanmask).flatten()
 
         # if we are here, it means that there are nans. Now we switch on extrapolate_mode:
-        if extrapolate_mode == 'none': 
+        if extrapolate_mode == 'none':
             raise ValueError(f'Atmosphere parameters out of bounds: atm=tmap, photon_weighted={photon_weighted}, Teff={Teff[nanmask]}, logg={logg[nanmask]}, abun={abun[nanmask]}')
         elif extrapolate_mode == 'nearest':
             for k in nan_indices:
@@ -2853,7 +2963,7 @@ class Passband:
                     alpha = blending_function(distance)
                     # print('  orthogonal distance:', distance)
                     # print('  alpha:', alpha)
-        
+
                     blint = (1-alpha)*bbint + alpha*atmint
                     # print('  blint:', blint)
 
@@ -2906,7 +3016,7 @@ class Passband:
 
         req = _tabulate((Teff, logg, abun, mu))
         log10_Imu = libphoebe.interp(req, axes, grid)[0]
-        
+
         nanmask = np.isnan(log10_Imu)
         if ~np.any(nanmask):
             return log10_Imu
@@ -2958,7 +3068,7 @@ class Passband:
                 mu_k = np.searchsorted(axes[-1], mu_v)-1
                 nreq = list(nv)+[mu_v]
                 # print(nreq)
-                
+
                 ic = np.array([np.searchsorted(naxes[i], nv[i])-1 for i in range(len(naxes))])
                 sep = (np.abs(self._ck2004_ics-ic)).sum(axis=1)
                 corners = np.argwhere(sep == sep.min()).flatten()
@@ -3009,7 +3119,7 @@ class Passband:
                     alpha = blending_function(distance)
                     # print('  orthogonal distance:', distance)
                     # print('  alpha:', alpha)
-        
+
                     blint = (1-alpha)*bbint + alpha*ckint
                     # print('  blint:', blint)
 
@@ -3324,7 +3434,7 @@ class Passband:
 
         if not check_for_nans:
             return retval
-        
+
         nanmask = np.isnan(retval)
         if np.any(nanmask):
             raise ValueError('Atmosphere parameters out of bounds: Teff=%s, logg=%s, abun=%s' % (Teff[nanmask], logg[nanmask], abun[nanmask]))
@@ -4339,6 +4449,11 @@ if __name__ == '__main__':
     pb.compute_phoenix_ldcoeffs()
     pb.compute_phoenix_ldints()
 
+    pb.compute_tmap_intensities(path='tables/tmap', impute=True, verbose=True)
+    pb.compute_tmap_ldcoeffs()
+    pb.compute_tmap_ldints()
+
+
     pb.save('bolometric.fits')
 
     pb = Passband(
@@ -4365,6 +4480,11 @@ if __name__ == '__main__':
     pb.compute_phoenix_ldcoeffs()
     pb.compute_phoenix_ldints()
     pb.compute_phoenix_reddening(path='tables/phoenix', verbose=True)
+
+    pb.compute_tmap_intensities(path='tables/tmap', impute=True, verbose=True)
+    pb.compute_tmap_ldcoeffs()
+    pb.compute_tmap_ldints()
+    pb.compute_tmap_reddening(path='tables/tmap', verbose=True)
 
     pb.import_wd_atmcof('tables/wd/atmcofplanck.dat', 'tables/wd/atmcof.dat', 7)
 
