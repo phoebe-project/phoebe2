@@ -449,6 +449,13 @@ class Passband:
             data.append(fits.table_to_hdu(Table({'abun': tm_abuns}, meta={'extname': 'TM_ABUNS'})))
             data.append(fits.table_to_hdu(Table({'mu': tm_mus}, meta={'extname': 'TM_MUS'})))
 
+        if 'tmap:ext' in self.content:
+            tm_ebvs = self._tmap_extinct_axes[-2]
+            tm_rvs = self._tmap_extinct_axes[-1]
+            data.append(fits.table_to_hdu(Table({'ebv': tm_ebvs}, meta={'extname': 'TM_EBVS'})))
+            data.append(fits.table_to_hdu(Table({'rv': tm_rvs}, meta={'extname': 'TM_RVS'})))
+
+
         # Data:
         if 'blackbody:ext' in self.content:
             data.append(fits.ImageHDU(self._bb_extinct_energy_grid, name='BBEGRID'))
