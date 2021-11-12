@@ -1655,8 +1655,6 @@ class Passband:
         M = np.rollaxis(np.array([np.split(Ebv1*Rv1, Nmodels), np.split(Ebv1, Nmodels)]), 1)
         M = np.ascontiguousarray(M)
 
-        # Store the length of the filename extensions for parsing:
-        offset = len(models[0])-models[0].rfind('.')
 
         Teff, logg, abun = np.empty(Nmodels), np.empty(Nmodels), np.empty(Nmodels)
 
@@ -1666,18 +1664,23 @@ class Passband:
         if verbose:
             print('Computing TMAP passband extinction corrections for %s:%s. This will take a while.' % (self.pbset, self.pbname))
 
-        # Covered wavelengths in the fits tables:
-        wavelengths = np.arange(900., 39999.501, 0.5)/1e10 # AA -> m
+        wavelengths = np.load(path+'/wavelengths.npy') # in meters
+        keep = (wavelengths >= self.ptf_table['wl'][0]) & (wavelengths <= self.ptf_table['wl'][-1])
+        wl = wavelengths[keep]
 
         for i, model in enumerate(models):
             with fits.open(model) as hdu:
-                intensities = hdu[0].data[-1,:]*1e7  # erg/s/cm^2/A -> W/m^3
-            spc = np.vstack((wavelengths, intensities))
+                intensities = hdu[0].data # in W/m^3
 
-            model = model[model.rfind('/')+1:] # get relative pathname
-            Teff[i] = float(model[1:6])
-            logg[i] = float(model[7:9])/10
-            abun[i] = float(model[10:12])/10 * (-1 if model[9] == 'M' else 1)
+                # trim intensities to the passband limits:
+                # intensities = intensities[:,keep]
+
+                pars = re.split('[TGA.]+', model[model.rfind('/')+1:])
+                Teff[i] = float(pars[1])
+                logg[i] = float(pars[2])/100
+                abun[i] = float(pars[3])/100
+
+            spc = np.vstack((wavelengths, intensities))
 
             sel = (spc[0] >= self.ptf_table['wl'][0]) & (spc[0] <= self.ptf_table['wl'][-1])
 
