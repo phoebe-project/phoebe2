@@ -2445,6 +2445,30 @@ class Passband:
 
             return extinct_factor
 
+        if atm == 'tmap':
+            if 'tmap:ext' not in self.content:
+                raise ValueError('Extinction factors are not computed yet. Please compute those first.')
+
+            if photon_weighted:
+                table = self._tmap_extinct_photon_grid
+            else:
+                table = self._tmap_extinct_energy_grid
+
+            if not hasattr(Teff, '__iter__'):
+                req = np.array(((Teff, logg, abun, extinct, Rv),))
+                extinct_factor = libphoebe.interp(req, self._tmap_extinct_axes[0:5], table)[0][0]
+            else:
+                extinct=extinct*np.ones(len(Teff))
+                Rv=Rv*np.ones(len(Teff))
+                req = np.vstack((Teff, logg, abun, extinct, Rv)).T
+                extinct_factor = libphoebe.interp(req, self._tmap_extinct_axes[0:5], table).T[0]
+
+            nanmask = np.isnan(extinct_factor)
+            if np.any(nanmask):
+                raise ValueError('Atmosphere parameters out of bounds: atm=%s, extinct=%f, Rv=%f, Teff=%s, logg=%s, abun=%s' % (atm, extinct, Rv, Teff[nanmask], logg[nanmask], abun[nanmask]))
+
+            return extinct_factor
+
         if atm == 'blended':
             if 'blended_ext' not in self.content:
                 raise ValueError('Extinction factors are not computed yet. Please compute those first.')
