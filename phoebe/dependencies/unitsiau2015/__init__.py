@@ -137,30 +137,44 @@ _physical_types_to_solar = {'length': 'solRad',
                             'speed': 'solRad/d',
                             'angle': 'rad',
                             'angular speed': 'rad/d',
+                            'angular velocity': 'rad/d',
+                            'angular frequency': 'rad/d',
                             'dimensionless': ''}
 
 _physical_types_to_si = {'length': 'm',
                          'area': 'm2',
                          'volume': 'm3',
-                            'mass': 'kg',
-                            'temperature': 'K',
-                            'power': 'W',
-                            'time': 's',
-                            'speed': 'm/s',
-                            'angle': 'rad',
-                            'angular speed': 'rad/s',
-                            'dimensionless': ''}
+                         'mass': 'kg',
+                         'temperature': 'K',
+                         'power': 'W',
+                         'time': 's',
+                         'speed': 'm/s',
+                         'angle': 'rad',
+                         'angular speed': 'rad/s',
+                         'angular velocity': 'rad/s',
+                         'angular frequency': 'rad/s',
+                         'dimensionless': ''}
 
-def _get_physical_type(object):
+def _get_physical_type_list(object):
 
     if hasattr(object, 'physical_type'):
         unit = object
     elif isinstance(object, u.Quantity):
-        return _get_physical_type(object.unit)
+        return _get_physical_type_list(object.unit)
     else:
-        raise NotImplementedError("object {} with type={} not supported for _get_physical_type".format(object, type(object)))
+        raise NotImplementedError("object {} with type={} not supported for _get_physical_type_list".format(object, type(object)))
 
-    return str(unit.physical_type)
+    if hasattr(unit.physical_type, '_physical_type_list'):
+        return unit.physical_type._physical_type_list
+    else:
+        return [str(unit.physical_type)]
+
+def _get_physical_type(object):
+    physical_type_list = _get_physical_type_list(object)
+    for physical_type in physical_type_list:
+        if str(physical_type) in _physical_types_to_solar.keys():
+            return str(physical_type)
+    return str(physical_type_list[0])
 
 def can_convert_to_solar(object):
     return _get_physical_type(object) in _physical_types_to_solar.keys()

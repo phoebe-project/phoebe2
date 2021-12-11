@@ -84,6 +84,11 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.3.58 - astropy 5.0 units bugfix
+
+* fixes support for astropy 5.0 changes to unit physical types (see also 2.3.51).
+* b.save now requires delayed and failed constraints to run before saving.
+
 ### 2.3.57 - remove inadvertent typo while sampling distributions
 
 * introduced in 2.3.55
