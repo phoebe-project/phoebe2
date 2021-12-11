@@ -1230,7 +1230,8 @@ class Bundle(ParameterSet):
 
     def save(self, filename, compact=False, incl_uniqueid=True):
         """
-        Save the bundle to a JSON-formatted ASCII file.
+        Save the bundle to a JSON-formatted ASCII file.  This will run failed
+        and delayed constraints and raise an error if they fail.
 
         See also:
         * <phoebe.parameters.ParameterSet.save>
@@ -1250,6 +1251,8 @@ class Bundle(ParameterSet):
             logger.warning("saving without uniqueids could cause issues with solutions, use with caution")
         # TODO: add option for clear_models, clear_solution
         # NOTE: PS.save will handle os.path.expanduser
+        self.run_delayed_constraints()
+        self.run_failed_constraints()
         return super(Bundle, self).save(filename, incl_uniqueid=incl_uniqueid,
                                         compact=compact)
 
