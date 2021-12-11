@@ -646,9 +646,9 @@ def _call_run_single_model(args):
             ref_param = b.get_parameter(uniqueid=uniqueid, **_skip_filter_checks)
             try:
                 if index is None:
-                    ref_param.set_value(value, unit=unit)
+                    ref_param.set_value(value)
                 else:
-                    ref_param.set_index_value(index, value, unit=unit)
+                    ref_param.set_index_value(index, value)
             except Exception as err:
                 if expose_samples:
                     msg = _simplify_error_message(err)
@@ -685,10 +685,20 @@ def _call_run_single_model(args):
 def _test_single_sample(args):
     b_copy, uniqueids, sample_per_param, dc, require_priors, require_compute, require_checks, allow_retries = args
     success = False
+
     while not success:
         for uniqueid, sample_value in zip(uniqueids, sample_per_param):
+            
+            uniqueid, index = _extract_index_from_string(uniqueid)
+            ref_param = b_copy.get_parameter(uniqueid=uniqueid, **_skip_filter_checks)
+
             try:
-                b_copy.set_value(uniqueid=uniqueid, value=sample_value, **_skip_filter_checks)
+                if index is None:
+                    ref_param.set_value(sample_value)
+                else:
+                    ref_param.set_index_value(index, sample_value)
+
+
             except:
                 success = False
             else:
@@ -706,6 +716,7 @@ def _test_single_sample(args):
                 success = False
 
         if (require_checks or require_compute) and success:
+
             if not b_copy.run_checks_compute(compute=compute_for_checks).passed:
                 success = False
             else:

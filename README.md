@@ -84,6 +84,23 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.3.58 - astropy 5.0 units bugfix
+
+* fixes support for astropy 5.0 changes to unit physical types (see also 2.3.51).
+* b.save now requires delayed and failed constraints to run before saving.
+
+### 2.3.57 - remove inadvertent typo while sampling distributions
+
+* introduced in 2.3.55
+
+### 2.3.56 - setup without m2r bugfix
+
+* fixes installation (on some machines) where m2r is not installed
+
+### 2.3.55 - sample_distribution_collection index bugfix
+
+* fixes handling distributions on array parameters within sample_distribution_collection and run_compute(sample_from).
+
 ### 2.3.54 - distribution bugfix
 
 * updates `distl` to convert units with recent changes to astropy.  See also the changes in 2.3.51 and 2.3.52.
