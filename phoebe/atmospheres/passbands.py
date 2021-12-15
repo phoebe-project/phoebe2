@@ -3,7 +3,7 @@
 from phoebe import __version__ as phoebe_version
 from phoebe import conf, mpi
 from phoebe.utils import _bytes
-from phoebe.dependencies.ndpolator import ndpolate as _ndpolate
+from phoebe.dependencies import ndpolator
 
 # NOTE: we'll import directly from astropy here to avoid
 # circular imports BUT any changes to these units/constants
@@ -17,7 +17,6 @@ import numpy as np
 from scipy import interpolate, integrate
 from scipy.optimize import curve_fit as cfit
 from scipy.spatial import cKDTree
-from scipy.special import binom as binomial
 from datetime import datetime
 import libphoebe
 import os
@@ -73,95 +72,60 @@ if not os.path.exists(_pbdir_local):
 
 _pbdir_env = os.getenv('PHOEBE_PBDIR', None)
 
+
 def _dict_without_keys(d, skip_keys=[]):
-    return {k:v for k,v in d.items() if k not in skip_keys}
+    return {k: v for k, v in d.items() if k not in skip_keys}
 
-def _tabulate(args):
-    """
-    Takes a list of scalars and arrays, turns them all into arrays and
-    tabulates them as needed for the interpolation function.
-    """
-
-    args = [np.atleast_1d(arg) for arg in args]
-    lens = np.array([len(arg) for arg in args], dtype=int)
-    if len(np.unique(lens)) == 1:
-        return np.vstack(args).T
-    max_length = lens.max()
-    for i, arg in enumerate(args):
-        if len(arg) == 1:
-            args[i] = np.full(max_length, arg[0])
-            continue
-        if len(arg) != max_length:
-            raise ValueError(f'cannot tabulate arrays of varying lengths {lens}.')
-    return np.vstack(args).T
-
-def interpolate_all_directions(entry, axes, grid):
-    N = len(entry)
-    interpolants = []
-
-    for D in range(N, 0, -1): # sub-dimensions
-        for d in range(int(binomial(N, D))): # combinations per sub-dimension
-            slc = [slice(max(0, entry[k]-1), min(entry[k]+2, len(axes[k])), 2) for k in range(N)]
-            mask = np.ones(N, dtype=bool)
-
-            for l in range(N-D): # projected axes
-                slc[(d+l)%N] = slice(entry[(d+l)%N], entry[(d+l)%N]+1)
-                mask[(d+l)%N] = False
-
-            fv = grid[tuple(slc)].reshape(-1, 1)
-            if len(fv) != 2**mask.sum(): # missing vertices, cannot calculate
-                continue
-
-            x = np.array([axes[k][entry[k]] for k in range(N)])[mask]
-            lo = np.array([axes[k][max(0,entry[k]-1)] for k in range(N)])[mask]
-            hi = np.array([axes[k][min(entry[k]+1,len(axes[k])-1)] for k in range(N)])[mask]
-            fv = grid[tuple(slc)].reshape(-1, 1)
-
-            interpolants.append(_ndpolate(x, lo, hi, fv, copy_data=True))
-
-    return np.array(interpolants)
 
 def impute_grid(axes, grid):
-    nantable = np.argwhere(np.isnan(grid[...,0]))
+    nantable = np.argwhere(np.isnan(grid[..., 0]))
     for entry in nantable:
-        interps = interpolate_all_directions(entry=entry, axes=axes, grid=grid)
+        interps = ndpolator.interpolate_all_directions(entry=entry, axes=axes, grid=grid)
         if np.all(np.isnan(interps)):
             continue
         interps = interps[~np.isnan(interps)].mean()
         grid[tuple(entry)][0] = interps
 
-def blending_function(d, func='sigmoid', scale=15, offset=0.5):
+
+def blending_factor(d, func='sigmoid', scale=15, offset=0.5):
     """
-    This auxiliary function returns a factor between 0 and 1 that is
-    used for blending a model atmosphere into blackbody atmosphere as
-    the atmosphere values fall off the grid. By default the function
-    uses a sigmoid to compute the factor, where a sigmoid is defined as:
+    Computes the amount of blending for coordinate `d`.
 
-    f(d) = 1 - (1 + e^{-\tau (d-\Delta)})^{-1},
+    This auxiliary function returns a factor between 0 and 1 that is used for
+    blending a model atmosphere into blackbody atmosphere as the atmosphere
+    values fall off the grid. By default the function uses a sigmoid to
+    compute the factor, where a sigmoid is defined as:
 
-    where \tau is scaling and \Delta is offset.
+    f(d) = 1 - (1 + e^{-tau (d-Delta)})^{-1},
+
+    where tau is scaling and Delta is offset.
 
     Arguments
-    ----------
+    ---------
     * `d` (float or array): distance or distances from the grid
-    * `func` (string, optional, default='sigmoid'): type of blending function;
-        it can be 'linear' or 'sigmoid'
-    * `scale` (float, optional, default=15): if `func`='sigmoid', `scale` is the
-        scaling for the sigmoid
-    * `offset` (float, optional, default=0.5): if `func`='sigmoid', `offset` is
-        the zero-point between 0 and 1.
+    * `func` (string, optional, default='sigmoid'):
+        type of blending function; it can be 'linear' or 'sigmoid'
+    * `scale` (float, optional, default=15):
+        if `func`='sigmoid', `scale` is the scaling for the sigmoid
+    * `offset` (float, optional, default=0.5):
+        if `func`='sigmoid', `offset` is the zero-point between 0 and 1.
+
+    Returns
+    -------
+    * (float) blending factor between 0 and 1
     """
 
     rv = np.zeros_like(d)
     if func == 'linear':
-        rv[d<=1] = 1-d[d<=1]
+        rv[d <= 1] = 1-d[d <= 1]
     elif func == 'sigmoid':
-        rv[d<=1] = 1-(1+np.exp(-scale*(d[d<=1]-offset)))**-1
+        rv[d <= 1] = 1-(1+np.exp(-scale*(d[d <= 1]-offset)))**-1
     else:
         print('function `%s` not supported.' % func)
         return None
-    rv[d<0] = 1
+    rv[d < 0] = 1
     return rv
+
 
 class Passband:
     def __init__(self, ptf=None, pbset='Johnson', pbname='V', effwl=5500.0,
@@ -386,8 +350,8 @@ class Passband:
         header['CONTENT'] = str(self.content)
 
         # Add all existing history entries:
-        for h in self.history.keys():
-            header['HISTORY'] = h + ': ' + self.history[h] + '-END-'
+        for entry in self.history.keys():
+            header['HISTORY'] = entry + ': ' + self.history[entry] + '-END-'
 
         # Append any new history entry:
         if history_entry:
@@ -404,7 +368,6 @@ class Passband:
         data.append(primary_hdu)
 
         # Tables:
-        ptf_table = Table(self.ptf_table)
         data.append(fits.table_to_hdu(Table(self.ptf_table, meta={'extname': 'PTFTABLE'})))
 
         if 'blackbody:Inorm' in self.content:
@@ -455,7 +418,6 @@ class Passband:
             data.append(fits.table_to_hdu(Table({'ebv': tm_ebvs}, meta={'extname': 'TM_EBVS'})))
             data.append(fits.table_to_hdu(Table({'rv': tm_rvs}, meta={'extname': 'TM_RVS'})))
 
-
         # Data:
         if 'blackbody:ext' in self.content:
             data.append(fits.ImageHDU(self._bb_extinct_energy_grid, name='BBEGRID'))
@@ -466,8 +428,8 @@ class Passband:
             data.append(fits.ImageHDU(self._ck2004_Imu_photon_grid, name='CKFPGRID'))
 
             if export_inorm_tables:
-                data.append(fits.ImageHDU(self._ck2004_Imu_energy_grid[...,-1,:], name='CKNEGRID'))
-                data.append(fits.ImageHDU(self._ck2004_Imu_photon_grid[...,-1,:], name='CKNPGRID'))
+                data.append(fits.ImageHDU(self._ck2004_Imu_energy_grid[..., -1, :], name='CKNEGRID'))
+                data.append(fits.ImageHDU(self._ck2004_Imu_photon_grid[..., -1, :], name='CKNPGRID'))
 
         if 'ck2004:ld' in self.content:
             data.append(fits.ImageHDU(self._ck2004_ld_energy_grid, name='CKLEGRID'))
@@ -486,8 +448,8 @@ class Passband:
             data.append(fits.ImageHDU(self._phoenix_Imu_photon_grid, name='PHFPGRID'))
 
             if export_inorm_tables:
-                data.append(fits.ImageHDU(self._phoenix_Imu_energy_grid[...,-1,:], name='PHNEGRID'))
-                data.append(fits.ImageHDU(self._phoenix_Imu_photon_grid[...,-1,:], name='PHNPGRID'))
+                data.append(fits.ImageHDU(self._phoenix_Imu_energy_grid[..., -1, :], name='PHNEGRID'))
+                data.append(fits.ImageHDU(self._phoenix_Imu_photon_grid[..., -1, :], name='PHNPGRID'))
 
         if 'phoenix:ld' in self.content:
             data.append(fits.ImageHDU(self._phoenix_ld_energy_grid, name='PHLEGRID'))
@@ -506,8 +468,8 @@ class Passband:
             data.append(fits.ImageHDU(self._tmap_Imu_photon_grid, name='TMFPGRID'))
 
             if export_inorm_tables:
-                data.append(fits.ImageHDU(self._tmap_Imu_energy_grid[...,-1,:], name='TMNEGRID'))
-                data.append(fits.ImageHDU(self._tmap_Imu_photon_grid[...,-1,:], name='TMNPGRID'))
+                data.append(fits.ImageHDU(self._tmap_Imu_energy_grid[..., -1, :], name='TMNEGRID'))
+                data.append(fits.ImageHDU(self._tmap_Imu_photon_grid[..., -1, :], name='TMNPGRID'))
 
         if 'tmap:ld' in self.content:
             data.append(fits.ImageHDU(self._tmap_ld_energy_grid, name='TMLEGRID'))
@@ -613,9 +575,8 @@ class Passband:
                     self.nntree['ck2004'] = cKDTree(non_nan_vertices, copy_data=True)
 
                     # Rebuild blending map:
-                    self._ck2004_blending_region = (750., 0.5, 0.5)
-                    self._ck2004_offsets = [a[0] for a in self._ck2004_intensity_axes[:-1]]
-                    self._ck2004_remap = lambda v: tuple([1/self._ck2004_blending_region[k]*(v[k]-self._ck2004_offsets[k]) for k in range(len(self._ck2004_blending_region))])
+                    self._ck2004_blending_region = ((750, 10000), (0.5, 0.5), (0.5, 0.5))
+                    self._ck2004_remap = lambda v: ndpolator.map_to_cube(v, self._ck2004_intensity_axes[:-1], self._ck2004_blending_region)
 
                     # Rebuild the table of inferior corners for extrapolation:
                     raxes = self._ck2004_intensity_axes[:-1]
@@ -646,9 +607,8 @@ class Passband:
                     self.nntree['phoenix'] = cKDTree(non_nan_vertices, copy_data=True)
 
                     # Rebuild blending map:
-                    self._phoenix_blending_region = (750., 0.5, 0.5)
-                    self._phoenix_offsets = [a[0] for a in self._phoenix_intensity_axes[:-1]]
-                    self._phoenix_remap = lambda v: tuple([1/self._phoenix_blending_region[k]*(v[k]-self._phoenix_offsets[k]) for k in range(len(self._phoenix_blending_region))])
+                    self._phoenix_blending_region = ((750, 2000), (0.5, 0.5), (0.5, 0.5))
+                    self._phoenix_remap = lambda v: ndpolator.map_to_cube(v, self._phoenix_intensity_axes[:-1], self._phoenix_blending_region)
 
                     # Rebuild the table of inferior corners for extrapolation:
                     raxes = self._phoenix_intensity_axes[:-1]
@@ -679,9 +639,8 @@ class Passband:
                     self.nntree['tmap'] = cKDTree(non_nan_vertices, copy_data=True)
 
                     # Rebuild blending map:
-                    self._tmap_blending_region = (750., 0.5, 0.5)
-                    self._tmap_offsets = [a[0] for a in self._tmap_intensity_axes[:-1]]
-                    self._tmap_remap = lambda v: tuple([1/self._tmap_blending_region[k]*(v[k]-self._tmap_offsets[k]) for k in range(len(self._tmap_blending_region))])
+                    self._tmap_blending_region = ((10000, 10000), (0.5, 0.5), (0.25, 0.25))
+                    self._tmap_remap = lambda v: ndpolator.map_to_cube(v, self._tmap_intensity_axes[:-1], self._tmap_blending_region)
 
                     # Rebuild the table of inferior corners for extrapolation:
                     raxes = self._tmap_intensity_axes[:-1]
@@ -765,7 +724,7 @@ class Passband:
         """
         Computes mean passband intensity using blackbody atmosphere:
 
-        I_pb^E = \int_\lambda I(\lambda) P(\lambda) d\lambda / \int_\lambda P(\lambda) d\lambda
+        `I_pb^E = \int_\lambda I(\lambda) P(\lambda) d\lambda / \int_\lambda P(\lambda) d\lambda`
         I_pb^P = \int_\lambda \lambda I(\lambda) P(\lambda) d\lambda / \int_\lambda \lambda P(\lambda) d\lambda
 
         Superscripts E and P stand for energy and photon, respectively.
@@ -803,7 +762,7 @@ class Passband:
         """
 
         if Teffs is None:
-            log10Teffs = np.linspace(2.5, 5.7, 97) # this corresponds to the 316K-501187K range.
+            log10Teffs = np.linspace(2.5, 5.7, 97)  # this corresponds to the 316K-501187K range.
             Teffs = 10**log10Teffs
 
         # Energy-weighted intensities:
@@ -885,56 +844,56 @@ class Passband:
         if verbose:
             print('')
 
-            # for cmi, cmu in enumerate(mus):
-            #     fl = intensities[cmi,:]
+        # for cmi, cmu in enumerate(mus):
+        #     fl = intensities[cmi,:]
 
-                # make a log-scale copy for boosting and fit a Legendre
-                # polynomial to the Imu envelope by way of sigma clipping;
-                # then compute a Legendre series derivative to get the
-                # boosting index; we only take positive fluxes to keep the
-                # log well defined.
+        #     # make a log-scale copy for boosting and fit a Legendre
+        #     # polynomial to the Imu envelope by way of sigma clipping;
+        #     # then compute a Legendre series derivative to get the
+        #     # boosting index; we only take positive fluxes to keep the
+        #     # log well defined.
 
-                # lnwl = np.log(wl[fl > 0])
-                # lnfl = np.log(fl[fl > 0]) + 5*lnwl
+        #     lnwl = np.log(wl[fl > 0])
+        #     lnfl = np.log(fl[fl > 0]) + 5*lnwl
 
-                # First Legendre fit to the data:
-                # envelope = np.polynomial.legendre.legfit(lnwl, lnfl, 5)
-                # continuum = np.polynomial.legendre.legval(lnwl, envelope)
-                # diff = lnfl-continuum
-                # sigma = np.std(diff)
-                # clipped = (diff > -sigma)
+        #     # First Legendre fit to the data:
+        #     envelope = np.polynomial.legendre.legfit(lnwl, lnfl, 5)
+        #     continuum = np.polynomial.legendre.legval(lnwl, envelope)
+        #     diff = lnfl-continuum
+        #     sigma = np.std(diff)
+        #     clipped = (diff > -sigma)
 
-                # Sigma clip to get the continuum:
-                # while True:
-                #     Npts = clipped.sum()
-                #     envelope = np.polynomial.legendre.legfit(lnwl[clipped], lnfl[clipped], 5)
-                #     continuum = np.polynomial.legendre.legval(lnwl, envelope)
-                #     diff = lnfl-continuum
+        #     # Sigma clip to get the continuum:
+        #     while True:
+        #         Npts = clipped.sum()
+        #         envelope = np.polynomial.legendre.legfit(lnwl[clipped], lnfl[clipped], 5)
+        #         continuum = np.polynomial.legendre.legval(lnwl, envelope)
+        #         diff = lnfl-continuum
 
-                    # clipping will sometimes unclip already clipped points
-                    # because the fit is slightly different, which can lead
-                    # to infinite loops. To prevent that, we never allow
-                    # clipped points to be resurrected, which is achieved
-                    # by the following bitwise condition (array comparison):
-                #     clipped = clipped & (diff > -sigma)
+        #         # clipping will sometimes unclip already clipped points
+        #         # because the fit is slightly different, which can lead
+        #         # to infinite loops. To prevent that, we never allow
+        #         # clipped points to be resurrected, which is achieved
+        #         # by the following bitwise condition (array comparison):
+        #         clipped = clipped & (diff > -sigma)
 
-                #     if clipped.sum() == Npts:
-                #         break
+        #         if clipped.sum() == Npts:
+        #             break
 
-                # derivative = np.polynomial.legendre.legder(envelope, 1)
-                # boosting_index = np.polynomial.legendre.legval(lnwl, derivative)
+        #     derivative = np.polynomial.legendre.legder(envelope, 1)
+        #     boosting_index = np.polynomial.legendre.legval(lnwl, derivative)
 
-                # calculate energy (E) and photon (P) weighted fluxes and
-                # their integrals.
+        #     # calculate energy (E) and photon (P) weighted fluxes and
+        #     # their integrals.
 
-                # calculate mean boosting coefficient and use it to get
-                # boosting factors for energy (E) and photon (P) weighted
-                # fluxes.
+        #     # calculate mean boosting coefficient and use it to get
+        #     # boosting factors for energy (E) and photon (P) weighted
+        #     # fluxes.
 
-                # boostE = (flE[fl > 0]*boosting_index).sum()/flEint
-                # boostP = (flP[fl > 0]*boosting_index).sum()/flPint
-                # boostingE[i] = boostE
-                # boostingP[i] = boostP
+        #     boostE = (flE[fl > 0]*boosting_index).sum()/flEint
+        #     boostP = (flP[fl > 0]*boosting_index).sum()/flPint
+        #     boostingE[i] = boostE
+        #     boostingP[i] = boostP
 
         self._ck2004_intensity_axes = (np.unique(Teff), np.unique(logg), np.unique(abun), np.unique(mus))
         self._ck2004_Imu_energy_grid = np.nan*np.ones((len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), len(self._ck2004_intensity_axes[3]), 1))
@@ -972,9 +931,8 @@ class Passband:
         self.nntree['ck2004'] = cKDTree(non_nan_vertices, copy_data=True)
 
         # Set up the blending region:
-        self._ck2004_blending_region = (750., 0.5, 0.5)
-        self._ck2004_offsets = [a[0] for a in self._ck2004_intensity_axes[:-1]]
-        self._ck2004_remap = lambda v: tuple([1/self._ck2004_blending_region[k]*(v[k]-self._ck2004_offsets[k]) for k in range(len(self._ck2004_blending_region))])
+        self._ck2004_blending_region = ((750, 10000), (0.5, 0.5), (0.5, 0.5))
+        self._ck2004_remap = lambda v: ndpolator.map_to_cube(v, self._ck2004_intensity_axes[:-1], [(750, 10000), (0.5, 0.5), (0.5, 0.5)])
 
         # Store all inferior corners for quick nearest neighbor lookup:
         raxes = self._ck2004_intensity_axes[:-1]
@@ -1147,9 +1105,8 @@ class Passband:
         self.nntree['phoenix'] = cKDTree(non_nan_vertices, copy_data=True)
 
         # Set up the blending region:
-        self._phoenix_blending_region = (750., 0.5, 0.5)
-        self._phoenix_offsets = [a[0] for a in self._phoenix_intensity_axes[:-1]]
-        self._phoenix_remap = lambda v: tuple([1/self._phoenix_blending_region[k]*(v[k]-self._phoenix_offsets[k]) for k in range(len(self._phoenix_blending_region))])
+        self._phoenix_blending_region = ((750, 2000), (0.5, 0.5), (0.5, 0.5))
+        self._phoenix_remap = lambda v: ndpolator.map_to_cube(v, self._phoenix_intensity_axes[:-1], self._phoenix_blending_region)
 
         # Store all inferior corners for quick nearest neighbor lookup:
         raxes = self._phoenix_intensity_axes[:-1]
@@ -1320,9 +1277,8 @@ class Passband:
         self.nntree['tmap'] = cKDTree(non_nan_vertices, copy_data=True)
 
         # Set up the blending region:
-        self._tmap_blending_region = (750., 0.5, 0.5)
-        self._tmap_offsets = [a[0] for a in self._tmap_intensity_axes[:-1]]
-        self._tmap_remap = lambda v: tuple([1/self._tmap_blending_region[k]*(v[k]-self._tmap_offsets[k]) for k in range(len(self._tmap_blending_region))])
+        self._tmap_blending_region = ((10000, 10000), (0.5, 0.5), (0.25, 0.25))
+        self._tmap_remap = lambda v: ndpolator.map_to_cube(v, self._tmap_intensity_axes[:-1], self._tmap_blending_region)
 
         # Store all inferior corners for quick nearest neighbor lookup:
         raxes = self._tmap_intensity_axes[:-1]
@@ -2324,7 +2280,7 @@ class Passband:
         else:
             raise ValueError(f'ldatm={ldatm} is not supported for LD interpolation.')
 
-        req = _tabulate((Teff, logg, abun))
+        req = ndpolator.tabulate((Teff, logg, abun))
         ld_coeffs = libphoebe.interp(req, axes, table)
 
         ldc = ld_coeffs[s[ld_func]]
@@ -2372,7 +2328,7 @@ class Passband:
                     ld_coeff_row = np.zeros(11)
                     for i in range(11):
                         fv = subgrid[...,i].T.reshape(2**len(axes))
-                        evs = _ndpolate(v, lo, hi, fv)
+                        evs = ndpolator.ndpolate(v, lo, hi, fv)
                         ld_coeff_row[i] = evs
                     extrapolated_ld_coeffs.append(ld_coeff_row)
 
@@ -2637,7 +2593,7 @@ class Passband:
                 lo = [c[0] for c in coords]
                 hi = [c[1] for c in coords]
                 fv = subgrid.T.reshape(2**len(axes))
-                extrapolated_ldint = _ndpolate(v, lo, hi, fv)
+                extrapolated_ldint = ndpolator.ndpolate(v, lo, hi, fv)
                 bbints.append(bbint - np.log10(extrapolated_ldint))
 
             return np.array(bbints).mean()
@@ -2692,7 +2648,7 @@ class Passband:
                     hi = [c[1] for c in coords]
                     subgrid = grid[slc]
                     fv = subgrid.T.reshape(2**len(axes))
-                    ckint = _ndpolate(v, lo, hi, fv)
+                    ckint = ndpolator.ndpolate(v, lo, hi, fv)
                     # print('  extrapolated atm value: %f' % ckint)
                     ints.append(ckint)
                 log10_Inorm[k] = np.array(ints).mean()
@@ -2750,7 +2706,7 @@ class Passband:
                     # print(f'ckint: {ckint}')
 
                     # Blending:
-                    alpha = blending_function(distance)
+                    alpha = blending_factor(distance)
                     # print('  orthogonal distance:', distance)
                     # print('  alpha:', alpha)
 
@@ -2813,7 +2769,7 @@ class Passband:
                     hi = [c[1] for c in coords]
                     subgrid = grid[slc]
                     fv = subgrid.T.reshape(2**len(axes))
-                    atmint = _ndpolate(v, lo, hi, fv)
+                    atmint = ndpolator.ndpolate(v, lo, hi, fv)
                     # print('  extrapolated atm value: %f' % atmint)
                     ints.append(atmint)
                 log10_Inorm[k] = np.array(ints).mean()
@@ -2872,7 +2828,7 @@ class Passband:
                     # print(f'ckint: {ckint}')
 
                     # Blending:
-                    alpha = blending_function(distance)
+                    alpha = blending_factor(distance)
                     # print('  orthogonal distance:', distance)
                     # print('  alpha:', alpha)
 
@@ -2935,7 +2891,7 @@ class Passband:
                     hi = [c[1] for c in coords]
                     subgrid = grid[slc]
                     fv = subgrid.T.reshape(2**len(axes))
-                    atmint = _ndpolate(v, lo, hi, fv)
+                    atmint = ndpolator.ndpolate(v, lo, hi, fv)
                     # print('  extrapolated atm value: %f' % atmint)
                     ints.append(atmint)
                 log10_Inorm[k] = np.array(ints).mean()
@@ -2994,7 +2950,7 @@ class Passband:
                     # print(f'ckint: {ckint}')
 
                     # Blending:
-                    alpha = blending_function(distance)
+                    alpha = blending_factor(distance)
                     # print('  orthogonal distance:', distance)
                     # print('  alpha:', alpha)
 
@@ -3048,7 +3004,7 @@ class Passband:
         axes = self._ck2004_intensity_axes
         grid = self._ck2004_Imu_photon_grid if photon_weighted else self._ck2004_Imu_energy_grid
 
-        req = _tabulate((Teff, logg, abun, mu))
+        req = ndpolator.tabulate((Teff, logg, abun, mu))
         log10_Imu = libphoebe.interp(req, axes, grid)[0]
 
         nanmask = np.isnan(log10_Imu)
@@ -3089,7 +3045,7 @@ class Passband:
                     hi = [c[1] for c in coords]
                     subgrid = grid[slc]
                     fv = subgrid.T.reshape(2**len(axes))
-                    ckint = _ndpolate(req[k], lo, hi, fv)
+                    ckint = ndpolator.ndpolate(req[k], lo, hi, fv)
                     # print('  extrapolated atm value: %f' % ckint)
                     ints.append(ckint)
                 log10_Imu[k] = np.array(ints).mean()
@@ -3146,11 +3102,11 @@ class Passband:
                     hi = [c[1] for c in coords]
                     subgrid = grid[slc]
                     fv = subgrid.T.reshape(2**len(axes))
-                    ckint = _ndpolate(nreq, lo, hi, fv)
+                    ckint = ndpolator.ndpolate(nreq, lo, hi, fv)
                     # print('  extrapolated atm value: %f' % ckint)
 
                     # Blending:
-                    alpha = blending_function(distance)
+                    alpha = blending_factor(distance)
                     # print('  orthogonal distance:', distance)
                     # print('  alpha:', alpha)
 
@@ -3280,9 +3236,9 @@ class Passband:
             retval /= ldint
 
             # if there are any nans in ldint, we need to extrapolate.
-            for i in np.argwhere(np.isnan(retval)).flatten():
-                v = (Teff[i], logg[i], abun[i])
-                retval[i] = 10**self._log10_Inorm_bb(v, axes=axes, ldint_grid=ldint_grid, ldint_mode=extrapolate_mode, ldint_tree=ldint_tree, ldint_indices=ldint_indices, ics=ics)
+            # for i in np.argwhere(np.isnan(retval)).flatten():
+            #     v = (Teff[i], logg[i], abun[i])
+            #     retval[i] = 10**self._log10_Inorm_bb(v, axes=axes, ldint_grid=ldint_grid, ldint_mode=extrapolate_mode, ldint_tree=ldint_tree, ldint_indices=ldint_indices, ics=ics)
 
         elif atm == 'extern_atmx' and 'extern_atmx:Inorm' in self.content:
             # -1 below is for cgs -> SI:
@@ -3340,7 +3296,7 @@ class Passband:
         """
         # TODO: improve docstring
 
-        req = _tabulate((Teff, logg, abun, mu))
+        req = ndpolator.tabulate((Teff, logg, abun, mu))
         # TODO: is this workaround still necessary?
         req[:,3][np.isclose(req[:,3], 1)] = 1-1e-12
 
@@ -3430,7 +3386,7 @@ class Passband:
         """
         # TODO: improve docstring
 
-        req = _tabulate((Teff, logg, abun))
+        req = ndpolator.tabulate((Teff, logg, abun))
 
         if ld_func == 'interp':
             if ldatm == 'ck2004':
@@ -3531,7 +3487,7 @@ class Passband:
         # TODO: implement phoenix boosting.
         raise NotImplementedError('Doppler boosting is currently offline for review.')
 
-        req = _tabulate((Teff, logg, abun, mu))
+        req = ndpolator.tabulate((Teff, logg, abun, mu))
 
         if atm == 'ck2004':
             retval = self._bindex_ck2004(req, atm, photon_weighted)
