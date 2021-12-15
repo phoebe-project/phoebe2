@@ -10176,6 +10176,7 @@ class Bundle(ParameterSet):
                 teff = self.get_value(qualifier='teff', component=ldcs_param.component, context='component', unit='K', **_skip_filter_checks)
                 logg = self.get_value(qualifier='logg', component=ldcs_param.component, context='component', **_skip_filter_checks)
                 abun = self.get_value(qualifier='abun', component=ldcs_param.component, context='component', **_skip_filter_checks)
+                ld_blending_method = compute_ps.get_value(qualifier='ld_blending_method', component=ldcs_param.component, **_skip_filter_checks)
                 if is_bol:
                     photon_weighted = False
                 else:
@@ -10183,6 +10184,7 @@ class Bundle(ParameterSet):
                 logger.info("{} ld_coeffs lookup for dataset='{}' component='{}' passband='{}' from ld_coeffs_source='{}'".format(ld_func, ldcs_param.dataset, ldcs_param.component, passband, ldcs))
                 logger.debug("pb.interpolate_ldcoeffs(teff={} logg={}, abun={}, ld_coeffs={} ld_func={} photon_weighted={})".format(teff, logg, abun, ldcs, ld_func, photon_weighted))
                 try:
+                    # ANDREJ TODO: pass ld_blending_method
                     ld_coeffs = pb.interpolate_ldcoeffs(teff, logg, abun, ldcs, ld_func, photon_weighted)[0]
                 except ValueError as err:
                     if str(err).split(":")[0] == 'Atmosphere parameters out of bounds':
@@ -10629,6 +10631,8 @@ class Bundle(ParameterSet):
                     else:
                         ld_func = 'interp'
                         ld_coeffs = None
+                    blending_method = compute_ps.get_value(qualifier='blending_method', component=component, **_skip_filter_checks)
+                    ld_blending_method = compute_ps.get_value(qualifier='ld_blending_method', component=component, **_skip_filter_checks)
 
                     if atms[component] == 'blackbody' and ld_mode!='manual':
                         raise NotImplementedError("pblum_method='stefan-boltzmann' not currently implemented for atm='blackbody' unless ld_mode='manual'")
@@ -10639,6 +10643,7 @@ class Bundle(ParameterSet):
                     pb = get_passband(passband, content=required_content)
 
                     try:
+                        # ANDREJ TODO: pass blending_method/ld_blending_method
                         Inorm = pb.Inorm(Teff=teffs[component], logg=loggs[component],
                                          abun=abuns[component], atm=atms[component],
                                          ldatm=atms[component],
@@ -10653,6 +10658,7 @@ class Bundle(ParameterSet):
                             raise err
 
                     try:
+                        # ANDREJ TODO: pass blending_method/ld_blending_method
                         ldint = pb.ldint(Teff=teffs[component], logg=loggs[component],
                                          abun=abuns[component],
                                          ldatm=atms[component], ld_func=ld_func, ld_coeffs=ld_coeffs,

@@ -1079,6 +1079,7 @@ class Star(Body):
                  long_an, t0, do_mesh_offset, mesh_init_phi,
 
                  atm, datasets, passband, intens_weighting,
+                 blending_method, ld_blending_method,
                  extinct, Rv,
                  ld_mode, ld_func, ld_coeffs, ld_coeffs_source,
                  lp_profile_rest,
@@ -1117,6 +1118,8 @@ class Star(Body):
         self.gridsize = kwargs.get('gridsize', 90)                          # WD
         self.is_single = is_single
         self.atm = atm
+        self.blending_method = blending_method
+        self.ld_blending_method = ld_blending_method
 
         # DATSET-DEPENDENT DICTS
         self.passband = passband
@@ -1263,6 +1266,10 @@ class Star(Body):
         if isinstance(atm_override, dict):
             atm_override = atm_override.get(component, None)
         atm = b.get_value(qualifier='atm', compute=compute, component=component, atm=atm_override, **_skip_filter_checks) if compute is not None else atm_override if atm_override is not None else 'ck2004'
+        blending_method_override = kwargs.pop('blending_method', None)
+        blending_method = b.get_value(qualifier='blending_method', compute=compute, component=component, blending_method=blending_method_override, **_skip_filter_checks) if compute is not None else blending_method_override if blending_method_override is not None else 'linear'
+        ld_blending_method_override = kwargs.pop('ld_blending_method', None)
+        ld_blending_method = b.get_value(qualifier='ld_blending_method', compute=compute, component=component, ld_blending_method=ld_blending_method_override, **_skip_filter_checks) if compute is not None else ld_blending_method_override if ld_blending_method_override is not None else 'nearest'
         passband_override = kwargs.pop('passband', None)
         passband = {ds: b.get_value(qualifier='passband', dataset=ds, passband=passband_override, **_skip_filter_checks) for ds in datasets_intens}
         intens_weighting_override = kwargs.pop('intens_weighting', None)
@@ -1301,6 +1308,8 @@ class Star(Body):
                    datasets,
                    passband,
                    intens_weighting,
+                   blending_method,
+                   ld_blending_method,
                    extinct, Rv,
                    ld_mode,
                    ld_func,
@@ -1755,6 +1764,8 @@ class Star(Body):
         passband = kwargs.get('passband', self.passband.get(dataset, None))
         intens_weighting = kwargs.get('intens_weighting', self.intens_weighting.get(dataset, None))
         atm = kwargs.get('atm', self.atm)
+        blending_method = kwargs.get('blending_method', self.blending_method)
+        ld_blending_method = kwargs.get('ld_blending_method', self.ld_blending_method)
         extinct = kwargs.get('extinct', self.extinct)
         Rv = kwargs.get('Rv', self.Rv)
         ld_mode = kwargs.get('ld_mode', self.ld_mode.get(dataset, None))
@@ -1808,6 +1819,7 @@ class Star(Body):
             self.set_ptfarea(dataset, ptfarea)
 
             try:
+                # ANDREJ TODO: pass blending_method/ld_blending_method
                 ldint = pb.ldint(Teff=self.mesh.teffs.for_computations,
                                  logg=self.mesh.loggs.for_computations,
                                  abun=self.mesh.abuns.for_computations,
@@ -1833,6 +1845,7 @@ class Star(Body):
                     raise err
 
             try:
+                # ANDREJ TODO: pass blending_method/ld_blending_method
                 # abs_normal_intensities are the normal emergent passband intensities:
                 abs_normal_intensities = pb.Inorm(Teff=self.mesh.teffs.for_computations,
                                                   logg=self.mesh.loggs.for_computations,
@@ -1848,6 +1861,8 @@ class Star(Body):
                     raise ValueError("Could not compute intensities with atm='{}'.  Try changing atm to a table that covers a sufficient range of values (or to 'blackbody' in which case ld_mode will need to be set to 'manual' and coefficients provided via ld_coeffs).  Enable 'warning' logger to see out-of-bounds arrays.".format(atm))
                 else:
                     raise err
+
+            # ANDREJ TODO: pass blending_method/ld_blending_method
 
             # abs_intensities are the projected (limb-darkened) passband intensities
             # TODO: why do we need to use abs(mus) here?
@@ -1870,6 +1885,7 @@ class Star(Body):
                 boost_factors = 1.0
             elif boosting_method == 'linear':
                 logger.debug("calling pb.bindex for boosting_method='linear'")
+                # ANDREJ TODO: pass blending_method/ld_blending_method (if needed)
                 bindex = pb.bindex(Teff=self.mesh.teffs.for_computations,
                                    logg=self.mesh.loggs.for_computations,
                                    abun=self.mesh.abuns.for_computations,
@@ -1888,6 +1904,7 @@ class Star(Body):
             if extinct == 0.0:
                 extinct_factors = 1.0
             else:
+                # ANDREJ TODO: pass blending_method/ld_blending_method (if needed)
                 extinct_factors = pb.interpolate_extinct(Teff=self.mesh.teffs.for_computations,
                                                          logg=self.mesh.loggs.for_computations,
                                                          abun=self.mesh.abuns.for_computations,
@@ -1934,6 +1951,7 @@ class Star_roche(Star):
                  long_an, t0, do_mesh_offset, mesh_init_phi,
 
                  atm, datasets, passband, intens_weighting,
+                 blending_method, ld_blending_method,
                  extinct, Rv,
                  ld_mode, ld_func, ld_coeffs, ld_coeffs_source,
                  lp_profile_rest,
@@ -1958,6 +1976,7 @@ class Star_roche(Star):
                                          do_mesh_offset, mesh_init_phi,
 
                                          atm, datasets, passband, intens_weighting,
+                                         blending_method, ld_blending_method,
                                          extinct, Rv,
                                          ld_mode, ld_func, ld_coeffs, ld_coeffs_source,
                                          lp_profile_rest,
@@ -2155,6 +2174,7 @@ class Star_roche_envelope_half(Star):
                  long_an, t0, do_mesh_offset, mesh_init_phi,
 
                  atm, datasets, passband, intens_weighting,
+                 blending_method, ld_blending_method,
                  extinct, Rv,
                  ld_mode, ld_func, ld_coeffs, ld_coeffs_source,
                  lp_profile_rest,
@@ -2183,6 +2203,7 @@ class Star_roche_envelope_half(Star):
                                          do_mesh_offset, mesh_init_phi,
 
                                          atm, datasets, passband, intens_weighting,
+                                         blending_method, ld_blending_method,
                                          extinct, Rv,
                                          ld_mode, ld_func, ld_coeffs, ld_coeffs_source,
                                          lp_profile_rest,
@@ -2358,6 +2379,7 @@ class Star_rotstar(Star):
                  long_an, t0, do_mesh_offset, mesh_init_phi,
 
                  atm, datasets, passband, intens_weighting,
+                 blending_method, ld_blending_method,
                  extinct, Rv,
                  ld_mode, ld_func, ld_coeffs, ld_coeffs_source,
                  lp_profile_rest,
@@ -2381,6 +2403,7 @@ class Star_rotstar(Star):
                                            do_mesh_offset, mesh_init_phi,
 
                                            atm, datasets, passband, intens_weighting,
+                                           blending_method, ld_blending_method,
                                            extinct, Rv,
                                            ld_mode, ld_func, ld_coeffs, ld_coeffs_source,
                                            lp_profile_rest,
@@ -2534,6 +2557,7 @@ class Star_sphere(Star):
                  long_an, t0, do_mesh_offset, mesh_init_phi,
 
                  atm, datasets, passband, intens_weighting,
+                 blending_method, ld_blending_method,
                  extinct, Rv,
                  ld_mode, ld_func, ld_coeffs, ld_coeffs_source,
                  lp_profile_rest,
@@ -2558,6 +2582,7 @@ class Star_sphere(Star):
                                           do_mesh_offset, mesh_init_phi,
 
                                           atm, datasets, passband, intens_weighting,
+                                          blending_method, ld_blending_method,
                                           extinct, Rv,
                                           ld_mode, ld_func, ld_coeffs, ld_coeffs_source,
                                           lp_profile_rest,
