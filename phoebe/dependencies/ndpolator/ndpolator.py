@@ -248,3 +248,32 @@ def kdtree(axes, grid, index_non_nans=True):
         return cKDTree(non_nan_vertices, copy_data=True), non_nan_indices
     else:
         return cKDTree(non_nan_vertices, copy_data=True)
+
+
+def impute_grid(axes, grid, weighting='none'):
+    """
+    Imputes missing values in the grid.
+
+    The function traverses the passed `grid` and finds all `nan`s. It then
+    interpolates the missing values along all directions, calculates a simple
+    mean and imputes the missing value in-place (i.e., it modifies the passed
+    grid).
+
+    Parameters
+    ----------
+    * `axes` (tuple of arrays): a list of axes
+    * `grid` (ndarray): N-D grid to be imputed
+    * `weighting` (string): weighting method. Only 'none' is currently
+      implemented, but other weighting schemes should be added.
+    """
+
+    if weighting != 'none':
+        raise NotImplementedError(f'weighting={weighting} is currently not supported.')
+
+    nantable = np.argwhere(np.isnan(grid[..., 0]))
+    for entry in nantable:
+        interps = interpolate_all_directions(entry=entry, axes=axes, grid=grid)
+        if np.all(np.isnan(interps)):
+            continue
+        interps = interps[~np.isnan(interps)].mean()
+        grid[tuple(entry)][0] = interps

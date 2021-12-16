@@ -77,16 +77,6 @@ def _dict_without_keys(d, skip_keys=[]):
     return {k: v for k, v in d.items() if k not in skip_keys}
 
 
-def impute_grid(axes, grid):
-    nantable = np.argwhere(np.isnan(grid[..., 0]))
-    for entry in nantable:
-        interps = ndpolator.interpolate_all_directions(entry=entry, axes=axes, grid=grid)
-        if np.all(np.isnan(interps)):
-            continue
-        interps = interps[~np.isnan(interps)].mean()
-        grid[tuple(entry)][0] = interps
-
-
 def blending_factor(d, func='sigmoid', scale=15, offset=0.5):
     """
     Computes the amount of blending for coordinate `d`.
@@ -917,7 +907,7 @@ class Passband:
                 print('Imputing the grids...')
             for grid in (self._ck2004_Imu_energy_grid, self._ck2004_Imu_photon_grid):
                 for i in range(len(self._ck2004_intensity_axes[-1])):
-                    impute_grid(self._ck2004_intensity_axes[:-1], grid[...,i,:])
+                    ndpolator.impute_grid(self._ck2004_intensity_axes[:-1], grid[...,i,:])
 
         # Build the table of non-null indices for the nearest neighbor lookup:
         self._ck2004_indices = np.argwhere(~np.isnan(self._ck2004_Imu_photon_grid[...,-1,:]))
@@ -1091,7 +1081,7 @@ class Passband:
                 print('Imputing the grids...')
             for grid in (self._phoenix_Imu_energy_grid, self._phoenix_Imu_photon_grid):
                 for i in range(len(self._phoenix_intensity_axes[-1])):
-                    impute_grid(self._phoenix_intensity_axes[:-1], grid[...,i,:])
+                    ndpolator.impute_grid(self._phoenix_intensity_axes[:-1], grid[...,i,:])
 
         # Build the table of non-null indices for the nearest neighbor lookup:
         self._phoenix_indices = np.argwhere(~np.isnan(self._phoenix_Imu_photon_grid[...,-1,:]))
@@ -1263,7 +1253,7 @@ class Passband:
                 print('Imputing the grids...')
             for grid in (self._tmap_Imu_energy_grid, self._tmap_Imu_photon_grid):
                 for i in range(len(self._tmap_intensity_axes[-1])):
-                    impute_grid(self._tmap_intensity_axes[:-1], grid[...,i,:])
+                    ndpolator.impute_grid(self._tmap_intensity_axes[:-1], grid[...,i,:])
 
         # Build the table of non-null indices for the nearest neighbor lookup:
         self._tmap_indices = np.argwhere(~np.isnan(self._tmap_Imu_photon_grid[...,-1,:]))
