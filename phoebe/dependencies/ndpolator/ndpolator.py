@@ -1,5 +1,6 @@
 import numpy as np
 from scipy.special import binom as binomial
+from scipy.spatial import cKDTree
 
 __version__ = '0.1.0'
 
@@ -196,7 +197,7 @@ def map_to_cube(v, axes, intervals):
         a list of original axes
     * `intervals` (tuple of 2-D arrays):
         an array of step sizes at the beginning and the end of the new axes.
-    
+
     Returns
     -------
     * (array) vector in new coordinates
@@ -209,3 +210,41 @@ def map_to_cube(v, axes, intervals):
         retval.append((v[k]-ranges[k][0])/delta_k)
 
     return tuple(retval)
+
+
+def kdtree(axes, grid, index_non_nans=True):
+    """
+    Construct a k-D tree for nearest neighbor lookup.
+
+    k-dimensional trees are space-partitioning data structures for organizing
+    points in a k-dimensional parameter space. They are very efficient for
+    looking up nearest neighbors. This function takes a list of axes and the
+    grid spun by the axes and it constructs a corresponding k-D tree.
+
+    Grid is expected to be sparse, i.e.~not all vertices are expected to be
+    defined. Undefined vertices in `grid` are flagged with `np.nan`.
+
+    Parameters
+    ----------
+
+    * `axes` (tuple of arrays):
+        a list of axes that span the grid
+    * `grid` (ndarray):
+        an N-dimensional grid of function values
+    * `index_non_nans` (bool, optional, default=True)
+        should non-nan values be indexed and returned to the calling function.
+        If set to False, then only the kdtree is returned. If set to True,
+        then an array of indices of non-nan elements is also returned.
+
+    Returns
+    -------
+    * <scipy.spatial.cKDTree> instance if `index_non_nans`=False, or tuple
+        (<scipy.spatial.cKDTree>, non_nan_indices) if `index_non_nans`=True.
+    """
+
+    non_nan_indices = np.argwhere(~np.isnan(grid))
+    non_nan_vertices = np.array([[axes[i][non_nan_indices[k][i]] for i in range(len(axes))] for k in range(len(non_nan_indices))])
+    if index_non_nans:
+        return cKDTree(non_nan_vertices, copy_data=True), non_nan_indices
+    else:
+        return cKDTree(non_nan_vertices, copy_data=True)

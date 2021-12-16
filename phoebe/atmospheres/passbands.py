@@ -570,9 +570,7 @@ class Passband:
                     self._ck2004_Imu_photon_grid = hdul['ckfpgrid'].data
 
                     # Rebuild the table of non-null indices for the nearest neighbor lookup:
-                    self._ck2004_indices = np.argwhere(~np.isnan(self._ck2004_Imu_photon_grid[...,-1,:]))
-                    non_nan_vertices = np.array([ [self._ck2004_intensity_axes[i][self._ck2004_indices[k][i]] for i in range(len(self._ck2004_intensity_axes)-1)] for k in range(len(self._ck2004_indices))])
-                    self.nntree['ck2004'] = cKDTree(non_nan_vertices, copy_data=True)
+                    self.nntree['ck2004'], self._ck2004_indices = ndpolator.kdtree(self._ck2004_intensity_axes[:-1], self._ck2004_Imu_photon_grid[...,-1,:])
 
                     # Rebuild blending map:
                     self._ck2004_blending_region = ((750, 10000), (0.5, 0.5), (0.5, 0.5))
@@ -602,9 +600,7 @@ class Passband:
                     self._phoenix_Imu_photon_grid = hdul['phfpgrid'].data
 
                     # Rebuild the table of non-null indices for the nearest neighbor lookup:
-                    self._phoenix_indices = np.argwhere(~np.isnan(self._phoenix_Imu_photon_grid[...,-1,:]))
-                    non_nan_vertices = np.array([ [self._phoenix_intensity_axes[i][self._phoenix_indices[k][i]] for i in range(len(self._phoenix_intensity_axes)-1)] for k in range(len(self._phoenix_indices))])
-                    self.nntree['phoenix'] = cKDTree(non_nan_vertices, copy_data=True)
+                    self.nntree['phoenix'], self._phoenix_indices = ndpolator.kdtree(self._phoenix_intensity_axes[:-1], self._phoenix_Imu_photon_grid[...,-1,:])
 
                     # Rebuild blending map:
                     self._phoenix_blending_region = ((750, 2000), (0.5, 0.5), (0.5, 0.5))
@@ -634,9 +630,7 @@ class Passband:
                     self._tmap_Imu_photon_grid = hdul['tmfpgrid'].data
 
                     # Rebuild the table of non-null indices for the nearest neighbor lookup:
-                    self._tmap_indices = np.argwhere(~np.isnan(self._tmap_Imu_photon_grid[...,-1,:]))
-                    non_nan_vertices = np.array([ [self._tmap_intensity_axes[i][self._tmap_indices[k][i]] for i in range(len(self._tmap_intensity_axes)-1)] for k in range(len(self._tmap_indices))])
-                    self.nntree['tmap'] = cKDTree(non_nan_vertices, copy_data=True)
+                    self.nntree['tmap'], self._tmap_indices = ndpolator.kdtree(self._tmap_intensity_axes[:-1], self._tmap_Imu_photon_grid[...,-1,:])
 
                     # Rebuild blending map:
                     self._tmap_blending_region = ((10000, 10000), (0.5, 0.5), (0.25, 0.25))
