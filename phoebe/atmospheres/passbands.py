@@ -3363,7 +3363,7 @@ class Passband:
             # case we need to interpolate them from the tables.
             ld_coeffs = self.interpolate_ldcoeffs(Teff, logg, abun, ldatm, ld_func, photon_weighted, extrapolate_mode=extrapolate_mode)
 
-        Inorm = self.Inorm(Teff=Teff, logg=logg, abun=abun, atm=atm, ldatm=ldatm, ldint=ldint, ld_func=ld_func, ld_coeffs=ld_coeffs, photon_weighted=photon_weighted, extrapolate_mode=extrapolate_mode)
+        Inorm = self.Inorm(Teff=Teff, logg=logg, abun=abun, atm=atm, ldatm=ldatm, ldint=ldint, ld_func=ld_func, ld_coeffs=ld_coeffs, photon_weighted=photon_weighted, blending_method=extrapolate_mode)
         ld = self._ld(ld_func=ld_func, mu=mu, ld_coeffs=ld_coeffs)
         retval = Inorm * ld
 
