@@ -243,7 +243,8 @@ def kdtree(axes, grid, index_non_nans=True):
     """
 
     non_nan_indices = np.argwhere(~np.isnan(grid))
-    non_nan_vertices = np.array([[axes[i][non_nan_indices[k][i]] for i in range(len(axes))] for k in range(len(non_nan_indices))])
+    non_nan_vertices = np.array(
+        [[axes[i][non_nan_indices[k][i]] for i in range(len(axes))] for k in range(len(non_nan_indices))])
     if index_non_nans:
         return cKDTree(non_nan_vertices, copy_data=True), non_nan_indices
     else:
