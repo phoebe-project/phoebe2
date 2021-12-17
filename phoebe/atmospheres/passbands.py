@@ -262,7 +262,6 @@ class Passband:
         self.history = {}
 
         # Initialize passband tables:
-        self.nntree = dict()
         self.atm_axes = dict()
         self.atm_energy_grid = dict()
         self.atm_photon_grid = dict()
@@ -270,6 +269,9 @@ class Passband:
         self.ld_photon_grid = dict()
         self.ldint_energy_grid = dict()
         self.ldint_photon_grid = dict()
+        self.nntree = dict()
+        self.indices = dict()
+        self.ics = dict()
 
     def __repr__(self):
         return '<Passband: %s:%s>' % (self.pbset, self.pbname)
@@ -533,7 +535,6 @@ class Passband:
 
             self.history = {h.split(': ')[0]: ': '.join(h.split(': ')[1:]) for h in history if len(h.split(': ')) > 1}
 
-            self.nntree = dict()
             self.atm_axes = dict()
             self.atm_energy_grid = dict()
             self.atm_photon_grid = dict()
@@ -541,6 +542,9 @@ class Passband:
             self.ld_photon_grid = dict()
             self.ldint_energy_grid = dict()
             self.ldint_photon_grid = dict()
+            self.nntree = dict()
+            self.indices = dict()
+            self.ics = dict()
 
             self.ptf_table = hdul['ptftable'].data
             self.wl = np.linspace(self.ptf_table['wl'][0], self.ptf_table['wl'][-1], int(self.wl_oversampling*len(self.ptf_table['wl'])))
@@ -577,7 +581,7 @@ class Passband:
                     self.atm_photon_grid['ck2004'] = hdul['ckfpgrid'].data
 
                     # Rebuild the table of non-null indices for the nearest neighbor lookup:
-                    self.nntree['ck2004'], self._ck2004_indices = ndpolator.kdtree(self.atm_axes['ck2004'][:-1], self.atm_photon_grid['ck2004'][...,-1,:])
+                    self.nntree['ck2004'], self.indices['ck2004'] = ndpolator.kdtree(self.atm_axes['ck2004'][:-1], self.atm_photon_grid['ck2004'][...,-1,:])
 
                     # Rebuild blending map:
                     self._ck2004_blending_region = ((750, 10000), (0.5, 0.5), (0.5, 0.5))
@@ -586,7 +590,7 @@ class Passband:
                     # Rebuild the table of inferior corners for extrapolation:
                     raxes = self.atm_axes['ck2004'][:-1]
                     subgrid = self.atm_photon_grid['ck2004'][...,-1,:]
-                    self._ck2004_ics = np.array([(i, j, k) for i in range(0,len(raxes[0])-1) for j in range(0,len(raxes[1])-1) for k in range(0,len(raxes[2])-1) if ~np.any(np.isnan(subgrid[i:i+2,j:j+2,k:k+2]))])
+                    self.ics['ck2004'] = np.array([(i, j, k) for i in range(0,len(raxes[0])-1) for j in range(0,len(raxes[1])-1) for k in range(0,len(raxes[2])-1) if ~np.any(np.isnan(subgrid[i:i+2,j:j+2,k:k+2]))])
 
                 if 'ck2004:ld' in self.content:
                     self.ld_energy_grid['ck2004'] = hdul['cklegrid'].data
@@ -607,7 +611,7 @@ class Passband:
                     self.atm_photon_grid['phoenix'] = hdul['phfpgrid'].data
 
                     # Rebuild the table of non-null indices for the nearest neighbor lookup:
-                    self.nntree['phoenix'], self._phoenix_indices = ndpolator.kdtree(self.atm_axes['phoenix'][:-1], self.atm_photon_grid['phoenix'][...,-1,:])
+                    self.nntree['phoenix'], self.indices['phoenix'] = ndpolator.kdtree(self.atm_axes['phoenix'][:-1], self.atm_photon_grid['phoenix'][...,-1,:])
 
                     # Rebuild blending map:
                     self._phoenix_blending_region = ((750, 2000), (0.5, 0.5), (0.5, 0.5))
@@ -616,7 +620,7 @@ class Passband:
                     # Rebuild the table of inferior corners for extrapolation:
                     raxes = self.atm_axes['phoenix'][:-1]
                     subgrid = self.atm_photon_grid['phoenix'][...,-1,:]
-                    self._phoenix_ics = np.array([(i, j, k) for i in range(0,len(raxes[0])-1) for j in range(0,len(raxes[1])-1) for k in range(0,len(raxes[2])-1) if ~np.any(np.isnan(subgrid[i:i+2,j:j+2,k:k+2]))])
+                    self.ics['phoenix'] = np.array([(i, j, k) for i in range(0,len(raxes[0])-1) for j in range(0,len(raxes[1])-1) for k in range(0,len(raxes[2])-1) if ~np.any(np.isnan(subgrid[i:i+2,j:j+2,k:k+2]))])
 
                 if 'phoenix:ld' in self.content:
                     self.ld_energy_grid['phoenix'] = hdul['phlegrid'].data
@@ -637,7 +641,7 @@ class Passband:
                     self.atm_photon_grid['tmap'] = hdul['tmfpgrid'].data
 
                     # Rebuild the table of non-null indices for the nearest neighbor lookup:
-                    self.nntree['tmap'], self._tmap_indices = ndpolator.kdtree(self.atm_axes['tmap'][:-1], self.atm_photon_grid['tmap'][...,-1,:])
+                    self.nntree['tmap'], self.indices['tmap'] = ndpolator.kdtree(self.atm_axes['tmap'][:-1], self.atm_photon_grid['tmap'][...,-1,:])
 
                     # Rebuild blending map:
                     self._tmap_blending_region = ((10000, 10000), (0.5, 0.5), (0.25, 0.25))
@@ -646,7 +650,7 @@ class Passband:
                     # Rebuild the table of inferior corners for extrapolation:
                     raxes = self.atm_axes['tmap'][:-1]
                     subgrid = self.atm_photon_grid['tmap'][...,-1,:]
-                    self._tmap_ics = np.array([(i, j, k) for i in range(0,len(raxes[0])-1) for j in range(0,len(raxes[1])-1) for k in range(0,len(raxes[2])-1) if ~np.any(np.isnan(subgrid[i:i+2,j:j+2,k:k+2]))])
+                    self.ics['tmap'] = np.array([(i, j, k) for i in range(0,len(raxes[0])-1) for j in range(0,len(raxes[1])-1) for k in range(0,len(raxes[2])-1) if ~np.any(np.isnan(subgrid[i:i+2,j:j+2,k:k+2]))])
 
                 if 'tmap:ld' in self.content:
                     self.ld_energy_grid['tmap'] = hdul['tmlegrid'].data
@@ -929,8 +933,8 @@ class Passband:
                     ndpolator.impute_grid(self.atm_axes['ck2004'][:-1], grid[...,i,:])
 
         # Build the table of non-null indices for the nearest neighbor lookup:
-        self._ck2004_indices = np.argwhere(~np.isnan(self.atm_photon_grid['ck2004'][...,-1,:]))
-        non_nan_vertices = np.array([ [self.atm_axes['ck2004'][i][self._ck2004_indices[k][i]] for i in range(len(self.atm_axes['ck2004'])-1)] for k in range(len(self._ck2004_indices))])
+        self.indices['ck2004'] = np.argwhere(~np.isnan(self.atm_photon_grid['ck2004'][...,-1,:]))
+        non_nan_vertices = np.array([ [self.atm_axes['ck2004'][i][self.indices['ck2004'][k][i]] for i in range(len(self.atm_axes['ck2004'])-1)] for k in range(len(self.indices['ck2004']))])
         self.nntree['ck2004'] = cKDTree(non_nan_vertices, copy_data=True)
 
         # Set up the blending region:
@@ -940,7 +944,7 @@ class Passband:
         # Store all inferior corners for quick nearest neighbor lookup:
         raxes = self.atm_axes['ck2004'][:-1]
         subgrid = self.atm_photon_grid['ck2004'][...,-1,:]
-        self._ck2004_ics = np.array([(i, j, k) for i in range(0,len(raxes[0])-1) for j in range(0,len(raxes[1])-1) for k in range(0,len(raxes[2])-1) if ~np.any(np.isnan(subgrid[i:i+2,j:j+2,k:k+2]))])
+        self.ics['ck2004'] = np.array([(i, j, k) for i in range(0,len(raxes[0])-1) for j in range(0,len(raxes[1])-1) for k in range(0,len(raxes[2])-1) if ~np.any(np.isnan(subgrid[i:i+2,j:j+2,k:k+2]))])
 
         if 'ck2004:Imu' not in self.content:
             self.content.append('ck2004:Imu')
@@ -1104,8 +1108,8 @@ class Passband:
                     ndpolator.impute_grid(self.atm_axes['phoenix'][:-1], grid[...,i,:])
 
         # Build the table of non-null indices for the nearest neighbor lookup:
-        self._phoenix_indices = np.argwhere(~np.isnan(self.atm_photon_grid['phoenix'][...,-1,:]))
-        non_nan_vertices = np.array([ [self.atm_axes['phoenix'][i][self._phoenix_indices[k][i]] for i in range(len(self.atm_axes['phoenix'])-1)] for k in range(len(self._phoenix_indices))])
+        self.indices['phoenix'] = np.argwhere(~np.isnan(self.atm_photon_grid['phoenix'][...,-1,:]))
+        non_nan_vertices = np.array([ [self.atm_axes['phoenix'][i][self.indices['phoenix'][k][i]] for i in range(len(self.atm_axes['phoenix'])-1)] for k in range(len(self.indices['phoenix']))])
         self.nntree['phoenix'] = cKDTree(non_nan_vertices, copy_data=True)
 
         # Set up the blending region:
@@ -1115,7 +1119,7 @@ class Passband:
         # Store all inferior corners for quick nearest neighbor lookup:
         raxes = self.atm_axes['phoenix'][:-1]
         subgrid = self.atm_photon_grid['phoenix'][...,-1,:]
-        self._phoenix_ics = np.array([(i, j, k) for i in range(0,len(raxes[0])-1) for j in range(0,len(raxes[1])-1) for k in range(0,len(raxes[2])-1) if ~np.any(np.isnan(subgrid[i:i+2,j:j+2,k:k+2]))])
+        self.ics['phoenix'] = np.array([(i, j, k) for i in range(0,len(raxes[0])-1) for j in range(0,len(raxes[1])-1) for k in range(0,len(raxes[2])-1) if ~np.any(np.isnan(subgrid[i:i+2,j:j+2,k:k+2]))])
 
         if 'phoenix:Imu' not in self.content:
             self.content.append('phoenix:Imu')
@@ -1277,8 +1281,8 @@ class Passband:
                     ndpolator.impute_grid(self.atm_axes['tmap'][:-1], grid[...,i,:])
 
         # Build the table of non-null indices for the nearest neighbor lookup:
-        self._tmap_indices = np.argwhere(~np.isnan(self.atm_photon_grid['tmap'][...,-1,:]))
-        non_nan_vertices = np.array([ [self.atm_axes['tmap'][i][self._tmap_indices[k][i]] for i in range(len(self.atm_axes['tmap'])-1)] for k in range(len(self._tmap_indices))])
+        self.indices['tmap'] = np.argwhere(~np.isnan(self.atm_photon_grid['tmap'][...,-1,:]))
+        non_nan_vertices = np.array([ [self.atm_axes['tmap'][i][self.indices['tmap'][k][i]] for i in range(len(self.atm_axes['tmap'])-1)] for k in range(len(self.indices['tmap']))])
         self.nntree['tmap'] = cKDTree(non_nan_vertices, copy_data=True)
 
         # Set up the blending region:
@@ -1288,7 +1292,7 @@ class Passband:
         # Store all inferior corners for quick nearest neighbor lookup:
         raxes = self.atm_axes['tmap'][:-1]
         subgrid = self.atm_photon_grid['tmap'][...,-1,:]
-        self._tmap_ics = np.array([(i, j, k) for i in range(0,len(raxes[0])-1) for j in range(0,len(raxes[1])-1) for k in range(0,len(raxes[2])-1) if ~np.any(np.isnan(subgrid[i:i+2,j:j+2,k:k+2]))])
+        self.ics['tmap'] = np.array([(i, j, k) for i in range(0,len(raxes[0])-1) for j in range(0,len(raxes[1])-1) for k in range(0,len(raxes[2])-1) if ~np.any(np.isnan(subgrid[i:i+2,j:j+2,k:k+2]))])
 
         if 'tmap:Imu' not in self.content:
             self.content.append('tmap:Imu')
@@ -2095,72 +2099,30 @@ class Passband:
         if filename is not None:
             f.close()
 
-    def compute_ck2004_ldints(self):
+    def compute_ldints(self, ldatm):
         """
-        Computes integrated limb darkening profiles for ck2004 atmospheres.
+        Computes integrated limb darkening profiles for the passed `ldatm`.
+
         These are used for intensity-to-flux transformations. The evaluated
         integral is:
 
         ldint = 2 \int_0^1 Imu mu dmu
+
+        Parameters
+        ----------
+        * `ldatm` (string): model atmosphere for the limb darkening calculation.
         """
 
-        if 'ck2004:Imu' not in self.content:
+        if f'{ldatm}:Imu' not in self.content:
             print('Castelli & Kurucz (2004) intensities are not computed yet. Please compute those first.')
             return None
 
-        ldaxes = self.atm_axes['ck2004']
-        ldtable = self.atm_energy_grid['ck2004']
-        pldtable = self.atm_photon_grid['ck2004']
+        ldaxes = self.atm_axes[ldatm]
+        ldtable = self.atm_energy_grid[ldatm]
+        pldtable = self.atm_photon_grid[ldatm]
 
-        self.ldint_energy_grid['ck2004'] = np.nan*np.ones((len(ldaxes[0]), len(ldaxes[1]), len(ldaxes[2]), 1))
-        self.ldint_photon_grid['ck2004'] = np.nan*np.ones((len(ldaxes[0]), len(ldaxes[1]), len(ldaxes[2]), 1))
-
-        mu = ldaxes[3]
-        Imu = 10**ldtable[:,:,:,:]/10**ldtable[:,:,:,-1:]
-        pImu = 10**pldtable[:,:,:,:]/10**pldtable[:,:,:,-1:]
-
-        # To compute the fluxes, we need to evaluate \int_0^1 2pi Imu mu dmu.
-
-        for a in range(len(ldaxes[0])):
-            for b in range(len(ldaxes[1])):
-                for c in range(len(ldaxes[2])):
-
-                    ldint = 0.0
-                    pldint = 0.0
-                    for i in range(len(mu)-1):
-                        ki = (Imu[a,b,c,i+1]-Imu[a,b,c,i])/(mu[i+1]-mu[i])
-                        ni = Imu[a,b,c,i]-ki*mu[i]
-                        ldint += ki/3*(mu[i+1]**3-mu[i]**3) + ni/2*(mu[i+1]**2-mu[i]**2)
-
-                        pki = (pImu[a,b,c,i+1]-pImu[a,b,c,i])/(mu[i+1]-mu[i])
-                        pni = pImu[a,b,c,i]-pki*mu[i]
-                        pldint += pki/3*(mu[i+1]**3-mu[i]**3) + pni/2*(mu[i+1]**2-mu[i]**2)
-
-                    self.ldint_energy_grid['ck2004'][a,b,c] = 2*ldint
-                    self.ldint_photon_grid['ck2004'][a,b,c] = 2*pldint
-
-        if 'ck2004:ldint' not in self.content:
-            self.content.append('ck2004:ldint')
-
-    def compute_phoenix_ldints(self):
-        """
-        Computes integrated limb darkening profiles for PHOENIX atmospheres.
-        These are used for intensity-to-flux transformations. The evaluated
-        integral is:
-
-        ldint = 2 \pi \int_0^1 Imu mu dmu
-        """
-
-        if 'phoenix:Imu' not in self.content:
-            print('PHOENIX (Husser et al. 2013) intensities are not computed yet. Please compute those first.')
-            return None
-
-        ldaxes = self.atm_axes['phoenix']
-        ldtable = self.atm_energy_grid['phoenix']
-        pldtable = self.atm_photon_grid['phoenix']
-
-        self.ldint_energy_grid['phoenix'] = np.nan*np.ones((len(ldaxes[0]), len(ldaxes[1]), len(ldaxes[2]), 1))
-        self.ldint_photon_grid['phoenix'] = np.nan*np.ones((len(ldaxes[0]), len(ldaxes[1]), len(ldaxes[2]), 1))
+        self.ldint_energy_grid[ldatm] = np.nan*np.ones((len(ldaxes[0]), len(ldaxes[1]), len(ldaxes[2]), 1))
+        self.ldint_photon_grid[ldatm] = np.nan*np.ones((len(ldaxes[0]), len(ldaxes[1]), len(ldaxes[2]), 1))
 
         mu = ldaxes[3]
         Imu = 10**ldtable[:,:,:,:]/10**ldtable[:,:,:,-1:]
@@ -2183,58 +2145,11 @@ class Passband:
                         pni = pImu[a,b,c,i]-pki*mu[i]
                         pldint += pki/3*(mu[i+1]**3-mu[i]**3) + pni/2*(mu[i+1]**2-mu[i]**2)
 
-                    self.ldint_energy_grid['phoenix'][a,b,c] = 2*ldint
-                    self.ldint_photon_grid['phoenix'][a,b,c] = 2*pldint
+                    self.ldint_energy_grid[ldatm][a,b,c] = 2*ldint
+                    self.ldint_photon_grid[ldatm][a,b,c] = 2*pldint
 
-        if 'phoenix:ldint' not in self.content:
-            self.content.append('phoenix:ldint')
-
-    def compute_tmap_ldints(self):
-        """
-        Computes integrated limb darkening profiles for TMAP WD atmospheres.
-        These are used for intensity-to-flux transformations. The evaluated
-        integral is:
-
-        ldint = 2 \pi \int_0^1 Imu mu dmu
-        """
-
-        if 'tmap:Imu' not in self.content:
-            print('TMAP intensities are not computed yet. Please compute those first.')
-            return None
-
-        ldaxes = self.atm_axes['tmap']
-        ldtable = self.atm_energy_grid['tmap']
-        pldtable = self.atm_photon_grid['tmap']
-
-        self.ldint_energy_grid['tmap'] = np.nan*np.ones((len(ldaxes[0]), len(ldaxes[1]), len(ldaxes[2]), 1))
-        self.ldint_photon_grid['tmap'] = np.nan*np.ones((len(ldaxes[0]), len(ldaxes[1]), len(ldaxes[2]), 1))
-
-        mu = ldaxes[3]
-        Imu = 10**ldtable[:,:,:,:]/10**ldtable[:,:,:,-1:]
-        pImu = 10**pldtable[:,:,:,:]/10**pldtable[:,:,:,-1:]
-
-        # To compute the fluxes, we need to evaluate \int_0^1 2pi Imu mu dmu.
-
-        for a in range(len(ldaxes[0])):
-            for b in range(len(ldaxes[1])):
-                for c in range(len(ldaxes[2])):
-
-                    ldint = 0.0
-                    pldint = 0.0
-                    for i in range(len(mu)-1):
-                        ki = (Imu[a,b,c,i+1]-Imu[a,b,c,i])/(mu[i+1]-mu[i])
-                        ni = Imu[a,b,c,i]-ki*mu[i]
-                        ldint += ki/3*(mu[i+1]**3-mu[i]**3) + ni/2*(mu[i+1]**2-mu[i]**2)
-
-                        pki = (pImu[a,b,c,i+1]-pImu[a,b,c,i])/(mu[i+1]-mu[i])
-                        pni = pImu[a,b,c,i]-pki*mu[i]
-                        pldint += pki/3*(mu[i+1]**3-mu[i]**3) + pni/2*(mu[i+1]**2-mu[i]**2)
-
-                    self.ldint_energy_grid['tmap'][a,b,c] = 2*ldint
-                    self.ldint_photon_grid['tmap'][a,b,c] = 2*pldint
-
-        if 'tmap:ldint' not in self.content:
-            self.content.append('tmap:ldint')
+        if f'{ldatm}:ldint' not in self.content:
+            self.content.append(f'{ldatm}:ldint')
 
     def interpolate_ldcoeffs(self, Teff=5772., logg=4.43, abun=0.0, ldatm='ck2004', ld_func='power', photon_weighted=False, ld_blending_method='none'):
         """
@@ -2279,20 +2194,20 @@ class Passband:
             axes = self.atm_axes['ck2004'][:-1]
             table = self.ld_photon_grid['ck2004'] if photon_weighted else self.ld_energy_grid['ck2004']
             nntree = self.nntree['ck2004']
-            indices = self._ck2004_indices
-            ics = self._ck2004_ics
+            indices = self.indices['ck2004']
+            ics = self.ics['ck2004']
         elif ldatm == 'phoenix':
             axes = self.atm_axes['phoenix'][:-1]
             table = self.ld_photon_grid['phoenix'] if photon_weighted else self.ld_energy_grid['phoenix']
             nntree = self.nntree['phoenix']
-            indices = self._phoenix_indices
-            ics = self._phoenix_ics
+            indices = self.indices['phoenix']
+            ics = self.ics['phoenix']
         elif ldatm == 'tmap':
             axes = self.atm_axes['tmap'][:-1]
             table = self.ld_photon_grid['tmap'] if photon_weighted else self.ld_energy_grid['tmap']
             nntree = self.nntree['tmap']
-            indices = self._tmap_indices
-            ics = self._tmap_ics
+            indices = self.indices['tmap']
+            ics = self.ics['tmap']
         else:
             raise ValueError(f'ldatm={ldatm} is not supported for LD interpolation.')
 
@@ -2328,7 +2243,7 @@ class Passband:
                 corners = np.argwhere(sep == sep.min()).flatten()
                 # print('%d fully defined adjacent hypercube(s) found.' % len(corners))
                 # for i, corner in enumerate(corners):
-                #     print('  hypercube %d inferior corner: %s' % (i, self._ck2004_ics[corner]))
+                #     print('  hypercube %d inferior corner: %s' % (i, self.ics['ck2004'][corner]))
 
                 extrapolated_ld_coeffs = []
                 for corner in corners:
@@ -2545,17 +2460,17 @@ class Passband:
         # self.extern_wd_atmx = atmtab[::-1,:,:,:]
         self.content += ['extern_planckint:Inorm', 'extern_atmx:Inorm']
 
-    def _log10_Inorm_extern_planckint(self, Teff):
+    def _log10_Inorm_extern_planckint(self, teffs):
         """
         Internal function to compute normal passband intensities using
         the external WD machinery that employs blackbody approximation.
 
-        @Teff: effective temperature in K
+        @teffs: effective temperature in K
 
         Returns: log10(Inorm)
         """
 
-        log10_Inorm = libphoebe.wd_planckint(Teff, self.extern_wd_idx, self.wd_data["planck_table"])
+        log10_Inorm = libphoebe.wd_planckint(teffs, self.extern_wd_idx, self.wd_data["planck_table"])
 
         return log10_Inorm
 
@@ -2634,7 +2549,7 @@ class Passband:
         elif extrapolate_mode == 'nearest':
             for k in nan_indices:
                 d, i = self.nntree['ck2004'].query(req[k])
-                log10_Inorm[k] = grid[tuple(self._ck2004_indices[i])]
+                log10_Inorm[k] = grid[tuple(self.indices['ck2004'][i])]
             return log10_Inorm
         elif extrapolate_mode == 'linear':
             for k in nan_indices:
@@ -2644,15 +2559,15 @@ class Passband:
 
                 # get the inferior corners of all nearest fully defined hypercubes; this
                 # is all integer math so we can compare with == instead of np.isclose().
-                sep = (np.abs(self._ck2004_ics-ic)).sum(axis=1)
+                sep = (np.abs(self.ics['ck2004']-ic)).sum(axis=1)
                 corners = np.argwhere(sep == sep.min()).flatten()
                 # print('%d fully defined adjacent hypercube(s) found.' % len(corners))
                 # for i, corner in enumerate(corners):
-                #     print('  hypercube %d inferior corner: %s' % (i, self._ck2004_ics[corner]))
+                #     print('  hypercube %d inferior corner: %s' % (i, self.ics['ck2004'][corner]))
 
                 ints = []
                 for corner in corners:
-                    slc = tuple([slice(self._ck2004_ics[corner][i], self._ck2004_ics[corner][i]+2) for i in range(len(self._ck2004_ics[corner]))])
+                    slc = tuple([slice(self.ics['ck2004'][corner][i], self.ics['ck2004'][corner][i]+2) for i in range(len(self.ics['ck2004'][corner]))])
                     coords = [axes[i][slc[i]] for i in range(len(axes))]
                     # print('  nearest fully defined hypercube:', slc)
 
@@ -2676,15 +2591,15 @@ class Passband:
 
                 # get the inferior corners of all nearest fully defined hypercubes; this
                 # is all integer math so we can compare with == instead of np.isclose().
-                sep = (np.abs(self._ck2004_ics-ic)).sum(axis=1)
+                sep = (np.abs(self.ics['ck2004']-ic)).sum(axis=1)
                 corners = np.argwhere(sep == sep.min()).flatten()
                 # print('%d fully defined adjacent hypercube(s) found.' % len(corners))
                 # for i, corner in enumerate(corners):
-                #     print('  hypercube %d inferior corner: %s' % (i, self._ck2004_ics[corner]))
+                #     print('  hypercube %d inferior corner: %s' % (i, self.ics['ck2004'][corner]))
 
                 blints = []
                 for corner in corners:
-                    slc = tuple([slice(self._ck2004_ics[corner][i], self._ck2004_ics[corner][i]+2) for i in range(len(self._ck2004_ics[corner]))])
+                    slc = tuple([slice(self.ics['ck2004'][corner][i], self.ics['ck2004'][corner][i]+2) for i in range(len(self.ics['ck2004'][corner]))])
                     coords = [naxes[i][slc[i]] for i in range(len(naxes))]
                     verts = np.array([(x,y,z) for z in coords[2] for y in coords[1] for x in coords[0]])
                     distance_vectors = nv-verts
@@ -2692,7 +2607,7 @@ class Passband:
                     distance_vector = distance_vectors[distances.argmin()]
                     # print('  distance vector:', distance_vector)
 
-                    shift = ic-self._ck2004_ics[corner]
+                    shift = ic-self.ics['ck2004'][corner]
                     shift = shift!=0
                     # print('  hypercube shift: %s' % shift)
 
@@ -2755,7 +2670,7 @@ class Passband:
         elif extrapolate_mode == 'nearest':
             for k in nan_indices:
                 d, i = self.nntree['phoenix'].query(req[k])
-                log10_Inorm[k] = grid[tuple(self._phoenix_indices[i])]
+                log10_Inorm[k] = grid[tuple(self.indices['phoenix'][i])]
             return log10_Inorm
         elif extrapolate_mode == 'linear':
             for k in nan_indices:
@@ -2765,15 +2680,15 @@ class Passband:
 
                 # get the inferior corners of all nearest fully defined hypercubes; this
                 # is all integer math so we can compare with == instead of np.isclose().
-                sep = (np.abs(self._phoenix_ics-ic)).sum(axis=1)
+                sep = (np.abs(self.ics['phoenix']-ic)).sum(axis=1)
                 corners = np.argwhere(sep == sep.min()).flatten()
                 # print('%d fully defined adjacent hypercube(s) found.' % len(corners))
                 # for i, corner in enumerate(corners):
-                #     print('  hypercube %d inferior corner: %s' % (i, self._ck2004_ics[corner]))
+                #     print('  hypercube %d inferior corner: %s' % (i, self.ics['ck2004'][corner]))
 
                 ints = []
                 for corner in corners:
-                    slc = tuple([slice(self._phoenix_ics[corner][i], self._phoenix_ics[corner][i]+2) for i in range(len(self._phoenix_ics[corner]))])
+                    slc = tuple([slice(self.ics['phoenix'][corner][i], self.ics['phoenix'][corner][i]+2) for i in range(len(self.ics['phoenix'][corner]))])
                     coords = [axes[i][slc[i]] for i in range(len(axes))]
                     # print('  nearest fully defined hypercube:', slc)
 
@@ -2797,15 +2712,15 @@ class Passband:
 
                 # get the inferior corners of all nearest fully defined hypercubes; this
                 # is all integer math so we can compare with == instead of np.isclose().
-                sep = (np.abs(self._phoenix_ics-ic)).sum(axis=1)
+                sep = (np.abs(self.ics['phoenix']-ic)).sum(axis=1)
                 corners = np.argwhere(sep == sep.min()).flatten()
                 # print('%d fully defined adjacent hypercube(s) found.' % len(corners))
                 # for i, corner in enumerate(corners):
-                #     print('  hypercube %d inferior corner: %s' % (i, self._ck2004_ics[corner]))
+                #     print('  hypercube %d inferior corner: %s' % (i, self.ics['ck2004'][corner]))
 
                 blints = []
                 for corner in corners:
-                    slc = tuple([slice(self._phoenix_ics[corner][i], self._phoenix_ics[corner][i]+2) for i in range(len(self._phoenix_ics[corner]))])
+                    slc = tuple([slice(self.ics['phoenix'][corner][i], self.ics['phoenix'][corner][i]+2) for i in range(len(self.ics['phoenix'][corner]))])
                     coords = [naxes[i][slc[i]] for i in range(len(naxes))]
                     verts = np.array([(x,y,z) for z in coords[2] for y in coords[1] for x in coords[0]])
                     distance_vectors = nv-verts
@@ -2813,7 +2728,7 @@ class Passband:
                     distance_vector = distance_vectors[distances.argmin()]
                     # print('  distance vector:', distance_vector)
 
-                    shift = ic-self._phoenix_ics[corner]
+                    shift = ic-self.ics['phoenix'][corner]
                     shift = shift!=0
                     # print('  hypercube shift: %s' % shift)
 
@@ -2877,7 +2792,7 @@ class Passband:
         elif extrapolate_mode == 'nearest':
             for k in nan_indices:
                 d, i = self.nntree['tmap'].query(req[k])
-                log10_Inorm[k] = grid[tuple(self._tmap_indices[i])]
+                log10_Inorm[k] = grid[tuple(self.indices['tmap'][i])]
             return log10_Inorm
         elif extrapolate_mode == 'linear':
             for k in nan_indices:
@@ -2887,15 +2802,15 @@ class Passband:
 
                 # get the inferior corners of all nearest fully defined hypercubes; this
                 # is all integer math so we can compare with == instead of np.isclose().
-                sep = (np.abs(self._tmap_ics-ic)).sum(axis=1)
+                sep = (np.abs(self.ics['tmap']-ic)).sum(axis=1)
                 corners = np.argwhere(sep == sep.min()).flatten()
                 # print('%d fully defined adjacent hypercube(s) found.' % len(corners))
                 # for i, corner in enumerate(corners):
-                #     print('  hypercube %d inferior corner: %s' % (i, self._ck2004_ics[corner]))
+                #     print('  hypercube %d inferior corner: %s' % (i, self.ics['ck2004'][corner]))
 
                 ints = []
                 for corner in corners:
-                    slc = tuple([slice(self._tmap_ics[corner][i], self._tmap_ics[corner][i]+2) for i in range(len(self._tmap_ics[corner]))])
+                    slc = tuple([slice(self.ics['tmap'][corner][i], self.ics['tmap'][corner][i]+2) for i in range(len(self.ics['tmap'][corner]))])
                     coords = [axes[i][slc[i]] for i in range(len(axes))]
                     # print('  nearest fully defined hypercube:', slc)
 
@@ -2919,15 +2834,15 @@ class Passband:
 
                 # get the inferior corners of all nearest fully defined hypercubes; this
                 # is all integer math so we can compare with == instead of np.isclose().
-                sep = (np.abs(self._tmap_ics-ic)).sum(axis=1)
+                sep = (np.abs(self.ics['tmap']-ic)).sum(axis=1)
                 corners = np.argwhere(sep == sep.min()).flatten()
                 # print('%d fully defined adjacent hypercube(s) found.' % len(corners))
                 # for i, corner in enumerate(corners):
-                #     print('  hypercube %d inferior corner: %s' % (i, self._ck2004_ics[corner]))
+                #     print('  hypercube %d inferior corner: %s' % (i, self.ics['ck2004'][corner]))
 
                 blints = []
                 for corner in corners:
-                    slc = tuple([slice(self._tmap_ics[corner][i], self._tmap_ics[corner][i]+2) for i in range(len(self._tmap_ics[corner]))])
+                    slc = tuple([slice(self.ics['tmap'][corner][i], self.ics['tmap'][corner][i]+2) for i in range(len(self.ics['tmap'][corner]))])
                     coords = [naxes[i][slc[i]] for i in range(len(naxes))]
                     verts = np.array([(x,y,z) for z in coords[2] for y in coords[1] for x in coords[0]])
                     distance_vectors = nv-verts
@@ -2935,7 +2850,7 @@ class Passband:
                     distance_vector = distance_vectors[distances.argmin()]
                     # print('  distance vector:', distance_vector)
 
-                    shift = ic-self._tmap_ics[corner]
+                    shift = ic-self.ics['tmap'][corner]
                     shift = shift!=0
                     # print('  hypercube shift: %s' % shift)
 
@@ -3003,7 +2918,7 @@ class Passband:
 
         if ldints is None:
             ldints = self._ldint(ld_func=ld_func, ld_coeffs=ld_coeffs)
-            # ldint = self.ldint(Teff, logg, abun, ldatm=None, ld_func=ld_func, ld_coeffs=ld_coeffs, photon_weighted=photon_weighted, check_for_nans=False)
+            # ldint = self.ldint(Teff, logg, abun, ldatm=None, ld_func=ld_func, ld_coeffs=ld_coeffs, photon_weighted=photon_weighted, raise_on_nans=False)
 
         Inorm = self.Inorm(Teff=teffs, logg=loggs, abun=abuns, atm='blackbody', ldatm=ldatm, ldint=ldints, ld_func=ld_func, ld_coeffs=ld_coeffs, photon_weighted=photon_weighted, extrapolate_mode=extrapolate_mode)
         ld = self._ld(ld_func=ld_func, mu=mus, ld_coeffs=ld_coeffs)
@@ -3037,7 +2952,7 @@ class Passband:
                 if (mu_k == len(axes[-1])) | (np.fabs(mu_v-axes[-1][max(mu_k-1,0)]) < np.fabs(mu_v-axes[-1][min(mu_k,len(axes[-1])-1)])):
                     mu_k -= 1
                 d, i = self.nntree['ck2004'].query(v)
-                log10_Imu[k] = grid[tuple(self._ck2004_indices[i][:-1])][mu_k]
+                log10_Imu[k] = grid[tuple(self.indices['ck2004'][i][:-1])][mu_k]
             return log10_Imu
         elif extrapolate_mode == 'linear':
             raxes = axes[:-1] # reduced axes, without mu -- to optimize because mu cannot be out of bounds
@@ -3045,11 +2960,11 @@ class Passband:
                 v, mu_v = req[k,:-1], req[k,-1]
                 mu_k = np.searchsorted(axes[-1], mu_v)-1
                 ic = np.array([np.searchsorted(raxes[i], v[i])-1 for i in range(len(raxes))])
-                sep = (np.abs(self._ck2004_ics-ic)).sum(axis=1)
+                sep = (np.abs(self.ics['ck2004']-ic)).sum(axis=1)
                 corners = np.argwhere(sep == sep.min()).flatten()
                 ints = []
                 for corner in corners:
-                    slc = tuple([slice(self._ck2004_ics[corner][i], self._ck2004_ics[corner][i]+2) for i in range(len(self._ck2004_ics[corner]))]+[slice(mu_k, mu_k+2)])
+                    slc = tuple([slice(self.ics['ck2004'][corner][i], self.ics['ck2004'][corner][i]+2) for i in range(len(self.ics['ck2004'][corner]))]+[slice(mu_k, mu_k+2)])
                     coords = [axes[i][slc[i]] for i in range(len(axes))]
                     # print('  nearest fully defined hypercube:', slc)
 
@@ -3073,12 +2988,12 @@ class Passband:
                 # print(nreq)
 
                 ic = np.array([np.searchsorted(naxes[i], nv[i])-1 for i in range(len(naxes))])
-                sep = (np.abs(self._ck2004_ics-ic)).sum(axis=1)
+                sep = (np.abs(self.ics['ck2004']-ic)).sum(axis=1)
                 corners = np.argwhere(sep == sep.min()).flatten()
 
                 blints = []
                 for corner in corners:
-                    slc = tuple([slice(self._ck2004_ics[corner][i], self._ck2004_ics[corner][i]+2) for i in range(len(self._ck2004_ics[corner]))]+[slice(mu_k, mu_k+2)])
+                    slc = tuple([slice(self.ics['ck2004'][corner][i], self.ics['ck2004'][corner][i]+2) for i in range(len(self.ics['ck2004'][corner]))]+[slice(mu_k, mu_k+2)])
                     # print('  nearest fully defined hypercube:', slc)
                     coords = [naxes[i][slc[i]] for i in range(len(naxes))] + [axes[-1][slc[-1]]]
                     verts = np.array([(x,y,z) for z in coords[2] for y in coords[1] for x in coords[0]])
@@ -3087,7 +3002,7 @@ class Passband:
                     distance_vector = distance_vectors[distances.argmin()]
                     # print('  distance vector:', distance_vector)
 
-                    shift = ic-self._ck2004_ics[corner]
+                    shift = ic-self.ics['ck2004'][corner]
                     shift = shift!=0
                     # print('  hypercube shift: %s' % shift)
 
@@ -3211,8 +3126,7 @@ class Passband:
         * NotImplementedError: if `ld_func` is not supported.
         """
 
-        req = ndpolator.tabulate((Teff, logg, abun))
-        check_for_nans = True if blending_method == 'none' else False
+        raise_on_nans = True if blending_method == 'none' else False
 
         if atm == 'blackbody' and 'blackbody:Inorm' in self.content:
             # check if the required tables for the chosen ldatm are available:
@@ -3223,33 +3137,20 @@ class Passband:
             if ld_func != 'interp' and ld_coeffs is None and f'{ldatm}:ld' not in self.content:
                 raise RuntimeError(f'passband {self.pbset}:{self.pbname} does not contain limb darkening coefficients for ldatm={ldatm}.')
 
-            if ldatm == 'none':
-                pass
-            elif ldatm == 'ck2004':
-                axes = self.atm_axes['ck2004'][:-1]
-                ldint_grid = self.ldint_photon_grid['ck2004'] if photon_weighted else self.ldint_energy_grid['ck2004']
-                ldint_tree = self.nntree['ck2004']
-                ldint_indices = self._ck2004_indices
-                ics = self._ck2004_ics
-            elif ldatm == 'phoenix':
-                axes = self.atm_axes['phoenix'][:-1]
-                ldint_grid = self.ldint_photon_grid['phoenix'] if photon_weighted else self.ldint_energy_grid['phoenix']
-                ldint_tree = self.nntree['phoenix']
-                ldint_indices = self._phoenix_indices
-                ics = self._phoenix_ics
-            elif ldatm == 'tmap':
-                axes = self.atm_axes['tmap'][:-1]
-                ldint_grid = self.ldint_photon_grid['tmap'] if photon_weighted else self.ldint_energy_grid['tmap']
-                ldint_tree = self.nntree['tmap']
-                ldint_indices = self._tmap_indices
-                ics = self._tmap_ics
-            else:
-                raise ValueError(f'ldatm {ldatm} is not supported.')
+            # check if ldatm is valid:
+            if ldatm not in ['none', 'ck2004', 'phoenix', 'tmap']:
+                raise ValueError(f'ldatm={ldatm} is not supported.')
+            
+            axes = self.atm_axes[ldatm][:-1]
+            ldint_grid = self.ldint_photon_grid[ldatm] if photon_weighted else self.ldint_energy_grid[ldatm]
+            ldint_tree = self.nntree[ldatm]
+            ldint_indices = self.indices[ldatm]
+            ics = self.ics[ldatm]
 
             if photon_weighted:
-                retval = 10**self._log10_Inorm_bb_photon(req[:,0])
+                retval = 10**self._log10_Inorm_bb_photon(Teff)
             else:
-                retval = 10**self._log10_Inorm_bb_energy(req[:,0])
+                retval = 10**self._log10_Inorm_bb_energy(Teff)
 
             if ld_func != 'interp' and ld_coeffs is None:
                 ld_coeffs = self.interpolate_ldcoeffs(Teff, logg, abun, ldatm, ld_func, photon_weighted, ld_blending_method)
@@ -3259,7 +3160,7 @@ class Passband:
                 if ld_func != 'interp':
                     ldint = self._ldint(ld_func=ld_func, ld_coeffs=ld_coeffs)
                 else:
-                    ldint = self.ldint(Teff, logg, abun, ldatm, ld_func, ld_coeffs, photon_weighted, check_for_nans=check_for_nans)
+                    ldint = self.ldint(Teff, logg, abun, ldatm, ld_func, ld_coeffs, photon_weighted, raise_on_nans=raise_on_nans)
 
             retval /= ldint
 
@@ -3269,10 +3170,9 @@ class Passband:
                 retval[i] = 10**self._log10_Inorm_bb(v, axes=axes, ldint_grid=ldint_grid, ldint_mode=ld_blending_method, ldint_tree=ldint_tree, ldint_indices=ldint_indices, ics=ics, photon_weighted=photon_weighted)
 
         elif atm == 'extern_planckint' and 'extern_planckint:Inorm' in self.content:
-            # -1 below is for cgs -> SI:
-            retval = 10**(self._log10_Inorm_extern_planckint(Teff)-1)
+            retval = 10**(self._log10_Inorm_extern_planckint(Teff)-1)  # -1 is for cgs -> SI
             if ldint is None:
-                ldint = self.ldint(Teff, logg, abun, ldatm, ld_func, ld_coeffs, photon_weighted, check_for_nans=check_for_nans)
+                ldint = self.ldint(Teff, logg, abun, ldatm, ld_func, ld_coeffs, photon_weighted, raise_on_nans=raise_on_nans)
             retval /= ldint
 
             # if there are any nans in ldint, we need to extrapolate.
@@ -3294,7 +3194,7 @@ class Passband:
             retval = 10**self._log10_Inorm_tmap(Teff, logg, abun, photon_weighted=photon_weighted, extrapolate_mode=blending_method)
 
         else:
-            raise NotImplementedError('atm={} not supported by {}:{}'.format(atm, self.pbset, self.pbname))
+            raise ValueError(f'atm={atm} is not supported by the {self.pbset}:{self.pbname} passband.')
 
         return retval
 
@@ -3397,7 +3297,7 @@ class Passband:
         ldint = libphoebe.interp(req, self.atm_axes['tmap'][:-1], self.ldint_photon_grid['tmap'] if photon_weighted else self.ldint_energy_grid['tmap']).T[0]
         return ldint
 
-    def ldint(self, Teff=5772., logg=4.43, abun=0.0, ldatm='ck2004', ld_func='interp', ld_coeffs=None, photon_weighted=False, check_for_nans=True):
+    def ldint(self, Teff=5772., logg=4.43, abun=0.0, ldatm='ck2004', ld_func='interp', ld_coeffs=None, photon_weighted=False, raise_on_nans=True):
         """
         Arguments
         ----------
@@ -3410,7 +3310,7 @@ class Passband:
         * `ld_coeffs` (list, optional, default=None): limb darkening coefficients
             for the corresponding limb darkening function, `ld_func`.
         * `photon_weighted` (bool, optional, default=False): photon/energy switch
-        * `check_for_nans` (bool, optional, default=True): raise an error if any of
+        * `raise_on_nans` (bool, optional, default=True): raise an error if any of
             the elements in the ldint array are nans.
 
         Returns
@@ -3438,7 +3338,7 @@ class Passband:
             else:
                 raise ValueError('ldatm={} not supported with ld_func=interp'.format(ldatm))
 
-            if not check_for_nans:
+            if not raise_on_nans:
                 return retval
 
             nanmask = np.isnan(retval)
@@ -3462,7 +3362,7 @@ class Passband:
         else:
             raise NotImplementedError('ld_func={} not supported'.format(ld_func))
 
-        if not check_for_nans:
+        if not raise_on_nans:
             return retval
 
         nanmask = np.isnan(retval)
@@ -4473,15 +4373,15 @@ if __name__ == '__main__':
 
     pb.compute_ck2004_intensities(path='tables/ck2004', impute=True, verbose=True)
     pb.compute_ck2004_ldcoeffs()
-    pb.compute_ck2004_ldints()
+    pb.compute_ldints(ldatm='ck2004')
 
     pb.compute_phoenix_intensities(path='tables/phoenix', impute=True, verbose=True)
     pb.compute_phoenix_ldcoeffs()
-    pb.compute_phoenix_ldints()
+    pb.compute_ldints(ldatm='phoenix')
 
     pb.compute_tmap_intensities(path='tables/tmap', impute=True, verbose=True)
     pb.compute_tmap_ldcoeffs()
-    pb.compute_tmap_ldints()
+    pb.compute_ldints(ldatm='tmap')
 
 
     pb.save('bolometric.fits')
@@ -4503,17 +4403,17 @@ if __name__ == '__main__':
 
     pb.compute_ck2004_intensities(path='tables/ck2004', impute=True, verbose=True)
     pb.compute_ck2004_ldcoeffs()
-    pb.compute_ck2004_ldints()
+    pb.compute_ldints(ldatm='ck2004')
     pb.compute_ck2004_reddening(path='tables/ck2004', verbose=True)
 
     pb.compute_phoenix_intensities(path='tables/phoenix', impute=True, verbose=True)
     pb.compute_phoenix_ldcoeffs()
-    pb.compute_phoenix_ldints()
+    pb.compute_ldints(ldatm='phoenix')
     pb.compute_phoenix_reddening(path='tables/phoenix', verbose=True)
 
     pb.compute_tmap_intensities(path='tables/tmap', impute=True, verbose=True)
     pb.compute_tmap_ldcoeffs()
-    pb.compute_tmap_ldints()
+    pb.compute_ldints(ldatm='tmap')
     pb.compute_tmap_reddening(path='tables/tmap', verbose=True)
 
     pb.import_wd_atmcof('tables/wd/atmcofplanck.dat', 'tables/wd/atmcof.dat', 7)
