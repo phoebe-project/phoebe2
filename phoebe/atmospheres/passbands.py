@@ -1647,7 +1647,7 @@ class Passband:
         if f'{ldatm}:ldint' not in self.content:
             self.content.append(f'{ldatm}:ldint')
 
-    def interpolate_ldcoeffs(self, Teff=5772., logg=4.43, abun=0.0, ldatm='ck2004', ld_func='power', photon_weighted=False, ld_blending_method='none'):
+    def interpolate_ldcoeffs(self, Teff=5772., logg=4.43, abun=0.0, ldatm='ck2004', ld_func='power', photon_weighted=False, ld_extrapolation_method='none'):
         """
         Interpolate the passband-stored table of LD model coefficients.
 
@@ -1660,7 +1660,7 @@ class Passband:
         * `ld_func` (string, default='power'): limb darkening fitting function: 'linear',
           'logarithmic', 'square_root', 'quadratic', 'power' or 'all'
         * `photon_weighted` (bool, optional, default=False): photon/energy switch
-        * `ld_blending_method` (string, optional, default='none'): extrapolation mode:
+        * `ld_extrapolation_method` (string, optional, default='none'): extrapolation mode:
             'none', 'nearest', 'linear'
 
         Returns
@@ -1720,14 +1720,14 @@ class Passband:
         # if we get to here, it means that there are nans in ld_coeffs and we need to switch on extrapolation_mode.
         nan_indices = np.argwhere(nanmask).flatten()
 
-        if ld_blending_method == 'none':
+        if ld_extrapolation_method == 'none':
             raise ValueError(f'Atmosphere parameters out of bounds: ldatm={ldatm}, teff={req[:,0][nanmask]}, logg={req[:,1][nanmask]}, abun={req[:,2][nanmask]}')
-        elif ld_blending_method == 'nearest':
+        elif ld_extrapolation_method == 'nearest':
             for k in nan_indices:
                 d, i = nntree.query(req[k])
                 ld_coeffs[k] = table[tuple(indices[i][:-1])]
             return ld_coeffs[s[ld_func]]
-        elif ld_blending_method == 'linear':
+        elif ld_extrapolation_method == 'linear':
             for k in nan_indices:
                 v = req[k]
                 ic = np.array([np.searchsorted(axes[i], v[i])-1 for i in range(len(axes))])
@@ -1762,7 +1762,7 @@ class Passband:
                 ld_coeffs[k] = np.array(extrapolated_ld_coeffs).mean(axis=0)
             return ld_coeffs[s[ld_func]]
         else:
-            raise ValueError(f'ld_blending_method={ld_blending_method} is not supported.')
+            raise ValueError(f'ld_extrapolation_method={ld_extrapolation_method} is not supported.')
 
     def interpolate_extinct(self, Teff=5772., logg=4.43, abun=0.0, atm='blackbody',  extinct=0.0, Rv=3.1, photon_weighted=False):
         """
@@ -1991,12 +1991,12 @@ class Passband:
 
         return log10_Inorm
 
-    def _log10_Inorm_bb(self, v, axes, ldint_grid, ld_blending_method='nearest', ldint_tree=None, ldint_indices=None, ics=None, photon_weighted=False):
-        if ld_blending_method == 'nearest':
+    def _log10_Inorm_bb(self, v, axes, ldint_grid, ld_extrapolation_method='nearest', ldint_tree=None, ldint_indices=None, ics=None, photon_weighted=False):
+        if ld_extrapolation_method == 'nearest':
             bbint = self._log10_Inorm_bb_photon(v[0]) if photon_weighted else self._log10_Inorm_bb_energy(v[0])
             d, i = ldint_tree.query(v)
             return bbint - np.log10(ldint_grid[tuple(ldint_indices[i])])
-        elif ld_blending_method == 'linear':
+        elif ld_extrapolation_method == 'linear':
             bbint = self._log10_Inorm_bb_photon(v[0]) if photon_weighted else self._log10_Inorm_bb_energy(v[0])
 
             # coordinates of the inferior corner:
@@ -2024,12 +2024,14 @@ class Passband:
 
             return np.array(bbints).mean()
         else:
-            raise NotImplementedError(f'ld_blending_method={ld_blending_method} not recognized.')
+            raise NotImplementedError(f'ld_extrapolation_method={ld_extrapolation_method} not recognized.')
 
-    def _log10_Inorm_ck2004(self, Teff, logg, abun, photon_weighted=False, extrapolate_mode='none'):
-        req = np.vstack((Teff, logg, abun)).T
-        axes = self.atm_axes['ck2004'][:-1]
-        grid = self.atm_photon_grid['ck2004'][...,-1,:] if photon_weighted else self.atm_energy_grid['ck2004'][...,-1,:]
+    def _log10_Inorm(self, atm, teffs, loggs, abuns, photon_weighted=False, extrapolation_method='none', ld_extrapolation_method='none'):
+        """
+        """
+        req = np.vstack((teffs, loggs, abuns)).T
+        axes = self.atm_axes[atm][:-1]
+        grid = self.atm_photon_grid[atm][...,-1,:] if photon_weighted else self.atm_energy_grid[atm][...,-1,:]
         log10_Inorm = libphoebe.interp(req, axes, grid).T[0]
 
         # if there are no nans, return the interpolated array:
@@ -2039,15 +2041,19 @@ class Passband:
 
         nan_indices = np.argwhere(nanmask).flatten()
 
-        # if we are here, it means that there are nans. Now we switch on extrapolate_mode:
-        if extrapolate_mode == 'none':
-            raise ValueError(f'Atmosphere parameters out of bounds: atm=ck2004, photon_weighted={photon_weighted}, Teff={Teff[nanmask]}, logg={logg[nanmask]}, abun={abun[nanmask]}')
-        elif extrapolate_mode == 'nearest':
+        # if we are here, it means that there are nans. What we do depends on
+        # the extrapolation method.
+
+        if extrapolation_method == 'none':
+            raise ValueError(f'Atmosphere parameters out of bounds: atm={atm}, photon_weighted={photon_weighted}, teffs={teffs[nanmask]}, loggs={loggs[nanmask]}, abuns={abuns[nanmask]}')
+
+        elif extrapolation_method == 'nearest':
             for k in nan_indices:
-                d, i = self.nntree['ck2004'].query(req[k])
-                log10_Inorm[k] = grid[tuple(self.indices['ck2004'][i])]
+                d, i = self.nntree[atm].query(req[k])
+                log10_Inorm[k] = grid[tuple(self.indices[atm][i])]
             return log10_Inorm
-        elif extrapolate_mode == 'linear':
+
+        elif extrapolation_method == 'linear':
             for k in nan_indices:
                 v = req[k]
                 ic = np.array([np.searchsorted(axes[i], v[i])-1 for i in range(len(axes))])
@@ -2063,7 +2069,7 @@ class Passband:
 
                 ints = []
                 for corner in corners:
-                    slc = tuple([slice(self.ics['ck2004'][corner][i], self.ics['ck2004'][corner][i]+2) for i in range(len(self.ics['ck2004'][corner]))])
+                    slc = tuple([slice(self.ics[atm][corner][i], self.ics[atm][corner][i]+2) for i in range(len(self.ics[atm][corner]))])
                     coords = [axes[i][slc[i]] for i in range(len(axes))]
                     # print('  nearest fully defined hypercube:', slc)
 
@@ -2077,17 +2083,18 @@ class Passband:
                     ints.append(ckint)
                 log10_Inorm[k] = np.array(ints).mean()
             return log10_Inorm
-        elif extrapolate_mode == 'blended':
-            naxes = self.mapper['ck2004'](axes)
+
+        elif extrapolation_method == 'blend':
+            naxes = self.mapper[atm](axes)
             for k in nan_indices:
                 v = req[k]
-                nv = self.mapper['ck2004'](v)
+                nv = self.mapper[atm](v)
                 ic = np.array([np.searchsorted(naxes[i], nv[i])-1 for i in range(len(naxes))])
                 # print('coordinates of the inferior corner:', ic)
 
                 # get the inferior corners of all nearest fully defined hypercubes; this
                 # is all integer math so we can compare with == instead of np.isclose().
-                sep = (np.abs(self.ics['ck2004']-ic)).sum(axis=1)
+                sep = (np.abs(self.ics[atm]-ic)).sum(axis=1)
                 corners = np.argwhere(sep == sep.min()).flatten()
                 # print('%d fully defined adjacent hypercube(s) found.' % len(corners))
                 # for i, corner in enumerate(corners):
@@ -2095,7 +2102,7 @@ class Passband:
 
                 blints = []
                 for corner in corners:
-                    slc = tuple([slice(self.ics['ck2004'][corner][i], self.ics['ck2004'][corner][i]+2) for i in range(len(self.ics['ck2004'][corner]))])
+                    slc = tuple([slice(self.ics[atm][corner][i], self.ics[atm][corner][i]+2) for i in range(len(self.ics[atm][corner]))])
                     coords = [naxes[i][slc[i]] for i in range(len(naxes))]
                     verts = np.array([(x,y,z) for z in coords[2] for y in coords[1] for x in coords[0]])
                     distance_vectors = nv-verts
@@ -2103,8 +2110,8 @@ class Passband:
                     distance_vector = distance_vectors[distances.argmin()]
                     # print('  distance vector:', distance_vector)
 
-                    shift = ic-self.ics['ck2004'][corner]
-                    shift = shift!=0
+                    shift = ic-self.ics[atm][corner]
+                    shift = shift != 0
                     # print('  hypercube shift: %s' % shift)
 
                     # if the hypercube is unshifted, we have a problem.
@@ -2118,7 +2125,7 @@ class Passband:
 
                     distance = np.sqrt((distance_vector**2).sum())
 
-                    bbint = np.log10(self.Inorm(v[0], v[1], v[2], atm='blackbody', ldatm='ck2004', extrapolate_mode='nearest'))
+                    bbint = np.log10(self.Inorm(v[0], v[1], v[2], atm='blackbody', ldatm=atm, ld_extrapolation_method=ld_extrapolation_method))
 
                     # print(f'bbint: {bbint}')
 
@@ -2126,7 +2133,7 @@ class Passband:
                         blints.append(bbint)
                         continue
 
-                    ckint = np.log10(self.Inorm(v[0], v[1], v[2], atm='ck2004', extrapolate_mode='linear'))
+                    ckint = np.log10(self.Inorm(v[0], v[1], v[2], atm=atm, extrapolation_method='linear'))
                     # print(f'ckint: {ckint}')
 
                     # Blending:
@@ -2145,418 +2152,9 @@ class Passband:
 
             return log10_Inorm
         else:
-            raise ValueError(f'extrapolate_mode="{extrapolate_mode}" is not recognized.')
+            raise ValueError(f'extrapolation_method="{extrapolation_method}" is not recognized.')
 
-    def _log10_Inorm_phoenix(self, Teff, logg, abun, photon_weighted=False, extrapolate_mode='none'):
-        req = np.vstack((Teff, logg, abun)).T
-        axes = self.atm_axes['phoenix'][:-1]
-        grid = self.atm_photon_grid['phoenix'][...,-1,:] if photon_weighted else self.atm_energy_grid['phoenix'][...,-1,:]
-        log10_Inorm = libphoebe.interp(req, axes, grid).T[0]
-
-        # if there are no nans, return the interpolated array:
-        nanmask = np.isnan(log10_Inorm)
-        if ~np.any(nanmask):
-            return log10_Inorm
-
-        nan_indices = np.argwhere(nanmask).flatten()
-
-        # if we are here, it means that there are nans. Now we switch on extrapolate_mode:
-        if extrapolate_mode == 'none':
-            raise ValueError(f'Atmosphere parameters out of bounds: atm=phoenix, photon_weighted={photon_weighted}, Teff={Teff[nanmask]}, logg={logg[nanmask]}, abun={abun[nanmask]}')
-        elif extrapolate_mode == 'nearest':
-            for k in nan_indices:
-                d, i = self.nntree['phoenix'].query(req[k])
-                log10_Inorm[k] = grid[tuple(self.indices['phoenix'][i])]
-            return log10_Inorm
-        elif extrapolate_mode == 'linear':
-            for k in nan_indices:
-                v = req[k]
-                ic = np.array([np.searchsorted(axes[i], v[i])-1 for i in range(len(axes))])
-                # print('coordinates of the inferior corner:', ic)
-
-                # get the inferior corners of all nearest fully defined hypercubes; this
-                # is all integer math so we can compare with == instead of np.isclose().
-                sep = (np.abs(self.ics['phoenix']-ic)).sum(axis=1)
-                corners = np.argwhere(sep == sep.min()).flatten()
-                # print('%d fully defined adjacent hypercube(s) found.' % len(corners))
-                # for i, corner in enumerate(corners):
-                #     print('  hypercube %d inferior corner: %s' % (i, self.ics['ck2004'][corner]))
-
-                ints = []
-                for corner in corners:
-                    slc = tuple([slice(self.ics['phoenix'][corner][i], self.ics['phoenix'][corner][i]+2) for i in range(len(self.ics['phoenix'][corner]))])
-                    coords = [axes[i][slc[i]] for i in range(len(axes))]
-                    # print('  nearest fully defined hypercube:', slc)
-
-                    # extrapolate:
-                    lo = [c[0] for c in coords]
-                    hi = [c[1] for c in coords]
-                    subgrid = grid[slc]
-                    fv = subgrid.T.reshape(2**len(axes))
-                    atmint = ndpolator.ndpolate(v, lo, hi, fv)
-                    # print('  extrapolated atm value: %f' % atmint)
-                    ints.append(atmint)
-                log10_Inorm[k] = np.array(ints).mean()
-            return log10_Inorm
-        elif extrapolate_mode == 'blended':
-            naxes = self.mapper['phoenix'](axes)
-            for k in nan_indices:
-                v = req[k]
-                nv = self.mapper['phoenix'](v)
-                ic = np.array([np.searchsorted(naxes[i], nv[i])-1 for i in range(len(naxes))])
-                # print('coordinates of the inferior corner:', ic)
-
-                # get the inferior corners of all nearest fully defined hypercubes; this
-                # is all integer math so we can compare with == instead of np.isclose().
-                sep = (np.abs(self.ics['phoenix']-ic)).sum(axis=1)
-                corners = np.argwhere(sep == sep.min()).flatten()
-                # print('%d fully defined adjacent hypercube(s) found.' % len(corners))
-                # for i, corner in enumerate(corners):
-                #     print('  hypercube %d inferior corner: %s' % (i, self.ics['ck2004'][corner]))
-
-                blints = []
-                for corner in corners:
-                    slc = tuple([slice(self.ics['phoenix'][corner][i], self.ics['phoenix'][corner][i]+2) for i in range(len(self.ics['phoenix'][corner]))])
-                    coords = [naxes[i][slc[i]] for i in range(len(naxes))]
-                    verts = np.array([(x,y,z) for z in coords[2] for y in coords[1] for x in coords[0]])
-                    distance_vectors = nv-verts
-                    distances = (distance_vectors**2).sum(axis=1)
-                    distance_vector = distance_vectors[distances.argmin()]
-                    # print('  distance vector:', distance_vector)
-
-                    shift = ic-self.ics['phoenix'][corner]
-                    shift = shift!=0
-                    # print('  hypercube shift: %s' % shift)
-
-                    # if the hypercube is unshifted, we're inside the grid; return Inorm().
-                    if shift.sum() == 0:
-                        raise ValueError('how did we get here?')
-
-                    # if the hypercube is adjacent, project the distance vector:
-                    if shift.sum() == 1:
-                        distance_vector *= shift
-                        # print('  projected distance vector: %s' % distance_vector)
-
-                    distance = np.sqrt((distance_vector**2).sum())
-
-                    ldint_grid = self.ldint_photon_grid['phoenix'] if photon_weighted else self.ldint_energy_grid['phoenix']
-                    bbint = np.log10(self.Inorm(v[0], v[1], v[2], atm='blackbody', ldatm='phoenix', extrapolate_mode='nearest'))
-
-                    # print(f'bbint: {bbint}')
-
-                    if distance > 1:
-                        blints.append(bbint)
-                        continue
-
-                    atmint = np.log10(self.Inorm(v[0], v[1], v[2], atm='phoenix', extrapolate_mode='linear'))
-                    # print(f'ckint: {ckint}')
-
-                    # Blending:
-                    alpha = blending_factor(distance)
-                    # print('  orthogonal distance:', distance)
-                    # print('  alpha:', alpha)
-
-                    blint = (1-alpha)*bbint + alpha*atmint
-                    # print('  blint:', blint)
-
-                    blints.append(blint)
-                    # print('  blints: %s' % blints)
-
-                log10_Inorm[k] = np.array(blints).mean()
-                # print(Inorm[k])
-
-            return log10_Inorm
-        else:
-            raise ValueError(f'extrapolate_mode="{extrapolate_mode}" is not recognized.')
-
-    def _log10_Inorm_tmap(self, Teff, logg, abun, photon_weighted=False, extrapolate_mode='none'):
-        req = np.vstack((Teff, logg, abun)).T
-        axes = self.atm_axes['tmap'][:-1]
-        grid = self.atm_photon_grid['tmap'][...,-1,:] if photon_weighted else self.atm_energy_grid['tmap'][...,-1,:]
-        log10_Inorm = libphoebe.interp(req, axes, grid).T[0]
-
-        # if there are no nans, return the interpolated array:
-        nanmask = np.isnan(log10_Inorm)
-        if ~np.any(nanmask):
-            return log10_Inorm
-
-        nan_indices = np.argwhere(nanmask).flatten()
-
-        # if we are here, it means that there are nans. Now we switch on extrapolate_mode:
-        if extrapolate_mode == 'none':
-            raise ValueError(f'Atmosphere parameters out of bounds: atm=tmap, photon_weighted={photon_weighted}, Teff={Teff[nanmask]}, logg={logg[nanmask]}, abun={abun[nanmask]}')
-        elif extrapolate_mode == 'nearest':
-            for k in nan_indices:
-                d, i = self.nntree['tmap'].query(req[k])
-                log10_Inorm[k] = grid[tuple(self.indices['tmap'][i])]
-            return log10_Inorm
-        elif extrapolate_mode == 'linear':
-            for k in nan_indices:
-                v = req[k]
-                ic = np.array([np.searchsorted(axes[i], v[i])-1 for i in range(len(axes))])
-                # print('coordinates of the inferior corner:', ic)
-
-                # get the inferior corners of all nearest fully defined hypercubes; this
-                # is all integer math so we can compare with == instead of np.isclose().
-                sep = (np.abs(self.ics['tmap']-ic)).sum(axis=1)
-                corners = np.argwhere(sep == sep.min()).flatten()
-                # print('%d fully defined adjacent hypercube(s) found.' % len(corners))
-                # for i, corner in enumerate(corners):
-                #     print('  hypercube %d inferior corner: %s' % (i, self.ics['ck2004'][corner]))
-
-                ints = []
-                for corner in corners:
-                    slc = tuple([slice(self.ics['tmap'][corner][i], self.ics['tmap'][corner][i]+2) for i in range(len(self.ics['tmap'][corner]))])
-                    coords = [axes[i][slc[i]] for i in range(len(axes))]
-                    # print('  nearest fully defined hypercube:', slc)
-
-                    # extrapolate:
-                    lo = [c[0] for c in coords]
-                    hi = [c[1] for c in coords]
-                    subgrid = grid[slc]
-                    fv = subgrid.T.reshape(2**len(axes))
-                    atmint = ndpolator.ndpolate(v, lo, hi, fv)
-                    # print('  extrapolated atm value: %f' % atmint)
-                    ints.append(atmint)
-                log10_Inorm[k] = np.array(ints).mean()
-            return log10_Inorm
-        elif extrapolate_mode == 'blended':
-            naxes = self.mapper['tmap'](axes)
-            for k in nan_indices:
-                v = req[k]
-                nv = self.mapper['tmap'](v)
-                ic = np.array([np.searchsorted(naxes[i], nv[i])-1 for i in range(len(naxes))])
-                # print('coordinates of the inferior corner:', ic)
-
-                # get the inferior corners of all nearest fully defined hypercubes; this
-                # is all integer math so we can compare with == instead of np.isclose().
-                sep = (np.abs(self.ics['tmap']-ic)).sum(axis=1)
-                corners = np.argwhere(sep == sep.min()).flatten()
-                # print('%d fully defined adjacent hypercube(s) found.' % len(corners))
-                # for i, corner in enumerate(corners):
-                #     print('  hypercube %d inferior corner: %s' % (i, self.ics['ck2004'][corner]))
-
-                blints = []
-                for corner in corners:
-                    slc = tuple([slice(self.ics['tmap'][corner][i], self.ics['tmap'][corner][i]+2) for i in range(len(self.ics['tmap'][corner]))])
-                    coords = [naxes[i][slc[i]] for i in range(len(naxes))]
-                    verts = np.array([(x,y,z) for z in coords[2] for y in coords[1] for x in coords[0]])
-                    distance_vectors = nv-verts
-                    distances = (distance_vectors**2).sum(axis=1)
-                    distance_vector = distance_vectors[distances.argmin()]
-                    # print('  distance vector:', distance_vector)
-
-                    shift = ic-self.ics['tmap'][corner]
-                    shift = shift!=0
-                    # print('  hypercube shift: %s' % shift)
-
-                    # if the hypercube is unshifted, we're inside the grid; return Inorm().
-                    if shift.sum() == 0:
-                        raise ValueError('how did we get here?')
-
-                    # if the hypercube is adjacent, project the distance vector:
-                    if shift.sum() == 1:
-                        distance_vector *= shift
-                        # print('  projected distance vector: %s' % distance_vector)
-
-                    distance = np.sqrt((distance_vector**2).sum())
-
-                    ldint_grid = self.ldint_photon_grid['tmap'] if photon_weighted else self.ldint_energy_grid['tmap']
-                    bbint = np.log10(self.Inorm(v[0], v[1], v[2], atm='blackbody', ldatm='tmap', extrapolate_mode='nearest'))
-
-                    # print(f'bbint: {bbint}')
-
-                    if distance > 1:
-                        blints.append(bbint)
-                        continue
-
-                    atmint = np.log10(self.Inorm(v[0], v[1], v[2], atm='tmap', extrapolate_mode='linear'))
-                    # print(f'ckint: {ckint}')
-
-                    # Blending:
-                    alpha = blending_factor(distance)
-                    # print('  orthogonal distance:', distance)
-                    # print('  alpha:', alpha)
-
-                    blint = (1-alpha)*bbint + alpha*atmint
-                    # print('  blint:', blint)
-
-                    blints.append(blint)
-                    # print('  blints: %s' % blints)
-
-                log10_Inorm[k] = np.array(blints).mean()
-                # print(Inorm[k])
-
-            return log10_Inorm
-        else:
-            raise ValueError(f'extrapolate_mode="{extrapolate_mode}" is not recognized.')
-
-    def _Inorm_phoenix(self, Teff, logg, abun, photon_weighted=False):
-        req = np.vstack((Teff, logg, abun)).T
-        Inorm = libphoebe.interp(req, self.atm_axes['phoenix'][:-1], self.atm_photon_grid['phoenix'][...,-1,:] if photon_weighted else self.atm_energy_grid['phoenix'][...,-1,:]).T[0]
-
-        return 10**Inorm
-
-    def _log10_Imu_bb(self, teffs, loggs, abuns, mus, ldatm='ck2004', ldints=None, ld_mode='manual', ld_func='linear', ld_coeffs=[0.5], photon_weighted=False, extrapolate_mode='none'):
-        """
-        """
-
-        if ld_mode=='manual':
-            # we have ld_func and ld_coeffs, so we can readily calculate everything we need.
-            pass
-        elif ld_mode=='lookup':
-            # we have ld_func and ldatm, but no ld_coeffs.
-            ld_coeffs = self.interpolate_ldcoeffs(Teff=teffs, logg=loggs, abun=abuns, ldatm=ldatm, ld_func=ld_func, photon_weighted=photon_weighted, extrapolate_mode=extrapolate_mode)
-        elif ld_mode == 'interp':
-            raise ValueError(f'ld_mode={ld_mode} cannot be used for blackbody atmospheres.')
-        else:
-            raise NotImplementedError(f'ld_mode={ld_mode} is not supported.')
-
-        if ldints is None:
-            ldints = self._ldint(ld_func=ld_func, ld_coeffs=ld_coeffs)
-            # ldint = self.ldint(Teff, logg, abun, ldatm=None, ld_func=ld_func, ld_coeffs=ld_coeffs, photon_weighted=photon_weighted, raise_on_nans=False)
-
-        Inorm = self.Inorm(Teff=teffs, logg=loggs, abun=abuns, atm='blackbody', ldatm=ldatm, ldint=ldints, ld_func=ld_func, ld_coeffs=ld_coeffs, photon_weighted=photon_weighted, extrapolate_mode=extrapolate_mode)
-        ld = self._ld(ld_func=ld_func, mu=mus, ld_coeffs=ld_coeffs)
-
-        return np.log10(Inorm * ld)
-
-    def _log10_Imu_ck2004(self, Teff, logg, abun, mu, photon_weighted=False, extrapolate_mode='none'):
-        """
-        """
-
-        axes = self.atm_axes['ck2004']
-        grid = self.atm_photon_grid['ck2004'] if photon_weighted else self.atm_energy_grid['ck2004']
-
-        req = ndpolator.tabulate((Teff, logg, abun, mu))
-        log10_Imu = libphoebe.interp(req, axes, grid)[0]
-
-        nanmask = np.isnan(log10_Imu)
-        if ~np.any(nanmask):
-            return log10_Imu
-
-        # if we are here, it means that there are nans.
-        nan_indices = np.argwhere(nanmask).flatten()
-
-        # Now we switch on extrapolate_mode:
-        if extrapolate_mode == 'none':
-            raise ValueError(f'Atmosphere parameters out of bounds: atm=ck2004, photon_weighted={photon_weighted}, Teff={req[:,0][nanmask]}, logg={req[:,1][nanmask]}, abun={req[:,2][nanmask]}, mu={req[:,3][nanmask]}')
-        elif extrapolate_mode == 'nearest':
-            for k in nan_indices:
-                v, mu_v = req[k,:-1], req[k,-1]
-                mu_k = np.searchsorted(axes[-1], mu_v)
-                if (mu_k == len(axes[-1])) | (np.fabs(mu_v-axes[-1][max(mu_k-1,0)]) < np.fabs(mu_v-axes[-1][min(mu_k,len(axes[-1])-1)])):
-                    mu_k -= 1
-                d, i = self.nntree['ck2004'].query(v)
-                log10_Imu[k] = grid[tuple(self.indices['ck2004'][i][:-1])][mu_k]
-            return log10_Imu
-        elif extrapolate_mode == 'linear':
-            raxes = axes[:-1] # reduced axes, without mu -- to optimize because mu cannot be out of bounds
-            for k in nan_indices:
-                v, mu_v = req[k,:-1], req[k,-1]
-                mu_k = np.searchsorted(axes[-1], mu_v)-1
-                ic = np.array([np.searchsorted(raxes[i], v[i])-1 for i in range(len(raxes))])
-                sep = (np.abs(self.ics['ck2004']-ic)).sum(axis=1)
-                corners = np.argwhere(sep == sep.min()).flatten()
-                ints = []
-                for corner in corners:
-                    slc = tuple([slice(self.ics['ck2004'][corner][i], self.ics['ck2004'][corner][i]+2) for i in range(len(self.ics['ck2004'][corner]))]+[slice(mu_k, mu_k+2)])
-                    coords = [axes[i][slc[i]] for i in range(len(axes))]
-                    # print('  nearest fully defined hypercube:', slc)
-
-                    # extrapolate:
-                    lo = [c[0] for c in coords]
-                    hi = [c[1] for c in coords]
-                    subgrid = grid[slc]
-                    fv = subgrid.T.reshape(2**len(axes))
-                    ckint = ndpolator.ndpolate(req[k], lo, hi, fv)
-                    # print('  extrapolated atm value: %f' % ckint)
-                    ints.append(ckint)
-                log10_Imu[k] = np.array(ints).mean()
-            return log10_Imu
-        elif extrapolate_mode == 'blended':
-            naxes = self.mapper['ck2004'](axes[:-1]) # normalized reduced axes
-            for k in nan_indices:
-                v, mu_v = req[k,:-1], req[k,-1]
-                nv = self.mapper['ck2004'](v)
-                mu_k = np.searchsorted(axes[-1], mu_v)-1
-                nreq = list(nv)+[mu_v]
-                # print(nreq)
-
-                ic = np.array([np.searchsorted(naxes[i], nv[i])-1 for i in range(len(naxes))])
-                sep = (np.abs(self.ics['ck2004']-ic)).sum(axis=1)
-                corners = np.argwhere(sep == sep.min()).flatten()
-
-                blints = []
-                for corner in corners:
-                    slc = tuple([slice(self.ics['ck2004'][corner][i], self.ics['ck2004'][corner][i]+2) for i in range(len(self.ics['ck2004'][corner]))]+[slice(mu_k, mu_k+2)])
-                    # print('  nearest fully defined hypercube:', slc)
-                    coords = [naxes[i][slc[i]] for i in range(len(naxes))] + [axes[-1][slc[-1]]]
-                    verts = np.array([(x,y,z) for z in coords[2] for y in coords[1] for x in coords[0]])
-                    distance_vectors = nv-verts[:-1]
-                    distances = (distance_vectors**2).sum(axis=1)
-                    distance_vector = distance_vectors[distances.argmin()]
-                    # print('  distance vector:', distance_vector)
-
-                    shift = ic-self.ics['ck2004'][corner]
-                    shift = shift!=0
-                    # print('  hypercube shift: %s' % shift)
-
-                    # if the hypercube is unshifted, we're inside the grid; that can't happen.
-                    if shift.sum() == 0:
-                        raise ValueError('how did we get here?')
-
-                    # if the hypercube is adjacent, project the distance vector:
-                    if shift.sum() == 1:
-                        distance_vector *= shift
-                        # print('  projected distance vector: %s' % distance_vector)
-
-                    distance = np.sqrt((distance_vector**2).sum())
-
-                    bbint = self._log10_Imu_bb(teffs=v[0], loggs=v[1], abuns=v[2], mus=mu_v, ldatm='ck2004', ld_mode='lookup', ld_func='power', ld_coeffs=None, photon_weighted=photon_weighted, extrapolate_mode='nearest')
-
-                    # print(f'bbint: {bbint}')
-
-                    if distance > 1:
-                        blints.append(bbint)
-                        continue
-
-                    # extrapolate:
-                    lo = [c[0] for c in coords]
-                    hi = [c[1] for c in coords]
-                    subgrid = grid[slc]
-                    fv = subgrid.T.reshape(2**len(axes))
-                    ckint = ndpolator.ndpolate(nreq, lo, hi, fv)
-                    # print('  extrapolated atm value: %f' % ckint)
-
-                    # Blending:
-                    alpha = blending_factor(distance)
-                    # print('  orthogonal distance:', distance)
-                    # print('  alpha:', alpha)
-
-                    blint = (1-alpha)*bbint + alpha*ckint
-                    # print('  blint:', blint)
-
-                    blints.append(blint)
-                    # print('  blints: %s' % blints)
-                log10_Imu[k] = np.array(blints).mean()
-            return log10_Imu
-        else:
-            raise ValueError(f'extrapolate_mode="{extrapolate_mode}" is not recognized.')
-
-    def _Imu_ck2004(self, req, photon_weighted=False):
-        log10_Imu = libphoebe.interp(req, self.atm_axes['ck2004'], self.atm_photon_grid['ck2004'] if photon_weighted else self.atm_energy_grid['ck2004']).T[0]
-        return 10**log10_Imu
-
-    def _Imu_phoenix(self, req, photon_weighted=False):
-        log10_Imu = libphoebe.interp(req, self.atm_axes['phoenix'], self.atm_photon_grid['phoenix'] if photon_weighted else self.atm_energy_grid['phoenix']).T[0]
-        return 10**log10_Imu
-
-    def _Imu_tmap(self, req, photon_weighted=False):
-        log10_Imu = libphoebe.interp(req, self.atm_axes['tmap'], self.atm_photon_grid['tmap'] if photon_weighted else self.atm_energy_grid['tmap']).T[0]
-        return 10**log10_Imu
-
-    def Inorm(self, Teff=5772., logg=4.43, abun=0.0, atm='ck2004', ldatm='ck2004', ldint=None, ld_func='interp', ld_coeffs=None, photon_weighted=False, blending_method='none', ld_blending_method='none'):
+    def Inorm(self, Teff=5772., logg=4.43, abun=0.0, atm='ck2004', ldatm='ck2004', ldint=None, ld_func='interp', ld_coeffs=None, photon_weighted=False, extrapolation_method='none', ld_extrapolation_method='none'):
         """
         Computes normal emergent passband intensity.
 
@@ -2604,12 +2202,12 @@ class Passband:
             power.
         * `photon_weighted` (bool, optional, default=False): photon/energy
           switch
-        * `blending_method` (string, optional, default='none'): the method of
-          intensity extrapolation and off-the-grid blending with blackbody
-          atmosheres ('none', 'nearest' or 'linear')
-        * `ld_blending_method` (string, optional, default='none'): the method
-          of limb darkening extrapolation and off-the-grid blending with
-          blackbody atmosheres ('none', 'nearest' or 'linear')
+        * `extraplation_method` (string, optional, default='none'): the method
+          of intensity extrapolation and off-the-grid blending with blackbody
+          atmosheres ('none', 'nearest', 'linear', 'blend')
+        * `ld_extrapolation_method` (string, optional, default='none'): the
+          method of limb darkening extrapolation ('none', 'nearest' or
+          'linear')
 
         Returns
         ----------
@@ -2622,7 +2220,7 @@ class Passband:
         * NotImplementedError: if `ld_func` is not supported.
         """
 
-        raise_on_nans = True if blending_method == 'none' else False
+        raise_on_nans = True if extrapolation_method == 'none' else False
 
         if atm == 'blackbody' and 'blackbody:Inorm' in self.content:
             # check if the required tables for the chosen ldatm are available:
@@ -2649,7 +2247,7 @@ class Passband:
                 retval = 10**self._log10_Inorm_bb_energy(Teff)
 
             if ld_func != 'interp' and ld_coeffs is None:
-                ld_coeffs = self.interpolate_ldcoeffs(Teff, logg, abun, ldatm, ld_func, photon_weighted, ld_blending_method)
+                ld_coeffs = self.interpolate_ldcoeffs(Teff, logg, abun, ldatm, ld_func, photon_weighted, ld_extrapolation_method)
 
             if ldint is None:
                 # FIXME: consolidate these two functions.
@@ -2663,7 +2261,7 @@ class Passband:
             # if there are any nans in ldint, we need to extrapolate.
             for i in np.argwhere(np.isnan(retval)).flatten():
                 v = (Teff[i], logg[i], abun[i])
-                retval[i] = 10**self._log10_Inorm_bb(v, axes=axes, ldint_grid=ldint_grid, ldint_mode=ld_blending_method, ldint_tree=ldint_tree, ldint_indices=ldint_indices, ics=ics, photon_weighted=photon_weighted)
+                retval[i] = 10**self._log10_Inorm_bb(v, axes=axes, ldint_grid=ldint_grid, ldint_mode=ld_extrapolation_method, ldint_tree=ldint_tree, ldint_indices=ldint_indices, ics=ics, photon_weighted=photon_weighted)
 
         elif atm == 'extern_planckint' and 'extern_planckint:Inorm' in self.content:
             retval = 10**(self._log10_Inorm_extern_planckint(Teff)-1)  # -1 is for cgs -> SI
@@ -2674,27 +2272,63 @@ class Passband:
             # if there are any nans in ldint, we need to extrapolate.
             # for i in np.argwhere(np.isnan(retval)).flatten():
             #     v = (Teff[i], logg[i], abun[i])
-            #     retval[i] = 10**self._log10_Inorm_bb(v, axes=axes, ldint_grid=ldint_grid, ldint_mode=extrapolate_mode, ldint_tree=ldint_tree, ldint_indices=ldint_indices, ics=ics)
+            #     retval[i] = 10**self._log10_Inorm_bb(v, axes=axes, ldint_grid=ldint_grid, ldint_mode=ld_extrapolation_method, ldint_tree=ldint_tree, ldint_indices=ldint_indices, ics=ics)
 
         elif atm == 'extern_atmx' and 'extern_atmx:Inorm' in self.content:
             # -1 below is for cgs -> SI:
             retval = 10**(self._log10_Inorm_extern_atmx(Teff, logg, abun)-1)
 
         elif atm == 'ck2004' and 'ck2004:Imu' in self.content:
-            retval = 10**self._log10_Inorm_ck2004(Teff, logg, abun, photon_weighted=photon_weighted, extrapolate_mode=blending_method)
+            retval = 10**self._log10_Inorm(atm=atm, teffs=Teff, loggs=logg, abuns=abun, photon_weighted=photon_weighted, extrapolation_method=extrapolation_method)
 
         elif atm == 'phoenix' and 'phoenix:Imu' in self.content:
-            retval = 10**self._log10_Inorm_phoenix(Teff, logg, abun, photon_weighted=photon_weighted, extrapolate_mode=blending_method)
+            retval = 10**self._log10_Inorm(atm='phoenix', teffs=Teff, loggs=logg, abuns=abun, photon_weighted=photon_weighted, extrapolation_method=extrapolation_method)
 
         elif atm == 'tmap' and 'tmap:Imu' in self.content:
-            retval = 10**self._log10_Inorm_tmap(Teff, logg, abun, photon_weighted=photon_weighted, extrapolate_mode=blending_method)
+            retval = 10**self._log10_Inorm(atm='tmap', teffs=Teff, loggs=logg, abuns=abun, photon_weighted=photon_weighted, extrapolation_method=extrapolation_method)
 
         else:
             raise ValueError(f'atm={atm} is not supported by the {self.pbset}:{self.pbname} passband.')
 
         return retval
 
-    def Imu(self, Teff=5772., logg=4.43, abun=0.0, mu=1.0, atm='ck2004', ldatm='ck2004', ldint=None, ld_func='interp', ld_coeffs=None, photon_weighted=False, extrapolate_mode='none'):
+    def _log10_Imu_bb(self, teffs, loggs, abuns, mus, ldatm='ck2004', ldints=None, ld_mode='manual', ld_func='linear', ld_coeffs=[0.5], photon_weighted=False, extrapolation_method='none'):
+        """
+        """
+
+        if ld_mode=='manual':
+            # we have ld_func and ld_coeffs, so we can readily calculate everything we need.
+            pass
+        elif ld_mode=='lookup':
+            # we have ld_func and ldatm, but no ld_coeffs.
+            ld_coeffs = self.interpolate_ldcoeffs(Teff=teffs, logg=loggs, abun=abuns, ldatm=ldatm, ld_func=ld_func, photon_weighted=photon_weighted, extrapolation_method=extrapolation_method)
+        elif ld_mode == 'interp':
+            raise ValueError(f'ld_mode={ld_mode} cannot be used for blackbody atmospheres.')
+        else:
+            raise NotImplementedError(f'ld_mode={ld_mode} is not supported.')
+
+        if ldints is None:
+            ldints = self._ldint(ld_func=ld_func, ld_coeffs=ld_coeffs)
+            # ldint = self.ldint(Teff, logg, abun, ldatm=None, ld_func=ld_func, ld_coeffs=ld_coeffs, photon_weighted=photon_weighted, raise_on_nans=False)
+
+        Inorm = self.Inorm(Teff=teffs, logg=loggs, abun=abuns, atm='blackbody', ldatm=ldatm, ldint=ldints, ld_func=ld_func, ld_coeffs=ld_coeffs, photon_weighted=photon_weighted, extrapolation_method=extrapolation_method)
+        ld = self._ld(ld_func=ld_func, mu=mus, ld_coeffs=ld_coeffs)
+
+        return np.log10(Inorm * ld)
+
+    def _Imu_ck2004(self, req, photon_weighted=False):
+        log10_Imu = libphoebe.interp(req, self.atm_axes['ck2004'], self.atm_photon_grid['ck2004'] if photon_weighted else self.atm_energy_grid['ck2004']).T[0]
+        return 10**log10_Imu
+
+    def _Imu_phoenix(self, req, photon_weighted=False):
+        log10_Imu = libphoebe.interp(req, self.atm_axes['phoenix'], self.atm_photon_grid['phoenix'] if photon_weighted else self.atm_energy_grid['phoenix']).T[0]
+        return 10**log10_Imu
+
+    def _Imu_tmap(self, req, photon_weighted=False):
+        log10_Imu = libphoebe.interp(req, self.atm_axes['tmap'], self.atm_photon_grid['tmap'] if photon_weighted else self.atm_energy_grid['tmap']).T[0]
+        return 10**log10_Imu
+
+    def Imu(self, Teff=5772., logg=4.43, abun=0.0, mu=1.0, atm='ck2004', ldatm='ck2004', ldint=None, ld_func='interp', ld_coeffs=None, photon_weighted=False, extrapolation_method='none'):
         """
         Arguments
         ----------
@@ -2741,7 +2375,7 @@ class Passband:
             if atm == 'ck2004' and 'ck2004:Imu' in self.content:
                 retval = self._Imu_ck2004(req, photon_weighted=photon_weighted)
                 # FIXME: merge these two functions.
-                # retval = 10**self._log10_Imu_ck2004(Teff, logg, abun, mu, photon_weighted=photon_weighted, extrapolate_mode=extrapolate_mode)
+                # retval = 10**self._log10_Imu_ck2004(Teff, logg, abun, mu, photon_weighted=photon_weighted, extrapolation_method=extrapolation_method)
             elif atm == 'phoenix' and 'phoenix:Imu' in self.content:
                 retval = self._Imu_phoenix(req, photon_weighted=photon_weighted)
             elif atm == 'tmap' and 'tmap:Imu' in self.content:
@@ -2757,22 +2391,22 @@ class Passband:
         if ld_coeffs is None:
             # LD function can be passed without coefficients; in that
             # case we need to interpolate them from the tables.
-            ld_coeffs = self.interpolate_ldcoeffs(Teff, logg, abun, ldatm, ld_func, photon_weighted, extrapolate_mode=extrapolate_mode)
+            ld_coeffs = self.interpolate_ldcoeffs(Teff, logg, abun, ldatm, ld_func, photon_weighted, extrapolation_method=extrapolation_method)
 
-        Inorm = self.Inorm(Teff=Teff, logg=logg, abun=abun, atm=atm, ldatm=ldatm, ldint=ldint, ld_func=ld_func, ld_coeffs=ld_coeffs, photon_weighted=photon_weighted, blending_method=extrapolate_mode)
+        Inorm = self.Inorm(Teff=Teff, logg=logg, abun=abun, atm=atm, ldatm=ldatm, ldint=ldint, ld_func=ld_func, ld_coeffs=ld_coeffs, photon_weighted=photon_weighted, extrapolation_method=extrapolation_method)
         ld = self._ld(ld_func=ld_func, mu=mu, ld_coeffs=ld_coeffs)
         retval = Inorm * ld
 
         # if ld_func == 'linear':
-        #     retval = self.Inorm(Teff=Teff, logg=logg, abun=abun, atm=atm, ldatm=ldatm, ldint=ldint, ld_func=ld_func, ld_coeffs=ld_coeffs, photon_weighted=photon_weighted, extrapolate_mode=extrapolate_mode) * self._ldlaw_lin(mu, *ld_coeffs)
+        #     retval = self.Inorm(Teff=Teff, logg=logg, abun=abun, atm=atm, ldatm=ldatm, ldint=ldint, ld_func=ld_func, ld_coeffs=ld_coeffs, photon_weighted=photon_weighted, extrapolation_method=extrapolation_method) * self._ldlaw_lin(mu, *ld_coeffs)
         # elif ld_func == 'logarithmic':
-        #     retval = self.Inorm(Teff=Teff, logg=logg, abun=abun, atm=atm, ldatm=ldatm, ldint=ldint, ld_func=ld_func, ld_coeffs=ld_coeffs, photon_weighted=photon_weighted, extrapolate_mode=extrapolate_mode) * self._ldlaw_log(mu, *ld_coeffs)
+        #     retval = self.Inorm(Teff=Teff, logg=logg, abun=abun, atm=atm, ldatm=ldatm, ldint=ldint, ld_func=ld_func, ld_coeffs=ld_coeffs, photon_weighted=photon_weighted, extrapolation_method=extrapolation_method) * self._ldlaw_log(mu, *ld_coeffs)
         # elif ld_func == 'square_root':
-        #     retval = self.Inorm(Teff=Teff, logg=logg, abun=abun, atm=atm, ldatm=ldatm, ldint=ldint, ld_func=ld_func, ld_coeffs=ld_coeffs, photon_weighted=photon_weighted, extrapolate_mode=extrapolate_mode) * self._ldlaw_sqrt(mu, *ld_coeffs)
+        #     retval = self.Inorm(Teff=Teff, logg=logg, abun=abun, atm=atm, ldatm=ldatm, ldint=ldint, ld_func=ld_func, ld_coeffs=ld_coeffs, photon_weighted=photon_weighted, extrapolation_method=extrapolation_method) * self._ldlaw_sqrt(mu, *ld_coeffs)
         # elif ld_func == 'quadratic':
-        #     retval = self.Inorm(Teff=Teff, logg=logg, abun=abun, atm=atm, ldatm=ldatm, ldint=ldint, ld_func=ld_func, ld_coeffs=ld_coeffs, photon_weighted=photon_weighted, extrapolate_mode=extrapolate_mode) * self._ldlaw_quad(mu, *ld_coeffs)
+        #     retval = self.Inorm(Teff=Teff, logg=logg, abun=abun, atm=atm, ldatm=ldatm, ldint=ldint, ld_func=ld_func, ld_coeffs=ld_coeffs, photon_weighted=photon_weighted, extrapolation_method=extrapolation_method) * self._ldlaw_quad(mu, *ld_coeffs)
         # elif ld_func == 'power':
-        #     retval = self.Inorm(Teff=Teff, logg=logg, abun=abun, atm=atm, ldatm=ldatm, ldint=ldint, ld_func=ld_func, ld_coeffs=ld_coeffs, photon_weighted=photon_weighted, extrapolate_mode=extrapolate_mode) * self._ldlaw_nonlin(mu, *ld_coeffs)
+        #     retval = self.Inorm(Teff=Teff, logg=logg, abun=abun, atm=atm, ldatm=ldatm, ldint=ldint, ld_func=ld_func, ld_coeffs=ld_coeffs, photon_weighted=photon_weighted, extrapolation_method=extrapolation_method) * self._ldlaw_nonlin(mu, *ld_coeffs)
         # else:
         #     raise NotImplementedError('ld_func={} not supported'.format(ld_func))
 
