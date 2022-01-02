@@ -343,7 +343,7 @@ class System(object):
             if body.mesh is None: continue
             abs_normal_intensities = passbands.Inorm_bol_bb(Teff=body.mesh.teffs.for_computations,
                                                             atm='blackbody',
-                                                            photon_weighted=False)
+                                                            intens_weighting='energy')
 
             fluxes_intrins_per_body.append(abs_normal_intensities * np.pi)
 
@@ -1765,7 +1765,7 @@ class Star(Body):
         intens_weighting = kwargs.get('intens_weighting', self.intens_weighting.get(dataset, None))
         atm = kwargs.get('atm', self.atm)
         blending_method = kwargs.get('blending_method', self.blending_method)
-        ld_blending_method = kwargs.get('ld_blending_method', self.ld_blending_method)
+        ld_extrapolation_method = kwargs.get('ld_blending_method', self.ld_blending_method)
         extinct = kwargs.get('extinct', self.extinct)
         Rv = kwargs.get('Rv', self.Rv)
         ld_mode = kwargs.get('ld_mode', self.ld_mode.get(dataset, None))
@@ -1819,14 +1819,14 @@ class Star(Body):
             self.set_ptfarea(dataset, ptfarea)
 
             try:
-                # ANDREJ TODO: pass blending_method/ld_blending_method
-                ldint = pb.ldint(Teff=self.mesh.teffs.for_computations,
-                                 logg=self.mesh.loggs.for_computations,
-                                 abun=self.mesh.abuns.for_computations,
+                ldint = pb.ldint(teffs=self.mesh.teffs.for_computations,
+                                 loggs=self.mesh.loggs.for_computations,
+                                 abuns=self.mesh.abuns.for_computations,
                                  ldatm=ldatm,
                                  ld_func=ld_func if ld_mode != 'interp' else ld_mode,
                                  ld_coeffs=ld_coeffs,
-                                 photon_weighted=intens_weighting=='photon')
+                                 intens_weighting=intens_weighting,
+                                 ld_extrapolation_method=ld_extrapolation_method)
             except ValueError as err:
                 if str(err).split(":")[0] == 'Atmosphere parameters out of bounds':
                     # let's override with a more helpful error message
@@ -1847,13 +1847,13 @@ class Star(Body):
             try:
                 # ANDREJ TODO: pass blending_method/ld_blending_method
                 # abs_normal_intensities are the normal emergent passband intensities:
-                abs_normal_intensities = pb.Inorm(Teff=self.mesh.teffs.for_computations,
-                                                  logg=self.mesh.loggs.for_computations,
-                                                  abun=self.mesh.abuns.for_computations,
+                abs_normal_intensities = pb.Inorm(teffs=self.mesh.teffs.for_computations,
+                                                  loggs=self.mesh.loggs.for_computations,
+                                                  abuns=self.mesh.abuns.for_computations,
                                                   atm=atm,
                                                   ldatm=ldatm,
                                                   ldint=ldint,
-                                                  photon_weighted=intens_weighting=='photon')
+                                                  intens_weighting=intens_weighting)
             except ValueError as err:
                 if str(err).split(":")[0] == 'Atmosphere parameters out of bounds':
                     # let's override with a more helpful error message
@@ -1877,7 +1877,7 @@ class Star(Body):
                                      ldint=ldint,
                                      ld_func=ld_func if ld_mode != 'interp' else ld_mode,
                                      ld_coeffs=ld_coeffs,
-                                     photon_weighted=intens_weighting=='photon')
+                                     intens_weighting=intens_weighting)
 
 
             # Beaming/boosting
@@ -1891,7 +1891,7 @@ class Star(Body):
                                    abun=self.mesh.abuns.for_computations,
                                    mu=abs(self.mesh.mus_for_computations),
                                    atm=atm,
-                                   photon_weighted=intens_weighting=='photon')
+                                   intens_weighting=intens_weighting)
 
                 boost_factors = 1.0 + bindex * self.mesh.velocities.for_computations[:,2]/37241.94167601236
             else:
@@ -1911,7 +1911,7 @@ class Star(Body):
                                                          extinct=extinct,
                                                          Rv=Rv,
                                                          atm=atm,
-                                                         photon_weighted=intens_weighting=='photon')
+                                                         intens_weighting=intens_weighting)
 
                 # extinction is NOT aspect dependent, so we'll correct both
                 # normal and directional intensities

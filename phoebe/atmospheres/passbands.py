@@ -1,5 +1,6 @@
 #from phoebe.c import h, c, k_B
 #from phoebe import u
+from numpy.linalg.linalg import _raise_linalgerror_eigenvalues_nonconvergence
 from phoebe import __version__ as phoebe_version
 from phoebe import conf, mpi
 from phoebe.utils import _bytes
@@ -116,6 +117,16 @@ def blending_factor(d, func='sigmoid', scale=15, offset=0.5):
     rv[d < 0] = 1
     return rv
 
+def raise_out_of_bounds(nanvals, atm=None, ldatm=None, intens_weighting=None):
+    value_error = 'atmosphere parameters out of bounds: '
+    if atm is not None:
+        value_error += f'atm={atm} '
+    if ldatm is not None:
+        value_error += f'ldatm={ldatm} '
+    if intens_weighting is not None:
+        value_error += f'intens_weighting={intens_weighting} '
+    value_error += f'values={nanvals}'
+    raise ValueError(value_error)
 
 class Passband:
     def __init__(self, ptf=None, pbset='Johnson', pbname='V', effwl=5500.0,
@@ -274,6 +285,7 @@ class Passband:
         self.ics = dict()
         self.blending_region = dict()
         self.mapper = dict()
+        self.ndpolator = dict()
 
     def __repr__(self):
         return '<Passband: %s:%s>' % (self.pbset, self.pbname)
@@ -549,6 +561,7 @@ class Passband:
             self.ics = dict()
             self.blending_region = dict()
             self.mapper = dict()
+            self.ndpolator = dict()
 
             self.ptf_table = hdul['ptftable'].data
             self.wl = np.linspace(self.ptf_table['wl'][0], self.ptf_table['wl'][-1], int(self.wl_oversampling*len(self.ptf_table['wl'])))
@@ -594,7 +607,9 @@ class Passband:
                     # Rebuild the table of inferior corners for extrapolation:
                     raxes = self.atm_axes['ck2004'][:-1]
                     subgrid = self.atm_photon_grid['ck2004'][...,-1,:]
-                    self.ics['ck2004'] = np.array([(i, j, k) for i in range(0,len(raxes[0])-1) for j in range(0,len(raxes[1])-1) for k in range(0,len(raxes[2])-1) if ~np.any(np.isnan(subgrid[i:i+2,j:j+2,k:k+2]))])
+                    self.ics['ck2004'] = np.array([(i, j, k) for i in range(0, len(raxes[0])-1) for j in range(0, len(raxes[1])-1) for k in range(0, len(raxes[2])-1) if ~np.any(np.isnan(subgrid[i:i+2,j:j+2,k:k+2]))])
+
+                    self.ndpolator['ck2004'] = ndpolator.Ndpolator(self.atm_axes['ck2004'][:-1], self.atm_energy_grid['ck2004'][...,-1,:])
 
                 if 'ck2004:ld' in self.content:
                     self.ld_energy_grid['ck2004'] = hdul['cklegrid'].data
@@ -729,7 +744,7 @@ class Passband:
         expterm = np.exp(hclkt)
         return hclkt * expterm/(expterm-1)
 
-    def _bb_intensity(self, Teff, photon_weighted=False):
+    def _bb_intensity(self, Teff, intens_weighting='photon'):
         """
         Computes mean passband intensity using blackbody atmosphere:
 
@@ -741,14 +756,14 @@ class Passband:
         Arguments
         -----------
         * `Teff` (float/array): effective temperature in K
-        * `photon_weighted` (bool, optional, default=False): photon/energy switch
+        * `intens_weighting`
 
         Returns
         ------------
         * mean passband intensity using blackbody atmosphere.
         """
 
-        if photon_weighted:
+        if intens_weighting == 'photon':
             pb = lambda w: w*self._planck(w, Teff)*self.ptf(w)
             return integrate.quad(pb, self.wl[0], self.wl[-1])[0]/self.ptf_photon_area
         else:
@@ -777,12 +792,12 @@ class Passband:
         self.atm_axes['blackbody'] = (Teffs,)
 
         # Energy-weighted intensities:
-        log10ints_energy = np.array([np.log10(self._bb_intensity(Teff, photon_weighted=False)) for Teff in Teffs])
+        log10ints_energy = np.array([np.log10(self._bb_intensity(Teff, intens_weighting='energy')) for Teff in Teffs])
         self._bb_func_energy = interpolate.splrep(Teffs, log10ints_energy, s=0)
         self._log10_Inorm_bb_energy = lambda Teff: interpolate.splev(Teff, self._bb_func_energy)
 
         # Photon-weighted intensities:
-        log10ints_photon = np.array([np.log10(self._bb_intensity(Teff, photon_weighted=True)) for Teff in Teffs])
+        log10ints_photon = np.array([np.log10(self._bb_intensity(Teff, intens_weighting='photon')) for Teff in Teffs])
         self._bb_func_photon = interpolate.splrep(Teffs, log10ints_photon, s=0)
         self._log10_Inorm_bb_photon = lambda Teff: interpolate.splev(Teff, self._bb_func_photon)
 
@@ -977,6 +992,8 @@ class Passband:
         raxes = self.atm_axes[atm][:-1]
         subgrid = self.atm_photon_grid[atm][...,-1,:]
         self.ics[atm] = np.array([(i, j, k) for i in range(0,len(raxes[0])-1) for j in range(0,len(raxes[1])-1) for k in range(0,len(raxes[2])-1) if ~np.any(np.isnan(subgrid[i:i+2,j:j+2,k:k+2]))])
+
+        self.ndpolator[atm] = ndpolator.Ndpolator(self.atm_axes[atm][:-1], self.atm_energy_grid[atm][...,-1,:])
 
         if f'{atm}:Imu' not in self.content:
             self.content.append(f'{atm}:Imu')
@@ -1397,34 +1414,6 @@ class Passband:
         else:
             raise NotImplementedError(f'ld_func={ld_func} is not supported.')
 
-    def _ldint(self, ld_func='linear', ld_coeffs=np.array([[0.5]])):
-        """
-        Computes ldint value for the given `ld_func` and `ld_coeffs`.
-
-        Parameters
-        ----------
-        * `ld_func` (string, optional, default='linear'): limb darkening function
-        * `ld_coeffs` (array, optional, default=[[0.5]]): limb darkening coefficients
-
-        Returns
-        -------
-        * (float or array) ldint value(s)
-        """
-        ld_coeffs = np.atleast_2d(ld_coeffs)
-
-        if ld_func == 'linear':
-            return 1-ld_coeffs[:,0]/3
-        elif ld_func == 'logarithmic':
-            return 1-ld_coeffs[:,0]/3+2.*ld_coeffs[:,1]/9
-        elif ld_func == 'square_root':
-            return 1-ld_coeffs[:,0]/3-ld_coeffs[:,1]/5
-        elif ld_func == 'quadratic':
-            return 1-ld_coeffs[:,0]/3-ld_coeffs[:,1]/6
-        elif ld_func == 'power':
-            return 1-ld_coeffs[:,0]/5-ld_coeffs[:,1]/3-3.*ld_coeffs[:,2]/7-ld_coeffs[:,3]/2
-        else:
-            raise NotImplementedError(f'ld_func={ld_func} is not supported')
-
     def _ldlaw_lin(self, mu, xl):
         return 1.0-xl*(1-mu)
 
@@ -1543,7 +1532,7 @@ class Passband:
 
                 print('%8.1f %7.1f % 16.9E % 16.9E % 16.9E % 16.9E % 16.9E % 16.9E % 16.9E % 16.9E % 16.9E % 16.9E' % (teffs[0], teffs[imax-1], Cl[0], Cl[1], Cl[2], Cl[3], Cl[4], Cl[5], Cl[6], Cl[7], Cl[8], Cl[9]))
 
-    def export_legacy_ldcoeffs(self, models, atm='ck2004', filename=None, photon_weighted=True):
+    def export_legacy_ldcoeffs(self, models, atm='ck2004', filename=None, intens_weighting='photon'):
         """
         Exports CK2004 limb darkening coefficients to a PHOEBE legacy
         compatible format.
@@ -1555,24 +1544,11 @@ class Passband:
         * `atm` (string, default='ck2004'): atmosphere model, 'ck2004' or 'phoenix'
         * `filename` (string, optional, default=None): output filename for
             storing the table
-        * `photon_weighted` (bool, optional, default=True): photon/energy switch
+        * `intens_weighting`
         """
 
-        if atm == 'ck2004' and photon_weighted:
-            axes = self.atm_axes['ck2004']
-            grid = self.ld_photon_grid['ck2004']
-        elif atm == 'phoenix' and photon_weighted:
-            axes = self.atm_axes['phoenix']
-            grid = self.ld_photon_grid['phoenix']
-        elif atm == 'ck2004' and not photon_weighted:
-            axes = self.atm_axes['ck2004']
-            grid = self.ld_energy_grid['ck2004']
-        elif atm == 'phoenix' and not photon_weighted:
-            axes = self.atm_axes['phoenix']
-            grid = self.ld_energy_grid['phoenix']
-        else:
-            print('atmosphere model %s cannot be exported.' % atm)
-            return None
+        axes = self.atm_axes[atm]
+        grid = self.ld_photon_grid[atm] if intens_weighting == 'photon' else self.ld_energy_grid[atm]
 
         if filename is not None:
             import time
@@ -1581,7 +1557,7 @@ class Passband:
             f.write('# PASSBAND  %s\n' % self.pbname)
             f.write('# VERSION   1.0\n\n')
             f.write('# Exported from PHOEBE-2 passband on %s\n' % (time.ctime()))
-            f.write('# The coefficients are computed for the %s-weighted regime from %s atmospheres.\n\n' % ('photon' if photon_weighted else 'energy', atm))
+            f.write('# The coefficients are computed for the %s-weighted regime from %s atmospheres.\n\n' % (intens_weighting, atm))
 
         mods = np.loadtxt(models)
         for mod in mods:
@@ -1647,19 +1623,19 @@ class Passband:
         if f'{ldatm}:ldint' not in self.content:
             self.content.append(f'{ldatm}:ldint')
 
-    def interpolate_ldcoeffs(self, Teff=5772., logg=4.43, abun=0.0, ldatm='ck2004', ld_func='power', photon_weighted=False, ld_extrapolation_method='none'):
+    def interpolate_ldcoeffs(self, teffs=5772., loggs=4.43, abuns=0.0, ldatm='ck2004', ld_func='power', intens_weighting='photon', ld_extrapolation_method='none'):
         """
         Interpolate the passband-stored table of LD model coefficients.
 
         Arguments
         ------------
-        * `Teff` (float or array, default=5772): effective temperature
-        * `logg` (float or array, default=4.43): surface gravity in cgs
-        * `abun` (float or array, default=0.0): log-abundance in solar log-abundances
+        * `teffs` (float or array, default=5772): effective temperature
+        * `loggs` (float or array, default=4.43): surface gravity in cgs
+        * `abuns` (float or array, default=0.0): log-abundance in solar log-abundances
         * `ldatm` (string, default='ck2004'): limb darkening table: 'ck2004' or 'phoenix'
         * `ld_func` (string, default='power'): limb darkening fitting function: 'linear',
           'logarithmic', 'square_root', 'quadratic', 'power' or 'all'
-        * `photon_weighted` (bool, optional, default=False): photon/energy switch
+        * `intens_weighting` (string, optional, default='photon'): 
         * `ld_extrapolation_method` (string, optional, default='none'): extrapolation mode:
             'none', 'nearest', 'linear'
 
@@ -1686,85 +1662,17 @@ class Passband:
         if f'{ldatm}:ld' not in self.content:
             raise ValueError(f'Limb darkening coefficients for ldatm={ldatm} are not available; please compute them first.')
 
-        if ldatm == 'ck2004':
-            axes = self.atm_axes['ck2004'][:-1]
-            table = self.ld_photon_grid['ck2004'] if photon_weighted else self.ld_energy_grid['ck2004']
-            nntree = self.nntree['ck2004']
-            indices = self.indices['ck2004']
-            ics = self.ics['ck2004']
-        elif ldatm == 'phoenix':
-            axes = self.atm_axes['phoenix'][:-1]
-            table = self.ld_photon_grid['phoenix'] if photon_weighted else self.ld_energy_grid['phoenix']
-            nntree = self.nntree['phoenix']
-            indices = self.indices['phoenix']
-            ics = self.ics['phoenix']
-        elif ldatm == 'tmap':
-            axes = self.atm_axes['tmap'][:-1]
-            table = self.ld_photon_grid['tmap'] if photon_weighted else self.ld_energy_grid['tmap']
-            nntree = self.nntree['tmap']
-            indices = self.indices['tmap']
-            ics = self.ics['tmap']
-        else:
-            raise ValueError(f'ldatm={ldatm} is not supported for LD interpolation.')
+        axes = self.atm_axes[ldatm][:-1]
+        table = self.ld_photon_grid[ldatm] if intens_weighting == 'photon' else self.ld_energy_grid['ck2004']
 
-        req = ndpolator.tabulate((Teff, logg, abun))
-        ld_coeffs = libphoebe.interp(req, axes, table)
+        req = ndpolator.tabulate((teffs, loggs, abuns))
+        ndp = ndpolator.Ndpolator(axes, table)
+        # ld_coeffs = libphoebe.interp(req, axes, table)
+        ld_coeffs = ndp.interp(req, extrapolation_method=ld_extrapolation_method)
 
-        ldc = ld_coeffs[s[ld_func]]
+        return ld_coeffs[s[ld_func]]
 
-        # Check if there are any nans; return if there aren't any.
-        nanmask = np.any(np.isnan(ldc), axis=1)
-        if ~np.any(nanmask):
-            return ldc
-
-        # if we get to here, it means that there are nans in ld_coeffs and we need to switch on extrapolation_mode.
-        nan_indices = np.argwhere(nanmask).flatten()
-
-        if ld_extrapolation_method == 'none':
-            raise ValueError(f'Atmosphere parameters out of bounds: ldatm={ldatm}, teff={req[:,0][nanmask]}, logg={req[:,1][nanmask]}, abun={req[:,2][nanmask]}')
-        elif ld_extrapolation_method == 'nearest':
-            for k in nan_indices:
-                d, i = nntree.query(req[k])
-                ld_coeffs[k] = table[tuple(indices[i][:-1])]
-            return ld_coeffs[s[ld_func]]
-        elif ld_extrapolation_method == 'linear':
-            for k in nan_indices:
-                v = req[k]
-                ic = np.array([np.searchsorted(axes[i], v[i])-1 for i in range(len(axes))])
-                # print('coordinates of the inferior corner:', ic)
-
-                # get the inferior corners of all nearest fully defined hypercubes; this
-                # is all integer math so we can compare with == instead of np.isclose().
-                sep = (np.abs(ics-ic)).sum(axis=1)
-                corners = np.argwhere(sep == sep.min()).flatten()
-                # print('%d fully defined adjacent hypercube(s) found.' % len(corners))
-                # for i, corner in enumerate(corners):
-                #     print('  hypercube %d inferior corner: %s' % (i, self.ics['ck2004'][corner]))
-
-                extrapolated_ld_coeffs = []
-                for corner in corners:
-                    slc = tuple([slice(ics[corner][i], ics[corner][i]+2) for i in range(len(ics[corner]))])
-                    coords = [axes[i][slc[i]] for i in range(len(axes))]
-                    # print('  nearest fully defined hypercube:', slc)
-
-                    # extrapolate:
-                    lo = [c[0] for c in coords]
-                    hi = [c[1] for c in coords]
-
-                    subgrid = table[slc]
-                    ld_coeff_row = np.zeros(11)
-                    for i in range(11):
-                        fv = subgrid[...,i].T.reshape(2**len(axes))
-                        evs = ndpolator.ndpolate(v, lo, hi, fv)
-                        ld_coeff_row[i] = evs
-                    extrapolated_ld_coeffs.append(ld_coeff_row)
-
-                ld_coeffs[k] = np.array(extrapolated_ld_coeffs).mean(axis=0)
-            return ld_coeffs[s[ld_func]]
-        else:
-            raise ValueError(f'ld_extrapolation_method={ld_extrapolation_method} is not supported.')
-
-    def interpolate_extinct(self, Teff=5772., logg=4.43, abun=0.0, atm='blackbody',  extinct=0.0, Rv=3.1, photon_weighted=False):
+    def interpolate_extinct(self, Teff=5772., logg=4.43, abun=0.0, atm='blackbody',  extinct=0.0, Rv=3.1, intens_weighting='photon'):
         """
         Interpolates the passband-stored tables of extinction corrections
 
@@ -1776,7 +1684,7 @@ class Passband:
         * `atm` (string, optional, default='blackbody'): atmosphere model.
         * `extinct` (float, optional, default=0.0)
         * `Rv` (float, optional, default=3.1)
-        * `photon_weighted` (bool, optional, default=False)
+        * `intens_weighting`
 
         Returns
         ---------
@@ -1791,7 +1699,7 @@ class Passband:
             if 'ck2004:ext' not in self.content:
                 raise ValueError('Extinction factors are not computed yet. Please compute those first.')
 
-            if photon_weighted:
+            if intens_weighting == 'photon':
                 table = self._ck2004_extinct_photon_grid
             else:
                 table = self._ck2004_extinct_energy_grid
@@ -1807,7 +1715,8 @@ class Passband:
 
             nanmask = np.isnan(extinct_factor)
             if np.any(nanmask):
-                raise ValueError('Atmosphere parameters out of bounds: atm=%s, extinct=%f, Rv=%f, Teff=%s, logg=%s, abun=%s' % (atm, extinct, Rv, Teff[nanmask], logg[nanmask], abun[nanmask]))
+                raise_out_of_bounds(nanvals=req[nanmask], atm=atm, intens_weighting=intens_weighting)
+                # raise ValueError('Atmosphere parameters out of bounds: atm=%s, extinct=%f, Rv=%f, Teff=%s, logg=%s, abun=%s' % (atm, extinct, Rv, Teff[nanmask], logg[nanmask], abun[nanmask]))
 
             return extinct_factor
 
@@ -1815,7 +1724,7 @@ class Passband:
             if 'phoenix:ext' not in self.content:
                 raise ValueError('Extinction factors are not computed yet. Please compute those first.')
 
-            if photon_weighted:
+            if intens_weighting:
                 table = self._phoenix_extinct_photon_grid
             else:
                 table = self._phoenix_extinct_energy_grid
@@ -1831,7 +1740,8 @@ class Passband:
 
             nanmask = np.isnan(extinct_factor)
             if np.any(nanmask):
-                raise ValueError('Atmosphere parameters out of bounds: atm=%s, extinct=%f, Rv=%f, Teff=%s, logg=%s, abun=%s' % (atm, extinct, Rv, Teff[nanmask], logg[nanmask], abun[nanmask]))
+                raise_out_of_bounds(nanvals=req[nanmask], atm=atm, intens_weighting=intens_weighting)
+                # raise ValueError('Atmosphere parameters out of bounds: atm=%s, extinct=%f, Rv=%f, Teff=%s, logg=%s, abun=%s' % (atm, extinct, Rv, Teff[nanmask], logg[nanmask], abun[nanmask]))
 
             return extinct_factor
 
@@ -1839,7 +1749,7 @@ class Passband:
             if 'tmap:ext' not in self.content:
                 raise ValueError('Extinction factors are not computed yet. Please compute those first.')
 
-            if photon_weighted:
+            if intens_weighting == 'photon':
                 table = self._tmap_extinct_photon_grid
             else:
                 table = self._tmap_extinct_energy_grid
@@ -1855,7 +1765,8 @@ class Passband:
 
             nanmask = np.isnan(extinct_factor)
             if np.any(nanmask):
-                raise ValueError('Atmosphere parameters out of bounds: atm=%s, extinct=%f, Rv=%f, Teff=%s, logg=%s, abun=%s' % (atm, extinct, Rv, Teff[nanmask], logg[nanmask], abun[nanmask]))
+                raise_out_of_bounds(nanvals=req[nanmask], atm=atm, intens_weighting=intens_weighting)
+                # raise ValueError('Atmosphere parameters out of bounds: atm=%s, extinct=%f, Rv=%f, Teff=%s, logg=%s, abun=%s' % (atm, extinct, Rv, Teff[nanmask], logg[nanmask], abun[nanmask]))
 
             return extinct_factor
 
@@ -1863,7 +1774,7 @@ class Passband:
             if 'blended_ext' not in self.content:
                 raise ValueError('Extinction factors are not computed yet. Please compute those first.')
 
-            if photon_weighted:
+            if intens_weighting == 'photon':
                 table = self._blended_extinct_photon_grid
             else:
                 table = self._blended_extinct_energy_grid
@@ -1879,7 +1790,8 @@ class Passband:
 
             nanmask = np.isnan(extinct_factor)
             if np.any(nanmask):
-                raise ValueError('Atmosphere parameters out of bounds: atm=%s, extinct=%f, Rv=%f, Teff=%s, logg=%s, abun=%s' % (atm, extinct, Rv, Teff[nanmask], logg[nanmask], abun[nanmask]))
+                raise_out_of_bounds(nanvals=req[nanmask], atm=atm, intens_weighting=intens_weighting)
+                # raise ValueError('Atmosphere parameters out of bounds: atm=%s, extinct=%f, Rv=%f, Teff=%s, logg=%s, abun=%s' % (atm, extinct, Rv, Teff[nanmask], logg[nanmask], abun[nanmask]))
 
             return extinct_factor
 
@@ -1889,7 +1801,7 @@ class Passband:
             if 'blackbody:ext' not in self.content:
                 raise ValueError('Extinction factors are not computed yet. Please compute those first.')
 
-            if photon_weighted:
+            if intens_weighting == 'photon':
                 table = self._bb_extinct_photon_grid
             else:
                 table = self._bb_extinct_energy_grid
@@ -1905,7 +1817,8 @@ class Passband:
 
             nanmask = np.isnan(extinct_factor)
             if np.any(nanmask):
-                raise ValueError('Atmosphere parameters out of bounds: atm=%s, extinct=%f, Rv=%f, Teff=%s, logg=%s, abun=%s' % (atm, extinct, Rv, Teff[nanmask], logg[nanmask], abun[nanmask]))
+                raise_out_of_bounds(nanvals=req[nanmask], atm=atm, intens_weighting=intens_weighting)
+                # raise ValueError('Atmosphere parameters out of bounds: atm=%s, extinct=%f, Rv=%f, Teff=%s, logg=%s, abun=%s' % (atm, extinct, Rv, Teff[nanmask], logg[nanmask], abun[nanmask]))
 
             return extinct_factor
 
@@ -1991,13 +1904,16 @@ class Passband:
 
         return log10_Inorm
 
-    def _log10_Inorm_bb(self, v, axes, ldint_grid, ld_extrapolation_method='nearest', ldint_tree=None, ldint_indices=None, ics=None, photon_weighted=False):
-        if ld_extrapolation_method == 'nearest':
-            bbint = self._log10_Inorm_bb_photon(v[0]) if photon_weighted else self._log10_Inorm_bb_energy(v[0])
+    def _log10_Inorm_bb(self, v, axes, ldint_grid, ld_extrapolation_method='nearest', ldint_tree=None, ldint_indices=None, ics=None, intens_weighting='photon'):
+        if ld_extrapolation_method == 'none':
+            raise_out_of_bounds(nanvals=v)
+            # raise ValueError(f'atmosphere value out of bounds: {v}')
+        elif ld_extrapolation_method == 'nearest':
+            bbint = self._log10_Inorm_bb_photon(v[0]) if intens_weighting == 'photon' else self._log10_Inorm_bb_energy(v[0])
             d, i = ldint_tree.query(v)
             return bbint - np.log10(ldint_grid[tuple(ldint_indices[i])])
         elif ld_extrapolation_method == 'linear':
-            bbint = self._log10_Inorm_bb_photon(v[0]) if photon_weighted else self._log10_Inorm_bb_energy(v[0])
+            bbint = self._log10_Inorm_bb_photon(v[0]) if intens_weighting == 'photon' else self._log10_Inorm_bb_energy(v[0])
 
             # coordinates of the inferior corner:
             ic = np.array([np.searchsorted(axes[k], v[k])-1 for k in range(len(v))], dtype=int)
@@ -2026,65 +1942,22 @@ class Passband:
         else:
             raise NotImplementedError(f'ld_extrapolation_method={ld_extrapolation_method} not recognized.')
 
-    def _log10_Inorm(self, atm, teffs, loggs, abuns, photon_weighted=False, extrapolation_method='none', ld_extrapolation_method='none'):
+    def _log10_Inorm(self, atm, teffs, loggs, abuns, intens_weighting='photon', atm_extrapolation_method='none', ld_extrapolation_method='none', raise_on_nans=True):
         """
         """
-        req = np.vstack((teffs, loggs, abuns)).T
         axes = self.atm_axes[atm][:-1]
-        grid = self.atm_photon_grid[atm][...,-1,:] if photon_weighted else self.atm_energy_grid[atm][...,-1,:]
-        log10_Inorm = libphoebe.interp(req, axes, grid).T[0]
+        grid = self.atm_photon_grid[atm][...,-1,:] if intens_weighting == 'photon' else self.atm_energy_grid[atm][...,-1,:]
+        ndp = ndpolator.Ndpolator(axes, grid)
+        req = ndp.tabulate((teffs, loggs, abuns))
+        log10_Inorm = ndp.interp(req, raise_on_nans=raise_on_nans, extrapolation_method=atm_extrapolation_method)
+        # log10_Inorm = libphoebe.interp(req, axes, grid).T[0]
 
-        # if there are no nans, return the interpolated array:
-        nanmask = np.isnan(log10_Inorm)
-        if ~np.any(nanmask):
-            return log10_Inorm
+        if atm_extrapolation_method == 'blend':
+            raise NotImplementedError('working on it...')
 
-        nan_indices = np.argwhere(nanmask).flatten()
+        return log10_Inorm
 
-        # if we are here, it means that there are nans. What we do depends on
-        # the extrapolation method.
-
-        if extrapolation_method == 'none':
-            raise ValueError(f'Atmosphere parameters out of bounds: atm={atm}, photon_weighted={photon_weighted}, teffs={teffs[nanmask]}, loggs={loggs[nanmask]}, abuns={abuns[nanmask]}')
-
-        elif extrapolation_method == 'nearest':
-            for k in nan_indices:
-                d, i = self.nntree[atm].query(req[k])
-                log10_Inorm[k] = grid[tuple(self.indices[atm][i])]
-            return log10_Inorm
-
-        elif extrapolation_method == 'linear':
-            for k in nan_indices:
-                v = req[k]
-                ic = np.array([np.searchsorted(axes[i], v[i])-1 for i in range(len(axes))])
-                # print('coordinates of the inferior corner:', ic)
-
-                # get the inferior corners of all nearest fully defined hypercubes; this
-                # is all integer math so we can compare with == instead of np.isclose().
-                sep = (np.abs(self.ics['ck2004']-ic)).sum(axis=1)
-                corners = np.argwhere(sep == sep.min()).flatten()
-                # print('%d fully defined adjacent hypercube(s) found.' % len(corners))
-                # for i, corner in enumerate(corners):
-                #     print('  hypercube %d inferior corner: %s' % (i, self.ics['ck2004'][corner]))
-
-                ints = []
-                for corner in corners:
-                    slc = tuple([slice(self.ics[atm][corner][i], self.ics[atm][corner][i]+2) for i in range(len(self.ics[atm][corner]))])
-                    coords = [axes[i][slc[i]] for i in range(len(axes))]
-                    # print('  nearest fully defined hypercube:', slc)
-
-                    # extrapolate:
-                    lo = [c[0] for c in coords]
-                    hi = [c[1] for c in coords]
-                    subgrid = grid[slc]
-                    fv = subgrid.T.reshape(2**len(axes))
-                    ckint = ndpolator.ndpolate(v, lo, hi, fv)
-                    # print('  extrapolated atm value: %f' % ckint)
-                    ints.append(ckint)
-                log10_Inorm[k] = np.array(ints).mean()
-            return log10_Inorm
-
-        elif extrapolation_method == 'blend':
+        if atm_extrapolation_method == 'blend':
             naxes = self.mapper[atm](axes)
             for k in nan_indices:
                 v = req[k]
@@ -2133,7 +2006,7 @@ class Passband:
                         blints.append(bbint)
                         continue
 
-                    ckint = np.log10(self.Inorm(v[0], v[1], v[2], atm=atm, extrapolation_method='linear'))
+                    ckint = np.log10(self.Inorm(v[0], v[1], v[2], atm=atm, atm_extrapolation_method='linear'))
                     # print(f'ckint: {ckint}')
 
                     # Blending:
@@ -2151,10 +2024,10 @@ class Passband:
                 # print(log10_Inorm[k])
 
             return log10_Inorm
-        else:
-            raise ValueError(f'extrapolation_method="{extrapolation_method}" is not recognized.')
+        # else:
+        #     raise ValueError(f'atm_extrapolation_method="{atm_extrapolation_method}" is not recognized.')
 
-    def Inorm(self, Teff=5772., logg=4.43, abun=0.0, atm='ck2004', ldatm='ck2004', ldint=None, ld_func='interp', ld_coeffs=None, photon_weighted=False, extrapolation_method='none', ld_extrapolation_method='none'):
+    def Inorm(self, teffs=5772., loggs=4.43, abuns=0.0, atm='ck2004', ldatm='ck2004', ldint=None, ld_func='interp', ld_coeffs=None, intens_weighting='photon', atm_extrapolation_method='none', ld_extrapolation_method='none'):
         """
         Computes normal emergent passband intensity.
 
@@ -2171,11 +2044,11 @@ class Passband:
 
         Arguments
         ----------
-        * `Teff` (float or array, optional, default=5772): effective
+        * `teffs` (float or array, optional, default=5772): effective
           temperature of the emitting surface element(s), in Kelvin
-        * `logg` (float or array, optional, default=4.43): surface gravity of
+        * `loggs` (float or array, optional, default=4.43): surface gravity of
           the emitting surface element(s), in log(cm/s^2)
-        * `abun` (float or array, optional, default=0.0): chemical
+        * `abuns` (float or array, optional, default=0.0): chemical
           abundance/metallicity of the emitting surface element(s), in solar
           dex
         * `atm` (string, optional, default='ck2004'): model atmosphere to be
@@ -2200,11 +2073,11 @@ class Passband:
             corresponding table. List length needs to correspond to the
             `ld_func`: 1 for linear, 2 for sqrt, log and quadratic, and 4 for
             power.
-        * `photon_weighted` (bool, optional, default=False): photon/energy
+        * `intens_weighting` (string, optional, default='photon'): photon/energy
           switch
-        * `extraplation_method` (string, optional, default='none'): the method
-          of intensity extrapolation and off-the-grid blending with blackbody
-          atmosheres ('none', 'nearest', 'linear', 'blend')
+        * `atm_extraplation_method` (string, optional, default='none'): the
+          method of intensity extrapolation and off-the-grid blending with
+          blackbody atmosheres ('none', 'nearest', 'linear', 'blend')
         * `ld_extrapolation_method` (string, optional, default='none'): the
           method of limb darkening extrapolation ('none', 'nearest' or
           'linear')
@@ -2220,7 +2093,13 @@ class Passband:
         * NotImplementedError: if `ld_func` is not supported.
         """
 
-        raise_on_nans = True if extrapolation_method == 'none' else False
+        if atm not in ['blackbody', 'extern_planckint', 'extern_atmx', 'ck2004', 'phoenix', 'tmap']:
+            raise RuntimeError(f'atm={atm} is not supported.')
+
+        if ldatm not in ['none', 'ck2004', 'phoenix', 'tmap']:
+            raise ValueError(f'ldatm={ldatm} is not supported.')
+
+        raise_on_nans = True if atm_extrapolation_method == 'none' else False
 
         if atm == 'blackbody' and 'blackbody:Inorm' in self.content:
             # check if the required tables for the chosen ldatm are available:
@@ -2231,68 +2110,39 @@ class Passband:
             if ld_func != 'interp' and ld_coeffs is None and f'{ldatm}:ld' not in self.content:
                 raise RuntimeError(f'passband {self.pbset}:{self.pbname} does not contain limb darkening coefficients for ldatm={ldatm}.')
 
-            # check if ldatm is valid:
-            if ldatm not in ['none', 'ck2004', 'phoenix', 'tmap']:
-                raise ValueError(f'ldatm={ldatm} is not supported.')
-            
-            axes = self.atm_axes[ldatm][:-1]
-            ldint_grid = self.ldint_photon_grid[ldatm] if photon_weighted else self.ldint_energy_grid[ldatm]
-            ldint_tree = self.nntree[ldatm]
-            ldint_indices = self.indices[ldatm]
-            ics = self.ics[ldatm]
+            # check if extrapolation_method is valid:
+            if atm_extrapolation_method == 'blend':
+                raise ValueError(f'the combination of atm={atm} and atm_extrapolation_method={atm_extrapolation_method} is not valid.')
 
-            if photon_weighted:
-                retval = 10**self._log10_Inorm_bb_photon(Teff)
-            else:
-                retval = 10**self._log10_Inorm_bb_energy(Teff)
+            req = ndpolator.tabulate((teffs, loggs, abuns))
+            retval = 10**self._log10_Inorm_bb_photon(req[:,0]).reshape(-1, 1) if intens_weighting=='photon' else 10**self._log10_Inorm_bb_energy(req[:,0]).reshape(-1, 1)
 
             if ld_func != 'interp' and ld_coeffs is None:
-                ld_coeffs = self.interpolate_ldcoeffs(Teff, logg, abun, ldatm, ld_func, photon_weighted, ld_extrapolation_method)
+                ld_coeffs = self.interpolate_ldcoeffs(teffs, loggs, abuns, ldatm, ld_func=ld_func, intens_weighting=intens_weighting, ld_extrapolation_method=ld_extrapolation_method)
 
             if ldint is None:
-                # FIXME: consolidate these two functions.
-                if ld_func != 'interp':
-                    ldint = self._ldint(ld_func=ld_func, ld_coeffs=ld_coeffs)
-                else:
-                    ldint = self.ldint(Teff, logg, abun, ldatm, ld_func, ld_coeffs, photon_weighted, raise_on_nans=raise_on_nans)
+                ldint = self.ldint(teffs=teffs, loggs=loggs, abuns=abuns, ldatm=ldatm, ld_func=ld_func, ld_coeffs=ld_coeffs, intens_weighting=intens_weighting, ld_extrapolation_method=ld_extrapolation_method, raise_on_nans=raise_on_nans)
 
             retval /= ldint
-
-            # if there are any nans in ldint, we need to extrapolate.
-            for i in np.argwhere(np.isnan(retval)).flatten():
-                v = (Teff[i], logg[i], abun[i])
-                retval[i] = 10**self._log10_Inorm_bb(v, axes=axes, ldint_grid=ldint_grid, ldint_mode=ld_extrapolation_method, ldint_tree=ldint_tree, ldint_indices=ldint_indices, ics=ics, photon_weighted=photon_weighted)
 
         elif atm == 'extern_planckint' and 'extern_planckint:Inorm' in self.content:
-            retval = 10**(self._log10_Inorm_extern_planckint(Teff)-1)  # -1 is for cgs -> SI
+            retval = 10**(self._log10_Inorm_extern_planckint(req[:,0])-1)  # -1 is for cgs -> SI
             if ldint is None:
-                ldint = self.ldint(Teff, logg, abun, ldatm, ld_func, ld_coeffs, photon_weighted, raise_on_nans=raise_on_nans)
+                ldint = self.ldint(teffs=teffs, loggs=loggs, abuns=abuns, ldatm=ldatm, ld_func=ld_func, ld_coeffs=ld_coeffs, intens_weighting=intens_weighting, ld_extrapolation_method=ld_extrapolation_method, raise_on_nans=raise_on_nans)
             retval /= ldint
-
-            # if there are any nans in ldint, we need to extrapolate.
-            # for i in np.argwhere(np.isnan(retval)).flatten():
-            #     v = (Teff[i], logg[i], abun[i])
-            #     retval[i] = 10**self._log10_Inorm_bb(v, axes=axes, ldint_grid=ldint_grid, ldint_mode=ld_extrapolation_method, ldint_tree=ldint_tree, ldint_indices=ldint_indices, ics=ics)
 
         elif atm == 'extern_atmx' and 'extern_atmx:Inorm' in self.content:
             # -1 below is for cgs -> SI:
-            retval = 10**(self._log10_Inorm_extern_atmx(Teff, logg, abun)-1)
-
-        elif atm == 'ck2004' and 'ck2004:Imu' in self.content:
-            retval = 10**self._log10_Inorm(atm=atm, teffs=Teff, loggs=logg, abuns=abun, photon_weighted=photon_weighted, extrapolation_method=extrapolation_method)
-
-        elif atm == 'phoenix' and 'phoenix:Imu' in self.content:
-            retval = 10**self._log10_Inorm(atm='phoenix', teffs=Teff, loggs=logg, abuns=abun, photon_weighted=photon_weighted, extrapolation_method=extrapolation_method)
-
-        elif atm == 'tmap' and 'tmap:Imu' in self.content:
-            retval = 10**self._log10_Inorm(atm='tmap', teffs=Teff, loggs=logg, abuns=abun, photon_weighted=photon_weighted, extrapolation_method=extrapolation_method)
+            retval = 10**(self._log10_Inorm_extern_atmx(req[:,0], req[:,1], req[:,2])-1)
 
         else:
-            raise ValueError(f'atm={atm} is not supported by the {self.pbset}:{self.pbname} passband.')
+            if f'{atm}:Imu' not in self.content:
+                raise ValueError(f'atm={atm} tables are not available in the {self.pbset}:{self.pbname} passband.')
+            retval = 10**self._log10_Inorm(atm=atm, teffs=teffs, loggs=loggs, abuns=abuns, intens_weighting=intens_weighting, atm_extrapolation_method=atm_extrapolation_method, ld_extrapolation_method=ld_extrapolation_method, raise_on_nans=raise_on_nans)
 
         return retval
 
-    def _log10_Imu_bb(self, teffs, loggs, abuns, mus, ldatm='ck2004', ldints=None, ld_mode='manual', ld_func='linear', ld_coeffs=[0.5], photon_weighted=False, extrapolation_method='none'):
+    def _log10_Imu_bb(self, teffs, loggs, abuns, mus, ldatm='ck2004', ldints=None, ld_mode='manual', ld_func='linear', ld_coeffs=[0.5], intens_weighting='photon', extrapolation_method='none', ld_extrapolation_method='none'):
         """
         """
 
@@ -2301,34 +2151,33 @@ class Passband:
             pass
         elif ld_mode=='lookup':
             # we have ld_func and ldatm, but no ld_coeffs.
-            ld_coeffs = self.interpolate_ldcoeffs(Teff=teffs, logg=loggs, abun=abuns, ldatm=ldatm, ld_func=ld_func, photon_weighted=photon_weighted, extrapolation_method=extrapolation_method)
+            ld_coeffs = self.interpolate_ldcoeffs(Teff=teffs, logg=loggs, abun=abuns, ldatm=ldatm, ld_func=ld_func, intens_weighting=intens_weighting, extrapolation_method=extrapolation_method)
         elif ld_mode == 'interp':
             raise ValueError(f'ld_mode={ld_mode} cannot be used for blackbody atmospheres.')
         else:
             raise NotImplementedError(f'ld_mode={ld_mode} is not supported.')
 
         if ldints is None:
-            ldints = self._ldint(ld_func=ld_func, ld_coeffs=ld_coeffs)
-            # ldint = self.ldint(Teff, logg, abun, ldatm=None, ld_func=ld_func, ld_coeffs=ld_coeffs, photon_weighted=photon_weighted, raise_on_nans=False)
+            ldints = self.ldint(teffs=teffs, loggs=loggs, abuns=abuns, ldatm=ldatm, ld_func=ld_func, ld_coeffs=ld_coeffs, intens_weighting=intens_weighting, ld_extrapolation_method=ld_extrapolation_method)
 
-        Inorm = self.Inorm(Teff=teffs, logg=loggs, abun=abuns, atm='blackbody', ldatm=ldatm, ldint=ldints, ld_func=ld_func, ld_coeffs=ld_coeffs, photon_weighted=photon_weighted, extrapolation_method=extrapolation_method)
+        Inorm = self.Inorm(teffs=teffs, loggs=loggs, abuns=abuns, atm='blackbody', ldatm=ldatm, ldint=ldints, ld_func=ld_func, ld_coeffs=ld_coeffs, intens_weighting=intens_weighting, extrapolation_method=extrapolation_method)
         ld = self._ld(ld_func=ld_func, mu=mus, ld_coeffs=ld_coeffs)
 
         return np.log10(Inorm * ld)
 
-    def _Imu_ck2004(self, req, photon_weighted=False):
-        log10_Imu = libphoebe.interp(req, self.atm_axes['ck2004'], self.atm_photon_grid['ck2004'] if photon_weighted else self.atm_energy_grid['ck2004']).T[0]
+    def _Imu_ck2004(self, req, intens_weighting='photon'):
+        log10_Imu = libphoebe.interp(req, self.atm_axes['ck2004'], self.atm_photon_grid['ck2004'] if intens_weighting == 'photon' else self.atm_energy_grid['ck2004']).T[0]
         return 10**log10_Imu
 
-    def _Imu_phoenix(self, req, photon_weighted=False):
-        log10_Imu = libphoebe.interp(req, self.atm_axes['phoenix'], self.atm_photon_grid['phoenix'] if photon_weighted else self.atm_energy_grid['phoenix']).T[0]
+    def _Imu_phoenix(self, req, intens_weighting='photon'):
+        log10_Imu = libphoebe.interp(req, self.atm_axes['phoenix'], self.atm_photon_grid['phoenix'] if intens_weighting == 'photon' else self.atm_energy_grid['phoenix']).T[0]
         return 10**log10_Imu
 
-    def _Imu_tmap(self, req, photon_weighted=False):
-        log10_Imu = libphoebe.interp(req, self.atm_axes['tmap'], self.atm_photon_grid['tmap'] if photon_weighted else self.atm_energy_grid['tmap']).T[0]
+    def _Imu_tmap(self, req, intens_weighting='photon'):
+        log10_Imu = libphoebe.interp(req, self.atm_axes['tmap'], self.atm_photon_grid['tmap'] if intens_weighting == 'photon' else self.atm_energy_grid['tmap']).T[0]
         return 10**log10_Imu
 
-    def Imu(self, Teff=5772., logg=4.43, abun=0.0, mu=1.0, atm='ck2004', ldatm='ck2004', ldint=None, ld_func='interp', ld_coeffs=None, photon_weighted=False, extrapolation_method='none'):
+    def Imu(self, Teff=5772., logg=4.43, abun=0.0, mu=1.0, atm='ck2004', ldatm='ck2004', ldint=None, ld_func='interp', ld_coeffs=None, intens_weighting='photon', extrapolation_method='none'):
         """
         Arguments
         ----------
@@ -2351,7 +2200,7 @@ class Passband:
             function.  One of: linear, sqrt, log, quadratic, power, interp.
         * `ld_coeffs` (list, optional, default=None): limb darkening coefficients
             for the corresponding limb darkening function, `ld_func`.
-        * `photon_weighted` (bool, optional, default=False): photon/energy switch
+        * `intens_weighting`
 
         Returns
         ----------
@@ -2373,134 +2222,75 @@ class Passband:
         if ld_func == 'interp':
             # The 'interp' LD function works only for model atmospheres:
             if atm == 'ck2004' and 'ck2004:Imu' in self.content:
-                retval = self._Imu_ck2004(req, photon_weighted=photon_weighted)
+                retval = self._Imu_ck2004(req, intens_weighting=intens_weighting)
                 # FIXME: merge these two functions.
-                # retval = 10**self._log10_Imu_ck2004(Teff, logg, abun, mu, photon_weighted=photon_weighted, extrapolation_method=extrapolation_method)
+                # retval = 10**self._log10_Imu_ck2004(Teff, logg, abun, mu, intens_weighting=intens_weighting, extrapolation_method=extrapolation_method)
             elif atm == 'phoenix' and 'phoenix:Imu' in self.content:
-                retval = self._Imu_phoenix(req, photon_weighted=photon_weighted)
+                retval = self._Imu_phoenix(req, intens_weighting=intens_weighting)
             elif atm == 'tmap' and 'tmap:Imu' in self.content:
-                retval = self._Imu_tmap(req, photon_weighted=photon_weighted)
+                retval = self._Imu_tmap(req, intens_weighting=intens_weighting)
             else:
                 raise ValueError('atm={} not supported by {}:{} ld_func=interp'.format(atm, self.pbset, self.pbname))
 
             nanmask = np.isnan(retval)
             if np.any(nanmask):
-                raise ValueError(f'Atmosphere parameters out of bounds: {req[nanmask]}')
+                raise_out_of_bounds(nanvals=req[nanmask], atm=atm, ldatm=ldatm, intens_weighting=intens_weighting)
+                # raise ValueError(f'Atmosphere parameters out of bounds: {req[nanmask]}')
             return retval
 
         if ld_coeffs is None:
             # LD function can be passed without coefficients; in that
             # case we need to interpolate them from the tables.
-            ld_coeffs = self.interpolate_ldcoeffs(Teff, logg, abun, ldatm, ld_func, photon_weighted, extrapolation_method=extrapolation_method)
+            ld_coeffs = self.interpolate_ldcoeffs(Teff, logg, abun, ldatm, ld_func, intens_weighting=intens_weighting, extrapolation_method=extrapolation_method)
 
-        Inorm = self.Inorm(Teff=Teff, logg=logg, abun=abun, atm=atm, ldatm=ldatm, ldint=ldint, ld_func=ld_func, ld_coeffs=ld_coeffs, photon_weighted=photon_weighted, extrapolation_method=extrapolation_method)
+        Inorm = self.Inorm(teffs=Teff, loggs=logg, abuns=abun, atm=atm, ldatm=ldatm, ldint=ldint, ld_func=ld_func, ld_coeffs=ld_coeffs, intens_weighting=intens_weighting, extrapolation_method=extrapolation_method)
         ld = self._ld(ld_func=ld_func, mu=mu, ld_coeffs=ld_coeffs)
         retval = Inorm * ld
 
-        # if ld_func == 'linear':
-        #     retval = self.Inorm(Teff=Teff, logg=logg, abun=abun, atm=atm, ldatm=ldatm, ldint=ldint, ld_func=ld_func, ld_coeffs=ld_coeffs, photon_weighted=photon_weighted, extrapolation_method=extrapolation_method) * self._ldlaw_lin(mu, *ld_coeffs)
-        # elif ld_func == 'logarithmic':
-        #     retval = self.Inorm(Teff=Teff, logg=logg, abun=abun, atm=atm, ldatm=ldatm, ldint=ldint, ld_func=ld_func, ld_coeffs=ld_coeffs, photon_weighted=photon_weighted, extrapolation_method=extrapolation_method) * self._ldlaw_log(mu, *ld_coeffs)
-        # elif ld_func == 'square_root':
-        #     retval = self.Inorm(Teff=Teff, logg=logg, abun=abun, atm=atm, ldatm=ldatm, ldint=ldint, ld_func=ld_func, ld_coeffs=ld_coeffs, photon_weighted=photon_weighted, extrapolation_method=extrapolation_method) * self._ldlaw_sqrt(mu, *ld_coeffs)
-        # elif ld_func == 'quadratic':
-        #     retval = self.Inorm(Teff=Teff, logg=logg, abun=abun, atm=atm, ldatm=ldatm, ldint=ldint, ld_func=ld_func, ld_coeffs=ld_coeffs, photon_weighted=photon_weighted, extrapolation_method=extrapolation_method) * self._ldlaw_quad(mu, *ld_coeffs)
-        # elif ld_func == 'power':
-        #     retval = self.Inorm(Teff=Teff, logg=logg, abun=abun, atm=atm, ldatm=ldatm, ldint=ldint, ld_func=ld_func, ld_coeffs=ld_coeffs, photon_weighted=photon_weighted, extrapolation_method=extrapolation_method) * self._ldlaw_nonlin(mu, *ld_coeffs)
-        # else:
-        #     raise NotImplementedError('ld_func={} not supported'.format(ld_func))
-
         nanmask = np.isnan(retval)
         if np.any(nanmask):
-            raise ValueError('Atmosphere parameters out of bounds: Teff=%s, logg=%s, abun=%s, mu=%s' % (Teff[nanmask], logg[nanmask], abun[nanmask], mu[nanmask]))
+            raise_out_of_bounds(nanvals=req[nanmask], atm=atm, ldatm=ldatm, intens_weighting=intens_weighting)
+            # raise ValueError('Atmosphere parameters out of bounds: Teff=%s, logg=%s, abun=%s, mu=%s' % (Teff[nanmask], logg[nanmask], abun[nanmask], mu[nanmask]))
         return retval
 
-    def _ldint_ck2004(self, req, photon_weighted):
-        ldint = libphoebe.interp(req, self.atm_axes['ck2004'][:-1], self.ldint_photon_grid['ck2004'] if photon_weighted else self.ldint_energy_grid['ck2004']).T[0]
-        return ldint
-
-    def _ldint_phoenix(self, req, photon_weighted):
-        ldint = libphoebe.interp(req, self.atm_axes['phoenix'][:-1], self.ldint_photon_grid['phoenix'] if photon_weighted else self.ldint_energy_grid['phoenix']).T[0]
-        return ldint
-
-    def _ldint_tmap(self, req, photon_weighted):
-        ldint = libphoebe.interp(req, self.atm_axes['tmap'][:-1], self.ldint_photon_grid['tmap'] if photon_weighted else self.ldint_energy_grid['tmap']).T[0]
-        return ldint
-
-    def ldint(self, Teff=5772., logg=4.43, abun=0.0, ldatm='ck2004', ld_func='interp', ld_coeffs=None, photon_weighted=False, raise_on_nans=True):
+    def ldint(self, teffs=None, loggs=None, abuns=None, ldatm=None, ld_func='linear', ld_coeffs=np.array([[0.5]]), intens_weighting='photon', ld_extrapolation_method='none', raise_on_nans=True):
         """
-        Arguments
+        Computes ldint value for the given `ld_func` and `ld_coeffs`.
+
+        Parameters
         ----------
-        * `Teff`
-        * `logg`
-        * `abun`
-        * `ldatm`
-        * `ld_func` (string, optional, default='interp') limb darkening
-            function.  One of: linear, sqrt, log, quadratic, power, interp.
-        * `ld_coeffs` (list, optional, default=None): limb darkening coefficients
-            for the corresponding limb darkening function, `ld_func`.
-        * `photon_weighted` (bool, optional, default=False): photon/energy switch
-        * `raise_on_nans` (bool, optional, default=True): raise an error if any of
-            the elements in the ldint array are nans.
+        * `ld_func` (string, optional, default='linear'): limb darkening function
+        * `ld_coeffs` (array, optional, default=[[0.5]]): limb darkening coefficients
 
         Returns
-        ----------
-        * (float/array) ldint.
-
-        Raises
-        ----------
-        * ValueError: if atmosphere parameters are out of bounds for the table.
-        * ValueError: if `ld_func='interp'` but is not supported by the
-            atmosphere table.
-        * NotImplementedError: if `ld_func` is not supported.
+        -------
+        * (float or array) ldint value(s)
         """
-        # TODO: improve docstring
 
-        req = ndpolator.tabulate((Teff, logg, abun))
-
-        if ld_func == 'interp':
-            if ldatm == 'ck2004':
-                retval = self._ldint_ck2004(req, photon_weighted=photon_weighted)
-            elif ldatm == 'phoenix':
-                retval = self._ldint_phoenix(req, photon_weighted=photon_weighted)
-            elif ldatm == 'tmap':
-                retval = self._ldint_tmap(req, photon_weighted=photon_weighted)
-            else:
-                raise ValueError('ldatm={} not supported with ld_func=interp'.format(ldatm))
-
-            if not raise_on_nans:
-                return retval
-
-            nanmask = np.isnan(retval)
-            if np.any(nanmask):
-                raise ValueError('Atmosphere parameters out of bounds: Teff=%s, logg=%s, abun=%s' % (Teff[nanmask], logg[nanmask], abun[nanmask]))
-            return retval
-
-        if ld_coeffs is None:
-            ld_coeffs = self.interpolate_ldcoeffs(Teff, logg, abun, ldatm, ld_func, photon_weighted)
+        if ld_coeffs is not None:
+            ld_coeffs = np.atleast_2d(ld_coeffs)
 
         if ld_func == 'linear':
-            retval = 1-ld_coeffs[0]/3
+            return 1-ld_coeffs[:,0]/3
         elif ld_func == 'logarithmic':
-            retval = 1-ld_coeffs[0]/3+2.*ld_coeffs[1]/9
+            return 1-ld_coeffs[:,0]/3+2.*ld_coeffs[:,1]/9
         elif ld_func == 'square_root':
-            retval = 1-ld_coeffs[0]/3-ld_coeffs[1]/5
+            return 1-ld_coeffs[:,0]/3-ld_coeffs[:,1]/5
         elif ld_func == 'quadratic':
-            retval = 1-ld_coeffs[0]/3-ld_coeffs[1]/6
+            return 1-ld_coeffs[:,0]/3-ld_coeffs[:,1]/6
         elif ld_func == 'power':
-            retval = 1-ld_coeffs[0]/5-ld_coeffs[1]/3-3.*ld_coeffs[2]/7-ld_coeffs[3]/2
+            return 1-ld_coeffs[:,0]/5-ld_coeffs[:,1]/3-3.*ld_coeffs[:,2]/7-ld_coeffs[:,3]/2
+        elif ld_func == 'interp':
+            req = ndpolator.tabulate((teffs, loggs, abuns))
+            axes = self.atm_axes[ldatm][:-1]
+            grid = self.ldint_photon_grid[ldatm] if intens_weighting == 'photon' else self.ldint_energy_grid[ldatm]
+            ndp = ndpolator.Ndpolator(axes, grid)
+            # return libphoebe.interp(req, axes, grid).T[0]
+            return ndp.interp(req, extrapolation_method=ld_extrapolation_method, raise_on_nans=raise_on_nans)
         else:
-            raise NotImplementedError('ld_func={} not supported'.format(ld_func))
+            raise NotImplementedError(f'ld_func={ld_func} is not supported')
 
-        if not raise_on_nans:
-            return retval
-
-        nanmask = np.isnan(retval)
-        if np.any(nanmask):
-            raise ValueError('Atmosphere parameters out of bounds: Teff=%s, logg=%s, abun=%s' % (Teff[nanmask], logg[nanmask], abun[nanmask]))
-        return retval
-
-    def _bindex_blackbody(self, Teff, photon_weighted=False):
+    def _bindex_blackbody(self, Teff, intens_weighting='photon'):
         """
         Computes the mean boosting index using blackbody atmosphere:
 
@@ -2512,14 +2302,14 @@ class Passband:
         Arguments
         ----------
         * `Teff` (float/array): effective temperature in K
-        * `photon_weighted` (bool, optional, default=False): photon/energy switch
+        * `intens_weighting`
 
         Returns
         ------------
         * mean boosting index using blackbody atmosphere.
         """
 
-        if photon_weighted:
+        if intens_weighing == 'photon':
             num   = lambda w: w*self._planck(w, Teff)*self.ptf(w)*self._planck_spi(w, Teff)
             denom = lambda w: w*self._planck(w, Teff)*self.ptf(w)
             return integrate.quad(num, self.wl[0], self.wl[-1], epsabs=1e10, epsrel=1e-8)[0]/integrate.quad(denom, self.wl[0], self.wl[-1], epsabs=1e10, epsrel=1e-6)[0]
@@ -2528,12 +2318,12 @@ class Passband:
             denom = lambda w: self._planck(w, Teff)*self.ptf(w)
             return integrate.quad(num, self.wl[0], self.wl[-1], epsabs=1e10, epsrel=1e-8)[0]/integrate.quad(denom, self.wl[0], self.wl[-1], epsabs=1e10, epsrel=1e-6)[0]
 
-    def _bindex_ck2004(self, req, atm, photon_weighted=False):
-        grid = self._ck2004_boosting_photon_grid if photon_weighted else self._ck2004_boosting_energy_grid
+    def _bindex_ck2004(self, req, atm, intens_weighting='photon'):
+        grid = self._ck2004_boosting_photon_grid if intens_weighting == 'photon' else self._ck2004_boosting_energy_grid
         bindex = libphoebe.interp(req, self.atm_axes['ck2004'], grid).T[0]
         return bindex
 
-    def bindex(self, Teff=5772., logg=4.43, abun=0.0, mu=1.0, atm='ck2004', photon_weighted=False):
+    def bindex(self, Teff=5772., logg=4.43, abun=0.0, mu=1.0, atm='ck2004', intens_weighting='photon'):
         """
         Arguments
         ----------
@@ -2542,7 +2332,7 @@ class Passband:
         * `abun`
         * `mu`
         * `atm`
-        * `photon_weighted` (bool, optional, default=False): photon/energy switch
+        * `intens_weighting`
 
         Returns
         ----------
@@ -2560,9 +2350,9 @@ class Passband:
         req = ndpolator.tabulate((Teff, logg, abun, mu))
 
         if atm == 'ck2004':
-            retval = self._bindex_ck2004(req, atm, photon_weighted)
+            retval = self._bindex_ck2004(req, atm, intens_weighting)
         elif atm == 'blackbody':
-            retval = self._bindex_blackbody(req[:,0], photon_weighted=photon_weighted)
+            retval = self._bindex_blackbody(req[:,0], intens_weighting=intens_weighting)
         else:
             raise NotImplementedError('atm={} not supported'.format(atm))
 
@@ -2586,8 +2376,7 @@ def _init_passband(fullpath, check_for_update=True):
     try:
         pb = Passband.load(fullpath, load_content=False)
     except:
-        print("failed to load passband at {}".format(fullpath))
-        raise
+        raise RuntimeError(f'failed to load passband at {fullpath}')
     passband = pb.pbset+':'+pb.pbname
     atms = list(set([c.split(':')[0] for c in pb.content]))
     atms_ld = [atm for atm in atms if '{}:ld'.format(atm) in pb.content and '{}:ldint'.format(atm) in pb.content]
@@ -3434,7 +3223,7 @@ def get_passband(passband, content=None, reload=False, update_if_necessary=False
 
     return _pbtable[passband]['pb']
 
-def Inorm_bol_bb(Teff=5772., logg=4.43, abun=0.0, atm='blackbody', photon_weighted=False):
+def Inorm_bol_bb(Teff=5772., logg=4.43, abun=0.0, atm='blackbody', intens_weighting='photon'):
     """
     Computes normal bolometric intensity using the Stefan-Boltzmann law,
     Inorm_bol_bb = 1/\pi \sigma T^4. If photon-weighted intensity is
@@ -3454,8 +3243,7 @@ def Inorm_bol_bb(Teff=5772., logg=4.43, abun=0.0, atm='blackbody', photon_weight
         compatibility only.
     * `atm` (string, optional, default='blackbody'): atmosphere model, must be
         `'blackbody'`, otherwise exception is raised.
-    * `photon_weighted` (bool, optional, default=False): photon-weighted or
-        energy-weighted mode.
+    * `intens_weighting`
 
     Returns
     ---------
@@ -3470,7 +3258,7 @@ def Inorm_bol_bb(Teff=5772., logg=4.43, abun=0.0, atm='blackbody', photon_weight
     if atm != 'blackbody':
         raise ValueError('atmosphere must be set to blackbody for Inorm_bol_bb.')
 
-    if photon_weighted:
+    if intens_weighting == 'photon':
         factor = 2.6814126821264836e22/Teff
     else:
         factor = 1.0
