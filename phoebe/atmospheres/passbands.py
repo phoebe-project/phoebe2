@@ -2165,25 +2165,15 @@ class Passband:
 
         return np.log10(Inorm * ld)
 
-    def _Imu_ck2004(self, req, intens_weighting='photon'):
-        log10_Imu = libphoebe.interp(req, self.atm_axes['ck2004'], self.atm_photon_grid['ck2004'] if intens_weighting == 'photon' else self.atm_energy_grid['ck2004']).T[0]
-        return 10**log10_Imu
-
-    def _Imu_phoenix(self, req, intens_weighting='photon'):
-        log10_Imu = libphoebe.interp(req, self.atm_axes['phoenix'], self.atm_photon_grid['phoenix'] if intens_weighting == 'photon' else self.atm_energy_grid['phoenix']).T[0]
-        return 10**log10_Imu
-
-    def _Imu_tmap(self, req, intens_weighting='photon'):
-        log10_Imu = libphoebe.interp(req, self.atm_axes['tmap'], self.atm_photon_grid['tmap'] if intens_weighting == 'photon' else self.atm_energy_grid['tmap']).T[0]
-        return 10**log10_Imu
-
-    def Imu(self, Teff=5772., logg=4.43, abun=0.0, mu=1.0, atm='ck2004', ldatm='ck2004', ldint=None, ld_func='interp', ld_coeffs=None, intens_weighting='photon', extrapolation_method='none'):
+    def Imu(self, teffs=5772., loggs=4.43, abuns=0.0, mus=1.0, atm='ck2004', ldatm='ck2004', ldint=None, ld_func='interp', ld_coeffs=None, intens_weighting='photon', atm_extrapolation_method='none', ld_extrapolation_method='none'):
+        # TODO: improve docstring
         """
         Arguments
         ----------
-        * `Teff`
-        * `logg`
-        * `abun`
+        * `teffs`
+        * `loggs`
+        * `abuns`
+        * `mus`
         * `atm`
         * `ldatm`
         * `ldint` (string, optional, default='ck2004'): integral of the limb
@@ -2213,44 +2203,45 @@ class Passband:
             atmosphere table.
         * NotImplementedError: if `ld_func` is not supported.
         """
-        # TODO: improve docstring
 
-        req = ndpolator.tabulate((Teff, logg, abun, mu))
         # TODO: is this workaround still necessary?
-        req[:,3][np.isclose(req[:,3], 1)] = 1-1e-12
+        # req[:,3][np.isclose(req[:,3], 1)] = 1-1e-12
 
         if ld_func == 'interp':
-            # The 'interp' LD function works only for model atmospheres:
-            if atm == 'ck2004' and 'ck2004:Imu' in self.content:
-                retval = self._Imu_ck2004(req, intens_weighting=intens_weighting)
-                # FIXME: merge these two functions.
-                # retval = 10**self._log10_Imu_ck2004(Teff, logg, abun, mu, intens_weighting=intens_weighting, extrapolation_method=extrapolation_method)
-            elif atm == 'phoenix' and 'phoenix:Imu' in self.content:
-                retval = self._Imu_phoenix(req, intens_weighting=intens_weighting)
-            elif atm == 'tmap' and 'tmap:Imu' in self.content:
-                retval = self._Imu_tmap(req, intens_weighting=intens_weighting)
-            else:
-                raise ValueError('atm={} not supported by {}:{} ld_func=interp'.format(atm, self.pbset, self.pbname))
+            # 'interp' works only for model atmospheres:
+            if atm not in ['ck2004', 'phoenix', 'tmap']:
+                raise ValueError(f"atm={atm} cannot be used with ld_func={ld_func}.")
 
-            nanmask = np.isnan(retval)
-            if np.any(nanmask):
-                raise_out_of_bounds(nanvals=req[nanmask], atm=atm, ldatm=ldatm, intens_weighting=intens_weighting)
-                # raise ValueError(f'Atmosphere parameters out of bounds: {req[nanmask]}')
-            return retval
+            axes = self.atm_axes[atm]
+            grid = self.atm_photon_grid[atm] if intens_weighting == 'photon' else self.atm_energy_grid[atm]
+
+            # print(f'atm={atm}, axes={axes}, grid={grid}')
+            ndp = ndpolator.Ndpolator(axes, grid)
+            req = ndp.tabulate((teffs, loggs, abuns, mus))
+            retval = ndp.interp(req, extrapolation_method=atm_extrapolation_method, raise_on_nans=True)
+            return 10**retval
 
         if ld_coeffs is None:
             # LD function can be passed without coefficients; in that
             # case we need to interpolate them from the tables.
-            ld_coeffs = self.interpolate_ldcoeffs(Teff, logg, abun, ldatm, ld_func, intens_weighting=intens_weighting, extrapolation_method=extrapolation_method)
+            ld_coeffs = self.interpolate_ldcoeffs(teffs, loggs, abuns, ldatm, ld_func, intens_weighting=intens_weighting, ld_extrapolation_method=ld_extrapolation_method)
 
-        Inorm = self.Inorm(teffs=Teff, loggs=logg, abuns=abun, atm=atm, ldatm=ldatm, ldint=ldint, ld_func=ld_func, ld_coeffs=ld_coeffs, intens_weighting=intens_weighting, extrapolation_method=extrapolation_method)
-        ld = self._ld(ld_func=ld_func, mu=mu, ld_coeffs=ld_coeffs)
+        Inorm = self.Inorm(
+            teffs=teffs,
+            loggs=loggs,
+            abuns=abuns,
+            atm=atm,
+            ldatm=ldatm,
+            ldint=ldint,
+            ld_func=ld_func,
+            ld_coeffs=ld_coeffs,
+            intens_weighting=intens_weighting,
+            atm_extrapolation_method=atm_extrapolation_method,
+            ld_extrapolation_method=ld_extrapolation_method
+        )
+        ld = self._ld(ld_func=ld_func, mu=mus, ld_coeffs=ld_coeffs)
         retval = Inorm * ld
 
-        nanmask = np.isnan(retval)
-        if np.any(nanmask):
-            raise_out_of_bounds(nanvals=req[nanmask], atm=atm, ldatm=ldatm, intens_weighting=intens_weighting)
-            # raise ValueError('Atmosphere parameters out of bounds: Teff=%s, logg=%s, abun=%s, mu=%s' % (Teff[nanmask], logg[nanmask], abun[nanmask], mu[nanmask]))
         return retval
 
     def ldint(self, teffs=None, loggs=None, abuns=None, ldatm=None, ld_func='linear', ld_coeffs=np.array([[0.5]]), intens_weighting='photon', ld_extrapolation_method='none', raise_on_nans=True):

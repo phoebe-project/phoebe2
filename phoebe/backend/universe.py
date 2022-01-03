@@ -1764,7 +1764,7 @@ class Star(Body):
         passband = kwargs.get('passband', self.passband.get(dataset, None))
         intens_weighting = kwargs.get('intens_weighting', self.intens_weighting.get(dataset, None))
         atm = kwargs.get('atm', self.atm)
-        blending_method = kwargs.get('blending_method', self.blending_method)
+        atm_extrapolation_method = kwargs.get('blending_method', self.blending_method)
         ld_extrapolation_method = kwargs.get('ld_blending_method', self.ld_blending_method)
         extinct = kwargs.get('extinct', self.extinct)
         Rv = kwargs.get('Rv', self.Rv)
@@ -1845,7 +1845,6 @@ class Star(Body):
                     raise err
 
             try:
-                # ANDREJ TODO: pass blending_method/ld_blending_method
                 # abs_normal_intensities are the normal emergent passband intensities:
                 abs_normal_intensities = pb.Inorm(teffs=self.mesh.teffs.for_computations,
                                                   loggs=self.mesh.loggs.for_computations,
@@ -1853,7 +1852,9 @@ class Star(Body):
                                                   atm=atm,
                                                   ldatm=ldatm,
                                                   ldint=ldint,
-                                                  intens_weighting=intens_weighting)
+                                                  intens_weighting=intens_weighting,
+                                                  atm_extrapolation_method=atm_extrapolation_method,
+                                                  ld_extrapolation_method=ld_extrapolation_method)
             except ValueError as err:
                 if str(err).split(":")[0] == 'Atmosphere parameters out of bounds':
                     # let's override with a more helpful error message
@@ -1862,23 +1863,22 @@ class Star(Body):
                 else:
                     raise err
 
-            # ANDREJ TODO: pass blending_method/ld_blending_method
-
             # abs_intensities are the projected (limb-darkened) passband intensities
             # TODO: why do we need to use abs(mus) here?
             # ! Because the interpolation within Imu will otherwise fail.
             # ! It would be best to pass only [visibilities > 0] elements to Imu.
-            abs_intensities = pb.Imu(Teff=self.mesh.teffs.for_computations,
-                                     logg=self.mesh.loggs.for_computations,
-                                     abun=self.mesh.abuns.for_computations,
-                                     mu=abs(self.mesh.mus_for_computations),
+            abs_intensities = pb.Imu(teffs=self.mesh.teffs.for_computations,
+                                     loggs=self.mesh.loggs.for_computations,
+                                     abuns=self.mesh.abuns.for_computations,
+                                     mus=abs(self.mesh.mus_for_computations),
                                      atm=atm,
                                      ldatm=ldatm,
                                      ldint=ldint,
                                      ld_func=ld_func if ld_mode != 'interp' else ld_mode,
                                      ld_coeffs=ld_coeffs,
-                                     intens_weighting=intens_weighting)
-
+                                     intens_weighting=intens_weighting,
+                                     atm_extrapolation_method=atm_extrapolation_method,
+                                     ld_extrapolation_method=ld_extrapolation_method).flatten()
 
             # Beaming/boosting
             if boosting_method == 'none' or ignore_effects:
