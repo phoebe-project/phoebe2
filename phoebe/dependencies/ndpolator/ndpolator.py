@@ -19,7 +19,7 @@ class Ndpolator():
         self.nntree = cKDTree(non_nan_vertices, copy_data=True)
         ranges = (range(len(ax)-1) for ax in axes)
         slices = [tuple([slice(elem, elem+2) for elem in x]) for x in product(*ranges)]
-        self.ics = np.array([s.start for slc in slices for s in slc if ~np.any(np.isnan(grid[slc]))], dtype=int).reshape(-1, 3)
+        self.ics = np.array([s.start for slc in slices for s in slc if ~np.any(np.isnan(grid[slc]))], dtype=int).reshape(-1, len(axes))
 
     def tabulate(self, arrs):
         arrs = [np.atleast_1d(arr) for arr in arrs]
