@@ -274,18 +274,21 @@ class Passband:
 
         # Initialize passband tables:
         self.atm_axes = dict()
+        self.ext_axes = dict()
         self.atm_energy_grid = dict()
         self.atm_photon_grid = dict()
         self.ld_energy_grid = dict()
         self.ld_photon_grid = dict()
         self.ldint_energy_grid = dict()
         self.ldint_photon_grid = dict()
+        self.ext_energy_grid = dict()
+        self.ext_photon_grid = dict()
         self.nntree = dict()
         self.indices = dict()
         self.ics = dict()
         self.blending_region = dict()
         self.mapper = dict()
-        self.ndpolator = dict()
+        self.ndp = dict()
 
     def __repr__(self):
         return '<Passband: %s:%s>' % (self.pbset, self.pbname)
@@ -550,18 +553,21 @@ class Passband:
             self.history = {h.split(': ')[0]: ': '.join(h.split(': ')[1:]) for h in history if len(h.split(': ')) > 1}
 
             self.atm_axes = dict()
+            self.ext_axes = dict()
             self.atm_energy_grid = dict()
             self.atm_photon_grid = dict()
             self.ld_energy_grid = dict()
             self.ld_photon_grid = dict()
             self.ldint_energy_grid = dict()
             self.ldint_photon_grid = dict()
+            self.ext_energy_grid = dict()
+            self.ext_photon_grid = dict()
             self.nntree = dict()
             self.indices = dict()
             self.ics = dict()
             self.blending_region = dict()
             self.mapper = dict()
-            self.ndpolator = dict()
+            self.ndp = dict()
 
             self.ptf_table = hdul['ptftable'].data
             self.wl = np.linspace(self.ptf_table['wl'][0], self.ptf_table['wl'][-1], int(self.wl_oversampling*len(self.ptf_table['wl'])))
@@ -609,7 +615,8 @@ class Passband:
                     subgrid = self.atm_photon_grid['ck2004'][...,-1,:]
                     self.ics['ck2004'] = np.array([(i, j, k) for i in range(0, len(raxes[0])-1) for j in range(0, len(raxes[1])-1) for k in range(0, len(raxes[2])-1) if ~np.any(np.isnan(subgrid[i:i+2,j:j+2,k:k+2]))])
 
-                    self.ndpolator['ck2004'] = ndpolator.Ndpolator(self.atm_axes['ck2004'][:-1], self.atm_energy_grid['ck2004'][...,-1,:])
+                    self.ndp['imu@photon@ck2004'] = ndpolator.Ndpolator(self.atm_axes['ck2004'], self.atm_photon_grid['ck2004'])
+                    self.ndp['imu@energy@ck2004'] = ndpolator.Ndpolator(self.atm_axes['ck2004'], self.atm_energy_grid['ck2004'])
 
                 if 'ck2004:ld' in self.content:
                     self.ld_energy_grid['ck2004'] = hdul['cklegrid'].data
@@ -620,9 +627,9 @@ class Passband:
                     self.ldint_photon_grid['ck2004'] = hdul['ckipgrid'].data
 
                 if 'ck2004:ext' in self.content:
-                    self._ck2004_extinct_axes = (np.array(list(hdul['ck_teffs'].data['teff'])), np.array(list(hdul['ck_loggs'].data['logg'])), np.array(list(hdul['ck_abuns'].data['abun'])), np.array(list(hdul['ck_ebvs'].data['ebv'])), np.array(list(hdul['ck_rvs'].data['rv'])))
-                    self._ck2004_extinct_energy_grid = hdul['ckxegrid'].data
-                    self._ck2004_extinct_photon_grid = hdul['ckxpgrid'].data
+                    self.ext_axes['ck2004'] = (np.array(list(hdul['ck_teffs'].data['teff'])), np.array(list(hdul['ck_loggs'].data['logg'])), np.array(list(hdul['ck_abuns'].data['abun'])), np.array(list(hdul['ck_ebvs'].data['ebv'])), np.array(list(hdul['ck_rvs'].data['rv'])))
+                    self.ext_energy_grid['ck2004'] = hdul['ckxegrid'].data
+                    self.ext_photon_grid['ck2004'] = hdul['ckxpgrid'].data
 
                 if 'phoenix:Imu' in self.content:
                     self.atm_axes['phoenix'] = (np.array(list(hdul['ph_teffs'].data['teff'])), np.array(list(hdul['ph_loggs'].data['logg'])), np.array(list(hdul['ph_abuns'].data['abun'])), np.array(list(hdul['ph_mus'].data['mu'])))
@@ -744,7 +751,7 @@ class Passband:
         expterm = np.exp(hclkt)
         return hclkt * expterm/(expterm-1)
 
-    def _bb_intensity(self, Teff, intens_weighting='photon'):
+    def _bb_intensity(self, teff, intens_weighting='photon'):
         """
         Computes mean passband intensity using blackbody atmosphere:
 
@@ -755,7 +762,7 @@ class Passband:
 
         Arguments
         -----------
-        * `Teff` (float/array): effective temperature in K
+        * `teff` (float/array): effective temperature in K
         * `intens_weighting`
 
         Returns
@@ -764,13 +771,13 @@ class Passband:
         """
 
         if intens_weighting == 'photon':
-            pb = lambda w: w*self._planck(w, Teff)*self.ptf(w)
+            pb = lambda w: w*self._planck(w, teff)*self.ptf(w)
             return integrate.quad(pb, self.wl[0], self.wl[-1])[0]/self.ptf_photon_area
         else:
-            pb = lambda w: self._planck(w, Teff)*self.ptf(w)
+            pb = lambda w: self._planck(w, teff)*self.ptf(w)
             return integrate.quad(pb, self.wl[0], self.wl[-1])[0]/self.ptf_area
 
-    def compute_blackbody_response(self, Teffs=None):
+    def compute_blackbody_response(self, teffs=None):
         """
         Computes blackbody intensities across the entire range of
         effective temperatures. It does this for two regimes, energy-weighted
@@ -780,32 +787,53 @@ class Passband:
 
         Arguments
         ----------
-        * `Teffs` (array, optional, default=None): an array of effective
+        * `teffs` (array, optional, default=None): an array of effective
             temperatures. If None, a default array from ~300K to ~500000K with
             97 steps is used. The default array is uniform in log10 scale.
         """
 
-        if Teffs is None:
-            log10Teffs = np.linspace(2.5, 5.7, 97)  # this corresponds to the 316K-501187K range.
-            Teffs = 10**log10Teffs
+        if teffs is None:
+            log10teffs = np.linspace(2.5, 5.7, 97)  # this corresponds to the 316K-501187K range.
+            teffs = 10**log10teffs
 
-        self.atm_axes['blackbody'] = (Teffs,)
+        self.atm_axes['blackbody'] = (teffs,)
 
         # Energy-weighted intensities:
-        log10ints_energy = np.array([np.log10(self._bb_intensity(Teff, intens_weighting='energy')) for Teff in Teffs])
-        self._bb_func_energy = interpolate.splrep(Teffs, log10ints_energy, s=0)
-        self._log10_Inorm_bb_energy = lambda Teff: interpolate.splev(Teff, self._bb_func_energy)
+        log10ints_energy = np.array([np.log10(self._bb_intensity(teff, intens_weighting='energy')) for teff in teffs])
+        self._bb_func_energy = interpolate.splrep(teffs, log10ints_energy, s=0)
+        self._log10_Inorm_bb_energy = lambda teff: interpolate.splev(teff, self._bb_func_energy)
 
         # Photon-weighted intensities:
-        log10ints_photon = np.array([np.log10(self._bb_intensity(Teff, intens_weighting='photon')) for Teff in Teffs])
-        self._bb_func_photon = interpolate.splrep(Teffs, log10ints_photon, s=0)
-        self._log10_Inorm_bb_photon = lambda Teff: interpolate.splev(Teff, self._bb_func_photon)
+        log10ints_photon = np.array([np.log10(self._bb_intensity(teff, intens_weighting='photon')) for teff in teffs])
+        self._bb_func_photon = interpolate.splrep(teffs, log10ints_photon, s=0)
+        self._log10_Inorm_bb_photon = lambda teff: interpolate.splev(teff, self._bb_func_photon)
 
         if 'blackbody:Inorm' not in self.content:
             self.content.append('blackbody:Inorm')
 
     def parse_atm_datafiles(self, atm, path):
         """
+        Provides rules for parsing atmosphere fits files containing data.
+
+        Arguments
+        ----------
+        * `atm` (string): model atmosphere name
+        * `path` (string): relative or absolute path to data files
+
+        Returns
+        -------
+        * `models` (ndarray): all non-null combinations of teffs/loggs/abuns
+        * `teffs` (array): axis of all unique effective temperatures
+        * `loggs` (array): axis of all unique surface gravities
+        * `abuns` (array): axis of all unique abundances
+        * `mus` (array): axis of all unique specific angles
+        * `wls` (array): spectral energy distribution wavelengths
+        * `brs` (array of tuples): blending regions for the lower and upper
+          axis boundaries; for example, (500, 5000) would correspond to the
+          blending region of 500 on the lower boundary and 5000 on the upper
+          boundary.
+        * `units` (float): conversion units from model atmosphere intensity
+          units to W/m^3.
         """
 
         models = glob.glob(path+'/*fits')
@@ -833,7 +861,7 @@ class Passband:
             brs = ((500, 1000), (0.5, 0.5), (0.5, 0.5))
             units = 1  # W/m^3
         elif atm == 'tmap':
-            mu = np.array([0., 0.00136799, 0.00719419, 0.01761889, 0.03254691, 0.05183939, 0.07531619, 0.10275816, 0.13390887, 0.16847785, 0.20614219, 0.24655013, 0.28932435, 0.33406564, 0.38035639, 0.42776398, 0.47584619, 0.52415388, 0.57223605, 0.6196437, 0.66593427, 0.71067559, 0.75344991, 0.79385786, 0.83152216, 0.86609102, 0.89724188, 0.92468378, 0.9481606,  0.96745302, 0.98238112, 0.99280576, 0.99863193, 1.])
+            mus = np.array([0., 0.00136799, 0.00719419, 0.01761889, 0.03254691, 0.05183939, 0.07531619, 0.10275816, 0.13390887, 0.16847785, 0.20614219, 0.24655013, 0.28932435, 0.33406564, 0.38035639, 0.42776398, 0.47584619, 0.52415388, 0.57223605, 0.6196437, 0.66593427, 0.71067559, 0.75344991, 0.79385786, 0.83152216, 0.86609102, 0.89724188, 0.92468378, 0.9481606,  0.96745302, 0.98238112, 0.99280576, 0.99863193, 1.])
             wls = np.load(path+'/wavelengths.npy') # in meters
             for i, model in enumerate(models):
                 pars = re.split('[TGA.]+', model[model.rfind('/')+1:])
@@ -847,31 +875,53 @@ class Passband:
 
         return models, teffs, loggs, abuns, mus, wls, brs, units
 
-    def compute_intensities(self, atm, path, particular=None, impute=False, verbose=True):
+    def compute_intensities(self, atm, path, impute=False, include_extinction=False, rvs=None, ebvs=None, verbose=True):
         """
-        Computes direction-dependent passband intensities using the passed
-        `atm` model atmospheres.
+        Computes direction-dependent passband intensities using the passed `atm`
+        model atmospheres.
 
-        Parameters
+        Arguments
         ----------
         * `atm` (string): name of the model atmosphere
         * `path` (string): path to the directory with SEDs in FITS format.
-        * `particular` (string, optional, default=None): particular file in
-            `path` to be processed; if None, all files in the directory are
-            processed.
-        * `impute` (boolean, optional, default=False): should NaN values
-            within the grid be imputed.
+        * `impute` (boolean, optional, default=False): should NaN values within
+            the grid be imputed.
+        * `include_extinction` (boolean, optional, default=False): should the
+            extinction tables be computed as well. The mean effect of reddening
+            (a weighted average) on a passband uses the Gordon et al. (2009,
+            2014) prescription of extinction.
+        * `rvs` (array, optional, default=None): a custom array of extinction
+          factor Rv values. Rv is defined at Av / E(B-V) where Av is the visual
+          extinction in magnitudes. If None, the default linspace(2, 6, 16) is
+          used.
+        * `ebvs` (array, optional, default=None): a custom array of color excess
+          E(B-V) values. In None, the default linspace(0, 3, 30) is used.
         * `verbose` (bool, optional, default=True): set to True to display
             progress in the terminal.
         """
 
         if verbose:
-            print(f'Computing {atm} specific passband intensities for {self.pbset}:{self.pbname}.')
+            print(f"Computing {atm} specific passband intensities for {self.pbset}:{self.pbname} {'with' if include_extinction else 'without'} extinction.")
 
         models, teffs, loggs, abuns, mus, wls, brs, units = self.parse_atm_datafiles(atm, path)
         nmodels = len(models)
 
         ints_energy, ints_photon = np.empty(nmodels*len(mus)), np.empty(nmodels*len(mus))
+
+        if include_extinction:
+            if rvs is None:
+                rvs = np.linspace(2., 6., 16)
+            if ebvs is None:
+                ebvs = np.linspace(0., 3., 30)
+            
+            ebv_list = np.tile(np.repeat(ebvs, len(rvs)), nmodels)
+            rv_list = np.tile(rvs, nmodels*len(ebvs))
+
+            ext_matrix = np.rollaxis(np.array([np.split(rv_list*ebv_list, nmodels), np.split(ebv_list, nmodels)]), 1)
+            ext_matrix = np.ascontiguousarray(ext_matrix)
+
+            ext_energy, ext_photon = np.empty((nmodels, len(rvs)*len(ebvs))), np.empty((nmodels, len(rvs)*len(ebvs)))
+
         keep = (wls >= self.ptf_table['wl'][0]) & (wls <= self.ptf_table['wl'][-1])
         wls = wls[keep]
 
@@ -890,6 +940,12 @@ class Passband:
 
                 ints_energy[i*len(mus):(i+1)*len(mus)] = np.log10(fluxes_energy/self.ptf_area)         # energy-weighted intensity
                 ints_photon[i*len(mus):(i+1)*len(mus)] = np.log10(fluxes_photon/self.ptf_photon_area)  # photon-weighted intensity
+
+                if include_extinction:
+                    ext_lambda = np.matmul(libphoebe.gordon_extinction(wls), ext_matrix[i])
+                    flux_frac = np.exp(-0.9210340371976184*ext_lambda)  #10**(-0.4*ext_lambda)
+                    # print(f'{pbints_energy.shape}, {fluxes_energy.shape}, {ext_energy.shape}, {flux_frac.shape}')
+                    ext_energy[i], ext_photon[i] = np.dot([pbints_energy[-1]/fluxes_energy[-1], pbints_photon[-1]/fluxes_photon[-1]], flux_frac)
 
                 if verbose:
                     sys.stdout.write('\r' + '%0.0f%% done.' % (100*float(i+1)/len(models)))
@@ -955,6 +1011,27 @@ class Passband:
         # self._ck2004_boosting_energy_grid = np.nan*np.ones((len(self.atm_axes['ck2004'][0]), len(self.atm_axes['ck2004'][1]), len(self.atm_axes['ck2004'][2]), len(self.atm_axes['ck2004'][3]), 1))
         # self._ck2004_boosting_photon_grid = np.nan*np.ones((len(self.atm_axes['ck2004'][0]), len(self.atm_axes['ck2004'][1]), len(self.atm_axes['ck2004'][2]), len(self.atm_axes['ck2004'][3]), 1))
 
+        if include_extinction:
+            self.ext_axes[atm] = (np.unique(teffs), np.unique(loggs), np.unique(abuns), np.unique(ebvs), np.unique(rvs))
+
+            teffs = np.repeat(teffs, len(ebvs)*len(rvs))
+            loggs = np.repeat(loggs, len(ebvs)*len(rvs))
+            abuns = np.repeat(abuns, len(ebvs)*len(rvs))
+
+            self.ext_energy_grid[atm] = np.nan*np.ones((len(self.ext_axes[atm][0]), len(self.ext_axes[atm][1]), len(self.ext_axes[atm][2]), len(self.ext_axes[atm][3]), len(self.ext_axes[atm][4]), 1))
+            self.ext_photon_grid[atm] = np.copy(self.ext_energy_grid[atm])
+
+            flat_energy = ext_energy.flat
+            flat_photon = ext_photon.flat
+
+            for i in range(nmodels*len(ebvs)*len(rvs)):
+                t = (teffs[i] == self.ext_axes[atm][0], loggs[i] == self.ext_axes[atm][1], abuns[i] == self.ext_axes[atm][2], ebv_list[i] == self.ext_axes[atm][3], rv_list[i] == self.ext_axes[atm][4], 0)
+                self.ext_energy_grid[atm][t] = flat_energy[i]
+                self.ext_photon_grid[atm][t] = flat_photon[i]
+
+            if f'{atm}:ext' not in self.content:
+                self.content.append(f'{atm}:ext')
+        
         # Set the limb (mu=0) to 0; in log this formally means flux density=1W/m3, but compared to ~10 that is
         # the typical table[:,:,:,1,:] value, for all practical purposes that is still 0.
         self.atm_energy_grid[atm][:,:,:,0,:][~np.isnan(self.atm_energy_grid[atm][:,:,:,1,:])] = 0.0
@@ -993,7 +1070,8 @@ class Passband:
         subgrid = self.atm_photon_grid[atm][...,-1,:]
         self.ics[atm] = np.array([(i, j, k) for i in range(0,len(raxes[0])-1) for j in range(0,len(raxes[1])-1) for k in range(0,len(raxes[2])-1) if ~np.any(np.isnan(subgrid[i:i+2,j:j+2,k:k+2]))])
 
-        self.ndpolator[atm] = ndpolator.Ndpolator(self.atm_axes[atm][:-1], self.atm_energy_grid[atm][...,-1,:])
+        self.ndp[f'imu@photon@{atm}'] = ndpolator.Ndpolator(self.atm_axes[atm], self.atm_photon_grid[atm])
+        self.ndp[f'imu@energy@{atm}'] = ndpolator.Ndpolator(self.atm_axes[atm], self.atm_energy_grid[atm])
 
         if f'{atm}:Imu' not in self.content:
             self.content.append(f'{atm}:Imu')
@@ -1075,329 +1153,6 @@ class Passband:
         if 'blackbody:ext' not in self.content:
             self.content.append('blackbody:ext')
 
-    def compute_ck2004_reddening(self, path, Ebv=None, Rv=None, verbose=False):
-        """
-        Computes mean effect of reddening (a weighted average) on passband using
-        ck2004 atmospheres and Gordon et al. (2009, 2014) prescription of extinction.
-
-        See also:
-        * <phoebe.atmospheres.passbands.Passband.compute_bb_reddening>
-        * <phoebe.atmospheres.passbands.Passband.compute_phoenix_reddening>
-
-        Arguments
-        ------------
-        * `path` (string): path to the directory containing ck2004 SEDs
-        * `Ebv` (float or None, optional, default=None): colour discrepancies E(B-V)
-        * `Rv` (float or None, optional, default=None): Extinction factor
-            (defined at Av / E(B-V) where Av is the visual extinction in magnitudes)
-        * `verbose` (bool, optional, default=False): switch to determine whether
-            computing progress should be printed on screen
-        """
-
-        if Ebv is None:
-            Ebv = np.linspace(0.,3.,30)
-
-        if Rv is None:
-            Rv = np.linspace(2.,6.,16)
-
-        models = glob.glob(path+'/*fits')
-        Nmodels = len(models)
-
-        NEbv = len(Ebv)
-        NRv = len(Rv)
-
-        Ns = NEbv*NRv
-        combos = Nmodels*Ns
-
-        Ebv1 = np.tile(np.repeat(Ebv, NRv), Nmodels)
-        Rv1 = np.tile(Rv, int(combos/NRv))
-
-        # auxilary matrix for storing Ebv and Rv per model
-        M = np.rollaxis(np.array([np.split(Ebv1*Rv1, Nmodels), np.split(Ebv1, Nmodels)]), 1)
-        M = np.ascontiguousarray(M)
-
-        # Store the length of the filename extensions for parsing:
-        offset = len(models[0])-models[0].rfind('.')
-
-        Teff, logg, abun = np.empty(Nmodels), np.empty(Nmodels), np.empty(Nmodels)
-
-        # extinctE , extinctP per model
-        extinctE , extinctP = np.empty((Nmodels, Ns)), np.empty((Nmodels, Ns))
-
-        if verbose:
-            print('Computing Castelli & Kurucz (2004) passband extinction corrections for %s:%s. This will take a while.' % (self.pbset, self.pbname))
-
-        # Covered wavelengths in the fits tables:
-        wavelengths = np.arange(900., 39999.501, 0.5)/1e10 # AA -> m
-
-        for i, model in enumerate(models):
-            with fits.open(model) as hdu:
-                intensities = hdu[0].data[-1,:]*1e7  # erg/s/cm^2/A -> W/m^3
-            spc = np.vstack((wavelengths, intensities))
-
-            model = model[model.rfind('/')+1:] # get relative pathname
-            Teff[i] = float(model[1:6])
-            logg[i] = float(model[7:9])/10
-            abun[i] = float(model[10:12])/10 * (-1 if model[9] == 'M' else 1)
-
-            sel = (spc[0] >= self.ptf_table['wl'][0]) & (spc[0] <= self.ptf_table['wl'][-1])
-
-            wl = spc[0][sel]
-            fl = spc[1][sel]
-
-            fl *= self.ptf(wl)
-            flP = fl*wl
-
-            # Alambda = np.matmul(libphoebe.CCM89_extinction(wl), M[i])
-            Alambda = np.matmul(libphoebe.gordon_extinction(wl), M[i])
-            flux_frac = np.exp(-0.9210340371976184*Alambda)             #10**(-0.4*Alambda)
-
-            extinctE[i], extinctP[i] = np.dot([fl/fl.sum(), flP/flP.sum()], flux_frac)
-
-            if verbose:
-                sys.stdout.write('\r' + '%0.0f%% done.' % (100*i/(Nmodels-1)))
-                sys.stdout.flush()
-
-        if verbose:
-            print('')
-
-        # Store axes (Teff, logg, abun) and the full grid of Inorm, with
-        # nans where the grid isn't complete.
-        self._ck2004_extinct_axes = (np.unique(Teff), np.unique(logg), np.unique(abun), np.unique(Ebv), np.unique(Rv))
-
-        Teff = np.repeat(Teff, Ns)
-        logg = np.repeat(logg, Ns)
-        abun = np.repeat(abun, Ns)
-
-        self._ck2004_extinct_energy_grid = np.nan*np.ones((len(self._ck2004_extinct_axes[0]), len(self._ck2004_extinct_axes[1]), len(self._ck2004_extinct_axes[2]), len(self._ck2004_extinct_axes[3]), len(self._ck2004_extinct_axes[4]), 1))
-        self._ck2004_extinct_photon_grid = np.copy(self._ck2004_extinct_energy_grid)
-
-        flatE = extinctE.flat
-        flatP = extinctP.flat
-
-        for i in range(combos):
-            t = (Teff[i] == self._ck2004_extinct_axes[0], logg[i] == self._ck2004_extinct_axes[1], abun[i] == self._ck2004_extinct_axes[2], Ebv1[i] == self._ck2004_extinct_axes[3], Rv1[i] == self._ck2004_extinct_axes[4], 0)
-            self._ck2004_extinct_energy_grid[t] = flatE[i]
-            self._ck2004_extinct_photon_grid[t] = flatP[i]
-
-        if 'ck2004:ext' not in self.content:
-            self.content.append('ck2004:ext')
-
-    def compute_phoenix_reddening(self, path, Ebv=None, Rv=None, verbose=False):
-        """
-        Computes mean effect of reddening (a weighted average) on passband using
-        phoenix atmospheres and Gordon et al. (2009, 2014) prescription of extinction.
-
-        See also:
-        * <phoebe.atmospheres.passbands.Passband.compute_bb_reddening>
-        * <phoebe.atmospheres.passbands.Passband.compute_ck2004_reddening>
-
-        Arguments
-        ------------
-        * `path` (string): path to the directory containing ck2004 SEDs
-        * `Ebv` (float or None, optional, default=None): colour discrepancies E(B-V)
-        * `Rv` (float or None, optional, default=None): Extinction factor
-            (defined at Av / E(B-V) where Av is the visual extinction in magnitudes)
-        * `verbose` (bool, optional, default=False): switch to determine whether
-            computing progress should be printed on screen
-        """
-
-        if Ebv is None:
-            Ebv = np.linspace(0., 3., 30)
-
-        if Rv is None:
-            Rv = np.linspace(2., 6., 16)
-
-        models = glob.glob(path+'/*fits')
-        Nmodels = len(models)
-
-        NEbv = len(Ebv)
-        NRv = len(Rv)
-
-        Ns = NEbv*NRv
-        combos = Nmodels*Ns
-
-        Ebv1 = np.tile(np.repeat(Ebv, NRv), Nmodels)
-        Rv1 = np.tile(Rv, int(combos/NRv))
-
-        # auxilary matrix for storing Ebv and Rv per model
-        M = np.rollaxis(np.array([np.split(Ebv1*Rv1, Nmodels), np.split(Ebv1, Nmodels)]), 1)
-        M = np.ascontiguousarray(M)
-
-        # Store the length of the filename extensions for parsing:
-        offset = len(models[0])-models[0].rfind('.')
-
-        Teff, logg, abun = np.empty(Nmodels), np.empty(Nmodels), np.empty(Nmodels)
-
-        # extinctE , extinctP per model
-        extinctE, extinctP = np.empty((Nmodels, Ns)), np.empty((Nmodels, Ns))
-
-        if verbose:
-            print('Computing PHOENIX (Husser et al. 2013) passband extinction corrections for %s:%s. This will take a while.' % (self.pbset, self.pbname))
-
-        wavelengths = np.arange(500., 26000.)/1e10 # AA -> m
-
-        for i, model in enumerate(models):
-            with fits.open(model) as hdu:
-                intensities = hdu[0].data[-1,:]*1e-1
-            spc = np.vstack((wavelengths, intensities))
-
-            model = model[model.rfind('/')+1:] # get relative pathname
-            Teff[i] = float(model[3:8])
-            logg[i] = float(model[9:13])
-            abun[i] = float(model[13:17])
-
-            wl = spc[0][(spc[0] >= self.ptf_table['wl'][0]) & (spc[0] <= self.ptf_table['wl'][-1])]
-            fl = spc[1][(spc[0] >= self.ptf_table['wl'][0]) & (spc[0] <= self.ptf_table['wl'][-1])]
-            fl *= self.ptf(wl)
-            flP = fl*wl
-
-            # Alambda = np.matmul(libphoebe.CCM89_extinction(wl), M[i])
-            Alambda = np.matmul(libphoebe.gordon_extinction(wl), M[i])
-            flux_frac = np.exp(-0.9210340371976184*Alambda)             #10**(-0.4*Alambda)
-
-            extinctE[i], extinctP[i]= np.dot([fl/fl.sum(), flP/flP.sum()], flux_frac)
-
-            if verbose:
-                sys.stdout.write('\r' + '%0.0f%% done.' % (100*i/(Nmodels-1)))
-                sys.stdout.flush()
-
-        if verbose:
-            print('')
-
-        # Store axes (Teff, logg, abun) and the full grid of Inorm, with
-        # nans where the grid isn't complete.
-        self._phoenix_extinct_axes = (np.unique(Teff), np.unique(logg), np.unique(abun), np.unique(Ebv), np.unique(Rv))
-
-        Teff=np.repeat(Teff, Ns)
-        logg=np.repeat(logg, Ns)
-        abun=np.repeat(abun, Ns)
-
-        self._phoenix_extinct_energy_grid = np.nan*np.ones((len(self._phoenix_extinct_axes[0]), len(self._phoenix_extinct_axes[1]), len(self._phoenix_extinct_axes[2]), len(self._phoenix_extinct_axes[3]), len(self._phoenix_extinct_axes[4]), 1))
-        self._phoenix_extinct_photon_grid = np.copy(self._phoenix_extinct_energy_grid)
-
-        flatE = extinctE.flat
-        flatP = extinctP.flat
-
-        for i in range(combos):
-            t = (Teff[i] == self._phoenix_extinct_axes[0], logg[i] == self._phoenix_extinct_axes[1], abun[i] == self._phoenix_extinct_axes[2], Ebv1[i] == self._phoenix_extinct_axes[3], Rv1[i] == self._phoenix_extinct_axes[4], 0)
-            self._phoenix_extinct_energy_grid[t] = flatE[i]
-            self._phoenix_extinct_photon_grid[t] = flatP[i]
-
-        if 'phoenix:ext' not in self.content:
-            self.content.append('phoenix:ext')
-
-    def compute_tmap_reddening(self, path, Ebv=None, Rv=None, verbose=False):
-        """
-        Computes mean effect of reddening (a weighted average) on passband using tmap atmospheres and Gordon et al. (2009, 2014) prescription of extinction.
-
-        See also:
-        * <phoebe.atmospheres.passbands.Passband.compute_bb_reddening>
-        * <phoebe.atmospheres.passbands.Passband.compute_ck2004_reddening>
-        * <phoebe.atmospheres.passbands.Passband.compute_phoenix_reddening>
-
-        Arguments
-        ------------
-        * `path` (string): path to the directory containing tmap SEDs
-        * `Ebv` (float or None, optional, default=None): colour discrepancies E(B-V)
-        * `Rv` (float or None, optional, default=None): Extinction factor
-            (defined at Av / E(B-V) where Av is the visual extinction in magnitudes)
-        * `verbose` (bool, optional, default=False): switch to determine whether
-            computing progress should be printed on screen
-        """
-
-        if Ebv is None:
-            Ebv = np.linspace(0.,3.,30)
-
-        if Rv is None:
-            Rv = np.linspace(2.,6.,16)
-
-        models = glob.glob(path+'/*fits')
-        Nmodels = len(models)
-
-        NEbv = len(Ebv)
-        NRv = len(Rv)
-
-        Ns = NEbv*NRv
-        combos = Nmodels*Ns
-
-        Ebv1 = np.tile(np.repeat(Ebv, NRv), Nmodels)
-        Rv1 = np.tile(Rv, int(combos/NRv))
-
-        # auxilary matrix for storing Ebv and Rv per model
-        M = np.rollaxis(np.array([np.split(Ebv1*Rv1, Nmodels), np.split(Ebv1, Nmodels)]), 1)
-        M = np.ascontiguousarray(M)
-
-
-        Teff, logg, abun = np.empty(Nmodels), np.empty(Nmodels), np.empty(Nmodels)
-
-        # extinctE , extinctP per model
-        extinctE , extinctP = np.empty((Nmodels, Ns)), np.empty((Nmodels, Ns))
-
-        if verbose:
-            print('Computing TMAP passband extinction corrections for %s:%s. This will take a while.' % (self.pbset, self.pbname))
-
-        wavelengths = np.load(path+'/wavelengths.npy') # in meters
-        keep = (wavelengths >= self.ptf_table['wl'][0]) & (wavelengths <= self.ptf_table['wl'][-1])
-        wl = wavelengths[keep]
-
-        for i, model in enumerate(models):
-            with fits.open(model) as hdu:
-                intensities = hdu[0].data # in W/m^3
-
-                # trim intensities to the passband limits:
-                # intensities = intensities[:,keep]
-
-                pars = re.split('[TGA.]+', model[model.rfind('/')+1:])
-                Teff[i] = float(pars[1])
-                logg[i] = float(pars[2])/100
-                abun[i] = float(pars[3])/100
-
-            spc = np.vstack((wavelengths, intensities))
-
-            sel = (spc[0] >= self.ptf_table['wl'][0]) & (spc[0] <= self.ptf_table['wl'][-1])
-
-            wl = spc[0][sel]
-            fl = spc[1][sel]
-
-            fl *= self.ptf(wl)
-            flP = fl*wl
-
-            # Alambda = np.matmul(libphoebe.CCM89_extinction(wl), M[i])
-            Alambda = np.matmul(libphoebe.gordon_extinction(wl), M[i])
-            flux_frac = np.exp(-0.9210340371976184*Alambda)             #10**(-0.4*Alambda)
-
-            extinctE[i], extinctP[i] = np.dot([fl/fl.sum(), flP/flP.sum()], flux_frac)
-
-            if verbose:
-                sys.stdout.write('\r' + '%0.0f%% done.' % (100*i/(Nmodels-1)))
-                sys.stdout.flush()
-
-        if verbose:
-            print('')
-
-        # Store axes (Teff, logg, abun) and the full grid of Inorm, with
-        # nans where the grid isn't complete.
-        self._tmap_extinct_axes = (np.unique(Teff), np.unique(logg), np.unique(abun), np.unique(Ebv), np.unique(Rv))
-
-        Teff = np.repeat(Teff, Ns)
-        logg = np.repeat(logg, Ns)
-        abun = np.repeat(abun, Ns)
-
-        self._tmap_extinct_energy_grid = np.nan*np.ones((len(self._tmap_extinct_axes[0]), len(self._tmap_extinct_axes[1]), len(self._tmap_extinct_axes[2]), len(self._tmap_extinct_axes[3]), len(self._tmap_extinct_axes[4]), 1))
-        self._tmap_extinct_photon_grid = np.copy(self._tmap_extinct_energy_grid)
-
-        flatE = extinctE.flat
-        flatP = extinctP.flat
-
-        for i in range(combos):
-            t = (Teff[i] == self._tmap_extinct_axes[0], logg[i] == self._tmap_extinct_axes[1], abun[i] == self._tmap_extinct_axes[2], Ebv1[i] == self._tmap_extinct_axes[3], Rv1[i] == self._tmap_extinct_axes[4], 0)
-            self._tmap_extinct_energy_grid[t] = flatE[i]
-            self._tmap_extinct_photon_grid[t] = flatP[i]
-
-        if 'tmap:ext' not in self.content:
-            self.content.append('tmap:ext')
-
     def _ld(self, mu=1.0, ld_coeffs=[0.5], ld_func='linear'):
         ld_coeffs = np.atleast_2d(ld_coeffs)
 
@@ -1434,7 +1189,7 @@ class Passband:
         Computes limb darkening coefficients for linear, log, square root,
         quadratic and power laws.
 
-        Parameters
+        Arguments
         ----------
         * `ldatm` (string): model atmosphere for the limb darkening
           coefficients
@@ -1581,7 +1336,7 @@ class Passband:
 
         ldint = 2 \int_0^1 Imu mu dmu
 
-        Parameters
+        Arguments
         ----------
         * `ldatm` (string): model atmosphere for the limb darkening calculation.
         """
@@ -2212,11 +1967,14 @@ class Passband:
             if atm not in ['ck2004', 'phoenix', 'tmap']:
                 raise ValueError(f"atm={atm} cannot be used with ld_func={ld_func}.")
 
-            axes = self.atm_axes[atm]
-            grid = self.atm_photon_grid[atm] if intens_weighting == 'photon' else self.atm_energy_grid[atm]
+            # a temporary shortcut for testing purposes only:
+            if atm == 'ck2004':
+                ndp = self.ndp[f'imu@{intens_weighting}@{atm}']
+            else:
+                axes = self.atm_axes[atm]
+                grid = self.atm_photon_grid[atm] if intens_weighting == 'photon' else self.atm_energy_grid[atm]
+                ndp = ndpolator.Ndpolator(axes, grid)
 
-            # print(f'atm={atm}, axes={axes}, grid={grid}')
-            ndp = ndpolator.Ndpolator(axes, grid)
             req = ndp.tabulate((teffs, loggs, abuns, mus))
             retval = ndp.interp(req, extrapolation_method=atm_extrapolation_method, raise_on_nans=True)
             return 10**retval
@@ -2248,7 +2006,7 @@ class Passband:
         """
         Computes ldint value for the given `ld_func` and `ld_coeffs`.
 
-        Parameters
+        Arguments
         ----------
         * `ld_func` (string, optional, default='linear'): limb darkening function
         * `ld_coeffs` (array, optional, default=[[0.5]]): limb darkening coefficients
