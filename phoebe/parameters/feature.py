@@ -130,18 +130,40 @@ def gaussian_process(feature, **kwargs):
 
     params = []
 
-    params += [ChoiceParameter(qualifier='kernel', value=kwargs.get('kernel', 'matern32'), choices=['matern32', 'sho'], description='Kernel for the gaussian process (see https://celerite.readthedocs.io/en/stable/python/kernel/)')]
+    params += [ChoiceParameter(qualifier='kernel', value=kwargs.get('kernel', 'white'), 
+                               choices=['constant', 'white', 'rbf', 'matern', 'rational_quadratic', 'exp_sine_squared', 'dot_product'], 
+                               description='Kernel for the gaussian process (see https://scikit-learn.org/stable/modules/gaussian_process.html)')]
 
-    params += [FloatParameter(visible_if='kernel:sho', qualifier='log_S0', value=kwargs.get('log_S0', 0), default_unit=u.dimensionless_unscaled, description='Log of the GP parameter S0')]
-    params += [FloatParameter(visible_if='kernel:sho', qualifier='log_Q', value=kwargs.get('log_Q', 0), default_unit=u.dimensionless_unscaled, description='Log of the GP parameter Q')]
-    params += [FloatParameter(visible_if='kernel:sho', qualifier='log_omega0', value=kwargs.get('log_omega0', 0), default_unit=u.dimensionless_unscaled, description='Log of the GP parameter omega0')]
-
-    params += [FloatParameter(visible_if='kernel:matern32', qualifier='log_sigma', value=kwargs.get('log_sigma', 0), default_unit=u.dimensionless_unscaled, description='Log of the GP parameter sigma')]
-    params += [FloatParameter(visible_if='kernel:matern32', qualifier='log_rho', value=kwargs.get('log_rho', 0), default_unit=u.dimensionless_unscaled, description='Log of the GP parameter rho')]
-    params += [FloatParameter(visible_if='kernel:matern32', qualifier='eps', value=kwargs.get('eps', 0.01), limits=(0,None), default_unit=u.dimensionless_unscaled, description='GP parameter epsilon')]
-
-    # params += [FloatParameter(visible_if='kernel:jitter', qualifier='log_sigma', value=kwargs.get('log_sigma', np.log(0.01)), default_unit=u.dimensionless_unscaled, description='Log of the amplitude of the white noise')]
-
+    params += [FloatParameter(visible_if='kernel:constant', qualifier='constant_value', 
+                              value=kwargs.get('constant_value', 1.0), 
+                              default_unit=u.dimensionless_unscaled, description='Value of the constant kernel')]
+    params += [FloatParameter(visible_if='kernel:white', qualifier='noise_level', 
+                              value=kwargs.get('noise_level', 1.0), 
+                              default_unit=u.dimensionless_unscaled, description='Noise level of the white kernel')]
+    params += [FloatParameter(visible_if='kernel:rbf', qualifier='length_scale', 
+                              value=kwargs.get('length_scale', 1.0), 
+                              default_unit=u.dimensionless_unscaled, description='Length scale of the RBF kernel')]
+    params += [FloatParameter(visible_if='kernel:matern', qualifier='length_scale', 
+                              value=kwargs.get('length_scale', 1.0), 
+                              default_unit=u.dimensionless_unscaled, description='Length scale of the Matern kernel')]    
+    params += [FloatParameter(visible_if='kernel:matern', qualifier='nu', 
+                              value=kwargs.get('nu', 1.5), 
+                              default_unit=u.dimensionless_unscaled, description='Smoothness factor of the Matern kernel')]
+    params += [FloatParameter(visible_if='kernel:rational_quadratic', qualifier='length_scale', 
+                              value=kwargs.get('length_scale', 1.0), 
+                              default_unit=u.dimensionless_unscaled, description='Length scale of the RationalQuadratic kernel')]      
+    params += [FloatParameter(visible_if='kernel:rational_quadratic', qualifier='alpha', 
+                              value=kwargs.get('alpha', 1.0), 
+                              default_unit=u.dimensionless_unscaled, description='Scale mixture parameter of the RationalQuadratic kernel')]
+    params += [FloatParameter(visible_if='kernel:exp_sine_squared', qualifier='length_scale', 
+                              value=kwargs.get('length_scale', 1.0), 
+                              default_unit=u.dimensionless_unscaled, description='Length scale of the ExpSineSquared kernel')]      
+    params += [FloatParameter(visible_if='kernel:exp_sine_squared', qualifier='periodicity', 
+                              value=kwargs.get('periodicity', 1.0), 
+                              default_unit=u.dimensionless_unscaled, description='Periodicity parameter of the ExpSineSquared kernel')]
+    params += [FloatParameter(visible_if='kernel:dot_product', qualifier='sigma_0', 
+                              value=kwargs.get('sigma_0', 1.0), 
+                              default_unit=u.dimensionless_unscaled, description='Constant factor of the DotProduct kernel')]    
     constraints = []
 
     return ParameterSet(params), constraints

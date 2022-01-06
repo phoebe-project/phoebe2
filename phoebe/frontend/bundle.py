@@ -82,12 +82,13 @@ else:
     _can_client = True
 
 try:
-    import celerite as _celerite
+    import sklearn as _sklearn
+    from sklearn.gaussian_process import GaussianProcessRegressor
 except ImportError:
-    logger.warning("celerite not installed: only required for gaussian processes")
-    _use_celerite = False
+    logger.warning("scikit-learn not installed: only required for gaussian processes")
+    _use_sklearn = False
 else:
-    _use_celerite = True
+    _use_sklearn = True
 
 
 def _get_add_func(mod, func, return_none_if_not_found=False):
@@ -4297,9 +4298,9 @@ class Bundle(ParameterSet):
                                     False, 'run_compute')
 
         # dependency checks
-        if not _use_celerite and len(self.filter(context='feature', kind='gaussian_process').features):
+        if not _use_sklearn and len(self.filter(context='feature', kind='gaussian_process').features):
             report.add_item(self,
-                            "Gaussian process features attached, but celerite dependency not installed",
+                            "Gaussian process features attached, but scikit-learn dependency not installed",
                             [],
                             True, 'run_compute')
 
@@ -5377,7 +5378,7 @@ class Bundle(ParameterSet):
 
         # provide any references from features
         if len(self.filter(context='feature', kind='gaussian_process').features):
-            recs = _add_reason(recs, 'Foreman-Mackey et al. (2017)', 'celerite for gaussian processes')
+            recs = _add_reason(recs, 'Pedregosa et al., (2011)', 'scikit-learn for gaussian processes')
 
         # provide references from dependencies
         recs = _add_reason(recs, 'numpy/scipy', 'numpy/scipy dependency within PHOEBE')
@@ -5470,8 +5471,8 @@ class Bundle(ParameterSet):
                 deps_pip.append('dynesty')
 
         # features
-        if len(self.filter(context='feature', kind='gaussian_process').features) and 'celerite' not in deps_pip:
-            deps_pip.append('celerite')
+        if len(self.filter(context='feature', kind='gaussian_process').features) and 'scikit-learn' not in deps_pip:
+            deps_pip.append('scikit-learn')
 
         return deps_pip, deps_other
 
@@ -11998,14 +11999,19 @@ class Bundle(ParameterSet):
                     if len(gp_features):
                         # NOTE: this is already in run_checks_compute, so this error
                         # should never be raised
-                        if not _use_celerite:
-                            raise ImportError("gaussian processes require celerite to be installed.  Install (pip install celerite) and restart phoebe.")
+                        if not _use_sklearn:
+                            raise ImportError("gaussian processes require scikit-learn to be installed.  Install (pip install scikit-learn) and restart phoebe.")
 
                         # NOTE: only those exposed in feature.gaussian_process
                         # will be available to the user (we don't allow jitter, for example)
-                        gp_kernel_classes = {'matern32': _celerite.terms.Matern32Term,
-                                              'sho': _celerite.terms.SHOTerm,
-                                              'jitter': _celerite.terms.JitterTerm}
+                        gp_kernel_classes = {'constant': _sklearn.gaussian_process.kernels.ConstantKernel,
+                                             'white': _sklearn.gaussian_process.kernels.WhiteKernel,
+                                             'rbf': _sklearn.gaussian_process.kernels.RBF,
+                                             'matern': _sklearn.gaussian_process.kernels.Matern,
+                                             'rational_quadratic': _sklearn.gaussian_process.kernels.RationalQuadratic,
+                                             'exp_sine_squared': _sklearn.gaussian_process.kernels.ExpSineSquared,
+                                             'dot_product': _sklearn.gaussian_process.kernels.DotProduct
+                                             }
 
                         # build the celerite GP object from the enabled GP features attached to this dataset
                         gp_kernels = []
@@ -12015,11 +12021,11 @@ class Bundle(ParameterSet):
 
                             kwargs = {p.qualifier: p.value for p in gp_ps.exclude(qualifier=['kernel', 'enabled']).to_list() if p.is_visible}
                             gp_kernels.append(gp_kernel_classes.get(kind)(**kwargs))
-
-                        if len(gp_kernels) == 1:
-                            gp_kernel = _celerite.GP(gp_kernels[0])
-                        else:
-                            gp_kernel = _celerite.GP(_celerite.terms.TermSum(*gp_kernels))
+                        
+                        gp_kernel = gp_kernels[0]
+                        if len(gp_kernels) > 1:
+                            for i in range(1, len(gp_kernels)):
+                                gp_kernel += gp_kernels[i]
 
 
                         ds_ps = self.get_dataset(dataset=ds, **_skip_filter_checks)
@@ -12033,18 +12039,30 @@ class Bundle(ParameterSet):
                         for ds_comp in ds_comps:
                             ds_x = ds_ps.get_value(qualifier=xqualifier, component=ds_comp, **_skip_filter_checks)
                             model_x = model_ps.get_value(qualifier=xqualifier, dataset=ds, component=ds_comp, **_skip_filter_checks)
-                            ds_sigmas = ds_ps.get_value(qualifier='sigmas', component=ds_comp, **_skip_filter_checks)
+                            # ds_sigmas = ds_ps.get_value(qualifier='sigmas', component=ds_comp, **_skip_filter_checks)
                             # TODO: do we need to inflate sigmas by lnf?
                             if not len(ds_x):
                                 # should have been caught by run_checks_compute
                                 raise ValueError("gaussian_process requires dataset observations (cannot be synthetic only).  Add observations to dataset='{}' or disable feature={}".format(ds, gp_features))
-                            if len(ds_sigmas) != len(ds_x):
-                                raise ValueError("gaussian_process requires sigma of same length as {}".format(xqualifier))
+                            # if len(ds_sigmas) != len(ds_x):
+                            #     raise ValueError("gaussian_process requires sigma of same length as {}".format(xqualifier))
 
-                            gp_kernel.compute(ds_x, ds_sigmas, check_sorted=True)
-
-                            residuals, model_y_dstimes = self.calculate_residuals(model=model, dataset=ds, component=ds_comp, return_interp_model=True, as_quantity=False, consider_gaussian_process=False)
-                            gp_y = gp_kernel.predict(residuals, ds_x, return_cov=False)
+                            # gp_kernel.compute(ds_x, ds_sigmas, check_sorted=True)
+                            
+                            residuals, model_y_dstimes = self.calculate_residuals(model=model, 
+                                                                                  dataset=ds, 
+                                                                                  component=ds_comp, 
+                                                                                  return_interp_model=True, 
+                                                                                  as_quantity=False, 
+                                                                                  consider_gaussian_process=False)
+                            
+                            
+                            gp_regressor = GaussianProcessRegressor(kernel=gp_kernel)
+                            gp_regressor.fit(ds_x.reshape(-1,1), residuals)
+                            
+                            # NOTE: .predict can also be called directly to the model times if we want to avoid interpolation altogether 
+                            gp_y = gp_regressor.predict(ds_x.reshape(-1,1), return_std=False)                              
+                            # gp_y = gp_kernel.predict(residuals, ds_x, return_cov=False)
                             model_y = model_ps.get_quantity(qualifier=yqualifier, dataset=ds, component=ds_comp, **_skip_filter_checks)
 
                             # store just the GP component in the model PS as well
@@ -12054,7 +12072,7 @@ class Bundle(ParameterSet):
                                 logger.warning("model for dataset='{}' resampled at dataset times when adding GPs".format(ds))
                                 model_ps.set_value(qualifier=xqualifier, dataset=ds, component=ds_comp, value=ds_x, ignore_readonly=True, **_skip_filter_checks)
 
-                            self._attach_params([gp_param, y_nogp_param], check_copy_for=False, **metawargs)
+                            self._attach_params([gp_param, y_nogp_param], dataset=ds, check_copy_for=False, **metawargs)
 
                             # update the model to include the GP contribution
                             model_ps.set_value(qualifier=yqualifier, value=model_y_dstimes+gp_y, dataset=ds, component=ds_comp, ignore_readonly=True, **_skip_filter_checks)
