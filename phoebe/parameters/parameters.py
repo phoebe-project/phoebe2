@@ -291,8 +291,9 @@ _forbidden_labels += ['primary_width', 'secondary_width',
 _forbidden_labels += ['colat', 'long', 'radius', 'relteff',
                       'radamp', 'freq', 'l', 'm', 'teffext',
                       'spot', 'gaussian_process', 'pulsation',
-                      'kernel', 'log_S0', 'log_Q', 'log_rho',
-                      'log_omega0', 'log_sigma', 'eps'
+                      'kernel', 'constant_value', 'length_scale',
+                      'noise_level', 'periodicity', 'alpha', 'nu',
+                      'sigma_0'
                       ]
 
 # from figure:
