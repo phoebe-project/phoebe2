@@ -751,7 +751,7 @@ class Passband:
         expterm = np.exp(hclkt)
         return hclkt * expterm/(expterm-1)
 
-    def _bb_intensity(self, teff, intens_weighting='photon'):
+    def _bb_intensity(self, teffs, intens_weighting='photon'):
         """
         Computes mean passband intensity using blackbody atmosphere:
 
@@ -762,7 +762,7 @@ class Passband:
 
         Arguments
         -----------
-        * `teff` (float/array): effective temperature in K
+        * `teffs` (array): effective temperature in K
         * `intens_weighting`
 
         Returns
@@ -770,46 +770,92 @@ class Passband:
         * mean passband intensity using blackbody atmosphere.
         """
 
-        if intens_weighting == 'photon':
-            pb = lambda w: w*self._planck(w, teff)*self.ptf(w)
-            return integrate.quad(pb, self.wl[0], self.wl[-1])[0]/self.ptf_photon_area
-        else:
-            pb = lambda w: self._planck(w, teff)*self.ptf(w)
-            return integrate.quad(pb, self.wl[0], self.wl[-1])[0]/self.ptf_area
+        wls = self.wl.reshape(-1, 1)
+        pfs = 2 * self.h * self.c * self.c / wls**5 * np.exp(-self.h * self.c / (self.k * wls @ teffs.reshape(1, -1)))
 
-    def compute_blackbody_response(self, teffs=None):
+        if intens_weighting == 'photon':
+            ints = np.trapz(wls * self.ptf(wls).reshape(-1, 1) * pfs, self.wl, axis=0)
+            return ints/self.ptf_photon_area
+        else:
+            ints = np.trapz(self.ptf(wls).reshape(-1, 1) * pfs, self.wl, axis=0)
+            return ints/self.ptf_area
+
+    def compute_blackbody_response(self, teffs=None, include_extinction=False, rvs=None, ebvs=None, verbose=False):
         """
-        Computes blackbody intensities across the entire range of
-        effective temperatures. It does this for two regimes, energy-weighted
-        and photon-weighted. It then fits a cubic spline to the log(I)-Teff
-        values and exports the interpolation functions _log10_Inorm_bb_energy
-        and _log10_Inorm_bb_photon.
+        Computes blackbody intensities across the entire range of effective
+        temperatures. It does this for two regimes, energy-weighted and
+        photon-weighted. It then fits a cubic spline to the log(I)-Teff values
+        and exports the interpolation functions _log10_Inorm_bb_energy and
+        _log10_Inorm_bb_photon.
 
         Arguments
         ----------
         * `teffs` (array, optional, default=None): an array of effective
             temperatures. If None, a default array from ~300K to ~500000K with
             97 steps is used. The default array is uniform in log10 scale.
+        * `include_extinction` (boolean, optional, default=False): should the
+          extinction tables be computed as well. The mean effect of reddening (a
+          weighted average) on a passband uses the Gordon et al. (2009, 2014)
+          prescription of extinction.
+        * `rvs` (array, optional, default=None): a custom array of extinction
+          factor Rv values. Rv is defined at Av / E(B-V) where Av is the visual
+          extinction in magnitudes. If None, the default linspace(2, 6, 16) is
+          used.
+        * `ebvs` (array, optional, default=None): a custom array of color excess
+          E(B-V) values. If None, the default linspace(0, 3, 30) is used.
+        * `verbose` (bool, optional, default=False): set to True to display
+            progress in the terminal.
         """
+
+        if verbose:
+            print(f"Computing blackbody specific passband intensities for {self.pbset}:{self.pbname} {'with' if include_extinction else 'without'} extinction.")
 
         if teffs is None:
             log10teffs = np.linspace(2.5, 5.7, 97)  # this corresponds to the 316K-501187K range.
             teffs = 10**log10teffs
 
+        if include_extinction:
+            if rvs is None:
+                rvs = np.linspace(2., 6., 16)
+            if ebvs is None:
+                ebvs = np.linspace(0., 3., 30)
+
+            ebv_list = np.tile(np.repeat(ebvs, len(rvs)), len(teffs))
+            rv_list = np.tile(rvs, len(teffs)*len(ebvs))
+
+            ext_energy, ext_photon = np.empty(len(teffs)*len(rvs)*len(ebvs)), np.empty(len(teffs)*len(rvs)*len(ebvs))
+
         self.atm_axes['blackbody'] = (teffs,)
 
         # Energy-weighted intensities:
-        log10ints_energy = np.array([np.log10(self._bb_intensity(teff, intens_weighting='energy')) for teff in teffs])
+        log10ints_energy = np.log10(self._bb_intensity(teffs, intens_weighting='energy'))
         self._bb_func_energy = interpolate.splrep(teffs, log10ints_energy, s=0)
         self._log10_Inorm_bb_energy = lambda teff: interpolate.splev(teff, self._bb_func_energy)
 
         # Photon-weighted intensities:
-        log10ints_photon = np.array([np.log10(self._bb_intensity(teff, intens_weighting='photon')) for teff in teffs])
+        log10ints_photon = np.log10(self._bb_intensity(teffs, intens_weighting='photon'))
         self._bb_func_photon = interpolate.splrep(teffs, log10ints_photon, s=0)
         self._log10_Inorm_bb_photon = lambda teff: interpolate.splev(teff, self._bb_func_photon)
 
         if 'blackbody:Inorm' not in self.content:
             self.content.append('blackbody:Inorm')
+
+        if include_extinction:
+            a = libphoebe.gordon_extinction(self.wl)
+            for j in range(len(teffs)*len(rvs)*len(ebvs)):
+                pbE = self.ptf(self.wl)*libphoebe.planck_function(self.wl, teffs[j])
+                pbP = self.wl*pbE
+
+                flux_frac = np.exp(-0.9210340371976184*np.dot(a, [ebvs[j]*rvs[j], ebvs[j]]))
+                ext_energy[j], ext_photon[j] = np.dot([pbE/pbE.sum(), pbP/pbP.sum()], flux_frac)
+
+                if verbose:
+                    sys.stdout.write('\r' + '%0.0f%% done.' % (100*j/(len(teffs)*len(rvs)*len(ebvs)-1)))
+                    sys.stdout.flush()
+
+            if verbose:
+                print('')
+
 
     def parse_atm_datafiles(self, atm, path):
         """
@@ -895,7 +941,7 @@ class Passband:
           extinction in magnitudes. If None, the default linspace(2, 6, 16) is
           used.
         * `ebvs` (array, optional, default=None): a custom array of color excess
-          E(B-V) values. In None, the default linspace(0, 3, 30) is used.
+          E(B-V) values. If None, the default linspace(0, 3, 30) is used.
         * `verbose` (bool, optional, default=True): set to True to display
             progress in the terminal.
         """
