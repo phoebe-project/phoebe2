@@ -938,6 +938,9 @@ class Passband:
                 pbints_photon = wls*pbints_energy
                 fluxes_photon = np.trapz(pbints_photon, wls)
 
+                # work around log10(flux(mu=0)=0) = -inf:
+                fluxes_energy[mus < 1e-12] = fluxes_photon[mus < 1e-12] = 1
+
                 ints_energy[i*len(mus):(i+1)*len(mus)] = np.log10(fluxes_energy/self.ptf_area)         # energy-weighted intensity
                 ints_photon[i*len(mus):(i+1)*len(mus)] = np.log10(fluxes_photon/self.ptf_photon_area)  # photon-weighted intensity
 
