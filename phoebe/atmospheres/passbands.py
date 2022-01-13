@@ -146,7 +146,7 @@ class Passband:
         Step #2: compute intensities for blackbody radiation:
 
         ```py
-        pb.compute_blackbody_response()
+        pb.compute_blackbody_intensities()
         ```
 
         Step #3: compute Castelli & Kurucz (2004) intensities. To do this,
@@ -751,36 +751,7 @@ class Passband:
         expterm = np.exp(hclkt)
         return hclkt * expterm/(expterm-1)
 
-    def _bb_intensity(self, teffs, intens_weighting='photon'):
-        """
-        Computes mean passband intensity using blackbody atmosphere:
-
-        `I_pb^E = \int_\lambda I(\lambda) P(\lambda) d\lambda / \int_\lambda P(\lambda) d\lambda`
-        I_pb^P = \int_\lambda \lambda I(\lambda) P(\lambda) d\lambda / \int_\lambda \lambda P(\lambda) d\lambda
-
-        Superscripts E and P stand for energy and photon, respectively.
-
-        Arguments
-        -----------
-        * `teffs` (array): effective temperature in K
-        * `intens_weighting`
-
-        Returns
-        ------------
-        * mean passband intensity using blackbody atmosphere.
-        """
-
-        wls = self.wl.reshape(-1, 1)
-        pfs = 2 * self.h * self.c * self.c / wls**5 * np.exp(-self.h * self.c / (self.k * wls @ teffs.reshape(1, -1)))
-
-        if intens_weighting == 'photon':
-            ints = np.trapz(wls * self.ptf(wls).reshape(-1, 1) * pfs, self.wl, axis=0)
-            return ints/self.ptf_photon_area
-        else:
-            ints = np.trapz(self.ptf(wls).reshape(-1, 1) * pfs, self.wl, axis=0)
-            return ints/self.ptf_area
-
-    def compute_blackbody_response(self, teffs=None, include_extinction=False, rvs=None, ebvs=None, verbose=False):
+    def compute_blackbody_intensities(self, teffs=None, include_extinction=False, rvs=None, ebvs=None, verbose=False):
         """
         Computes blackbody intensities across the entire range of effective
         temperatures. It does this for two regimes, energy-weighted and
@@ -814,48 +785,59 @@ class Passband:
             log10teffs = np.linspace(2.5, 5.7, 97)  # this corresponds to the 316K-501187K range.
             teffs = 10**log10teffs
 
-        if include_extinction:
-            if rvs is None:
-                rvs = np.linspace(2., 6., 16)
-            if ebvs is None:
-                ebvs = np.linspace(0., 3., 30)
+        wls = self.wl.reshape(-1, 1)
 
-            ebv_list = np.tile(np.repeat(ebvs, len(rvs)), len(teffs))
-            rv_list = np.tile(rvs, len(teffs)*len(ebvs))
+        # Planck functions:
+        pfs = 2*self.h*self.c*self.c/wls**5*1./(np.exp(self.h*self.c/(self.k*wls@teffs.reshape(1, -1)))-1)  # (47, 97)
 
-            ext_energy, ext_photon = np.empty(len(teffs)*len(rvs)*len(ebvs)), np.empty(len(teffs)*len(rvs)*len(ebvs))
+        self.atm_axes['blackbody'] = (np.unique(teffs),)
 
-        self.atm_axes['blackbody'] = (teffs,)
-
-        # Energy-weighted intensities:
-        log10ints_energy = np.log10(self._bb_intensity(teffs, intens_weighting='energy'))
-        self._bb_func_energy = interpolate.splrep(teffs, log10ints_energy, s=0)
+        # Passband-weighted Planck functions:
+        pbpfs_energy = self.ptf(wls).reshape(-1, 1)*pfs  # (47, 97)
+        pbints_energy = np.log10(np.trapz(pbpfs_energy, self.wl, axis=0)/self.ptf_area)
+        self._bb_func_energy = interpolate.splrep(teffs, pbints_energy, s=0)
         self._log10_Inorm_bb_energy = lambda teff: interpolate.splev(teff, self._bb_func_energy)
 
-        # Photon-weighted intensities:
-        log10ints_photon = np.log10(self._bb_intensity(teffs, intens_weighting='photon'))
-        self._bb_func_photon = interpolate.splrep(teffs, log10ints_photon, s=0)
+        pbpfs_photon = wls*self.ptf(wls).reshape(-1, 1)*pfs  # (47, 97)
+        pbints_photon = np.log10(np.trapz(pbpfs_photon, self.wl, axis=0)/self.ptf_photon_area)
+        self._bb_func_photon = interpolate.splrep(teffs, pbints_photon, s=0)
         self._log10_Inorm_bb_photon = lambda teff: interpolate.splev(teff, self._bb_func_photon)
 
         if 'blackbody:Inorm' not in self.content:
             self.content.append('blackbody:Inorm')
 
         if include_extinction:
-            a = libphoebe.gordon_extinction(self.wl)
-            for j in range(len(teffs)*len(rvs)*len(ebvs)):
-                pbE = self.ptf(self.wl)*libphoebe.planck_function(self.wl, teffs[j])
-                pbP = self.wl*pbE
+            if rvs is None:
+                rvs = np.linspace(2., 6., 16)
+            if ebvs is None:
+                ebvs = np.linspace(0., 3., 30)
 
-                flux_frac = np.exp(-0.9210340371976184*np.dot(a, [ebvs[j]*rvs[j], ebvs[j]]))
-                ext_energy[j], ext_photon[j] = np.dot([pbE/pbE.sum(), pbP/pbP.sum()], flux_frac)
+            self._bb_extinct_axes = (np.unique(teffs), np.unique(rvs), np.unique(ebvs))
 
-                if verbose:
-                    sys.stdout.write('\r' + '%0.0f%% done.' % (100*j/(len(teffs)*len(rvs)*len(ebvs)-1)))
-                    sys.stdout.flush()
+            ebv_column = np.tile(ebvs, len(rvs))
+            rvebv_column = ebv_column*np.repeat(rvs, len(ebvs))
+            ext_pars = np.vstack((rvebv_column, ebv_column))
+            ext_func = libphoebe.gordon_extinction(wls)  # (47, 2)
+            ext = ext_func @ ext_pars  # (47, 480)
+            flux_fracs = 10**(-0.4*ext)  # (47, 480)
+            integrand_energy = (pbpfs_energy[:,None,:]*flux_fracs[:,:,None]).T  # ~25ms  (97, 480, 47)
+            integrand_photon = (pbpfs_photon[:,None,:]*flux_fracs[:,:,None]).T  # ~25ms  (97, 480, 47)
+            # integrand = np.einsum('ji,jk->ikj', pbpfs, flux_fracs)  # ~30ms
+
+            extincted_intensities_energy = np.trapz(integrand_energy, self.wl, axis=2)  # (97, 480)
+            extincted_intensities_photon = np.trapz(integrand_photon, self.wl, axis=2)  # (97, 480)
+
+            non_extincted_intensities_energy = np.trapz(pbpfs_energy, self.wl, axis=0)[:,None]  # (97, 1)
+            non_extincted_intensities_photon = np.trapz(pbpfs_photon, self.wl, axis=0)[:,None]  # (97, 1)
+
+            self._bb_extinct_energy_grid = (extincted_intensities_energy/non_extincted_intensities_energy).reshape(len(teffs), len(rvs), len(ebvs), 1)  # (97, 16, 30, 1)
+            self._bb_extinct_photon_grid = (extincted_intensities_photon/non_extincted_intensities_photon).reshape(len(teffs), len(rvs), len(ebvs), 1)  # (97, 16, 30, 1)
+
+            if 'blackbody:ext' not in self.content:
+                self.content.append('blackbody:ext')
 
             if verbose:
                 print('')
-
 
     def parse_atm_datafiles(self, atm, path):
         """
@@ -1124,83 +1106,6 @@ class Passband:
 
         if f'{atm}:Imu' not in self.content:
             self.content.append(f'{atm}:Imu')
-
-    def compute_bb_reddening(self, Teffs=None, Ebv=None, Rv=None, verbose=False):
-        """
-        Computes mean effect of reddening (a weighted average) on passband using
-        blackbody atmosphere and Gordon et al. (2009, 2014) prescription of extinction.
-
-        See also:
-        * <phoebe.atmospheres.passbands.Passband.compute_ck2004_reddening>
-        * <phoebe.atmospheres.passbands.Passband.compute_phoenix_reddening>
-        * <phoebe.atmospheres.passbands.Passband.compute_tmap_reddening>
-
-        Arguments
-        -----------
-        * `Teffs` (array or None, optional, default=None): an array of effective
-            temperatures. If None, a default array from ~300K to ~500000K with
-            97 steps is used. The default array is uniform in log10 scale.
-        * `Ebv` (float or None, optional, default=None): color discrepancies E(B-V)
-        * `Rv` (float or None, optional, default=None): Extinction factor
-            (defined at Av / E(B-V) where Av is the visual extinction in magnitudes)
-        * `verbose` (bool, optional, default=False): switch to determine whether
-            computing progress should be printed on screen
-        """
-
-        if Teffs is None:
-            log10Teffs = np.linspace(2.5, 5.7, 97) # this corresponds to the 316K-501187K range.
-            Teffs = 10**log10Teffs
-
-        if Ebv is None:
-            Ebv = np.linspace(0.,3.,30)
-
-        if Rv is None:
-            Rv = np.linspace(2.,6.,16)
-
-        #Make it so that Teffs and Ebv step through a la the CK2004 models
-        NTeffs = len(Teffs)
-        NEbv = len(Ebv)
-        NRv = len(Rv)
-        combos = NTeffs*NEbv*NRv
-        Teffs = np.repeat(Teffs, int(combos/NTeffs))
-        Ebv = np.tile(np.repeat(Ebv, NRv), NTeffs)
-        Rv = np.tile(Rv, int(combos/NRv))
-
-        extinctE, extinctP = np.empty(combos), np.empty(combos)
-
-        if verbose:
-            print('Computing blackbody reddening corrections for %s:%s.' % (self.pbset, self.pbname))
-
-        # a = libphoebe.CCM89_extinction(self.wl)
-        a = libphoebe.gordon_extinction(self.wl)
-
-        for j in range(0,combos):
-
-            pbE = self.ptf(self.wl)*libphoebe.planck_function(self.wl, Teffs[j])
-            pbP = self.wl*pbE
-
-            flux_frac = np.exp(-0.9210340371976184*np.dot(a, [Ebv[j]*Rv[j], Ebv[j]]))
-            extinctE[j], extinctP[j] = np.dot([pbE/pbE.sum(), pbP/pbP.sum()], flux_frac)
-
-            if verbose:
-                sys.stdout.write('\r' + '%0.0f%% done.' % (100*j/(combos-1)))
-                sys.stdout.flush()
-
-        if verbose:
-            print('')
-
-        self._bb_extinct_axes = (np.unique(Teffs), np.unique(Ebv), np.unique(Rv))
-
-        self._bb_extinct_photon_grid = np.nan*np.ones((len(self._bb_extinct_axes[0]), len(self._bb_extinct_axes[1]), len(self._bb_extinct_axes[2]), 1))
-        self._bb_extinct_energy_grid = np.copy(self._bb_extinct_photon_grid)
-
-        for i in range(combos):
-            t=(Teffs[i] == self._bb_extinct_axes[0], Ebv[i] == self._bb_extinct_axes[1], Rv[i] == self._bb_extinct_axes[2], 0)
-            self._bb_extinct_energy_grid[t] = extinctE[i]
-            self._bb_extinct_photon_grid[t] = extinctP[i]
-
-        if 'blackbody:ext' not in self.content:
-            self.content.append('blackbody:ext')
 
     def _ld(self, mu=1.0, ld_coeffs=[0.5], ld_func='linear'):
         ld_coeffs = np.atleast_2d(ld_coeffs)
@@ -1499,6 +1404,23 @@ class Passband:
         * NotImplementedError if `atm` is not supported.
         """
 
+        if atm == 'blackbody':
+            if 'blackbody:ext' not in self.content:
+                raise ValueError(f'extinction factors for atm={atm} not found in the {self.pbset}:{self.pbname} passband.')
+
+            axes = self._bb_extinct_axes
+            if intens_weighting == 'photon':
+                table = self._bb_extinct_photon_grid
+            else:
+                table = self._bb_extinct_energy_grid
+
+            ndp = ndpolator.Ndpolator(axes, table)
+            req = ndp.tabulate((Teff, Rv, extinct))
+            print(req)
+            extinct_factor = ndp.interp(req, extrapolation_method='none')
+
+            return extinct_factor
+
         if atm == 'ck2004':
             if 'ck2004:ext' not in self.content:
                 raise ValueError('Extinction factors are not computed yet. Please compute those first.')
@@ -1574,34 +1496,9 @@ class Passband:
 
             return extinct_factor
 
-        if atm == 'blended':
-            if 'blended_ext' not in self.content:
-                raise ValueError('Extinction factors are not computed yet. Please compute those first.')
-
-            if intens_weighting == 'photon':
-                table = self._blended_extinct_photon_grid
-            else:
-                table = self._blended_extinct_energy_grid
-
-            if not hasattr(Teff, '__iter__'):
-                req = np.array(((Teff, logg, abun, extinct, Rv),))
-                extinct_factor = libphoebe.interp(req, self._blended_extinct_axes, table)[0][0]
-            else:
-                extinct=extinct*np.ones_like(Teff)
-                Rv=Rv*np.ones_like(Teff)
-                req = np.vstack((Teff, logg, abun, extinct, Rv)).T
-                extinct_factor = libphoebe.interp(req, self._blended_extinct_axes, table).T[0]
-
-            nanmask = np.isnan(extinct_factor)
-            if np.any(nanmask):
-                raise_out_of_bounds(nanvals=req[nanmask], atm=atm, intens_weighting=intens_weighting)
-                # raise ValueError('Atmosphere parameters out of bounds: atm=%s, extinct=%f, Rv=%f, Teff=%s, logg=%s, abun=%s' % (atm, extinct, Rv, Teff[nanmask], logg[nanmask], abun[nanmask]))
-
-            return extinct_factor
-
-        elif atm != 'blackbody':
+        if atm != 'blackbody':
             raise  NotImplementedError("atm='{}' not currently supported".format(atm))
-        else :
+        else:
             if 'blackbody:ext' not in self.content:
                 raise ValueError('Extinction factors are not computed yet. Please compute those first.')
 
@@ -3085,7 +2982,7 @@ if __name__ == '__main__':
         comments=''
     )
 
-    pb.compute_blackbody_response()
+    pb.compute_blackbody_intensities(include_extinction=True)
 
     pb.compute_intensities(atm='ck2004', path='tables/ck2004', impute=True, verbose=True)
     pb.compute_ldcoeffs(ldatm='ck2004')
@@ -3114,7 +3011,7 @@ if __name__ == '__main__':
         comments=''
     )
 
-    pb.compute_blackbody_response()
+    pb.compute_blackbody_intensities(include_extinction=True)
     pb.compute_bb_reddening(verbose=True)
 
     pb.compute_intensities(atm='ck2004', path='tables/ck2004', impute=True, verbose=True)
