@@ -812,7 +812,7 @@ class Passband:
             if ebvs is None:
                 ebvs = np.linspace(0., 3., 30)
 
-            self._bb_extinct_axes = (np.unique(teffs), np.unique(rvs), np.unique(ebvs))
+            self.ext_axes['blackbody'] = (np.unique(teffs), np.unique(rvs), np.unique(ebvs))
 
             ebv_column = np.tile(ebvs, len(rvs))
             rvebv_column = ebv_column*np.repeat(rvs, len(ebvs))
@@ -830,8 +830,8 @@ class Passband:
             non_extincted_intensities_energy = np.trapz(pbpfs_energy, self.wl, axis=0)[:,None]  # (97, 1)
             non_extincted_intensities_photon = np.trapz(pbpfs_photon, self.wl, axis=0)[:,None]  # (97, 1)
 
-            self._bb_extinct_energy_grid = (extincted_intensities_energy/non_extincted_intensities_energy).reshape(len(teffs), len(rvs), len(ebvs), 1)  # (97, 16, 30, 1)
-            self._bb_extinct_photon_grid = (extincted_intensities_photon/non_extincted_intensities_photon).reshape(len(teffs), len(rvs), len(ebvs), 1)  # (97, 16, 30, 1)
+            self.ext_energy_grid['blackbody'] = (extincted_intensities_energy/non_extincted_intensities_energy).reshape(len(teffs), len(rvs), len(ebvs), 1)  # (97, 16, 30, 1)
+            self.ext_photon_grid['blackbody'] = (extincted_intensities_photon/non_extincted_intensities_photon).reshape(len(teffs), len(rvs), len(ebvs), 1)  # (97, 16, 30, 1)
 
             if 'blackbody:ext' not in self.content:
                 self.content.append('blackbody:ext')
@@ -1381,18 +1381,18 @@ class Passband:
 
         return ld_coeffs[s[ld_func]]
 
-    def interpolate_extinct(self, Teff=5772., logg=4.43, abun=0.0, atm='blackbody',  extinct=0.0, Rv=3.1, intens_weighting='photon'):
+    def interpolate_extinct(self, teffs=5772., loggs=4.43, abuns=0.0, atm='blackbody',  ebvs=0.0, rvs=3.1, intens_weighting='photon', extrapolation_method='none'):
         """
         Interpolates the passband-stored tables of extinction corrections
 
         Arguments
         ----------
-        * `Teff` (float, optional, default=5772): effective temperature.
-        * `logg` (float, optional, default=4.43): log surface gravity
-        * `abun` (float, optional, default=0.0): abundance
+        * `teffs` (float, optional, default=5772): effective temperature.
+        * `loggs` (float, optional, default=4.43): log surface gravity
+        * `abuns` (float, optional, default=0.0): abundance
         * `atm` (string, optional, default='blackbody'): atmosphere model.
-        * `extinct` (float, optional, default=0.0)
-        * `Rv` (float, optional, default=3.1)
+        * `ebvs` (float, optional, default=0.0)
+        * `rvs` (float, optional, default=3.1)
         * `intens_weighting`
 
         Returns
@@ -1401,127 +1401,27 @@ class Passband:
 
         Raises
         --------
-        * NotImplementedError if `atm` is not supported.
+        * ValueError if `atm` is not supported.
         """
 
-        if atm == 'blackbody':
-            if 'blackbody:ext' not in self.content:
-                raise ValueError(f'extinction factors for atm={atm} not found in the {self.pbset}:{self.pbname} passband.')
+        if f'{atm}:ext' not in self.content:
+            raise  ValueError(f"extinction factors for atm={atm} not found for the {self.pbset}:{self.pbname} passband.")
 
-            axes = self._bb_extinct_axes
-            if intens_weighting == 'photon':
-                table = self._bb_extinct_photon_grid
-            else:
-                table = self._bb_extinct_energy_grid
-
-            ndp = ndpolator.Ndpolator(axes, table)
-            req = ndp.tabulate((Teff, Rv, extinct))
-            print(req)
-            extinct_factor = ndp.interp(req, extrapolation_method='none')
-
-            return extinct_factor
-
-        if atm == 'ck2004':
-            if 'ck2004:ext' not in self.content:
-                raise ValueError('Extinction factors are not computed yet. Please compute those first.')
-
-            if intens_weighting == 'photon':
-                table = self._ck2004_extinct_photon_grid
-            else:
-                table = self._ck2004_extinct_energy_grid
-
-            if not hasattr(Teff, '__iter__'):
-                req = np.array(((Teff, logg, abun, extinct, Rv),))
-                extinct_factor = libphoebe.interp(req, self._ck2004_extinct_axes[0:5], table)[0][0]
-            else:
-                extinct=extinct*np.ones(len(Teff))
-                Rv=Rv*np.ones(len(Teff))
-                req = np.vstack((Teff, logg, abun, extinct, Rv)).T
-                extinct_factor = libphoebe.interp(req, self._ck2004_extinct_axes[0:5], table).T[0]
-
-            nanmask = np.isnan(extinct_factor)
-            if np.any(nanmask):
-                raise_out_of_bounds(nanvals=req[nanmask], atm=atm, intens_weighting=intens_weighting)
-                # raise ValueError('Atmosphere parameters out of bounds: atm=%s, extinct=%f, Rv=%f, Teff=%s, logg=%s, abun=%s' % (atm, extinct, Rv, Teff[nanmask], logg[nanmask], abun[nanmask]))
-
-            return extinct_factor
-
-        if atm == 'phoenix':
-            if 'phoenix:ext' not in self.content:
-                raise ValueError('Extinction factors are not computed yet. Please compute those first.')
-
-            if intens_weighting:
-                table = self._phoenix_extinct_photon_grid
-            else:
-                table = self._phoenix_extinct_energy_grid
-
-            if not hasattr(Teff, '__iter__'):
-                req = np.array(((Teff, logg, abun, extinct, Rv),))
-                extinct_factor = libphoebe.interp(req, self._phoenix_extinct_axes, table)[0][0]
-            else:
-                extinct=extinct*np.ones_like(Teff)
-                Rv=Rv*np.ones_like(Teff)
-                req = np.vstack((Teff, logg, abun, extinct, Rv)).T
-                extinct_factor = libphoebe.interp(req, self._phoenix_extinct_axes, table).T[0]
-
-            nanmask = np.isnan(extinct_factor)
-            if np.any(nanmask):
-                raise_out_of_bounds(nanvals=req[nanmask], atm=atm, intens_weighting=intens_weighting)
-                # raise ValueError('Atmosphere parameters out of bounds: atm=%s, extinct=%f, Rv=%f, Teff=%s, logg=%s, abun=%s' % (atm, extinct, Rv, Teff[nanmask], logg[nanmask], abun[nanmask]))
-
-            return extinct_factor
-
-        if atm == 'tmap':
-            if 'tmap:ext' not in self.content:
-                raise ValueError('Extinction factors are not computed yet. Please compute those first.')
-
-            if intens_weighting == 'photon':
-                table = self._tmap_extinct_photon_grid
-            else:
-                table = self._tmap_extinct_energy_grid
-
-            if not hasattr(Teff, '__iter__'):
-                req = np.array(((Teff, logg, abun, extinct, Rv),))
-                extinct_factor = libphoebe.interp(req, self._tmap_extinct_axes[0:5], table)[0][0]
-            else:
-                extinct=extinct*np.ones(len(Teff))
-                Rv=Rv*np.ones(len(Teff))
-                req = np.vstack((Teff, logg, abun, extinct, Rv)).T
-                extinct_factor = libphoebe.interp(req, self._tmap_extinct_axes[0:5], table).T[0]
-
-            nanmask = np.isnan(extinct_factor)
-            if np.any(nanmask):
-                raise_out_of_bounds(nanvals=req[nanmask], atm=atm, intens_weighting=intens_weighting)
-                # raise ValueError('Atmosphere parameters out of bounds: atm=%s, extinct=%f, Rv=%f, Teff=%s, logg=%s, abun=%s' % (atm, extinct, Rv, Teff[nanmask], logg[nanmask], abun[nanmask]))
-
-            return extinct_factor
-
-        if atm != 'blackbody':
-            raise  NotImplementedError("atm='{}' not currently supported".format(atm))
+        axes = self.ext_axes[atm]
+        if intens_weighting == 'photon':
+            table = self.ext_photon_grid[atm]
         else:
-            if 'blackbody:ext' not in self.content:
-                raise ValueError('Extinction factors are not computed yet. Please compute those first.')
+            table = self.ext_energy_grid[atm]
 
-            if intens_weighting == 'photon':
-                table = self._bb_extinct_photon_grid
-            else:
-                table = self._bb_extinct_energy_grid
+        ndp = ndpolator.Ndpolator(axes, table)
 
-            if not hasattr(Teff, '__iter__'):
-                req = np.array(((Teff, extinct, Rv),))
-                extinct_factor = libphoebe.interp(req, self._bb_extinct_axes[0:3], table)[0][0]
-            else:
-                extinct=extinct*np.ones(len(Teff))
-                Rv=Rv*np.ones(len(Teff))
-                req = np.vstack((Teff, extinct, Rv)).T
-                extinct_factor = libphoebe.interp(req, self._bb_extinct_axes[0:3], table).T[0]
+        if atm == 'blackbody':
+            req = ndp.tabulate((teffs, rvs, ebvs))
+        else:
+            req = ndp.tabulate((teffs, loggs, abuns, ebvs, rvs))
 
-            nanmask = np.isnan(extinct_factor)
-            if np.any(nanmask):
-                raise_out_of_bounds(nanvals=req[nanmask], atm=atm, intens_weighting=intens_weighting)
-                # raise ValueError('Atmosphere parameters out of bounds: atm=%s, extinct=%f, Rv=%f, Teff=%s, logg=%s, abun=%s' % (atm, extinct, Rv, Teff[nanmask], logg[nanmask], abun[nanmask]))
-
-            return extinct_factor
+        extinct_factor = ndp.interp(req, extrapolation_method=extrapolation_method)
+        return extinct_factor
 
     def import_wd_atmcof(self, plfile, atmfile, wdidx, Nabun=19, Nlogg=11, Npb=25, Nints=4):
         """
