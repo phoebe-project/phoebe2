@@ -64,12 +64,13 @@ class Ndpolator():
                 subaxes = np.array([self.axes[k][slc[k]] for k in range(req.shape[1])])
                 subgrid = self.grid[slc]
                 lo, hi = subaxes[:,0], subaxes[:,1]
-                # print(f'subaxes={subaxes}, subgrid shape={subgrid.shape}')
+                # print(f'subaxes={subaxes}, subgrid shape={subgrid.shape}, subgrid={subgrid}')
             except:
                 vals[i] = np.nan
                 continue
-            # print(f'subgrid.shape={subgrid.shape}')
-            fv = subgrid.reshape((2**req.shape[1], self.grid.shape[-1]))
+            pivot_indices = np.roll(np.arange(len(subaxes), -1, -1), -1)
+            fv = subgrid.transpose(*pivot_indices).reshape((2**req.shape[1], self.grid.shape[-1]))
+            # fv = subgrid.reshape((2**req.shape[1], self.grid.shape[-1]))
             # print(f'lo={lo}, hi={hi}')
             # print(f'fv.shape={fv.shape}\nfv={fv}')
             vals[i] = self.ndpolate(v, lo, hi, fv)
@@ -186,10 +187,10 @@ def ndpolate(x, lo, hi, fv, copy_data=False):
     choice of axis sequence is not too important, but any local non-linearity
     will cause the sequence to matter.
 
-    The algorithm takes a vector (or an array of vectors) of interest `x`
-    (open circle), an N-dimensional vector of lower vertex axis values `lo`,
-    an N-dimensional vector of upper vertex axis values `hi`, and an array of
-    2^N function values `fv` sorted by vertices in the following sequence:
+    The algorithm takes a vector (or an array of vectors) of interest `x`, an
+    N-dimensional vector of lower vertex axis values `lo`, an N-dimensional
+    vector of upper vertex axis values `hi`, and an array of 2^N function
+    values `fv` sorted by vertices in the following sequence:
 
          | f(x1_lo, x2_lo, ..., xN_lo) |
          | f(x1_hi, x2_lo, ..., xN_lo) |
