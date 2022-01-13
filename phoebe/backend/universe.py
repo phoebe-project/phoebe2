@@ -1904,14 +1904,14 @@ class Star(Body):
             if extinct == 0.0:
                 extinct_factors = 1.0
             else:
-                # ANDREJ TODO: pass blending_method/ld_blending_method (if needed)
-                extinct_factors = pb.interpolate_extinct(Teff=self.mesh.teffs.for_computations,
-                                                         logg=self.mesh.loggs.for_computations,
-                                                         abun=self.mesh.abuns.for_computations,
-                                                         extinct=extinct,
-                                                         Rv=Rv,
+                extinct_factors = pb.interpolate_extinct(teffs=self.mesh.teffs.for_computations,
+                                                         loggs=self.mesh.loggs.for_computations,
+                                                         abuns=self.mesh.abuns.for_computations,
+                                                         ebvs=extinct,
+                                                         rvs=Rv,
                                                          atm=atm,
-                                                         intens_weighting=intens_weighting)
+                                                         intens_weighting=intens_weighting,
+                                                         extrapolation_method=atm_extrapolation_method)
 
                 # extinction is NOT aspect dependent, so we'll correct both
                 # normal and directional intensities
