@@ -753,29 +753,39 @@ class Passband:
 
     def compute_blackbody_intensities(self, teffs=None, include_extinction=False, rvs=None, ebvs=None, verbose=False):
         """
-        Computes blackbody intensities across the entire range of effective
-        temperatures. It does this for two regimes, energy-weighted and
-        photon-weighted. It then fits a cubic spline to the log(I)-Teff values
-        and exports the interpolation functions _log10_Inorm_bb_energy and
-        _log10_Inorm_bb_photon.
+        Computes blackbody intensities across the passed range of effective
+        temperatures. If `teffs=None`, the function falls back onto the
+        default temperature range, ~316K to ~501kK. It does this for two
+        regimes, energy-weighted and photon-weighted. It then fits a cubic
+        spline to the log(I)-Teff values and exports the interpolation
+        functions _log10_Inorm_bb_energy and _log10_Inorm_bb_photon.
+
+        If `include_extinction=True`, the function also computes the mean
+        interstellar extinction tables. The tables contain correction factors
+        rather than intensities; to get extincted intensities, correction
+        factors need to be multiplied by the non-extincted intensities.
+        Extinction table axes are passed through `rvs` and `ebvs` arrays; if
+        `None`, defaults are used, namely `rvs=linspace(2, 6, 16)` and
+        `ebvs=linspace(0, 3, 30)`.
 
         Arguments
         ----------
         * `teffs` (array, optional, default=None): an array of effective
-            temperatures. If None, a default array from ~300K to ~500000K with
-            97 steps is used. The default array is uniform in log10 scale.
+          temperatures. If None, a default array from ~300K to ~500000K with
+          97 steps is used. The default array is uniform in log10 scale.
         * `include_extinction` (boolean, optional, default=False): should the
-          extinction tables be computed as well. The mean effect of reddening (a
-          weighted average) on a passband uses the Gordon et al. (2009, 2014)
-          prescription of extinction.
+          extinction tables be computed as well. The mean effect of reddening
+          (a weighted average) on a passband uses the Gordon et al. (2009,
+          2014) prescription of extinction.
         * `rvs` (array, optional, default=None): a custom array of extinction
-          factor Rv values. Rv is defined at Av / E(B-V) where Av is the visual
-          extinction in magnitudes. If None, the default linspace(2, 6, 16) is
+          factor Rv values. Rv is defined at Av / E(B-V) where Av is the
+          visual extinction in magnitudes. If None, the default linspace(2, 6,
+          16) is used.
+        * `ebvs` (array, optional, default=None): a custom array of color
+          excess E(B-V) values. If None, the default linspace(0, 3, 30) is
           used.
-        * `ebvs` (array, optional, default=None): a custom array of color excess
-          E(B-V) values. If None, the default linspace(0, 3, 30) is used.
         * `verbose` (bool, optional, default=False): set to True to display
-            progress in the terminal.
+           progress in the terminal.
         """
 
         if verbose:
