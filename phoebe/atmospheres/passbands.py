@@ -753,7 +753,9 @@ class Passband:
 
     def compute_blackbody_intensities(self, teffs=None, include_extinction=False, rvs=None, ebvs=None, verbose=False):
         """
-        Computes blackbody intensities across the passed range of effective
+        Computes blackbody intensity interpolation functions/tables.
+
+        Intensities are computed across the passed range of effective
         temperatures. If `teffs=None`, the function falls back onto the
         default temperature range, ~316K to ~501kK. It does this for two
         regimes, energy-weighted and photon-weighted. It then fits a cubic
@@ -767,6 +769,14 @@ class Passband:
         Extinction table axes are passed through `rvs` and `ebvs` arrays; if
         `None`, defaults are used, namely `rvs=linspace(2, 6, 16)` and
         `ebvs=linspace(0, 3, 30)`.
+
+        The computation is vectorized. The function takes the wavelength range
+        from the passband transmission function and it computes a grid of
+        Planck functions for all passed `teffs`. It then multiplies that grid
+        by the passband transmission function and integrates the entire grid.
+        For extinction, the function first adopts extinction functions a(x)
+        and b(x) from Gordon et al. (2014), applies it to the table of Planck
+        functions and then repeats the above process.
 
         Arguments
         ----------
@@ -1553,92 +1563,67 @@ class Passband:
         else:
             raise NotImplementedError(f'ld_extrapolation_method={ld_extrapolation_method} not recognized.')
 
-    def _log10_Inorm(self, atm, teffs, loggs, abuns, intens_weighting='photon', atm_extrapolation_method='none', ld_extrapolation_method='none', raise_on_nans=True):
+    def _log10_Inorm(self, atm, teffs, loggs, abuns, intens_weighting='photon', atm_extrapolation_method='none', ld_extrapolation_method='none', raise_on_nans=True, return_nanmask=False):
         """
         """
         axes = self.atm_axes[atm][:-1]
         grid = self.atm_photon_grid[atm][...,-1,:] if intens_weighting == 'photon' else self.atm_energy_grid[atm][...,-1,:]
         ndp = ndpolator.Ndpolator(axes, grid)
         req = ndp.tabulate((teffs, loggs, abuns))
-        log10_Inorm = ndp.interp(req, raise_on_nans=raise_on_nans, extrapolation_method=atm_extrapolation_method)
-        # log10_Inorm = libphoebe.interp(req, axes, grid).T[0]
+        log10_Inorm, nanmask = ndp.interp(req, raise_on_nans=raise_on_nans, return_nanmask=True, extrapolation_method=ld_extrapolation_method)
+        # nanmask is a mask of elements that were nans before extrapolation.
+
+        if ~np.any(nanmask):
+            return (log10_Inorm, nanmask) if return_nanmask else log10_Inorm
 
         if atm_extrapolation_method == 'blend':
-            raise NotImplementedError('working on it...')
+            log10_Inorm_bb = np.log10(self.Inorm(atm='blackbody', teffs=teffs[nanmask], loggs=loggs[nanmask], abuns=abuns[nanmask], ldatm=atm, ld_extrapolation_method=ld_extrapolation_method, intens_weighting=intens_weighting))
+            nv, naxes = ndpolator.map_to_cube(req[nanmask], self.atm_axes[atm][:-1], self.blending_region[atm], return_naxes=True)
 
-        return log10_Inorm
+            log10_Inorm_bl = np.empty_like(teffs[nanmask])
+            for si, selem in enumerate(nv):
+                ic = [np.searchsorted(naxes[k], selem[k])-1 for k in range(len(naxes))]
+                seps = (np.abs(self.ics[atm]-np.array(ic))).sum(axis=1)
+                corners = np.argwhere(seps == seps.min()).flatten()
 
-        if atm_extrapolation_method == 'blend':
-            naxes = self.mapper[atm](axes)
-            for k in nan_indices:
-                v = req[k]
-                nv = self.mapper[atm](v)
-                ic = np.array([np.searchsorted(naxes[i], nv[i])-1 for i in range(len(naxes))])
-                # print('coordinates of the inferior corner:', ic)
-
-                # get the inferior corners of all nearest fully defined hypercubes; this
-                # is all integer math so we can compare with == instead of np.isclose().
-                sep = (np.abs(self.ics[atm]-ic)).sum(axis=1)
-                corners = np.argwhere(sep == sep.min()).flatten()
-                # print('%d fully defined adjacent hypercube(s) found.' % len(corners))
-                # for i, corner in enumerate(corners):
-                #     print('  hypercube %d inferior corner: %s' % (i, self.ics['ck2004'][corner]))
-
-                blints = []
+                blints_per_corner = []
                 for corner in corners:
                     slc = tuple([slice(self.ics[atm][corner][i], self.ics[atm][corner][i]+2) for i in range(len(self.ics[atm][corner]))])
                     coords = [naxes[i][slc[i]] for i in range(len(naxes))]
+                    # FIXME: generalize to N-D
                     verts = np.array([(x,y,z) for z in coords[2] for y in coords[1] for x in coords[0]])
-                    distance_vectors = nv-verts
+                    distance_vectors = selem-verts
                     distances = (distance_vectors**2).sum(axis=1)
                     distance_vector = distance_vectors[distances.argmin()]
-                    # print('  distance vector:', distance_vector)
 
                     shift = ic-self.ics[atm][corner]
                     shift = shift != 0
-                    # print('  hypercube shift: %s' % shift)
 
-                    # if the hypercube is unshifted, we have a problem.
                     if shift.sum() == 0:
                         raise ValueError('how did we get here?')
-
-                    # if the hypercube is adjacent, project the distance vector:
+                    
                     if shift.sum() == 1:
                         distance_vector *= shift
-                        # print('  projected distance vector: %s' % distance_vector)
-
+                    
                     distance = np.sqrt((distance_vector**2).sum())
 
-                    bbint = np.log10(self.Inorm(v[0], v[1], v[2], atm='blackbody', ldatm=atm, ld_extrapolation_method=ld_extrapolation_method))
-
-                    # print(f'bbint: {bbint}')
-
                     if distance > 1:
-                        blints.append(bbint)
+                        blints_per_corner.append(log10_Inorm_bb[si])
                         continue
-
-                    ckint = np.log10(self.Inorm(v[0], v[1], v[2], atm=atm, atm_extrapolation_method='linear'))
-                    # print(f'ckint: {ckint}')
-
-                    # Blending:
+                    
                     alpha = blending_factor(distance)
-                    # print('  orthogonal distance:', distance)
-                    # print('  alpha:', alpha)
 
-                    blint = (1-alpha)*bbint + alpha*ckint
-                    # print('  blint:', blint)
+                    blints_per_corner.append((1-alpha)*log10_Inorm_bb[si] + alpha*log10_Inorm[nanmask][si])
+                    # print(f'distance={distance}, alpha={alpha}, bb={ints_bb[si]}, ck={ints_ck[nanmask][si]}, bl={blints_per_corner[-1]}')
+                    
+                log10_Inorm_bl[si] = np.mean(blints_per_corner)
 
-                    blints.append(blint)
-                    # print('  blints: %s' % blints)
+            log10_Inorm[nanmask] = log10_Inorm_bl[:,None]
 
-                log10_Inorm[k] = np.array(blints).mean()
-                # print(log10_Inorm[k])
+        return (log10_Inorm, nanmask) if return_nanmask else log10_Inorm
 
-            return log10_Inorm
-        # else:
-        #     raise ValueError(f'atm_extrapolation_method="{atm_extrapolation_method}" is not recognized.')
 
-    def Inorm(self, teffs=5772., loggs=4.43, abuns=0.0, atm='ck2004', ldatm='ck2004', ldint=None, ld_func='interp', ld_coeffs=None, intens_weighting='photon', atm_extrapolation_method='none', ld_extrapolation_method='none'):
+    def Inorm(self, teffs=5772., loggs=4.43, abuns=0.0, atm='ck2004', ldatm='ck2004', ldint=None, ld_func='interp', ld_coeffs=None, intens_weighting='photon', atm_extrapolation_method='none', ld_extrapolation_method='none', return_nanmask=False):
         """
         Computes normal emergent passband intensity.
 
@@ -1692,10 +1677,13 @@ class Passband:
         * `ld_extrapolation_method` (string, optional, default='none'): the
           method of limb darkening extrapolation ('none', 'nearest' or
           'linear')
+        * `return_nanmask` (boolean, optional, default=False): should a mask
+          of off-grid intensities be returned in addition to intensities.
 
         Returns
         ----------
-        * (float or array) normal emargent passband intensity/ies.
+        * (array) normal emargent passband intensities, or:
+        * (tuple) normal emargent passband intensities and a nan mask.
 
         Raises
         ----------
@@ -1733,7 +1721,6 @@ class Passband:
 
             if ldint is None:
                 ldint = self.ldint(teffs=teffs, loggs=loggs, abuns=abuns, ldatm=ldatm, ld_func=ld_func, ld_coeffs=ld_coeffs, intens_weighting=intens_weighting, ld_extrapolation_method=ld_extrapolation_method, raise_on_nans=raise_on_nans)
-
             retval /= ldint
 
         elif atm == 'extern_planckint' and 'extern_planckint:Inorm' in self.content:
@@ -1749,7 +1736,12 @@ class Passband:
         else:
             if f'{atm}:Imu' not in self.content:
                 raise ValueError(f'atm={atm} tables are not available in the {self.pbset}:{self.pbname} passband.')
-            retval = 10**self._log10_Inorm(atm=atm, teffs=teffs, loggs=loggs, abuns=abuns, intens_weighting=intens_weighting, atm_extrapolation_method=atm_extrapolation_method, ld_extrapolation_method=ld_extrapolation_method, raise_on_nans=raise_on_nans)
+            
+            if return_nanmask:
+                retval, nanmask = self._log10_Inorm(atm=atm, teffs=teffs, loggs=loggs, abuns=abuns, intens_weighting=intens_weighting, atm_extrapolation_method=atm_extrapolation_method, ld_extrapolation_method=ld_extrapolation_method, raise_on_nans=raise_on_nans, return_nanmask=return_nanmask)
+                retval = (10**retval, nanmask)
+            else:
+                retval = 10**self._log10_Inorm(atm=atm, teffs=teffs, loggs=loggs, abuns=abuns, intens_weighting=intens_weighting, atm_extrapolation_method=atm_extrapolation_method, ld_extrapolation_method=ld_extrapolation_method, raise_on_nans=raise_on_nans, return_nanmask=return_nanmask)
 
         return retval
 
