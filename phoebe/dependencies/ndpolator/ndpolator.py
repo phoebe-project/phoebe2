@@ -53,7 +53,7 @@ class Ndpolator():
 
         return lfv[0]
         
-    def interp(self, req, raise_on_nans=True, extrapolation_method='none'):
+    def interp(self, req, raise_on_nans=True, return_nanmask=False, extrapolation_method='none'):
         los = np.array([np.searchsorted(self.axes[k], req[:,k], 'left')-1 for k in range(req.shape[1])], dtype=int).T
         his = los+2
 
@@ -71,13 +71,12 @@ class Ndpolator():
             pivot_indices = np.roll(np.arange(len(subaxes), -1, -1), -1)
             fv = subgrid.transpose(*pivot_indices).reshape((2**req.shape[1], self.grid.shape[-1]))
             # fv = subgrid.reshape((2**req.shape[1], self.grid.shape[-1]))
-            # print(f'lo={lo}, hi={hi}')
             # print(f'fv.shape={fv.shape}\nfv={fv}')
             vals[i] = self.ndpolate(v, lo, hi, fv)
 
         nanmask = np.isnan(vals[:,0])
         if ~np.any(nanmask):
-            return vals
+            return (vals, nanmask) if return_nanmask else vals
 
         nan_indices = np.argwhere(nanmask).flatten()
 
@@ -117,7 +116,8 @@ class Ndpolator():
                     lo = [c[0] for c in coords]
                     hi = [c[1] for c in coords]
                     subgrid = self.grid[slc]
-                    fv = subgrid.reshape((2**req.shape[1], self.grid.shape[-1]))
+                    pivot_indices = np.roll(np.arange(len(subaxes), -1, -1), -1)
+                    fv = subgrid.transpose(*pivot_indices).reshape((2**req.shape[1], self.grid.shape[-1]))
                     # print(f'lo={lo}, hi={hi}')
                     # print(f'subgrid={subgrid}')
                     # print(f'fv={fv}')
@@ -129,7 +129,7 @@ class Ndpolator():
         else:
             raise ValueError(r'extrapolation_method={extrapolation_method} is not supported.')
 
-        return vals
+        return (vals, nanmask) if return_nanmask else vals
 
 def tabulate(args):
     """
@@ -302,7 +302,7 @@ def interpolate_all_directions(entry, axes, grid):
     return np.array(interpolants)
 
 
-def map_to_cube(v, axes, intervals):
+def map_to_cube(v, axes, intervals, return_naxes=False):
     """
     Non-conformal mapping of the original space to an N-dimensional cube.
 
@@ -317,25 +317,32 @@ def map_to_cube(v, axes, intervals):
 
     Parameters
     ----------
-    * `v` (array):
-        vector in old coordinates
-    * `axes` (tuple of arrays):
-        a list of original axes
-    * `intervals` (tuple of 2-D arrays):
-        an array of step sizes at the beginning and the end of the new axes.
+    * `v` (2-D array): an array of vectors of interest in old coordinates
+    * `axes` (tuple of arrays): a list of axes in old coordinates
+    * `intervals` (tuple of 2-D arrays): an array of step sizes at the
+      beginning and the end of the new axes.
+    * `return_naxes` (bool, optional, default=False): whether a tuple of
+      normalized axes should be returned as well.
 
     Returns
     -------
-    * (array) vector in new coordinates
+    * (array) a transformed 2-D array in new coordinates, or
+    * (tuple) a transformed 2-D array in new coordinates and transformed axes,
+      if `return_naxes=True`.
     """
 
-    retval = []
-    for k in range(len(v)):
-        ranges = (axes[k][0], axes[k][-1])
-        delta_k = intervals[k][0] + (v[k]-ranges[0])/(ranges[1]-ranges[0])*(intervals[k][1]-intervals[k][0])
-        retval.append((v[k]-ranges[0])/delta_k)
+    nv = np.empty_like(v)
 
-    return tuple(retval)
+    for k in range(v.shape[1]):
+        ranges = (axes[k][0], axes[k][-1])
+        delta_k = intervals[k][0] + (v[:,k]-ranges[0])/(ranges[1]-ranges[0])*(intervals[k][1]-intervals[k][0])
+        nv[:,k] = (v[:,k]-ranges[0])/delta_k
+
+    if return_naxes:
+        naxes = [(axes[k]-axes[k][0]) / (intervals[k][0]+(axes[k]-axes[k][0])/(axes[k][-1]-axes[k][0])*(intervals[k][1]-intervals[k][0])) for k in range(len(axes))]
+        return (nv, tuple(naxes))
+
+    return nv
 
 
 def kdtree(axes, grid, index_non_nans=True):
@@ -404,3 +411,13 @@ def impute_grid(axes, grid, weighting='none'):
             continue
         interps = interps[~np.isnan(interps)].mean()
         grid[tuple(entry)][0] = interps
+
+
+def find_nearest_hypercubes(nv, naxes, ics):
+    ic = np.array([np.searchsorted(naxes[k], nv[:,k])-1 for k in range(len(naxes))]).T
+    # print(f'ic.shape={ic.shape}')  # (5, 3)
+    # print(f'ics.shape={ics.shape}')  # (2947, 3)
+    seps = (np.abs(ics[:,None,:]-ic)).sum(axis=2)  # (2947, 5, 3) -> (2947, 5)
+    corners = np.argwhere(seps == seps.min(axis=0)) # (N, 2)
+
+    return corners
