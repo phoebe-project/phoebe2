@@ -1562,11 +1562,10 @@ class Passband:
 
                     if shift.sum() == 0:
                         raise ValueError('how did we get here?')
-                    
-                    if shift.sum() == 1:
-                        distance_vector *= shift
-                    
-                    distance = np.sqrt((distance_vector**2).sum())
+
+                    # project the vertex distance to the nearest hyperface/hyperedge:                    
+                    distance_vector *= shift
+                    distance = np.linalg.norm(distance_vector)
 
                     if distance > 1:
                         blints_per_corner.append(log10_Inorm_bb[si])
