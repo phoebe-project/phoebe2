@@ -1525,44 +1525,6 @@ class Passband:
 
         return log10_Inorm
 
-    def _log10_Inorm_bb(self, v, axes, ldint_grid, ld_extrapolation_method='nearest', ldint_tree=None, ldint_indices=None, ics=None, intens_weighting='photon'):
-        if ld_extrapolation_method == 'none':
-            raise_out_of_bounds(nanvals=v)
-            # raise ValueError(f'atmosphere value out of bounds: {v}')
-        elif ld_extrapolation_method == 'nearest':
-            bbint = self._log10_Inorm_bb_photon(v[0]) if intens_weighting == 'photon' else self._log10_Inorm_bb_energy(v[0])
-            d, i = ldint_tree.query(v)
-            return bbint - np.log10(ldint_grid[tuple(ldint_indices[i])])
-        elif ld_extrapolation_method == 'linear':
-            bbint = self._log10_Inorm_bb_photon(v[0]) if intens_weighting == 'photon' else self._log10_Inorm_bb_energy(v[0])
-
-            # coordinates of the inferior corner:
-            ic = np.array([np.searchsorted(axes[k], v[k])-1 for k in range(len(v))], dtype=int)
-
-            # get the inferior corners of all nearest fully defined hypercubes; this
-            # is all integer math so we can compare with == instead of np.isclose().
-            sep = (np.abs(ics-ic)).sum(axis=1)
-            corners = np.argwhere(sep == sep.min()).flatten()
-
-            bbints = []
-            for corner in corners:
-                slc = tuple([slice(ics[corner][k], ics[corner][k]+2) for k in range(len(ics[corner]))])
-
-                # find distance vector to the nearest vertex:
-                coords = [axes[k][slc[k]] for k in range(len(axes))]
-
-                # extrapolate ldint:
-                subgrid = ldint_grid[slc].copy()
-                lo = [c[0] for c in coords]
-                hi = [c[1] for c in coords]
-                fv = subgrid.T.reshape(2**len(axes))
-                extrapolated_ldint = ndpolator.ndpolate(v, lo, hi, fv)
-                bbints.append(bbint - np.log10(extrapolated_ldint))
-
-            return np.array(bbints).mean()
-        else:
-            raise NotImplementedError(f'ld_extrapolation_method={ld_extrapolation_method} not recognized.')
-
     def _log10_Inorm(self, atm, teffs, loggs, abuns, intens_weighting='photon', atm_extrapolation_method='none', ld_extrapolation_method='none', raise_on_nans=True, return_nanmask=False):
         """
         """
@@ -1590,10 +1552,9 @@ class Passband:
                 for corner in corners:
                     slc = tuple([slice(self.ics[atm][corner][i], self.ics[atm][corner][i]+2) for i in range(len(self.ics[atm][corner]))])
                     coords = [naxes[i][slc[i]] for i in range(len(naxes))]
-                    # FIXME: generalize to N-D
-                    verts = np.array([(x,y,z) for z in coords[2] for y in coords[1] for x in coords[0]])
+                    verts = np.array(np.meshgrid(*coords)).T.reshape(-1, len(naxes))  # faster than itertools.product(*coords)
                     distance_vectors = selem-verts
-                    distances = (distance_vectors**2).sum(axis=1)
+                    distances = np.linalg.norm(distance_vectors, axis=1)
                     distance_vector = distance_vectors[distances.argmin()]
 
                     shift = ic-self.ics[atm][corner]
@@ -1621,7 +1582,6 @@ class Passband:
             log10_Inorm[nanmask] = log10_Inorm_bl[:,None]
 
         return (log10_Inorm, nanmask) if return_nanmask else log10_Inorm
-
 
     def Inorm(self, teffs=5772., loggs=4.43, abuns=0.0, atm='ck2004', ldatm='ck2004', ldint=None, ld_func='interp', ld_coeffs=None, intens_weighting='photon', atm_extrapolation_method='none', ld_extrapolation_method='none', return_nanmask=False):
         """
@@ -1768,7 +1728,7 @@ class Passband:
 
         return np.log10(Inorm * ld)
 
-    def Imu(self, teffs=5772., loggs=4.43, abuns=0.0, mus=1.0, atm='ck2004', ldatm='ck2004', ldint=None, ld_func='interp', ld_coeffs=None, intens_weighting='photon', atm_extrapolation_method='none', ld_extrapolation_method='none'):
+    def Imu(self, teffs=5772., loggs=4.43, abuns=0.0, mus=1.0, atm='ck2004', ldatm='ck2004', ldint=None, ld_func='interp', ld_coeffs=None, intens_weighting='photon', atm_extrapolation_method='none', ld_extrapolation_method='none', return_nanmask=False):
         # TODO: improve docstring
         """
         Arguments
@@ -1807,8 +1767,13 @@ class Passband:
         * NotImplementedError: if `ld_func` is not supported.
         """
 
-        # TODO: is this workaround still necessary?
-        # req[:,3][np.isclose(req[:,3], 1)] = 1-1e-12
+        if atm not in ['blackbody', 'extern_planckint', 'extern_atmx', 'ck2004', 'phoenix', 'tmap']:
+            raise RuntimeError(f'atm={atm} is not supported.')
+
+        if ldatm not in ['none', 'ck2004', 'phoenix', 'tmap']:
+            raise ValueError(f'ldatm={ldatm} is not supported.')
+
+        raise_on_nans = True if atm_extrapolation_method == 'none' else False
 
         if ld_func == 'interp':
             # 'interp' works only for model atmospheres:
@@ -1824,8 +1789,13 @@ class Passband:
                 ndp = ndpolator.Ndpolator(axes, grid)
 
             req = ndp.tabulate((teffs, loggs, abuns, mus))
-            retval = ndp.interp(req, extrapolation_method=atm_extrapolation_method, raise_on_nans=True)
-            return 10**retval
+            log10_Imu, nanmask = ndp.interp(req, extrapolation_method=atm_extrapolation_method, raise_on_nans=raise_on_nans, return_nanmask=True)
+
+            if ~np.any(nanmask):
+                return (10**log10_Imu, nanmask) if return_nanmask else 10**log10_Imu
+
+            if atm_extrapolation_method == 'blend':
+                raise NotImplementedError('working on it as we speak.')
 
         if ld_coeffs is None:
             # LD function can be passed without coefficients; in that
