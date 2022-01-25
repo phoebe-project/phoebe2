@@ -131,16 +131,23 @@ def gaussian_process(feature, **kwargs):
     params = []
 
     params += [ChoiceParameter(qualifier='kernel', value=kwargs.get('kernel', 'white'), choices=['constant', 'white', 'rbf', 'matern', 'rational_quadratic', 'exp_sine_squared', 'dot_product'], description='Kernel for the gaussian process (see https://scikit-learn.org/stable/modules/gaussian_process.html)')]
+    
     params += [FloatParameter(visible_if='kernel:constant', qualifier='constant_value', value=kwargs.get('constant_value', 1.0), default_unit=u.dimensionless_unscaled, description='Value of the constant kernel')]
     params += [FloatParameter(visible_if='kernel:white', qualifier='noise_level', value=kwargs.get('noise_level', 1.0), default_unit=u.dimensionless_unscaled, description='Noise level of the white kernel')]
-    # params += [FloatParameter(visible_if='kernel:rbf', qualifier='length_scale', value=kwargs.get('length_scale', 1.0), default_unit=u.dimensionless_unscaled, description='Length scale of the RBF kernel')]
-    # params += [FloatParameter(visible_if='kernel:matern', qualifier='length_scale', value=kwargs.get('length_scale', 1.0), default_unit=u.dimensionless_unscaled, description='Length scale of the Matern kernel')]    
-    # params += [FloatParameter(visible_if='kernel:matern', qualifier='nu', value=kwargs.get('nu', 1.5), default_unit=u.dimensionless_unscaled, description='Smoothness factor of the Matern kernel')]
-    # params += [FloatParameter(visible_if='kernel:rational_quadratic', qualifier='length_scale', value=kwargs.get('length_scale', 1.0), default_unit=u.dimensionless_unscaled, description='Length scale of the RationalQuadratic kernel')]      
-    # params += [FloatParameter(visible_if='kernel:rational_quadratic', qualifier='alpha', value=kwargs.get('alpha', 1.0), default_unit=u.dimensionless_unscaled, description='Scale mixture parameter of the RationalQuadratic kernel')]
-    params += [FloatParameter(visible_if='kernel:exp_sine_squared', qualifier='length_scale', value=kwargs.get('length_scale', 1.0), default_unit=u.dimensionless_unscaled, description='Length scale of the ExpSineSquared kernel')]      
+    params += [FloatParameter(visible_if='kernel:rbf|rational_quadratic|exp_sine_squared|matern', qualifier='length_scale', value=kwargs.get('length_scale', 1.0), default_unit=u.dimensionless_unscaled, description='Length scale of the kernel')]
+    params += [FloatParameter(visible_if='kernel:matern', qualifier='nu', value=kwargs.get('nu', 1.5), default_unit=u.dimensionless_unscaled, description='Smoothness factor of the Matern kernel')]
+    params += [FloatParameter(visible_if='kernel:rational_quadratic', qualifier='alpha', value=kwargs.get('alpha', 1.0), default_unit=u.dimensionless_unscaled, description='Scale mixture parameter of the RationalQuadratic kernel')]    
     params += [FloatParameter(visible_if='kernel:exp_sine_squared', qualifier='periodicity', value=kwargs.get('periodicity', 1.0), default_unit=u.dimensionless_unscaled, description='Periodicity parameter of the ExpSineSquared kernel')]
     params += [FloatParameter(visible_if='kernel:dot_product', qualifier='sigma_0', value=kwargs.get('sigma_0', 1.0), default_unit=u.dimensionless_unscaled, description='Constant factor of the DotProduct kernel')]    
+    
+    params += [StringParameter(visible_if='kernel:constant', qualifier='constant_value_bounds', value='fixed', default_unit=u.dimensionless_unscaled, description='Value bounds of the constant kernel')]
+    params += [StringParameter(visible_if='kernel:white', qualifier='noise_level_bounds', value='fixed', default_unit=u.dimensionless_unscaled, description='Noise level bounds of the white kernel')]
+    params += [StringParameter(visible_if='kernel:rbf|rational_quadratic|exp_sine_squared|matern', qualifier='length_scale_bounds', value='fixed', default_unit=u.dimensionless_unscaled, description='Length scale bounds of the kernel')]
+    params += [StringParameter(visible_if='kernel:matern', qualifier='nu_bounds', value='fixed', default_unit=u.dimensionless_unscaled, description='Smoothness factor bounds of the Matern kernel')]
+    params += [StringParameter(visible_if='kernel:rational_quadratic', qualifier='alpha_bounds', value='fixed', default_unit=u.dimensionless_unscaled, description='Scale mixture parameter bounds of the RationalQuadratic kernel')]    
+    params += [StringParameter(visible_if='kernel:exp_sine_squared', qualifier='periodicity_bounds', value='fixed', default_unit=u.dimensionless_unscaled, description='Periodicity parameter bounds of the ExpSineSquared kernel')]
+    params += [StringParameter(visible_if='kernel:dot_product', qualifier='sigma_0_bounds', value='fixed', default_unit=u.dimensionless_unscaled, description='Constant factor bounds of the DotProduct kernel')]   
+    
     constraints = []
 
     return ParameterSet(params), constraints
