@@ -293,7 +293,9 @@ _forbidden_labels += ['colat', 'long', 'radius', 'relteff',
                       'spot', 'gaussian_process', 'pulsation',
                       'kernel', 'constant_value', 'length_scale',
                       'noise_level', 'periodicity', 'alpha', 'nu',
-                      'sigma_0'
+                      'sigma_0', 'constant_value_bounds', 'length_scale_bounds',
+                      'noise_level_bounds', 'periodicity_bounds', 'alpha_bounds', 'nu_bounds',
+                      'sigma_0_bounds'
                       ]
 
 # from figure:
