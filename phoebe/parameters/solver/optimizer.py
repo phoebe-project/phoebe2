@@ -336,9 +336,6 @@ def differential_evolution(**kwargs):
     * (<phoebe.parameters.ParameterSet>): ParameterSet of all newly created
         <phoebe.parameters.Parameter> objects.
     """
-    if not conf.devel:
-        raise ImportError("differential_evolution is not fully tested and released.  Use developer mode to test.")
-
     params = _comments_params(**kwargs)
     params += _server_params(**kwargs)
 
