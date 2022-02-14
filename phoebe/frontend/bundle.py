@@ -11993,9 +11993,10 @@ class Bundle(ParameterSet):
                 # NOTE: this has to happen after _attach_params as it uses
                 # several bundle methods that act on the model
                 enabled_features = self.filter(qualifier='enabled', compute=compute, context='compute', value=True, **_skip_filter_checks).features
-
+                
                 for ds in model_ps.datasets:
                     gp_features = self.filter(feature=enabled_features, dataset=ds, kind='gaussian_process', **_skip_filter_checks).features
+                    
                     if len(gp_features):
                         # NOTE: this is already in run_checks_compute, so this error
                         # should never be raised
@@ -12015,17 +12016,24 @@ class Bundle(ParameterSet):
 
                         # build the celerite GP object from the enabled GP features attached to this dataset
                         gp_kernels = []
+                        alg_operations = []
                         for gp in gp_features:
                             gp_ps = self.filter(feature=gp, context='feature', **_skip_filter_checks)
                             kind = gp_ps.get_value(qualifier='kernel', **_skip_filter_checks)
 
                             kwargs = {p.qualifier: p.value for p in gp_ps.exclude(qualifier=['kernel', 'enabled']).to_list() if p.is_visible}
+                            alg_operations.append(kwargs.pop('alg_operation'))
                             gp_kernels.append(gp_kernel_classes.get(kind)(**kwargs))
                         
                         gp_kernel = gp_kernels[0]
                         if len(gp_kernels) > 1:
                             for i in range(1, len(gp_kernels)):
-                                gp_kernel += gp_kernels[i]
+                                if alg_operations[i] == 'product':
+                                    gp_kernel *= gp_kernels[i]
+                                    print(gp_kernel)
+                                else:
+                                    gp_kernel += gp_kernels[i]
+                                    print(gp_kernel)
 
 
                         ds_ps = self.get_dataset(dataset=ds, **_skip_filter_checks)

@@ -147,7 +147,8 @@ def gaussian_process(feature, **kwargs):
     params += [StringParameter(visible_if='kernel:rational_quadratic', qualifier='alpha_bounds', value='fixed', default_unit=u.dimensionless_unscaled, description='Scale mixture parameter bounds of the RationalQuadratic kernel')]    
     params += [StringParameter(visible_if='kernel:exp_sine_squared', qualifier='periodicity_bounds', value='fixed', default_unit=u.dimensionless_unscaled, description='Periodicity parameter bounds of the ExpSineSquared kernel')]
     params += [StringParameter(visible_if='kernel:dot_product', qualifier='sigma_0_bounds', value='fixed', default_unit=u.dimensionless_unscaled, description='Constant factor bounds of the DotProduct kernel')]   
-    
+
+    params += [ChoiceParameter(qualifier='alg_operation', value='sum', choices=['sum', 'product'], default_unit=u.dimensionless_unscaled, description='Algebraic operation of this kernel with previous ones. Can be one of [sum, product]')] 
     constraints = []
 
     return ParameterSet(params), constraints
