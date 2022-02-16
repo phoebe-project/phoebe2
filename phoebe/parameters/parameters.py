@@ -295,7 +295,7 @@ _forbidden_labels += ['colat', 'long', 'radius', 'relteff',
                       'noise_level', 'periodicity', 'alpha', 'nu',
                       'sigma_0', 'constant_value_bounds', 'length_scale_bounds',
                       'noise_level_bounds', 'periodicity_bounds', 'alpha_bounds', 'nu_bounds',
-                      'sigma_0_bounds', 'alg_operation'
+                      'sigma_0_bounds', 'alg_operation', 'fit_times_choice'
                       ]
 
 # from figure:

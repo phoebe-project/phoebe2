@@ -12023,6 +12023,7 @@ class Bundle(ParameterSet):
 
                             kwargs = {p.qualifier: p.value for p in gp_ps.exclude(qualifier=['kernel', 'enabled']).to_list() if p.is_visible}
                             alg_operations.append(kwargs.pop('alg_operation'))
+                            fit_times_choice = kwargs.pop('fit_times_choice')
                             gp_kernels.append(gp_kernel_classes.get(kind)(**kwargs))
                         
                         gp_kernel = gp_kernels[0]
@@ -12030,10 +12031,10 @@ class Bundle(ParameterSet):
                             for i in range(1, len(gp_kernels)):
                                 if alg_operations[i] == 'product':
                                     gp_kernel *= gp_kernels[i]
-                                    print(gp_kernel)
+                                    # print(gp_kernel)
                                 else:
                                     gp_kernel += gp_kernels[i]
-                                    print(gp_kernel)
+                                    # print(gp_kernel)
 
 
                         ds_ps = self.get_dataset(dataset=ds, **_skip_filter_checks)
@@ -12065,8 +12066,16 @@ class Bundle(ParameterSet):
                                                                                   consider_gaussian_process=False)
                             
                             
+                            if fit_times_choice == 'model':
+                                from scipy.interpolate import interp1d
+                                gp_x = model_x.reshape(-1,1)
+                                residuals_interpolator = interp1d(ds_x, residuals)
+                                gp_y = residuals_interpolator(model_x)
+                            else:
+                                gp_x = ds_x.reshape(-1,1)
+                                gp_y = residuals
                             gp_regressor = GaussianProcessRegressor(kernel=gp_kernel)
-                            gp_regressor.fit(ds_x.reshape(-1,1), residuals)
+                            gp_regressor.fit(gp_x, gp_y)
                             
                             # NOTE: .predict can also be called directly to the model times if we want to avoid interpolation altogether 
                             gp_y = gp_regressor.predict(ds_x.reshape(-1,1), return_std=False)                              
