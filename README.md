@@ -84,6 +84,10 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.3.59 - extinction constraint bugfix
+
+* fixes extinction constraint when flipping to solve for Av
+
 ### 2.3.58 - astropy 5.0 units bugfix
 
 * fixes support for astropy 5.0 changes to unit physical types (see also 2.3.51).
