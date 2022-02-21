@@ -2804,7 +2804,7 @@ def extinction(b, solve_for=None, **kwargs):
         rhs = Av / Rv
     elif solve_for in [Av]:
         lhs = Av
-        rhs = Rv * Av
+        rhs = Rv * ebv
     elif solve_for in [Rv]:
         lhs = Rv
         # NOTE: could result in infinity
