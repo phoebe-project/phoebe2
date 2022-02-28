@@ -149,7 +149,7 @@ def gaussian_process(feature, **kwargs):
     params += [StringParameter(visible_if='kernel:dot_product', qualifier='sigma_0_bounds', value='fixed', default_unit=u.dimensionless_unscaled, description='Constant factor bounds of the DotProduct kernel')]   
 
     params += [ChoiceParameter(qualifier='alg_operation', value='sum', choices=['sum', 'product'], default_unit=u.dimensionless_unscaled, description='Algebraic operation of this kernel with previous ones. Can be one of [sum, product]')] 
-    params += [ChoiceParameter(qualifier='fit_times_choice', value='dataset', choices=['model', 'dataset'], default_unit=u.dimensionless_unscaled, description='Whether to fit the residuals in the model or dataset times')] 
+    params += [BoolParameter(qualifier='exclude_eclipses', value=False, description='Whether to exclude the residuals corresponding to eclipses when fitting the GP model.')] 
     constraints = []
 
     return ParameterSet(params), constraints
