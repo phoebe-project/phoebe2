@@ -12023,7 +12023,7 @@ class Bundle(ParameterSet):
 
                             kwargs = {p.qualifier: p.value for p in gp_ps.exclude(qualifier=['kernel', 'enabled']).to_list() if p.is_visible}
                             alg_operations.append(kwargs.pop('alg_operation'))
-                            exclude_eclipses = kwargs.pop('exclude_eclipses')
+                            exclude_phase_ranges = kwargs.pop('exclude_phase_ranges')
                             gp_kernels.append(gp_kernel_classes.get(kind)(**kwargs))
                         
                         gp_kernel = gp_kernels[0]
@@ -12066,17 +12066,14 @@ class Bundle(ParameterSet):
                                                                                   consider_gaussian_process=False)
                             
                             
-                            if exclude_eclipses:
+                            if len(exclude_phase_ranges) != 0:
                                 # get t0, period and mask_phases
                                 ephem = self.get_ephemeris(component='binary', period='period', t0='t0_supconj')
                                 t0 = ephem.get('t0', 0.0)
                                 period = ephem.get('period', 1.0)
                                 
-                                try:
-                                    phases = self.get_value('fitted_values@solution@lc_geometry')[-1]
-                                except:
-                                    raise ValueError('Cannot exclude eclipses in GPs without an lc_geometry solution. Run the lc_geometry solver first and retry.')
-
+                                phases = np.array(exclude_phase_ranges)
+                                
                                 # determine extent of data wrt t0
                                 i0 = int((t0 - min(ds_x))/period)-1
                                 i1 = int((max(ds_x-t0))/period)+1
@@ -12084,13 +12081,10 @@ class Bundle(ParameterSet):
                                 x_new = ds_x
                                 residuals_new = residuals
                                 for i in range(i0,i1+1,1):
-                                    condition_1 = (x_new < t0+(i+phases[0][0])*period) | (x_new > t0+(i+phases[0][1])*period)
-                                    x_new = x_new[condition_1]
-                                    residuals_new = residuals_new[condition_1]
-                                    
-                                    condition_2 = (x_new < t0+(i+phases[1][0])*period) | (x_new > t0+(i+phases[1][1])*period)
-                                    x_new = x_new[condition_2]
-                                    residuals_new = residuals_new[condition_2]
+                                    for j in range(phases.shape[0]):
+                                        condition = (x_new < t0+(i+phases[j][0])*period) | (x_new > t0+(i+phases[j][1])*period)
+                                        x_new = x_new[condition]
+                                        residuals_new = residuals_new[condition]
                                     
                                 gp_x = x_new.reshape(-1,1)
                                 gp_y = residuals_new
