@@ -12170,6 +12170,7 @@ class JobParameter(Parameter):
             # self._bundle._attach_param_from_server(newparams)
 
         elif self.status == 'error':
+            ferr = open(self._err_fname, 'r')
             lines = ferr.readlines()
             ferr.close()
 
