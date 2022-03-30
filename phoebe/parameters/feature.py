@@ -130,8 +130,9 @@ def gaussian_process(feature, **kwargs):
 
     params = []
 
-    params += [ChoiceParameter(qualifier='kernel', value=kwargs.get('kernel', 'white'), choices=['constant', 'white', 'rbf', 'matern', 'rational_quadratic', 'exp_sine_squared', 'dot_product'], description='Kernel for the gaussian process (see https://scikit-learn.org/stable/modules/gaussian_process.html)')]
-    
+    params += [ChoiceParameter(qualifier='kernel', value=kwargs.get('kernel', 'white'), choices=['constant', 'white', 'rbf', 'matern', 'rational_quadratic', 'exp_sine_squared', 'dot_product', 'sho', 'rotation', 'matern32'], description='Kernel for the gaussian process (see https://scikit-learn.org/stable/modules/gaussian_process.html)')]
+
+    # sklearn kernel parameters
     params += [FloatParameter(visible_if='kernel:constant', qualifier='constant_value', value=kwargs.get('constant_value', 1.0), default_unit=u.dimensionless_unscaled, description='Value of the constant kernel')]
     params += [FloatParameter(visible_if='kernel:white', qualifier='noise_level', value=kwargs.get('noise_level', 1.0), default_unit=u.dimensionless_unscaled, description='Noise level of the white kernel')]
     params += [FloatParameter(visible_if='kernel:rbf|rational_quadratic|exp_sine_squared|matern', qualifier='length_scale', value=kwargs.get('length_scale', 1.0), default_unit=u.dimensionless_unscaled, description='Length scale of the kernel')]
@@ -148,6 +149,17 @@ def gaussian_process(feature, **kwargs):
     params += [StringParameter(visible_if='kernel:exp_sine_squared', qualifier='periodicity_bounds', value='fixed', default_unit=u.dimensionless_unscaled, description='Periodicity parameter bounds of the ExpSineSquared kernel')]
     params += [StringParameter(visible_if='kernel:dot_product', qualifier='sigma_0_bounds', value='fixed', default_unit=u.dimensionless_unscaled, description='Constant factor bounds of the DotProduct kernel')]   
 
+    # celerite2 kernel parameters
+    params += [FloatParameter(visible_if='kernel:sho|matern32', qualifier='rho', value=kwargs.get('rho', 1.0), default_unit = u.dimensionless_unscaled, description='Periodicity of the SHO kernel.')]
+    params += [FloatParameter(visible_if='kernel:sho', qualifier='tau', value=kwargs.get('tau', 1.0), default_unit = u.dimensionless_unscaled, description='Damping timescale of the SHO kernel.')]
+    params += [FloatParameter(visible_if='kernel:sho|rotation|matern32', qualifier='sigma', value=kwargs.get('sigma', 1.0), default_unit = u.dimensionless_unscaled, description='Standard deviation of the process.')]
+    params += [FloatParameter(visible_if='kernel:rotation', qualifier='period', value=kwargs.get('period', 1.0), default_unit = u.dimensionless_unscaled, description='The primary period of variability of the rotation kernel.')]
+    params += [FloatParameter(visible_if='kernel:rotation', qualifier='Q0', value=kwargs.get('Q0', 1.0), default_unit = u.dimensionless_unscaled, description='The quality factor for the secondary oscillation.')]
+    params += [FloatParameter(visible_if='kernel:rotation', qualifier='dQ', value=kwargs.get('dQ', 1.0), default_unit = u.dimensionless_unscaled, description='The difference between the quality factors of the first and the second modes.')]
+    params += [FloatParameter(visible_if='kernel:rotation', qualifier='f', value=kwargs.get('f', 1.0), default_unit = u.dimensionless_unscaled, description='The fractional amplitude of the secondary mode compared to the primary.')]
+    params += [FloatParameter(visible_if='kernel:sho|matern32', qualifier='eps', value=kwargs.get('eps', 1e-5), default_unit = u.dimensionless_unscaled, description='A regularization parameter used for numerical stability.')] 
+    
+    # additional parameters for GPs
     params += [ChoiceParameter(qualifier='alg_operation', value='sum', choices=['sum', 'product'], default_unit=u.dimensionless_unscaled, description='Algebraic operation of this kernel with previous ones. Can be one of [sum, product]')] 
     params += [FloatArrayParameter(qualifier='exclude_phase_ranges', value=kwargs.get('exclude_phase_ranges', []), required_shape=[None, 2], default_unit=u.dimensionless_unscaled, description='Phase ranges to exclude from fitting the GP model (typically correspond to ingress and egress of eclipses).')] 
     constraints = []
