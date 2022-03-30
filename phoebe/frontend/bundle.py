@@ -12109,7 +12109,7 @@ class Bundle(ParameterSet):
                             gp_y = residuals
                             gp_yerr = ds_sigmas
                             
-                        gp_y = np.zeros(len(ds_x))
+                        # gp_y = np.zeros(len(ds_x))
                         if len(sklearn_gp_kernels) > 0:
                             sklearn_gp_kernel = sklearn_gp_kernels[0]
                             if len(sklearn_gp_kernels) > 1:
@@ -12125,7 +12125,7 @@ class Bundle(ParameterSet):
                             gp_regressor.fit(gp_x.reshape(-1,1), gp_y)
                             
                             # NOTE: .predict can also be called directly to the model times if we want to avoid interpolation altogether 
-                            gp_y += gp_regressor.predict(ds_x.reshape(-1,1), return_std=False)                              
+                            gp_y = gp_regressor.predict(ds_x.reshape(-1,1), return_std=False)                              
                         
                         if len(celerite2_gp_kernels) > 0:
                             celerite2_gp_kernel = celerite2_gp_kernels[0]
@@ -12139,7 +12139,7 @@ class Bundle(ParameterSet):
                                         # print(gp_kernel)
                             gp = _celerite2.GaussianProcess(celerite2_gp_kernel, mean=0.0)
                             gp.compute(gp_x, yerr=gp_yerr) 
-                            gp_y += gp.predict(gp_y, t=ds_x, return_var=False)
+                            gp_y = gp.predict(gp_y, t=ds_x, return_var=False)
                             
                         model_y = model_ps.get_quantity(qualifier=yqualifier, dataset=ds, component=ds_comp, **_skip_filter_checks)
 
