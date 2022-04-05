@@ -77,7 +77,6 @@ _pbdir_env = os.getenv('PHOEBE_PBDIR', None)
 def _dict_without_keys(d, skip_keys=[]):
     return {k: v for k, v in d.items() if k not in skip_keys}
 
-
 def blending_factor(d, func='sigmoid', scale=15, offset=0.5):
     """
     Computes the amount of blending for coordinate `d`.

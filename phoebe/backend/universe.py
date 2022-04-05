@@ -1818,50 +1818,24 @@ class Star(Body):
 
             self.set_ptfarea(dataset, ptfarea)
 
-            try:
-                ldint = pb.ldint(teffs=self.mesh.teffs.for_computations,
-                                 loggs=self.mesh.loggs.for_computations,
-                                 abuns=self.mesh.abuns.for_computations,
-                                 ldatm=ldatm,
-                                 ld_func=ld_func if ld_mode != 'interp' else ld_mode,
-                                 ld_coeffs=ld_coeffs,
-                                 intens_weighting=intens_weighting,
-                                 ld_extrapolation_method=ld_extrapolation_method)
-            except ValueError as err:
-                if str(err).split(":")[0] == 'Atmosphere parameters out of bounds':
-                    # let's override with a more helpful error message
-                    logger.warning(str(err))
-                    if atm=='blackbody':
-                        raise ValueError("Could not compute ldint with ldatm='{}'.  Try changing ld_coeffs_source to a table that covers a sufficient range of values or set ld_mode to 'manual' and manually provide coefficients via ld_coeffs. Enable 'warning' logger to see out-of-bound arrays.".format(ldatm))
-                    else:
-                        if ld_mode=='interp':
-                            raise ValueError("Could not compute ldint with ldatm='{}'.  Try changing atm to a table that covers a sufficient range of values.  If necessary, set atm to 'blackbody' and/or ld_mode to 'manual' (in which case coefficients will need to be explicitly provided via ld_coeffs). Enable 'warning' logger to see out-of-bound arrays.".format(ldatm))
-                        elif ld_mode == 'lookup':
-                            raise ValueError("Could not compute ldint with ldatm='{}'.  Try changing atm to a table that covers a sufficient range of values.  If necessary, set atm to 'blackbody' and/or ld_mode to 'manual' (in which case coefficients will need to be explicitly provided via ld_coeffs). Enable 'warning' logger to see out-of-bound arrays.".format(ldatm))
-                        else:
-                            # manual... this means that the atm itself is out of bounds, so the only option is atm=blackbody
-                            raise ValueError("Could not compute ldint with ldatm='{}'.  Try changing atm to a table that covers a sufficient range of values.  If necessary, set atm to 'blackbody', ld_mode to 'manual', and provide coefficients via ld_coeffs. Enable 'warning' logger to see out-of-bound arrays.".format(ldatm))
-                else:
-                    raise err
+            ldint = pb.ldint(teffs=self.mesh.teffs.for_computations,
+                                loggs=self.mesh.loggs.for_computations,
+                                abuns=self.mesh.abuns.for_computations,
+                                ldatm=ldatm,
+                                ld_func=ld_func if ld_mode != 'interp' else ld_mode,
+                                ld_coeffs=ld_coeffs,
+                                intens_weighting=intens_weighting,
+                                ld_extrapolation_method=ld_extrapolation_method).flatten()
 
-            try:
-                # abs_normal_intensities are the normal emergent passband intensities:
-                abs_normal_intensities = pb.Inorm(teffs=self.mesh.teffs.for_computations,
-                                                  loggs=self.mesh.loggs.for_computations,
-                                                  abuns=self.mesh.abuns.for_computations,
-                                                  atm=atm,
-                                                  ldatm=ldatm,
-                                                  ldint=ldint,
-                                                  intens_weighting=intens_weighting,
-                                                  atm_extrapolation_method=atm_extrapolation_method,
-                                                  ld_extrapolation_method=ld_extrapolation_method)
-            except ValueError as err:
-                if str(err).split(":")[0] == 'Atmosphere parameters out of bounds':
-                    # let's override with a more helpful error message
-                    logger.warning(str(err))
-                    raise ValueError("Could not compute intensities with atm='{}'.  Try changing atm to a table that covers a sufficient range of values (or to 'blackbody' in which case ld_mode will need to be set to 'manual' and coefficients provided via ld_coeffs).  Enable 'warning' logger to see out-of-bounds arrays.".format(atm))
-                else:
-                    raise err
+            abs_normal_intensities = pb.Inorm(teffs=self.mesh.teffs.for_computations,
+                                                loggs=self.mesh.loggs.for_computations,
+                                                abuns=self.mesh.abuns.for_computations,
+                                                atm=atm,
+                                                ldatm=ldatm,
+                                                ldint=ldint,
+                                                intens_weighting=intens_weighting,
+                                                atm_extrapolation_method=atm_extrapolation_method,
+                                                ld_extrapolation_method=ld_extrapolation_method).flatten()
 
             # abs_intensities are the projected (limb-darkened) passband intensities
             # TODO: why do we need to use abs(mus) here?
@@ -1879,7 +1853,7 @@ class Star(Body):
                                      intens_weighting=intens_weighting,
                                      atm_extrapolation_method=atm_extrapolation_method,
                                      ld_extrapolation_method=ld_extrapolation_method).flatten()
-
+            
             # Beaming/boosting
             if boosting_method == 'none' or ignore_effects:
                 boost_factors = 1.0
