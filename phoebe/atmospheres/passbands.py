@@ -1524,20 +1524,58 @@ class Passband:
 
         return log10_Inorm
 
-    def _log10_Inorm(self, atm, teffs, loggs, abuns, intens_weighting='photon', atm_extrapolation_method='none', ld_extrapolation_method='none', raise_on_nans=True, return_nanmask=False):
+    def _log10_Inorm(self, atm, teffs, loggs, abuns, intens_weighting='photon', atm_extrapolation_method='none', ld_extrapolation_method='none', blending_method='none', raise_on_nans=True, return_nanmask=False):
         """
+        Computes normal emergent passband intensities for model atmospheres.
+
+        Parameters
+        ----------
+        atm : string
+            model atmosphere ('ck2004', 'phoenix', 'tmap')
+        teffs : float or array
+            effective temperature in K
+        loggs : float or array
+            surface gravity in cgs
+        abuns : float or array
+            heavy element abundance (metallicity), in log-solar
+        intens_weighting : str, optional
+            intensity weighting scheme, by default 'photon'
+        atm_extrapolation_method : str, optional
+            out-of-bounds intensity extrapolation method, by default 'none'
+        ld_extrapolation_method : str, optional
+            out-of-bounds limb darkening extrapolation method, by default
+            'none'
+        blending_method : str, optional
+            out-of-bounds blending method, by default 'none'
+        raise_on_nans : bool, optional
+            should an error be raised on failed intensity lookup, by default
+            True
+        return_nanmask : bool, optional
+            if an error is not raised, should a mask of non-value elements be
+            returned, by default False
+
+        Returns
+        -------
+        log10(intensity)
+            interpolated (possibly extrapolated, blended) model atmosphre
+            intensity
+
+        Raises
+        ------
+        ValueError
+            _description_
         """
         axes = self.atm_axes[atm][:-1]
         grid = self.atm_photon_grid[atm][...,-1,:] if intens_weighting == 'photon' else self.atm_energy_grid[atm][...,-1,:]
         ndp = ndpolator.Ndpolator(axes, grid)
         req = ndp.tabulate((teffs, loggs, abuns))
-        log10_Inorm, nanmask = ndp.interp(req, raise_on_nans=raise_on_nans, return_nanmask=True, extrapolation_method=ld_extrapolation_method)
+        log10_Inorm, nanmask = ndp.interp(req, raise_on_nans=raise_on_nans, return_nanmask=True, extrapolation_method=atm_extrapolation_method)
         # nanmask is a mask of elements that were nans before extrapolation.
 
         if ~np.any(nanmask):
             return (log10_Inorm, nanmask) if return_nanmask else log10_Inorm
 
-        if atm_extrapolation_method == 'blend':
+        if blending_method == 'blackbody':
             log10_Inorm_bb = np.log10(self.Inorm(atm='blackbody', teffs=teffs[nanmask], loggs=loggs[nanmask], abuns=abuns[nanmask], ldatm=atm, ld_extrapolation_method=ld_extrapolation_method, intens_weighting=intens_weighting))
             nv, naxes = ndpolator.map_to_cube(req[nanmask], self.atm_axes[atm][:-1], self.blending_region[atm], return_naxes=True)
 
@@ -1581,20 +1619,25 @@ class Passband:
 
         return (log10_Inorm, nanmask) if return_nanmask else log10_Inorm
 
-    def Inorm(self, teffs=5772., loggs=4.43, abuns=0.0, atm='ck2004', ldatm='ck2004', ldint=None, ld_func='interp', ld_coeffs=None, intens_weighting='photon', atm_extrapolation_method='none', ld_extrapolation_method='none', return_nanmask=False):
+    def Inorm(self, teffs=5772., loggs=4.43, abuns=0.0, atm='ck2004', ldatm='ck2004', ldint=None, ld_func='interp', ld_coeffs=None, intens_weighting='photon', atm_extrapolation_method='none', ld_extrapolation_method='none', blending_method='none', return_nanmask=False):
         """
         Computes normal emergent passband intensity.
 
         Possible atm/ldatm/ld_func/ld_coeffs combinations:
 
-        | atm       | ldatm         | ld_func                 | ld_coeffs | action                                                      |
-        ------------|---------------|-------------------------|-----------|-------------------------------------------------------------|
-        | blackbody | none          | *                       | none      | raise error                                                 |
-        | blackbody | none          | lin,log,quad,sqrt,power | *         | use manual LD model                                         |
-        | blackbody | supported atm | interp                  | none      | interpolate from ck2004:Imu                                 |
-        | blackbody | supported atm | interp                  | *         | interpolate from ck2004:Imu but warn about unused ld_coeffs |
-        | blackbody | supported atm | lin,log,quad,sqrt,power | none      | interpolate ld_coeffs from ck2004:ld                        |
-        | blackbody | supported atm | lin,log,quad,sqrt,power | *         | use manual LD model but warn about unused ldatm             |
+        | atm       | ldatm         | ld_func                 | ld_coeffs | intens_weighting | action                                                      |
+        ------------|---------------|-------------------------|-----------|------------------|-------------------------------------------------------------|
+        | blackbody | none          | *                       | none      | *                | raise error                                                 |
+        | blackbody | none          | lin,log,quad,sqrt,power | *         | *                | use manual LD model                                         |
+        | blackbody | supported atm | interp                  | none      | *                | interpolate from ck2004:Imu                                 |
+        | blackbody | supported atm | interp                  | *         | *                | interpolate from ck2004:Imu but warn about unused ld_coeffs |
+        | blackbody | supported atm | lin,log,quad,sqrt,power | none      | *                | interpolate ld_coeffs from ck2004:ld                        |
+        | blackbody | supported atm | lin,log,quad,sqrt,power | *         | *                | use manual LD model but warn about unused ldatm             |
+        | planckint | *             | *                       | *         | photon           | raise error                                                 |
+        | atmx      | *             | *                       | *         | photon           | raise error                                                 |
+        | ck2004    |               |                         |           |                  |                                                             |
+        | phoenix   |               |                         |           |                  |                                                             |
+        | tmap      |               |                         |           |                  |                                                             |
 
         Arguments
         ----------
@@ -1631,10 +1674,12 @@ class Passband:
           switch
         * `atm_extraplation_method` (string, optional, default='none'): the
           method of intensity extrapolation and off-the-grid blending with
-          blackbody atmosheres ('none', 'nearest', 'linear', 'blend')
+          blackbody atmosheres ('none', 'nearest', 'linear')
         * `ld_extrapolation_method` (string, optional, default='none'): the
           method of limb darkening extrapolation ('none', 'nearest' or
           'linear')
+        * `blending_method` (string, optional, default='none'): whether to
+          blend model atmosphere with blackbody ('none' or 'blackbody')
         * `return_nanmask` (boolean, optional, default=False): should a mask
           of off-grid intensities be returned in addition to intensities.
 
@@ -1655,6 +1700,12 @@ class Passband:
 
         if ldatm not in ['none', 'ck2004', 'phoenix', 'tmap']:
             raise ValueError(f'ldatm={ldatm} is not supported.')
+        
+        if intens_weighting not in ['energy', 'photon']:
+            raise ValueError(f'intens_weighting={intens_weighting} is not supported.')
+        
+        if blending_method not in ['none', 'blackbody']:
+            raise ValueError(f'blending_method={blending_method} is not supported.')
 
         raise_on_nans = True if atm_extrapolation_method == 'none' else False
 
@@ -1666,42 +1717,52 @@ class Passband:
                 raise RuntimeError(f'passband {self.pbset}:{self.pbname} does not contain specific intensities for ldatm={ldatm}.')
             if ld_func != 'interp' and ld_coeffs is None and f'{ldatm}:ld' not in self.content:
                 raise RuntimeError(f'passband {self.pbset}:{self.pbname} does not contain limb darkening coefficients for ldatm={ldatm}.')
+            if blending_method == 'blackbody':
+                raise ValueError(f'the combination of atm={atm} and blending_method={blending_method} is not valid.')
 
-            # check if extrapolation_method is valid:
-            if atm_extrapolation_method == 'blend':
-                raise ValueError(f'the combination of atm={atm} and atm_extrapolation_method={atm_extrapolation_method} is not valid.')
-
+            # tabulate requested atmosphere parameters and look up intensities:
             req = ndpolator.tabulate((teffs, loggs, abuns))
-            retval = 10**self._log10_Inorm_bb_photon(req[:,0]).reshape(-1, 1) if intens_weighting=='photon' else 10**self._log10_Inorm_bb_energy(req[:,0]).reshape(-1, 1)
+            if intens_weighting == 'photon':
+                intensities = 10**self._log10_Inorm_bb_photon(req[:,0]).reshape(-1, 1)
+            else:  # if intens_weighting=='energy':
+                intensities = 10**self._log10_Inorm_bb_energy(req[:,0]).reshape(-1, 1)
 
             if ld_func != 'interp' and ld_coeffs is None:
                 ld_coeffs = self.interpolate_ldcoeffs(teffs, loggs, abuns, ldatm, ld_func=ld_func, intens_weighting=intens_weighting, ld_extrapolation_method=ld_extrapolation_method)
 
             if ldint is None:
                 ldint = self.ldint(teffs=teffs, loggs=loggs, abuns=abuns, ldatm=ldatm, ld_func=ld_func, ld_coeffs=ld_coeffs, intens_weighting=intens_weighting, ld_extrapolation_method=ld_extrapolation_method, raise_on_nans=raise_on_nans)
-            retval /= ldint
+
+            intensities /= ldint
 
         elif atm == 'extern_planckint' and 'extern_planckint:Inorm' in self.content:
-            retval = 10**(self._log10_Inorm_extern_planckint(req[:,0])-1)  # -1 is for cgs -> SI
+            if intens_weighting == 'photon':
+                raise ValueError(f'the combination of atm={atm} and intens_weighting={intens_weighting} is not supported.')
+            # TODO: add all other exceptions
+
+            intensities = 10**(self._log10_Inorm_extern_planckint(req[:,0])-1)  # -1 is for cgs -> SI
             if ldint is None:
                 ldint = self.ldint(teffs=teffs, loggs=loggs, abuns=abuns, ldatm=ldatm, ld_func=ld_func, ld_coeffs=ld_coeffs, intens_weighting=intens_weighting, ld_extrapolation_method=ld_extrapolation_method, raise_on_nans=raise_on_nans)
-            retval /= ldint
+            intensities /= ldint
 
         elif atm == 'extern_atmx' and 'extern_atmx:Inorm' in self.content:
-            # -1 below is for cgs -> SI:
-            retval = 10**(self._log10_Inorm_extern_atmx(req[:,0], req[:,1], req[:,2])-1)
+            if intens_weighting == 'photon':
+                raise ValueError(f'the combination of atm={atm} and intens_weighting={intens_weighting} is not supported.')
+            # TODO: add all other exceptions
+
+            intensities = 10**(self._log10_Inorm_extern_atmx(req[:,0], req[:,1], req[:,2])-1)  # -1 is for cgs -> SI
 
         else:
             if f'{atm}:Imu' not in self.content:
                 raise ValueError(f'atm={atm} tables are not available in the {self.pbset}:{self.pbname} passband.')
             
             if return_nanmask:
-                retval, nanmask = self._log10_Inorm(atm=atm, teffs=teffs, loggs=loggs, abuns=abuns, intens_weighting=intens_weighting, atm_extrapolation_method=atm_extrapolation_method, ld_extrapolation_method=ld_extrapolation_method, raise_on_nans=raise_on_nans, return_nanmask=return_nanmask)
-                retval = (10**retval, nanmask)
+                intensities, nanmask = self._log10_Inorm(atm=atm, teffs=teffs, loggs=loggs, abuns=abuns, intens_weighting=intens_weighting, atm_extrapolation_method=atm_extrapolation_method, ld_extrapolation_method=ld_extrapolation_method, blending_method=blending_method, raise_on_nans=raise_on_nans, return_nanmask=return_nanmask)
+                intensities = (10**intensities, nanmask)
             else:
-                retval = 10**self._log10_Inorm(atm=atm, teffs=teffs, loggs=loggs, abuns=abuns, intens_weighting=intens_weighting, atm_extrapolation_method=atm_extrapolation_method, ld_extrapolation_method=ld_extrapolation_method, raise_on_nans=raise_on_nans, return_nanmask=return_nanmask)
+                intensities = 10**self._log10_Inorm(atm=atm, teffs=teffs, loggs=loggs, abuns=abuns, intens_weighting=intens_weighting, atm_extrapolation_method=atm_extrapolation_method, ld_extrapolation_method=ld_extrapolation_method, blending_method=blending_method, raise_on_nans=raise_on_nans, return_nanmask=return_nanmask)
 
-        return retval
+        return intensities
 
     def _log10_Imu_bb(self, teffs, loggs, abuns, mus, ldatm='ck2004', ldints=None, ld_mode='manual', ld_func='linear', ld_coeffs=[0.5], intens_weighting='photon', extrapolation_method='none', ld_extrapolation_method='none'):
         """
@@ -1726,42 +1787,167 @@ class Passband:
 
         return np.log10(Inorm * ld)
 
-    def Imu(self, teffs=5772., loggs=4.43, abuns=0.0, mus=1.0, atm='ck2004', ldatm='ck2004', ldint=None, ld_func='interp', ld_coeffs=None, intens_weighting='photon', atm_extrapolation_method='none', ld_extrapolation_method='none', return_nanmask=False):
-        # TODO: improve docstring
+    def _log10_Imu(self, atm, teffs, loggs, abuns, mus, intens_weighting='photon', atm_extrapolation_method='none', ld_extrapolation_method='none', blending_method='none', raise_on_nans=True, return_nanmask=False):
         """
+        Computes specific emergent passband intensities for model atmospheres.
+
+        Parameters
+        ----------
+        atm : string
+            model atmosphere ('ck2004', 'phoenix', 'tmap')
+        teffs : float or array
+            effective temperature in K
+        loggs : float or array
+            surface gravity in cgs
+        abuns : float or array
+            heavy element abundance (metallicity), in log-solar
+        mus : float or array
+            specific angles mu=cos(theta), where 0 is limb and 1 is disk
+            center
+        intens_weighting : str, optional
+            intensity weighting scheme, by default 'photon'
+        atm_extrapolation_method : str, optional
+            out-of-bounds intensity extrapolation method, by default 'none'
+        ld_extrapolation_method : str, optional
+            out-of-bounds limb darkening extrapolation method, by default
+            'none'
+        blending_method : str, optional
+            out-of-bounds blending method, by default 'none'
+        raise_on_nans : bool, optional
+            should an error be raised on failed intensity lookup, by default
+            True
+        return_nanmask : bool, optional
+            if an error is not raised, should a mask of non-value elements be
+            returned, by default False
+
+        Returns
+        -------
+        log10(intensity)
+            interpolated (possibly extrapolated, blended) model atmosphre
+            intensity
+
+        Raises
+        ------
+        ValueError
+            _description_
+        """
+
+        # a temporary shortcut for testing purposes only:
+        if atm == 'ck2004':
+            ndp = self.ndp[f'imu@{intens_weighting}@{atm}']
+        else:
+            axes = self.atm_axes[atm]
+            grid = self.atm_photon_grid[atm] if intens_weighting == 'photon' else self.atm_energy_grid[atm]
+            ndp = ndpolator.Ndpolator(axes, grid)
+
+        req = ndp.tabulate((teffs, loggs, abuns, mus))
+        log10_Imu, nanmask = ndp.interp(req, raise_on_nans=raise_on_nans, return_nanmask=True, extrapolation_method=atm_extrapolation_method)
+
+        if ~np.any(nanmask):
+            return (log10_Imu, nanmask) if return_nanmask else log10_Imu
+
+        if blending_method == 'blackbody':
+            raise NotImplementedError('working on this right now.')
+            log10_Inorm_bb = np.log10(self.Inorm(atm='blackbody', teffs=teffs[nanmask], loggs=loggs[nanmask], abuns=abuns[nanmask], ldatm=atm, ld_extrapolation_method=ld_extrapolation_method, intens_weighting=intens_weighting))
+            nv, naxes = ndpolator.map_to_cube(req[nanmask], self.atm_axes[atm][:-1], self.blending_region[atm], return_naxes=True)
+
+            log10_Inorm_bl = np.empty_like(teffs[nanmask])
+            for si, selem in enumerate(nv):
+                ic = [np.searchsorted(naxes[k], selem[k])-1 for k in range(len(naxes))]
+                seps = (np.abs(self.ics[atm]-np.array(ic))).sum(axis=1)
+                corners = np.argwhere(seps == seps.min()).flatten()
+
+                blints_per_corner = []
+                for corner in corners:
+                    slc = tuple([slice(self.ics[atm][corner][i], self.ics[atm][corner][i]+2) for i in range(len(self.ics[atm][corner]))])
+                    coords = [naxes[i][slc[i]] for i in range(len(naxes))]
+                    verts = np.array(np.meshgrid(*coords)).T.reshape(-1, len(naxes))  # faster than itertools.product(*coords)
+                    distance_vectors = selem-verts
+                    distances = np.linalg.norm(distance_vectors, axis=1)
+                    distance_vector = distance_vectors[distances.argmin()]
+
+                    shift = ic-self.ics[atm][corner]
+                    shift = shift != 0
+
+                    if shift.sum() == 0:
+                        raise ValueError('how did we get here?')
+
+                    # project the vertex distance to the nearest hyperface/hyperedge:                    
+                    distance_vector *= shift
+                    distance = np.linalg.norm(distance_vector)
+
+                    if distance > 1:
+                        blints_per_corner.append(log10_Inorm_bb[si])
+                        continue
+                    
+                    alpha = blending_factor(distance)
+
+                    blints_per_corner.append((1-alpha)*log10_Inorm_bb[si] + alpha*log10_Inorm[nanmask][si])
+                    # print(f'distance={distance}, alpha={alpha}, bb={ints_bb[si]}, ck={ints_ck[nanmask][si]}, bl={blints_per_corner[-1]}')
+                    
+                log10_Inorm_bl[si] = np.mean(blints_per_corner)
+
+            log10_Inorm[nanmask] = log10_Inorm_bl[:,None]
+
+    def Imu(self, teffs=5772., loggs=4.43, abuns=0.0, mus=1.0, atm='ck2004', ldatm='ck2004', ldint=None, ld_func='interp', ld_coeffs=None, intens_weighting='photon', atm_extrapolation_method='none', ld_extrapolation_method='none', blending_method='none', return_nanmask=False):
+        """
+        Computes specific emergent passband intensities.
+
         Arguments
         ----------
-        * `teffs`
-        * `loggs`
-        * `abuns`
-        * `mus`
-        * `atm`
-        * `ldatm`
-        * `ldint` (string, optional, default='ck2004'): integral of the limb
-            darkening function, \int_0^1 \mu L(\mu) d\mu. Its general role is to
-            convert intensity to flux. In this method, however, it is only needed
-            for blackbody atmospheres because they are not limb-darkened (i.e.
-            the blackbody intensity is the same irrespective of \mu), so we need
-            to *divide* by ldint to ascertain the correspondence between
-            luminosity, effective temperature and fluxes once limb darkening
-            correction is applied at flux integration time. If None, and if
-            `atm=='blackbody'`, it will be computed from `ld_func` and
-            `ld_coeffs`.
+        * `teffs` (float or array, optional, default=5772): effective
+          temperature of the emitting surface element(s), in Kelvin
+        * `loggs` (float or array, optional, default=4.43): surface gravity of
+          the emitting surface element(s), in log(cm/s^2)
+        * `abuns` (float or array, optional, default=0.0): chemical
+          abundance/metallicity of the emitting surface element(s), in solar
+          dex
+        * `mus` (float or array, optional, default=1.0): specific angles
+          mu=cos(theta), where mu=0 is the limb and mu=1 is the disk center.
+        * `atm` (string, optional, default='ck2004'): model atmosphere to be
+          used for calculation
+        * `ldatm` (string, optional, default='ck2004'): model atmosphere to be
+          used for limb darkening coefficients
+        * `ldint` (string, optional, default=None): integral of the limb
+            darkening function, \int_0^1 \mu L(\mu) d\mu. Its general role is
+            to convert intensity to flux. In this method, however, it is only
+            needed for blackbody atmospheres because they are not
+            limb-darkened (i.e. the blackbody intensity is the same
+            irrespective of \mu), so we need to *divide* by ldint to ascertain
+            the correspondence between luminosity, effective temperature and
+            fluxes once limb darkening correction is applied at flux
+            integration time. If None, and if `atm=='blackbody'`, it will be
+            computed from `ld_func` and `ld_coeffs`.
         * `ld_func` (string, optional, default='interp') limb darkening
             function.  One of: linear, sqrt, log, quadratic, power, interp.
-        * `ld_coeffs` (list, optional, default=None): limb darkening coefficients
-            for the corresponding limb darkening function, `ld_func`.
-        * `intens_weighting`
+        * `ld_coeffs` (list, optional, default=None): limb darkening
+            coefficients for the corresponding limb darkening function,
+            `ld_func`. If None, the coefficients are interpolated from the
+            corresponding table. List length needs to correspond to the
+            `ld_func`: 1 for linear, 2 for sqrt, log and quadratic, and 4 for
+            power.
+        * `intens_weighting` (string, optional, default='photon'): photon/energy
+          switch
+        * `atm_extraplation_method` (string, optional, default='none'): the
+          method of intensity extrapolation and off-the-grid blending with
+          blackbody atmosheres ('none', 'nearest', 'linear')
+        * `ld_extrapolation_method` (string, optional, default='none'): the
+          method of limb darkening extrapolation ('none', 'nearest' or
+          'linear')
+        * `blending_method` (string, optional, default='none'): whether to
+          blend model atmosphere with blackbody ('none' or 'blackbody')
+        * `return_nanmask` (boolean, optional, default=False): should a mask
+          of off-grid intensities be returned in addition to intensities.
 
         Returns
         ----------
-        * (float/array) projected intensities.
+        * (array) specific emargent passband intensities, or:
+        * (tuple) specific emargent passband intensities and a nan mask.
 
         Raises
         ----------
-        * ValueError: if atmosphere parameters are out of bounds for the table.
-        * ValueError: if `ld_func='interp'` but is not supported by the
-            atmosphere table.
+        * ValueError: if atmosphere parameters are out of bounds for the
+          table.
         * NotImplementedError: if `ld_func` is not supported.
         """
 
@@ -1778,22 +1964,16 @@ class Passband:
             if atm not in ['ck2004', 'phoenix', 'tmap']:
                 raise ValueError(f"atm={atm} cannot be used with ld_func={ld_func}.")
 
-            # a temporary shortcut for testing purposes only:
-            if atm == 'ck2004':
-                ndp = self.ndp[f'imu@{intens_weighting}@{atm}']
+            if f'{atm}:Imu' not in self.content:
+                raise ValueError(f'atm={atm} tables are not available in the {self.pbset}:{self.pbname} passband.')
+            
+            if return_nanmask:
+                intensities, nanmask = self._log10_Imu(atm=atm, teffs=teffs, loggs=loggs, abuns=abuns, mus=mus, intens_weighting=intens_weighting, atm_extrapolation_method=atm_extrapolation_method, ld_extrapolation_method=ld_extrapolation_method, blending_method=blending_method, raise_on_nans=raise_on_nans, return_nanmask=return_nanmask)
+                intensities = (10**intensities, nanmask)
             else:
-                axes = self.atm_axes[atm]
-                grid = self.atm_photon_grid[atm] if intens_weighting == 'photon' else self.atm_energy_grid[atm]
-                ndp = ndpolator.Ndpolator(axes, grid)
+                intensities = 10**self._log10_Imu(atm=atm, teffs=teffs, loggs=loggs, abuns=abuns, mus=mus, intens_weighting=intens_weighting, atm_extrapolation_method=atm_extrapolation_method, ld_extrapolation_method=ld_extrapolation_method, blending_method=blending_method, raise_on_nans=raise_on_nans, return_nanmask=return_nanmask)
 
-            req = ndp.tabulate((teffs, loggs, abuns, mus))
-            log10_Imu, nanmask = ndp.interp(req, extrapolation_method=atm_extrapolation_method, raise_on_nans=raise_on_nans, return_nanmask=True)
-
-            if ~np.any(nanmask):
-                return (10**log10_Imu, nanmask) if return_nanmask else 10**log10_Imu
-
-            if atm_extrapolation_method == 'blend':
-                raise NotImplementedError('working on it as we speak.')
+            return intensities
 
         if ld_coeffs is None:
             # LD function can be passed without coefficients; in that
@@ -1811,7 +1991,8 @@ class Passband:
             ld_coeffs=ld_coeffs,
             intens_weighting=intens_weighting,
             atm_extrapolation_method=atm_extrapolation_method,
-            ld_extrapolation_method=ld_extrapolation_method
+            ld_extrapolation_method=ld_extrapolation_method,
+            blending_method=blending_method
         )
         ld = self._ld(ld_func=ld_func, mu=mus, ld_coeffs=ld_coeffs)
         retval = Inorm * ld
