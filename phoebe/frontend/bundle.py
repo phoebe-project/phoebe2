@@ -10176,23 +10176,24 @@ class Bundle(ParameterSet):
                 teff = self.get_value(qualifier='teff', component=ldcs_param.component, context='component', unit='K', **_skip_filter_checks)
                 logg = self.get_value(qualifier='logg', component=ldcs_param.component, context='component', **_skip_filter_checks)
                 abun = self.get_value(qualifier='abun', component=ldcs_param.component, context='component', **_skip_filter_checks)
-                ld_blending_method = compute_ps.get_value(qualifier='ld_blending_method', component=ldcs_param.component, **_skip_filter_checks)
+                ld_extrapolation_method = compute_ps.get_value(qualifier='ld_blending_method', component=ldcs_param.component, **_skip_filter_checks)
                 if is_bol:
-                    photon_weighted = False
+                    intens_weighting = 'energy'
                 else:
-                    photon_weighted = self.get_value(qualifier='intens_weighting', dataset=ldcs_param.dataset, context='dataset', check_visible=False) == 'photon'
+                    intens_weighting = self.get_value(qualifier='intens_weighting', dataset=ldcs_param.dataset, context='dataset', check_visible=False)
                 logger.info("{} ld_coeffs lookup for dataset='{}' component='{}' passband='{}' from ld_coeffs_source='{}'".format(ld_func, ldcs_param.dataset, ldcs_param.component, passband, ldcs))
                 logger.debug("pb.interpolate_ldcoeffs(teff={} logg={}, abun={}, ld_coeffs={} ld_func={} photon_weighted={})".format(teff, logg, abun, ldcs, ld_func, photon_weighted))
-                try:
-                    # ANDREJ TODO: pass ld_blending_method
-                    ld_coeffs = pb.interpolate_ldcoeffs(teff, logg, abun, ldcs, ld_func, photon_weighted)[0]
-                except ValueError as err:
-                    if str(err).split(":")[0] == 'Atmosphere parameters out of bounds':
-                        # let's override with a more helpful error message
-                        logger.warning(str(err))
-                        raise ValueError("Could not lookup ld_coeffs for {}.  Try changing ld_coeffs_source{} to a table that covers a sufficient range of values or set ld_mode{} to 'manual' and manually provide coefficients via ld_coeffs{}. Enable 'warning' logger to see out-of-bound arrays.".format(ldcs_param.twig, bol_suffix, bol_suffix, bol_suffix))
-                    else:
-                        raise err
+
+                # TODO: check if the shape of ld_coeffs is okay for the code that follows
+                ld_coeffs = pb.interpolate_ldcoeffs(
+                    teffs=teff,
+                    loggs=logg,
+                    abuns=abun,
+                    ldatm=ldcs,
+                    ld_func=ld_func,
+                    intens_weighting=intens_weighting,
+                    ld_extrapolation_method=ld_extrapolation_method
+                )
 
                 # NOTE: these may return nans... if so, run_checks will handle the error
 
@@ -10631,8 +10632,9 @@ class Bundle(ParameterSet):
                     else:
                         ld_func = 'interp'
                         ld_coeffs = None
-                    blending_method = compute_ps.get_value(qualifier='blending_method', component=component, **_skip_filter_checks)
-                    ld_blending_method = compute_ps.get_value(qualifier='ld_blending_method', component=component, **_skip_filter_checks)
+                    atm_extrapolation_method = compute_ps.get_value(qualifier='blending_method', component=component, **_skip_filter_checks)
+                    ld_extrapolation_method = compute_ps.get_value(qualifier='ld_blending_method', component=component, **_skip_filter_checks)
+                    blending_method = 'none' if atm_extrapolation_method == 'none' else 'blackbody'
 
                     if atms[component] == 'blackbody' and ld_mode!='manual':
                         raise NotImplementedError("pblum_method='stefan-boltzmann' not currently implemented for atm='blackbody' unless ld_mode='manual'")
@@ -10642,35 +10644,33 @@ class Bundle(ParameterSet):
                         required_content += ['{}:ldint'.format(atms[component])]
                     pb = get_passband(passband, content=required_content)
 
-                    try:
-                        # ANDREJ TODO: pass blending_method/ld_blending_method
-                        Inorm = pb.Inorm(Teff=teffs[component], logg=loggs[component],
-                                         abun=abuns[component], atm=atms[component],
-                                         ldatm=atms[component],
-                                         ldint=None, ld_func=ld_func, ld_coeffs=ld_coeffs,
-                                         photon_weighted=intens_weighting=='photon')[0]
-                    except ValueError as err:
-                        if str(err).split(":")[0] == 'Atmosphere parameters out of bounds':
-                            # let's override with a more helpful error message
-                            logger.warning(str(err))
-                            raise ValueError("compute_pblums failed with pblum_method='{}', atm='{}', ld_mode='{}' with an atmosphere out-of-bounds error when querying for Inorm. Enable 'warning' logger to see out-of-bound arrays.".format(pblum_method, atms[component], ld_mode))
-                        else:
-                            raise err
+                    abs_normal_intensities = pb.Inorm(
+                        teffs=teffs[component],
+                        loggs=loggs[component],
+                        abuns=abuns[component],
+                        atm=atms[component],
+                        ldatm=atms[component],
+                        ldint=None,
+                        ld_func=ld_func,
+                        ld_coeffs=ld_coeffs,
+                        intens_weighting=intens_weighting,
+                        atm_extrapolation_method=atm_extrapolation_method,
+                        ld_extrapolation_method=ld_extrapolation_method,
+                        blending_method=blending_method,
+                        return_nanmask=False
+                    ).flatten()
 
-                    try:
-                        # ANDREJ TODO: pass blending_method/ld_blending_method
-                        ldint = pb.ldint(Teff=teffs[component], logg=loggs[component],
-                                         abun=abuns[component],
-                                         ldatm=atms[component], ld_func=ld_func, ld_coeffs=ld_coeffs,
-                                         photon_weighted=intens_weighting=='photon')[0]
-                    except ValueError as err:
-                        if str(err).split(":")[0] == 'Atmosphere parameters out of bounds':
-                            # let's override with a more helpful error message
-                            logger.warning(str(err))
-                            raise ValueError("compute_pblums failed with pblum_method='{}', atm='{}', ld_mode='{}' with an atmosphere out-of-bounds error when querying for ldint. Enable 'warning' logger to see out-of-bound arrays.".format(pblum_method, atms[component], ld_mode))
-                        else:
-                            raise err
-
+                    ldint = pb.ldint(
+                        teffs=teffs[component],
+                        loggs=loggs[component],
+                        abuns=abuns[component],
+                        ldatm=atms[component],
+                        ld_func=ld_func,
+                        ld_coeffs=ld_coeffs,
+                        intens_weighting=intens_weighting,
+                        ld_extrapolation_method=ld_extrapolation_method,
+                        raise_on_nans=True
+                    ).flatten()
 
                     if intens_weighting=='photon':
                         ptfarea = pb.ptf_photon_area/pb.h/pb.c
@@ -10679,7 +10679,7 @@ class Bundle(ParameterSet):
 
                     logger.info("estimating pblum for {}@{} using atm='{}' and stefan-boltzmann approximation".format(dataset, component, atm))
                     # requiv in m, Inorm in W/m**3, ldint unitless, ptfarea in m -> pblum_abs in W
-                    pblums_abs[dataset][component] = 4 * np.pi * requivs[component]**2 * Inorm * ldint * ptfarea
+                    pblums_abs[dataset][component] = 4 * np.pi * requivs[component]**2 * abs_normal_intensities * ldint * ptfarea
 
             else:
                 raise ValueError("pblum_method='{}' not supported".format(pblum_method))

@@ -1651,6 +1651,7 @@ class Star(Body):
         # emergent normal intensities in this dataset's passband/atm in absolute units
         abs_normal_intensities = self.mesh['abs_normal_intensities:{}'.format(dataset)].centers
 
+        print(f'ldint:{dataset}', dir(self.mesh[f'ldint:{dataset}']))
         ldint = self.mesh['ldint:{}'.format(dataset)].centers
         ptfarea = self.get_ptfarea(dataset) # just a float
 
@@ -1819,14 +1820,16 @@ class Star(Body):
 
             self.set_ptfarea(dataset, ptfarea)
 
-            ldint = pb.ldint(teffs=self.mesh.teffs.for_computations,
+            ldint = pb.ldint(
+                teffs=self.mesh.teffs.for_computations,
                 loggs=self.mesh.loggs.for_computations,
                 abuns=self.mesh.abuns.for_computations,
                 ldatm=ldatm,
                 ld_func=ld_func if ld_mode != 'interp' else ld_mode,
                 ld_coeffs=ld_coeffs,
                 intens_weighting=intens_weighting,
-                ld_extrapolation_method=ld_extrapolation_method
+                ld_extrapolation_method=ld_extrapolation_method,
+                raise_on_nans=True
             ).flatten()
 
             abs_normal_intensities = pb.Inorm(
@@ -1836,6 +1839,8 @@ class Star(Body):
                 atm=atm,
                 ldatm=ldatm,
                 ldint=ldint,
+                ld_func=ld_func,
+                ld_coeffs=ld_coeffs,
                 intens_weighting=intens_weighting,
                 atm_extrapolation_method=atm_extrapolation_method,
                 ld_extrapolation_method=ld_extrapolation_method,
@@ -1866,13 +1871,14 @@ class Star(Body):
                 boost_factors = 1.0
             elif boosting_method == 'linear':
                 logger.debug("calling pb.bindex for boosting_method='linear'")
-                # ANDREJ TODO: pass blending_method/ld_blending_method (if needed)
-                bindex = pb.bindex(Teff=self.mesh.teffs.for_computations,
-                                   logg=self.mesh.loggs.for_computations,
-                                   abun=self.mesh.abuns.for_computations,
-                                   mu=abs(self.mesh.mus_for_computations),
-                                   atm=atm,
-                                   intens_weighting=intens_weighting)
+                bindex = pb.bindex(
+                    teffs=self.mesh.teffs.for_computations,
+                    loggs=self.mesh.loggs.for_computations,
+                    abuns=self.mesh.abuns.for_computations,
+                    mus=abs(self.mesh.mus_for_computations),
+                    atm=atm,
+                    intens_weighting=intens_weighting
+                )
 
                 boost_factors = 1.0 + bindex * self.mesh.velocities.for_computations[:,2]/37241.94167601236
             else:

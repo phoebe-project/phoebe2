@@ -1764,29 +1764,6 @@ class Passband:
 
         return intensities
 
-    def _log10_Imu_bb(self, teffs, loggs, abuns, mus, ldatm='ck2004', ldints=None, ld_mode='manual', ld_func='linear', ld_coeffs=[0.5], intens_weighting='photon', extrapolation_method='none', ld_extrapolation_method='none'):
-        """
-        """
-
-        if ld_mode=='manual':
-            # we have ld_func and ld_coeffs, so we can readily calculate everything we need.
-            pass
-        elif ld_mode=='lookup':
-            # we have ld_func and ldatm, but no ld_coeffs.
-            ld_coeffs = self.interpolate_ldcoeffs(Teff=teffs, logg=loggs, abun=abuns, ldatm=ldatm, ld_func=ld_func, intens_weighting=intens_weighting, extrapolation_method=extrapolation_method)
-        elif ld_mode == 'interp':
-            raise ValueError(f'ld_mode={ld_mode} cannot be used for blackbody atmospheres.')
-        else:
-            raise NotImplementedError(f'ld_mode={ld_mode} is not supported.')
-
-        if ldints is None:
-            ldints = self.ldint(teffs=teffs, loggs=loggs, abuns=abuns, ldatm=ldatm, ld_func=ld_func, ld_coeffs=ld_coeffs, intens_weighting=intens_weighting, ld_extrapolation_method=ld_extrapolation_method)
-
-        Inorm = self.Inorm(teffs=teffs, loggs=loggs, abuns=abuns, atm='blackbody', ldatm=ldatm, ldint=ldints, ld_func=ld_func, ld_coeffs=ld_coeffs, intens_weighting=intens_weighting, extrapolation_method=extrapolation_method)
-        ld = self._ld(ld_func=ld_func, mu=mus, ld_coeffs=ld_coeffs)
-
-        return np.log10(Inorm * ld)
-
     def _log10_Imu(self, atm, teffs, loggs, abuns, mus, intens_weighting='photon', atm_extrapolation_method='none', ld_extrapolation_method='none', blending_method='none', raise_on_nans=True, return_nanmask=False):
         """
         Computes specific emergent passband intensities for model atmospheres.
@@ -1843,15 +1820,11 @@ class Passband:
         req = ndp.tabulate((teffs, loggs, abuns, mus))
         log10_Imu, nanmask = ndp.interp(req, raise_on_nans=raise_on_nans, return_nanmask=True, extrapolation_method=atm_extrapolation_method)
 
-        if ~np.any(nanmask):
-            return (log10_Imu, nanmask) if return_nanmask else log10_Imu
-
         if blending_method == 'blackbody':
-            raise NotImplementedError('working on this right now.')
-            log10_Inorm_bb = np.log10(self.Inorm(atm='blackbody', teffs=teffs[nanmask], loggs=loggs[nanmask], abuns=abuns[nanmask], ldatm=atm, ld_extrapolation_method=ld_extrapolation_method, intens_weighting=intens_weighting))
-            nv, naxes = ndpolator.map_to_cube(req[nanmask], self.atm_axes[atm][:-1], self.blending_region[atm], return_naxes=True)
+            log10_Imu_bb = np.log10(self.Imu(atm='blackbody', teffs=teffs[nanmask], loggs=loggs[nanmask], abuns=abuns[nanmask], mus=mus[nanmask], ldatm=atm, ld_extrapolation_method=ld_extrapolation_method, intens_weighting=intens_weighting))
+            nv, naxes = ndpolator.map_to_cube(req[nanmask], axes, self.blending_region[atm], return_naxes=True)
 
-            log10_Inorm_bl = np.empty_like(teffs[nanmask])
+            log10_Imu_bl = np.empty_like(teffs[nanmask])
             for si, selem in enumerate(nv):
                 ic = [np.searchsorted(naxes[k], selem[k])-1 for k in range(len(naxes))]
                 seps = (np.abs(self.ics[atm]-np.array(ic))).sum(axis=1)
@@ -1877,17 +1850,20 @@ class Passband:
                     distance = np.linalg.norm(distance_vector)
 
                     if distance > 1:
-                        blints_per_corner.append(log10_Inorm_bb[si])
+                        blints_per_corner.append(log10_Imu_bb[si])
                         continue
                     
                     alpha = blending_factor(distance)
 
-                    blints_per_corner.append((1-alpha)*log10_Inorm_bb[si] + alpha*log10_Inorm[nanmask][si])
+                    blints_per_corner.append((1-alpha)*log10_Imu_bb[si] + alpha*log10_Imu[nanmask][si])
                     # print(f'distance={distance}, alpha={alpha}, bb={ints_bb[si]}, ck={ints_ck[nanmask][si]}, bl={blints_per_corner[-1]}')
                     
-                log10_Inorm_bl[si] = np.mean(blints_per_corner)
+                log10_Imu_bl[si] = np.mean(blints_per_corner)
 
-            log10_Inorm[nanmask] = log10_Inorm_bl[:,None]
+            log10_Imu[nanmask] = log10_Imu_bl[:,None]
+
+        if ~np.any(nanmask):
+            return (log10_Imu, nanmask) if return_nanmask else log10_Imu
 
     def Imu(self, teffs=5772., loggs=4.43, abuns=0.0, mus=1.0, atm='ck2004', ldatm='ck2004', ldint=None, ld_func='interp', ld_coeffs=None, intens_weighting='photon', atm_extrapolation_method='none', ld_extrapolation_method='none', blending_method='none', return_nanmask=False):
         """
@@ -2069,26 +2045,8 @@ class Passband:
         bindex = libphoebe.interp(req, self.atm_axes['ck2004'], grid).T[0]
         return bindex
 
-    def bindex(self, Teff=5772., logg=4.43, abun=0.0, mu=1.0, atm='ck2004', intens_weighting='photon'):
+    def bindex(self, teffs=5772., loggs=4.43, abuns=0.0, mus=1.0, atm='ck2004', intens_weighting='photon'):
         """
-        Arguments
-        ----------
-        * `Teff`
-        * `logg`
-        * `abun`
-        * `mu`
-        * `atm`
-        * `intens_weighting`
-
-        Returns
-        ----------
-        * (float/array) boosting index
-
-        Raises
-        ----------
-        * ValueError: if atmosphere parameters are out of bounds for the table.
-        * NotImplementedError: if `atm` is not supported (not one of 'ck2004'
-            or 'blackbody').
         """
         # TODO: implement phoenix boosting.
         raise NotImplementedError('Doppler boosting is currently offline for review.')
@@ -3022,36 +2980,35 @@ if __name__ == '__main__':
     # be computed anyway because it is only used for reflection purposes.
 
     pb = Passband(
-        ptf='bolometric.ptf',
+        ptf='tables/ptf/bolometric.ptf',
         pbset='Bolometric',
         pbname='900-40000',
         effwl=1.955e-6,
         wlunits=u.m,
         calibrated=True,
         reference='Flat response to simulate bolometric throughput',
-        version=1.0,
+        version=2.0,
         comments=''
     )
 
-    pb.compute_blackbody_intensities(include_extinction=True)
+    pb.compute_blackbody_intensities(include_extinction=False)
 
     pb.compute_intensities(atm='ck2004', path='tables/ck2004', impute=True, verbose=True)
     pb.compute_ldcoeffs(ldatm='ck2004')
     pb.compute_ldints(ldatm='ck2004')
 
-    pb.compute_phoenix_intensities(path='tables/phoenix', impute=True, verbose=True)
+    pb.compute_intensities(atm='phoenix', path='tables/phoenix', impute=True, verbose=True)
     pb.compute_ldcoeffs(ldatm='phoenix')
     pb.compute_ldints(ldatm='phoenix')
 
-    pb.compute_tmap_intensities(path='tables/tmap', impute=True, verbose=True)
+    pb.compute_intensities(atm='tmap', path='tables/tmap', impute=True, verbose=True)
     pb.compute_ldcoeffs(ldatm='tmap')
     pb.compute_ldints(ldatm='tmap')
-
 
     pb.save('bolometric.fits')
 
     pb = Passband(
-        ptf='johnson_v.ptf',
+        ptf='tables/ptf/johnson_v.ptf',
         pbset='Johnson',
         pbname='V',
         effwl=5500.,
