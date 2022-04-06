@@ -1733,7 +1733,7 @@ class Passband:
             if ldint is None:
                 ldint = self.ldint(teffs=teffs, loggs=loggs, abuns=abuns, ldatm=ldatm, ld_func=ld_func, ld_coeffs=ld_coeffs, intens_weighting=intens_weighting, ld_extrapolation_method=ld_extrapolation_method, raise_on_nans=raise_on_nans)
 
-            intensities /= ldint
+            intensities /= ldint.reshape(-1, 1)
 
         elif atm == 'extern_planckint' and 'extern_planckint:Inorm' in self.content:
             if intens_weighting == 'photon':
@@ -1819,6 +1819,9 @@ class Passband:
 
         req = ndp.tabulate((teffs, loggs, abuns, mus))
         log10_Imu, nanmask = ndp.interp(req, raise_on_nans=raise_on_nans, return_nanmask=True, extrapolation_method=atm_extrapolation_method)
+
+        if ~np.any(nanmask):
+            return (log10_Imu, nanmask) if return_nanmask else log10_Imu
 
         if blending_method == 'blackbody':
             log10_Imu_bb = np.log10(self.Imu(atm='blackbody', teffs=teffs[nanmask], loggs=loggs[nanmask], abuns=abuns[nanmask], mus=mus[nanmask], ldatm=atm, ld_extrapolation_method=ld_extrapolation_method, intens_weighting=intens_weighting))
@@ -1940,7 +1943,7 @@ class Passband:
             if atm not in ['ck2004', 'phoenix', 'tmap']:
                 raise ValueError(f"atm={atm} cannot be used with ld_func={ld_func}.")
 
-            if f'{atm}:Imu' not in self.content:
+            if atm not in self.content and f'{atm}:Imu' not in self.content:
                 raise ValueError(f'atm={atm} tables are not available in the {self.pbset}:{self.pbname} passband.')
             
             if return_nanmask:
@@ -1992,25 +1995,29 @@ class Passband:
         if ld_coeffs is not None:
             ld_coeffs = np.atleast_2d(ld_coeffs)
 
+        req = ndpolator.tabulate((teffs, loggs, abuns))
+        ldints = np.ones(shape=(len(req), 1))
+
         if ld_func == 'linear':
-            return 1-ld_coeffs[:,0]/3
+            ldints *= 1-ld_coeffs[:,0]/3
         elif ld_func == 'logarithmic':
-            return 1-ld_coeffs[:,0]/3+2.*ld_coeffs[:,1]/9
+            ldints *= 1-ld_coeffs[:,0]/3+2.*ld_coeffs[:,1]/9
         elif ld_func == 'square_root':
-            return 1-ld_coeffs[:,0]/3-ld_coeffs[:,1]/5
+            ldints *= 1-ld_coeffs[:,0]/3-ld_coeffs[:,1]/5
         elif ld_func == 'quadratic':
-            return 1-ld_coeffs[:,0]/3-ld_coeffs[:,1]/6
+            ldints *= 1-ld_coeffs[:,0]/3-ld_coeffs[:,1]/6
         elif ld_func == 'power':
-            return 1-ld_coeffs[:,0]/5-ld_coeffs[:,1]/3-3.*ld_coeffs[:,2]/7-ld_coeffs[:,3]/2
+            ldints *= 1-ld_coeffs[:,0]/5-ld_coeffs[:,1]/3-3.*ld_coeffs[:,2]/7-ld_coeffs[:,3]/2
         elif ld_func == 'interp':
-            req = ndpolator.tabulate((teffs, loggs, abuns))
             axes = self.atm_axes[ldatm][:-1]
             grid = self.ldint_photon_grid[ldatm] if intens_weighting == 'photon' else self.ldint_energy_grid[ldatm]
             ndp = ndpolator.Ndpolator(axes, grid)
-            # return libphoebe.interp(req, axes, grid).T[0]
-            return ndp.interp(req, extrapolation_method=ld_extrapolation_method, raise_on_nans=raise_on_nans)
+
+            ldints = ndp.interp(req, extrapolation_method=ld_extrapolation_method, return_nanmask=False, raise_on_nans=raise_on_nans)
         else:
             raise NotImplementedError(f'ld_func={ld_func} is not supported')
+
+        return ldints
 
     def _bindex_blackbody(self, Teff, intens_weighting='photon'):
         """

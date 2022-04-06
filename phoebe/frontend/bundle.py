@@ -10182,9 +10182,10 @@ class Bundle(ParameterSet):
                 else:
                     intens_weighting = self.get_value(qualifier='intens_weighting', dataset=ldcs_param.dataset, context='dataset', check_visible=False)
                 logger.info("{} ld_coeffs lookup for dataset='{}' component='{}' passband='{}' from ld_coeffs_source='{}'".format(ld_func, ldcs_param.dataset, ldcs_param.component, passband, ldcs))
-                logger.debug("pb.interpolate_ldcoeffs(teff={} logg={}, abun={}, ld_coeffs={} ld_func={} photon_weighted={})".format(teff, logg, abun, ldcs, ld_func, photon_weighted))
+                logger.debug("pb.interpolate_ldcoeffs(teff={} logg={}, abun={}, ld_coeffs={} ld_func={} intens_weighting={})".format(teff, logg, abun, ldcs, ld_func, intens_weighting))
 
-                # TODO: check if the shape of ld_coeffs is okay for the code that follows
+                # interpolate_ldcoeffs() always returns an array, so we need
+                # the first element of the array.
                 ld_coeffs = pb.interpolate_ldcoeffs(
                     teffs=teff,
                     loggs=logg,
@@ -10193,7 +10194,7 @@ class Bundle(ParameterSet):
                     ld_func=ld_func,
                     intens_weighting=intens_weighting,
                     ld_extrapolation_method=ld_extrapolation_method
-                )
+                )[0]
 
                 # NOTE: these may return nans... if so, run_checks will handle the error
 

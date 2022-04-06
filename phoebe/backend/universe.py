@@ -1651,7 +1651,6 @@ class Star(Body):
         # emergent normal intensities in this dataset's passband/atm in absolute units
         abs_normal_intensities = self.mesh['abs_normal_intensities:{}'.format(dataset)].centers
 
-        print(f'ldint:{dataset}', dir(self.mesh[f'ldint:{dataset}']))
         ldint = self.mesh['ldint:{}'.format(dataset)].centers
         ptfarea = self.get_ptfarea(dataset) # just a float
 
@@ -1891,14 +1890,16 @@ class Star(Body):
             if extinct == 0.0:
                 extinct_factors = 1.0
             else:
-                extinct_factors = pb.interpolate_extinct(teffs=self.mesh.teffs.for_computations,
-                                                         loggs=self.mesh.loggs.for_computations,
-                                                         abuns=self.mesh.abuns.for_computations,
-                                                         ebvs=extinct,
-                                                         rvs=Rv,
-                                                         atm=atm,
-                                                         intens_weighting=intens_weighting,
-                                                         extrapolation_method=atm_extrapolation_method)
+                extinct_factors = pb.interpolate_extinct(
+                    teffs=self.mesh.teffs.for_computations,
+                    loggs=self.mesh.loggs.for_computations,
+                    abuns=self.mesh.abuns.for_computations,
+                    ebvs=extinct,
+                    rvs=Rv,
+                    atm=atm,
+                    intens_weighting=intens_weighting,
+                    extrapolation_method=atm_extrapolation_method
+                )
 
                 # extinction is NOT aspect dependent, so we'll correct both
                 # normal and directional intensities
