@@ -290,9 +290,10 @@ _forbidden_labels += ['primary_width', 'secondary_width',
 # from feature:
 _forbidden_labels += ['colat', 'long', 'radius', 'relteff',
                       'radamp', 'freq', 'l', 'm', 'teffext',
-                      'spot', 'gaussian_process', 'pulsation',
-                      'kernel', 'constant_value', 'length_scale',
+                      'spot', 'gp_celerite2', 'gp_sklearn', 'pulsation',
+                      'gp_backend', 'kernel', 'constant_value', 'length_scale',
                       'noise_level', 'periodicity', 'alpha', 'nu',
+                      'rho', 'sigma', 'tau', 'period', 'Q0', 'dQ', 'f', 'eps',
                       'sigma_0', 'constant_value_bounds', 'length_scale_bounds',
                       'noise_level_bounds', 'periodicity_bounds', 'alpha_bounds', 'nu_bounds',
                       'sigma_0_bounds', 'alg_operation', 'exclude_phase_ranges'
