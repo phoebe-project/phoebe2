@@ -282,6 +282,7 @@ def lc_geometry(**kwargs):
 
     params += [ChoiceParameter(qualifier='orbit', value=kwargs.get('orbit', ''), choices=[''], description='Orbit to use for phasing the light curve referenced in the lc_datasets parameter')]
     params += [ChoiceParameter(qualifier='analytical_model', value=kwargs.get('analytical_model', 'two-gaussian'), choices=['two-gaussian', 'polyfit'], description='Analytical model to fit the light curve with.')]
+    params += [BoolParameter(qualifier='interactive', value=kwargs.get('interactive', False), description='Whether to open results in interactive mode for manual adjustment.')]
 
     params += [BoolParameter(qualifier='t0_near_times', value=kwargs.get('t0_near_times', True), description='Whether the returned value for t0_supconj should be forced to be in the range of the referenced observations.')]
     params += [BoolParameter(qualifier='expose_model', value=kwargs.get('expose_model', True), description='Whether to expose the 2-gaussian analytical models in the solution')]
