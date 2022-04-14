@@ -18,7 +18,8 @@ def test_latexrepr(verbose=False):
     b.add_compute('ellc')
 
     b.add_spot(component='primary')
-    b.add_gaussian_process(dataset='lc01')
+    b.add_gp_sklearn(dataset='lc01')
+    b.add_gp_celerite2(dataset='lc01')
 
     for param in b.to_list():
         if verbose:

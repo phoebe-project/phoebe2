@@ -4034,7 +4034,7 @@ class Bundle(ParameterSet):
         for compute in computes:
             compute_kind = self.get_compute(compute=compute, **_skip_filter_checks).kind
 
-            gps = self.filter(kind='gaussian_process', context='feature', **_skip_filter_checks).features
+            gps = self.filter(kind=['gp_celerite2','gp_sklearn'], context='feature', **_skip_filter_checks).features
             compute_enabled_gps = self.filter(qualifier='enabled', feature=gps, value=True, **_skip_filter_checks).features
             compute_enabled_datasets = self.filter(qualifier='enabled', dataset=self.datasets, value=True, **_skip_filter_checks).datasets
             compute_enabled_datasets_with_gps = [ds for ds in self.filter(feature=compute_enabled_gps, **_skip_filter_checks).datasets if ds in compute_enabled_datasets]
@@ -4306,13 +4306,17 @@ class Bundle(ParameterSet):
                                     False, 'run_compute')
 
         # dependency checks
-        if not _use_sklearn and len(self.filter(context='feature', kind='gaussian_process').features):
+        if not _use_sklearn and len(self.filter(context='feature', kind='gp_sklearn').features):
             report.add_item(self,
                             "Gaussian process features attached, but scikit-learn dependency not installed",
                             [],
                             True, 'run_compute')
 
-
+        if not _use_celerite2 and len(self.filter(context='feature', kind='gp_celerite2').features):
+            report.add_item(self,
+                            "Gaussian process features attached, but celerite2 dependency not installed",
+                            [],
+                            True, 'run_compute')
 
         self._run_checks_warning_error(report, raise_logger_warning, raise_error)
 
@@ -5385,9 +5389,10 @@ class Bundle(ParameterSet):
                 recs = _add_reason(recs, 'Husser et al. (2013)', 'phoenix atmosphere tables for limb-darkening interpolation')
 
         # provide any references from features
-        if len(self.filter(context='feature', kind='gaussian_process').features):
+        if len(self.filter(context='feature', kind='gp_sklearn').features):
             recs = _add_reason(recs, 'Pedregosa et al., (2011)', 'scikit-learn for gaussian processes')
-
+        if len(self.filter(context='feature', kind='gp_celerite2').features):
+            recs = _add_reason(recs, 'Foreman-Mackey et al., (2017)', 'celerite2 for gaussian processes')
         # provide references from dependencies
         recs = _add_reason(recs, 'numpy/scipy', 'numpy/scipy dependency within PHOEBE')
         recs = _add_reason(recs, 'astropy', 'astropy dependency within PHOEBE')
@@ -5479,9 +5484,10 @@ class Bundle(ParameterSet):
                 deps_pip.append('dynesty')
 
         # features
-        if len(self.filter(context='feature', kind='gaussian_process').features) and 'scikit-learn' not in deps_pip:
+        if len(self.filter(context='feature', kind='gp_sklearn').features) and 'scikit-learn' not in deps_pip:
             deps_pip.append('scikit-learn')
-
+        if len(self.filter(context='feature', kind='gp_celerite2').features) and 'celerite2' not in deps_pip:
+            deps_pip.append('celerite2')
         return deps_pip, deps_other
 
     @send_if_client
@@ -5507,7 +5513,8 @@ class Bundle(ParameterSet):
         Available kinds can be found in <phoebe.parameters.feature> or by calling
         <phoebe.list_available_features> and include:
         * <phoebe.parameters.feature.spot>
-        * <phoebe.parameters.feature.gaussian_process>
+        * <phoebe.parameters.feature.gp_sklearn>
+        * <phoebe.parameters.feature.gp_celerite2>
 
         See the entries above to see the valid kinds for `component` and `dataset`
         based on the type of feature.  An error will be raised if the passed value
@@ -5841,11 +5848,11 @@ class Bundle(ParameterSet):
         """
         return self.rename_feature(old_feature, new_feature, overwrite=overwrite, return_changes=return_changes)
 
-    def add_gaussian_process(self, dataset=None, feature=None, **kwargs):
+    def add_gp_sklearn(self, dataset=None, feature=None, **kwargs):
         """
-        Shortcut to <phoebe.frontend.bundle.Bundle.add_feature> but with kind='gaussian_process'.
+        Shortcut to <phoebe.frontend.bundle.Bundle.add_feature> but with kind='gp_sklearn'.
 
-        For details on the resulting parameters, see <phoebe.parameters.feature.gaussian_process>.
+        For details on the resulting parameters, see <phoebe.parameters.feature.gp_sklearn>.
         """
         if dataset is None:
             if len(self.datasets)==1:
@@ -5855,11 +5862,27 @@ class Bundle(ParameterSet):
 
         kwargs.setdefault('dataset', dataset)
         kwargs.setdefault('feature', feature)
-        return self.add_feature('gaussian_process', **kwargs)
-
-    def get_gaussian_process(self, feature=None, **kwargs):
+        return self.add_feature('gp_sklearn', **kwargs)
+    
+    def add_gp_celerite2(self, dataset=None, feature=None, **kwargs):
         """
-        Shortcut to <phoebe.frontend.bundle.Bundle.get_feature> but with kind='gaussian_process'.
+        Shortcut to <phoebe.frontend.bundle.Bundle.add_feature> but with kind='gp_celerite2'.
+
+        For details on the resulting parameters, see <phoebe.parameters.feature.gp_celerite2>.
+        """
+        if dataset is None:
+            if len(self.datasets)==1:
+                dataset = self.datasets[0]
+            else:
+                raise ValueError("must provide dataset for gaussian_process")
+
+        kwargs.setdefault('dataset', dataset)
+        kwargs.setdefault('feature', feature)
+        return self.add_feature('gp_celerite2', **kwargs)
+
+    def get_gp_sklearn(self, feature=None, **kwargs):
+        """
+        Shortcut to <phoebe.frontend.bundle.Bundle.get_feature> but with kind='gp_sklearn'.
 
         Arguments
         ----------
@@ -5869,12 +5892,33 @@ class Bundle(ParameterSet):
         Returns:
         * a <phoebe.parameters.ParameterSet> object.
         """
-        kwargs.setdefault('kind', 'gaussian_process')
+        kwargs.setdefault('kind', 'gp_sklearn')
+        return self.get_feature(feature, **kwargs)
+    
+    def get_gp_celerite2(self, feature=None, **kwargs):
+        """
+        Shortcut to <phoebe.frontend.bundle.Bundle.get_feature> but with kind='gp_celerite2'.
+
+        Arguments
+        ----------
+        * `feature`: (string, optional, default=None): the name of the feature
+        * `**kwargs`: any other tags to do the filtering (excluding feature, kind, and context)
+
+        Returns:
+        * a <phoebe.parameters.ParameterSet> object.
+        """
+        kwargs.setdefault('kind', 'gp_celerite2')
         return self.get_feature(feature, **kwargs)
 
-    def rename_gaussian_process(self, old_feature, new_feature, overwrite=False, return_changes=False):
+    def rename_gp_sklearn(self, old_feature, new_feature, overwrite=False, return_changes=False):
         """
-        Shortcut to <phoebe.frontend.bundle.Bundle.rename_feature> but with kind='gaussian_process'.
+        Shortcut to <phoebe.frontend.bundle.Bundle.rename_feature> but with kind='gp_sklearn'.
+        """
+        return self.rename_feature(old_feature, new_feature, overwrite=overwrite, return_changes=return_changes)
+    
+    def rename_gp_celerite2(self, old_feature, new_feature, overwrite=False, return_changes=False):
+        """
+        Shortcut to <phoebe.frontend.bundle.Bundle.rename_feature> but with kind='gp_celerite2'.
         """
         return self.rename_feature(old_feature, new_feature, overwrite=overwrite, return_changes=return_changes)
 
