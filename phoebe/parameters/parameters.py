@@ -11277,7 +11277,7 @@ class HierarchyParameter(StringParameter):
                     return True
 
         # TODO: allow passing compute to do only enabled features attached to enabled datasets?
-        if consider_gaussian_process and len(self._bundle.filter(kind='gaussian_process', context='feature', **_skip_filter_checks).features):
+        if consider_gaussian_process and len(self._bundle.filter(kind=['gp_sklearn', 'gp_celerite2'], context='feature', **_skip_filter_checks).features):
             return True
 
         return False

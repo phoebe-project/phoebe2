@@ -26,6 +26,9 @@ import multiprocessing
 from . import lc_geometry, rv_geometry
 from .ebai import ebai_forward
 
+# substitute here with import from dependencies
+import ligeor
+
 try:
     import emcee
 except ImportError:
@@ -614,35 +617,57 @@ class Lc_GeometryBackend(BaseSolverBackend):
         ecc_param = orbit_ps.get_parameter(qualifier='ecc', **_skip_filter_checks)
         per0_param = orbit_ps.get_parameter(qualifier='per0', **_skip_filter_checks)
         t0_supconj_param = orbit_ps.get_parameter(qualifier='t0_supconj', **_skip_filter_checks)
+        rsum_param = orbit_ps.get_parameter(qualifier='requivsumfrac', **_skip_filter_checks)
+        teffratio_param = orbit_ps.get_parameter(qualifier='teffratio', **_skip_filter_checks)
 
         period = orbit_ps.get_value(qualifier='period', **_skip_filter_checks)
         t0_supconj_old = orbit_ps.get_value(qualifier='t0_supconj', **_skip_filter_checks)
 
-        diagnose = kwargs.get('diagnose', False)
-        fit_result = lc_geometry.fit_lc(phases, fluxes, sigmas)
-        eclipse_dict = lc_geometry.compute_eclipse_params(phases, fluxes, sigmas, fit_result=fit_result, diagnose=diagnose)
+        interactive = kwargs.get('interactive', False)
+        analytical_model = kwargs.get('analytical_model', 'two-gaussian')
+        
+        model_classes = {'two-gaussian': ligeor.models.TwoGaussianModel,
+                        'polyfit': ligeor.models.Polyfit}
+        
+        model = model_classes.get(analytical_model)(phases=phases, fluxes=fluxes, sigmas=sigmas)
+        model.fit()
+        eclipse_dict = model.compute_eclipse_params(interactive=interactive)
+        
+        fitted_params = [t0_supconj_param, ecc_param, per0_param, rsum_param, teffratio_param]
+        fit_eclipses = kwargs.get('fit_eclipses', False)
+        if fit_eclipses:
+            try:
+                import ellc
+                rratio_param = orbit_ps.get_parameter(qualifier='requivratio', **_skip_filter_checks)
+                incl_param = orbit_ps.get_parameter(qualifier='incl@binary', **_skip_filter_checks)
+                fitted_params += [rratio_param, incl_param]
+            except:
+                raise ImportError('ellc needs to be installed to refine the fit when fit_eclipses = True')
+            
+        eb_params = ligeor.eclipse.EbParams(eclipse_dict, fit_eclipses=fit_eclipses) 
+        t0_near_times = kwargs.get('t0_near_times', True)
+        t0_supconj_new = eb_params._t0_from_geometry(times, period=period, t0_supconj = t0_supconj_old, t0_near_times = t0_near_times)
+        #compute_eclipse_params(phases, fluxes, sigmas, fit_result=fit_result, diagnose=diagnose)
 
         edges = eclipse_dict.get('eclipse_edges')
         mask_phases = [(edges[0]-eclipse_dict.get('primary_width')*0.3, edges[1]+eclipse_dict.get('primary_width')*0.3), (edges[2]-eclipse_dict.get('secondary_width')*0.3, edges[3]+eclipse_dict.get('secondary_width')*0.3)]
-
-        # TODO: update to use widths as well (or alternate based on ecc?)
-        ecc, per0 = lc_geometry.ecc_w_from_geometry(eclipse_dict.get('secondary_position') - eclipse_dict.get('primary_position'), eclipse_dict.get('primary_width'), eclipse_dict.get('secondary_width'))
-
-        # TODO: create parameters in the solver options if we want to expose these options to the user
-        # if t0_near_times == True the computed t0 is adjusted to fall in time times array range
-        t0_near_times = kwargs.get('t0_near_times', True)
-
-        t0_supconj_new = lc_geometry.t0_from_geometry(eclipse_dict.get('primary_position'), times,
-                                period=period, t0_supconj=t0_supconj_old, t0_near_times=t0_near_times)
-
-        fitted_params = [t0_supconj_param, ecc_param, per0_param]
         fitted_params += b.filter(qualifier='mask_phases', dataset=lc_datasets, **_skip_filter_checks).to_list()
 
         fitted_uniqueids = [p.uniqueid for p in fitted_params]
         fitted_twigs = [p.twig for p in fitted_params]
-        fitted_values = [t0_supconj_new, ecc, per0]
+        
+        fitted_values = [t0_supconj_new, eb_params.ecc, eb_params.per0, eb_params.rsum, eb_params.teffratio]
+        if fit_eclipses:
+            fitted_values += [eb_params.rratio, eb_params.incl]
         fitted_values += [mask_phases for ds in lc_datasets]
-        fitted_units = [u.d.to_string(), u.dimensionless_unscaled.to_string(), u.rad.to_string()]
+        
+        fitted_units = [u.d.to_string(), 
+                        u.dimensionless_unscaled.to_string(), 
+                        u.rad.to_string(),
+                        u.dimensionless_unscaled.to_string(), 
+                        u.dimensionless_unscaled.to_string()]
+        if fit_eclipses:
+            fitted_units += [u.dimensionless_unscaled.to_string(), u.deg.to_string()]
         fitted_units += [u.dimensionless_unscaled.to_string() for ds in lc_datasets]
 
         return_ = [{'qualifier': 'primary_width', 'value': eclipse_dict.get('primary_width')},
@@ -660,19 +685,17 @@ class Lc_GeometryBackend(BaseSolverBackend):
                    {'qualifier': 'fitted_twigs', 'value': fitted_twigs},
                    {'qualifier': 'fitted_values', 'value': fitted_values},
                    {'qualifier': 'fitted_units', 'value': fitted_units},
-                   {'qualifier': 'adopt_parameters', 'value': fitted_twigs[:3], 'choices': fitted_twigs},
+                   {'qualifier': 'adopt_parameters', 'value': fitted_twigs[:5], 'choices': fitted_twigs},
                    ]
 
         if kwargs.get('expose_model', True):
-            # then resample the models and store in the solution
-            analytic_phases = np.linspace(-0.5, 0.5, 201)
-            analytic_fluxes = {}
-            for model, params in fit_result['fits'].items():
-                analytic_fluxes[model] = getattr(lc_geometry, 'const' if model=='C' else model.lower())(analytic_phases, *params[0])
-
-            return_ += [{'qualifier': 'analytic_phases', 'value': analytic_phases},
+            if analytical_model == 'two-gaussian':
+                analytic_fluxes = model.models
+            else:
+                analytic_fluxes = {'polyfit': model.model}
+            return_ += [{'qualifier': 'analytic_phases', 'value': model.phases},
                         {'qualifier': 'analytic_fluxes', 'value': analytic_fluxes},
-                        {'qualifier': 'analytic_best_model', 'value': fit_result['best_fit']}
+                        {'qualifier': 'analytic_best_model', 'value': model.best_fit}
                         ]
 
 
