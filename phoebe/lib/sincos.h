@@ -14,16 +14,14 @@
 
 namespace utils {
 
-  // Works on INTEL/AMD arch, but can brake on ARM
-  // template <class T>
-  // inline void sincos(const T &angle, T *s, T *c){
-  //     asm volatile("fsincos" : "=t" (*c), "=u" (*s) : "0" (angle));
-  //  }
-
   template<class T>
   inline void sincos(const T &angle, T *s, T *c){
+    #if defined(TARGET_HAS_SINCOS)
+    asm volatile("fsincos" : "=t" (*c), "=u" (*s) : "0" (angle));
+    #else
     *s = std::sin(angle);
     *c = std::cos(angle);
+    #endif
   }
 
   /*
