@@ -5,7 +5,7 @@ import subprocess as _subprocess
 import json as _json
 from time import sleep as _sleep
 
-__version__ = '0.1.0-dev2'
+__version__ = '0.1.0'
 
 def _new_job_name():
     return _datetime.now().strftime('%Y.%m.%d-%H.%M.%S')
@@ -284,19 +284,19 @@ class Server(object):
         return self.conda_installed
 
     def _submit_script_cmds(self, script, files, ignore_files,
-                            use_slurm,
+                            use_scheduler,
                             directory,
                             conda_env, isolate_env,
                             job_name,
                             terminate_on_complete=False,
                             use_nohup=False,
                             install_conda=False,
-                            **slurm_kwargs):
+                            **sched_kwargs):
 
         if conda_env is False and isolate_env is True:
             raise ValueError("cannot use isolate_env with conda_env=False")
-        # from job: self.server._submit_script_cmds(script, files, use_slurm, directory=self.remote_directory, conda_env=self.conda_env, isolate_env=self.isolate_env, job_name=self.job_name)
-        # from server: self._submit_script_cmds(script, files, use_slurm=False, directory=self.directory, conda_env=conda_env, isolate_env=False, job_name=None)
+        # from job: self.server._submit_script_cmds(script, files, use_scheduler, directory=self.remote_directory, conda_env=self.conda_env, isolate_env=self.isolate_env, job_name=self.job_name)
+        # from server: self._submit_script_cmds(script, files, use_scheduler=False, directory=self.directory, conda_env=conda_env, isolate_env=False, job_name=None)
 
         # NOTE: job_name here is used to identify IF a job and as the slurm job name, but is NOT necessary the job.job_name
         if isinstance(script, str):
@@ -327,30 +327,37 @@ class Server(object):
 
         create_env_cmd, conda_env_path = self._create_conda_env(conda_env, isolate_env, job_name=job_name, check_if_exists=True, run_cmd=False)
 
-        if use_slurm and job_name is None:
-            raise ValueError("use_slurm requires job_name")
-        if use_slurm and use_nohup:
-            raise ValueError("cannot use both use_slurm and use_nohup")
+        if use_scheduler and job_name is None:
+            raise ValueError("use_scheduler requires job_name")
+        if use_scheduler and use_nohup:
+            raise ValueError("cannot use both use_scheduler and use_nohup")
 
         if job_name is not None:
-            if use_slurm:
-                slurm_script = ["#!/bin/bash"]
-                # TODO: use job subdirectory
-                slurm_script += ["#SBATCH -D {}".format(directory+"/")]
-                slurm_script += ["#SBATCH -J {}".format(job_name)]
-                for k,v in slurm_kwargs.items():
-                    prefix = _slurm_kwarg_to_prefix.get(k, False)
-                    if prefix is False:
-                        raise NotImplementedError("slurm command for {} not implemented".format(k))
-                    if k=='mail_type' and isinstance(v, list):
-                        v = ",".join(v)
-                    slurm_script += ["#SBATCH {}{}".format(prefix, v)]
+            if use_scheduler:
+                sched_script = ["#!/bin/bash"]
+
+                if use_scheduler == 'slurm':
+                    sched_script += ["#SBATCH -D {}".format(directory+"/")]
+                    sched_script += ["#SBATCH -J {}".format(job_name)]
+                    for k,v in sched_kwargs.items():
+                        if v is None: continue
+                        prefix = _slurm_kwarg_to_prefix.get(k, False)
+                        if prefix is False:
+                            raise NotImplementedError("slurm command for {} not implemented".format(k))
+                        if k=='mail_type' and isinstance(v, list):
+                            v = ",".join(v)
+                        sched_script += ["#SBATCH {}{}".format(prefix, v)]
+
+                else:
+                    raise NotImplementedError("use_scheduler={} not implemented".format(use_scheduler))
 
                 orig_script = script
-                script = slurm_script + ["\n\n", "echo \'starting\' > crimpl-job.status"]
+                script = sched_script + ["\n\n", "echo \'starting\' > crimpl-job.status"]
                 if conda_env is not False:
                     script += ["eval \"$(conda shell.bash hook)\"", "conda activate {}".format(conda_env_path)]
                 script += ["echo \'running\' > crimpl-job.status"] + orig_script + ["echo \'complete\' > crimpl-job.status"]
+
+
             else:
                 # need to track status by writing to log file
                 if "#!" in script[0]:
@@ -360,9 +367,9 @@ class Server(object):
 
 
         # TODO: use tmp file instead
-        script_fname = 'crimpl_submit_script.sh' if use_slurm or use_nohup else 'crimpl_run_script.sh'
+        script_fname = 'crimpl_submit_script.sh' if use_scheduler or use_nohup else 'crimpl_run_script.sh'
         f = open(script_fname, 'w')
-        if not use_slurm:
+        if not use_scheduler:
             f.write("echo \'starting\' > crimpl-job.status\n")
             if conda_env is not False:
                 f.write("eval \"$(conda shell.bash hook)\"\nconda activate {}\n".format(conda_env_path))
@@ -386,9 +393,10 @@ class Server(object):
         # TODO: use job subdirectory for server_path
         scp_cmd = self.scp_cmd_to.format(local_path=" ".join([script_fname]+[_os.path.normpath(f).replace(' ', '\ ') for f in files]), server_path=directory+"/")
 
-        if use_slurm:
-            remote_script = _os.path.join(directory, _os.path.basename(script_fname))
-            cmd = self.ssh_cmd.format("sbatch {remote_script}".format(remote_script=remote_script))
+        if use_scheduler:
+            if use_scheduler == 'slurm':
+                remote_script = _os.path.join(directory, _os.path.basename(script_fname))
+                cmd = self.ssh_cmd.format("sbatch {remote_script}".format(remote_script=remote_script))
         else:
             remote_script = "./"+script_fname
             if use_nohup:

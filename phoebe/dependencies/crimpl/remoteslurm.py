@@ -330,7 +330,7 @@ class RemoteSlurmJob(_remotethread.RemoteThreadJob):
             raise ValueError("job already submitted.  Create a new job or call resubmit_job")
 
         cmds = self.server._submit_script_cmds(script, files, ignore_files,
-                                               use_slurm=True,
+                                               use_scheduler='slurm',
                                                directory=self.remote_directory,
                                                conda_env=self.conda_env,
                                                isolate_env=self.isolate_env,
