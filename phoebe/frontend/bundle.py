@@ -3483,6 +3483,8 @@ class Bundle(ParameterSet):
                 installed_timestamp = installed_pbs.get(pb, {}).get('timestamp', None)
                 online_timestamp = online_pbs.get(pb, {}).get('timestamp', None)
                 if pb not in installed_pbs.keys():
+                    # then there is no local version of the passband, so we'll
+                    # download the latest version
                     logger.warning("downloading and installing {} passband with content={}".format(pb, missing_pb_content))
                     try:
                         download_passband(pb, content=missing_pb_content)
@@ -3491,10 +3493,19 @@ class Bundle(ParameterSet):
                                         'Attempt to download {} passband failed.  Check internet connection, wait for tables.phoebe-project.org to come back online, or try another passband.'.format(pb),
                                         [pbparam],
                                         True, 'run_compute')
-                elif conf.update_passband_ignore_version or _timestamp_to_dt(installed_timestamp) == _timestamp_to_dt(online_timestamp):
-                    if _timestamp_to_dt(installed_timestamp) == _timestamp_to_dt(online_timestamp):
+                elif conf.update_passband_ignore_version or installed_timestamp == online_timestamp:
+                    # NOTE: because of the bug in https://github.com/phoebe-project/phoebe2/issues/585
+                    # and https://github.com/phoebe-project/phoebe2/pull/411, we'll
+                    # compare the strings directly instead of converting to datetime objects
+                    # (since we don't need > logic)
+                    if installed_timestamp == online_timestamp:
+                        # then the same version already exists locally, so we
+                        # can safely update to get the new content
                         logger.warning("updating installed {} passband (with matching online timestamp) to include content={}".format(pb, missing_pb_content))
                     else:
+                        # then a DIFFERENT version exists locally than available
+                        # online, but the update_passband_ignore_version allows
+                        # us to update automatically.
                         logger.warning("updating installed {} passband (ignoring timestamp mismatch) to include content={}".format(pb, missing_pb_content))
 
                     try:
