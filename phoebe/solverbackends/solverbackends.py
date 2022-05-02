@@ -22,6 +22,7 @@ from phoebe import pool as _pool
 from distutils.version import LooseVersion, StrictVersion
 from copy import deepcopy as _deepcopy
 import multiprocessing
+import pickle
 
 from . import lc_geometry, rv_geometry
 from .ebai import ebai_forward
@@ -1029,6 +1030,123 @@ class Rv_PeriodogramBackend(_PeriodogramBaseBackend):
 
         return times, rvs, sigmas
 
+# class EbaiBackend(BaseSolverBackend):
+#     """
+#     See <phoebe.parameters.solver.estimator.ebai>.
+
+#     The run method in this class will almost always be called through the bundle, using
+#     * <phoebe.frontend.bundle.Bundle.add_solver>
+#     * <phoebe.frontend.bundle.Bundle.run_solver>
+#     """
+#     def run_checks(self, b, solver, compute, **kwargs):
+#         solver_ps = b.get_solver(solver=solver, **_skip_filter_checks)
+#         if not len(solver_ps.get_value(qualifier='lc_datasets', expand=True, lc_datasets=kwargs.get('lc_datasets', None))):
+#             raise ValueError("cannot run ebai without any dataset in lc_datasets")
+
+#         # TODO: check to make sure fluxes exist, etc
+
+
+#     def _get_packet_and_solution(self, b, solver, **kwargs):
+#         # NOTE: b, solver, compute, backend will be added by get_packet_and_solution
+#         solution_params = []
+
+#         solution_params += [_parameters.StringParameter(qualifier='orbit', value='', readonly=True, description='orbit used for phasing the input light curve(s)')]
+#         solution_params += [_parameters.FloatArrayParameter(qualifier='input_phases', value=[], readonly=True, default_unit=u.dimensionless_unscaled, description='input phases (after binning, if applicable) used for determining ebai_phases/ebai_fluxes')]
+#         solution_params += [_parameters.FloatArrayParameter(qualifier='input_fluxes', value=[], readonly=True, default_unit=u.dimensionless_unscaled, description='input fluxes (after binning, if applicable) used for determining ebai_phases/ebai_fluxes')]
+#         solution_params += [_parameters.FloatArrayParameter(qualifier='input_sigmas', value=[], readonly=True, default_unit=u.dimensionless_unscaled, description='input sigmas (after binning, if applicable) used for determining ebai_phases/ebai_fluxes')]
+
+#         solution_params += [_parameters.FloatArrayParameter(qualifier='ebai_phases', value=[], readonly=True, default_unit=u.dimensionless_unscaled, description='input phases to ebai')]
+#         solution_params += [_parameters.FloatArrayParameter(qualifier='ebai_fluxes', value=[], readonly=True, default_unit=u.dimensionless_unscaled, description='input fluxes to ebai')]
+
+#         solution_params += [_parameters.ArrayParameter(qualifier='fitted_uniqueids', visible_if='false', value=[], advanced=True, readonly=True, description='uniqueids of parameters fitted by the minimizer')]
+#         solution_params += [_parameters.ArrayParameter(qualifier='fitted_twigs', value=[], readonly=True, description='twigs of parameters fitted by the minimizer')]
+#         solution_params += [_parameters.ArrayParameter(qualifier='fitted_values', value=[], readonly=True, description='final values returned by the minimizer (in current default units of each parameter)')]
+#         solution_params += [_parameters.ArrayParameter(qualifier='fitted_units', value=[], advanced=True, readonly=True, description='units of the fitted_values')]
+#         solution_params += [_parameters.SelectTwigParameter(qualifier='adopt_parameters', value=[], description='which of the parameters should be included when adopting the solution')]
+#         solution_params += [_parameters.BoolParameter(qualifier='adopt_distributions', value=False, description='whether to create a distribution (of delta functions of all parameters in adopt_parameters) when calling adopt_solution.')]
+#         solution_params += [_parameters.BoolParameter(qualifier='adopt_values', value=True, description='whether to update the parameter face-values (of all parameters in adopt_parameters) when calling adopt_solution.')]
+
+#         return kwargs, _parameters.ParameterSet(solution_params)
+
+#     def run_worker(self, b, solver, compute=None, **kwargs):
+#         if mpi.within_mpirun:
+#             raise NotImplementedError("mpi support for ebai not yet implemented")
+#             # TODO: we need to tell the workers to join the pool for time-parallelization?
+
+#         lc_datasets = kwargs.get('lc_datasets') # NOTE: already expanded
+#         lc_combine = kwargs.get('lc_combine')
+#         orbit = kwargs.get('orbit')
+
+#         orbit_ps = b.get_component(component=orbit, **_skip_filter_checks)
+
+#         phase_bin = kwargs.get('phase_bin', False)
+#         if phase_bin:
+#             phase_bin = kwargs.get('phase_nbins')
+
+#         times, phases, fluxes, sigmas = _get_combined_lc(b, lc_datasets, lc_combine, phase_component=orbit, mask=True, normalize=True, phase_sorted=True, phase_bin=phase_bin)
+
+#         teffratio_param = orbit_ps.get_parameter(qualifier='teffratio', **_skip_filter_checks)
+#         requivsumfrac_param = orbit_ps.get_parameter(qualifier='requivsumfrac', **_skip_filter_checks)
+#         esinw_param = orbit_ps.get_parameter(qualifier='esinw', **_skip_filter_checks)
+#         ecosw_param = orbit_ps.get_parameter(qualifier='ecosw', **_skip_filter_checks)
+#         incl_param = orbit_ps.get_parameter(qualifier='incl', **_skip_filter_checks)
+#         t0_supconj_param = orbit_ps.get_parameter(qualifier='t0_supconj', **_skip_filter_checks)
+
+#         # TODO: cleanup this logic a bit
+#         lc_geom_dict = lc_geometry.estimate_eclipse_positions_widths(phases, fluxes)
+#         if np.max(lc_geom_dict.get('ecl_widths', [])) > 0.25:
+#             logger.warning("ebai: eclipse width over 0.25 detected.  Returning all nans")
+#             pshift = 0.0
+#             t0_supconj = np.nan
+#             teffratio = np.nan
+#             requivsumfrac = np.nan
+#             esinw = np.nan
+#             ecosw = np.nan
+#             sini = np.nan
+#             ebai_phases = []
+#             ebai_fluxes = []
+#         else:
+#             ecl_positions = lc_geom_dict.get('ecl_positions')
+#             # assume primary is close to zero?
+#             pshift = ecl_positions[np.argmin(abs(np.array(ecl_positions)))]
+#             phases_shifted = phases-pshift
+#             phases_shifted[phases_shifted > 0.5] = phases_shifted[phases_shifted>0.5]-1.
+#             phases_shifted[phases_shifted < -0.5] = phases_shifted[phases_shifted<-0.5]+1.
+#             s=np.argsort(phases_shifted)
+
+#             fit_result = lc_geometry.fit_lc(phases_shifted[s], fluxes[s], sigmas[s])
+#             best_fit = fit_result['best_fit']
+#             best_fit = fit_result['best_fit']
+#             ebai_phases = np.linspace(-0.5,0.5,201)
+#             ebai_fluxes = getattr(lc_geometry, 'const' if best_fit=='C' else best_fit.lower())(ebai_phases, *fit_result['fits'][best_fit][0])
+#             fluxes /= ebai_fluxes.max()
+#             ebai_fluxes /= ebai_fluxes.max()
+
+#             # update to t0_supconj based on pshift
+#             t0_supconj = t0_supconj_param.get_value(unit=u.d) + (pshift * orbit_ps.get_value(qualifier='period', unit=u.d, **_skip_filter_checks))
+
+#             # run ebai on polyfit sampled fluxes
+#             teffratio, requivsumfrac, esinw, ecosw, sini = ebai_forward(ebai_fluxes)
+
+#         fitted_params = [t0_supconj_param, teffratio_param, requivsumfrac_param, esinw_param, ecosw_param, incl_param]
+#         fitted_uniqueids = [p.uniqueid for p in fitted_params]
+#         fitted_twigs = [p.twig for p in fitted_params]
+#         fitted_values = [t0_supconj, teffratio, requivsumfrac, esinw, ecosw, np.arcsin(sini)]
+#         fitted_units = [u.d.to_string(), u.dimensionless_unscaled.to_string(), u.dimensionless_unscaled.to_string(), u.dimensionless_unscaled.to_string(), u.dimensionless_unscaled.to_string(), u.rad.to_string()]
+
+#         return [[{'qualifier': 'orbit', 'value': orbit},
+#                  {'qualifier': 'input_phases', 'value': ((phases-pshift+0.5) % 1) - 0.5},
+#                  {'qualifier': 'input_fluxes', 'value': fluxes},
+#                  {'qualifier': 'input_sigmas', 'value': sigmas if sigmas is not None else np.full_like(fluxes, fill_value=np.nan)},
+#                  {'qualifier': 'ebai_phases', 'value': ebai_phases},
+#                  {'qualifier': 'ebai_fluxes', 'value': ebai_fluxes},
+#                  {'qualifier': 'fitted_uniqueids', 'value': fitted_uniqueids},
+#                  {'qualifier': 'fitted_twigs', 'value': fitted_twigs},
+#                  {'qualifier': 'fitted_values', 'value': fitted_values},
+#                  {'qualifier': 'fitted_units', 'value': fitted_units},
+#                  {'qualifier': 'adopt_parameters', 'value': fitted_twigs, 'choices': fitted_twigs},
+#                 ]]
+
 class EbaiBackend(BaseSolverBackend):
     """
     See <phoebe.parameters.solver.estimator.ebai>.
@@ -1075,64 +1193,108 @@ class EbaiBackend(BaseSolverBackend):
         lc_datasets = kwargs.get('lc_datasets') # NOTE: already expanded
         lc_combine = kwargs.get('lc_combine')
         orbit = kwargs.get('orbit')
-
         orbit_ps = b.get_component(component=orbit, **_skip_filter_checks)
+
+        morphology = 'detached' if len(b.hierarchy.get_envelopes()) == 0 else 'contact'
+        
+        t0_supconj_param = orbit_ps.get_parameter(qualifier='t0_supconj', **_skip_filter_checks)
+        incl_param = orbit_ps.get_parameter(qualifier='incl', **_skip_filter_checks)
+        teffratio_param = orbit_ps.get_parameter(qualifier='teffratio', **_skip_filter_checks)
+        
+        if morphology == 'detached':
+            requivsumfrac_param = orbit_ps.get_parameter(qualifier='requivsumfrac', **_skip_filter_checks)
+            esinw_param = orbit_ps.get_parameter(qualifier='esinw', **_skip_filter_checks)
+            ecosw_param = orbit_ps.get_parameter(qualifier='ecosw', **_skip_filter_checks)
+        else:
+            envelope = kwargs.get('contact_envelope')
+            envelope_ps = b.get_component(component=envelope, **_skip_filter_checks)
+
+            ff_param = envelope_ps.get_parameter(qualifier='fillout_factor', **_skip_filter_checks)
+            q_param = orbit_ps.get_parameter(qualifier='q', **_skip_filter_checks)
 
         phase_bin = kwargs.get('phase_bin', False)
         if phase_bin:
             phase_bin = kwargs.get('phase_nbins')
 
         times, phases, fluxes, sigmas = _get_combined_lc(b, lc_datasets, lc_combine, phase_component=orbit, mask=True, normalize=True, phase_sorted=True, phase_bin=phase_bin)
-
-        teffratio_param = orbit_ps.get_parameter(qualifier='teffratio', **_skip_filter_checks)
-        requivsumfrac_param = orbit_ps.get_parameter(qualifier='requivsumfrac', **_skip_filter_checks)
-        esinw_param = orbit_ps.get_parameter(qualifier='esinw', **_skip_filter_checks)
-        ecosw_param = orbit_ps.get_parameter(qualifier='ecosw', **_skip_filter_checks)
-        incl_param = orbit_ps.get_parameter(qualifier='incl', **_skip_filter_checks)
-        t0_supconj_param = orbit_ps.get_parameter(qualifier='t0_supconj', **_skip_filter_checks)
-
-        # TODO: cleanup this logic a bit
-        lc_geom_dict = lc_geometry.estimate_eclipse_positions_widths(phases, fluxes)
-        if np.max(lc_geom_dict.get('ecl_widths', [])) > 0.25:
-            logger.warning("ebai: eclipse width over 0.25 detected.  Returning all nans")
-            pshift = 0.0
-            t0_supconj = np.nan
-            teffratio = np.nan
-            requivsumfrac = np.nan
-            esinw = np.nan
-            ecosw = np.nan
-            sini = np.nan
-            ebai_phases = []
-            ebai_fluxes = []
+        
+        ebai_model = kwargs.get('ebai_model', 'knn')
+        db_suffix = '2g' if morphology == 'contact' or ebai_model == 'mlp' else 'pf'
+        ebai_phase_bins = 200 if ebai_model == 'knn' else 201
+        
+        from ligeor.models.twogaussian import TwoGaussianModel
+        lc_geom_dict = TwoGaussianModel.estimate_eclipse_positions_widths(phases, fluxes)
+        
+        ecl_positions = lc_geom_dict.get('ecl_positions')
+        # assume primary is close to zero?
+        pshift = ecl_positions[np.argmin(abs(np.array(ecl_positions)))]
+        phases_shifted = phases-pshift
+        phases_shifted[phases_shifted > 0.5] = phases_shifted[phases_shifted>0.5]-1.
+        phases_shifted[phases_shifted < -0.5] = phases_shifted[phases_shifted<-0.5]+1.
+        s=np.argsort(phases_shifted)
+        
+        if db_suffix == '2g':
+            lcModel = ligeor.models.TwoGaussianModel(phases=phases_shifted[s], fluxes=fluxes[s], sigmas=sigmas[s])
         else:
-            ecl_positions = lc_geom_dict.get('ecl_positions')
-            # assume primary is close to zero?
-            pshift = ecl_positions[np.argmin(abs(np.array(ecl_positions)))]
-            phases_shifted = phases-pshift
-            phases_shifted[phases_shifted > 0.5] = phases_shifted[phases_shifted>0.5]-1.
-            phases_shifted[phases_shifted < -0.5] = phases_shifted[phases_shifted<-0.5]+1.
-            s=np.argsort(phases_shifted)
+            lcModel = ligeor.models.Polyfit(phases=phases_shifted[s], fluxes=fluxes[s], sigmas=sigmas[s])
+            
+        lcModel.fit()
+        ebai_phases = np.linspace(-0.5,0.5,ebai_phase_bins)
+        ebai_fluxes = lcModel.compute_model(ebai_phases, best_fit=True)
 
-            fit_result = lc_geometry.fit_lc(phases_shifted[s], fluxes[s], sigmas[s])
-            best_fit = fit_result['best_fit']
-            best_fit = fit_result['best_fit']
-            ebai_phases = np.linspace(-0.5,0.5,201)
-            ebai_fluxes = getattr(lc_geometry, 'const' if best_fit=='C' else best_fit.lower())(ebai_phases, *fit_result['fits'][best_fit][0])
-            fluxes /= ebai_fluxes.max()
-            ebai_fluxes /= ebai_fluxes.max()
+        # update to t0_supconj based on pshift
+        t0_supconj = t0_supconj_param.get_value(unit=u.d) + (pshift * orbit_ps.get_value(qualifier='period', unit=u.d, **_skip_filter_checks))
 
-            # update to t0_supconj based on pshift
-            t0_supconj = t0_supconj_param.get_value(unit=u.d) + (pshift * orbit_ps.get_value(qualifier='period', unit=u.d, **_skip_filter_checks))
+        if ebai_model == 'knn':
+            path = os.path.abspath(__file__)
+            dir_path = os.path.dirname(path)
+            ebai_model_file = '{}/knn/{}200.{}.knn'.format(dir_path, morphology, db_suffix)
+        
+            with open(ebai_model_file, 'rb') as f:
+                ebaiModel = pickle.load(f)
+    
+            prediction = ebaiModel.predict(ebai_phases, ebai_fluxes, return_absolute=True, transform_data = True, phases_model = ebai_phases)
+            if morphology == 'detached':
+                [sini, teffratio, requivsumfrac, sqrte_sinw, sqrte_cosw] = prediction[0]
+                w = np.arctan2(sqrte_sinw, sqrte_cosw)
+                ecc = (sqrte_sinw/np.sin(w))**2
+                esinw = ecc*np.sin(w)
+                ecosw = ecc*np.cos(w)
 
-            # run ebai on polyfit sampled fluxes
-            teffratio, requivsumfrac, esinw, ecosw, sini = ebai_forward(ebai_fluxes)
+                fitted_params = [t0_supconj_param, teffratio_param, requivsumfrac_param, esinw_param, ecosw_param, incl_param]
+                fitted_values = [t0_supconj, teffratio, requivsumfrac, esinw, ecosw, np.arcsin(sini)]
+                fitted_units = [u.d.to_string(), u.dimensionless_unscaled.to_string(), u.dimensionless_unscaled.to_string(), u.dimensionless_unscaled.to_string(), u.dimensionless_unscaled.to_string(), u.rad.to_string()]
 
-        fitted_params = [t0_supconj_param, teffratio_param, requivsumfrac_param, esinw_param, ecosw_param, incl_param]
+            else:
+                [sini, teffratio, ff, q] = prediction[0]
+                fitted_params = [t0_supconj_param, teffratio_param, incl_param, ff_param, q_param]
+                fitted_values = [t0_supconj, teffratio, np.arcsin(sini), ff, q]
+                fitted_units = [u.d.to_string(), u.dimensionless_unscaled.to_string(), u.rad.to_string(), u.dimensionless_unscaled.to_string(), u.dimensionless_unscaled.to_string()]
+        else:
+            if np.max(lc_geom_dict.get('ecl_widths', [])) > 0.25:
+                logger.warning("ebai: eclipse width over 0.25 detected.  Returning all nans")
+                pshift = 0.0
+                t0_supconj = np.nan
+                teffratio = np.nan
+                requivsumfrac = np.nan
+                esinw = np.nan
+                ecosw = np.nan
+                sini = np.nan
+                ebai_phases = []
+                ebai_fluxes = []
+            else:
+                fluxes /= ebai_fluxes.max()
+                ebai_fluxes /= ebai_fluxes.max()
+
+                # run ebai on polyfit sampled fluxes
+                teffratio, requivsumfrac, esinw, ecosw, sini = ebai_forward(ebai_fluxes)
+                fitted_params = [t0_supconj_param, teffratio_param, requivsumfrac_param, esinw_param, ecosw_param, incl_param]
+                fitted_values = [t0_supconj, teffratio, requivsumfrac, esinw, ecosw, np.arcsin(sini)]
+                fitted_units = [u.d.to_string(), u.dimensionless_unscaled.to_string(), u.dimensionless_unscaled.to_string(), u.dimensionless_unscaled.to_string(), u.dimensionless_unscaled.to_string(), u.rad.to_string()]
+                    
         fitted_uniqueids = [p.uniqueid for p in fitted_params]
         fitted_twigs = [p.twig for p in fitted_params]
-        fitted_values = [t0_supconj, teffratio, requivsumfrac, esinw, ecosw, np.arcsin(sini)]
-        fitted_units = [u.d.to_string(), u.dimensionless_unscaled.to_string(), u.dimensionless_unscaled.to_string(), u.dimensionless_unscaled.to_string(), u.dimensionless_unscaled.to_string(), u.rad.to_string()]
-
+  
         return [[{'qualifier': 'orbit', 'value': orbit},
                  {'qualifier': 'input_phases', 'value': ((phases-pshift+0.5) % 1) - 0.5},
                  {'qualifier': 'input_fluxes', 'value': fluxes},

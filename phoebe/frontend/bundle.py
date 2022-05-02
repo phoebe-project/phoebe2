@@ -4417,7 +4417,7 @@ class Bundle(ParameterSet):
                                 [self.hierarchy]+addl_parameters,
                                 True, 'run_solver')
 
-            elif is_cb and solver_kind in ['lc_geometry', 'ebai']:
+            elif is_cb and solver_kind in ['lc_geometry']:
                 report.add_item(self,
                                 "{} does not support contact binaries".format(solver_kind),
                                 [self.hierarchy]+addl_parameters,

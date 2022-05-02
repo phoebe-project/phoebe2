@@ -430,7 +430,7 @@ def ebai(**kwargs):
 
     params += [BoolParameter(qualifier='phase_bin', value=kwargs.get('phase_bin', True), description='Bin the input observations (see phase_nbins) if more than 2*phase_nbins.  NOTE: input observational sigmas will be ignored during binning and replaced by per-bin standard deviations if possible, or ignored entirely otherwise.')]
     params += [IntParameter(qualifier='phase_nbins', visible_if='phase_bin:True', value=kwargs.get('phase_nbins', 500), limits=(100,None), description='Number of bins to use during phase binning input observations (will only be applied if len(times) > 2*phase_nbins)')]
-
+    params += [ChoiceParameter(qualifier='ebai_model', value=kwargs.get('ebai_model', 'knn'), choices=['knn', 'mlp'], description='Choice of machine learning model to use for prediction. knn uses a trained sklearn kNeighborsRegressor, while mlp uses a trained neural network.')]
     params += [ChoiceParameter(qualifier='orbit', value=kwargs.get('orbit', ''), choices=[''], description='Orbit to use for phasing the light curve referenced in the lc_datasets parameter')]
 
     return ParameterSet(params)
