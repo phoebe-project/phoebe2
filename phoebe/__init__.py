@@ -17,7 +17,7 @@ Available environment variables:
 
 """
 
-__version__ = '2.4.0.dev1'
+__version__ = '2.4.0.dev1+phoebe_2.4dev'
 
 import os as _os
 import sys as _sys

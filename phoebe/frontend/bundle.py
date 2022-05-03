@@ -5458,8 +5458,11 @@ class Bundle(ParameterSet):
         for compute in computes:
             if self.get_compute(compute).kind == 'phoebe' and 'phoebe' not in deps_pip:
                 if ".dev" in __version__:
-                    # TODO: can we access the exact branch or commit instead of always using development?
-                    dep_phoebe = "https://github.com/phoebe-project/phoebe2/archive/refs/heads/development.zip"
+                    if '+' in __version__:
+                        branch = __version__.split('+')[1]
+                    else:
+                        branch = 'development'
+                    dep_phoebe = f"https://github.com/phoebe-project/phoebe2/archive/refs/heads/{branch}.zip"
                 else:
                     dep_phoebe = 'phoebe=={}'.format(__version__)
                 if dep_phoebe not in deps_pip:
