@@ -130,7 +130,7 @@ class RemoteThreadJob(_common.ServerJob):
         * ValueError: if the files referened by `script` or `files` are not valid.
         """
         cmds = self.server._submit_script_cmds(script, files, [],
-                                               use_slurm=False,
+                                               use_scheduler=False,
                                                directory=self.remote_directory,
                                                conda_env=self.conda_env,
                                                isolate_env=self.isolate_env,
@@ -199,7 +199,7 @@ class RemoteThreadJob(_common.ServerJob):
             raise ValueError("job already submitted.  Create a new job or call resubmit_job")
 
         cmds = self.server._submit_script_cmds(script, files, ignore_files,
-                                               use_slurm=False,
+                                               use_scheduler=False,
                                                directory=self.remote_directory,
                                                conda_env=self.conda_env,
                                                isolate_env=self.isolate_env,
@@ -449,7 +449,7 @@ class RemoteThreadServer(_common.SSHServer):
         * ValueError: if the files referened by `script` or `files` are not valid.
         """
         cmds = self._submit_script_cmds(script, files, [],
-                                        use_slurm=False,
+                                        use_scheduler=False,
                                         directory=self.directory,
                                         conda_env=conda_env,
                                         isolate_env=False,

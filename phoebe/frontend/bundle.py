@@ -615,15 +615,15 @@ class Bundle(ParameterSet):
         b = cls(data)
 
         version = b.get_value(qualifier='phoebe_version', check_default=False, check_visible=False)
-        phoebe_version_import = StrictVersion(version if version != 'devel' else '2.4.0')
-        phoebe_version_this = StrictVersion(__version__ if __version__ != 'devel' else '2.4.0')
+        phoebe_version_import = StrictVersion(version.split('.dev')[0])
+        phoebe_version_this = StrictVersion(__version__.split('.dev')[0])
 
         logger.debug("importing from PHOEBE v {} into v {}".format(phoebe_version_import, phoebe_version_this))
 
         # update the entry in the PS, so if this is saved again it will have the new version
         b.set_value(qualifier='phoebe_version', value=__version__, check_default=False, check_visible=False, ignore_readonly=True)
 
-        if phoebe_version_import == phoebe_version_this and version != 'devel':
+        if phoebe_version_import == phoebe_version_this and ".dev" not in version:
             return b
         elif phoebe_version_import > phoebe_version_this:
             if not import_from_newer:
@@ -915,7 +915,7 @@ class Bundle(ParameterSet):
             # call set_hierarchy to force mass constraints to be rebuilt
             b.set_hierarchy()
 
-        if phoebe_version_import < StrictVersion("2.4.0") or version == 'devel':
+        if phoebe_version_import < StrictVersion("2.4.0") or ".dev" in version:
             existing_values_settings = {p.qualifier: p.get_value() for p in b.filter(context='setting').to_list()}
             b.remove_parameters_all(context='setting', **_skip_filter_checks)
             b._attach_params(_setting.settings(**existing_values_settings), context='setting')
@@ -5457,7 +5457,7 @@ class Bundle(ParameterSet):
         # check for backends
         for compute in computes:
             if self.get_compute(compute).kind == 'phoebe' and 'phoebe' not in deps_pip:
-                if __version__ == "devel":
+                if ".dev" in __version__:
                     # TODO: can we access the exact branch or commit instead of always using development?
                     dep_phoebe = "https://github.com/phoebe-project/phoebe2/archive/refs/heads/development.zip"
                 else:
@@ -11712,7 +11712,7 @@ class Bundle(ParameterSet):
                     raise ValueError("cannot automatically install {}".format(deps_other))
                 if use_mpi:
                     deps_pip.append('mpi4py')
-                if __version__ == 'devel':
+                if ".dev" in __version__:
                     deps_pip.append('--ignore-installed')
                 s.run_script(['pip install {}'.format(" ".join(deps_pip))], conda_env=server_options.get('conda_env'))
 
@@ -12980,7 +12980,7 @@ class Bundle(ParameterSet):
 
         if use_server and use_server != 'none':
             deps_pip, _ = self.dependencies(solver=solver)
-            if __version__ == 'devel':
+            if ".dev" in __version__:
                 deps_pip.append('--ignore-installed')
             self._write_crimpl_script(script_fname, script, use_server, deps_pip, autocontinue, kwargs)
         else:
@@ -13507,7 +13507,7 @@ class Bundle(ParameterSet):
                     raise ValueError("cannot automatically install {}".format(deps_other))
                 if use_mpi:
                     deps_pip.append('mpi4py')
-                if __version__ == 'devel':
+                if ".dev" in __version__:
                     deps_pip.append('--ignore-installed')
                 s.run_script(['pip install {}'.format(" ".join(deps_pip))], conda_env=server_options.get('conda_env'))
 
