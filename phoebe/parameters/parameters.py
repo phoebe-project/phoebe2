@@ -3800,8 +3800,8 @@ class ParameterSet(object):
                 return residuals
 
     def calculate_chi2(self, model=None, dataset=None, component=None,
-                       consider_gaussian_process=True,
-                       mask_enabled=None, mask_phases=None):
+                       consider_gaussian_process=True, mask_enabled=None,
+                       mask_phases=None, mle=False):
         """
         Compute the chi2 between a model and the observed values in the dataset(s).
 
@@ -3851,6 +3851,9 @@ class ParameterSet(object):
         * `mask_phases` (list of tuples, optional, default=None): phase masks
             to apply if `mask_enabled = True`.  If None or not provided, will
             default to the values set in the dataset(s).
+        * `mle` (boolean, optional, default=False): compute a maximum likelihood
+            estimator instead of chi2. This means adding log(2*pi*sigma^2_k) to
+            the sum over all data points.
 
         Returns
         -----------
@@ -3861,7 +3864,7 @@ class ParameterSet(object):
         * NotImplementedError: if the dataset kind is not supported for residuals.
         """
 
-        chi2 = 0
+        chi2 = 0.
 
         if model is not None and not isinstance(model, str):
             raise TypeError("model must be of type string or None")
@@ -3908,10 +3911,13 @@ class ParameterSet(object):
 
                 if len(sigmas):
                     sigmas2 = sigmas**2
-                    if sigmas_lnf != -np.inf:
-                        sigmas2 += model_interp.value ** 2 * np.exp(2 * sigmas_lnf)
+                    if mle and sigmas_lnf != -np.inf:
+                        sigmas2 += model_interp.value**2 * np.exp(2 * sigmas_lnf)
 
-                    chi2 += np.sum((residuals.value**2 / sigmas2) + np.log(sigmas2))
+                    if mle:
+                        chi2 += np.sum((residuals.value**2 / sigmas2) + np.log(2*np.pi*sigmas2))
+                    else:
+                        chi2 += np.sum(residuals.value**2 / sigmas2)
                 else:
                     chi2 += np.sum(residuals.value**2)
 
@@ -3955,7 +3961,7 @@ class ParameterSet(object):
         * NotImplementedError: if the dataset kind is not supported for residuals.
         """
 
-        return -0.5 * self.calculate_chi2(model, dataset, component, consider_gaussian_process=consider_gaussian_process)
+        return -0.5 * self.calculate_chi2(model, dataset, component, consider_gaussian_process=consider_gaussian_process, mle=True)
 
     def _unpack_plotting_kwargs(self, animate=False, **kwargs):
 
