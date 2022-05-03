@@ -1,3 +1,4 @@
+from ast import Import
 import os
 import numpy as np
 
@@ -24,7 +25,7 @@ from copy import deepcopy as _deepcopy
 import multiprocessing
 import pickle
 
-from . import lc_geometry, rv_geometry
+from . import rv_geometry
 from .ebai import ebai_forward
 
 from phoebe.dependencies import ligeor
@@ -35,6 +36,13 @@ except ImportError:
     _use_emcee = False
 else:
     _use_emcee = True
+    
+try:
+    import sklearn
+except ImportError:
+    _use_sklearn = False 
+else:
+    _use_sklearn = True
 
 try:
     import dynesty
@@ -371,11 +379,11 @@ def _get_combined_rv(b, datasets, components, phase_component=None, mask=True, n
         rvs_binned, phase_edges, binnumber = binned_statistic(phases, rvs, statistic='median', bins=phase_bin)
         # NOTE: input sigmas are ignored
         sigmas_binned, phase_edges, binnumber = binned_statistic(phases, rvs, statistic='std', bins=phase_bin)
-        counts_binned, phase_edges, binnumber = binned_statistic(phases, fluxes, statistic='count', bins=phase_bin)
+        counts_binned, phase_edges, binnumber = binned_statistic(phases, rvs, statistic='count', bins=phase_bin)
         counts_single_inds = np.where(counts_binned==0)[0]
         if min(counts_binned) <= 1:
             logger.warning("phase-binning resulted in bin(s) with <=1 entries, ignoring sigmas as cannot determine per-bin sigmas.")
-            sigmas_binned = np.full_like(fluxes_binned, fill_value=np.nan)
+            sigmas_binned = np.full_like(rvs_binned, fill_value=np.nan)
 
         phases_binned = (phase_edges[1:] + phase_edges[:-1]) / 2.
 
@@ -384,7 +392,7 @@ def _get_combined_rv(b, datasets, components, phase_component=None, mask=True, n
 
         # NOTE: times array won't be the same size! (but we want the original
         # times array for t0_near_times in lc_geometry)
-        return times, phases_binned[~nans_inds], rv_binned[~nans_inds], sigmas_binned[~nans_inds]
+        return times, phases_binned[~nans_inds], rvs_binned[~nans_inds], sigmas_binned[~nans_inds]
 
     elif phase_sorted:
         # binning would phase-sort anyways
@@ -1217,9 +1225,12 @@ class EbaiBackend(BaseSolverBackend):
 
         times, phases, fluxes, sigmas = _get_combined_lc(b, lc_datasets, lc_combine, phase_component=orbit, mask=True, normalize=True, phase_sorted=True, phase_bin=phase_bin)
         
-        ebai_model = kwargs.get('ebai_model', 'knn')
-        db_suffix = '2g' if morphology == 'contact' or ebai_model == 'mlp' else 'pf'
-        ebai_phase_bins = 200 if ebai_model == 'knn' else 201
+        ebai_method = kwargs.get('ebai_method', 'knn')
+        
+        if ebai_method == 'knn' and _use_sklearn == False:
+            raise ImportError('Please install scikit-learn to use the knn method!')
+        db_suffix = '2g' if morphology == 'contact' or ebai_method == 'mlp' else 'pf'
+        ebai_phase_bins = 200 if ebai_method == 'knn' else 201
         
         lc_geom_dict = ligeor.models.TwoGaussianModel.estimate_eclipse_positions_widths(phases, fluxes)
         
@@ -1243,7 +1254,7 @@ class EbaiBackend(BaseSolverBackend):
         # update to t0_supconj based on pshift
         t0_supconj = t0_supconj_param.get_value(unit=u.d) + (pshift * orbit_ps.get_value(qualifier='period', unit=u.d, **_skip_filter_checks))
 
-        if ebai_model == 'knn':
+        if ebai_method == 'knn':
             path = os.path.abspath(__file__)
             dir_path = os.path.dirname(path)
             ebai_model_file = '{}/knn/{}200.{}.knn'.format(dir_path, morphology, db_suffix)
