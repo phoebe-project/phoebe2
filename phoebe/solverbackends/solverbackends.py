@@ -27,8 +27,7 @@ import pickle
 from . import lc_geometry, rv_geometry
 from .ebai import ebai_forward
 
-# substitute here with import from dependencies
-import ligeor
+from phoebe.dependencies import ligeor
 
 try:
     import emcee
@@ -1222,8 +1221,7 @@ class EbaiBackend(BaseSolverBackend):
         db_suffix = '2g' if morphology == 'contact' or ebai_model == 'mlp' else 'pf'
         ebai_phase_bins = 200 if ebai_model == 'knn' else 201
         
-        from ligeor.models.twogaussian import TwoGaussianModel
-        lc_geom_dict = TwoGaussianModel.estimate_eclipse_positions_widths(phases, fluxes)
+        lc_geom_dict = ligeor.models.TwoGaussianModel.estimate_eclipse_positions_widths(phases, fluxes)
         
         ecl_positions = lc_geom_dict.get('ecl_positions')
         # assume primary is close to zero?
