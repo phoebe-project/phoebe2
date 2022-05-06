@@ -84,6 +84,11 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.3.60 - passband timestamp bugfix
+
+* compare version strings instead of datetime to avoid some systems throwing an error when looking for passband updates.
+* see also 2.3.13 release.
+
 ### 2.3.59 - extinction constraint bugfix
 
 * fixes extinction constraint when flipping to solve for Av
