@@ -2354,15 +2354,64 @@ class Differential_EvolutionBackend(BaseSolverBackend):
 
             compute_kwargs = {k:v for k,v in kwargs.items() if k in b.get_compute(compute=compute, **_skip_filter_checks).qualifiers}
 
-            options = {k:v for k,v in kwargs.items() if k in ['strategy', 'maxiter', 'popsize']}
+            options = {k:v for k,v in kwargs.items() if k in ['strategy', 'maxiter', 'popsize', 'tol', 'atol', 'polish', 'recombination']}
+        
+            def _progress(xi, convergence):
+                global _minimize_iter
+                _minimize_iter += 1
+                global _minimize_pbar
+                global _use_progressbar
+  
+                maxiter = _minimize_pbar.total
+                progress = float(_minimize_iter) / maxiter * 100
 
+                if _use_progressbar:
+                    _minimize_pbar.update(1)
+                    
+                # TODO: include logic for saving progress to file (if possible)
+                # always return 0/False so this callback doesn't cause early stopping
+                return 0 
+                
             logger.debug("calling scipy.optimize.differential_evolution(_lnprobability_negative, bounds={}, args=(b, {}, {}, {}, {}, {}), options={})".format(bounds, params_uniqueids, compute, [], kwargs.get('solution', None), compute_kwargs, options))
             # TODO: would it be cheaper to pass the whole bundle (or just make one copy originally so we restore original values) than copying for each iteration?
             args = (_bsolver(b, solver, compute, []), params_uniqueids, compute, [], 'first', kwargs.get('solution', None), compute_kwargs)
+            
+            # set _within solver to prevent run_compute progressbars
+            b._within_solver = True
+
+            global _solution_ps
+            _solution_ps = kwargs.get('solution_ps')
+            global _solution
+            _solution = kwargs.get('solution')
+            global metawargs
+            metawargs = {'context': 'solution',
+                        'solver': solver,
+                        'compute': compute,
+                        'kind': b.get_solver(solver=solver, **_skip_filter_checks).kind,
+                        'solution': _solution}
+
+            global _use_progressbar
+            if kwargs.get('progressbar', False):
+                global _minimize_iter
+                _minimize_iter = 0
+                global _minimize_pbar
+                _minimize_pbar = _tqdm(total=kwargs.get('maxiter'))
+                _minimize_pbar.update(1)  # start at 1 instead of 0
+                _use_progressbar = True
+            else:
+                _use_progressbar = False
+
+            global _progress_every_niters
+            _progress_every_niters = kwargs.get('progress_every_niters', 0)
+            if _progress_every_niters > 0:
+                raise NotImplementedError('Saving progress for a DE optimizer is not supported yet.')
+            
             res = optimize.differential_evolution(_lnprobability_negative, bounds,
                                     args=args,
-                                    workers=pool.map, updating='deferred',
+                                    workers=pool.map, updating='deferred', 
+                                    callback=_progress if _use_progressbar else None,
                                     **options)
+            
         else:
             # NOTE: because we overrode self._run_worker to skip loading the
             # bundle, b is just a json string here.  If we ever need the
@@ -2375,6 +2424,11 @@ class Differential_EvolutionBackend(BaseSolverBackend):
         # restore previous MPI state
         mpi._within_mpirun = within_mpirun
         mpi._enabled = mpi_enabled
+        
+        # close progressbar and restore within_solver state
+        if _use_progressbar:
+            _minimize_pbar.close()
+        b._within_solver = False
 
         if is_master:
             # TODO: expose the adopted bounds?

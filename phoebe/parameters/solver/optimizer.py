@@ -330,7 +330,58 @@ def differential_evolution(**kwargs):
 
     Arguments
     ----------
-
+    * `compute` (string, optional): compute options to use for the forward
+        model.
+    * `expose_lnprobabilities` (bool, optional, default=False): whether to expose
+        the initial and final lnprobabilities in the solution (will result in 2
+        additional forward model calls)
+    * `continue_from` (string, optional, default='none'): continue the optimization
+        run from an existing solution by starting each parameter at its final
+        position in the solution.
+    * `fit_parameters` (list, optional, default=[]): parameters (as twigs) to
+        optimize.  Only applicable if `continue_from` is 'None'.
+    * `bounds` (list, optional, default=[]): uniform priors as bounds on the parameters.
+    * `maxiter` (int, optional, default=1e6): passed directly to
+        scipy.optimize.differential_evolution.  Maximum allowed number of iterations.
+    * `strategy` (str, optional, default='best1bin'): passed directly to 
+        scipy.optimize.differential_evolution.  The differential evolution strategy to use. 
+        Should be one of:
+            - 'best1bin'
+            - 'best1exp'
+            - 'rand1exp'
+            - 'randtobest1exp'
+            - 'currenttobest1exp'
+            - 'best2exp'
+            - 'rand2exp'
+            - 'randtobest1bin'
+            - 'currenttobest1bin'
+            - 'best2bin'
+            - 'rand2bin'
+            - 'rand1bin'
+    * `popsize` (int, optional, default=8): passed directly to 
+        scipy.optimize.differential_evolution. A multiplier for setting the total 
+        population size.
+    * `recombination` (float, optional, default=0.7): passed directly to 
+        scipy.optimize.differential_evolution. The recombination constant.
+    * `tol` (float, optional, default=0.01): passed directly to 
+        scipy.optimize.differential_evolution. Relative tolerance for convergence.
+    * `atol` (float, optional, default=0.0): passed directly to 
+        scipy.optimize.differential_evolution. Absolute tolerance for convergence.
+    * `polish` (bool, optional, default=True): passed directly to 
+        scipy.optimize.differential_evolution. If True, then `scipy.optimize.minimize` 
+        with the `L-BFGS-B` method is used to polish the best population member at the end, 
+        which can improve the minimization slightly.
+    * `progress_every_niters` (int, optional, default=0): Save the progress of
+        the solution every n iterations.  The solution can only be recovered
+        from an early termination by loading the bundle from a saved file and
+        then calling <phoebe.frontend.bundle.Bundle.import_solution>(filename).
+        The filename of the saved file will default to solution.ps.progress within
+        <phoebe.frontend.bundle.Bundle.run_solver>, or the output filename provided
+        to <phoebe.frontend.bundle.Bundle.export_solver> suffixed with .progress.
+        If using detach=True within run_solver, attach job will load the progress
+        and allow re-attaching until the job is completed.  If 0 will not save
+        and will only return after completion.
+        
     Returns
     --------
     * (<phoebe.parameters.ParameterSet>): ParameterSet of all newly created
@@ -356,9 +407,13 @@ def differential_evolution(**kwargs):
                         'rand2bin', 'rand1bin']
     params += [ChoiceParameter(qualifier='strategy', value=kwargs.get('strategy', 'best1bin'), choices=strategy_choices, description='passed directly to scipy.optimize.differential_evolution.')]
 
-
     params += [IntParameter(qualifier='maxiter', value=kwargs.get('maxiter', 1e6), limits=[1,1e12], description='passed directly to scipy.optimize.differential_evolution.  The maximum number of generations over which the entire population is evolved. The maximum number of function evaluations (with no polishing) is: (maxiter + 1) * popsize * len(x)')]
     params += [IntParameter(qualifier='popsize', value=kwargs.get('popsize', 8), limits=[1,1e4], description='passed directly to scipy.optimize.differential_evolution.  A multiplier for setting the total population size. The population has popsize * len(x) individuals (unless the initial population is supplied via the init keyword)')]
+    params += [FloatParameter(qualifier='recombination', value=kwargs.get('recombination', 0.7), limits=[0,1], description='passed directly to scipy.optimize.differential_evolution. The recombination constant.')]
+    params += [FloatParameter(qualifier='tol', value=kwargs.get('tol', 0.01), limits=[0, None], description='passed directly to scipy.optimize.differential_evolution. Relative tolerance for convergence.')]
+    params += [FloatParameter(qualifier='atol', value=kwargs.get('atol', 0.0), limits=[0, None], description='passed directly to scipy.optimize.differential_evolution. Absolute tolerance for convergence.')]
+    params += [BoolParameter(qualifier='polish', value=kwargs.get('polish', True), description='passed directly to scipy.optimize.differential_evolution. If True (default), then scipy.optimize.minimize with the L-BFGS-B method is used to polish the best population member at the end, which can improve the minimization slightly.')]
+    # TODO: expose mutation, seed, init
+    params += [IntParameter(qualifier='progress_every_niters', value=kwargs.get('progress_every_niters', 0), limits=(0,1e6), description='save the progress of the solution every n iterations.  The solution can only be recovered from an early termination by loading the bundle from a saved file and then calling b.import_solution(filename).  The filename of the saved file will default to solution.ps.progress within run_solver, or the output filename provided to export_solver suffixed with .progress.  If using detach=True within run_solver, attach job will load the progress and allow re-attaching until the job is completed.  If 0 will not save and will only return after completion.')]
 
-    # TODO: expose mutation, recombination, seed, tol, atol, polish, init
     return ParameterSet(params)
