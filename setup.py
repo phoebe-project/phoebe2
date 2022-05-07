@@ -201,6 +201,62 @@ def check_unix_compiler(plat, plat_ver, compiler, extensions, compiler_name):
   return status
 
 #
+# Checking if certain optimizations are available
+#
+def check_unix_optimization(plat, plat_ver, compiler, extensions, compiler_name):
+
+  #
+  # checking is fsincos is enabled
+  #
+  import tempfile
+  import random
+  import string
+
+  tempdir = tempfile.gettempdir();
+
+  pat = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(10))
+  src = pat+'_sincos_opt.c'
+  exe = pat+'_sincos_opt.exe'
+  obj = pat+'_sincos_opt.o'
+
+  with open(tempdir + '/' + src, 'w') as tmp:
+    tmp.writelines([
+      '#include <math.h>\n',
+      'void our_sincos(double angle, double *s, double *c){\n',
+      '  asm volatile("fsincos" : "=t" (*c), "=u" (*s) : "0" (angle));\n',
+      '}\n',
+
+      'int main() {\n',
+      '  double t = 1, x[2];\n',
+      '  our_sincos(t, x, x+1);\n',
+      '  return 0;\n',
+      '}\n'
+    ])
+
+  status = True
+  try:
+    objects = compiler.compile([tempdir+'/'+ src], output_dir = tempdir)
+    compiler.link_executable(objects, exe, output_dir = tempdir)
+
+    if re.search(r'gcc', compiler_name) or re.search(r'g\+\+', compiler_name) or \
+       re.search(r'clang', compiler_name) or re.search(r'icc', compiler_name) or \
+       re.search(r'icpc', compiler_name):
+      for e in extensions: e.extra_compile_args.append('-DTARGET_HAS_SINCOS')
+    else:
+      print("Did not recognize the compiler %s." % (compiler_name))
+      status = False
+  except:
+    print("Failed to compile sincos test case on compiler %s." % (compiler_name))
+    status = False
+
+  # Cleanup
+  removefile(tempdir+'/'+ src)
+  removefile(tempdir+'/'+ exe)
+  removefile(tempdir+'/'+ obj)
+
+  return status
+
+#
 # Hooking the building of extentions
 #
 class build_check(build_ext):
@@ -219,6 +275,9 @@ class build_check(build_ext):
       build_ext.build_extensions(self)
 
     elif plat in ['Linux', 'Darwin']:
+
+      check_unix_optimization(plat, plat_ver, self.compiler, self.extensions, self.compiler.compiler_cxx[0])
+
       if (
           check_unix_compiler(plat, plat_ver, self.compiler, self.extensions, self.compiler.compiler_cxx[0]) and
           check_unix_compiler(plat, plat_ver, self.compiler, self.extensions, self.compiler.compiler_so[0])
@@ -346,8 +405,8 @@ else:
     long_description = "\n".join(long_description_s[long_description_s.index("INTRODUCTION"):])
 
 setup (name = 'phoebe',
-       version = '2.3.60',
-       description = 'PHOEBE 2.3.60',
+       version = '2.3.61',
+       description = 'PHOEBE 2.3.61',
        long_description=long_description,
        author = 'PHOEBE development team',
        author_email = 'phoebe-devel@lists.sourceforge.net',
@@ -367,7 +426,7 @@ setup (name = 'phoebe',
             'Programming Language :: Python :: 3 :: Only',
         ],
        python_requires='>=3.6, <4',
-       download_url = 'https://github.com/phoebe-project/phoebe2/tarball/2.3.60',
+       download_url = 'https://github.com/phoebe-project/phoebe2/tarball/2.3.61',
        packages = ['phoebe', 'phoebe.parameters', 'phoebe.parameters.solver', 'phoebe.parameters.figure', 'phoebe.frontend', 'phoebe.constraints', 'phoebe.dynamics', 'phoebe.distortions', 'phoebe.algorithms', 'phoebe.atmospheres', 'phoebe.backend', 'phoebe.solverbackends', 'phoebe.solverbackends.ebai', 'phoebe.utils', 'phoebe.helpers', 'phoebe.pool', 'phoebe.dependencies', 'phoebe.dependencies.autofig', 'phoebe.dependencies.nparray', 'phoebe.dependencies.distl', 'phoebe.dependencies.unitsiau2015'],
        install_requires=['numpy>=1.12','scipy>=1.2','astropy>=1.0', 'corner', 'pytest', 'requests', 'python-socketio[client]']+['flask', 'flask-cors', 'flask-socketio==4.3.*', 'gevent-websocket'],
        package_data={'phoebe.atmospheres':['tables/wd/*', 'tables/passbands/*'],
