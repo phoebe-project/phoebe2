@@ -84,6 +84,10 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.3.61 - M1 compiler optimization bugfix
+
+* remove compiler optimizations that are not portable to ARM architectures
+
 ### 2.3.60 - passband timestamp bugfix
 
 * compare version strings instead of datetime to avoid some systems throwing an error when looking for passband updates.
