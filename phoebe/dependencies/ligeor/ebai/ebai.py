@@ -136,7 +136,10 @@ class Ebai():
                         fluxes_transform[i] = fluxes_scaled
 
         else:
-            fluxes_transform = fluxes
+            if len(fluxes.shape) == 1:
+                fluxes_transform = fluxes.reshape(1,-1)
+            else:
+                fluxes_transform = fluxes
             
         params_pred = self.model.predict(fluxes_transform)
         

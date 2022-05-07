@@ -1230,7 +1230,7 @@ class EbaiBackend(BaseSolverBackend):
         if ebai_method == 'knn' and _use_sklearn == False:
             raise ImportError('Please install scikit-learn to use the knn method!')
         db_suffix = '2g' if morphology == 'contact' or ebai_method == 'mlp' else 'pf'
-        ebai_phase_bins = 200 if ebai_method == 'knn' else 201
+        ebai_phase_bins = 201
         
         lc_geom_dict = ligeor.models.TwoGaussianModel.estimate_eclipse_positions_widths(phases, fluxes)
         
@@ -1250,18 +1250,18 @@ class EbaiBackend(BaseSolverBackend):
         lcModel.fit()
         ebai_phases = np.linspace(-0.5,0.5,ebai_phase_bins)
         ebai_fluxes = lcModel.compute_model(ebai_phases, best_fit=True)
-
+        ebai_phases[0] = - 0.5
         # update to t0_supconj based on pshift
         t0_supconj = t0_supconj_param.get_value(unit=u.d) + (pshift * orbit_ps.get_value(qualifier='period', unit=u.d, **_skip_filter_checks))
 
         if ebai_method == 'knn':
             path = os.path.abspath(__file__)
             dir_path = os.path.dirname(path)
-            ebai_model_file = '{}/knn/{}200.{}.knn'.format(dir_path, morphology, db_suffix)
+            ebai_model_file = '{}/knn/{}.{}.knn'.format(dir_path, morphology, db_suffix)
         
             with open(ebai_model_file, 'rb') as f:
                 ebaiModel = pickle.load(f)
-    
+
             prediction = ebaiModel.predict(ebai_phases, ebai_fluxes, return_absolute=True, transform_data = True, phases_model = ebai_phases)
             if morphology == 'detached':
                 [sini, teffratio, requivsumfrac, sqrte_sinw, sqrte_cosw] = prediction[0]
