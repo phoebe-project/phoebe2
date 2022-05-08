@@ -5851,11 +5851,21 @@ class Bundle(ParameterSet):
         """
         return self.rename_feature(old_feature, new_feature, overwrite=overwrite, return_changes=return_changes)
 
-    def add_gp_sklearn(self, dataset=None, feature=None, **kwargs):
+    def add_gaussian_process(self, kind='sklearn', dataset=None, feature=None, **kwargs):
         """
-        Shortcut to <phoebe.frontend.bundle.Bundle.add_feature> but with kind='gp_sklearn'.
+        Shortcut to <phoebe.frontend.bundle.Bundle.add_feature> but with kind='gp_sklearn'
+        or kind='gp_celerite2'.
 
-        For details on the resulting parameters, see <phoebe.parameters.feature.gp_sklearn>.
+        For details on the resulting parameters, see <phoebe.parameters.feature.gp_sklearn>
+        or <phoebe.parameters.feature.gp_celerite2>.
+
+        Parameters
+        ----------
+        * `kind` (string, optional, default='sklearn'): sklearn or celerite2
+        * `dataset` (string, optional, default=None): dataset to attach the
+            gaussian process
+        * `feature` (string, optional, default=None): feature label to assign
+            to the gaussian process.
         """
         if dataset is None:
             if len(self.datasets)==1:
@@ -5865,27 +5875,11 @@ class Bundle(ParameterSet):
 
         kwargs.setdefault('dataset', dataset)
         kwargs.setdefault('feature', feature)
-        return self.add_feature('gp_sklearn', **kwargs)
-    
-    def add_gp_celerite2(self, dataset=None, feature=None, **kwargs):
-        """
-        Shortcut to <phoebe.frontend.bundle.Bundle.add_feature> but with kind='gp_celerite2'.
+        return self.add_feature(f"gp_{kind.strip('gp_')}", **kwargs)
 
-        For details on the resulting parameters, see <phoebe.parameters.feature.gp_celerite2>.
+    def get_gaussian_process(self, feature=None, **kwargs):
         """
-        if dataset is None:
-            if len(self.datasets)==1:
-                dataset = self.datasets[0]
-            else:
-                raise ValueError("must provide dataset for gaussian_process")
-
-        kwargs.setdefault('dataset', dataset)
-        kwargs.setdefault('feature', feature)
-        return self.add_feature('gp_celerite2', **kwargs)
-
-    def get_gp_sklearn(self, feature=None, **kwargs):
-        """
-        Shortcut to <phoebe.frontend.bundle.Bundle.get_feature> but with kind='gp_sklearn'.
+        Shortcut to <phoebe.frontend.bundle.Bundle.get_feature> but with kind='gp_*'.
 
         Arguments
         ----------
@@ -5895,33 +5889,12 @@ class Bundle(ParameterSet):
         Returns:
         * a <phoebe.parameters.ParameterSet> object.
         """
-        kwargs.setdefault('kind', 'gp_sklearn')
-        return self.get_feature(feature, **kwargs)
-    
-    def get_gp_celerite2(self, feature=None, **kwargs):
-        """
-        Shortcut to <phoebe.frontend.bundle.Bundle.get_feature> but with kind='gp_celerite2'.
-
-        Arguments
-        ----------
-        * `feature`: (string, optional, default=None): the name of the feature
-        * `**kwargs`: any other tags to do the filtering (excluding feature, kind, and context)
-
-        Returns:
-        * a <phoebe.parameters.ParameterSet> object.
-        """
-        kwargs.setdefault('kind', 'gp_celerite2')
+        kwargs.setdefault('kind', 'gp_*')
         return self.get_feature(feature, **kwargs)
 
-    def rename_gp_sklearn(self, old_feature, new_feature, overwrite=False, return_changes=False):
+    def rename_gaussian_process(self, old_feature, new_feature, overwrite=False, return_changes=False):
         """
-        Shortcut to <phoebe.frontend.bundle.Bundle.rename_feature> but with kind='gp_sklearn'.
-        """
-        return self.rename_feature(old_feature, new_feature, overwrite=overwrite, return_changes=return_changes)
-    
-    def rename_gp_celerite2(self, old_feature, new_feature, overwrite=False, return_changes=False):
-        """
-        Shortcut to <phoebe.frontend.bundle.Bundle.rename_feature> but with kind='gp_celerite2'.
+        Shortcut to <phoebe.frontend.bundle.Bundle.rename_feature>.
         """
         return self.rename_feature(old_feature, new_feature, overwrite=overwrite, return_changes=return_changes)
 
