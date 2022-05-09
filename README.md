@@ -84,6 +84,10 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.3.62 - attach_job ferr bugfix
+
+* fix bug where error file was not properly loaded when retrieving error from external job
+
 ### 2.3.61 - M1 compiler optimization bugfix
 
 * remove compiler optimizations that are not portable to ARM architectures
