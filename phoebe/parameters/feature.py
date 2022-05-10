@@ -157,7 +157,7 @@ def gp_sklearn(feature, **kwargs):
 
     # additional parameters for GPs
     params += [ChoiceParameter(qualifier='alg_operation', value='sum', choices=['sum', 'product'], default_unit=u.dimensionless_unscaled, description='Algebraic operation of this kernel with previous ones. Can be one of [sum, product]')]
-    params += [FloatArrayParameter(qualifier='exclude_phase_ranges', value=kwargs.get('exclude_phase_ranges', []), required_shape=[None, 2], default_unit=u.dimensionless_unscaled, description='Phase ranges to exclude from fitting the GP model (typically correspond to ingress and egress of eclipses).')]
+    # params += [FloatArrayParameter(qualifier='exclude_phase_ranges', value=kwargs.get('exclude_phase_ranges', []), required_shape=[None, 2], default_unit=u.dimensionless_unscaled, description='Phase ranges to exclude from fitting the GP model (typically correspond to ingress and egress of eclipses).')]
     constraints = []
 
     return ParameterSet(params), constraints
@@ -243,7 +243,7 @@ def gp_celerite2(feature, **kwargs):
 
     # additional parameters for GPs
     params += [ChoiceParameter(qualifier='alg_operation', value='sum', choices=['sum', 'product'], default_unit=u.dimensionless_unscaled, description='Algebraic operation of this kernel with previous ones. Can be one of [sum, product]')]
-    params += [FloatArrayParameter(qualifier='exclude_phase_ranges', value=kwargs.get('exclude_phase_ranges', []), required_shape=[None, 2], default_unit=u.dimensionless_unscaled, description='Phase ranges to exclude from fitting the GP model (typically correspond to ingress and egress of eclipses).')]
+    # params += [FloatArrayParameter(qualifier='exclude_phase_ranges', value=kwargs.get('exclude_phase_ranges', []), required_shape=[None, 2], default_unit=u.dimensionless_unscaled, description='Phase ranges to exclude from fitting the GP model (typically correspond to ingress and egress of eclipses).')]
     constraints = []
 
     return ParameterSet(params), constraints

@@ -12026,6 +12026,7 @@ class Bundle(ParameterSet):
                     gp_sklearn_features = self.filter(feature=enabled_features, dataset=ds, kind='gp_sklearn', **_skip_filter_checks).features
                     gp_celerite2_features = self.filter(feature=enabled_features, dataset=ds, kind='gp_celerite2', **_skip_filter_checks).features
                     
+                    # TODO: move to run_checks
                     if len(gp_sklearn_features)!=0 and len(gp_celerite2_features)!=0:
                         raise NotImplementedError('Combining GPs from scikit-learn and celerite2 is not supported yet. Please remove or disable one!')
                     
@@ -12036,6 +12037,8 @@ class Bundle(ParameterSet):
                         xqualifier = {'lp': 'wavelength'}.get(ds_ps.kind, 'times')
                         yqualifier = {'lp': 'flux_densities', 'rv': 'rvs', 'lc': 'fluxes'}.get(ds_ps.kind)
                         yerrqualifier = {'lp': 'wavelength'}.get(ds_ps.kind, 'sigmas')
+                        
+                        _exclude_phases_enabled = ds_ps.get_value('exclude_phases_enabled')
                         
                         if ds_ps.kind in ['lc']:
                             ds_comps = [None]
@@ -12070,7 +12073,10 @@ class Bundle(ParameterSet):
 
                                 kwargs = {p.qualifier: p.value for p in gp_ps.exclude(qualifier=['kernel', 'enabled']).to_list() if p.is_visible}
                                 # TODO: replace this with getting the parameter from compute options
-                                exclude_phase_ranges = kwargs.pop('exclude_phase_ranges')
+                                if _exclude_phases_enabled:
+                                    exclude_phase_ranges = ds_ps.get_value('exclude_phases')
+                                else:
+                                    exclude_phase_ranges = []
                                 
                                 alg_operations.append(kwargs.pop('alg_operation'))
                                 gp_kernels.append(gp_kernel_classes.get(kind)(**kwargs))
@@ -12086,7 +12092,7 @@ class Bundle(ParameterSet):
                                         
                                         
                                 if len(exclude_phase_ranges) != 0:
-                                        # get t0, period and mask_phases
+                                    # get t0, period and exclude_phases
                                     ephem = self.get_ephemeris(component='binary', period='period', t0='t0_supconj')
                                     t0 = ephem.get('t0', 0.0)
                                     period = ephem.get('period', 1.0)

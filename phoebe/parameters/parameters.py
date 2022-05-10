@@ -215,6 +215,7 @@ _forbidden_labels += ['requiv', 'requiv_max', 'requiv_min', 'teff', 'abun', 'log
 _forbidden_labels += ['times', 'fluxes', 'sigmas', 'sigmas_lnf',
                      'compute_times', 'compute_phases', 'compute_phases_t0',
                      'phases_period', 'phases_dpdt', 'phases_t0', 'mask_enabled', 'mask_phases',
+                     'exclude_phases_enabled', 'exclude_phases',
                      'solver_times', 'expose_samples', 'expose_failed',
                      'ld_mode', 'ld_func', 'ld_coeffs', 'ld_coeffs_source',
                      'passband', 'intens_weighting',
