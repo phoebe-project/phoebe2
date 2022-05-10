@@ -19,8 +19,8 @@ def test_forbidden(verbose=False):
     b.add_compute('ellc')
 
     b.add_spot(component='primary')
-    b.add_gp_sklearn(dataset='lc01')
-    b.add_gp_celerite2(dataset='lc01')
+    b.add_gaussian_process('sklearn', dataset='lc01')
+    b.add_gaussian_process('celerite2', dataset='lc01')
 
     b.add_solver('estimator.lc_periodogram')
     b.add_solver('estimator.rv_periodogram')

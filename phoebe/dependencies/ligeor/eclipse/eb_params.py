@@ -1,5 +1,6 @@
 import numpy as np
 from numpy import sin, cos, pi
+import warnings
 from scipy.optimize import newton, minimize
 
 class EbParams(object):
@@ -72,25 +73,28 @@ class EbParams(object):
         '''Computes eccentricity and argument of periastron from the separation and widths.'''
 
         if np.isnan(self.sep) or np.isnan(self.width1) or np.isnan(self.width2):
-            print('Cannot esimate eccentricty and argument of periastron: incomplete geometry information')
-            return 0., np.pi/2
+            warnings.warn('Cannot esimate eccentricty and argument of periastron: incomplete geometry information')
+            self.ecc = 0
+            self.per0 = np.pi/2
+            self.esinw = 0
+            self.ecosw = 0
             
-       
-        psi = newton(func=self._f, x0=(12*np.pi*self.sep)**(1./3), fprime=self._df, args=(self.sep,), maxiter=5000)
-        # ecc = sqrt( (0.25*(tan(psi-pi))**2+(swidth-pwidth)**2/(swidth+pwidth)**2)/(1+0.25*(tan(psi-pi))**2) )
-        ecc = (np.sin(0.5*(psi-np.pi))**2+((self.width2-self.width1)/(self.width2+self.width1))**2*np.cos(0.5*(psi-np.pi))**2)**0.5
-        try:
-            w1 = np.arcsin((self.width1-self.width1)/(self.width2+self.width1)/ecc)
-            w2 = np.arccos((1-ecc**2)**0.5/ecc * np.tan(0.5*(psi-np.pi)))
+        else:
+            psi = newton(func=self._f, x0=(12*np.pi*self.sep)**(1./3), fprime=self._df, args=(self.sep,), maxiter=5000)
+            # ecc = sqrt( (0.25*(tan(psi-pi))**2+(swidth-pwidth)**2/(swidth+pwidth)**2)/(1+0.25*(tan(psi-pi))**2) )
+            ecc = (np.sin(0.5*(psi-np.pi))**2+((self.width2-self.width1)/(self.width2+self.width1))**2*np.cos(0.5*(psi-np.pi))**2)**0.5
+            try:
+                w1 = np.arcsin((self.width1-self.width1)/(self.width2+self.width1)/ecc)
+                w2 = np.arccos((1-ecc**2)**0.5/ecc * np.tan(0.5*(psi-np.pi)))
 
-            w = w2 if w1 >= 0 else 2*pi-w2
-        except:
-            w = pi/2
+                w = w2 if w1 >= 0 else 2*pi-w2
+            except:
+                w = pi/2
 
-        self.ecc = ecc
-        self.per0 = w
-        self.esinw = ecc*np.sin(w)
-        self.ecosw = ecc*np.cos(w)
+            self.ecc = ecc
+            self.per0 = w
+            self.esinw = ecc*np.sin(w)
+            self.ecosw = ecc*np.cos(w)
 
 
     def _t0_from_geometry(self, times, period=1, t0_supconj = 0, t0_near_times = True):
@@ -140,7 +144,7 @@ class EbParams(object):
         '''
         rsum1 = np.pi*self.width1*(1-self.ecc**2)/(1+self.ecc*np.sin(self.per0))
         rsum2 = np.pi*self.width2*(1-self.ecc**2)/(1-self.ecc*np.sin(self.per0))
-        self.rsum = np.average([rsum1, rsum2])
+        self.rsum = np.nanmean([rsum1, rsum2])
 
 
     def refine_with_ellc(self, phases, fluxes, sigmas):
