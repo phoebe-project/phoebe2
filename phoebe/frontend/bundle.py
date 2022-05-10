@@ -12027,7 +12027,7 @@ class Bundle(ParameterSet):
                     gp_celerite2_features = self.filter(feature=enabled_features, dataset=ds, kind='gp_celerite2', **_skip_filter_checks).features
                     
                     if len(gp_sklearn_features)!=0 and len(gp_celerite2_features)!=0:
-                        raise NotImplementedError('Combining GPs from scikit-learn and celerite2 is not supported yet. Please remove one with .remove_feature()')
+                        raise NotImplementedError('Combining GPs from scikit-learn and celerite2 is not supported yet. Please remove or disable one!')
                     
                     elif len(gp_sklearn_features)!=0 or len(gp_celerite2_features)!=0:
                         # we'll loop over components (for RVs or LPs, for example)
