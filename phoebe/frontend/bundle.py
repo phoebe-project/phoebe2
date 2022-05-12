@@ -4116,8 +4116,8 @@ class Bundle(ParameterSet):
                 else:
                     raise ValueError("{} could not be found in distributions or solutions".format(dist_or_solution))
 
-            # check for time-dependency issues with GPs
             if len(compute_enabled_gps):
+                # check for time-dependency issues with GPs
                 # then if we're using compute_times/phases, compute_times must cover the range of the dataset times
                 for dataset in compute_enabled_datasets_with_gps:
                     compute_times = self.get_value(qualifier='compute_times', dataset=dataset, context='dataset', unit=u.d, **_skip_filter_checks)
@@ -4164,8 +4164,20 @@ class Bundle(ParameterSet):
                                             self.filter(qualifier='enabled', feature=compute_enabled_gps, compute=compute, **_skip_filter_checks).to_list()+
                                             addl_parameters,
                                             True, 'run_compute')
+                
+                # check for mixing GP backends
+                gps_sklearn = self.filter(kind=['gp_sklearn'], context='feature', **_skip_filter_checks).features
+                gps_sklearn_enabled = self.filter(qualifier='enabled', feature=gps_sklearn, value=True,  **_skip_filter_checks).features
 
-
+                gps_celerite2 = self.filter(kind=['gp_celerite2'], context='feature',  **_skip_filter_checks).features
+                gps_celerite2_enabled = self.filter(qualifier='enabled', feature=gps_celerite2, value=True,  **_skip_filter_checks).features
+                
+                if len(gps_sklearn_enabled) > 0 and len(gps_celerite2_enabled) >0:
+                    report.add_item(self, "mixing of GP kernels from sklearn and celerite2 is not supported. Remove or disable kernels from one",
+                                    gps_sklearn_enabled + gps_celerite2_enabled, 
+                                    True, "run_compute")
+                    
+                
             # 2.2 disables support for boosting.  The boosting parameter in 2.2 only has 'none' as an option, but
             # importing a bundle from old releases may still have 'linear' as an option, so we'll check here
             if compute_kind in ['phoebe'] and self.get_value(qualifier='boosting_method', compute=compute, boosting_method=kwargs.get('boosting_method', None), **_skip_filter_checks) != 'none':
@@ -12026,11 +12038,7 @@ class Bundle(ParameterSet):
                     gp_sklearn_features = self.filter(feature=enabled_features, dataset=ds, kind='gp_sklearn', **_skip_filter_checks).features
                     gp_celerite2_features = self.filter(feature=enabled_features, dataset=ds, kind='gp_celerite2', **_skip_filter_checks).features
                     
-                    # TODO: move to run_checks
-                    if len(gp_sklearn_features)!=0 and len(gp_celerite2_features)!=0:
-                        raise NotImplementedError('Combining GPs from scikit-learn and celerite2 is not supported yet. Please remove or disable one!')
-                    
-                    elif len(gp_sklearn_features)!=0 or len(gp_celerite2_features)!=0:
+                    if len(gp_sklearn_features)!=0 or len(gp_celerite2_features)!=0:
                         # we'll loop over components (for RVs or LPs, for example)
                         # get the data we need to fit the GP model
                         ds_ps = self.get_dataset(dataset=ds, **_skip_filter_checks)
