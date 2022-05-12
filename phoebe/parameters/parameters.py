@@ -215,7 +215,7 @@ _forbidden_labels += ['requiv', 'requiv_max', 'requiv_min', 'teff', 'abun', 'log
 _forbidden_labels += ['times', 'fluxes', 'sigmas', 'sigmas_lnf',
                      'compute_times', 'compute_phases', 'compute_phases_t0',
                      'phases_period', 'phases_dpdt', 'phases_t0', 'mask_enabled', 'mask_phases',
-                     'exclude_phases_enabled', 'exclude_phases',
+                     'gp_exclude_phases_enabled', 'gp_exclude_phases',
                      'solver_times', 'expose_samples', 'expose_failed',
                      'ld_mode', 'ld_func', 'ld_coeffs', 'ld_coeffs_source',
                      'passband', 'intens_weighting',
@@ -7228,6 +7228,13 @@ class Parameter(object):
                     value = False
 
                 return getattr(hier, method)(self.component) == value
+
+            elif qualifier == 'ds_has_enabled_feature':
+                dataset = self.dataset
+                feature_kind = value
+                features_with_kind = self._bundle.filter(context='feature', kind=feature_kind, **_skip_filter_checks).features
+                enabled_features_with_kind = self._bundle.filter(qualifier='enabled', value=True, compute=self.compute, feature=features_with_kind, **_skip_filter_checks).features
+                return dataset in self._bundle.filter(context='feature', feature=enabled_features_with_kind, **_skip_filter_checks).datasets
 
             else:
 
