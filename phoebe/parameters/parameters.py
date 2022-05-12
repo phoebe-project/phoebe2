@@ -3800,6 +3800,70 @@ class ParameterSet(object):
             else:
                 return residuals
 
+    def _calculate_cf(self, model=None, dataset=None, component=None,
+                       consider_gaussian_process=True, mask_enabled=None,
+                       mask_phases=None, cf='mle'):
+        if cf not in ['mle', 'chi2']:
+            raise ValueError("cf must be either 'mle' or 'chi2'")
+
+        ret = 0.
+
+        if model is not None and not isinstance(model, str):
+            raise TypeError("model must be of type string or None")
+
+        if not len(self.filter(context='model', **_skip_filter_checks).models):
+            model_ps = self._bundle.filter(model=model, context='model', dataset=dataset, component=component, **_skip_filter_checks)
+        else:
+            model_ps = self.filter(model=model, context='model', dataset=dataset, component=component, **_skip_filter_checks)
+
+        if model is not None and model not in model_ps.models:
+            raise ValueError("model '{}' not found".format(model))
+
+
+        for ds in model_ps.datasets:
+            ds_comps = model_ps.filter(dataset=ds, **_skip_filter_checks).components
+            if not len(ds_comps):
+                ds_comps = [None]
+
+            for ds_comp in ds_comps:
+                residuals, model_interp = self.calculate_residuals(model=model, dataset=ds, component=ds_comp,
+                                                                   return_interp_model=True,
+                                                                   consider_gaussian_process=consider_gaussian_process,
+                                                                   mask_enabled=mask_enabled, mask_phases=mask_phases,
+                                                                   as_quantity=True)
+                ds_ps = self._bundle.get_dataset(dataset=ds, **_skip_filter_checks)
+                sigmas = ds_ps.get_value(qualifier='sigmas', component=ds_comp, unit=residuals.unit, **_skip_filter_checks)
+
+                mask_enabled = ds_ps.get_value(qualifier='mask_enabled', default=False, mask_enabled=mask_enabled, **_skip_filter_checks)
+                if mask_enabled:
+                    mask_phases = ds_ps.get_value(qualifier='mask_phases', mask_phases=mask_phases, **_skip_filter_checks)
+                    mask_period = ds_ps.get_value(qualifier='phases_period', default='period', **_skip_filter_checks)
+                    mask_dpdt = ds_ps.get_value(qualifier='phases_dpdt', default='dpdt', **_skip_filter_checks)
+                    mask_t0 = ds_ps.get_value(qualifier='phases_t0', **_skip_filter_checks)
+                    if len(mask_phases):
+                        times = ds_ps.get_value(qualifier='times', component=ds_comp, unit=u.d, **_skip_filter_checks)
+                        phases = self._bundle.to_phase(times, period=mask_period, dpdt=mask_dpdt, t0=mask_t0)
+
+                        inds = phase_mask_inds(phases, mask_phases)
+
+                        sigmas = sigmas[inds]
+
+                sigmas_lnf = ds_ps.get_value(qualifier='sigmas_lnf', component=ds_comp, default=-np.inf, **_skip_filter_checks)
+
+                if len(sigmas):
+                    sigmas2 = sigmas**2
+                    if mle and sigmas_lnf != -np.inf:
+                        sigmas2 += model_interp.value**2 * np.exp(2 * sigmas_lnf)
+
+                    if cf=='mle':
+                        ret += np.sum((residuals.value**2 / sigmas2) + np.log(2*np.pi*sigmas2))
+                    else:
+                        ret += np.sum(residuals.value**2 / sigmas2)
+                else:
+                    ret += np.sum(residuals.value**2)
+
+        return ret
+
     def calculate_chi2(self, model=None, dataset=None, component=None,
                        consider_gaussian_process=True, mask_enabled=None,
                        mask_phases=None, mle=False):
@@ -3848,77 +3912,19 @@ class ParameterSet(object):
         * `mask_phases` (list of tuples, optional, default=None): phase masks
             to apply if `mask_enabled = True`.  If None or not provided, will
             default to the values set in the dataset(s).
-        * `mle` (boolean, optional, default=False): compute a maximum likelihood
-            estimator instead of chi2. Can also call
-            <phoebe.parameters.ParameterSet.calculate_mle> (see for more details)
 
         Returns
         -----------
-        * (float) chi2 value (or mle if `mle==True`)
+        * (float) chi2 value
 
         Raises
         ----------
         * NotImplementedError: if the dataset kind is not supported for residuals.
         """
-
-        chi2 = 0.
-
-        if model is not None and not isinstance(model, str):
-            raise TypeError("model must be of type string or None")
-
-        if not len(self.filter(context='model', **_skip_filter_checks).models):
-            model_ps = self._bundle.filter(model=model, context='model', dataset=dataset, component=component, **_skip_filter_checks)
-        else:
-            model_ps = self.filter(model=model, context='model', dataset=dataset, component=component, **_skip_filter_checks)
-
-        if model is not None and model not in model_ps.models:
-            raise ValueError("model '{}' not found".format(model))
-
-
-        for ds in model_ps.datasets:
-            ds_comps = model_ps.filter(dataset=ds, **_skip_filter_checks).components
-            if not len(ds_comps):
-                ds_comps = [None]
-
-            for ds_comp in ds_comps:
-                residuals, model_interp = self.calculate_residuals(model=model, dataset=ds, component=ds_comp,
-                                                                   return_interp_model=True,
-                                                                   consider_gaussian_process=consider_gaussian_process,
-                                                                   mask_enabled=mask_enabled, mask_phases=mask_phases,
-                                                                   as_quantity=True)
-                ds_ps = self._bundle.get_dataset(dataset=ds, **_skip_filter_checks)
-                sigmas = ds_ps.get_value(qualifier='sigmas', component=ds_comp, unit=residuals.unit, **_skip_filter_checks)
-
-                mask_enabled = ds_ps.get_value(qualifier='mask_enabled', default=False, mask_enabled=mask_enabled, **_skip_filter_checks)
-                if mask_enabled:
-                    mask_phases = ds_ps.get_value(qualifier='mask_phases', mask_phases=mask_phases, **_skip_filter_checks)
-                    mask_period = ds_ps.get_value(qualifier='phases_period', default='period', **_skip_filter_checks)
-                    mask_dpdt = ds_ps.get_value(qualifier='phases_dpdt', default='dpdt', **_skip_filter_checks)
-                    mask_t0 = ds_ps.get_value(qualifier='phases_t0', **_skip_filter_checks)
-                    if len(mask_phases):
-                        times = ds_ps.get_value(qualifier='times', component=ds_comp, unit=u.d, **_skip_filter_checks)
-                        phases = self._bundle.to_phase(times, period=mask_period, dpdt=mask_dpdt, t0=mask_t0)
-
-                        inds = phase_mask_inds(phases, mask_phases)
-
-                        sigmas = sigmas[inds]
-
-
-                sigmas_lnf = ds_ps.get_value(qualifier='sigmas_lnf', component=ds_comp, default=-np.inf, **_skip_filter_checks)
-
-                if len(sigmas):
-                    sigmas2 = sigmas**2
-                    if mle and sigmas_lnf != -np.inf:
-                        sigmas2 += model_interp.value**2 * np.exp(2 * sigmas_lnf)
-
-                    if mle:
-                        chi2 += np.sum((residuals.value**2 / sigmas2) + np.log(2*np.pi*sigmas2))
-                    else:
-                        chi2 += np.sum(residuals.value**2 / sigmas2)
-                else:
-                    chi2 += np.sum(residuals.value**2)
-
-        return chi2
+        return self._calculate_cf(model=model, dataset=dataset, component=component,
+                                  consider_gaussian_process=consider_gaussian_process,
+                                  mask_enabled=mask_enabled, mask_phases=mask_phases,
+                                  cf='chi2')
 
     def calculate_mle(self, model=None, dataset=None, component=None,
                       consider_gaussian_process=True, mask_enabled=None,
@@ -3984,10 +3990,10 @@ class ParameterSet(object):
         ----------
         * NotImplementedError: if the dataset kind is not supported for residuals.
         """
-        return self.calculate_chi2(model=model, dataset=dataset, component=component,
-                                   consider_gaussian_process=consider_gaussian_process,
-                                   mask_enabled=mask_enabled, mask_phases=mask_phases,
-                                   mle=True)
+        return self._calculate_cf(model=model, dataset=dataset, component=component,
+                                  consider_gaussian_process=consider_gaussian_process,
+                                  mask_enabled=mask_enabled, mask_phases=mask_phases,
+                                  cf='mle')
 
     def calculate_lnlikelihood(self, model=None, dataset=None, component=None, consider_gaussian_process=True):
         """
