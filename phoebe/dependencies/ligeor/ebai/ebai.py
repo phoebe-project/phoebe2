@@ -1,7 +1,6 @@
 import numpy as np
 import warnings
 import matplotlib.pyplot as plt
-plt.style.use('science')
 from scipy.interpolate import interp1d
 
 try:
