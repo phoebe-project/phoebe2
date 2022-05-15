@@ -299,7 +299,7 @@ _forbidden_labels += ['colat', 'long', 'radius', 'relteff',
                       'rho', 'sigma', 'tau', 'period', 'Q0', 'dQ', 'f', 'eps',
                       'sigma_0', 'constant_value_bounds', 'length_scale_bounds',
                       'noise_level_bounds', 'periodicity_bounds', 'alpha_bounds', 'nu_bounds',
-                      'sigma_0_bounds', 'alg_operation', 'exclude_phase_ranges'
+                      'sigma_0_bounds', 'alg_operation',
                       ]
 
 # from figure:

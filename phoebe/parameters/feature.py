@@ -125,8 +125,6 @@ def gp_sklearn(feature, **kwargs):
     * `periodicity` (float, optional, default=1.0): only applicable if `kernel` is 'exp_sine_sqaured'.
     * `sigma_0` (float, optional, default=1.0): only applicable if `kernel` is 'sigma_0'.
     * `alg_operation` (string, default='sum'): algebraic operation for the kernel with previously added ones.
-    * `exclude_phase_ranges` (list, optional, default=[]): list of start and end values defining phase ranges to
-        exclude from modeling with GPs.
 
     Returns
     --------
@@ -216,8 +214,6 @@ def gp_celerite2(feature, **kwargs):
     * `eps` (float, optional, default=1e-5): only applicable if `kernel` is
         'sho' or 'matern32'.
     * `alg_operation` (string, default='sum'): algebraic operation for the kernel with previously added ones.
-    * `exclude_phase_ranges` (list, optional, default=[]): list of start and end values defining phase ranges to
-        exclude from modeling with GPs.
 
     Returns
     --------
