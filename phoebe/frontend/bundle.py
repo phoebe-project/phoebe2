@@ -5621,6 +5621,7 @@ class Bundle(ParameterSet):
             self._check_label(kwargs['feature'], allow_overwrite=False)
 
         self._attach_params(params, **metawargs)
+
         # attach params called _check_copy_for, but only on it's own parameterset
         self._check_copy_for()
 
@@ -12045,9 +12046,9 @@ class Bundle(ParameterSet):
                         xqualifier = {'lp': 'wavelength'}.get(ds_ps.kind, 'times')
                         yqualifier = {'lp': 'flux_densities', 'rv': 'rvs', 'lc': 'fluxes'}.get(ds_ps.kind)
                         yerrqualifier = {'lp': 'wavelength'}.get(ds_ps.kind, 'sigmas')
-                        
-                        _exclude_phases_enabled = ds_ps.get_value('exclude_phases_enabled')
-                        
+
+                        _exclude_phases_enabled = computeparams.get_value(qualifier='gp_exclude_phases_enabled', dataset=ds, **_skip_filter_checks)
+
                         if ds_ps.kind in ['lc']:
                             ds_comps = [None]
                         else:
@@ -12073,8 +12074,8 @@ class Bundle(ParameterSet):
                         gp_kernels = []
                         alg_operations = []
                         
-                        def _load_gps(gp_kernel_classes, gp_features):
-                                
+                        def _load_gps(gp_kernel_classes, gp_features, ds):
+
                             for gp in gp_features:
                                 gp_ps = self.filter(feature=gp, context='feature', **_skip_filter_checks)
                                 kind = gp_ps.get_value(qualifier='kernel', **_skip_filter_checks)
@@ -12082,7 +12083,7 @@ class Bundle(ParameterSet):
                                 kwargs = {p.qualifier: p.value for p in gp_ps.exclude(qualifier=['kernel', 'enabled']).to_list() if p.is_visible}
                                 # TODO: replace this with getting the parameter from compute options
                                 if _exclude_phases_enabled:
-                                    exclude_phase_ranges = ds_ps.get_value('exclude_phases')
+                                    exclude_phase_ranges = computeparams.get_value(qualifier='gp_exclude_phases', dataset=ds, **_skip_filter_checks)
                                 else:
                                     exclude_phase_ranges = []
                                 
@@ -12141,7 +12142,7 @@ class Bundle(ParameterSet):
                                                 'exp_sine_squared': _sklearn.gaussian_process.kernels.ExpSineSquared,
                                                 'dot_product': _sklearn.gaussian_process.kernels.DotProduct}
                             
-                            gp_kernel, gp_x, gp_y, gp_yerr = _load_gps(gp_kernel_classes, gp_sklearn_features)
+                            gp_kernel, gp_x, gp_y, gp_yerr = _load_gps(gp_kernel_classes, gp_sklearn_features, ds)
                             
                             gp_regressor = GaussianProcessRegressor(kernel=gp_kernel)
                             gp_regressor.fit(gp_x.reshape(-1,1), gp_y)
@@ -12154,7 +12155,7 @@ class Bundle(ParameterSet):
                                                 'rotation': _celerite2.terms.RotationTerm,
                                                 'matern32': _celerite2.terms.Matern32Term
                                                 }
-                            gp_kernel, gp_x, gp_y, gp_yerr = _load_gps(gp_kernel_classes, gp_celerite2_features)
+                            gp_kernel, gp_x, gp_y, gp_yerr = _load_gps(gp_kernel_classes, gp_celerite2_features, ds)
                             
                             gp = _celerite2.GaussianProcess(gp_kernel, mean=0.0)
                             gp.compute(gp_x, yerr=gp_yerr) 
