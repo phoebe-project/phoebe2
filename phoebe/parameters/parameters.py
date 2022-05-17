@@ -3653,6 +3653,7 @@ class ParameterSet(object):
 
         See also:
         * <phoebe.parameters.ParameterSet.calculate_chi2>
+        * <phoebe.parameters.ParameterSet.calculate_lnf>
         * <phoebe.parameters.ParameterSet.calculate_lnlikelihood>
 
         Arguments
@@ -3801,69 +3802,13 @@ class ParameterSet(object):
             else:
                 return residuals
 
-    def calculate_chi2(self, model=None, dataset=None, component=None,
-                       consider_gaussian_process=True,
-                       mask_enabled=None, mask_phases=None):
-        """
-        Compute the chi2 between a model and the observed values in the dataset(s).
+    def _calculate_cf(self, model=None, dataset=None, component=None,
+                       consider_gaussian_process=True, mask_enabled=None,
+                       mask_phases=None, cf='lnf'):
+        if cf not in ['lnf', 'chi2']:
+            raise ValueError("cf must be either 'lnf' or 'chi2'")
 
-        Currently supports the following datasets:
-        * <phoebe.parameters.dataset.lc>
-        * <phoebe.parameters.dataset.rv>
-
-        If necessary (due to the `compute_times`/`compute_phases` parameters
-        or a change in the dataset `times` since the model was computed),
-        interpolation will be handled, in time-space if possible, and in
-        phase-space otherwise. See
-        <phoebe.parameters.FloatArrayParameter.interp_value>.
-
-        Residuals per-dataset for the given model are computed by
-        <phoebe.parameters.ParameterSet.calculate_residuals>.  The returned
-        chi2 value is then the sum over the chi2 of each dataset, where each
-        dataset's chi2 value is computed as the sum of squares of residuals
-        over the squares of sigmas (if available).
-
-        If `sigmas_lnf` is not -inf (default value), then the following term
-        is added to the squares of sigmas:
-
-        `interpolated_model**2 * np.exp(2 * sigmas_lnf)`
-
-
-        See also:
-        * <phoebe.parameters.ParameterSet.calculate_residuals>
-        * <phoebe.parameters.ParameterSet.calculate_lnlikelihood>
-        * <phoebe.frontend.bundle.Bundle.calculate_lnp>
-
-        Arguments
-        -----------
-        * `model` (string, optional, default=None): model to compare against
-            observations.  Required if more than one model exist.
-        * `dataset` (string or list, optional, default=None): dataset(s) for comparison.
-            Will sum over chi2 values of all datasets that match the filter.  So
-            if not provided, will default to all datasets exposed in the model.
-        * `component` (string or list, optional, default=None): component(s) for
-            comparison.  Required only if more than one component exist in the
-            dataset (for RVs, for example) and not all should be included in
-            the chi2
-        * `consider_gaussian_process` (bool, optional, default=True): whether
-            to consider a system with gaussian process(es) as time-dependent
-        * `mask_enabled` (bool, optional, default=None): whether to enable
-            masking on the dataset(s).  If None or not provided, will default to
-            the values set in the dataset(s).
-        * `mask_phases` (list of tuples, optional, default=None): phase masks
-            to apply if `mask_enabled = True`.  If None or not provided, will
-            default to the values set in the dataset(s).
-
-        Returns
-        -----------
-        * (float) chi2 value
-
-        Raises
-        ----------
-        * NotImplementedError: if the dataset kind is not supported for residuals.
-        """
-
-        chi2 = 0
+        ret = 0.
 
         if model is not None and not isinstance(model, str):
             raise TypeError("model must be of type string or None")
@@ -3905,33 +3850,49 @@ class ParameterSet(object):
 
                         sigmas = sigmas[inds]
 
-
                 sigmas_lnf = ds_ps.get_value(qualifier='sigmas_lnf', component=ds_comp, default=-np.inf, **_skip_filter_checks)
 
                 if len(sigmas):
                     sigmas2 = sigmas**2
-                    if sigmas_lnf != -np.inf:
-                        sigmas2 += model_interp.value ** 2 * np.exp(2 * sigmas_lnf)
+                    if cf == 'lnf' and sigmas_lnf != -np.inf:
+                        sigmas2 += model_interp.value**2 * np.exp(2 * sigmas_lnf)
 
-                    chi2 += np.sum((residuals.value**2 / sigmas2) + np.log(sigmas2))
+                    if cf == 'lnf':
+                        ret += np.sum((residuals.value**2 / sigmas2) + np.log(2*np.pi*sigmas2))
+                    else:
+                        ret += np.sum(residuals.value**2 / sigmas2)
                 else:
-                    chi2 += np.sum(residuals.value**2)
+                    ret += np.sum(residuals.value**2)
 
-        return chi2
+        return ret
 
-    def calculate_lnlikelihood(self, model=None, dataset=None, component=None, consider_gaussian_process=True):
+    def calculate_chi2(self, model=None, dataset=None, component=None,
+                       consider_gaussian_process=True, mask_enabled=None,
+                       mask_phases=None):
         """
-        Compute the log-likelihood between a model and the observed values in the dataset(s).
+        Compute the chi2 between a model and the observed values in the dataset(s).
 
         Currently supports the following datasets:
         * <phoebe.parameters.dataset.lc>
         * <phoebe.parameters.dataset.rv>
 
-        This returns -0.5 * chi2 (see <phoebe.parameters.ParameterSet.calculate_chi2>)
+        If necessary (due to the `compute_times`/`compute_phases` parameters
+        or a change in the dataset `times` since the model was computed),
+        interpolation will be handled, in time-space if possible, and in
+        phase-space otherwise. See
+        <phoebe.parameters.FloatArrayParameter.interp_value>.
+
+        Residuals per-dataset for the given model are computed by
+        <phoebe.parameters.ParameterSet.calculate_residuals>.  The returned
+        chi2 value is then the sum over the chi2 of each dataset, where each
+        dataset's chi2 value is computed as the sum of squares of residuals
+        over the squares of sigmas (if available).
+
 
         See also:
         * <phoebe.parameters.ParameterSet.calculate_residuals>
-        * <phoebe.parameters.ParameterSet.calculate_chi2>
+        * <phoebe.parameters.ParameterSet.calculate_lnf>
+        * <phoebe.parameters.ParameterSet.calculate_lnlikelihood>
         * <phoebe.frontend.bundle.Bundle.calculate_lnp>
 
         Arguments
@@ -3947,6 +3908,77 @@ class ParameterSet(object):
             the chi2
         * `consider_gaussian_process` (bool, optional, default=True): whether
             to consider a system with gaussian process(es) as time-dependent
+        * `mask_enabled` (bool, optional, default=None): whether to enable
+            masking on the dataset(s).  If None or not provided, will default to
+            the values set in the dataset(s).
+        * `mask_phases` (list of tuples, optional, default=None): phase masks
+            to apply if `mask_enabled = True`.  If None or not provided, will
+            default to the values set in the dataset(s).
+
+        Returns
+        -----------
+        * (float) chi2 value
+
+        Raises
+        ----------
+        * NotImplementedError: if the dataset kind is not supported for residuals.
+        """
+        return self._calculate_cf(model=model, dataset=dataset, component=component,
+                                  consider_gaussian_process=consider_gaussian_process,
+                                  mask_enabled=mask_enabled, mask_phases=mask_phases,
+                                  cf='chi2')
+
+    def calculate_lnlikelihood(self, model=None, dataset=None, component=None,
+                               consider_gaussian_process=True,
+                               mask_enabled=None, mask_phases=None):
+        """
+        Compute the log-likelihood between a model and the observed values in the dataset(s).
+
+        If necessary (due to the `compute_times`/`compute_phases` parameters
+        or a change in the dataset `times` since the model was computed),
+        interpolation will be handled, in time-space if possible, and in
+        phase-space otherwise. See <phoebe.parameters.FloatArrayParameter.interp_value>.
+
+        Residuals per-dataset for the given model are computed by
+        <phoebe.parameters.ParameterSet.calculate_residuals>.  The returned
+        lnf value is then the sum over the lnf of each dataset, where each
+        dataset's lnf value is computed as the sum of squares of residuals
+        over the squares of sigmas (if available) plus log(2*pi*sigmas**2).
+
+        If `sigmas_lnf` is not -inf (default value), then the following term
+        is added to the squares of sigmas (for both terms):
+
+        `interpolated_model**2 * np.exp(2 * sigmas_lnf)`
+
+
+        See also:
+        * <phoebe.parameters.ParameterSet.calculate_chi2>
+        * <phoebe.parameters.ParameterSet.calculate_residuals>
+        * <phoebe.parameters.ParameterSet.calculate_lnlikelihood>
+        * <phoebe.frontend.bundle.Bundle.calculate_lnp>
+
+        Arguments
+        -----------
+        * `model` (string, optional, default=None): model to compare against
+            observations.  Required if more than one model exist.
+        * `dataset` (string or list, optional, default=None): dataset(s) for
+          comparison.
+            Will sum over chi2 values of all datasets that match the filter.
+            So if not provided, will default to all datasets exposed in the
+            model.
+        * `component` (string or list, optional, default=None): component(s) for
+            comparison.  Required only if more than one component exist in the
+            dataset (for RVs, for example) and not all should be included in
+            the chi2
+        * `consider_gaussian_process` (bool, optional, default=True): whether
+            to consider a system with gaussian process(es) as time-dependent
+        * `mask_enabled` (bool, optional, default=None): whether to enable
+            masking on the dataset(s).  If None or not provided, will default
+            to the values set in the dataset(s).
+        * `mask_phases` (list of tuples, optional, default=None): phase masks
+            to apply if `mask_enabled = True`.  If None or not provided, will
+            default to the values set in the dataset(s).
+
 
         Returns
         -----------
@@ -3957,7 +3989,13 @@ class ParameterSet(object):
         * NotImplementedError: if the dataset kind is not supported for residuals.
         """
 
-        return -0.5 * self.calculate_chi2(model, dataset, component, consider_gaussian_process=consider_gaussian_process)
+        return -0.5 * self._calculate_cf(model=model,
+                                         dataset=dataset,
+                                         component=component,
+                                         consider_gaussian_process=consider_gaussian_process,
+                                         mask_enabled=mask_enabled,
+                                         mask_phases=mask_phases,
+                                         cf='lnf')
 
     def _unpack_plotting_kwargs(self, animate=False, **kwargs):
 
