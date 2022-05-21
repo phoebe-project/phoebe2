@@ -36,11 +36,11 @@ except ImportError:
     _use_emcee = False
 else:
     _use_emcee = True
-    
+
 try:
     import sklearn
 except ImportError:
-    _use_sklearn = False 
+    _use_sklearn = False
 else:
     _use_sklearn = True
 
@@ -633,14 +633,14 @@ class Lc_GeometryBackend(BaseSolverBackend):
 
         interactive = kwargs.get('interactive', False)
         analytical_model = kwargs.get('analytical_model', 'two-gaussian')
-        
+
         model_classes = {'two-gaussian': ligeor.models.TwoGaussianModel,
                         'polyfit': ligeor.models.Polyfit}
-        
+
         model = model_classes.get(analytical_model)(phases=phases, fluxes=fluxes, sigmas=sigmas)
         model.fit()
         eclipse_dict = model.compute_eclipse_params(interactive=interactive)
-        
+
         fitted_params = [t0_supconj_param, ecc_param, per0_param, rsum_param, teffratio_param]
         fit_eclipses = kwargs.get('fit_eclipses', False)
         if fit_eclipses:
@@ -651,8 +651,8 @@ class Lc_GeometryBackend(BaseSolverBackend):
                 fitted_params += [rratio_param, incl_param]
             except:
                 raise ImportError('ellc needs to be installed to refine the fit when fit_eclipses = True')
-            
-        eb_params = ligeor.eclipse.EbParams(eclipse_dict, fit_eclipses=fit_eclipses) 
+
+        eb_params = ligeor.eclipse.EbParams(eclipse_dict, fit_eclipses=fit_eclipses)
         t0_near_times = kwargs.get('t0_near_times', True)
         t0_supconj_new = eb_params._t0_from_geometry(times, period=period, t0_supconj = t0_supconj_old, t0_near_times = t0_near_times)
         #compute_eclipse_params(phases, fluxes, sigmas, fit_result=fit_result, diagnose=diagnose)
@@ -663,16 +663,16 @@ class Lc_GeometryBackend(BaseSolverBackend):
 
         fitted_uniqueids = [p.uniqueid for p in fitted_params]
         fitted_twigs = [p.twig for p in fitted_params]
-        
+
         fitted_values = [t0_supconj_new, eb_params.ecc, eb_params.per0, eb_params.rsum, eb_params.teffratio]
         if fit_eclipses:
             fitted_values += [eb_params.rratio, eb_params.incl]
         fitted_values += [mask_phases for ds in lc_datasets]
-        
-        fitted_units = [u.d.to_string(), 
-                        u.dimensionless_unscaled.to_string(), 
+
+        fitted_units = [u.d.to_string(),
+                        u.dimensionless_unscaled.to_string(),
                         u.rad.to_string(),
-                        u.dimensionless_unscaled.to_string(), 
+                        u.dimensionless_unscaled.to_string(),
                         u.dimensionless_unscaled.to_string()]
         if fit_eclipses:
             fitted_units += [u.dimensionless_unscaled.to_string(), u.deg.to_string()]
@@ -1203,11 +1203,11 @@ class EbaiBackend(BaseSolverBackend):
         orbit_ps = b.get_component(component=orbit, **_skip_filter_checks)
 
         morphology = 'detached' if len(b.hierarchy.get_envelopes()) == 0 else 'contact'
-        
+
         t0_supconj_param = orbit_ps.get_parameter(qualifier='t0_supconj', **_skip_filter_checks)
         incl_param = orbit_ps.get_parameter(qualifier='incl', **_skip_filter_checks)
         teffratio_param = orbit_ps.get_parameter(qualifier='teffratio', **_skip_filter_checks)
-        
+
         if morphology == 'detached':
             requivsumfrac_param = orbit_ps.get_parameter(qualifier='requivsumfrac', **_skip_filter_checks)
             esinw_param = orbit_ps.get_parameter(qualifier='esinw', **_skip_filter_checks)
@@ -1224,16 +1224,16 @@ class EbaiBackend(BaseSolverBackend):
             phase_bin = kwargs.get('phase_nbins')
 
         times, phases, fluxes, sigmas = _get_combined_lc(b, lc_datasets, lc_combine, phase_component=orbit, mask=True, normalize=True, phase_sorted=True, phase_bin=phase_bin)
-        
+
         ebai_method = kwargs.get('ebai_method', 'knn')
-        
+
         if ebai_method == 'knn' and _use_sklearn == False:
             raise ImportError('Please install scikit-learn to use the knn method!')
         db_suffix = '2g' if morphology == 'contact' or ebai_method == 'mlp' else 'pf'
         ebai_phase_bins = 201
-        
+
         lc_geom_dict = ligeor.models.TwoGaussianModel.estimate_eclipse_positions_widths(phases, fluxes)
-        
+
         ecl_positions = lc_geom_dict.get('ecl_positions')
         # assume primary is close to zero?
         pshift = ecl_positions[np.argmin(abs(np.array(ecl_positions)))]
@@ -1241,12 +1241,12 @@ class EbaiBackend(BaseSolverBackend):
         phases_shifted[phases_shifted > 0.5] = phases_shifted[phases_shifted>0.5]-1.
         phases_shifted[phases_shifted < -0.5] = phases_shifted[phases_shifted<-0.5]+1.
         s=np.argsort(phases_shifted)
-        
+
         if db_suffix == '2g':
             lcModel = ligeor.models.TwoGaussianModel(phases=phases_shifted[s], fluxes=fluxes[s], sigmas=sigmas[s])
         else:
             lcModel = ligeor.models.Polyfit(phases=phases_shifted[s], fluxes=fluxes[s], sigmas=sigmas[s])
-            
+
         lcModel.fit()
         ebai_phases = np.linspace(-0.5,0.5,ebai_phase_bins)
         ebai_fluxes = lcModel.compute_model(ebai_phases, best_fit=True)
@@ -1258,7 +1258,7 @@ class EbaiBackend(BaseSolverBackend):
             path = os.path.abspath(__file__)
             dir_path = os.path.dirname(path)
             ebai_model_file = '{}/knn/{}.{}.knn'.format(dir_path, morphology, db_suffix)
-        
+
             with open(ebai_model_file, 'rb') as f:
                 ebaiModel = pickle.load(f)
 
@@ -1300,10 +1300,10 @@ class EbaiBackend(BaseSolverBackend):
                 fitted_params = [t0_supconj_param, teffratio_param, requivsumfrac_param, esinw_param, ecosw_param, incl_param]
                 fitted_values = [t0_supconj, teffratio, requivsumfrac, esinw, ecosw, np.arcsin(sini)]
                 fitted_units = [u.d.to_string(), u.dimensionless_unscaled.to_string(), u.dimensionless_unscaled.to_string(), u.dimensionless_unscaled.to_string(), u.dimensionless_unscaled.to_string(), u.rad.to_string()]
-                    
+
         fitted_uniqueids = [p.uniqueid for p in fitted_params]
         fitted_twigs = [p.twig for p in fitted_params]
-  
+
         return [[{'qualifier': 'orbit', 'value': orbit},
                  {'qualifier': 'input_phases', 'value': ((phases-pshift+0.5) % 1) - 0.5},
                  {'qualifier': 'input_fluxes', 'value': fluxes},
@@ -2009,13 +2009,6 @@ class DynestyBackend(BaseSolverBackend):
 
 
 class _ScipyOptimizeBaseBackend(BaseSolverBackend):
-    """
-    See <phoebe.parameters.solver.optimizer.nelder_mead>.
-
-    The run method in this class will almost always be called through the bundle, using
-    * <phoebe.frontend.bundle.Bundle.add_solver>
-    * <phoebe.frontend.bundle.Bundle.run_solver>
-    """
     def __init__(self):
         super(_ScipyOptimizeBaseBackend, self).__init__()
         self._allow_mpi = False
@@ -2101,7 +2094,7 @@ class _ScipyOptimizeBaseBackend(BaseSolverBackend):
                     v = v.to(fitted_units[index]).value
                 p0[p_ind] = v
             else:
-                logger.warning("ignoring {}={} in initial_values as was not found in fit_parameters".format(twig, value))
+                logger.warning("ignoring {}={} in initial_values as was not found in fit_parameters".format(twig_orig, value))
 
         compute_kwargs = {k:v for k,v in kwargs.items() if k in b.get_compute(compute=compute, **_skip_filter_checks).qualifiers}
 
@@ -2220,6 +2213,13 @@ class _ScipyOptimizeBaseBackend(BaseSolverBackend):
 
 
 class Nelder_MeadBackend(_ScipyOptimizeBaseBackend):
+    """
+    See <phoebe.parameters.solver.optimizer.nelder_mead>.
+
+    The run method in this class will almost always be called through the bundle, using
+    * <phoebe.frontend.bundle.Bundle.add_solver>
+    * <phoebe.frontend.bundle.Bundle.run_solver>
+    """
     @property
     def method(self):
         return 'nelder-mead'
@@ -2229,6 +2229,13 @@ class Nelder_MeadBackend(_ScipyOptimizeBaseBackend):
         return ['maxiter', 'maxfev', 'xatol', 'fatol', 'adaptive']
 
 class PowellBackend(_ScipyOptimizeBaseBackend):
+    """
+    See <phoebe.parameters.solver.optimizer.powell>.
+
+    The run method in this class will almost always be called through the bundle, using
+    * <phoebe.frontend.bundle.Bundle.add_solver>
+    * <phoebe.frontend.bundle.Bundle.run_solver>
+    """
     @property
     def method(self):
         return 'powell'
@@ -2238,6 +2245,13 @@ class PowellBackend(_ScipyOptimizeBaseBackend):
         return ['maxiter', 'maxfev', 'xtol', 'ftol']
 
 class CgBackend(_ScipyOptimizeBaseBackend):
+    """
+    See <phoebe.parameters.solver.optimizer.cg>.
+
+    The run method in this class will almost always be called through the bundle, using
+    * <phoebe.frontend.bundle.Bundle.add_solver>
+    * <phoebe.frontend.bundle.Bundle.run_solver>
+    """
     @property
     def method(self):
         return 'cg'
@@ -2246,6 +2260,222 @@ class CgBackend(_ScipyOptimizeBaseBackend):
     def valid_options(self):
         return ['maxiter', 'gtol', 'norm']
 
+
+class Differential_CorrectionsBackend(BaseSolverBackend):
+    """
+    See <phoebe.parameters.solver.optimizer.differential_corrections>.
+
+    The run method in this class will almost always be called through the bundle, using
+    * <phoebe.frontend.bundle.Bundle.add_solver>
+    * <phoebe.frontend.bundle.Bundle.run_solver>
+    """
+    def __init__(self):
+        super().__init__()
+        self._allow_mpi = False
+
+    @property
+    def workers_need_solution_ps(self):
+        # TODO: only if progress_every_niters?
+        return False
+
+    def run_checks(self, b, solver, compute, **kwargs):
+        solver_ps = b.get_solver(solver=solver, **_skip_filter_checks)
+        if not len(solver_ps.get_value(qualifier='fit_parameters', fit_parameters=kwargs.get('fit_parameters', None), expand=True)):
+            raise ValueError("cannot run differential_corrections without any parameters in fit_parameters")
+
+    def _get_packet_and_solution(self, b, solver, **kwargs):
+        # NOTE: b, solver, compute, backend will be added by get_packet_and_solution
+        solution_params = []
+
+        solution_params += [_parameters.ArrayParameter(qualifier='fitted_uniqueids', visible_if='false', value=[], advanced=True, readonly=True, description='uniqueids of parameters fitted by the minimizer')]
+        solution_params += [_parameters.ArrayParameter(qualifier='fitted_twigs', value=[], readonly=True, description='twigs of parameters fitted by the minimizer')]
+        solution_params += [_parameters.SelectTwigParameter(qualifier='adopt_parameters', value=[], description='which of the parameters should be included when adopting the solution')]
+        solution_params += [_parameters.BoolParameter(qualifier='adopt_distributions', value=False, description='whether to create a distribution (of delta functions of all parameters in adopt_parameters) when calling adopt_solution.')]
+        solution_params += [_parameters.BoolParameter(qualifier='adopt_values', value=True, description='whether to update the parameter face-values (of all parameters in adopt_parameters) when calling adopt_solution.')]
+
+        solution_params += [_parameters.ArrayParameter(qualifier='initial_values', value=[], readonly=True, description='initial values before running differential corrections (in current default units of each parameter)')]
+        solution_params += [_parameters.ArrayParameter(qualifier='steps', value=[], readonly=True, description='Steps used during differential corrections')]
+        solution_params += [_parameters.ArrayParameter(qualifier='fitted_values', value=[], readonly=True, description='final values returned by the minimizer (in current default units of each parameter)')]
+        solution_params += [_parameters.ArrayParameter(qualifier='fitted_units', value=[], advanced=True, readonly=True, description='units of the fitted_values')]
+        if kwargs.get('expose_lnprobabilities', False):
+            solution_params += [_parameters.FloatParameter(qualifier='initial_lnprobability', value=0.0, readonly=True, default_unit=u.dimensionless_unscaled, description='lnprobability of the initial_values')]
+            solution_params += [_parameters.FloatParameter(qualifier='fitted_lnprobability', value=0.0, readonly=True, default_unit=u.dimensionless_unscaled, description='lnprobability of the fitted_values')]
+
+        return kwargs, _parameters.ParameterSet(solution_params)
+
+    def run_worker(self, b, solver, compute, **kwargs):
+        if mpi.within_mpirun:
+            is_master = mpi.myrank == 0
+        else:
+            is_master = True
+
+        if not is_master:
+            # rejoin the pool to get per-time or per-dataset parallelization by
+            # backends that support that
+            return
+
+        continue_from = kwargs.get('continue_from')
+        if continue_from == 'None':
+            fit_parameters = kwargs.get('fit_parameters') # list of twigs
+            initial_values = kwargs.get('initial_values') # dictionary
+        else:
+            continue_from_ps = kwargs.get('continue_from_ps', b.filter(context='solution', solution=continue_from, **_skip_filter_checks))
+            fit_parameters = continue_from_ps.get_value('fitted_twigs')
+            initial_values = {twig: value for twig, value in zip(fit_parameters, continue_from_ps.get_value('fitted_values'))}
+        custom_steps = kwargs.get('steps')
+
+
+        params_uniqueids = []
+        params_twigs = []
+        p0 = []
+        steps = []
+        fitted_units = []
+        for twig_orig in fit_parameters:
+            twig, index = _extract_index_from_string(twig_orig)
+            p = b.get_parameter(twig=twig, context=['component', 'dataset', 'feature', 'system'], **_skip_filter_checks)
+            params_uniqueids.append(p.uniqueid if index is None else p.uniqueid+'[{}]'.format(index))
+            params_twigs.append(p.twig if index is None else twig_orig)
+            value = p.get_value() if index is None else p.get_value()[index]
+            p0.append(value)
+            steps.append(value/100.)  # TODO: use limits if set?
+            fitted_units.append(p.get_default_unit().to_string())
+
+        # now override from initial values
+        fitted_params_ps = b.filter(uniqueid=params_uniqueids, **_skip_filter_checks)
+        for twig_orig, v in initial_values.items():
+            twig, index = _extract_index_from_string(twig_orig)
+            p = fitted_params_ps.get_parameter(twig=twig, **_skip_filter_checks)
+            uniqueid = p.uniqueid if index is None else p.uniqueid+'[{}]'.format(index)
+            if uniqueid in params_uniqueids:
+                p_ind = params_uniqueids.index(p.uniqueid)
+                if hasattr(v, 'unit'):
+                    v = v.to(fitted_units[index]).value
+                p0[p_ind] = v
+            else:
+                logger.warning("ignoring {}={} in initial_values as was not found in fit_parameters".format(twig_orig, value))
+
+        for twig_orig, s in custom_steps.items():
+            twig, index = _extract_index_from_string(twig_orig)
+            p = fitted_params_ps.get_parameter(twig=twig, **_skip_filter_checks)
+            uniqueid = p.uniqueid if index is None else p.uniqueid+'[{}]'.format(index)
+            if uniqueid in params_uniqueids:
+                p_ind = params_uniqueids.index(p.uniqueid)
+                if hasattr(s, 'unit'):
+                    s = s.to(fitted_units[index]).value
+                steps[p_ind] = s
+            else:
+                logger.warning("ignoring {}={} in steps as was not found in fit_parameters".format(twig_orig, s))
+
+        compute_kwargs = {k:v for k,v in kwargs.items() if k in b.get_compute(compute=compute, **_skip_filter_checks).qualifiers}
+
+        def _get_packetlist(b_solver, corrections, progress):
+            return_ = [{'qualifier': 'fitted_uniqueids', 'value': params_uniqueids},
+                    {'qualifier': 'fitted_twigs', 'value': params_twigs},
+                    {'qualifier': 'initial_values', 'value': p0},
+                    {'qualifier': 'steps', 'value': steps},
+                    {'qualifier': 'fitted_values', 'value': p0+corrections},
+                    {'qualifier': 'fitted_units', 'value': [u if isinstance(u, str) else u.to_string() for u in fitted_units]},
+                    {'qualifier': 'adopt_parameters', 'value': params_twigs, 'choices': params_twigs}]
+
+            if kwargs.get('expose_lnprobabilities', False):
+                custom_lnprobability_callable = kwargs.get('custom_lnprobability_callable')
+
+                if custom_lnprobability_callable is None:
+                    initial_lnprobability = b_solver.calculate_lnlikelihood(model='baseline', consider_gaussian_process=False)
+                else:
+                    initial_lnprobability = custom_lnprobability_callable(b_solver, model='baseline')
+                if _use_progressbar:
+                    _dc_pbar.update(1)
+
+                args = (b_solver, params_uniqueids, compute, [], None, kwargs.get('solution', None), compute_kwargs, custom_lnprobability_callable)
+                fitted_lnprobability = _lnprobability(p0+corrections, *args)
+
+                return_ += [{'qualifier': 'initial_lnprobability', 'value': initial_lnprobability},
+                             {'qualifier': 'fitted_lnprobability', 'value': fitted_lnprobability}]
+
+            return [return_]
+
+        # set _within solver to prevent run_compute progressbars
+        b._within_solver = True
+
+        if kwargs.get('progressbar', False):
+            nforward_models = 1  # baseline model
+            nanalytic_params = len(fitted_params_ps.filter(qualifier=['pblum'], **_skip_filter_checks).twigs)
+            if kwargs.get('deriv_method') == 'symmetric':
+                nforward_models += 2*(len(params_uniqueids)-nanalytic_params)
+            else:
+                nforward_models += len(params_uniqueids)-nanalytic_params
+            if kwargs.get('expose_lnprobabilities'):
+                nforward_models += 1
+            _dc_pbar = _tqdm(total=nforward_models)
+            _use_progressbar = True
+        else:
+            _use_progressbar = False
+
+        # TODO: need len(obs) and sigs
+        # FOR TESTING: limit to a single LC dataset
+        fluxes_params = b.filter(qualifier='fluxes', context='dataset', **_skip_filter_checks)
+        if len(fluxes_params.to_list()) != 1:
+            raise NotImplementedError("DC currently requires a SINGLE LC dataset")
+        ndatapoints = len(b.get_value(qualifier='fluxes', context='dataset', **_skip_filter_checks))
+        sigmas = b.get_value(qualifier='sigmas', context='dataset', **_skip_filter_checks)
+        if len(sigmas) != ndatapoints:
+            raise ValueError("sigmas must be provided")
+
+
+        A = np.empty(shape=(ndatapoints, len(params_uniqueids)))
+        V = np.diag(1./sigmas)
+
+        deriv_method = kwargs.get('deriv_method')
+        b_solver = _bsolver(b, solver, compute, [])
+
+        baseline_model = b_solver.run_compute(model='baseline', overwrite=True)
+        if _use_progressbar:
+            _dc_pbar.update(1)
+        fluxes_baseline = baseline_model.get_value(qualifier='fluxes', **_skip_filter_checks)
+        xi = b_solver.calculate_residuals(model='baseline').value
+
+        for k, (uniqueid, value, step) in enumerate(zip(params_uniqueids, p0, steps)):
+            param = b_solver.get_parameter(uniqueid=uniqueid, **_skip_filter_checks)
+            # analytical derivatives:
+            if param.qualifier == 'pblum':
+                A[:,k] = 1
+                continue
+            # numerical derivatives:
+            if deriv_method == 'asymmetric':
+                param.set_value(value=value+step)
+                upper_model = b_solver.run_compute(model='upper', overwrite=True)
+                if _use_progressbar:
+                    _dc_pbar.update(1)
+                # of course this isn't that simple since we could have multiple datasets to combine...
+                # what we really need is a compute_residuals between two models
+                fluxes_upper = upper_model.get_value(qualifier='fluxes', **_skip_filter_checks)
+                A[:,k] = (fluxes_upper-fluxes_baseline)/step
+
+            elif deriv_method == 'symmetric':
+                param.set_value(value=value+step/2)
+                upper_model = b_solver.run_compute(model='upper', overwrite=True)
+                if _use_progressbar:
+                    _dc_pbar.update(1)
+                param.set_value(value=value-step/2)
+                lower_model = b_solver.run_compute(model='lower', overwrite=True)
+                if _use_progressbar:
+                    _dc_pbar.update(1)
+
+                fluxes_upper = upper_model.get_value(qualifier='fluxes', **_skip_filter_checks)
+                fluxes_lower = lower_model.get_value(qualifier='fluxes', **_skip_filter_checks)
+                A[:,k] = (fluxes_upper-fluxes_lower)/steps[k]
+            else:
+                raise ValueError(f"deriv_method='{deriv_method}' is not recognized ('symmetric' or 'asymmetric' supported).")
+
+            # reset this parameter for the next parameter to step
+            param.set_value(value=value, **_skip_filter_checks)
+
+        corrections, chi2, nparams, eigenvalues =  np.linalg.lstsq(V@A, V@xi, rcond=None)
+
+        b._within_solver = False
+
+        return _get_packetlist(b_solver, corrections, progress=100)
 
 
 class Differential_EvolutionBackend(BaseSolverBackend):
@@ -2355,27 +2585,27 @@ class Differential_EvolutionBackend(BaseSolverBackend):
             compute_kwargs = {k:v for k,v in kwargs.items() if k in b.get_compute(compute=compute, **_skip_filter_checks).qualifiers}
 
             options = {k:v for k,v in kwargs.items() if k in ['strategy', 'maxiter', 'popsize', 'tol', 'atol', 'polish', 'recombination']}
-        
+
             def _progress(xi, convergence):
                 global _minimize_iter
                 _minimize_iter += 1
                 global _minimize_pbar
                 global _use_progressbar
-  
+
                 maxiter = _minimize_pbar.total
                 progress = float(_minimize_iter) / maxiter * 100
 
                 if _use_progressbar:
                     _minimize_pbar.update(1)
-                    
+
                 # TODO: include logic for saving progress to file (if possible)
                 # always return 0/False so this callback doesn't cause early stopping
-                return 0 
-                
+                return 0
+
             logger.debug("calling scipy.optimize.differential_evolution(_lnprobability_negative, bounds={}, args=(b, {}, {}, {}, {}, {}), options={})".format(bounds, params_uniqueids, compute, [], kwargs.get('solution', None), compute_kwargs, options))
             # TODO: would it be cheaper to pass the whole bundle (or just make one copy originally so we restore original values) than copying for each iteration?
             args = (_bsolver(b, solver, compute, []), params_uniqueids, compute, [], 'first', kwargs.get('solution', None), compute_kwargs)
-            
+
             # set _within solver to prevent run_compute progressbars
             b._within_solver = True
 
@@ -2405,13 +2635,13 @@ class Differential_EvolutionBackend(BaseSolverBackend):
             _progress_every_niters = kwargs.get('progress_every_niters', 0)
             if _progress_every_niters > 0:
                 raise NotImplementedError('Saving progress for a DE optimizer is not supported yet.')
-            
+
             res = optimize.differential_evolution(_lnprobability_negative, bounds,
                                     args=args,
-                                    workers=pool.map, updating='deferred', 
+                                    workers=pool.map, updating='deferred',
                                     callback=_progress if _use_progressbar else None,
                                     **options)
-            
+
         else:
             # NOTE: because we overrode self._run_worker to skip loading the
             # bundle, b is just a json string here.  If we ever need the
@@ -2424,7 +2654,7 @@ class Differential_EvolutionBackend(BaseSolverBackend):
         # restore previous MPI state
         mpi._within_mpirun = within_mpirun
         mpi._enabled = mpi_enabled
-        
+
         # close progressbar and restore within_solver state
         if _use_progressbar:
             _minimize_pbar.close()

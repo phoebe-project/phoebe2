@@ -29,6 +29,7 @@ def test_forbidden(verbose=False):
     b.add_solver('estimator.ebai')
     b.add_solver('optimizer.nelder_mead')
     b.add_solver('optimizer.differential_evolution')
+    b.add_solver('optimizer.differential_corrections')
     b.add_solver('optimizer.cg')
     b.add_solver('optimizer.powell')
     b.add_solver('sampler.emcee')
