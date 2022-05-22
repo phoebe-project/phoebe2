@@ -343,8 +343,8 @@ def differential_evolution(**kwargs):
     * `bounds` (list, optional, default=[]): uniform priors as bounds on the parameters.
     * `maxiter` (int, optional, default=1e6): passed directly to
         scipy.optimize.differential_evolution.  Maximum allowed number of iterations.
-    * `strategy` (str, optional, default='best1bin'): passed directly to 
-        scipy.optimize.differential_evolution.  The differential evolution strategy to use. 
+    * `strategy` (str, optional, default='best1bin'): passed directly to
+        scipy.optimize.differential_evolution.  The differential evolution strategy to use.
         Should be one of:
             - 'best1bin'
             - 'best1exp'
@@ -358,18 +358,18 @@ def differential_evolution(**kwargs):
             - 'best2bin'
             - 'rand2bin'
             - 'rand1bin'
-    * `popsize` (int, optional, default=8): passed directly to 
-        scipy.optimize.differential_evolution. A multiplier for setting the total 
+    * `popsize` (int, optional, default=8): passed directly to
+        scipy.optimize.differential_evolution. A multiplier for setting the total
         population size.
-    * `recombination` (float, optional, default=0.7): passed directly to 
+    * `recombination` (float, optional, default=0.7): passed directly to
         scipy.optimize.differential_evolution. The recombination constant.
-    * `tol` (float, optional, default=0.01): passed directly to 
+    * `tol` (float, optional, default=0.01): passed directly to
         scipy.optimize.differential_evolution. Relative tolerance for convergence.
-    * `atol` (float, optional, default=0.0): passed directly to 
+    * `atol` (float, optional, default=0.0): passed directly to
         scipy.optimize.differential_evolution. Absolute tolerance for convergence.
-    * `polish` (bool, optional, default=True): passed directly to 
-        scipy.optimize.differential_evolution. If True, then `scipy.optimize.minimize` 
-        with the `L-BFGS-B` method is used to polish the best population member at the end, 
+    * `polish` (bool, optional, default=True): passed directly to
+        scipy.optimize.differential_evolution. If True, then `scipy.optimize.minimize`
+        with the `L-BFGS-B` method is used to polish the best population member at the end,
         which can improve the minimization slightly.
     * `progress_every_niters` (int, optional, default=0): Save the progress of
         the solution every n iterations.  The solution can only be recovered
@@ -381,7 +381,7 @@ def differential_evolution(**kwargs):
         If using detach=True within run_solver, attach job will load the progress
         and allow re-attaching until the job is completed.  If 0 will not save
         and will only return after completion.
-        
+
     Returns
     --------
     * (<phoebe.parameters.ParameterSet>): ParameterSet of all newly created
@@ -415,5 +415,75 @@ def differential_evolution(**kwargs):
     params += [BoolParameter(qualifier='polish', value=kwargs.get('polish', True), description='passed directly to scipy.optimize.differential_evolution. If True (default), then scipy.optimize.minimize with the L-BFGS-B method is used to polish the best population member at the end, which can improve the minimization slightly.')]
     # TODO: expose mutation, seed, init
     params += [IntParameter(qualifier='progress_every_niters', value=kwargs.get('progress_every_niters', 0), limits=(0,1e6), description='save the progress of the solution every n iterations.  The solution can only be recovered from an early termination by loading the bundle from a saved file and then calling b.import_solution(filename).  The filename of the saved file will default to solution.ps.progress within run_solver, or the output filename provided to export_solver suffixed with .progress.  If using detach=True within run_solver, attach job will load the progress and allow re-attaching until the job is completed.  If 0 will not save and will only return after completion.')]
+
+    return ParameterSet(params)
+
+def differential_corrections(**kwargs):
+    """
+    Create a <phoebe.parameters.ParameterSet> for solver options for the
+    differential-corrections backend.
+
+    This only acts on LC and RV datasets.
+
+    Generally, this will be used as an input to the kind argument in
+    <phoebe.frontend.bundle.Bundle.add_solver>.  If attaching through
+    <phoebe.frontend.bundle.Bundle.add_solver>, all `**kwargs` will be
+    passed on to set the values as described in the arguments below.  Alternatively,
+    see <phoebe.parameters.ParameterSet.set_value> to set/change the values
+    after creating the Parameters.
+
+    For example:
+
+    ```py
+    b.add_solver('optimizer.differential_corrections')
+    b.run_solver(kind='differential_corrections')
+    ```
+
+    Parallelization support: differential_corrections does not support parallelization.  If
+    within mpi, parallelization will be handled at the compute-level (per-time)
+    for the <phoebe.parameters.compute.phoebe> backend.
+
+    Arguments
+    ----------
+    * `compute` (string, optional): compute options to use for the forward
+        model.
+    * `expose_lnprobabilities` (bool, optional, default=False): whether to expose
+        the initial and final lnprobabilities in the solution (will result in 1
+        additional forward model call).  Note that since `differential_corrections`
+        does not support priors, this is effectively the lnlikelihood.
+    * `continue_from` (string, optional, default='none'): continue the optimization
+        run from an existing solution by starting each parameter at its final
+        position in the solution.
+    * `fit_parameters` (list, optional, default=[]): parameters (as twigs) to
+        optimize. Only applicable if `continue_from` is 'None'.
+    * `initial_values` (dict, optional, default={}): twig-value pairs to
+        (optionally) override the current values in the bundle.  Any items not
+        in `fit_parameters` will be silently ignored.  Only applicable if
+        `continue_from` is 'None'.
+    * `steps` (dict, optional, default={}): twig-step pairs to set the
+        stepsize for the differential corrections.  Any items not in
+        `fit_parameters` will be silently ignored.
+    * `deriv_method` (str, optional, default='symmetric'):  Whether to use
+        'symmetric' or 'asymmetric' method for determining derivatives.
+
+
+    Returns
+    --------
+    * (<phoebe.parameters.ParameterSet>): ParameterSet of all newly created
+        <phoebe.parameters.Parameter> objects.
+    """
+    params = _comments_params(**kwargs)
+    params += _server_params(**kwargs)
+
+    params += [ChoiceParameter(qualifier='compute', value=kwargs.get('compute', 'None'), choices=['None'], description='compute options to use for forward model')]
+    params += [BoolParameter(qualifier='expose_lnprobabilities', value=kwargs.get('expose_lnprobabilities', False), description='whether to expose the initial and final lnprobabilities in the solution (will result in 1 additional forward model call)')]
+
+    params += [ChoiceParameter(qualifier='continue_from', value=kwargs.get('continue_from', 'None'), choices=['None'], description='continue the optimization run from an existing solution by starting each parameter at its final position in the solution.')]
+
+    params += [SelectTwigParameter(visible_if='continue_from:None', qualifier='fit_parameters', value=kwargs.get('fit_parameters', []), choices=[], description='parameters (as twigs) to optimize')]
+    params += [DictParameter(visible_if='continue_from:None', qualifier='initial_values', value=kwargs.get('initial_values', {}), description='twig-value pairs to (optionally) override the current values in the bundle.  Any items not in fit_parameters will be silently ignored.')]
+    params += [DictParameter(qualifier='steps', value=kwargs.get('steps', {}), description='twig-value pairs to set the stepsize for differential corrections.  Any items not in fit_parameters will be silently ignored.')]
+
+    params += [ChoiceParameter(qualifier='deriv_method', value=kwargs.get('deriv_method', 'symmetric'), choices=['symmetric', 'asymmetric'], description='Method to use for determining parameter derivatives.')]
 
     return ParameterSet(params)

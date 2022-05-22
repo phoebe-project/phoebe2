@@ -265,12 +265,13 @@ _forbidden_labels += ['nwalkers', 'niters', 'priors', 'priors_requires', 'init_f
                       'expose_model', 'gtol', 'norm', 'xtol', 'ftol',
                       'priors_combine', 'maxiter', 'maxfev', 'adaptive',
                       'xatol', 'fatol', 'bounds', 'bounds_combine', 'bounds_sigma',
-                      'strategy', 'popsize', 'recombination', 'tol', 'atol', 'polish', 
+                      'strategy', 'popsize', 'recombination', 'tol', 'atol', 'polish',
                       'continue_from', 'continue_from_iter', 'init_from_combine',
                       'burnin_factor', 'thin_factor', 'nlags_factor', 'progress_every_niters',
                       'nlive', 'maxcall', 'lc_geometry', 'rv_geometry', 'lc_periodogram', 'rv_periodogram', 'ebai',
                       'nelder_mead', 'differential_evolution', 'cg', 'powell', 'emcee', 'dynesty',
-                      'analytical_model', 'interactive']
+                      'analytical_model', 'interactive', 'differential_corrections',
+                      'deriv_method', 'steps', 'nsteps']
 
 # from solution:
 _forbidden_labels += ['primary_width', 'secondary_width',
@@ -287,6 +288,7 @@ _forbidden_labels += ['primary_width', 'secondary_width',
                       'logwt', 'logl', 'logvol', 'logz', 'logzerr', 'information', 'bound', 'bounds',
                       'bound_iter', 'samples_bound', 'scale',
                       'message', 'nfev', 'niter', 'success', 'initial_values',
+                      'singular_values', 'fitted_chi2',
                       'initial_lnlikelihood', 'fitted_lnlikelihood']
 
 
@@ -3298,7 +3300,7 @@ class ParameterSet(object):
 
             if index is not None:
                 if isinstance(param, FloatArrayParameter):
-                    return param.get_value(unit=unit, t=t, **kwargs)[index]
+                    return param.get_value(unit=unit, t=t, **kwargs)[tuple(index)]
                 else:
                     raise ValueError("indices only supported for FloatArrayParameter")
             else:
