@@ -3300,7 +3300,7 @@ class ParameterSet(object):
 
             if index is not None:
                 if isinstance(param, FloatArrayParameter):
-                    return param.get_value(unit=unit, t=t, **kwargs)[index]
+                    return param.get_value(unit=unit, t=t, **kwargs)[tuple(index)]
                 else:
                     raise ValueError("indices only supported for FloatArrayParameter")
             else:

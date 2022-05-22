@@ -2414,28 +2414,42 @@ class Differential_CorrectionsBackend(BaseSolverBackend):
         else:
             _use_progressbar = False
 
-        # TODO: need len(obs) and sigs
-        # FOR TESTING: limit to a single LC dataset
-        fluxes_params = b.filter(qualifier='fluxes', context='dataset', **_skip_filter_checks)
-        if len(fluxes_params.to_list()) != 1:
-            raise NotImplementedError("DC currently requires a SINGLE LC dataset")
-        ndatapoints = len(b.get_value(qualifier='fluxes', context='dataset', **_skip_filter_checks))
-        sigmas = b.get_value(qualifier='sigmas', context='dataset', **_skip_filter_checks)
-        if len(sigmas) != ndatapoints:
-            raise ValueError("sigmas must be provided")
+        datasets_enabled = b.filter(qualifier='enabled', value=True, compute=compute, context='compute', **_skip_filter_checks).datasets
+        # limit to LCs/RVs
+        datasets_enabled = b.filter(dataset=datasets_enabled, kind=['lc', 'rv'], context='dataset', **_skip_filter_checks).datasets
 
+        # need to ensure we access the obs and sigma arrays in the same order
+        obs_params = b.filter(qualifier=['fluxes', 'rvs'], dataset=datasets_enabled, context='dataset', **_skip_filter_checks).to_list()
+        obs_data = np.concatenate([p.get_value() for p in obs_params])
+        obs_sigmas = np.concatenate([b.get_parameter(qualifier=['sigmas'], dataset=p.dataset, component=p.component, context='dataset', **_skip_filter_checks).get_value() for p in obs_params])
 
-        A = np.empty(shape=(ndatapoints, len(params_uniqueids)))
-        V = np.diag(1./sigmas)
+        if len(obs_sigmas) != len(obs_data):
+            raise ValueError("sigmas must be provided for all enabled lc and rv datasets")
+
+        A = np.empty(shape=(len(obs_data), len(params_uniqueids)))
+        V = np.diag(1./obs_sigmas)
 
         deriv_method = kwargs.get('deriv_method')
         b_solver = _bsolver(b, solver, compute, [])
 
+        def _get_residuals_and_interp_model(b_solver, model, obs_params):
+            # for loop isn't ideal here, but we shouldn't be looping over too many datasets
+            # to optimize this, we would need to ensure that calculate_residuals returns
+            # the concatenated lists in a predictable and reliable order
+            xi = np.array([])
+            obs_baseline = np.array([])
+            for p in obs_params:
+                if p.component == '_default':
+                    continue
+                resid, interp_model = b_solver.calculate_residuals(model=model, dataset=p.dataset, component=p.component, return_interp_model=True, as_quantity=False)
+                xi = np.append(xi, resid)
+                obs_baseline = np.append(obs_baseline, interp_model)
+            return xi, obs_baseline
+
         baseline_model = b_solver.run_compute(model='baseline', overwrite=True)
+        xi, obs_baseline = _get_residuals_and_interp_model(b_solver, 'baseline', obs_params)
         if _use_progressbar:
             _dc_pbar.update(1)
-        fluxes_baseline = baseline_model.get_value(qualifier='fluxes', **_skip_filter_checks)
-        xi = b_solver.calculate_residuals(model='baseline').value
 
         for k, (uniqueid, value, step) in enumerate(zip(params_uniqueids, p0, steps)):
             param = b_solver.get_parameter(uniqueid=uniqueid, **_skip_filter_checks)
@@ -2447,26 +2461,25 @@ class Differential_CorrectionsBackend(BaseSolverBackend):
             if deriv_method == 'asymmetric':
                 param.set_value(value=value+step)
                 upper_model = b_solver.run_compute(model='upper', overwrite=True)
+                resid_upper, obs_upper = _get_residuals_and_interp_model(b_solver, 'upper', obs_params)
                 if _use_progressbar:
                     _dc_pbar.update(1)
-                # of course this isn't that simple since we could have multiple datasets to combine...
-                # what we really need is a compute_residuals between two models
-                fluxes_upper = upper_model.get_value(qualifier='fluxes', **_skip_filter_checks)
-                A[:,k] = (fluxes_upper-fluxes_baseline)/step
+                A[:,k] = (obs_upper-obs_baseline)/step
 
             elif deriv_method == 'symmetric':
                 param.set_value(value=value+step/2)
                 upper_model = b_solver.run_compute(model='upper', overwrite=True)
-                if _use_progressbar:
-                    _dc_pbar.update(1)
-                param.set_value(value=value-step/2)
-                lower_model = b_solver.run_compute(model='lower', overwrite=True)
+                resid_upper, obs_upper = _get_residuals_and_interp_model(b_solver, 'upper', obs_params)
                 if _use_progressbar:
                     _dc_pbar.update(1)
 
-                fluxes_upper = upper_model.get_value(qualifier='fluxes', **_skip_filter_checks)
-                fluxes_lower = lower_model.get_value(qualifier='fluxes', **_skip_filter_checks)
-                A[:,k] = (fluxes_upper-fluxes_lower)/steps[k]
+                param.set_value(value=value-step/2)
+                lower_model = b_solver.run_compute(model='lower', overwrite=True)
+                resid_lower, obs_lower = _get_residuals_and_interp_model(b_solver, 'lower', obs_params)
+                if _use_progressbar:
+                    _dc_pbar.update(1)
+
+                A[:,k] = (obs_upper-obs_lower)/step
             else:
                 raise ValueError(f"deriv_method='{deriv_method}' is not recognized ('symmetric' or 'asymmetric' supported).")
 

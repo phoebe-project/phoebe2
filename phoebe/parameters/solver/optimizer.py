@@ -423,6 +423,8 @@ def differential_corrections(**kwargs):
     Create a <phoebe.parameters.ParameterSet> for solver options for the
     differential-corrections backend.
 
+    This only acts on LC and RV datasets.
+
     Generally, this will be used as an input to the kind argument in
     <phoebe.frontend.bundle.Bundle.add_solver>.  If attaching through
     <phoebe.frontend.bundle.Bundle.add_solver>, all `**kwargs` will be
