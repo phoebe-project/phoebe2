@@ -447,7 +447,8 @@ def differential_corrections(**kwargs):
         model.
     * `expose_lnprobabilities` (bool, optional, default=False): whether to expose
         the initial and final lnprobabilities in the solution (will result in 1
-        additional forward model call)
+        additional forward model call).  Note that since `differential_corrections`
+        does not support priors, this is effectively the lnlikelihood.
     * `continue_from` (string, optional, default='none'): continue the optimization
         run from an existing solution by starting each parameter at its final
         position in the solution.

@@ -288,6 +288,7 @@ _forbidden_labels += ['primary_width', 'secondary_width',
                       'logwt', 'logl', 'logvol', 'logz', 'logzerr', 'information', 'bound', 'bounds',
                       'bound_iter', 'samples_bound', 'scale',
                       'message', 'nfev', 'niter', 'success', 'initial_values',
+                      'singular_values',
                       'initial_lnlikelihood', 'fitted_lnlikelihood']
 
 
