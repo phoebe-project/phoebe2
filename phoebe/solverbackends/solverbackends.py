@@ -2298,6 +2298,7 @@ class Differential_CorrectionsBackend(BaseSolverBackend):
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_values', value=[], readonly=True, description='final values returned by the minimizer (in current default units of each parameter)')]
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_units', value=[], advanced=True, readonly=True, description='units of the fitted_values')]
         solution_params += [_parameters.ArrayParameter(qualifier='singular_values', value=[], advanced=True, readonly=True, description='eigenvalues of the singular value decomposition')]
+        solution_params += [_parameters.FloatParameter(qualifier='fitted_chi2', value=0.0, readonly=True, advanced=True, description='chi2 of the fitted_values')]
         if kwargs.get('expose_lnprobabilities', False):
             solution_params += [_parameters.FloatParameter(qualifier='initial_lnprobability', value=0.0, readonly=True, default_unit=u.dimensionless_unscaled, description='lnprobability of the initial_values')]
             solution_params += [_parameters.FloatParameter(qualifier='fitted_lnprobability', value=0.0, readonly=True, default_unit=u.dimensionless_unscaled, description='lnprobability of the fitted_values')]
@@ -2369,12 +2370,13 @@ class Differential_CorrectionsBackend(BaseSolverBackend):
 
         compute_kwargs = {k:v for k,v in kwargs.items() if k in b.get_compute(compute=compute, **_skip_filter_checks).qualifiers}
 
-        def _get_packetlist(b_solver, corrections, eigenvalues, progress):
+        def _get_packetlist(b_solver, corrections, chi2, eigenvalues, progress):
             return_ = [{'qualifier': 'fitted_uniqueids', 'value': params_uniqueids},
                     {'qualifier': 'fitted_twigs', 'value': params_twigs},
                     {'qualifier': 'initial_values', 'value': p0},
                     {'qualifier': 'steps', 'value': steps},
                     {'qualifier': 'fitted_values', 'value': p0+corrections},
+                    {'qualifier': 'fitted_chi2', 'value': chi2},
                     {'qualifier': 'singular_values', 'value': eigenvalues},
                     {'qualifier': 'fitted_units', 'value': [u if isinstance(u, str) else u.to_string() for u in fitted_units]},
                     {'qualifier': 'adopt_parameters', 'value': params_twigs, 'choices': params_twigs}]
@@ -2490,7 +2492,8 @@ class Differential_CorrectionsBackend(BaseSolverBackend):
 
         b._within_solver = False
 
-        return _get_packetlist(b_solver, corrections, eigenvalues, progress=100)
+        # note: chi2 will always be a list of length 1 since our input is 1-dimensional
+        return _get_packetlist(b_solver, corrections, chi2[0], eigenvalues, progress=100)
 
 
 class Differential_EvolutionBackend(BaseSolverBackend):
