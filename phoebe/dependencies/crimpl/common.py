@@ -184,11 +184,6 @@ class Server(object):
             return None, None
 
         default_deps = "pip numpy"
-        if self.__class__.__name__ == 'AWSEC2Server':
-            # NOTE: AWS needs mpi4py via CONDA not PIP, so we'll include it by default
-            # other servers/user may prefer the pip installation
-            default_deps = "gcc_linux-64 gxx_linux-64 openmpi mpi4py "+default_deps
-
 
         if not (isinstance(conda_env, str) or conda_env is None):
             raise TypeError("conda_env must be a string or None")
@@ -295,8 +290,8 @@ class Server(object):
 
         if conda_env is False and isolate_env is True:
             raise ValueError("cannot use isolate_env with conda_env=False")
-        # from job: self.server._submit_script_cmds(script, files, use_scheduler, directory=self.remote_directory, conda_env=self.conda_env, isolate_env=self.isolate_env, job_name=self.job_name)
-        # from server: self._submit_script_cmds(script, files, use_scheduler=False, directory=self.directory, conda_env=conda_env, isolate_env=False, job_name=None)
+        # from job: self.server._submit_script_cmds(script, files, use_slurm, directory=self.remote_directory, conda_env=self.conda_env, isolate_env=self.isolate_env, job_name=self.job_name)
+        # from server: self._submit_script_cmds(script, files, use_slurm=False, directory=self.directory, conda_env=conda_env, isolate_env=False, job_name=None)
 
         # NOTE: job_name here is used to identify IF a job and as the slurm job name, but is NOT necessary the job.job_name
         if isinstance(script, str):
@@ -375,7 +370,7 @@ class Server(object):
                 f.write("eval \"$(conda shell.bash hook)\"\nconda activate {}\n".format(conda_env_path))
         f.write("\n".join(script))
         if terminate_on_complete:
-            # should really only be used for AWS
+            # should really only be used for future AWS support
             f.write("\nsudo shutdown now")
         f.close()
 
@@ -618,7 +613,6 @@ class ServerJob(object):
         * (string)
         """
         if self._remote_directory is None:
-            # NOTE: for AWSEC2 self.server.ssh_cmd may point to the job EC2 instance if the server is not running
             home_dir = self.server._run_server_cmd("pwd")
             if "~" in self.server.directory:
                 self._remote_directory = _os.path.join(self.server.directory.replace("~", home_dir), "crimpl-job-{}".format(self.job_name))

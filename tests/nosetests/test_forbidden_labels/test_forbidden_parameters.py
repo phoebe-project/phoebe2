@@ -35,7 +35,6 @@ def test_forbidden(verbose=False):
     b.add_solver('sampler.emcee')
     b.add_solver('sampler.dynesty')
 
-    b.add_server('awsec2')
     b.add_server('remoteslurm')
 
 
