@@ -84,6 +84,10 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.3.63 - constraint feature bugfix
+
+* fix bug where creating a custom constraint for parameters within features was not correctly identifying the constrained parameter and was raising an error when attempting to set the value of the constraining parameter.
+
 ### 2.3.62 - attach_job ferr bugfix
 
 * fix bug where error file was not properly loaded when retrieving error from external job

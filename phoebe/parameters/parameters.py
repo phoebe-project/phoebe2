@@ -11331,7 +11331,7 @@ class ConstraintParameter(Parameter):
         self._remove_bookkeeping()
         # logger.debug("ConstraintParameter {} _update_bookkeeping".format(self.twig))
         for param in self.vars.to_list():
-            if param.qualifier == self.qualifier and param.component == self.component and param.dataset == self.dataset:
+            if param.qualifier == self.qualifier and param.component == self.component and param.dataset == self.dataset and param.feature == self.feature:
                 # then this is the currently constrained parameter
                 param._is_constraint = self.uniqueid
                 if self.uniqueid in param._in_constraints:
@@ -11342,7 +11342,7 @@ class ConstraintParameter(Parameter):
                     param._in_constraints.append(self.uniqueid)
 
         for param in self.addl_vars.to_list():
-            if param.qualifier == self.qualifier and param.component == self.component and param.dataset == self.dataset:
+            if param.qualifier == self.qualifier and param.component == self.component and param.dataset == self.dataset and param.feature == self.feature:
                 # then this is the currently constrained parameter
                 param._is_constraint = self.uniqueid
 
