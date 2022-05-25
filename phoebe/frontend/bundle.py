@@ -5331,7 +5331,9 @@ class Bundle(ParameterSet):
                          'Skilling (2004)': 'https://ui.adsabs.harvard.edu/abs/2004AIPC..735..395S',
                          'Skilling (2006)': 'https://projecteuclid.org/euclid.ba/1340370944',
                          'Foreman-Mackey et al. (2017)': 'https://ui.adsabs.harvard.edu/abs/2017AJ....154..220F',
-                         'Prsa et al. (2008)': 'https://ui.adsabs.harvard.edu/abs/2008ApJ...687..542P'
+                         'Prsa et al. (2008)': 'https://ui.adsabs.harvard.edu/abs/2008ApJ...687..542P',
+                         'Kochoska et al. (in prep)': 'http://phoebe-project.org/publications/2022Kochoska+',
+                         'scikit-learn': 'https://scikit-learn.org/stable/about.html#citing-scikit-learn',
                         }
 
         # ref: [reasons] pairs
@@ -5369,9 +5371,16 @@ class Bundle(ParameterSet):
             if solver_kind in ['lc_periodogram', 'rv_periodogram']:
                 recs = _add_reason(recs, 'astropy', 'astropy.timeseries for periodograms')
             elif solver_kind in ['lc_geometry', 'rv_geometry']:
-                recs = _add_reason(recs, 'Conroy et al. (2020)', '{} solver'.format(solver_kind))
+                recs = _add_reason(recs, 'Conroy et al. (2020)', '{} solver initially introduced in PHOEBE'.format(solver_kind))
+                recs = _add_reason(recs, 'Kochoska et al. (in prep)', '{} solver updates'.format(solver_kind))
             elif solver_kind == 'ebai':
-                recs = _add_reason(recs, 'Prsa et al. (2008)', 'ebai solver backend')
+                recs = _add_reason(recs, 'Conroy et al. (2020)', 'ebai solver initially introduced in PHOEBE')
+                recs = _add_reason(recs, 'Kochoska et al. (in prep)', 'ebai solver updates')
+                ebai_method = self.get_value(qualifier='ebai_method', solver=solver, **_skip_filter_checks)
+                if solver_kind == 'knn':
+                    recs = _add_reason(recs, 'scikit-learn', 'knn implementation for ebai solver')
+                elif solver_kind == 'mlp':
+                    recs = _add_reason(recs, 'Prsa et al. (2008)', 'ebai implementation')
             # optimizers
             elif solver_kind in ['nelder_mead', 'powell', 'cg']:
                 recs = _add_reason(recs, 'numpy/scipy', '{} solver uses scipy.optimize'.format(solver_kind))
@@ -5382,7 +5391,11 @@ class Bundle(ParameterSet):
                 recs = _add_reason(recs, 'Speagle (2020)', 'dynesty solver backend')
                 recs = _add_reason(recs, 'Skilling (2004)', 'nested sampling: dynesty solver backend')
                 recs = _add_reason(recs, 'Skilling (2006)', 'nested sampling: dynesty solver backend')
-
+            elif solver_kind == 'differential_evolution':
+                recs = _add_reason(recs, 'Kochoska et al. (in prep)', 'differential_evolution solver introduced in PHOEBE')
+                recs = _add_reason('numpy/scipy', '{} solver uses scipy.optimize.differential_evolution'.format(solver_kind))
+            elif solver_kind == 'differential_corrections':
+                recs = _add_reason(recs, 'Kochoska et al. (in prep)', 'differential_corrections solver introduced in PHOEBE')
 
 
         # check for presence of datasets that require PHOEBE releases
@@ -5423,8 +5436,10 @@ class Bundle(ParameterSet):
 
         # provide any references from features
         if len(self.filter(context='feature', kind='gp_sklearn').features):
-            recs = _add_reason(recs, 'Pedregosa et al., (2011)', 'scikit-learn for gaussian processes')
+            recs = _add_reason(recs, 'Kochoska et al. (in prep)', 'sklearn GPs introduced in PHOEBE')
+            recs = _add_reason(recs, 'scikit-learn', 'scikit-learn for gaussian processes')
         if len(self.filter(context='feature', kind='gp_celerite2').features):
+            recs = _add_reason(recs, 'Kochoska et al. (in prep)', 'celerite2 GPs introduced in PHOEBE')
             recs = _add_reason(recs, 'Foreman-Mackey et al., (2017)', 'celerite2 for gaussian processes')
         # provide references from dependencies
         recs = _add_reason(recs, 'numpy/scipy', 'numpy/scipy dependency within PHOEBE')
