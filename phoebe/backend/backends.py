@@ -688,7 +688,7 @@ def _test_single_sample(args):
 
     while not success:
         for uniqueid, sample_value in zip(uniqueids, sample_per_param):
-            
+
             uniqueid, index = _extract_index_from_string(uniqueid)
             ref_param = b_copy.get_parameter(uniqueid=uniqueid, **_skip_filter_checks)
 
