@@ -679,6 +679,49 @@ null
 "Class": "BoolParameter"
 },
 {
+"qualifier": "gp_exclude_phases_enabled",
+"dataset": "_default",
+"compute": "phoebe01",
+"kind": "phoebe",
+"context": "compute",
+"description": "Whether to apply the mask in gp_exclude_phases during gaussian process fitting.",
+"value": true,
+"visible_if": "ds_has_enabled_feature:gp_*",
+"copy_for": {
+"kind": [
+"lc",
+"rv",
+"lp"
+],
+"dataset": "*"
+},
+"Class": "BoolParameter"
+},
+{
+"qualifier": "gp_exclude_phases",
+"dataset": "_default",
+"compute": "phoebe01",
+"kind": "phoebe",
+"context": "compute",
+"description": "List of phase-tuples.  Any observations inside the range set by any of the tuples will be ignored by the gaussian process features.",
+"value": [],
+"default_unit": "",
+"visible_if": "ds_has_enabled_feature:gp_*,gp_exclude_phases_enabled:True",
+"required_shape": [
+null,
+2
+],
+"copy_for": {
+"kind": [
+"lc",
+"rv",
+"lp"
+],
+"dataset": "*"
+},
+"Class": "FloatArrayParameter"
+},
+{
 "qualifier": "dynamics_method",
 "compute": "phoebe01",
 "kind": "phoebe",
@@ -835,10 +878,10 @@ null
 "description": "Atmosphere table",
 "choices": [
 "extern_atmx",
-"blackbody",
 "extern_planckint",
-"phoenix",
-"ck2004"
+"blackbody",
+"ck2004",
+"phoenix"
 ],
 "value": "ck2004",
 "copy_for": {
@@ -991,10 +1034,10 @@ null
 "description": "Atmosphere table",
 "choices": [
 "extern_atmx",
-"blackbody",
 "extern_planckint",
-"phoenix",
-"ck2004"
+"blackbody",
+"ck2004",
+"phoenix"
 ],
 "value": "ck2004",
 "copy_for": false,
@@ -1105,7 +1148,7 @@ null
 "qualifier": "phoebe_version",
 "context": "setting",
 "description": "Version of PHOEBE",
-"value": "2.4.0.dev1",
+"value": "2.4.0.dev1+phoebe_2.4dev",
 "copy_for": false,
 "readonly": true,
 "advanced": true,

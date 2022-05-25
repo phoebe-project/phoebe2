@@ -247,6 +247,9 @@ def star(component, **kwargs):
     # - rotation_period
     # - pitch
     # - yaw
+    # - teffratio
+    # - requivratio
+    # - requivsumfrac
 
 
     constraints += [(constraint.freq, component)]

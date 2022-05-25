@@ -2732,6 +2732,27 @@ class Bundle(ParameterSet):
                 self.add_constraint(constraint.potential_contact_max, component,
                                     constraint=self._default_label('pot_max', context='constraint'))
 
+        for component in self.hierarchy.get_orbits():
+            for constraint_func in ['teffratio', 'requivratio', 'requivsumfrac']:
+                logger.debug('re-creating {} constraint for {}'.format(constraint_func, component))
+                if len(self.filter(context='constraint',
+                                   constraint_func=constraint_func,
+                                   component=component,
+                                   **_skip_filter_checks)):
+                    constraint_param = self.get_constraint(constraint_func=constraint_func,
+                                                           component=component,
+                                                           **_skip_filter_checks)
+                    self.remove_constraint(constraint_func=constraint_func,
+                                           component=component,
+                                           **_skip_filter_checks)
+                    self.add_constraint(getattr(constraint, constraint_func), component,
+                                        solve_for=constraint_param.constrained_parameter.uniquetwig,
+                                        constraint=constraint_param.constraint)
+                else:
+                    self.add_constraint(getattr(constraint, constraint_func), component,
+                                        constraint=self._default_label(constraint_func, context='constraint'))
+
+
         for component in self.hierarchy.get_stars():
             if len(starrefs)==1:
                 logger.debug('re-creating requiv_single_max (single star) constraint for {}'.format(component))
@@ -7175,10 +7196,7 @@ class Bundle(ParameterSet):
         including:
         * <phoebe.parameters.constraint.semidetached>
         * <phoebe.parameters.constraint.requivfrac>
-        * <phoebe.parameters.constraint.requivratio>
-        * <phoebe.parameters.constraint.requivsumfrac>
         * <phoebe.parameters.constraint.impact_param>
-        * <phoebe.parameters.constraint.teffratio>
         * <phoebe.parameters.constraint.parallax>
 
         The following are automatically included for all orbits, during
@@ -7212,6 +7230,9 @@ class Bundle(ParameterSet):
         * <phoebe.parameters.constraint.mass>
         * <phoebe.parameters.constraint.comp_sma>
         * <phoebe.parameters.constraint.comp_asini>
+        * <phoebe.parameters.constraint.teffratio>
+        * <phoebe.parameters.constraint.requivratio>
+        * <phoebe.parameters.constraint.requivsumfrac>
         * <phoebe.parameters.constraint.rotation_period> (detached only)
         * <phoebe.parameters.constraint.pitch> (detached only)
         * <phoebe.parameters.constraint.yaw> (detached only)
