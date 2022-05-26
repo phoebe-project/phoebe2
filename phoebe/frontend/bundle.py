@@ -5533,6 +5533,9 @@ class Bundle(ParameterSet):
                 deps_pip.append('emcee')
             elif solver_kind == 'dynesty' and 'dynesty' not in deps_pip:
                 deps_pip.append('dynesty')
+            elif solver_kind == 'ebai' and self.get_value(qualifier='ebai_method', solver=solver, **_skip_filter_checks) == 'knn':
+                if 'scikit-learn' not in deps_pip:
+                    deps_pip.append('scikit-learn')
 
         # features
         if len(self.filter(context='feature', kind='gp_sklearn').features) and 'scikit-learn' not in deps_pip:
