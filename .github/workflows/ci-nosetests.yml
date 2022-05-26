@@ -18,7 +18,7 @@ jobs:
         astropy-version: ["==1.*", ""]
         numpy-version: ["~=1.10.0", ""]
         scipy-version: ["~=1.2.0", ""]
-        os: [ubuntu-latest] # https://docs.github.com/en/actions/using-github-hosted-runners/about-github-hosted-runners
+        os: [ubuntu-latest, macos-11] # https://docs.github.com/en/actions/using-github-hosted-runners/about-github-hosted-runners
         exclude:
           - astropy-version: ""
             numpy-version: "~=1.10.0"

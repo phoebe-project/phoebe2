@@ -6,50 +6,23 @@
     double
     long double
 
-  Double is enabled by pseudo-asm code and TESTED on AMD64 system!
 
-
-  Author: Martin Horvat, July 2016
-
-  Refs:
-  * https://gcc.gnu.org/onlinedocs/gcc/Extended-Asm.html
-  * http://www.tptp.cc/mirrors/siyobik.info/instruction/FSINCOS.html
-  * x86 Assembly Language Reference Manual - Oracle
-    https://docs.oracle.com/cd/E19641-01/802-1948/802-1948.pdf
-  * http://stackoverflow.com/questions/11165379/loading-double-to-fpu-with-gcc-inline-assembler
-  * http://www.willus.com/mingw/x87inline.h
+  Author: Martin Horvat, July 2016, April 2022
 */
 
 #include <cmath>
 
-// TODO: How to test is architecture has sincos as part of assembly language
-// Tested using g++ 5.4 and Intel icpc (ICC) 16.0.2 20160204 on
-// Intel(R) Core(TM) i7-4600U CPU @ 2.10GHz
-
-#if defined(__GNUC__) || defined(__clang__)
-#define TARGET_HAS_SINCOS 1
-#else
-#define TARGET_HAS_SINCOS 0
-#endif
-
 namespace utils {
 
-  #if TARGET_HAS_SINCOS
-  template <class T>
-  inline void sincos(const T &angle, T *s, T *c){
-    // works with gcc
-    //asm volatile("fsincos" : "=t" (*c), "=u" (*s) : "0" (angle) : "st(7)");
-
-    // works with gcc and clang
-    asm volatile("fsincos" : "=t" (*c), "=u" (*s) : "0" (angle));
-  }
-  #else
   template<class T>
   inline void sincos(const T &angle, T *s, T *c){
+    #if defined(TARGET_HAS_SINCOS)
+    asm volatile("fsincos" : "=t" (*c), "=u" (*s) : "0" (angle));
+    #else
     *s = std::sin(angle);
     *c = std::cos(angle);
+    #endif
   }
-  #endif
 
   /*
     Calculate array of scaled sinus and cosinus
