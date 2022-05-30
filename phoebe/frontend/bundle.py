@@ -10860,9 +10860,9 @@ class Bundle(ParameterSet):
                 raise NotImplementedError("pblum_mode='{}' not supported".format(pblum_mode))
 
 
-            for ds, ds_copy in pblum_scale_copy_ds.items():
-                for component in valid_components:
-                    pblums_scale[ds][component] = pblums_scale[ds_copy][component]
+        for ds, ds_copy in pblum_scale_copy_ds.items():
+            for component in valid_components:
+                pblums_scale[ds][component] = pblums_scale[ds_copy][component]
 
         # finally, we'll loop through the datasets again to apply the scales to
         # determine the relative pblums, compute pbfluxes, and expose/set whatever
