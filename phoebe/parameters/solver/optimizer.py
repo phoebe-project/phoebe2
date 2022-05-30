@@ -371,16 +371,6 @@ def differential_evolution(**kwargs):
         scipy.optimize.differential_evolution. If True, then `scipy.optimize.minimize`
         with the `L-BFGS-B` method is used to polish the best population member at the end,
         which can improve the minimization slightly.
-    * `progress_every_niters` (int, optional, default=0): Save the progress of
-        the solution every n iterations.  The solution can only be recovered
-        from an early termination by loading the bundle from a saved file and
-        then calling <phoebe.frontend.bundle.Bundle.import_solution>(filename).
-        The filename of the saved file will default to solution.ps.progress within
-        <phoebe.frontend.bundle.Bundle.run_solver>, or the output filename provided
-        to <phoebe.frontend.bundle.Bundle.export_solver> suffixed with .progress.
-        If using detach=True within run_solver, attach job will load the progress
-        and allow re-attaching until the job is completed.  If 0 will not save
-        and will only return after completion.
 
     Returns
     --------
@@ -414,7 +404,7 @@ def differential_evolution(**kwargs):
     params += [FloatParameter(qualifier='atol', value=kwargs.get('atol', 0.0), limits=[0, None], description='passed directly to scipy.optimize.differential_evolution. Absolute tolerance for convergence.')]
     params += [BoolParameter(qualifier='polish', value=kwargs.get('polish', True), description='passed directly to scipy.optimize.differential_evolution. If True (default), then scipy.optimize.minimize with the L-BFGS-B method is used to polish the best population member at the end, which can improve the minimization slightly.')]
     # TODO: expose mutation, seed, init
-    params += [IntParameter(qualifier='progress_every_niters', value=kwargs.get('progress_every_niters', 0), limits=(0,1e6), description='save the progress of the solution every n iterations.  The solution can only be recovered from an early termination by loading the bundle from a saved file and then calling b.import_solution(filename).  The filename of the saved file will default to solution.ps.progress within run_solver, or the output filename provided to export_solver suffixed with .progress.  If using detach=True within run_solver, attach job will load the progress and allow re-attaching until the job is completed.  If 0 will not save and will only return after completion.')]
+    # params += [IntParameter(qualifier='progress_every_niters', value=kwargs.get('progress_every_niters', 0), limits=(0,1e6), description='save the progress of the solution every n iterations.  The solution can only be recovered from an early termination by loading the bundle from a saved file and then calling b.import_solution(filename).  The filename of the saved file will default to solution.ps.progress within run_solver, or the output filename provided to export_solver suffixed with .progress.  If using detach=True within run_solver, attach job will load the progress and allow re-attaching until the job is completed.  If 0 will not save and will only return after completion.')]
 
     return ParameterSet(params)
 
