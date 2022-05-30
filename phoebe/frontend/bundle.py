@@ -5537,20 +5537,22 @@ class Bundle(ParameterSet):
 
         deps_pip, deps_other = [], []
 
+        # phoebe is needed whether its used as a backend or not
+        if ".dev" in __version__:
+            if '+' in __version__:
+                branch = __version__.split('+')[1]
+            else:
+                branch = 'development'
+            dep_phoebe = f"https://github.com/phoebe-project/phoebe2/archive/refs/heads/{branch}.zip"
+        else:
+            dep_phoebe = 'phoebe=={}'.format(__version__)
+        if dep_phoebe not in deps_pip:
+            deps_pip.append(dep_phoebe)
+
         # check for backends
         for compute in computes:
-            if self.get_compute(compute).kind == 'phoebe' and 'phoebe' not in deps_pip:
-                if ".dev" in __version__:
-                    if '+' in __version__:
-                        branch = __version__.split('+')[1]
-                    else:
-                        branch = 'development'
-                    dep_phoebe = f"https://github.com/phoebe-project/phoebe2/archive/refs/heads/{branch}.zip"
-                else:
-                    dep_phoebe = 'phoebe=={}'.format(__version__)
-                if dep_phoebe not in deps_pip:
-                    deps_pip.append(dep_phoebe)
-            elif self.get_compute(compute).kind == 'legacy' and 'phoebe1' not in deps_other:
+            # we'll skip phoebe since we already added it above
+            if self.get_compute(compute).kind == 'legacy' and 'phoebe1' not in deps_other:
                 deps_other.append('phoebe1')
             elif self.get_compute(compute).kind == 'jktebop' and 'jktebop' not in deps_other:
                 deps_other.append('jktebop')
@@ -5573,9 +5575,14 @@ class Bundle(ParameterSet):
                     deps_pip.append('scikit-learn')
 
         # features
-        if len(self.filter(context='feature', kind='gp_sklearn').features) and 'scikit-learn' not in deps_pip:
+        gp_sklearn_features = self.filter(context='feature', kind='gp_sklearn', **_skip_filter_checks).features
+        gp_sklearn_enabled = len(self.filter(qualifier='enabled', value=True, compute=computes, feature=gp_sklearn_features, **_skip_filter_checks)) > 0
+        gp_celerite2_features = self.filter(context='feature', kind='gp_celerite2', **_skip_filter_checks).features
+        gp_celerite2_enabled = len(self.filter(qualifier='enabled', value=True, compute=computes, feature=gp_celerite2_features, **_skip_filter_checks)) > 0
+
+        if gp_sklearn_enabled and 'scikit-learn' not in deps_pip:
             deps_pip.append('scikit-learn')
-        if len(self.filter(context='feature', kind='gp_celerite2').features) and 'celerite2' not in deps_pip:
+        if gp_celerite2_enabled and 'celerite2' not in deps_pip:
             deps_pip.append('celerite2')
         return deps_pip, deps_other
 
@@ -11429,7 +11436,7 @@ class Bundle(ParameterSet):
             out_fname = script_fname+'.out'
 
         if use_server and use_server != 'none':
-            deps_pip, _ = self.dependencies(compute=compute)
+            deps_pip, _ = self.dependencies(compute=compute, solver=[])
             self._write_crimpl_script(script_fname, script, use_server, deps_pip, False, kwargs)
         else:
             f = open(script_fname, 'w')
@@ -11768,7 +11775,7 @@ class Bundle(ParameterSet):
             else:
                 s = _crimpl.LocalThreadServer('./phoebe_crimpl_jobs')
             if install_deps:
-                deps_pip, deps_other = self.dependencies(compute=compute)
+                deps_pip, deps_other = self.dependencies(compute=compute, solver=[])
                 if len(deps_other):
                     # TODO: do something better with this
                     raise ValueError("cannot automatically install {}".format(deps_other))
@@ -13043,8 +13050,8 @@ class Bundle(ParameterSet):
         script.append("b.filter(context='solution', solution=solution_ps.solution, check_visible=False).save(out_fname, incl_uniqueid=True);")
 
         if use_server and use_server != 'none':
-            deps_pip, _ = self.dependencies(solver=solver)
-            if ".dev" in __version__:
+            deps_pip, _ = self.dependencies(solver=solver, compute=self.get_value(qualifier='compute', solver=solver, default=[], **_skip_filter_checks))
+            if ".dev" in __version__ and len(deps_pip):
                 deps_pip.append('--ignore-installed')
             self._write_crimpl_script(script_fname, script, use_server, deps_pip, autocontinue, kwargs)
         else:
