@@ -734,7 +734,7 @@ class Bundle(ParameterSet):
             logger.warning(warning)
 
         if phoebe_version_import < StrictVersion("2.2.0"):
-            warning = "importing from an older version ({}) of PHOEBE which did not support compute_times, ld_mode/ld_coeffs_source, pblum_mode, l3_mode, etc... all datasets will be migrated to include all new options.  This may take some time.  Please check all values.".format(phoebe_version_import)
+            warning = "importing from an older version ({}) of PHOEBE to PHOEBE 2.2.  Previous versions did not support compute_times, ld_mode/ld_coeffs_source, pblum_mode, l3_mode, etc... all datasets will be migrated to include all new options.  This may take some time.  Please check all values.".format(phoebe_version_import)
             # print("WARNING: {}".format(warning))
             logger.warning(warning)
 
@@ -839,7 +839,8 @@ class Bundle(ParameterSet):
             b._attach_params(ps_model, context='model')
 
         if phoebe_version_import < StrictVersion("2.3.0"):
-            warning = "importing from an older version ({}) of PHOEBE which did not support sample_from, etc... all compute options will be migrated to include all new options.  Additionally, extinction parameters will be moved from the dataset to system context.  This may take some time.  Please check all values.".format(phoebe_version_import)
+            warning = "importing from an older version ({}) of PHOEBE to PHOEBE 2.3.  The previous versions did not support sample_from, etc... all compute options will be migrated to include all new options.  Additionally, extinction parameters will be moved from the dataset to system context.  This may take some time.  Please check all values.".format(phoebe_version_import)
+            logger.warning(warning)
 
             b.remove_parameters_all(qualifier='log_history', **_skip_filter_checks)
 
@@ -916,10 +917,12 @@ class Bundle(ParameterSet):
             b.set_hierarchy()
 
         if phoebe_version_import < StrictVersion("2.4.0") or ".dev" in version:
+            warning = "importing from an older version ({}) of PHOEBE to PHOEBE 2.4.  This may take some time.  Please check all values.".format(phoebe_version_import)
+            logger.warning(warning)
+
             existing_values_settings = {p.qualifier: p.get_value() for p in b.filter(context='setting').to_list()}
             b.remove_parameters_all(context='setting', **_skip_filter_checks)
             b._attach_params(_setting.settings(**existing_values_settings), context='setting')
-
 
             for compute in b.filter(context='compute', **_skip_filter_checks).computes:
                 logger.info("attempting to update compute='{}' to new version requirements".format(compute))
@@ -938,11 +941,32 @@ class Bundle(ParameterSet):
             # just in case the values aren't valid (for continue_from, etc), let's update
             b._handle_solution_choiceparams()
             b._handle_solution_selectparams()
+            for feature in b.filter(context='feature', kind='gaussian_process', **_skip_filter_checks).features:
+                logger.info("attempting to update feature='{}' to new version requirements using gp_celerite2".format(feature))
+                ps_gp = b.filter(context='feature', feature=feature, **_skip_filter_checks)
+                dict_feature = _ps_dict(ps_gp)
+                kernel = ps_gp.get_value(qualifier='kernel')
+                if kernel == 'sho':
+                    omega0 = np.exp(dict_feature.pop('log_omega0'))
+                    Q = np.exp(dict_feature.pop('log_Q'))
+                    S0 = np.exp(dict_feature.pop('log_S0'))
+                    dict_feature['rho'] = 2 * np.pi / omega0
+                    dict_feature['tau'] = 2 * Q / omega0
+                    dict_feature['sigma'] = np.sqrt(S0 * Q * omega0)
+                elif kernel == 'matern32':
+                    dict_feature['rho'] = np.exp(dict_feature.pop('log_rho'))
+                    dict_feature['sigma'] = np.exp(dict_feature.pop('log_sigma'))
+
+                b.remove_feature(feature, context=['feature'])
+                b.add_feature('gp_celerite2', dataset=ps_gp.dataset, feature=feature, check_label=False, overwrite=True, **dict_feature)
+
             for solver in b.filter(context='solver', **_skip_filter_checks).solvers:
                 logger.info("attempting to update solver='{}' to new version requirements".format(solver))
                 ps_solver = b.filter(context='solver', solver=solver, **_skip_filter_checks)
                 solver_kind = ps_solver.kind
                 dict_solver = _ps_dict(ps_solver)
+                if solver_kind == 'ebai':
+                    dict_solver.setdefault('ebai_method', 'mlp')
                 b.remove_solver(solver, context=['solver'])
                 b.add_solver(solver_kind, solver=solver, check_label=False, overwrite=True, **dict_solver)
 

@@ -49,7 +49,6 @@ def _export_22(filename, plot=False):
        exit()
 
     b = phoebe.default_binary()
-    # TESS:default was renamed to TESS:T in 2.2
     b.add_dataset('lc', times=np.linspace(0,1,11), passband='Johnson:V', Av=0.1)
     b.add_dataset('lc', times=np.linspace(0,1,11), passband='Johnson:R', Av=0.2)
     b.add_dataset('rv', times=phoebe.linspace(0,1,4))
@@ -76,7 +75,6 @@ def _export_23(filename, plot=False):
        exit()
 
     b = phoebe.default_binary()
-    # TESS:default was renamed to TESS:T in 2.2
     b.add_dataset('lc', times=np.linspace(0,1,11), passband='Johnson:V', Av=0.1)
     b.add_dataset('lc', times=np.linspace(0,1,11), passband='Johnson:R', Av=0.2)
     b.add_dataset('rv', times=phoebe.linspace(0,1,4))
@@ -84,6 +82,11 @@ def _export_23(filename, plot=False):
     b.add_dataset('mesh', times=[0])
 
     b.run_compute()
+
+    # migrations needed for GPs and ebai solver
+    b.add_feature('gaussian_process', dataset='lc01', kernel='sho')
+    b.add_feature('gaussian_process', dataset='lc01', kernel='matern32')
+    b.add_solver('estimator.ebai')
 
     if plot:
         b.plot(show=True, time=0)
@@ -109,6 +112,19 @@ def test_22(verbose=False, plot=False):
 
     return b
 
+def test_23(verbose=False, plot=False):
+    b = phoebe.load(os.path.join(dir, '23_export.phoebe'))
+    # can't run forward model with GPs without data (and will trip error on CI
+    # if dependency isn't installed)
+    for gp in b.filter(context='feature', kind='gp*').features:
+        b.remove_feature(feature=gp)
+    b.run_compute()
+
+    if plot:
+        b.plot(show=True, time=0)
+
+    return b
+
 if __name__ == '__main__':
     logger = phoebe.logger(clevel='WARNING')
 
@@ -124,3 +140,4 @@ if __name__ == '__main__':
 
     b = test_21(verbose=True, plot=True)
     b = test_22(verbose=True, plot=True)
+    b = test_23(verbose=True, plot=True)
