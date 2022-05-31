@@ -4091,7 +4091,7 @@ class Bundle(ParameterSet):
             compute_kind = self.get_compute(compute=compute, **_skip_filter_checks).kind
 
             gps = self.filter(kind=['gp_celerite2','gp_sklearn'], context='feature', **_skip_filter_checks).features
-            compute_enabled_gps = self.filter(qualifier='enabled', feature=gps, value=True, **_skip_filter_checks).features
+            compute_enabled_gps = self.filter(qualifier='enabled', compute=compute, feature=gps, value=True, **_skip_filter_checks).features
             compute_enabled_datasets = self.filter(qualifier='enabled', dataset=self.datasets, value=True, **_skip_filter_checks).datasets
             compute_enabled_datasets_with_gps = [ds for ds in self.filter(feature=compute_enabled_gps, **_skip_filter_checks).datasets if ds in compute_enabled_datasets]
 
@@ -4223,10 +4223,10 @@ class Bundle(ParameterSet):
 
                 # check for mixing GP backends
                 gps_sklearn = self.filter(kind=['gp_sklearn'], context='feature', **_skip_filter_checks).features
-                gps_sklearn_enabled = self.filter(qualifier='enabled', feature=gps_sklearn, value=True,  **_skip_filter_checks).features
+                gps_sklearn_enabled = self.filter(qualifier='enabled', compute=compute, feature=gps_sklearn, value=True,  **_skip_filter_checks).features
 
                 gps_celerite2 = self.filter(kind=['gp_celerite2'], context='feature',  **_skip_filter_checks).features
-                gps_celerite2_enabled = self.filter(qualifier='enabled', feature=gps_celerite2, value=True,  **_skip_filter_checks).features
+                gps_celerite2_enabled = self.filter(qualifier='enabled', compute=compute, feature=gps_celerite2, value=True,  **_skip_filter_checks).features
 
                 if len(gps_sklearn_enabled) > 0 and len(gps_celerite2_enabled) >0:
                     report.add_item(self, "mixing of GP kernels from sklearn and celerite2 is not supported. Remove or disable kernels from one",
