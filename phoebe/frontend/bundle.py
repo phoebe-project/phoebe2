@@ -4496,7 +4496,7 @@ class Bundle(ParameterSet):
             if 'use_server' in solver_ps.qualifiers and run_checks_server:
                 use_server = kwargs.get('use_server', solver_ps.get_value(qualifier='use_server', **_skip_filter_checks))
                 addl_parameters = [solver_ps.get_parameter(qualifier='use_server', **_skip_filter_checks)]
-                if server == 'compute':
+                if use_server == 'compute':
                     compute = solver_ps.get_value(qualifier='compute', compute=kwargs.get('compute', None), **_skip_filter_checks)
                     use_server = self.get_value(qualifier='use_server', compute=compute, **_skip_filter_checks)
                     addl_parameters += [self.get_parameter(qualifier='use_server', compute=compute, **_skip_filter_checks)]
@@ -4507,7 +4507,7 @@ class Bundle(ParameterSet):
                                                 report=report,
                                                 addl_parameters=addl_parameters,
                                                 check_interactive_warnings=False,
-                                                **kwargs)
+                                                **{k:v for k,v in kwargs.items() if k not in ['server', 'use_server']})
 
             if 'compute' in solver_ps.qualifiers:
                 # NOTE: we can't pass compute as a kwarg to get_value or it will be used as a filter instead... which means technically we can't be sure compute is in self.computes
@@ -4522,7 +4522,7 @@ class Bundle(ParameterSet):
                                                      raise_error=False,
                                                      report=report,
                                                      addl_parameters=[solver_ps.get_parameter(qualifier='compute', **_skip_filter_checks)],
-                                                     **kwargs)
+                                                     **{k:v for k,v in kwargs.items() if k not in ['server', 'use_server']})
 
                 # test to make sure solver_times will cover the full dataset for time-dependent systems
                 if self.hierarchy.is_time_dependent(consider_gaussian_process=True):
@@ -13527,7 +13527,7 @@ class Bundle(ParameterSet):
             #         out = compute_class().get_packet_and_syns(self, compute, times=times, **kwargs)
 
             if use_server != 'none':
-                server_options = self._get_server_options_dict(server=use_server, **kwargs)
+                server_options = self._get_server_options_dict(server=use_server, **{k:v for k,v in kwargs.items() if k not in ['server', 'use_server']})
             else:
                 # default to the LocalThreadServer in ./phoebe_crimpl_jobs without mpi and without conda
                 server_options = {'crimpl_name': '', 'use_mpi': False, 'use_conda': False, 'install_deps': False}
