@@ -85,6 +85,17 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.4.0 - solver and gaussian process improvements release
+
+* add support for differential evolution optimizer solver
+* add support for differential corrections optimizer solver
+* optimizers: ability to continue runs from previous solutions (for most optimizers)
+* improvements to geometry and ebai estimators to use ligeor as a new built-in dependency
+* gaussian processes now use celerite2 or scikit-learn instead of celerite
+* emcee sampler: additional plotting styles to check for convergence, checks to ensure starting sample is physical, and added ability to continue a previous run from any arbitrary iteration in a previous run
+* new support for running jobs on external servers via crimpl
+* clarified distinction between chi2 and mle
+
 ### 2.3.63 - constraint feature bugfix
 
 * fix bug where creating a custom constraint for parameters within features was not correctly identifying the constrained parameter and was raising an error when attempting to set the value of the constraining parameter.
