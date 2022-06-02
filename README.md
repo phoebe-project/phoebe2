@@ -85,6 +85,12 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.4.1 - solver filtering and plotting bugfix
+
+* fix filtering error when not explicitly passing solver to run_solver
+* fix exposing analytic model from lc geometry estimator
+* fix phase-sorting when plotting solution from ebai estimator
+
 ### 2.4.0 - solver and gaussian process improvements release
 
 * add support for differential evolution optimizer solver

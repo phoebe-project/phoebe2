@@ -3950,7 +3950,7 @@ class Bundle(ParameterSet):
                 ld_func = dataset_ps.get_value(qualifier='ld_func', component=component, **_skip_filter_checks)
                 ld_coeffs_source = dataset_ps.get_value(qualifier='ld_coeffs_source', component=component, **_skip_filter_checks)
                 ld_coeffs = dataset_ps.get_value(qualifier='ld_coeffs', component=component, **_skip_filter_checks)
-                pb = dataset_ps.get_value(qualifier='passband', **kwargs)
+                pb = dataset_ps.get_value(qualifier='passband', **_skip_filter_checks)
 
                 if np.any(np.isnan(ld_coeffs)):
                     if ld_mode == 'lookup':
@@ -13449,6 +13449,9 @@ class Bundle(ParameterSet):
             # return self.get_solution(solution=solution)
 
         kwargs.setdefault('progressbar', conf.progressbars)
+
+        if solver is None:
+            solver = self.get_solver(**kwargs).solver
 
         # TODO: will server be able to be used as a default here
         use_server = kwargs.get('use_server', kwargs.get('server', self.get_value(qualifier='use_server', solver=solver, context='solver', **_skip_filter_checks)))
