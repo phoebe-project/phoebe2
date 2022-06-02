@@ -4909,6 +4909,11 @@ class ParameterSet(object):
             ebai_phases = ps.get_value(qualifier='ebai_phases', **_skip_filter_checks)
             ebai_fluxes = ps.get_value(qualifier='ebai_fluxes', **_skip_filter_checks)
 
+            # make sure we're sorted to avoid wrapping issues
+            inds = ebai_phases.argsort()
+            ebai_phases = ebai_phases[inds]
+            ebai_fluxes = ebai_fluxes[inds]
+
             kwargs['plot_package'] = 'autofig'
             kwargs['autofig_method'] = 'plot'
             kwargs['xlabel'] = 'phase'
