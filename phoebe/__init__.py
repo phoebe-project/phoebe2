@@ -17,7 +17,7 @@ Available environment variables:
 
 """
 
-__version__ = '2.3.63'
+__version__ = '2.4.0'
 
 import os as _os
 import sys as _sys
@@ -240,10 +240,8 @@ class Settings(object):
         # See #154 (https://github.com/phoebe-project/phoebe2/issues/154)
         self._interactive_constraints = True
 
-        # We'll set interactive system checks to be on if running within a Python
-        # console, but False if running from within a script
-        # See #255 (https://github.com/phoebe-project/phoebe2/issues/255)
-        self._interactive_checks = not hasattr(__main__, '__file__') or bool(_sys.flags.interactive)
+        # We'll set interactive system checks to be off by default (new in 2.4)
+        self._interactive_checks = False
 
         self._download_passband_defaults = {'content': _env_variable_string_or_list('PHOEBE_DOWNLOAD_PASSBAND_DEFAULTS_CONTENT', 'all'),
                                             'gzipped': _env_variable_bool('PHOEBE_DOWNLOAD_PASSBAND_DEFAULTS_GZIPPED', False)}
@@ -377,7 +375,7 @@ from .dependencies.unitsiau2015 import u,c
 from .dependencies.nparray import array, linspace, arange, logspace, geomspace, invspace
 from .dependencies.distl import gaussian, gaussian_around, normal, boxcar, uniform, uniform_around, histogram_from_bins, histogram_from_data, mvgaussian, mvhistogram_from_data
 from .atmospheres.passbands import install_passband, uninstall_passband, uninstall_all_passbands, download_passband, list_passband_online_history, update_passband_available, update_passband, update_all_passbands, list_all_update_passbands_available, list_online_passbands, list_installed_passbands, list_passbands, list_passband_directories, get_passband
-from .parameters import hierarchy, component, compute, constraint, dataset, feature, figure, solver
+from .parameters import hierarchy, component, compute, constraint, dataset, feature, figure, solver, server
 from .frontend.bundle import Bundle
 from .backend import backends as _backends
 from .solverbackends import solverbackends as _solverbackends
@@ -593,9 +591,7 @@ def interactive_checks_on():
     calling <phoebe.frontend.bundle.Bundle.run_compute> and will raise
     an error if failing.
 
-    By default, interactive checks is ON if running PHOEBE in an interactive
-    console (or Jupyter notebook), but OFF if running in a script (to save
-    time but also save confusing logger messages).
+    By default, interactive checks is OFF (in 2.4).
 
     See also:
     * <phoebe.interactive_checks_off>
@@ -616,9 +612,7 @@ def interactive_checks_off():
     To manually run system checks at any time, you can call
     <phoebe.frontend.bundle.Bundle.run_checks>.
 
-    By default, interactive checks is ON if running PHOEBE in an interactive
-    console (or Jupyter notebook), but OFF if running in a script (to save
-    time but also save confusing logger messages).
+    By default, interactive checks is OFF (new in 2.4).
 
     See also:
     * <phoebe.interactive_checks_on>
@@ -934,6 +928,8 @@ def list_available_components(devel=False):
     * <phoebe.list_available_datasets>
     * <phoebe.list_available_computes>
     * <phoebe.list_available_solvers>
+    * <phoebe.list_available_servers>
+    * <phoebe.list_available_figures>
 
     Arguments
     -----------
@@ -955,6 +951,8 @@ def list_available_features(devel=False):
     * <phoebe.list_available_datasets>
     * <phoebe.list_available_computes>
     * <phoebe.list_available_solvers>
+    * <phoebe.list_available_servers>
+    * <phoebe.list_available_figures>
 
     Arguments
     -----------
@@ -976,6 +974,8 @@ def list_available_datasets(devel=False):
     * <phoebe.list_available_features>
     * <phoebe.list_available_computes>
     * <phoebe.list_available_solvers>
+    * <phoebe.list_available_servers>
+    * <phoebe.list_available_figures>
 
     Arguments
     -----------
@@ -997,6 +997,7 @@ def list_available_figures(devel=False):
     * <phoebe.list_available_features>
     * <phoebe.list_available_computes>
     * <phoebe.list_available_solvers>
+    * <phoebe.list_available_servers>
 
     Arguments
     -----------
@@ -1009,6 +1010,28 @@ def list_available_figures(devel=False):
     """
     return  _get_phoebe_funcs(figure, devel=devel)
 
+def list_available_servers(devel=False):
+    """
+    List all available 'kinds' for server from <phoebe.parameters.server>.
+
+    See also:
+    * <phoebe.list_available_components>
+    * <phoebe.list_available_features>
+    * <phoebe.list_available_computes>
+    * <phoebe.list_available_solvers>
+    * <phoebe.list_available_figures>
+
+    Arguments
+    -----------
+    * `devel` (bool, default, optional=False): whether to include development-only
+        kinds.  See <phoebe.devel_on>.
+
+    Returns
+    ---------
+    * (list of strings)
+    """
+    return  _get_phoebe_funcs(server, devel=devel)
+
 def list_available_computes(devel=False):
     """
     List all available 'kinds' for compute from <phoebe.parameters.compute>.
@@ -1018,6 +1041,8 @@ def list_available_computes(devel=False):
     * <phoebe.list_available_features>
     * <phoebe.list_available_datasets>
     * <phoebe.list_available_solvers>
+    * <phoebe.list_available_servers>
+    * <phoebe.list_available_figures>
 
     Arguments
     -----------
@@ -1039,6 +1064,8 @@ def list_available_solvers(devel=False):
     * <phoebe.list_available_features>
     * <phoebe.list_available_datasets>
     * <phoebe.list_available_computes>
+    * <phoebe.list_available_servers>
+    * <phoebe.list_available_figures>
 
     Arguments
     -----------

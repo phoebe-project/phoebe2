@@ -94,7 +94,7 @@ jobs:
         python -m pip install "numpy${{ matrix.numpy-version }}" --no-cache-dir --ignore-installed
         python -m pip install "scipy${{ matrix.scipy-version }}"
         python -m pip install "astropy${{ matrix.astropy-version }}"
-        python -m pip install nose rebound requests pytest asdf matplotlib sympy requests
+        python -m pip install nose rebound requests pytest asdf matplotlib sympy requests tqdm corner
 
     - name: Test numpy, scipy, astropy install/versions
       run: |

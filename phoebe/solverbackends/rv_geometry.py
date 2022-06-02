@@ -28,7 +28,7 @@ def smooth_rv(rvdata):
     win_len = 5 if win_len <= 3 else win_len
     poly_ord = 3
     rv_smooth = savgol_filter(rvdata[:,1], window_length=win_len, polyorder=poly_ord)
- 
+
     return np.array([rvdata[:,0], rv_smooth, rvdata[:,2]]).T
 
 def interpolate_rvs(rv1data, rv2data):
@@ -62,7 +62,7 @@ def interpolate_rvs(rv1data, rv2data):
         rvs1_new = rv1_interp(ph2_new)
 
     return rvs1_new, rvs2_new
-    
+
 
 def estimate_q(rv1data, rv2data, vgamma=None, tol=1e-8):
     if len(rv1data) != len(rv2data):

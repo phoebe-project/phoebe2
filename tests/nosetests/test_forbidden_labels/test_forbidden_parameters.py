@@ -19,7 +19,8 @@ def test_forbidden(verbose=False):
     b.add_compute('ellc')
 
     b.add_spot(component='primary')
-    b.add_gaussian_process(dataset='lc01')
+    b.add_gaussian_process('sklearn', dataset='lc01')
+    b.add_gaussian_process('celerite2', dataset='lc01')
 
     b.add_solver('estimator.lc_periodogram')
     b.add_solver('estimator.rv_periodogram')
@@ -28,10 +29,13 @@ def test_forbidden(verbose=False):
     b.add_solver('estimator.ebai')
     b.add_solver('optimizer.nelder_mead')
     b.add_solver('optimizer.differential_evolution')
+    b.add_solver('optimizer.differential_corrections')
     b.add_solver('optimizer.cg')
     b.add_solver('optimizer.powell')
     b.add_solver('sampler.emcee')
     b.add_solver('sampler.dynesty')
+
+    b.add_server('remoteslurm')
 
 
     # TODO: include constraint_func?  Shouldn't matter since they're not in twigs

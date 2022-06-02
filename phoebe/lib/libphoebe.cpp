@@ -9644,17 +9644,30 @@ static PyObject *wd_readdata(PyObject *self, PyObject *args, PyObject *keywds) {
   //
   // Reading
   //
-
+	
   int len[2] = {
-    wd_atm::read_data<double, wd_atm::N_planck>(PyString_AsString(ofilename_planck), planck_table),
-    wd_atm::read_data<double, wd_atm::N_atm>(PyString_AsString(ofilename_atm), atm_table)
-  };
-
+		wd_atm::read_data<double, wd_atm::N_planck>(PyString_AsString(ofilename_planck), planck_table),
+		wd_atm::read_data<double, wd_atm::N_atm>(PyString_AsString(ofilename_atm), atm_table)
+	};
+	
   //
   // Checks
   //
-  if (len[0] != wd_atm::N_planck || len[1] != wd_atm::N_atm) {
-    raise_exception(fname + "::Problem reading data");
+  std::string err_msg;
+  
+  if (len[0] < 0)
+    err_msg = "\nProblem opening the planck file:"_s + PyString_AsString(ofilename_planck);
+  else if (len[0] != wd_atm::N_planck)
+    err_msg = "\nWrong size read, len= "_s + std::to_string(len[0]) + " len_expected="_s + std::to_string(wd_atm::N_planck);
+  
+  if (len[1] < 0)
+    err_msg += "\nProblem opening the atm file:"_s + PyString_AsString(ofilename_atm);
+  else if (len[1] != wd_atm::N_atm)
+    err_msg += "\nWrong size read, len= "_s + std::to_string(len[1]) + " len_expected="_s + std::to_string(wd_atm::N_atm);
+ 
+ 
+  if (err_msg.size() != 0) {
+    raise_exception(fname + "::Problem reading data." + err_msg);
     delete [] planck_table;
     delete [] atm_table;
     return NULL;

@@ -208,10 +208,10 @@ def star(component, **kwargs):
     # params += [ChoiceParameter(qualifier='gravblaw_bol', value=kwargs.get('gravblaw_bol', 'zeipel'), choices=['zeipel', 'espinosa', 'claret'], description='Gravity brightening law')]
 
     # params += [FloatParameter(qualifier='gravb_bol', visible_if='hierarchy.is_contact_binary:False', value=kwargs.get('gravb_bol', 0.32), default_unit=u.dimensionless_unscaled, limits=(0.0,1.0), description='Bolometric gravity brightening')]
-    params += [FloatParameter(qualifier='gravb_bol', value=kwargs.get('gravb_bol', 0.32), default_unit=u.dimensionless_unscaled, limits=(0.0,1.0), description='Bolometric gravity brightening')]
+    params += [FloatParameter(qualifier='gravb_bol', latexfmt=r'\beta_{{ \mathrm{{bol}}, \mathrm{{ {component} }} }}', value=kwargs.get('gravb_bol', 0.32), default_unit=u.dimensionless_unscaled, limits=(0.0,1.0), description='Bolometric gravity brightening')]
 
     # also see constraint below
-    params += [FloatParameter(qualifier='irrad_frac_refl_bol', value=kwargs.get('irrad_frac_refl_bol', 0.6), default_unit=u.dimensionless_unscaled, limits=(0.0,1.0), description='ratio of incident bolometric light that is used for reflection/irradiation (heating without redistribution)')]
+    params += [FloatParameter(qualifier='irrad_frac_refl_bol', latexfmt=r'A_{{ \mathrm{{bol}}, \mathrm{{ {component} }} }}', value=kwargs.get('irrad_frac_refl_bol', 0.6), default_unit=u.dimensionless_unscaled, limits=(0.0,1.0), description='ratio of incident bolometric light that is used for reflection/irradiation (heating without redistribution)')]
     params += [FloatParameter(qualifier='irrad_frac_lost_bol', value=kwargs.get('irrad_frac_lost_bol', 1.0), default_unit=u.dimensionless_unscaled, limits=(0.0, 1.0), advanced=True, description='ratio of incident bolometric light that is lost/ignored')]
 
     params += [ChoiceParameter(qualifier='ld_mode_bol',
@@ -247,6 +247,9 @@ def star(component, **kwargs):
     # - rotation_period
     # - pitch
     # - yaw
+    # - teffratio
+    # - requivratio
+    # - requivsumfrac
 
 
     constraints += [(constraint.freq, component)]

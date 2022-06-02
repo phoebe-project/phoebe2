@@ -160,51 +160,60 @@ def fillout_factor_to_pot(q, fillout_factor, **kwargs):
     return fillout_factor * (pot_L23 - pot_L1) + pot_L1
 
 
-def esinw2per0(ecc, esinw):
+def esinw2per0(ecc, esinw, allow_nan=False):
     """
     """
     # print "*** constraints.builtin.esinw2per0", ecc, esinw
 
     if ecc==0.:
-        return 0.
+        # multiply to support arrays
+        return 0.*esinw
+    elif isinstance(ecc, np.ndarray):
+        return np.array([esinw2per0(e, esinw) for e in ecc])
     else:
         per0 = np.arcsin(esinw/ecc)
-        if np.isnan(per0):
+        if not allow_nan and np.any(np.isnan(per0)):
             raise ValueError("esinw={} and ecc={} results in nan for per0".format(esinw, ecc))
         return per0
 
-def ecosw2per0(ecc, ecosw):
+def ecosw2per0(ecc, ecosw, allow_nan=False):
     """
     """
     # print "*** constraints.builtin.ecosw2per0", ecc, ecosw
 
     if ecc==0.:
-        return 0.
+        # multiply to support arrays
+        return 0.*ecosw
+    elif isinstance(ecc, np.ndarray):
+        return np.array([esinw2per0(e, esinw) for e in ecc])
     else:
+        if not allow_nan and np.any(np.abs(ecosw/ecc) > 1):
+            # raise the error in advance to avoid a runtime error
+            raise ValueError("ecosw={} and ecc={} results in nan for per0".format(ecosw, ecc))
         per0 = np.arccos(ecosw/ecc)
-        if np.isnan(per0):
+        if not allow_nan and np.any(np.isnan(per0)):
             raise ValueError("ecosw={} and ecc={} results in nan for per0".format(ecosw, ecc))
         return per0
 
-def esinw2ecc(esinw, per0):
+def esinw2ecc(esinw, per0, allow_nan=False):
     """
     """
     # print("*** constraints.builtin.esinw2ecc", esinw, per0)
-    if np.sin(per0) == 0:
+    if not allow_nan and np.any(np.sin(per0) == 0):
         raise ValueError("esinw={} and per0={} results in nan for ecc".format(esinw, per0))
     ecc = esinw/np.sin(per0)
-    if np.isnan(ecc):
+    if not allow_nan and np.any(np.isnan(ecc)):
         raise ValueError("esinw={} and per0={} results in nan for ecc".format(esinw, per0))
     return ecc
 
-def ecosw2ecc(ecosw, per0):
+def ecosw2ecc(ecosw, per0, allow_nan=False):
     """
     """
     # print("*** constraints.builtin.ecosw2ecc", ecosw, per0)
-    if np.cos(per0) == 0:
+    if not allow_nan and np.any(np.cos(per0) == 0):
         raise ValueError("ecosw={} and per0={} results in nan for ecc".format(ecosw, per0))
     ecc = ecosw/np.cos(per0)
-    if np.isnan(ecc):
+    if not allow_nan and np.any(np.isnan(ecc)):
         raise ValueError("ecosw={} and per0={} results in nan for ecc".format(ecosw, per0))
     return ecc
 

@@ -18,6 +18,12 @@ def _comments_params(**kwargs):
     params += [StringParameter(qualifier='comments', value=kwargs.get('comments', ''), description='User-provided comments for these solver-options.  Feel free to place any notes here - if not overridden, they will be copied to any resulting solutions.')]
     return params
 
+def _server_params(**kwargs):
+    params = []
+
+    params += [ChoiceParameter(qualifier='use_server', value=kwargs.get('use_server', 'none'), choices=['none'], description='Server to use when running the solver (or "none" to run locally).')]
+    return params
+
 
 def lc_periodogram(**kwargs):
     """
@@ -99,6 +105,7 @@ def lc_periodogram(**kwargs):
         <phoebe.parameters.Parameter> objects.
     """
     params = _comments_params(**kwargs)
+    params += _server_params(**kwargs)
 
     params += [ChoiceParameter(qualifier='algorithm', value=kwargs.get('algorithm', 'bls'), choices=['bls', 'ls'], description='Algorithm to use to create the periodogram.  bls: BoxLeastSquares, ls: LombScargle.')]
 
@@ -189,6 +196,7 @@ def rv_periodogram(**kwargs):
         <phoebe.parameters.Parameter> objects.
     """
     params = _comments_params(**kwargs)
+    params += _server_params(**kwargs)
 
     params += [ChoiceParameter(qualifier='algorithm', value=kwargs.get('algorithm', 'ls'), choices=['ls'], description='Algorithm to use to create the periodogram.  ls: LombScargle.')]
 
@@ -264,6 +272,7 @@ def lc_geometry(**kwargs):
         <phoebe.parameters.Parameter> objects.
     """
     params = _comments_params(**kwargs)
+    params += _server_params(**kwargs)
 
     params += [SelectParameter(qualifier='lc_datasets', value=kwargs.get('lc_datasets', '*'), choices=[], description='Light curve dataset(s) to use to extract eclipse geometry')]
     params += [ChoiceParameter(visible_if='lc_datasets:<plural>', qualifier='lc_combine', value=kwargs.get('lc_combine', 'median'), choices=['median', 'max'], advanced=True, description='How to normalize each light curve prior to combining.')]
@@ -272,9 +281,10 @@ def lc_geometry(**kwargs):
     params += [IntParameter(qualifier='phase_nbins', visible_if='phase_bin:True', value=kwargs.get('phase_nbins', 500), limits=(100,None), description='Number of bins to use during phase binning input observations (will only be applied if len(times) > 2*phase_nbins)')]
 
     params += [ChoiceParameter(qualifier='orbit', value=kwargs.get('orbit', ''), choices=[''], description='Orbit to use for phasing the light curve referenced in the lc_datasets parameter')]
+    params += [ChoiceParameter(qualifier='analytical_model', value=kwargs.get('analytical_model', 'two-gaussian'), choices=['two-gaussian', 'polyfit'], description='Analytical model to fit the light curve with.')]
+    params += [BoolParameter(qualifier='interactive', value=kwargs.get('interactive', False), description='Whether to open results in interactive mode for manual adjustment.')]
 
     params += [BoolParameter(qualifier='t0_near_times', value=kwargs.get('t0_near_times', True), description='Whether the returned value for t0_supconj should be forced to be in the range of the referenced observations.')]
-
     params += [BoolParameter(qualifier='expose_model', value=kwargs.get('expose_model', True), description='Whether to expose the 2-gaussian analytical models in the solution')]
 
     return ParameterSet(params)
@@ -335,6 +345,7 @@ def rv_geometry(**kwargs):
         <phoebe.parameters.Parameter> objects.
     """
     params = _comments_params(**kwargs)
+    params += _server_params(**kwargs)
 
     params += [SelectParameter(qualifier='rv_datasets', value=kwargs.get('rv_datasets', '*'), choices=[], description='Radial velocity dataset(s) to use to extract RV geometry')]
     params += [ChoiceParameter(qualifier='orbit', value=kwargs.get('orbit', ''), choices=[''], description='Orbit to use for estimating orbital parameters')]
@@ -354,26 +365,31 @@ def ebai(**kwargs):
     """
     Create a <phoebe.parameters.ParameterSet> for solver options for the
     ebai artificial neural network solver.
+    
+    This solver requires scikit-learn to be installed if using the `knn` method.
+    To install scikit-learn, see https://scikit-learn.org/stable/install.html.
 
     When using this solver, consider citing:
-    * https://ui.adsabs.harvard.edu/abs/2008ApJ...687..542P
+    * https://ui.adsabs.harvard.edu/abs/2008ApJ...687..542P (if ebai_method = `mlp`)
+    * http://jmlr.csail.mit.edu/papers/v12/pedregosa11a.html (if ebai_method = `knn`)
 
     See also:
     * <phoebe.frontend.bundle.Bundle.references>
 
     The input light curve datasets (`lc_datasets`) are each normalized
     according to `lc_combine`, combined and
-    fitted with a 2 gaussian model which is then itself
-    normalized and used as input to `ebai`.  Any necessary phase-shift required
-    to ensure the primary is at a phase of 0 is used to provide the proposed
-    value for `t0_supconj`.  The normalized 2 gaussian model is then sent through
-    the matrix transformation for a pre-trained `ebai` artificial neural network
-    resulting in proposed values for `teffratio`, `requivsumfrac`, `esinw`,
-    `ecosw`, and `incl` for the corresponding `orbit`.
+    fitted with an analytical model (two-Gaussian for contact binaries and 
+    detached if ebai_method=`mlp`, polyfit for detached with ebai_method=`knn`), 
+    which is then itself normalized and used as input to `ebai`.  
+    Any necessary phase-shift required to ensure the primary is at a phase of 0 is used 
+    to provide the proposed value for `t0_supconj`.  The normalized model is then sent 
+    through the pre-trained `ebai` model, resulting in proposed values for 
+    `teffratio`, `requivsumfrac`, `esinw`, `ecosw`, and `incl` for detached systems,
+    and `teffratio`, `q`, `fillout_factor` and `incl` for contact systems.
 
-    Note that the current network only supports detached systems and will return
+    Note that the `mlp` network only supports detached systems and will return
     all nans and a logger warning if either eclipse from the 2 gaussian model has
-    a width greater than 0.25 (in phase-space).
+    a width greater than 0.25 (in phase-space). Use ebai_method = `knn` instead.
 
     Generally, this will be used as an input to the kind argument in
     <phoebe.frontend.bundle.Bundle.add_solver>.  If attaching through
@@ -403,6 +419,9 @@ def ebai(**kwargs):
         phase binning input observations
         (will only be applied if len(times) > 2*`phase_nbins`).  Only applicable
         if `phase_bin` is True.
+    * `ebai_method` (str, optional, default='knn'): EBAI method to use. If 'knn',
+        a train scikit-learn KNeighborsRegressor will be used. If 'mlp', a custom
+        neural network will be used instead (only applicable to detached systems.)
     * `orbit` (string, optional, default=top-level orbit): Orbit to use for
         phasing the light curve referenced in the `lc_datasets` parameter
 
@@ -412,13 +431,14 @@ def ebai(**kwargs):
         <phoebe.parameters.Parameter> objects.
     """
     params = _comments_params(**kwargs)
+    params += _server_params(**kwargs)
 
     params += [SelectParameter(qualifier='lc_datasets', value=kwargs.get('lc_datasets', '*'), choices=[], description='Light curve dataset(s) to pass to ebai')]
     params += [ChoiceParameter(visible_if='lc_datasets:<plural>', qualifier='lc_combine', value=kwargs.get('lc_combine', 'median'), choices=['median', 'max'], advanced=True, description='How to normalize each light curve prior to combining.')]
 
     params += [BoolParameter(qualifier='phase_bin', value=kwargs.get('phase_bin', True), description='Bin the input observations (see phase_nbins) if more than 2*phase_nbins.  NOTE: input observational sigmas will be ignored during binning and replaced by per-bin standard deviations if possible, or ignored entirely otherwise.')]
     params += [IntParameter(qualifier='phase_nbins', visible_if='phase_bin:True', value=kwargs.get('phase_nbins', 500), limits=(100,None), description='Number of bins to use during phase binning input observations (will only be applied if len(times) > 2*phase_nbins)')]
-
+    params += [ChoiceParameter(qualifier='ebai_method', value=kwargs.get('ebai_method', 'knn'), choices=['knn', 'mlp'], description='Choice of machine learning model to use for prediction. knn uses a trained sklearn kNeighborsRegressor, while mlp uses a trained neural network.')]
     params += [ChoiceParameter(qualifier='orbit', value=kwargs.get('orbit', ''), choices=[''], description='Orbit to use for phasing the light curve referenced in the lc_datasets parameter')]
 
     return ParameterSet(params)

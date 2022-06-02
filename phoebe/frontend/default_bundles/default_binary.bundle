@@ -352,6 +352,7 @@ null
 1.0
 ],
 "copy_for": false,
+"latexfmt": "\\beta_{{ \\mathrm{{bol}}, \\mathrm{{ {component} }} }}",
 "Class": "FloatParameter"
 },
 {
@@ -367,6 +368,7 @@ null
 1.0
 ],
 "copy_for": false,
+"latexfmt": "A_{{ \\mathrm{{bol}}, \\mathrm{{ {component} }} }}",
 "Class": "FloatParameter"
 },
 {
@@ -698,6 +700,7 @@ null
 1.0
 ],
 "copy_for": false,
+"latexfmt": "\\beta_{{ \\mathrm{{bol}}, \\mathrm{{ {component} }} }}",
 "Class": "FloatParameter"
 },
 {
@@ -713,6 +716,7 @@ null
 1.0
 ],
 "copy_for": false,
+"latexfmt": "A_{{ \\mathrm{{bol}}, \\mathrm{{ {component} }} }}",
 "Class": "FloatParameter"
 },
 {
@@ -1107,6 +1111,54 @@ null
 "Class": "FloatParameter"
 },
 {
+"qualifier": "teffratio",
+"component": "binary",
+"kind": "orbit",
+"context": "component",
+"description": "ratio between effective temperatures of children stars",
+"value": 1.0,
+"default_unit": "",
+"limits": [
+0.0,
+null
+],
+"copy_for": false,
+"latexfmt": "T_\\mathrm{{ eff, {children1} }} / T_\\mathrm{{ eff, {children0} }}",
+"Class": "FloatParameter"
+},
+{
+"qualifier": "requivratio",
+"component": "binary",
+"kind": "orbit",
+"context": "component",
+"description": "ratio between equivalent radii of children stars",
+"value": 1.0,
+"default_unit": "",
+"limits": [
+0.0,
+null
+],
+"copy_for": false,
+"latexfmt": "R_\\mathrm{{ equiv, {children1} }} / R_\\mathrm{{ equiv, {children0} }}",
+"Class": "FloatParameter"
+},
+{
+"qualifier": "requivsumfrac",
+"component": "binary",
+"kind": "orbit",
+"context": "component",
+"description": "sum of fractional equivalent radii of children stars",
+"value": 0.37735849056603776,
+"default_unit": "",
+"limits": [
+0.0,
+null
+],
+"copy_for": false,
+"latexfmt": "(R_\\mathrm{{ equiv, {children0} }} + R_\\mathrm{{ equiv, {children1} }}) / a_\\mathrm{{ {component} }}",
+"Class": "FloatParameter"
+},
+{
 "qualifier": "sma",
 "component": "primary",
 "kind": "star",
@@ -1418,6 +1470,65 @@ null
 "component": "binary"
 },
 "constraint_addl_vars": [],
+"in_solar_units": true,
+"Class": "ConstraintParameter"
+},
+{
+"qualifier": "teffratio",
+"component": "binary",
+"kind": "orbit",
+"context": "constraint",
+"description": "expression that determines the constraint",
+"value": "{teff@secondary@component} / {teff@primary@component}",
+"default_unit": "",
+"constraint_func": "teffratio",
+"constraint_kwargs": {
+"orbit": "binary"
+},
+"constraint_addl_vars": [],
+"in_solar_units": true,
+"Class": "ConstraintParameter"
+},
+{
+"qualifier": "requivratio",
+"component": "binary",
+"kind": "orbit",
+"context": "constraint",
+"description": "expression that determines the constraint",
+"value": "{requiv@secondary@component} / {requiv@primary@component}",
+"default_unit": "",
+"constraint_func": "requivratio",
+"constraint_kwargs": {
+"orbit": "binary"
+},
+"constraint_addl_vars": [
+"requivratio@binary@orbit@component",
+"requiv@primary@star@component",
+"requiv@secondary@star@component",
+"sma@binary@orbit@component"
+],
+"in_solar_units": true,
+"Class": "ConstraintParameter"
+},
+{
+"qualifier": "requivsumfrac",
+"component": "binary",
+"kind": "orbit",
+"context": "constraint",
+"description": "expression that determines the constraint",
+"value": "({requiv@primary@component} + {requiv@secondary@component}) / {sma@binary@component}",
+"default_unit": "",
+"constraint_func": "requivsumfrac",
+"constraint_kwargs": {
+"orbit": "binary"
+},
+"constraint_addl_vars": [
+"requivratio@binary@orbit@component",
+"requivsumfrac@binary@orbit@component",
+"requiv@primary@star@component",
+"requiv@secondary@star@component",
+"sma@binary@orbit@component"
+],
 "in_solar_units": true,
 "Class": "ConstraintParameter"
 },
@@ -1746,6 +1857,19 @@ null
 "Class": "StringParameter"
 },
 {
+"qualifier": "use_server",
+"compute": "phoebe01",
+"kind": "phoebe",
+"context": "compute",
+"description": "Server to use when running the forward model (or \"none\" to run locally) via run_compute.",
+"choices": [
+"none"
+],
+"value": "none",
+"copy_for": false,
+"Class": "ChoiceParameter"
+},
+{
 "qualifier": "enabled",
 "dataset": "_default",
 "compute": "phoebe01",
@@ -1772,6 +1896,49 @@ null
 "feature": "*"
 },
 "Class": "BoolParameter"
+},
+{
+"qualifier": "gp_exclude_phases_enabled",
+"dataset": "_default",
+"compute": "phoebe01",
+"kind": "phoebe",
+"context": "compute",
+"description": "Whether to apply the mask in gp_exclude_phases during gaussian process fitting.",
+"value": true,
+"visible_if": "ds_has_enabled_feature:gp_*",
+"copy_for": {
+"kind": [
+"lc",
+"rv",
+"lp"
+],
+"dataset": "*"
+},
+"Class": "BoolParameter"
+},
+{
+"qualifier": "gp_exclude_phases",
+"dataset": "_default",
+"compute": "phoebe01",
+"kind": "phoebe",
+"context": "compute",
+"description": "List of phase-tuples.  Any observations inside the range set by any of the tuples will be ignored by the gaussian process features.",
+"value": [],
+"default_unit": "",
+"visible_if": "ds_has_enabled_feature:gp_*,gp_exclude_phases_enabled:True",
+"required_shape": [
+null,
+2
+],
+"copy_for": {
+"kind": [
+"lc",
+"rv",
+"lp"
+],
+"dataset": "*"
+},
+"Class": "FloatArrayParameter"
 },
 {
 "qualifier": "dynamics_method",
@@ -1929,11 +2096,11 @@ null
 "context": "compute",
 "description": "Atmosphere table",
 "choices": [
-"ck2004",
-"phoenix",
-"extern_planckint",
 "extern_atmx",
-"blackbody"
+"extern_planckint",
+"blackbody",
+"ck2004",
+"phoenix"
 ],
 "value": "ck2004",
 "copy_for": {
@@ -2134,11 +2301,11 @@ null
 "context": "compute",
 "description": "Atmosphere table",
 "choices": [
-"ck2004",
-"phoenix",
-"extern_planckint",
 "extern_atmx",
-"blackbody"
+"extern_planckint",
+"blackbody",
+"ck2004",
+"phoenix"
 ],
 "value": "ck2004",
 "copy_for": false,
@@ -2152,11 +2319,11 @@ null
 "context": "compute",
 "description": "Atmosphere table",
 "choices": [
-"ck2004",
-"phoenix",
-"extern_planckint",
 "extern_atmx",
-"blackbody"
+"extern_planckint",
+"blackbody",
+"ck2004",
+"phoenix"
 ],
 "value": "ck2004",
 "copy_for": false,
@@ -2352,7 +2519,7 @@ null
 "qualifier": "phoebe_version",
 "context": "setting",
 "description": "Version of PHOEBE",
-"value": "2.3.30",
+"value": "2.4.0.dev1+phoebe_2.4dev",
 "copy_for": false,
 "readonly": true,
 "advanced": true,
@@ -2405,7 +2572,9 @@ null
 "context": "setting",
 "description": "Solutions to use when calling run_checks/run_checks_solution or within interactive checks.",
 "choices": [],
-"value": [],
+"value": [
+"*"
+],
 "copy_for": false,
 "Class": "SelectParameter"
 },
@@ -2414,7 +2583,20 @@ null
 "context": "setting",
 "description": "Figures to use when calling run_checks/run_checks_figure or within interactive checks.",
 "choices": [],
-"value": [],
+"value": [
+"*"
+],
+"copy_for": false,
+"Class": "SelectParameter"
+},
+{
+"qualifier": "run_checks_server",
+"context": "setting",
+"description": "Servers to use when calling run_checks/run_checks_server or within interactive checks.",
+"choices": [],
+"value": [
+"*"
+],
 "copy_for": false,
 "Class": "SelectParameter"
 },

@@ -334,9 +334,9 @@ class import_check(Command):
       import corner
       corner_version = corner.__version__
       if LooseVersion(corner_version) < LooseVersion('2.0.0'):
-        optional.append('corner 2.0+')
+        required.append('corner 2.0+')
     except:
-      optional.append('corner')
+      required.append('corner')
     try:
       import sympy
       sympy_version = sympy.__version__
@@ -405,8 +405,8 @@ else:
     long_description = "\n".join(long_description_s[long_description_s.index("INTRODUCTION"):])
 
 setup (name = 'phoebe',
-       version = '2.3.63',
-       description = 'PHOEBE 2.3.63',
+       version = '2.4.0',
+       description = 'PHOEBE devel version',
        long_description=long_description,
        author = 'PHOEBE development team',
        author_email = 'phoebe-devel@lists.sourceforge.net',
@@ -426,12 +426,28 @@ setup (name = 'phoebe',
             'Programming Language :: Python :: 3 :: Only',
         ],
        python_requires='>=3.6, <4',
-       download_url = 'https://github.com/phoebe-project/phoebe2/tarball/2.3.63',
-       packages = ['phoebe', 'phoebe.parameters', 'phoebe.parameters.solver', 'phoebe.parameters.figure', 'phoebe.frontend', 'phoebe.constraints', 'phoebe.dynamics', 'phoebe.distortions', 'phoebe.algorithms', 'phoebe.atmospheres', 'phoebe.backend', 'phoebe.solverbackends', 'phoebe.solverbackends.ebai', 'phoebe.utils', 'phoebe.helpers', 'phoebe.pool', 'phoebe.dependencies', 'phoebe.dependencies.autofig', 'phoebe.dependencies.nparray', 'phoebe.dependencies.distl', 'phoebe.dependencies.unitsiau2015'],
-       install_requires=['numpy>=1.12','scipy>=1.2','astropy>=1.0', 'corner', 'pytest', 'requests', 'python-socketio[client]']+['flask', 'flask-cors', 'flask-socketio==4.3.*', 'gevent-websocket'],
+       download_url = 'https://github.com/phoebe-project/phoebe2/tarball/2.3.58',
+       packages = ['phoebe',
+                   'phoebe.parameters', 'phoebe.parameters.solver', 'phoebe.parameters.figure',
+                   'phoebe.frontend',
+                   'phoebe.constraints',
+                   'phoebe.dynamics',
+                   'phoebe.distortions',
+                   'phoebe.algorithms',
+                   'phoebe.atmospheres',
+                   'phoebe.backend',
+                   'phoebe.solverbackends', 'phoebe.solverbackends.ebai', 'phoebe.solverbackends.knn',
+                   'phoebe.utils',
+                   'phoebe.helpers',
+                   'phoebe.pool',
+                   'phoebe.dependencies', 'phoebe.dependencies.autofig', 'phoebe.dependencies.nparray', 'phoebe.dependencies.distl', 'phoebe.dependencies.crimpl', 'phoebe.dependencies.unitsiau2015',
+                   'phoebe.dependencies.ligeor',
+                   'phoebe.dependencies.ligeor.ebai', 'phoebe.dependencies.ligeor.ebai.database', 'phoebe.dependencies.ligeor.eclipse', 'phoebe.dependencies.ligeor.models', 'phoebe.dependencies.ligeor.utils'],
+       install_requires=['numpy>=1.12','scipy>=1.2','astropy>=1.0', 'corner', 'pytest', 'requests', 'tqdm', 'python-socketio[client]']+['flask', 'flask-cors', 'flask-socketio==4.3.*', 'gevent-websocket'],
        package_data={'phoebe.atmospheres':['tables/wd/*', 'tables/passbands/*'],
                      'phoebe.frontend':['default_bundles/*.bundle'],
-                     'phoebe.solverbackends.ebai': ['*.data', '*.weights']
+                     'phoebe.solverbackends.ebai': ['*.data', '*.weights'],
+                     'phoebe.solverbackends.knn': ['*.knn']
                     },
        ext_modules = ext_modules,
        scripts=None if  _env_variable_bool('PHOEBE_SKIP_SCRIPTS', False) else ['client-server/phoebe-server', 'client-server/phoebe-autofig'],

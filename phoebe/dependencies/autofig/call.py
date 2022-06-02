@@ -1207,15 +1207,15 @@ class Plot(Call):
                 sc_kwargs_const['cmap'] = self.axes_c.cmap if self.axes_c is not None else None
                 # we'll set sc_kwargs['cmap'] per-loop in the function below
             else:
-                sc_kwargs_const['c'] = color
+                sc_kwargs_const['color'] = color
 
 
             def sc_kwargs_loop(sc_kwargs, loop, do_zorder):
                 if do_colorscale:
                     if do_zorder:
-                        sc_kwargs['c'] = c[loop]
+                        sc_kwargs['color'] = c[loop]
                     else:
-                        sc_kwargs['c'] = c
+                        sc_kwargs['color'] = c
                 # if do_sizescale:
                     # if do_zorder:
                         # sc_kwargs['s'] = self.get_markersize(sizes[loop], scatter=True)
@@ -1471,6 +1471,8 @@ class FillBetween(Call):
         cmap = kwargs.pop('colormap', cmap)
         self._c = CallDimensionC(self, c, None, cunit, clabel, cmap=cmap)
 
+        self.alpha = kwargs.pop('alpha', 0.6)
+
         self.linebreak = linebreak
 
         if x is None:
@@ -1578,6 +1580,19 @@ class FillBetween(Call):
             cmap = cmapcycler.next_tmp
 
         return cmap
+
+    @property
+    def alpha(self):
+        return self._alpha
+
+    @alpha.setter
+    def alpha(self, alpha):
+        if not isinstance(alpha, float):
+            raise TypeError("alpha must be of type float")
+        if alpha < 0 or alpha > 1:
+            raise ValueError("alpha must be between 0 and 1")
+
+        self._alpha = alpha
 
     @property
     def linebreak(self):
@@ -1710,7 +1725,7 @@ class FillBetween(Call):
 
             fb_kwargs = {}
             fb_kwargs['color'] = color
-            fb_kwargs['alpha'] = 0.6 # TODO: make this an option
+            fb_kwargs['alpha'] = self.alpha # defaults to 0.6
             if do_colorscale:
                 fb_kwargs['norm'] = self.axes_c.get_norm(i=i) if self.axes_c is not None else None
                 fb_kwargs['cmap'] = self.axes_c.cmap if self.axes_c is not None else None

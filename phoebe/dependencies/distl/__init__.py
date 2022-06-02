@@ -350,7 +350,7 @@ def mvsamples(samples, weights=None, bw_method=None,
 
 #### GENERATORS ####
 def gaussian_around(scale, value=None,
-                    unit=None, label=None, label_latex=None, wrap_at=None):
+                    unit=None, frac=False, label=None, label_latex=None, wrap_at=None):
     """
     Create a <Gaussian_Around> object which, when called, will resolve
     to a <Gaussian> object around a given central value.
@@ -361,6 +361,8 @@ def gaussian_around(scale, value=None,
         distribution.
     * `value` (float, optional, default=None): the current face-value.
     * `unit` (astropy.units object, optional): the units of the provided values.
+    * `frac` (bool, optional, default=False): whether `scale` is provided as
+        a fraction of `value` rather than in `unit`.
     * `label` (string, optional): a label for the distribution.  This is used
         for the x-label while plotting the distribution if `label_latex` is not provided,
         as well as a shorthand notation when creating a <Composite> distribution.
@@ -375,10 +377,10 @@ def gaussian_around(scale, value=None,
     * a <Gaussian_Around> object
     """
 
-    return _distl.Gaussian_Around(scale, value, unit, label, label_latex, wrap_at)
+    return _distl.Gaussian_Around(scale, value, unit, frac, label, label_latex, wrap_at)
 
 def uniform_around(width, value=None,
-                   unit=None, label=None, label_latex=None, wrap_at=None):
+                   unit=None, frac=False, label=None, label_latex=None, wrap_at=None):
     """
     Create a <Uniform_Around> object which, when called, will resolve
     to a <Uniform> object around a given central value.
@@ -389,6 +391,8 @@ def uniform_around(width, value=None,
         and <Uniform.high> will be set based on the current value and `width`).
     * `value` (float, optional, default=None): the current face-value.
     * `unit` (astropy.units object, optional): the units of the provided values.
+    * `frac` (bool, optional, default=False): whether `width` is provided as
+        a fraction of `value` rather than in `unit`.
     * `label` (string, optional): a label for the distribution.  This is used
         for the x-label while plotting the distribution if `label_latex` is not provided,
         as well as a shorthand notation when creating a <Composite> distribution.
@@ -404,9 +408,9 @@ def uniform_around(width, value=None,
     * a <Uniform_Around> object.
     """
 
-    return _distl.Uniform_Around(width, value, unit, label, label_latex, wrap_at)
+    return _distl.Uniform_Around(width, value, unit, frac, label, label_latex, wrap_at)
 
-def delta_around(value=None, unit=None, label=None, label_latex=None, wrap_at=None):
+def delta_around(value=None, unit=None, frac=False, label=None, label_latex=None, wrap_at=None):
     """
     Create a <Delta_Around> object which, when called, will resolve
     to a <Delta> object around a given central value.
@@ -415,6 +419,7 @@ def delta_around(value=None, unit=None, label=None, label_latex=None, wrap_at=No
     --------------
     * `value` (float, optional, default=None): the current face-value.
     * `unit` (astropy.units object, optional): the units of the provided values.
+    * `frac` (bool, optional, default=False): ignored as <Delta> has no width parameter.
     * `label` (string, optional): a label for the distribution.  This is used
         for the x-label while plotting the distribution if `label_latex` is not provided,
         as well as a shorthand notation when creating a <Composite> distribution.
@@ -429,4 +434,4 @@ def delta_around(value=None, unit=None, label=None, label_latex=None, wrap_at=No
     --------
     * a <Delta> object
     """
-    return _distl.Delta_Around(unit, value, label, label_latex, wrap_at)
+    return _distl.Delta_Around(value, unit, frac, label, label_latex, wrap_at)

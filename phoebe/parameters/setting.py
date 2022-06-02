@@ -29,6 +29,9 @@ def settings(**kwargs):
     * `run_checks_figure` (list or string, optional, default='*'): Figures
         to use when calling run_checks/run_checks_figure or within
         interactive checks.
+    * `run_checks_server` (list or string, optional, default='*'): Servers
+        to use when calling run_checks/run_checks_server or within
+        interactive checks.
     * `auto_add_figure` (bool, optional, default=False): Whether to automatically
         add figure parameters when a dataset is added with a new dataset type,
         or a solution is added.
@@ -55,8 +58,9 @@ def settings(**kwargs):
 
     params += [SelectParameter(qualifier='run_checks_compute', value=kwargs.get('run_checks_compute', '*'), choices=[], advanced=False, description='Compute options to use when calling run_checks/run_checks_compute or within interactive checks.')]
     params += [SelectParameter(qualifier='run_checks_solver', value=kwargs.get('run_checks_solver', '*'), choices=[], advanced=False, description='Solver options to use when calling run_checks/run_checks_solver or within interactive checks.')]
-    params += [SelectParameter(qualifier='run_checks_solution', value=kwargs.get('run_checks_solution', []), choices=[], advanced=False, description='Solutions to use when calling run_checks/run_checks_solution or within interactive checks.')]
-    params += [SelectParameter(qualifier='run_checks_figure', value=kwargs.get('run_checks_figure', []), choices=[], advanced=False, description='Figures to use when calling run_checks/run_checks_figure or within interactive checks.')]
+    params += [SelectParameter(qualifier='run_checks_solution', value=kwargs.get('run_checks_solution', '*'), choices=[], advanced=False, description='Solutions to use when calling run_checks/run_checks_solution or within interactive checks.')]
+    params += [SelectParameter(qualifier='run_checks_figure', value=kwargs.get('run_checks_figure', '*'), choices=[], advanced=False, description='Figures to use when calling run_checks/run_checks_figure or within interactive checks.')]
+    params += [SelectParameter(qualifier='run_checks_server', value=kwargs.get('run_checks_server', '*'), choices=[], advanced=False, description='Servers to use when calling run_checks/run_checks_server or within interactive checks.')]
 
     params += [BoolParameter(qualifier='auto_add_figure', value=kwargs.get('auto_add_figure', True), description='Whether to automatically add figure parameters when a dataset is added with a new dataset type, or a solution is added.')]
     params += [BoolParameter(qualifier='auto_remove_figure', value=kwargs.get('auto_remove_figure', True), description='Whether to automatically remove figure parameters when the referenced dataset/solution are removed.')]

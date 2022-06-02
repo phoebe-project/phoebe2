@@ -4,6 +4,9 @@
 /phoebe/atmospheres/tables/ck2004
 /phoebe/atmospheres/tables/ck2004i
 /phoebe/atmospheres/tables/phoenix
+/phoebe/atmospheres/tables/tmap
+/phoebe/atmospheres/tables/tlusty
+/phoebe/atmospheres/tables/phoenix.orig
 MANIFEST
 *_tmp*
 *after.phoebe

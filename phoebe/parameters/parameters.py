@@ -10,6 +10,7 @@ from phoebe.parameters.twighelpers import _uniqueid_to_uniquetwig
 from phoebe.parameters.twighelpers import _twig_to_uniqueid
 from phoebe.frontend import tabcomplete
 from phoebe.dependencies import nparray, distl
+from phoebe.dependencies import crimpl as _crimpl
 from phoebe.utils import parse_json, phase_mask_inds
 from phoebe import helpers as _helpers
 
@@ -31,6 +32,7 @@ from fnmatch import fnmatch
 from copy import deepcopy as _deepcopy
 import readline
 import numpy as np
+from scipy.stats import norm as _norm
 
 import json
 # try:
@@ -145,7 +147,7 @@ _parameter_class_that_require_bundle = ['TwigParameter',
 
 _meta_fields_twig = ['time', 'qualifier', 'feature', 'component',
                      'dataset', 'constraint', 'distribution', 'compute', 'model',
-                     'solver', 'solution', 'figure', 'kind',
+                     'solver', 'solution', 'figure', 'server', 'kind',
                      'context']
 
 _meta_fields_all = _meta_fields_twig + ['twig', 'uniquetwig', 'uniqueid']
@@ -153,7 +155,7 @@ _meta_fields_filter = _meta_fields_all + ['constraint_func', 'value']
 
 _contexts = ['system', 'component', 'feature',
              'dataset', 'constraint', 'distribution', 'compute', 'model',
-             'solver', 'solution', 'figure', 'setting']
+             'solver', 'solution', 'figure', 'server', 'setting']
 
 # define a list of default_forbidden labels
 # an individual ParameterSet may build on this list with components, datasets,
@@ -192,7 +194,7 @@ _forbidden_labels += ['t0', 'ra', 'dec', 'epoch', 'distance', 'parallax', 'vgamm
 # from setting:
 _forbidden_labels += ['phoebe_version', 'dict_filter',
                       'dict_set_all', 'run_checks_compute', 'run_checks_solver',
-                      'run_checks_solution', 'run_checks_figure',
+                      'run_checks_solution', 'run_checks_figure', 'run_checks_server',
                       'auto_add_figure', 'auto_remove_figure', 'web_client', 'web_client_url']
 
 # from component
@@ -213,6 +215,7 @@ _forbidden_labels += ['requiv', 'requiv_max', 'requiv_min', 'teff', 'abun', 'log
 _forbidden_labels += ['times', 'fluxes', 'sigmas', 'sigmas_lnf',
                      'compute_times', 'compute_phases', 'compute_phases_t0',
                      'phases_period', 'phases_dpdt', 'phases_t0', 'mask_enabled', 'mask_phases',
+                     'gp_exclude_phases_enabled', 'gp_exclude_phases',
                      'solver_times', 'expose_samples', 'expose_failed',
                      'ld_mode', 'ld_func', 'ld_coeffs', 'ld_coeffs_source',
                      'passband', 'intens_weighting',
@@ -252,9 +255,9 @@ _forbidden_labels += ['enabled', 'dynamics_method', 'ltte', 'comments',
                       ]
 
 # from solver:
-_forbidden_labels += ['nwalkers', 'niters', 'priors', 'init_from',
+_forbidden_labels += ['nwalkers', 'niters', 'priors', 'priors_requires', 'init_from', 'init_from_requires',
                       'lc_datasets', 'rv_datasets', 'lc_combine',
-                      'phase_bin', 'phase_nbins',
+                      'phase_bin', 'phase_nbins', 'ebai_method',
                       'algorithm', 'duration', 'minimum_n_cycles', 'frequency_factor',
                       'samples_per_peak', 'nyquist_factor',
                       't0_near_times', 'sample_periods', 'sample_frequencies', 'objective',
@@ -262,10 +265,13 @@ _forbidden_labels += ['nwalkers', 'niters', 'priors', 'init_from',
                       'expose_model', 'gtol', 'norm', 'xtol', 'ftol',
                       'priors_combine', 'maxiter', 'maxfev', 'adaptive',
                       'xatol', 'fatol', 'bounds', 'bounds_combine', 'bounds_sigma',
-                      'strategy', 'popsize', 'continue_from', 'init_from_combine',
-                      'burnin_factor', 'thin_factor', 'progress_every_niters',
+                      'strategy', 'popsize', 'recombination', 'tol', 'atol', 'polish',
+                      'continue_from', 'continue_from_iter', 'init_from_combine',
+                      'burnin_factor', 'thin_factor', 'nlags_factor', 'progress_every_niters',
                       'nlive', 'maxcall', 'lc_geometry', 'rv_geometry', 'lc_periodogram', 'rv_periodogram', 'ebai',
-                      'nelder_mead', 'differential_evolution', 'cg', 'powell', 'emcee', 'dynesty']
+                      'nelder_mead', 'differential_evolution', 'cg', 'powell', 'emcee', 'dynesty',
+                      'analytical_model', 'interactive', 'differential_corrections',
+                      'deriv_method', 'steps', 'nsteps']
 
 # from solution:
 _forbidden_labels += ['primary_width', 'secondary_width',
@@ -275,22 +281,27 @@ _forbidden_labels += ['primary_width', 'secondary_width',
                       'fitted_uniqueids', 'fitted_twigs', 'fitted_values', 'fitted_units',
                       'adopt_parameters', 'adopt_distributions', 'distributions_convert', 'distributions_bins',
                       'failed_samples', 'lnprobabilities', 'acceptance_fractions',
-                      'autocorr_time', 'burnin', 'thin', 'lnprob_cutoff',
+                      'autocorr_time', 'burnin', 'thin', 'lnprob_cutoff', 'nlags',
                       'progress',
                       'period_factor', 'power',
                       'nlive', 'niter', 'ncall', 'eff', 'samples', 'samples_id', 'samples_it', 'samples_u',
                       'logwt', 'logl', 'logvol', 'logz', 'logzerr', 'information', 'bound', 'bounds',
                       'bound_iter', 'samples_bound', 'scale',
                       'message', 'nfev', 'niter', 'success', 'initial_values',
+                      'singular_values', 'fitted_chi2',
                       'initial_lnlikelihood', 'fitted_lnlikelihood']
 
 
 # from feature:
 _forbidden_labels += ['colat', 'long', 'radius', 'relteff',
                       'radamp', 'freq', 'l', 'm', 'teffext',
-                      'spot', 'gaussian_process', 'pulsation',
-                      'kernel', 'log_S0', 'log_Q', 'log_rho',
-                      'log_omega0', 'log_sigma', 'eps'
+                      'spot', 'gp_celerite2', 'gp_sklearn', 'pulsation',
+                      'gp_backend', 'kernel', 'constant_value', 'length_scale',
+                      'noise_level', 'periodicity', 'alpha', 'nu',
+                      'rho', 'sigma', 'tau', 'period', 'Q0', 'dQ', 'f', 'eps',
+                      'sigma_0', 'constant_value_bounds', 'length_scale_bounds',
+                      'noise_level_bounds', 'periodicity_bounds', 'alpha_bounds', 'nu_bounds',
+                      'sigma_0_bounds', 'alg_operation',
                       ]
 
 # from figure:
@@ -311,12 +322,19 @@ _forbidden_labels += ['datasets', 'models', 'components', 'contexts',
                       'latex_repr',
                       'legend']
 
+# from server:
+_forbidden_labels += ['remoteslurm', 'awsec2', 'localthread',
+                      'crimpl_name', 'use_conda', 'conda_env', 'isolate_env',
+                      'nprocs', 'use_mpi',
+                      'walltime', 'mail_user', 'mail_type', 'terminate_on_complete',
+                      'use_server', 'install_deps', 'slurm_job_name']
+
 # ? and * used for wildcards in twigs
 _twig_delims = ' \t\n`~!#$%^&)-=+]{}\\|;,<>/:'
 
 
 _singular_to_plural = {'time': 'times', 'phase': 'phases', 'flux': 'fluxes', 'sigma': 'sigmas',
-                       'rv': 'rvs', 'flux_density': 'flux_densities',
+                       'rv': 'rvs', 'wavelength': 'wavelengths', 'flux_density': 'flux_densities',
                        'time_ecl': 'time_ecls', 'time_ephem': 'time_ephems', 'N': 'Ns',
                        'x': 'xs', 'y': 'ys', 'z': 'zs', 'vx': 'vxs', 'vy': 'vys',
                        'vz': 'vzs', 'nx': 'nxs', 'ny': 'nys', 'nz': 'nzs',
@@ -324,7 +342,9 @@ _singular_to_plural = {'time': 'times', 'phase': 'phases', 'flux': 'fluxes', 'si
                        'vw': 'vws', 'nu': 'nus', 'nv': 'nvs', 'nw': 'nws',
                        'cosbeta': 'cosbetas', 'logg': 'loggs', 'teff': 'teffs',
                        'r': 'rs', 'rproj': 'rprojs', 'mu': 'mus',
-                       'visibility': 'visibilities'}
+                       'visibility': 'visibilities',
+                       'lnprobability': 'lnprobabilities',
+                       'lnlikelihood': 'lnlikelihoods'}
 _plural_to_singular = {v:k for k,v in _singular_to_plural.items()}
 
 def _singular_to_plural_get(k):
@@ -332,6 +352,8 @@ def _singular_to_plural_get(k):
 
 def _plural_to_singular_get(k):
     return _plural_to_singular.get(k, k)
+
+_cached_crimpl_servers = {}
 
 def _return_ps(b, ps):
     """set the _filter of the ps to be the uniqueids and return"""
@@ -601,6 +623,7 @@ class ParameterSet(object):
         self._component = None
         self._dataset = None
         self._figure = None
+        self._server = None
         self._constraint = None
         self._distribution = None
         self._compute = None
@@ -1232,6 +1255,40 @@ class ParameterSet(object):
             in this <phoebe.parameters.ParameterSet>
         """
         return self._options_for_tag('figure')
+
+    @property
+    def server(self):
+        """Return the value for server if shared by ALL Parameters.
+
+        If the value is not shared by ALL, then None will be returned.  To see
+        all the qualifiers of all parameters, see <phoebe.parameters.ParameterSet.servers>.
+
+        To see the value of a single <phoebe.parameters.Parameter> object, see
+        <phoebe.parameters.Parameter.server>.
+
+        Returns
+        --------
+        (string or None) the value if shared by ALL <phoebe.parameters.Parameter>
+            objects in the <phoebe.parmaters.ParameterSet>, otherwise None
+        """
+        return self._server
+
+    @property
+    def servers(self):
+        """Return a list of all the servers of the Parameters.
+
+        See also:
+        * <phoebe.parameters.ParameterSet.tags>
+
+        For the singular version, see:
+        * <phoebe.parameters.ParameterSet.server>
+
+        Returns
+        --------
+        * (list) a list of all servers for each <phoebe.parameters.Parameter>
+            in this <phoebe.parameters.ParameterSet>
+        """
+        return self._options_for_tag('server')
 
     @property
     def solver(self):
@@ -2870,7 +2927,7 @@ class ParameterSet(object):
 
         return _return(params, force_ps, method, mindex)
 
-    def exclude(self, twig=None, check_visible=True, check_default=True, **kwargs):
+    def exclude(self, twig=None, check_visible=False, check_default=False, **kwargs):
         """
         Exclude the results from this filter from the current
         <phoebe.parameters.ParameterSet>.
@@ -2889,12 +2946,12 @@ class ParameterSet(object):
             into any of the meta-tags.  Example: instead of
             `b.filter(context='component', component='starA')`, you
             could do `b.filter('starA@component')`.
-        * `check_visible` (bool, optional, default=True): whether to hide invisible
-            parameters.  These are usually parameters that do not
+        * `check_visible` (bool, optional, default=False): whether to NOT exclude
+            invisible parameters.  These are usually parameters that do not
             play a role unless the value of another parameter meets
             some condition.
-        * `check_default` (bool, optional, default=True): whether to exclude parameters which
-            have a _default tag (these are parameters which solely exist
+        * `check_default` (bool, optional, default=False): whether to NOT
+            exclude parameters which have a _default tag (these are parameters which solely exist
             to provide defaults for when new parameters or datasets are
             added and the parameter needs to be copied appropriately).
             Defaults to True.
@@ -3020,6 +3077,8 @@ class ParameterSet(object):
         # TODO: check to see if protected (required by a current constraint or
         # by a backend)
         param._bundle = None
+        if param.__class__.__name__ == 'ConstraintParameter':
+            param._remove_bookkeeping()
         self._params = [p for p in self._params if p.uniqueid != param.uniqueid]
 
     def remove_parameter(self, twig=None, **kwargs):
@@ -3084,6 +3143,8 @@ class ParameterSet(object):
 
         for param in params.to_list():
             param._bundle = None
+            if param.__class__.__name__ == 'ConstraintParameter':
+                param._remove_bookkeeping()
 
         removed_ids = [p.uniqueid for p in params.to_list()]
         self._params = [p for p in self._params if p.uniqueid not in removed_ids]
@@ -3139,13 +3200,7 @@ class ParameterSet(object):
 
         param = self.get_parameter(twig=twig, **kwargs)
 
-        if param.qualifier in kwargs.keys():
-            # then we have an "override" value that was passed, and we should
-            # just return that.
-            # Example b.get_value('teff', teff=6000) returns 6000
-            return kwargs.get(param.qualifier)
-
-        return param.get_quantity(unit=unit, t=t)
+        return param.get_quantity(unit=unit, t=t, **{k: v for k,v in kwargs.items() if k==param.qualifier})
 
     def set_quantity(self, twig=None, value=None, **kwargs):
         """
@@ -3245,7 +3300,7 @@ class ParameterSet(object):
 
             if index is not None:
                 if isinstance(param, FloatArrayParameter):
-                    return param.get_value(unit=unit, t=t, **kwargs)[index]
+                    return param.get_value(unit=unit, t=t, **kwargs)[tuple(index)]
                 else:
                     raise ValueError("indices only supported for FloatArrayParameter")
             else:
@@ -3477,7 +3532,7 @@ class ParameterSet(object):
                 unit = twig
                 twig = None
 
-            elif not len(self.filter(twig=twig, check_default=check_default, **kwargs)):
+            elif not len(self.filter(twig=twig, **kwargs)):
                 unit = twig
                 twig = None
 
@@ -3543,6 +3598,16 @@ class ParameterSet(object):
                 twig = None
 
         ps = self.filter(twig=twig, **kwargs)
+
+        # ensure all parameters are float parameters and can set to the passed unit
+        not_units = [param.twig for param in ps.to_list() if not hasattr(param, 'default_unit')]
+        if len(not_units):
+            raise ValueError("all matching parameters must have units.  The following are not: {}".format(not_units))
+
+        not_valid = [param.twig for param in ps.to_list() if unit not in param.get_valid_units()]
+        if len(not_valid):
+            raise ValueError("{} must be a valid unit for all matching parameters.  {} is not valid for: {}".format(unit, unit, not_valid))
+
         for param in ps.to_list():
             param.set_default_unit(unit)
 
@@ -3590,6 +3655,7 @@ class ParameterSet(object):
 
         See also:
         * <phoebe.parameters.ParameterSet.calculate_chi2>
+        * <phoebe.parameters.ParameterSet.calculate_lnf>
         * <phoebe.parameters.ParameterSet.calculate_lnlikelihood>
 
         Arguments
@@ -3738,69 +3804,13 @@ class ParameterSet(object):
             else:
                 return residuals
 
-    def calculate_chi2(self, model=None, dataset=None, component=None,
-                       consider_gaussian_process=True,
-                       mask_enabled=None, mask_phases=None):
-        """
-        Compute the chi2 between a model and the observed values in the dataset(s).
+    def _calculate_cf(self, model=None, dataset=None, component=None,
+                       consider_gaussian_process=True, mask_enabled=None,
+                       mask_phases=None, cf='lnf'):
+        if cf not in ['lnf', 'chi2']:
+            raise ValueError("cf must be either 'lnf' or 'chi2'")
 
-        Currently supports the following datasets:
-        * <phoebe.parameters.dataset.lc>
-        * <phoebe.parameters.dataset.rv>
-
-        If necessary (due to the `compute_times`/`compute_phases` parameters
-        or a change in the dataset `times` since the model was computed),
-        interpolation will be handled, in time-space if possible, and in
-        phase-space otherwise. See
-        <phoebe.parameters.FloatArrayParameter.interp_value>.
-
-        Residuals per-dataset for the given model are computed by
-        <phoebe.parameters.ParameterSet.calculate_residuals>.  The returned
-        chi2 value is then the sum over the chi2 of each dataset, where each
-        dataset's chi2 value is computed as the sum of squares of residuals
-        over the squares of sigmas (if available).
-
-        If `sigmas_lnf` is not -inf (default value), then the following term
-        is added to the squares of sigmas:
-
-        `interpolated_model**2 * np.exp(2 * sigmas_lnf)`
-
-
-        See also:
-        * <phoebe.parameters.ParameterSet.calculate_residuals>
-        * <phoebe.parameters.ParameterSet.calculate_lnlikelihood>
-        * <phoebe.frontend.bundle.Bundle.calculate_lnp>
-
-        Arguments
-        -----------
-        * `model` (string, optional, default=None): model to compare against
-            observations.  Required if more than one model exist.
-        * `dataset` (string or list, optional, default=None): dataset(s) for comparison.
-            Will sum over chi2 values of all datasets that match the filter.  So
-            if not provided, will default to all datasets exposed in the model.
-        * `component` (string or list, optional, default=None): component(s) for
-            comparison.  Required only if more than one component exist in the
-            dataset (for RVs, for example) and not all should be included in
-            the chi2
-        * `consider_gaussian_process` (bool, optional, default=True): whether
-            to consider a system with gaussian process(es) as time-dependent
-        * `mask_enabled` (bool, optional, default=None): whether to enable
-            masking on the dataset(s).  If None or not provided, will default to
-            the values set in the dataset(s).
-        * `mask_phases` (list of tuples, optional, default=None): phase masks
-            to apply if `mask_enabled = True`.  If None or not provided, will
-            default to the values set in the dataset(s).
-
-        Returns
-        -----------
-        * (float) chi2 value
-
-        Raises
-        ----------
-        * NotImplementedError: if the dataset kind is not supported for residuals.
-        """
-
-        chi2 = 0
+        ret = 0.
 
         if model is not None and not isinstance(model, str):
             raise TypeError("model must be of type string or None")
@@ -3842,33 +3852,49 @@ class ParameterSet(object):
 
                         sigmas = sigmas[inds]
 
-
                 sigmas_lnf = ds_ps.get_value(qualifier='sigmas_lnf', component=ds_comp, default=-np.inf, **_skip_filter_checks)
 
                 if len(sigmas):
                     sigmas2 = sigmas**2
-                    if sigmas_lnf != -np.inf:
-                        sigmas2 += model_interp.value ** 2 * np.exp(2 * sigmas_lnf)
+                    if cf == 'lnf' and sigmas_lnf != -np.inf:
+                        sigmas2 += model_interp.value**2 * np.exp(2 * sigmas_lnf)
 
-                    chi2 += np.sum((residuals.value**2 / sigmas2) + np.log(sigmas2))
+                    if cf == 'lnf':
+                        ret += np.sum((residuals.value**2 / sigmas2) + np.log(2*np.pi*sigmas2))
+                    else:
+                        ret += np.sum(residuals.value**2 / sigmas2)
                 else:
-                    chi2 += np.sum(residuals.value**2)
+                    ret += np.sum(residuals.value**2)
 
-        return chi2
+        return ret
 
-    def calculate_lnlikelihood(self, model=None, dataset=None, component=None, consider_gaussian_process=True):
+    def calculate_chi2(self, model=None, dataset=None, component=None,
+                       consider_gaussian_process=True, mask_enabled=None,
+                       mask_phases=None):
         """
-        Compute the log-likelihood between a model and the observed values in the dataset(s).
+        Compute the chi2 between a model and the observed values in the dataset(s).
 
         Currently supports the following datasets:
         * <phoebe.parameters.dataset.lc>
         * <phoebe.parameters.dataset.rv>
 
-        This returns -0.5 * chi2 (see <phoebe.parameters.ParameterSet.calculate_chi2>)
+        If necessary (due to the `compute_times`/`compute_phases` parameters
+        or a change in the dataset `times` since the model was computed),
+        interpolation will be handled, in time-space if possible, and in
+        phase-space otherwise. See
+        <phoebe.parameters.FloatArrayParameter.interp_value>.
+
+        Residuals per-dataset for the given model are computed by
+        <phoebe.parameters.ParameterSet.calculate_residuals>.  The returned
+        chi2 value is then the sum over the chi2 of each dataset, where each
+        dataset's chi2 value is computed as the sum of squares of residuals
+        over the squares of sigmas (if available).
+
 
         See also:
         * <phoebe.parameters.ParameterSet.calculate_residuals>
-        * <phoebe.parameters.ParameterSet.calculate_chi2>
+        * <phoebe.parameters.ParameterSet.calculate_lnf>
+        * <phoebe.parameters.ParameterSet.calculate_lnlikelihood>
         * <phoebe.frontend.bundle.Bundle.calculate_lnp>
 
         Arguments
@@ -3884,6 +3910,77 @@ class ParameterSet(object):
             the chi2
         * `consider_gaussian_process` (bool, optional, default=True): whether
             to consider a system with gaussian process(es) as time-dependent
+        * `mask_enabled` (bool, optional, default=None): whether to enable
+            masking on the dataset(s).  If None or not provided, will default to
+            the values set in the dataset(s).
+        * `mask_phases` (list of tuples, optional, default=None): phase masks
+            to apply if `mask_enabled = True`.  If None or not provided, will
+            default to the values set in the dataset(s).
+
+        Returns
+        -----------
+        * (float) chi2 value
+
+        Raises
+        ----------
+        * NotImplementedError: if the dataset kind is not supported for residuals.
+        """
+        return self._calculate_cf(model=model, dataset=dataset, component=component,
+                                  consider_gaussian_process=consider_gaussian_process,
+                                  mask_enabled=mask_enabled, mask_phases=mask_phases,
+                                  cf='chi2')
+
+    def calculate_lnlikelihood(self, model=None, dataset=None, component=None,
+                               consider_gaussian_process=True,
+                               mask_enabled=None, mask_phases=None):
+        """
+        Compute the log-likelihood between a model and the observed values in the dataset(s).
+
+        If necessary (due to the `compute_times`/`compute_phases` parameters
+        or a change in the dataset `times` since the model was computed),
+        interpolation will be handled, in time-space if possible, and in
+        phase-space otherwise. See <phoebe.parameters.FloatArrayParameter.interp_value>.
+
+        Residuals per-dataset for the given model are computed by
+        <phoebe.parameters.ParameterSet.calculate_residuals>.  The returned
+        lnf value is then the sum over the lnf of each dataset, where each
+        dataset's lnf value is computed as the sum of squares of residuals
+        over the squares of sigmas (if available) plus log(2*pi*sigmas**2).
+
+        If `sigmas_lnf` is not -inf (default value), then the following term
+        is added to the squares of sigmas (for both terms):
+
+        `interpolated_model**2 * np.exp(2 * sigmas_lnf)`
+
+
+        See also:
+        * <phoebe.parameters.ParameterSet.calculate_chi2>
+        * <phoebe.parameters.ParameterSet.calculate_residuals>
+        * <phoebe.parameters.ParameterSet.calculate_lnlikelihood>
+        * <phoebe.frontend.bundle.Bundle.calculate_lnp>
+
+        Arguments
+        -----------
+        * `model` (string, optional, default=None): model to compare against
+            observations.  Required if more than one model exist.
+        * `dataset` (string or list, optional, default=None): dataset(s) for
+          comparison.
+            Will sum over chi2 values of all datasets that match the filter.
+            So if not provided, will default to all datasets exposed in the
+            model.
+        * `component` (string or list, optional, default=None): component(s) for
+            comparison.  Required only if more than one component exist in the
+            dataset (for RVs, for example) and not all should be included in
+            the chi2
+        * `consider_gaussian_process` (bool, optional, default=True): whether
+            to consider a system with gaussian process(es) as time-dependent
+        * `mask_enabled` (bool, optional, default=None): whether to enable
+            masking on the dataset(s).  If None or not provided, will default
+            to the values set in the dataset(s).
+        * `mask_phases` (list of tuples, optional, default=None): phase masks
+            to apply if `mask_enabled = True`.  If None or not provided, will
+            default to the values set in the dataset(s).
+
 
         Returns
         -----------
@@ -3894,7 +3991,13 @@ class ParameterSet(object):
         * NotImplementedError: if the dataset kind is not supported for residuals.
         """
 
-        return -0.5 * self.calculate_chi2(model, dataset, component, consider_gaussian_process=consider_gaussian_process)
+        return -0.5 * self._calculate_cf(model=model,
+                                         dataset=dataset,
+                                         component=component,
+                                         consider_gaussian_process=consider_gaussian_process,
+                                         mask_enabled=mask_enabled,
+                                         mask_phases=mask_phases,
+                                         cf='lnf')
 
     def _unpack_plotting_kwargs(self, animate=False, **kwargs):
 
@@ -4128,22 +4231,22 @@ class ParameterSet(object):
 
         #### ALIASES
         if 'color' in kwargs.keys() and 'colors' not in kwargs.keys() and 'c' not in kwargs.keys():
-            logger.warning("assuming you meant 'c' instead of 'color'")
+            logger.info("assuming you meant 'c' instead of 'color'")
             kwargs['c'] = kwargs.pop('color')
         elif 'colors' in kwargs.keys() and 'c' not in kwargs.keys():
-            logger.warning("assuming you meant 'c' instead of 'colors'")
+            logger.info("assuming you meant 'c' instead of 'colors'")
             kwargs['c'] = kwargs.pop('colors')
         if 'facecolor' in kwargs.keys() and 'facecolors' not in kwargs.keys() and 'fc' not in kwargs.keys():
-            logger.warning("assuming you meant 'fc' instead of 'facecolor'")
+            logger.info("assuming you meant 'fc' instead of 'facecolor'")
             kwargs['fc'] = kwargs.pop('facecolor')
         elif 'facecolors' in kwargs.keys() and 'fc' not in kwargs.keys():
-            logger.warning("assuming you meant 'fc' instead of 'facecolors'")
+            logger.info("assuming you meant 'fc' instead of 'facecolors'")
             kwargs['fc'] = kwargs.pop('facecolors')
         if 'edgecolor' in kwargs.keys() and 'edgecolors' not in kwargs.keys() and 'ec' not in kwargs.keys():
-            logger.warning("assuming you meant 'ec' instead of 'edgecolor'")
+            logger.info("assuming you meant 'ec' instead of 'edgecolor'")
             kwargs['ec'] = kwargs.pop('edgecolor')
         elif 'edgecolors' in kwargs.keys() and 'ec' not in kwargs.keys():
-            logger.warning("assuming you meant 'ec' instead of 'edgecolors'")
+            logger.info("assuming you meant 'ec' instead of 'edgecolors'")
             kwargs['ec'] = kwargs.pop('edgecolors')
 
         for k in ['c', 'fc', 'ec']:
@@ -4153,7 +4256,7 @@ class ParameterSet(object):
         for d in ['x', 'y', 'z']:
             if '{}error'.format(d) not in kwargs.keys():
                 if '{}errors'.format(d) in kwargs.keys():
-                    logger.warning("assuming you meant '{}error' instead of '{}errors'".format(d,d))
+                    logger.info("assuming you meant '{}error' instead of '{}errors'".format(d,d))
                     kwargs['{}error'.format(d)] = kwargs.pop('{}errors'.format(d))
 
         def _handle_mask(ps, array, **kwargs):
@@ -4258,7 +4361,10 @@ class ParameterSet(object):
 
                         psff = psf.filter(twig=current_value, **_skip_filter_checks)
                         if len(psff)==1:
-                            array_value = psff.get_quantity(**_skip_filter_checks)
+                            if hasattr(psff.get_parameter(**_skip_filter_checks), 'get_quantity'):
+                                array_value = psff.get_quantity(**_skip_filter_checks)
+                            else:
+                                array_value = psff.get_value(**_skip_filter_checks)
                         elif len(psff.times) > 1 and psff.get_value(time=psff.times[0], **_skip_filter_checks):
                             # then we'll assume we have something like volume vs times.  If not, then there may be a length mismatch issue later
                             unit = psff.get_quantity(time=psff.times[0], **_skip_filter_checks).unit
@@ -4883,10 +4989,12 @@ class ParameterSet(object):
                 styles = [styles]
 
             return_ = []
-            for style in styles:
-                kwargs = _deepcopy(kwargs)
+            c = kwargs.get('c', None)
+            kwargs_orig = _deepcopy(kwargs)
 
+            for style in styles:
                 if style in ['corner', 'failed']:
+                    kwargs = _deepcopy(kwargs_orig)
                     kwargs['plot_package'] = 'distl'
                     if 'parameters' in kwargs.keys() and style=='failed':
                         raise ValueError("cannot currently plot failed_samples while providing parameters.  Pass or set adopt_parameters to plot a subset of available parameters")
@@ -4902,11 +5010,13 @@ class ParameterSet(object):
 
                     return_ += [kwargs]
 
-                elif style in ['lnprobability', 'lnprob', 'lnprobabilities']:
-                    kwargs['plot_package'] = 'autofig'
-                    kwargs['autofig_method'] = 'plot'
-                    kwargs.setdefault('marker', 'None')
-                    kwargs.setdefault('linestyle', 'solid')
+                elif style in ['lnprobability', 'lnprob', 'lnprobabilities', 'lnprobabilities_spread', 'spread_lnprobabilities']:
+                    # official style: lnprobabilities, lnprobabilities_spread
+                    kwargs_style = _deepcopy(kwargs_orig)
+                    kwargs_style['plot_package'] = 'autofig'
+                    kwargs_style['autofig_method'] = 'plot'
+                    kwargs_style.setdefault('marker', 'None')
+                    kwargs_style.setdefault('linestyle', 'solid')
 
                     lnprobabilities_proc, samples_proc = _helpers.process_mcmc_chains(lnprobabilities, samples, burnin, thin, -np.inf, adopt_inds, flatten=False)
 
@@ -4914,47 +5024,98 @@ class ParameterSet(object):
                     lnprobabilities_proc = _deepcopy(lnprobabilities_proc)
                     lnprobabilities_proc[lnprobabilities_proc < lnprob_cutoff] = np.nan
 
-                    for lnp in lnprobabilities_proc.T:
-                        if not np.any(np.isfinite(lnp)):
-                            continue
+                    if c is not None:
+                        fitted_uniqueids = self._bundle.get_value(qualifier='fitted_uniqueids', context='solution', solution=ps.solution, **_skip_filter_checks)
+                        fitted_ps = self._bundle.filter(uniqueid=list(fitted_uniqueids), **_skip_filter_checks)
+                        _, samples_proc_all = _helpers.process_mcmc_chains(lnprobabilities, samples, burnin, thin, -np.inf, flatten=False)
 
-                        if np.all(np.isnan(lnp)):
-                            continue
 
-                        kwargs = _deepcopy(kwargs)
-                        kwargs['x'] = np.arange(len(lnp), dtype=float)*thin+burnin
-                        kwargs['xlabel'] = 'iteration (burnin={}, thin={})'.format(burnin, thin)
-                        kwargs['y'] = lnp
-                        kwargs['ylabel'] = 'lnprobability' if lnprob_cutoff==-np.inf else 'lnprobability (lnprob_cutoff={})'.format(lnprob_cutoff)
-                        return_ += [kwargs]
+                    kwargs_style['x'] = np.arange(lnprobabilities_proc.shape[0], dtype=float)*thin+burnin
+                    kwargs_style['xlabel'] = 'iteration (burnin={}, thin={})'.format(burnin, thin)
+                    kwargs_style['ylabel'] = 'lnprobability' if lnprob_cutoff==-np.inf else 'lnprobability (lnprob_cutoff={})'.format(lnprob_cutoff)
 
-                elif style in ['trace', 'walks']:
-                    kwargs['plot_package'] = 'autofig'
+
+                    if 'spread' in style:
+                        kwargs = _deepcopy(kwargs_style)
+
+                        if c is not None:
+                            kwargs['c'] = c if c not in ['lnprobablities'] + fitted_ps.qualifiers and '@' not in c else 'black'
+                        kwargs.setdefault('c', 'black')
+                        kwargs['y'] = np.median(lnprobabilities_proc, axis=1)
+
+                        spread_kwargs = _deepcopy(kwargs)
+                        sigma = kwargs.get('spread_sigma', 1)
+                        bounds = np.percentile(lnprobabilities_proc, 100 * _norm.cdf([-sigma, 0, sigma]), axis=1)
+                        spread_kwargs['autofig_method'] = 'fill_between'
+                        spread_kwargs['y'] = bounds.T
+                        spread_kwargs['alpha'] = 0.3
+                        return_ += [kwargs, spread_kwargs]
+
+                    else:
+                        for walker_ind, lnp in enumerate(lnprobabilities_proc.T):
+                            if not np.any(np.isfinite(lnp)):
+                                continue
+
+                            if np.all(np.isnan(lnp)):
+                                continue
+
+                            kwargs = _deepcopy(kwargs_style)
+
+                            kwargs['y'] = lnp
+
+                            if c is None:
+                                pass
+                            elif c == 'lnprobabilities':
+                                # we only need to get this once and can re-use it per-parameter/walker
+                                kwargs['c'] = lnprobabilities_proc[:, walker_ind]
+                                kwargs['clabel'] = _plural_to_singular_get(c)
+                                kwargs['cqualifier'] = c
+                            elif len(fitted_ps.filter(twig=c, **_skip_filter_checks).to_list()):
+                                match_params = fitted_ps.filter(twig=c, **_skip_filter_checks)
+                                if len(match_params) > 1:
+                                    raise ValueError("c={} matches more than one valid parameter ({})".format(c, match_params.twigs))
+                                match_param = match_params.get_parameter()
+                                # TODO: allow to plot from outside adopt_parameters?
+                                match_ind = list(fitted_uniqueids).index(match_param.uniqueid)
+                                kwargs['c'] = samples_proc_all[:, walker_ind, match_ind]
+                                kwargs['clabel'] = match_param.twig
+                                kwargs['cqualifier'] = match_param.qualifier
+                            else:
+                                # assume named color?
+                                kwargs['c'] = c
+
+                            # TODO: support for c = twig
+                            return_ += [kwargs]
+
+                elif style in ['trace', 'walks', 'trace_spread', 'spread_trace']:
+                    # official styles: trace, trace_spread
+                    kwargs_style = _deepcopy(kwargs_orig)
+                    kwargs_style['plot_package'] = 'autofig'
                     if 'parameters' in kwargs.keys():
                         raise ValueError("cannot currently plot {} while providing parameters.  Pass or set adopt_parameters to plot a subset of available parameters".format(style))
-                    kwargs['autofig_method'] = 'plot'
-                    kwargs.setdefault('marker', 'None')
-                    kwargs.setdefault('linestyle', 'solid')
+                    kwargs_style['autofig_method'] = 'plot'
+                    kwargs_style.setdefault('marker', 'None')
+                    kwargs_style.setdefault('linestyle', 'solid')
 
                     fitted_uniqueids = self._bundle.get_value(qualifier='fitted_uniqueids', context='solution', solution=ps.solution, **_skip_filter_checks)
                     # fitted_twigs = self._bundle.get_value(qualifier='fitted_twigs', context='solution', solution=ps.solution, **_skip_filter_checks)
                     fitted_units = self._bundle.get_value(qualifier='fitted_units', context='solution', solution=ps.solution, **_skip_filter_checks)
-                    fitted_ps = self._bundle.filter(uniqueid=list(adopt_uniqueids), **_skip_filter_checks)
+                    fitted_ps = self._bundle.filter(uniqueid=list(fitted_uniqueids), **_skip_filter_checks)
                     lnprobabilities_proc, samples_proc = _helpers.process_mcmc_chains(lnprobabilities, samples, burnin, thin, lnprob_cutoff, adopt_inds, flatten=False)
 
                     # samples [niters, nwalkers, parameter]
                     # allow user override of which parameter(s) to include
                     # but in order to handle the possibility of indexes in array parameters
                     # we need to find the matches in adopt_uniqueids which includes the index
-                    if kwargs.get('y', None):
-                        y = kwargs.get('y')
+                    if kwargs_orig.get('y', None):
+                        ys = kwargs_orig.get('y')
                         if isinstance(ys, str):
                             ys = [ys]
 
                         # ys are currently assumed to twigs (with or without indices)
                         # we need a list of uniqueids, including indices when necessary
                         def _uniqueids_for_y(fitted_ps, twig=None):
-                            y, index = _extract_index_from_string(y)
+                            y, index = _extract_index_from_string(twig)
                             p = fitted_ps.get_parameter(twig=y, **_skip_filter_checks)
                             if index is None:
                                 if p.__class__.__name__ == 'FloatArrayParameter':
@@ -4971,25 +5132,148 @@ class ParameterSet(object):
                     else:
                         plot_uniqueids = adopt_uniqueids
 
+                    if c is not None:
+                        _, samples_proc_all = _helpers.process_mcmc_chains(lnprobabilities, samples, burnin, thin, lnprob_cutoff, flatten=False)
+
                     for plot_uniqueid in plot_uniqueids:
+                        kwargs = _deepcopy(kwargs_style)
+
                         parameter_ind = list(adopt_uniqueids).index(plot_uniqueid)
                         _, index = _extract_index_from_string(plot_uniqueid)
                         yparam = fitted_ps.get_parameter(uniqueid=plot_uniqueid, **_skip_filter_checks)
 
-                        for walker_ind in range(samples_proc.shape[1]):
-                            kwargs = _deepcopy(kwargs)
+                        kwargs_style['x'] = np.arange(samples_proc.shape[0], dtype=float)*thin+burnin
+                        kwargs_style['xlabel'] = 'iteration (burnin={}, thin={}, lnprob_cutoff={})'.format(burnin, thin, lnprob_cutoff)
+
+                        kwargs_style['ylabel'] = _corner_label(yparam, index=index)
+                        # TODO: use fitted_units instead?
+                        kwargs_style['yunit'] = fitted_units[parameter_ind]
+
+                        if 'spread' in style:
+                            kwargs = _deepcopy(kwargs_style)
+                            if c is not None:
+                                kwargs['c'] = c if c not in ['lnprobablities'] + fitted_ps.qualifiers and '@' not in c else 'black'
+                            kwargs.setdefault('c', 'black')
+                            kwargs['y'] = np.median(samples_proc[:, :, parameter_ind], axis=1)
+
+                            spread_kwargs = _deepcopy(kwargs)
+                            sigma = kwargs.get('spread_sigma', 1)
+                            bounds = np.percentile(samples_proc[:, :, parameter_ind], 100 * _norm.cdf([-sigma, 0, sigma]), axis=1)
+                            spread_kwargs['autofig_method'] = 'fill_between'
+                            spread_kwargs['y'] = bounds.T
+                            spread_kwargs['alpha'] = 0.3
+                            return_ += [kwargs, spread_kwargs]
+
+                        else:
+                            for walker_ind in range(samples_proc.shape[1]):
+                                kwargs = _deepcopy(kwargs_style)
+
+                                if c is None:
+                                    pass
+                                elif c == 'lnprobabilities':
+                                    # we only need to get this once and can re-use it per-parameter/walker
+                                    kwargs['c'] = lnprobabilities_proc[:, walker_ind]
+                                    kwargs['clabel'] = _plural_to_singular_get(c)
+                                    kwargs['cqualifier'] = c
+                                elif len(fitted_ps.filter(twig=c, **_skip_filter_checks).to_list()):
+                                    match_params = fitted_ps.filter(twig=c, **_skip_filter_checks)
+                                    if len(match_params) > 1:
+                                        raise ValueError("c={} matches more than one valid parameter ({})".format(c, match_params.twigs))
+                                    match_param = match_params.get_parameter()
+                                    # TODO: allow to plot from outside adopt_parameters?
+                                    match_ind = list(fitted_uniqueids).index(match_param.uniqueid)
+                                    kwargs['c'] = samples_proc_all[:, walker_ind, match_ind]
+                                    kwargs['clabel'] = match_param.twig
+                                    kwargs['cqualifier'] = match_param.qualifier
+                                else:
+                                    # assume named color?
+                                    kwargs['c'] = c
+
+                                # this needs to be the unflattened version
+                                samples_y = samples_proc[:, walker_ind, parameter_ind]
+                                kwargs['y'] = samples_y
+
+                                # TODO: support for c = twig/lnprobabilities
+                                return_ += [kwargs]
+
+                elif style in ['acf', 'trace_acf', 'acf_trace', 'lnprobabilities_acf', 'acf_lnprobabilities']:
+                    # official style: trace_acf, lnprobabilities_acf
+                    kwargs_style = _deepcopy(kwargs_orig)
+                    nlags = ps.get_value(qualifier='nlags', nlags=kwargs.get('nlags', None), **_skip_filter_checks)
+
+                    kwargs_style['plot_package'] = 'autofig'
+                    if 'parameters' in kwargs.keys():
+                        raise ValueError("cannot currently plot {} while providing parameters.  Pass or set adopt_parameters to plot a subset of available parameters".format(style))
+                    kwargs_style['autofig_method'] = 'plot'
+                    kwargs_style.setdefault('marker', 'None')
+                    kwargs_style.setdefault('linestyle', 'solid')
+
+                    fitted_uniqueids = self._bundle.get_value(qualifier='fitted_uniqueids', context='solution', solution=ps.solution, **_skip_filter_checks)
+                    # fitted_twigs = self._bundle.get_value(qualifier='fitted_twigs', context='solution', solution=ps.solution, **_skip_filter_checks)
+                    fitted_units = self._bundle.get_value(qualifier='fitted_units', context='solution', solution=ps.solution, **_skip_filter_checks)
+                    fitted_ps = self._bundle.filter(uniqueid=list(fitted_uniqueids), **_skip_filter_checks)
+
+                    lnprobabilities_proc, samples_proc = _helpers.process_mcmc_chains(lnprobabilities, samples, burnin, 1, lnprob_cutoff, adopt_inds, flatten=False)
+                    if nlags == 0:
+                        nlags = samples_proc.shape[0]
+                    acf_proc, ci_b_proc, ci_proc = _helpers.process_acf(lnprobabilities_proc, samples_proc, nlags)
+                    # acf_proc [parameter, nwalkers, lag]
+                    # acf_b_proc [parameters, nwalkers, lag]
+                    # ci_proc (float)
+
+                    plot_uniqueids = adopt_uniqueids if 'lnprobabilities' not in style else [0]
+                    for plot_uniqueid in plot_uniqueids:
+                        if 'lnprobabilities' not in style:
+                            parameter_ind = list(adopt_uniqueids).index(plot_uniqueid)
+                            _, index = _extract_index_from_string(plot_uniqueid)
+                            yparam = fitted_ps.get_parameter(uniqueid=plot_uniqueid, **_skip_filter_checks)
+                        else:
+                            parameter_ind = -1  # to force the lnprobability in position 0
+
+                        nwalkers = acf_proc[parameter_ind+1].shape[0]
+                        for walker_ind in range(nwalkers):
+                            kwargs = _deepcopy(kwargs_style)
+
+                            if c is None:
+                                pass
+                            else:
+                                # assume named color?
+                                kwargs['c'] = c
 
                             # this needs to be the unflattened version
-                            samples_y = samples_proc[:, walker_ind, parameter_ind]
+                            acf_y = acf_proc[parameter_ind+1][walker_ind, :]
+                            x = np.arange(len(acf_y), dtype=float)
+                            kwargs['x'] = x
+                            kwargs['xlabel'] = 'lag (nlags={}, burnin={}, lnprob_cutoff={})'.format(nlags, burnin, lnprob_cutoff)
 
-                            kwargs['x'] = np.arange(len(samples_y), dtype=float)*thin+burnin
-                            kwargs['xlabel'] = 'iteration (burnin={}, thin={}, lnprob_cutoff={})'.format(burnin, thin, lnprob_cutoff)
+                            kwargs['y'] = acf_y
+                            kwargs['ylabel'] = 'normalized autocorrelation ({})'.format('lnprobabilities' if 'lnprobabilities' in style else _corner_twig(yparam, index=index))
 
-                            kwargs['y'] = samples_y
-                            kwargs['ylabel'] = _corner_label(yparam, index=index)
-                            # TODO: use fitted_units instead?
-                            kwargs['yunit'] = fitted_units[parameter_ind]
-                            return_ += [kwargs]
+                            ci_b = ci_b_proc[parameter_ind+1][walker_ind, :]
+                            ci_b_fb = {'plot_package': 'autofig',
+                                       'autofig_method': 'fill_between',
+                                       'color': 'k',
+                                       'alpha': 0.5 / nwalkers,
+                                       'x': x,
+                                       'y':np.array([-1*ci_b,ci_b]).T}
+
+                            return_ += [kwargs, ci_b_fb]
+
+                        axhline_u =  {'plot_package': 'autofig',
+                                      'autofig_method': 'plot',
+                                      'color': 'k',
+                                      'linestyle': 'dashed',
+                                      'axhline': True,
+                                      'y': ci_proc}
+                        axhline_l =  {'plot_package': 'autofig',
+                                      'autofig_method': 'plot',
+                                      'color': 'k',
+                                      'linestyle': 'dashed',
+                                      'axhline': True,
+                                      'y': -ci_proc}
+
+                        return_ += [axhline_u, axhline_l]
+
                 else:
                     raise NotImplementedError()
 
@@ -5255,6 +5539,14 @@ class ParameterSet(object):
             will be raised.  Note: if a dataset uses compute_phases_t0 that differs
             from `t0`, this may result in a different mapping between
             `phase` and `time`.
+
+        * `style` (string, optional): applicable for plotting solutions only,
+            which style to use when plotting.  Valid styles for emcee include:
+            `lnprobabilities`, `trace`, `lnprobablities_spread` (also accepts
+            a `spread_sigma` which defaults to 1), `trace_spread` (also accepts
+            a `spread_sigma` which defaults to 1), `lnprobabilities_acf`, `trace_acf`,
+            `corner`, and `failed`.  Valid  styles for dynesty include: `trace`,
+            `run`, `corner`, and `failed`.
 
         * `x` (string/float/array, optional): qualifier/twig of the array to plot on the
             x-axis (will default based on the dataset-kind if not provided).
@@ -5623,7 +5915,7 @@ class ParameterSet(object):
 
                 elif plot_package == 'autofig':
                     y = plot_kwargs.get('y', [])
-                    axvline = plot_kwargs.pop('axvline', False)
+                    axvline = plot_kwargs.pop('axvline', False) or plot_kwargs.pop('axhline', False)
                     if axvline or (isinstance(y, u.Quantity) and isinstance(y.value, float)) or (hasattr(y, 'value') and isinstance(y.value, float)):
                         pass
                     elif not len(y):
@@ -5904,6 +6196,7 @@ class Parameter(object):
         * `component` (string, optional): label for the component tag
         * `dataset` (string, optional): label for the dataset tag
         * `figure` (string, optional): label for the figure tag
+        * `server` (string, optional): label for the server tag
         * `constraint` (string, optional): label for the constraint tag
         * `compute` (string, optional): label for the compute tag
         * `model` (string, optional): label for the model tag
@@ -5940,6 +6233,7 @@ class Parameter(object):
         self._component = kwargs.get('component', None)
         self._dataset = kwargs.get('dataset', None)
         self._figure = kwargs.get('figure', None)
+        self._server = kwargs.get('server', None)
         self._constraint = kwargs.get('constraint', None)
         self._distribution = kwargs.get('distribution', None)
         self._compute = kwargs.get('compute', None)
@@ -6601,6 +6895,21 @@ class Parameter(object):
         return self._figure
 
     @property
+    def server(self):
+        """
+        Return the server of this <phoebe.parameters.Parameter>.
+
+        See also:
+        * <phoebe.parameters.ParameterSet.server>
+        * <phoebe.parameters.ParameterSet.servers>
+
+        Returns
+        -------
+        * (str) the server tag of this Parameter.
+        """
+        return self._server
+
+    @property
     def solver(self):
         """
         Return the solver of this <phoebe.parameters.Parameter>.
@@ -6959,6 +7268,13 @@ class Parameter(object):
                     value = False
 
                 return getattr(hier, method)(self.component) == value
+
+            elif qualifier == 'ds_has_enabled_feature':
+                dataset = self.dataset
+                feature_kind = value
+                features_with_kind = self._bundle.filter(context='feature', kind=feature_kind, **_skip_filter_checks).features
+                enabled_features_with_kind = self._bundle.filter(qualifier='enabled', value=True, compute=self.compute, feature=features_with_kind, **_skip_filter_checks).features
+                return dataset in self._bundle.filter(context='feature', feature=enabled_features_with_kind, **_skip_filter_checks).datasets
 
             else:
 
@@ -8832,6 +9148,36 @@ class FloatParameter(Parameter):
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     @property
+    def valid_units(self):
+        """
+        List valid units that can be converted from <phoebe.parameters.FloatParameter.default_unit>
+
+        See also:
+        * <phoebe.parameters.FloatParameter.default_unit>
+        * <phoebe.parameters.FloatParameter.set_default_unit>
+
+        Returns
+        -----------
+        * (list)
+        """
+
+        return self.get_valid_units()
+
+    def get_valid_units(self):
+        """
+        List valid units that can be converted from <phoebe.parameters.FloatParameter.default_unit>
+
+        See also:
+        * <phoebe.parameters.FloatParameter.default_unit>
+        * <phoebe.parameters.FloatParameter.set_default_unit>
+
+        Returns
+        -----------
+        * (list)
+        """
+        return self.default_unit.find_equivalent_units()
+
+    @property
     def default_unit(self):
         """
         Return the default unit for the <phoebe.parameters.FloatParameter>.
@@ -8883,7 +9229,10 @@ class FloatParameter(Parameter):
         # TODO: check to make sure isinstance(unit, astropy.u.Unit)
         # TODO: check to make sure can convert from current default unit (if exists)
         if isinstance(unit, str):
-          unit = u.Unit(unit)
+            if unit.lower() in ['solar', 'si'] and self._default_unit is not None:
+                unit = _helpers.get_unit_in_system(self._default_unit, unit)
+            else:
+                unit = u.Unit(unit)
         elif unit is None:
             unit = u.dimensionless_unscaled
 
@@ -9306,8 +9655,6 @@ class FloatParameter(Parameter):
         types.  See the documentation of <phoebe.parameters.FloatParameter.get_quantity>
         for full details.
         """
-        default = super(FloatParameter, self).get_value(**kwargs)
-        if default is not None: return self._check_type(default)
         quantity = self.get_quantity(unit=unit, t=t,
                                      **kwargs)
         if hasattr(quantity, 'value'):
@@ -9348,9 +9695,8 @@ class FloatParameter(Parameter):
         default = super(FloatParameter, self).get_value(**kwargs) # <- note this is calling get_value on the Parameter object
         if default is not None:
             value = self._check_type(default)
-            if isinstance(default, u.Quantity):
-                return value
-            return value * self.default_unit
+            if not isinstance(value, u.Quantity):
+                value = value * self.default_unit
         else:
             value = self._value
 
@@ -9390,10 +9736,8 @@ class FloatParameter(Parameter):
 
         # TODO: check to see if this is still necessary
         if isinstance(unit, str):
-            if unit == 'solar':
-                unit = u._physical_types_to_solar.get(u._get_physical_type(self.default_unit))
-            elif unit in ['si', 'SI']:
-                unit = u._physical_types_to_si.get(u._get_physical_type(self.default_unit))
+            if unit.lower() in ['solar', 'si']:
+                unit = _helpers.get_unit_in_system(self.default_unit, unit)
             else:
                 # we need to do this to make sure we get PHOEBE's version of
                 # the unit instead of astropy's
@@ -9441,6 +9785,12 @@ class FloatParameter(Parameter):
     def _check_type(self, value):
         # we do this separately so that FloatArrayParameter can keep this set_value
         # and just subclass _check_type
+        if isinstance(value, tuple) and len(value)==2 and (isinstance(value[0], float) or isinstance(value[0], int)):
+            if isinstance(value[1], str):
+                value = value[0] * u.Unit(value[1])
+            elif isinstance(value[1], u.Unit):
+                value = value[0] * value[1]
+
         if isinstance(value, u.Quantity):
             if not (isinstance(value.value, float) or isinstance(value.value, int)):
                 raise ValueError("value could not be cast to float")
@@ -9530,8 +9880,10 @@ class FloatParameter(Parameter):
         value, unit = self._check_value(value, unit)
 
         if isinstance(unit, str):
-            # print "*** converting string to unit"
-            unit = u.Unit(unit)  # should raise error if not a recognized unit
+            if unit.lower() in ['solar', 'si']:
+                unit = _helpers.get_unit_in_system(self.default_unit, unit)
+            else:
+                unit = u.Unit(unit)  # should raise error if not a recognized unit
         elif unit is not None and not _is_unit(unit):
             raise TypeError("unit must be an phoebe.u.Unit or None, got {}".format(unit))
 
@@ -9557,7 +9909,7 @@ class FloatParameter(Parameter):
                     if abs(value.to(u.deg).value - self._value.to(u.deg).value) > 180:
                         raise ValueError("value further than 180 deg from {}".format(self._value.to(u.deg).value))
                 value = value % (360*u.deg)
-                logger.warning("wrapping value of {} to {}".format(self.qualifier, value))
+                logger.info("wrapping value of {} to {}".format(self.qualifier, value))
 
         # make sure the value is within the limits, if this isn't an array or nan
         if ((isinstance(value, float) and not np.isnan(value))
@@ -9795,7 +10147,7 @@ class FloatArrayParameter(FloatParameter):
 
         if isinstance(qualifier_interp_value, u.Quantity):
             default_unit = parent_ps.get_parameter(qualifier=qualifier, **_skip_filter_checks).default_unit
-            logger.warning("converting from provided quantity with units {} to default units ({}) of {}".format(qualifier_interp_value.unit, default_unit, qualifier))
+            logger.info("converting from provided quantity with units {} to default units ({}) of {}".format(qualifier_interp_value.unit, default_unit, qualifier))
             qualifier_interp_value = qualifier_interp_value.to(default_unit).value
 
         if qualifier=='times':
@@ -9808,7 +10160,7 @@ class FloatArrayParameter(FloatParameter):
 
                 qualifier_interp_value_time_str = "({} -> {})".format(min(qualifier_interp_value_time), max(qualifier_interp_value_time)) if hasattr(qualifier_interp_value_time, '__iter__') else qualifier_interp_value_time
                 qualifier_interp_value_str = "({} -> {})".format(min(qualifier_interp_value), max(qualifier_interp_value)) if hasattr(qualifier_interp_value, '__iter__') else qualifier_interp_value
-                logger.warning("times={} outside of interpolation limits ({} -> {}), attempting to interpolate at phases={}".format(qualifier_interp_value_time_str, times.min(), times.max(), qualifier_interp_value_str))
+                logger.debug("times={} outside of interpolation limits ({} -> {}), attempting to interpolate at phases={}".format(qualifier_interp_value_time_str, times.min(), times.max(), qualifier_interp_value_str))
 
         self_value = self.get_value()
         if len(self_value.shape) > 1:
@@ -9818,7 +10170,7 @@ class FloatArrayParameter(FloatParameter):
             # do we want bundle or parent_ps here (for the case where doing scaling from run_compute)
             sample_mode = bundle.get_value(qualifier='sample_mode', context='model', model=self.model, default='none', **_skip_filter_checks)
             if '-sigma' in sample_mode:
-                logger.warning("using median for interpolation for sample_mode='{}'".format(sample_mode))
+                logger.info("using median for interpolation for sample_mode='{}'".format(sample_mode))
                 self_value = self_value[1]
             elif sample_mode == 'all' and self_value.shape[0] == 1:
                 # then sample_num = 1, possibly from an optimizer solution
@@ -10121,7 +10473,11 @@ class ArrayParameter(Parameter):
         self._readonly_check(**kwargs)
 
         _orig_value = _deepcopy(self._value)
-        self._value = np.array(value)
+        if self.qualifier in ['mask_phases', 'fitted_values', 'initial_values']:
+            # avoid the ragged sequence deprecation warning
+            self._value = np.asarray(value, dtype=object)
+        else:
+            self._value = np.asarray(value)
 
 
 class HierarchyParameter(StringParameter):
@@ -10971,7 +11327,7 @@ class HierarchyParameter(StringParameter):
                     return True
 
         # TODO: allow passing compute to do only enabled features attached to enabled datasets?
-        if consider_gaussian_process and len(self._bundle.filter(kind='gaussian_process', context='feature', **_skip_filter_checks).features):
+        if consider_gaussian_process and len(self._bundle.filter(kind=['gp_sklearn', 'gp_celerite2'], context='feature', **_skip_filter_checks).features):
             return True
 
         return False
@@ -11235,6 +11591,36 @@ class ConstraintParameter(Parameter):
             raise ValueError("no result found for {} in bundle after checking in {}".format(kwargs, vars.twigs))
 
     @property
+    def valid_units(self):
+        """
+        List valid units that can be converted from <phoebe.parameters.ConstraintParameter.default_unit>
+
+        See also:
+        * <phoebe.parameters.ConstraintParameter.default_unit>
+        * <phoebe.parameters.ConstraintParameter.set_default_unit>
+
+        Returns
+        -----------
+        * (list)
+        """
+
+        return self.get_valid_units()
+
+    def get_valid_units(self):
+        """
+        List valid units that can be converted from <phoebe.parameters.ConstraintParameter.default_unit>
+
+        See also:
+        * <phoebe.parameters.ConstraintParameter.default_unit>
+        * <phoebe.parameters.ConstraintParameter.set_default_unit>
+
+        Returns
+        -----------
+        * (list)
+        """
+        return self.default_unit.find_equivalent_units()
+
+    @property
     def default_unit(self):
         """
         Return the default unit for the <phoebe.parameters.ConstraintParameter>.
@@ -11284,7 +11670,10 @@ class ConstraintParameter(Parameter):
         """
         # TODO: check to make sure can convert from current default unit (if exists)
         if isinstance(unit, str):
-            unit = u.Unit(unit)
+            if unit.lower() in ['solar', 'si']:
+                unit = _helpers.get_unit_in_system(self.default_unit, unit)
+            else:
+                unit = u.Unit(unit)
 
         if not _is_unit(unit):
             raise TypeError("unit must be a Unit")
@@ -11783,6 +12172,9 @@ class ConstraintParameter(Parameter):
 
         # cannot be at the top, or will cause circular import
         from . import constraint
+        if self.constraint_func == 'custom':
+            raise NotImplementedError("custom constraints are not flippable (yet)")
+
         if self.constraint_func is not None and hasattr(constraint, self.constraint_func):
             # then let's see if the method is capable of resolving for use
             # try:
@@ -11865,7 +12257,7 @@ class JobParameter(Parameter):
     Parameter that tracks a submitted job (detached
     <phoebe.frontend.bundle.Bundle.run_compute>, for example)
     """
-    def __init__(self, b, location, status_method, retrieve_method, server_status=None, **kwargs):
+    def __init__(self, b, job_name=None, **kwargs):
         """
         see <phoebe.parameters.Parameter.__init__>
         """
@@ -11874,45 +12266,41 @@ class JobParameter(Parameter):
         super(JobParameter, self).__init__(qualifier='detached_job', **kwargs)
 
         self._bundle = b
-        self._server_status = server_status
-        self._location = location
-        self._status_method = status_method
-        self._retrieve_method = retrieve_method
-        self._value = 'unknown'
-        #self._randstr = randstr
 
-        # TODO: may need to be more clever once remote servers are supported
-        self._script_fname = os.path.join(location, '_{}.py'.format(self.uniqueid))
-        self._results_fname = os.path.join(location, '_{}.out'.format(self.uniqueid))
-        self._err_fname = os.path.join(location, '_{}.err'.format(self.uniqueid))
-        self._kill_fname = self._results_fname + '.kill'
+        # NOTE: will also be tagged with the PHOEBE server, or None if using the default LocalThreadServer
+        self._job_name = job_name  # crimpl only: name of the crimpl job
+        self._value = 'unknown'
+
+        self._cached_crimpl_server = None
+        self._cached_crimpl_job = None
+
+        self._results_fname = '_{}.out'.format(self.uniqueid)
 
         # TODO: add a description?
 
-        self._dict_fields_other = ['description', 'value', 'server_status', 'location', 'status_method', 'retrieve_method', 'uniqueid', 'readonly', 'advanced', 'latexfmt']
+        self._dict_fields_other = ['description', 'value', 'job_name', 'uniqueid', 'readonly', 'advanced', 'latexfmt']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     def __str__(self):
         """
         """
         # TODO: implement a nice(r) string representation
-        return "qualifier: {}\nstatus: {}".format(self.qualifier, self.status)
+        # NOTE: we use the cached status instead of requerying
+        return "qualifier: {}\nlast known status: {}".format(self.qualifier, self._value)
 
     def get_value(self, **kwargs):
         """
         JobParameter doesn't really have a value, but for the sake of Parameter
-        representations, we'll provide the current status.
+        representations, we'll provide the last known status.  To check the current
+        status, call <phoebe.parameters.JobParameter.get_status>.
 
         Also see:
-            * <phoebe.parameters.JobParameter.status>
-            * <phoebe.parameters.JobParameter.attach>
-            * <phoebe.parameters.JobParameter.location>
-            * <phoebe.parameters.JobParameter.server_status>
-            * <phoebe.parameters.JobParameter.status_method>
-            * <phoebe.parameters.JobParameter.retrieve_method>
+        * <phoebe.parameters.JobParameter.status>
+        * <phoebe.parameters.JobParameter.attach>
+        * <phoebe.parameters.JobParameter.method>
 
         """
-        return self.status
+        return self._value
 
     def set_value(self, *args, **kwargs):
         """
@@ -11927,48 +12315,15 @@ class JobParameter(Parameter):
         raise NotImplementedError("JobParameter is a read-only parameter.  Call status or attach()")
 
     @property
-    def server_status(self):
+    def job_name(self):
         """
-        Access the status of the remote server, if applicable.
-
-        Returns
-        -----------
-        * (str)
-        """
-        return self._server_status
-
-    @property
-    def location(self):
-        """
-        Access the location of the remote server, if applicable.
-
-        Returns
-        ----------
-        * (str)
-        """
-        return self._location
-
-    @property
-    def status_method(self):
-        """
-        Access the method for determining the status of the Job.
+        Access the crimpl job_name.
 
         Returns
         ---------
         * (str)
         """
-        return self._status_method
-
-    @property
-    def retrieve_method(self):
-        """
-        Access the method for retrieving the results from the Job, once completed.
-
-        Returns
-        -----------
-        * (str)
-        """
-        return self._retrieve_method
+        return self._job_name
 
     @property
     def status(self):
@@ -12002,102 +12357,175 @@ class JobParameter(Parameter):
         * NotImplementedError: if status isn't implemented for the given
             <phoebe.parameters.JobParameter.status_method>.
         """
-        if self._value == 'loaded':
-            status = 'loaded'
-
-        elif not _is_server and self._bundle is not None and self._server_status is not None:
-            if not _can_requests:
-                raise ImportError("requests module required for external jobs")
-
-            raise NotImplementedError()
-            # if self._value in ['complete']:
-            #     # then we have no need to bother checking again
-            #     status = self._value
-            # else:
-            #     url = self._server_status
-            #     logger.info("checking job status on server from {}".format(url))
-            #     # "{}/{}/parameters/{}".format(server, bundleid, self.uniqueid)
-            #     r = requests.get(url, timeout=5)
-            #     try:
-            #         rjson = r.json()
-            #     except ValueError:
-            #         # TODO: better exception here - perhaps look for the status code from the response?
-            #         status = self._value
-            #     else:
-            #         status = rjson['data']['attributes']['value']
+        if self._value in ['loaded', 'complete', 'error', 'killed']:
+            # then we aren't expecting any new updates
+            status = self._value
 
         else:
-
-            if self.status_method == 'exists':
-                if self._value in ['error', 'killed', 'loaded']:
-                    # then error was already detected and we've already done cleanup
-                    status = self._value
-                elif os.path.isfile(self._results_fname):
-                    status = 'complete'
-                elif os.path.isfile(self._kill_fname):
-                    status = 'killed'
-                elif os.path.isfile(self._results_fname+'.progress'):
-                    status = 'progress'
-                elif os.path.isfile(self._err_fname) and os.stat(self._err_fname).st_size > 0:
-                    # some warnings from other packages can be set to stderr
-                    # so we need to make sure the last line is actually from
-                    # raising an error.
-                    ferr = open(self._err_fname, 'r')
-                    msg = ferr.readlines()[-1]
-                    ferr.close()
-                    if 'Error' in msg.split()[0]:
-                        status = 'error'
-                    else:
-                        status = 'running'
-                else:
-                    status = 'running'
-            else:
-                raise NotImplementedError
+            status = self.crimpl_job.job_status
 
         # here we'll set the value to be the latest CHECKED status for the sake
-        # of exporting to JSON and updating the status for clients.  get_value
-        # will still call status so that it will return the CURRENT value.
+        # of exporting to JSON and updating the status for clients.
         self._value = status
         return status
+
+    @property
+    def _crimpl_server(self):
+        if self._cached_crimpl_server is None:
+            if self._server is not None:
+                crimpl_name = self._bundle.get_value(qualifier='crimpl_name', server=self._server, **_skip_filter_checks)
+            else:
+                crimpl_name = ''
+            if crimpl_name in _cached_crimpl_servers.keys():
+                self._cached_crimpl_server = _cached_crimpl_servers.get(crimpl_name)
+            else:
+                crimpl_server = _crimpl.load_server(crimpl_name) if crimpl_name else _crimpl.LocalThreadServer('./phoebe_crimpl_jobs')
+                self._cached_crimpl_server = crimpl_server
+                if crimpl_name:
+                    _cached_crimpl_servers[crimpl_name] = crimpl_server
+
+        return self._cached_crimpl_server
+
+    @property
+    def crimpl_job(self):
+        """
+        Access the crimpl job object
+        """
+        if self._cached_crimpl_job is None:
+            self._cached_crimpl_job = self._crimpl_server.get_job(self._job_name)
+        return self._cached_crimpl_job
 
     def _retrieve_results(self):
         """
         [NOT IMPLEMENTED]
         """
-        # now the file with the model should be retrievable from self._result_fname
-        if 'progress' in self._value:
-            fname = self._results_fname + '.progress'
+        if self._server is not None:
+            crimpl_name = self._bundle.get_value(qualifier='crimpl_name', server=self._server, **_skip_filter_checks)
         else:
+            crimpl_name = ''
+
+        retrieved_fnames = self.crimpl_job.check_output([self._results_fname, self._results_fname+'.progress'])
+        if not len(retrieved_fnames):
+            # try retrieving any error logs
+            output_files = self.crimpl_job.output_files
+            error_fnames = self.crimpl_job.check_output([f for f in output_files if 'slurm-' in f or f=='nohup.out'])
+            if len(error_fnames) == 1:
+                with open(error_fnames[0], 'r') as e:
+                    if self.get_status() == 'running':
+                        raise ValueError("job has not yet produced any output, with the following log:\n\n{}".format("\n".join(e.readlines())))
+                    else:
+                        raise ValueError("job failed with the following log:\n\n{}".format("\n".join(e.readlines())))
+
+            else:
+                raise ValueError("no files retrieved from remote server")
+
+        # now the file with the model should be retrievable from self._result_fname
+        if self._results_fname in retrieved_fnames:
             fname = self._results_fname
+            is_progress = False
+        elif self._results_fname+'.progress' in retrieved_fnames:
+            fname = self._results_fname + '.progress'
+            is_progress = True
+        else:
+            raise ValueError("no matching files retrieved from remote server")
 
         try:
             ret_ps = ParameterSet.open(fname)
         except Exception as err:
-            if 'progress' in self._value:
-                return None
+            if is_progress:
+                return ParameterSet([])
             else:
                 raise
         else:
             return ret_ps
 
+    def _retrieve_and_attach_results(self, cleanup=False, return_changes=False):
+        if self._value not in ['loaded', 'complete', 'running', 'failed', 'killed']:
+            # then update cached value
+            _ = self.get_status()
+
+        ret_ps = self._retrieve_results()
+
+        if not len(ret_ps.to_list()) and 'progress' in self._value:
+            # then we just want to update the progress value from the progress-file
+            # but don't have anything to actually load
+            f = open(self._results_fname + '.progress', 'r')
+            progress_str = f.readlines()[0]
+            f.close()
+
+            try:
+                progress = np.round(float(progress_str.strip()), 2)
+            except:
+                return ParameterSet([])
+            else:
+                self._value = 'progress:{}%'.format(progress)
+                return ParameterSet([self])
+
+
+        # now we need to attach ret_ps to self._bundle
+        # TODO: is creating metawargs here necessary?  Shouldn't the params already be tagged?
+        if self.context == 'model':
+            metawargs = {'compute': str(ret_ps.compute), 'model': str(self.model), 'context': 'model'}
+            # NOTE: we need to update these tags now otherwise the returned copy won't have the correct tag (even though the attached copy will)
+            if ret_ps.model != self.model:
+                for param in ret_ps.to_list():
+                    param._model = self.model
+                ret_ps._model = self.model
+        elif self.context == 'solution':
+            metawargs = {'solver': str(ret_ps.solver), 'solution': str(self.solution), 'context': 'solution'}
+            if ret_ps.solution != self.solution:
+                for param in ret_ps.to_list():
+                    param._solution = self.solution
+                ret_ps._solution = self.solution
+        else:
+            raise NotImplementedError("attaching for context='{}' not implemented".format(self.context))
+
+        if 'progress' in self._value:
+            if ret_ps.get_value(qualifier='progress', default=0, **_skip_filter_checks) == self._bundle.get_value(qualifier='progress', default=100, check_visible=False, check_advanced=False, **metawargs):
+                # then we have nothing new to load, so let's not bother attaching and overwriting with the exact same thing
+                return ParameterSet([])
+            elif 'progress' in ret_ps.qualifiers:
+                self._value = 'progress:{}%'.format(np.round(ret_ps.get_value(qualifier='progress'), 2))
+
+        # NOTE: we keep ParameterSet(ret_ps) instead of ret_ps in case
+        # the model/solution has been renamed since creating the job
+        ret_changes = self._bundle._attach_params(ret_ps, overwrite=True, return_changes=return_changes, **metawargs)
+
+        if cleanup and self._value in ['complete', 'loaded', 'error', 'killed']:
+            self._cleanup()
+
+        if self._value in ['complete']:
+            self._value = 'loaded'
+
+        if self._value in ['failed'] and len(ret_ps.to_list()):
+            # then we loaded the latest progress file available
+            self._value = 'loaded'
+
+        if self.context == 'model':
+            # TODO: check logic for do_create_fig_params
+            ret_changes += self._bundle._run_compute_changes(ret_ps, return_changes=return_changes, do_create_fig_params=True)
+
+        elif self.context == 'solution':
+            ret_changes += self._bundle._run_solver_changes(ret_ps, return_changes=return_changes)
+
+        else:
+            raise NotImplementedError("attaching for context='{}' not implemented".format(self.context))
+
+        if return_changes:
+            return ret_ps + ret_changes + [self]
+
+        return ret_ps
+
+
     def _cleanup(self):
-        try:
-            os.remove(self._script_fname)
-        except: pass
         try:
             os.remove(self._results_fname)
         except: pass
         try:
-            os.remove(self._err_fname)
-        except: pass
-        try:
             os.remove(self._results_fname+".progress")
         except: pass
-        try:
-            os.remove(self._kill_fname)
-        except: pass
 
-    def attach(self, wait=True, sleep=5, cleanup=True, return_changes=False):
+    def attach(self, wait=True, sleep=10, cleanup=True, return_changes=False):
         """
         Attach the results from a <phoebe.parameters.JobParameter> to the
         <phoebe.frontend.bundle.Bundle>.  If the status is not yet reported as
@@ -12107,7 +12535,7 @@ class JobParameter(Parameter):
         ---------
         * `wait` (bool, optional, default=True): whether to wait until the job
             is complete.
-        * `sleep` (int, optional, default=5): number of seconds to sleep between
+        * `sleep` (int, optional, default=10): number of seconds to sleep between
             status checks.  See <phoebe.parameters.JobParameter.get_status>.
             Only applicable if `wait` is True.
         * `cleanup` (bool, optional, default=True): whether to delete any
@@ -12129,141 +12557,106 @@ class JobParameter(Parameter):
             raise ValueError("can only attach a job if attached to a bundle")
 
         status = self.get_status()
-        if not wait and status not in ['complete', 'error', 'progress']:
-            if status in ['loaded']:
-                logger.info("job already loaded")
-                if self.context == 'model':
-                    return self._bundle.get_model(self.model)
-                elif self.context == 'solution':
-                    return self._bundle.get_solution(self.solution)
-                else:
-                    raise NotImplementedError("attaching for context='{}' not implemented".format(self.context))
-            else:
-                logger.info("current status: {}, check again or use wait=True".format(status))
-                return self
+        if not wait and status not in ['complete', 'error', 'killed', 'progress', 'loaded']:
+            logger.info("current status: {}, check again or use wait=True".format(status))
+            return self
 
         if wait:
-            while self.get_status() not in ['complete', 'loaded', 'error']:
-                # TODO: any way we can not make 2 calls to self.status here?
-                logger.info("current status: {}, trying again in {}s".format(self.get_status(), sleep))
+            while status not in ['complete', 'loaded', 'error', 'killed']:
+                logger.info("current status: {}, trying again in {}s".format(status, sleep))
                 time.sleep(sleep)
+                status = self.get_status()
 
-        if self._server_status is not None and not _is_server:
-            if not _can_requests:
-                raise ImportError("requests module required for external jobs")
+        if status == 'loaded':
+            logger.info("job already loaded")
+            if self.context == 'model':
+                return self._bundle.get_model(self.model)
+            elif self.context == 'solution':
+                return self._bundle.get_solution(self.solution)
+            else:
+                raise NotImplementedError("attaching for context='{}' not implemented".format(self.context))
+        elif status == 'error':
+            # TODO: implement retrieving error messages from server
 
-            raise NotImplementedError()
-            # # then we are no longer attached as a client to this bundle on
-            # # the server, so we need to just pull the results manually
-            # url = self._server_status
-            # logger.info("pulling job results from server from {}".format(url))
-            # # "{}/{}/parameters/{}".format(server, bundleid, self.uniqueid)
-            # r = requests.get(url, timeout=5)
-            # rjson = r.json()
-            #
-            # # status should already be complete because of while loop above,
-            # # but could always check the following:
-            # # rjson['value']['attributes']['value'] == 'complete'
-            #
-            # # TODO: server needs to sideload results once complete
-            # newparams = rjson['included']
-            # self._bundle._attach_param_from_server(newparams)
-
-        elif self.status == 'error':
-            ferr = open(self._err_fname, 'r')
-            lines = ferr.readlines()
-            ferr.close()
-
-            if cleanup:
-                self._cleanup()
-
-            self._value = 'error'
-
-            print("ERROR: full error message: {}".format(lines))
-            logger.error("full error message: {}".format(lines))
             raise RuntimeError("job failed with error: {}".format(lines[-1]))
+
         else:
-            logger.info("current status: {}, pulling job results".format(self.status))
-            ret_ps = self._retrieve_results()
+            logger.info("current status: {}, pulling job results".format(status))
+            return self._retrieve_and_attach_results(cleanup=cleanup, return_changes=return_changes)
 
-            if ret_ps is None and 'progress' in self._value:
-                # then we just want to update the progress value from the progress-file
-                # but don't have anything to actually load
-                f = open(self._results_fname + '.progress', 'r')
-                progress_str = f.readlines()[0]
-                f.close()
+    def load_progress(self, cleanup=True, return_changes=False):
+        """
+        Attach the progress (if applicable) from a <phoebe.parameters.JobParameter> to the
+        <phoebe.frontend.bundle.Bundle>.
 
-                try:
-                    progress = np.round(float(progress_str.strip()), 2)
-                except:
-                    return ParameterSet([])
-                else:
-                    self._value = 'progress:{}%'.format(progress)
-                    return ParameterSet([self])
+        Arguments
+        ---------
+        * `cleanup` (bool, optional, default=True): whether to delete any
+            temporary files once the results are loaded.
+        * `return_changes` (bool, optional, default=False): whether to include
+            changed/removed parameters in the returned ParameterSet.
 
+        Returns
+        ---------
+        * ParameterSet of newly attached parameters (if attached or already
+            loaded).
 
-            # now we need to attach ret_ps to self._bundle
-            # TODO: is creating metawargs here necessary?  Shouldn't the params already be tagged?
-            if self.context == 'model':
-                metawargs = {'compute': str(ret_ps.compute), 'model': str(ret_ps.model), 'context': 'model'}
-            elif self.context == 'solution':
-                metawargs = {'solver': str(ret_ps.solver), 'solution': str(ret_ps.solution), 'context': 'solution'}
-            else:
-                raise NotImplementedError("attaching for context='{}' not implemented".format(self.context))
+        Raises
+        -----------
+        * ValueError: if not attached to a <phoebe.frontend.bundle.Bundle> object.
+        * ValueError: if the current <phoebe.parameters.JobParameter.status> is
+            not 'running' or 'complete'
 
-            if 'progress' in self._value:
-                if ret_ps.get_value(qualifier='progress', default=0, **_skip_filter_checks) == self._bundle.get_value(qualifier='progress', default=100, check_visible=False, check_advanced=False, **metawargs):
-                    # then we have nothing new to load, so let's not bother attaching and overwriting with the exact same thing
-                    return ParameterSet([])
-                elif 'progress' in ret_ps.qualifiers:
-                    self._value = 'progress:{}%'.format(np.round(ret_ps.get_value(qualifier='progress'), 2))
+        """
+        return self._retrieve_and_attach_results(cleanup=cleanup, return_changes=return_changes)
 
 
-            ret_changes = self._bundle._attach_params(ret_ps, overwrite=True, return_changes=return_changes, **metawargs)
-            if return_changes:
-                ret_changes += [self]
-
-            if cleanup and self._value in ['complete', 'loaded', 'error', 'killed']:
-                self._cleanup()
-
-            if 'progress' not in self._value:
-                self._value = 'loaded'
-
-            if self.context == 'model':
-                # TODO: check logic for do_create_fig_params
-                ret_changes += self._bundle._run_compute_changes(ret_ps, return_changes=return_changes, do_create_fig_params=True)
-
-            elif self.context == 'solution':
-                ret_changes += self._bundle._run_solver_changes(ret_ps, return_changes=return_changes)
-
-            else:
-                raise NotImplementedError("attaching for context='{}' not implemented".format(self.context))
-
-            if return_changes:
-                return ret_ps + ret_changes
-
-            return ret_ps
-
-    def kill(self, cleanup=True, return_changes=False):
+    def kill(self, load_progress=False, cleanup=True, return_changes=False):
         """
         Send a termination signal to the external thread running a
         <phoebe.parameters.JobParameter>
 
         Arguments
         ---------
-        * `cleanup` (bool, optional, default=True): whether to wait for the
+        * `load_progress` (bool, optional, default=False): whether to wait for the
             thread to terminate and then call <phoebe.parameters.JobParameter.attach>
-            with `cleanup=True` and `wait=True`.
+            with `wait=True`.
+        * `cleanup` (bool, optional, default=True): whether to delete any
+            temporary files once the job is killed (and results are loaded
+            if `load_progress=True`).
         * `return_changes` (bool, optional, default=False): whether to include
             changed/removed parameters in the returned ParameterSet.
 
         Returns
         ---------
-
+        * (<phoebe.parameters.ParameterSet>)
 
         """
-        f = open(self._kill_fname, 'w')
-        f.write('kill')
-        f.close()
+        # TODO: options for whether to pass delete_volume
+        self.crimpl_job.kill_job()
+        self._value = 'killed'
+
+        ret = None
+        if load_progress:
+            try:
+                ret = self.attach(wait=True, cleanup=True)
+            except ValueError as err:
+                if "no files" in str(err):
+                    pass
+                else:
+                    raise
+
         if cleanup:
-            return self.attach(wait=True, cleanup=True)
+            self._cleanup()
+
+        return ret if ret is not None else ParameterSet([])
+
+    def resubmit(self):
+        """
+        Continue a job that was previously canceled, killed, or exceeded walltime.
+        For jobs that do not support continuing, the job will be restarted.
+        """
+
+        # TODO: options for whether to pass delete_volume
+        self.crimpl_job.resubmit_script()
+        self._value = 'unknown'
