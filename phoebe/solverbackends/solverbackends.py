@@ -703,7 +703,7 @@ class Lc_GeometryBackend(BaseSolverBackend):
                 analytic_fluxes = {'polyfit': model.model}
             return_ += [{'qualifier': 'analytic_phases', 'value': model.phases},
                         {'qualifier': 'analytic_fluxes', 'value': analytic_fluxes},
-                        {'qualifier': 'analytic_best_model', 'value': model.best_fit}
+                        {'qualifier': 'analytic_best_model', 'value': model.best_fit['func']}
                         ]
 
 
