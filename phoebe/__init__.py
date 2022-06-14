@@ -758,8 +758,6 @@ def mpi_off():
 
 def multiprocessing_on():
     """
-    **NEW IN 2.3.26**
-
     Enable multiprocessing to use all CPUs available (this is the state by default).
     MPI will always take preference over multiprocessing.  See <phoebe.mpi_on>
     and <phoebe.mpi_off>.
@@ -777,8 +775,6 @@ def multiprocessing_on():
 
 def multiprocessing_off():
     """
-    **NEW IN 2.3.26**
-
     Disable multiprocessing and force serial mode (if MPI is also off: see
     <phoebe.mpi_on> and <phoebe.mpi_off>).
 
@@ -791,8 +787,6 @@ def multiprocessing_off():
 
 def multiprocessing_get_nprocs():
     """
-    **NEW IN 2.3.26**
-
     Get the number of processors used within multiprocessing.
 
     MPI will always take preference over multiprocessing.  See <phoebe.mpi_on>
@@ -811,8 +805,6 @@ def multiprocessing_get_nprocs():
 
 def multiprocessing_set_nprocs(nprocs):
     """
-    **NEW IN 2.3.26**
-
     Set a custom number of processors to use within multiprocessing.
     MPI will always take preference over multiprocessing.  See <phoebe.mpi_on>
     and <phoebe.mpi_off>.
