@@ -85,6 +85,12 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.4.2 - l3 handling distance in absolute pblum_mode bugfix
+
+* fix conversion between l3 and l3_frac to account for distance when pblum_mode
+  is absolute
+* fix tagged phoebe version in cached bundles to avoid import warning
+
 ### 2.4.1 - solver filtering and plotting bugfix
 
 * fix filtering error when not explicitly passing solver to run_solver

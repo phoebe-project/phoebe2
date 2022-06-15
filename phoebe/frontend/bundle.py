@@ -10874,6 +10874,7 @@ class Bundle(ParameterSet):
         # finally, we'll loop through the datasets again to apply the scales to
         # determine the relative pblums, compute pbfluxes, and expose/set whatever
         # was requested
+        distance = self.get_value(qualifier='distance', context='system', unit=u.m, **_skip_filter_checks)
         for dataset in datasets:
             pblum_mode = self.get_value(qualifier='pblum_mode', dataset=dataset, pblum_mode=kwargs.get('pblum_mode', None), default='absolute', **_skip_filter_checks)
             if pblum_mode == 'dataset-scaled':
@@ -10915,6 +10916,8 @@ class Bundle(ParameterSet):
                 if self.hierarchy.get_kind_of(component) != 'envelope':
                     # don't want to double count
                     pbflux_this_dataset += pblum_rel / (4*np.pi)
+
+            pbflux_this_dataset /= distance**2
 
             if set_value:
                 self.set_value(qualifier='pbflux', dataset=dataset, context='dataset', value=pbflux_this_dataset*u.W/u.m**2, **_skip_filter_checks)

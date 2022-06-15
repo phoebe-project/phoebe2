@@ -15,7 +15,7 @@ def rotfreq_to_omega(rotfreq, M_star, scale=c.R_sun.si.value, solar_units=False)
     ----------
     * `rotfreq` (float): rotation frequency of the star in cycles/day or cycles/s
         (see `solar_units`)
-    * `M_star` (float): **NEW IN 2.3.31** mass of the star (see `solar_units` for units)
+    * `M_star` (float): mass of the star (see `solar_units` for units)
     * `scale` (float, optional, default=c.R_sun.si.value)
     * `solar_units` (bool, optional, default=False): whether `rotfreq`, `M_star`,
         and `scale` are provided in solar units (instead of SI).

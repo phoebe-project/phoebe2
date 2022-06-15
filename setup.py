@@ -405,7 +405,7 @@ else:
     long_description = "\n".join(long_description_s[long_description_s.index("INTRODUCTION"):])
 
 setup (name = 'phoebe',
-       version = '2.4.1',
+       version = '2.4.2',
        description = 'PHOEBE devel version',
        long_description=long_description,
        author = 'PHOEBE development team',
@@ -426,7 +426,7 @@ setup (name = 'phoebe',
             'Programming Language :: Python :: 3 :: Only',
         ],
        python_requires='>=3.6, <4',
-       download_url = 'https://github.com/phoebe-project/phoebe2/tarball/2.4.1',
+       download_url = 'https://github.com/phoebe-project/phoebe2/tarball/2.4.2',
        packages = ['phoebe',
                    'phoebe.parameters', 'phoebe.parameters.solver', 'phoebe.parameters.figure',
                    'phoebe.frontend',

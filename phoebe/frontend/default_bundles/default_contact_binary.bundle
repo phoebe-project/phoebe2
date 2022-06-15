@@ -2751,7 +2751,7 @@ null
 "qualifier": "phoebe_version",
 "context": "setting",
 "description": "Version of PHOEBE",
-"value": "2.4.0.dev1+phoebe_2.4dev",
+"value": "2.4.2",
 "copy_for": false,
 "readonly": true,
 "advanced": true,
