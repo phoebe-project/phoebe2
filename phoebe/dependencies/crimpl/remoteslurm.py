@@ -258,6 +258,7 @@ class RemoteSlurmJob(_remotethread.RemoteThreadJob):
                       walltime='2-00:00:00',
                       mail_type='END,FAIL',
                       mail_user=None,
+                      mem=None,
                       ignore_files=[],
                       wait_for_job_status=False,
                       trial_run=False):
@@ -301,6 +302,8 @@ class RemoteSlurmJob(_remotethread.RemoteThreadJob):
         * `mail_user` (string, optional, default=None): email to send notifications.
             If not provided or None, will default to the value in <RemoteSlurmServer.mail_user>.
             Prepended to `script` as "#SBATCH --mail_user=mail_user"
+        * `mem` (string, optional, default=None): memory allocation.  If provided,
+            prepended to `script` as "#SBATCH --mem=mem"
         * `ignore_files` (list, optional, default=[]): list of filenames on the
             remote server to ignore when calling <<class>.check_output>
         * `wait_for_job_status` (bool or string or list, optional, default=False):
@@ -341,7 +344,8 @@ class RemoteSlurmJob(_remotethread.RemoteThreadJob):
                                                nprocs=nprocs,
                                                walltime=walltime,
                                                mail_type=mail_type,
-                                               mail_user=mail_user if mail_user is not None else self.server.mail_user)
+                                               mail_user=mail_user if mail_user is not None else self.server.mail_user,
+                                               mem=mem)
 
         if trial_run:
             return cmds

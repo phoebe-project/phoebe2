@@ -326,7 +326,8 @@ _forbidden_labels += ['datasets', 'models', 'components', 'contexts',
 _forbidden_labels += ['remoteslurm', 'awsec2', 'localthread',
                       'crimpl_name', 'use_conda', 'conda_env', 'isolate_env',
                       'nprocs', 'use_mpi',
-                      'walltime', 'mail_user', 'mail_type', 'terminate_on_complete',
+                      'walltime', 'mail_user', 'mail_type', 'mem',
+                      'terminate_on_complete',
                       'use_server', 'install_deps', 'slurm_job_name']
 
 # ? and * used for wildcards in twigs

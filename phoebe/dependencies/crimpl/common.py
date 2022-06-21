@@ -317,6 +317,7 @@ class Server(object):
 
         _slurm_kwarg_to_prefix = {'nprocs': '-n ',
                                   'walltime': '-t ',
+                                  'mem': '--mem=',
                                   'mail_type': '--mail-type=',
                                   'mail_user': '--mail-user='}
 
