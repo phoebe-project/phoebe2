@@ -258,7 +258,7 @@ class RemoteSlurmJob(_remotethread.RemoteThreadJob):
                       walltime='2-00:00:00',
                       mail_type='END,FAIL',
                       mail_user=None,
-                      mem=None,
+                      addl_slurm_kwargs={},
                       ignore_files=[],
                       wait_for_job_status=False,
                       trial_run=False):
@@ -302,8 +302,10 @@ class RemoteSlurmJob(_remotethread.RemoteThreadJob):
         * `mail_user` (string, optional, default=None): email to send notifications.
             If not provided or None, will default to the value in <RemoteSlurmServer.mail_user>.
             Prepended to `script` as "#SBATCH --mail_user=mail_user"
-        * `mem` (string, optional, default=None): memory allocation.  If provided,
-            prepended to `script` as "#SBATCH --mem=mem"
+        * `addl_slurm_kwargs` (dict, optional, default={}): additional kwargs
+            to pass to slurm.  Entries will be prepended to `script` as
+            "#SBATCH -<k> <v>" or "#SBATCH --<k>=<v>" depending on whether the
+            key (`k`) is a single character or multiple characters, respectively.
         * `ignore_files` (list, optional, default=[]): list of filenames on the
             remote server to ignore when calling <<class>.check_output>
         * `wait_for_job_status` (bool or string or list, optional, default=False):
@@ -345,7 +347,7 @@ class RemoteSlurmJob(_remotethread.RemoteThreadJob):
                                                walltime=walltime,
                                                mail_type=mail_type,
                                                mail_user=mail_user if mail_user is not None else self.server.mail_user,
-                                               mem=mem)
+                                               **addl_slurm_kwargs)
 
         if trial_run:
             return cmds
@@ -355,7 +357,13 @@ class RemoteSlurmJob(_remotethread.RemoteThreadJob):
             # TODO: get around need to add IP to known hosts (either by
             # expecting and answering yes, or by looking into subnet options)
 
-            out = self.server._run_server_cmd(cmd)
+            try:
+                out = self.server._run_server_cmd(cmd)
+            except _subprocess.CalledProcessError as e:
+                if addl_slurm_kwargs:
+                    raise ValueError(f"failed to submit to scheduler, addl_slurm_kwargs may be invalid.  Original error: {e.output}")
+                raise ValueError(f"failed to submit to scheduler.  Original error: {e.output}")
+
             if "sbatch" in cmd:
                 self._slurm_id = out.split(' ')[-1]
 
@@ -511,6 +519,7 @@ class RemoteSlurmServer(_remotethread.RemoteThreadServer):
                    walltime='2-00:00:00',
                    mail_type='END,FAIL',
                    mail_user=None,
+                   addl_slurm_kwargs={},
                    ignore_files=[],
                    wait_for_job_status=False,
                    trial_run=False):
@@ -529,6 +538,7 @@ class RemoteSlurmServer(_remotethread.RemoteThreadServer):
         * `walltime`: passed to <RemoteSlurmJob.submit_script>
         * `mail_type`: passed to <RemoteSlurmJob.submit_script>
         * `mail_user`: passed to <RemoteSlurmJob.submit_script>
+        * `addl_slurm_kwargs': pass to <RemoteSlurmJob.submit_script>`
         * `ignore_files`: passed to <RemoteSlurmJob.submit_script>
         * `wait_for_job_status`: passed to <RemoteSlurmJob.submit_script>
         * `trial_run`: passed to <RemoteSlurmJob.submit_script>
@@ -547,6 +557,7 @@ class RemoteSlurmServer(_remotethread.RemoteThreadServer):
                                walltime=walltime,
                                mail_type=mail_type,
                                mail_user=mail_user,
+                               addl_slurm_kwargs=addl_slurm_kwargs,
                                ignore_files=ignore_files,
                                wait_for_job_status=wait_for_job_status,
                                trial_run=trial_run)

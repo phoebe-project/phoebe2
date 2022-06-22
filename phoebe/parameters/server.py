@@ -47,8 +47,11 @@ def remoteslurm(server, **kwargs):
         matching mail_type
     * `mail_type` (list, optional, default=['END', 'FAIL']): Scenarios in which
         to request slurm to notify mail_user by email
-    * `mem` (string, optional): Memory allocation.
-
+    * `addl_slurm_kwargs` (dict, optional): additional kwargs
+        to pass to slurm.  Entries will be prepended to `script` as
+        "#SBATCH -<k> <v>" or "#SBATCH --<k>=<v>" depending on whether the
+        key (`k`) is a single character or multiple characters, respectively.
+        NEW IN PHOEBE 2.4.3.
 
     Returns
     --------
@@ -70,7 +73,7 @@ def remoteslurm(server, **kwargs):
     params += [FloatParameter(qualifier='walltime', value=kwargs.get('walltime', 0.5), default_unit=u.hr, limits=(0,None), description='Walltime to allocate to each job')]
     params += [StringParameter(qualifier='mail_user', value=kwargs.get('mail_user', ''), description='Email to have slurm notify about events matching mail_type')]
     params += [SelectParameter(qualifier='mail_type', visible_if='mail_user:<notempty>', value=kwargs.get('mail_type', ['END', 'FAIL']), choices=['BEGIN', 'END', 'FAIL', 'REQUEUE', 'ALL'], description='Scenarios in which to request slurm to notify mail_user by email')]
-    params += [StringParameter(qualifier='mem', value=kwargs.get('mem', ''), description='Maximum memory allocation')]
+    params += [DictParameter(qualifier='addl_slurm_kwargs', value=kwargs.get('addl_slurm_kwargs', {}), description='List of addition slurm arguments.  Keys with single characters will be passed to slurm as "#SBATCH -<key> <value>".  Keys with multiple characters will be passed to slurm as "#SBATCH --<key>=<value>"')]
 
     return ParameterSet(params)
 

@@ -326,7 +326,7 @@ _forbidden_labels += ['datasets', 'models', 'components', 'contexts',
 _forbidden_labels += ['remoteslurm', 'awsec2', 'localthread',
                       'crimpl_name', 'use_conda', 'conda_env', 'isolate_env',
                       'nprocs', 'use_mpi',
-                      'walltime', 'mail_user', 'mail_type', 'mem',
+                      'walltime', 'mail_user', 'mail_type', 'addl_slurm_kwargs',
                       'terminate_on_complete',
                       'use_server', 'install_deps', 'slurm_job_name']
 
