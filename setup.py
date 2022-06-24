@@ -405,8 +405,8 @@ else:
     long_description = "\n".join(long_description_s[long_description_s.index("INTRODUCTION"):])
 
 setup (name = 'phoebe',
-       version = '2.4.3',
-       description = 'PHOEBE devel version',
+       version = '2.4.3.dev+release-2.5',
+       description = 'PHOEBE 2.4',
        long_description=long_description,
        author = 'PHOEBE development team',
        author_email = 'phoebe-devel@lists.sourceforge.net',
