@@ -5,7 +5,7 @@ import subprocess as _subprocess
 import json as _json
 from time import sleep as _sleep
 
-__version__ = '0.1.0'
+__version__ = '0.2.0'
 
 def _new_job_name():
     return _datetime.now().strftime('%Y.%m.%d-%H.%M.%S')
@@ -18,9 +18,9 @@ def _run_cmd(cmd, detach=False, log_cmd=True, allow_retries=True):
     while True:
         try:
             if detach:
-                ret = _subprocess.Popen(cmd, shell=True, stderr=_subprocess.DEVNULL)
+                ret = _subprocess.Popen(cmd, shell=True, stderr=_subprocess.STDOUT)
             else:
-                ret = _subprocess.check_output(cmd, shell=True, stderr=_subprocess.DEVNULL).decode('utf-8').strip()
+                ret = _subprocess.check_output(cmd, shell=True, stderr=_subprocess.STDOUT).decode('utf-8').strip()
         except _subprocess.CalledProcessError as err:
             # print("error output: {}".format(err.output))
             if allow_retries and err.returncode == 255 and i < 5:
@@ -315,10 +315,18 @@ class Server(object):
         elif not self.conda_installed and conda_env is not False:
             raise ValueError("conda is not installed on the remote server.  Install manually or call server.install_conda()")
 
-        _slurm_kwarg_to_prefix = {'nprocs': '-n ',
-                                  'walltime': '-t ',
-                                  'mail_type': '--mail-type=',
-                                  'mail_user': '--mail-user='}
+        def _slurm_kwarg_to_prefix(k):
+            exceptions = {'nprocs': '-n ',
+                          'walltime': '-t ',
+                          'mail_type': '--mail-type=',
+                          'mail_user': '--mail-user='}
+            if k in exceptions.keys():
+                return exceptions.get(k)
+            elif len(k) == 1:
+                return f"-{k} "
+            else:
+                return f"--{k}="
+
 
         create_env_cmd, conda_env_path = self._create_conda_env(conda_env, isolate_env, job_name=job_name, check_if_exists=True, run_cmd=False)
 
@@ -336,7 +344,7 @@ class Server(object):
                     sched_script += ["#SBATCH -J {}".format(job_name)]
                     for k,v in sched_kwargs.items():
                         if v is None: continue
-                        prefix = _slurm_kwarg_to_prefix.get(k, False)
+                        prefix = _slurm_kwarg_to_prefix(k)
                         if prefix is False:
                             raise NotImplementedError("slurm command for {} not implemented".format(k))
                         if k=='mail_type' and isinstance(v, list):

@@ -17,7 +17,7 @@ Available environment variables:
 
 """
 
-__version__ = '2.4.2.dev+feature-blending'
+__version__ = '2.4.3.dev+feature-blending'
 
 import os as _os
 import sys as _sys

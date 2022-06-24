@@ -85,6 +85,12 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.4.3 - use_server with features bugfix
+
+* fix typo that raised error when using use_server with features attached
+* added new `addl_slurm_kwargs` parameter to pass any options to slurm scheduler
+
+
 ### 2.4.2 - l3 handling distance in absolute pblum_mode bugfix
 
 * fix conversion between l3 and l3_frac to account for distance when pblum_mode
