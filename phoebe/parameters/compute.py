@@ -79,9 +79,15 @@ def phoebe(**kwargs):
         use to determine the dynamics of components.
     * `ltte` (bool, optional, default=False): whether to correct for light
         travel time effects.
-    * `atm` (string, optional, default='ck2004'): atmosphere tables.
+    * `atm` (string, optional, default='ck2004'): atmosphere table
     * `irrad_method` (string, optional, default='horvat'): which method to use
         to handle irradiation.
+    * `blending_method` (string, optional, default='linear'): Method to use for
+        blending. (Only applicable if `atm` is not 'blackbody')
+    * `ld_blending_method` (string, optional, default='nearest'): Method to use
+        for extrapolating limb-darkening during blending (for all datasets and
+        bolometric for irradiation, if applicable).  (Only applicable if `atm`
+        is not 'blackbody' and `blending_method` is not 'none')
     * `boosting_method` (string, optional, default='none'): type of boosting method.
     * `mesh_method` (string, optional, default='marching'): which method to use
         for discretizing the surface.
@@ -171,6 +177,8 @@ def phoebe(**kwargs):
 
     # PER-COMPONENT
     params += [ChoiceParameter(copy_for = {'kind': ['star'], 'component': '*'}, component='_default', qualifier='atm', value=kwargs.get('atm', 'ck2004'), choices=_atm_choices, description='Atmosphere table')]
+    params += [ChoiceParameter(visible_if='atm:!blackbody', copy_for = {'kind': ['star'], 'component': '*'}, component='_default', qualifier='blending_method', value=kwargs.get('blending_method', 'linear'), choices=['none', 'nearest', 'linear'], description='Method to use for blending')]
+    params += [ChoiceParameter(visible_if='atm:!blackbody,blending_method:!none', copy_for = {'kind': ['star'], 'component': '*'}, component='_default', qualifier='ld_blending_method', value=kwargs.get('ld_blending_method', 'nearest'), choices=['none', 'nearest', 'linear'], description='Method to use for extrapolating limb-darkening during blending (for all datasets and bolometric for irradiation, if applicable)')]
 
     # PER-DATASET
 
