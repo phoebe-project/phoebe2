@@ -5992,6 +5992,42 @@ class Bundle(ParameterSet):
         """
         return self.rename_feature(old_feature, new_feature, overwrite=overwrite, return_changes=return_changes)
 
+    def add_pulsation(self, component=None, feature=None, **kwargs):
+        """
+        Shortcut to <phoebe.frontend.bundle.Bundle.add_feature> but with kind='pulsation'.
+        """
+        if component is None:
+            if len(self.hierarchy.get_stars())==1:
+                component = self.hierarchy.get_stars()[0]
+            else:
+                raise ValueError("must provide component for pulsation")
+
+        kwargs.setdefault('component', component)
+        kwargs.setdefault('feature', feature)
+        return self.add_feature('pulsation', **kwargs)
+
+    def get_pulsation(self, feature=None, **kwargs):
+        """
+        Shortcut to <phoebe.frontend.bundle.Bundle.get_feature> but with kind='pulsation'.
+
+        Arguments
+        ----------
+        * `feature`: (string, optional, default=None): the name of the feature
+        * `**kwargs`: any other tags to do the filtering (excluding feature, kind, and context)
+
+        Returns:
+        * a <phoebe.parameters.ParameterSet> object.
+        """
+        kwargs.setdefault('kind', 'pulsation')
+        return self.get_feature(feature, **kwargs)
+
+    def remove_pulsation(self, feature=None, **kwargs):
+        """
+        Shortcut to <phoebe.frontend.bundle.Bundle.remove_feature> but with kind='pulsation'.
+        """
+        kwargs.setdefault('kind', 'pulsation')
+        return self.remove_feature(feature, **kwargs)
+
     @send_if_client
     def add_component(self, kind, return_changes=False, **kwargs):
         """

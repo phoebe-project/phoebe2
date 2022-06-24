@@ -294,7 +294,7 @@ _forbidden_labels += ['primary_width', 'secondary_width',
 
 # from feature:
 _forbidden_labels += ['colat', 'long', 'radius', 'relteff',
-                      'radamp', 'freq', 'l', 'm', 'teffext',
+                      'radamp', 'freq', 'l', 'm', 'teffext', 'phase',
                       'spot', 'gp_celerite2', 'gp_sklearn', 'pulsation',
                       'gp_backend', 'kernel', 'constant_value', 'length_scale',
                       'noise_level', 'periodicity', 'alpha', 'nu',

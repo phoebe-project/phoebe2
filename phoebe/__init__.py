@@ -17,7 +17,7 @@ Available environment variables:
 
 """
 
-__version__ = '2.4.3.dev+release-2.5'
+__version__ = '2.4.3.dev+feature-pulsations'
 
 import os as _os
 import sys as _sys
