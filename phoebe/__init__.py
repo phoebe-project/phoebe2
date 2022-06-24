@@ -17,7 +17,7 @@ Available environment variables:
 
 """
 
-__version__ = '2.4.2'
+__version__ = '2.4.2.dev+test_remoteslurm_options'
 
 import os as _os
 import sys as _sys
