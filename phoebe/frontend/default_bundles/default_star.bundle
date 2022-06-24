@@ -426,8 +426,9 @@ null
 "description": "Source for bolometric limb darkening coefficients (used only for irradiation; 'auto' to interpolate from the applicable table according to the 'atm' parameter, or the name of a specific atmosphere table)",
 "choices": [
 "auto",
-"ck2004",
-"phoenix"
+"phoenix",
+"tmap",
+"ck2004"
 ],
 "value": "auto",
 "visible_if": "ld_mode_bol:lookup",
@@ -878,12 +879,57 @@ null
 "description": "Atmosphere table",
 "choices": [
 "extern_atmx",
+"tmap",
 "extern_planckint",
-"blackbody",
+"phoenix",
 "ck2004",
-"phoenix"
+"blackbody"
 ],
 "value": "ck2004",
+"copy_for": {
+"kind": [
+"star"
+],
+"component": "*"
+},
+"Class": "ChoiceParameter"
+},
+{
+"qualifier": "blending_method",
+"component": "_default",
+"compute": "phoebe01",
+"kind": "phoebe",
+"context": "compute",
+"description": "Method to use for blending",
+"choices": [
+"none",
+"nearest",
+"linear"
+],
+"value": "linear",
+"visible_if": "atm:!blackbody",
+"copy_for": {
+"kind": [
+"star"
+],
+"component": "*"
+},
+"Class": "ChoiceParameter"
+},
+{
+"qualifier": "ld_blending_method",
+"component": "_default",
+"compute": "phoebe01",
+"kind": "phoebe",
+"context": "compute",
+"description": "Method to use for extrapolating limb-darkening during blending (for all datasets and bolometric for irradiation, if applicable)",
+"choices": [
+"none",
+"nearest",
+"linear"
+],
+"value": "nearest",
+"visible_if": "atm:!blackbody,blending_method:!none",
 "copy_for": {
 "kind": [
 "star"
@@ -1034,12 +1080,47 @@ null
 "description": "Atmosphere table",
 "choices": [
 "extern_atmx",
+"tmap",
 "extern_planckint",
-"blackbody",
+"phoenix",
 "ck2004",
-"phoenix"
+"blackbody"
 ],
 "value": "ck2004",
+"copy_for": false,
+"Class": "ChoiceParameter"
+},
+{
+"qualifier": "blending_method",
+"component": "starA",
+"compute": "phoebe01",
+"kind": "phoebe",
+"context": "compute",
+"description": "Method to use for blending",
+"choices": [
+"none",
+"nearest",
+"linear"
+],
+"value": "linear",
+"visible_if": "atm:!blackbody",
+"copy_for": false,
+"Class": "ChoiceParameter"
+},
+{
+"qualifier": "ld_blending_method",
+"component": "starA",
+"compute": "phoebe01",
+"kind": "phoebe",
+"context": "compute",
+"description": "Method to use for extrapolating limb-darkening during blending (for all datasets and bolometric for irradiation, if applicable)",
+"choices": [
+"none",
+"nearest",
+"linear"
+],
+"value": "nearest",
+"visible_if": "atm:!blackbody,blending_method:!none",
 "copy_for": false,
 "Class": "ChoiceParameter"
 },
@@ -1148,7 +1229,7 @@ null
 "qualifier": "phoebe_version",
 "context": "setting",
 "description": "Version of PHOEBE",
-"value": "2.4.2",
+"value": "2.4.2.dev",
 "copy_for": false,
 "readonly": true,
 "advanced": true,

@@ -405,7 +405,7 @@ else:
     long_description = "\n".join(long_description_s[long_description_s.index("INTRODUCTION"):])
 
 setup (name = 'phoebe',
-       version = '2.4.3.dev+release-2.5',
+       version = '2.4.3.dev+feature-blending',
        description = 'PHOEBE 2.4',
        long_description=long_description,
        author = 'PHOEBE development team',
@@ -440,7 +440,7 @@ setup (name = 'phoebe',
                    'phoebe.utils',
                    'phoebe.helpers',
                    'phoebe.pool',
-                   'phoebe.dependencies', 'phoebe.dependencies.autofig', 'phoebe.dependencies.nparray', 'phoebe.dependencies.distl', 'phoebe.dependencies.crimpl', 'phoebe.dependencies.unitsiau2015',
+                   'phoebe.dependencies', 'phoebe.dependencies.autofig', 'phoebe.dependencies.nparray', 'phoebe.dependencies.distl', 'phoebe.dependencies.crimpl', 'phoebe.dependencies.unitsiau2015', 'phoebe.dependencies.ndpolator',
                    'phoebe.dependencies.ligeor',
                    'phoebe.dependencies.ligeor.ebai', 'phoebe.dependencies.ligeor.ebai.database', 'phoebe.dependencies.ligeor.eclipse', 'phoebe.dependencies.ligeor.models', 'phoebe.dependencies.ligeor.utils'],
        install_requires=['numpy>=1.12','scipy>=1.2','astropy>=1.0', 'corner', 'pytest', 'requests', 'tqdm', 'python-socketio[client]']+['flask', 'flask-cors', 'flask-socketio==4.3.*', 'gevent-websocket'],
