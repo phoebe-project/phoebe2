@@ -426,8 +426,8 @@ null
 "description": "Source for bolometric limb darkening coefficients (used only for irradiation; 'auto' to interpolate from the applicable table according to the 'atm' parameter, or the name of a specific atmosphere table)",
 "choices": [
 "auto",
-"ck2004",
-"phoenix"
+"phoenix",
+"ck2004"
 ],
 "value": "auto",
 "visible_if": "ld_mode_bol:lookup",
@@ -774,8 +774,8 @@ null
 "description": "Source for bolometric limb darkening coefficients (used only for irradiation; 'auto' to interpolate from the applicable table according to the 'atm' parameter, or the name of a specific atmosphere table)",
 "choices": [
 "auto",
-"ck2004",
-"phoenix"
+"phoenix",
+"ck2004"
 ],
 "value": "auto",
 "visible_if": "ld_mode_bol:lookup",
@@ -1664,7 +1664,8 @@ null
 "requivratio@binary@orbit@component",
 "requiv@primary@star@component",
 "requiv@secondary@star@component",
-"sma@binary@orbit@component"
+"sma@binary@orbit@component",
+"requivsumfrac@binary@orbit@component"
 ],
 "in_solar_units": true,
 "Class": "ConstraintParameter"
@@ -1704,6 +1705,7 @@ null
 "component": "primary"
 },
 "constraint_addl_vars": [
+"mass@primary@star@component",
 "mass@secondary@star@component",
 "period@binary@orbit@component",
 "sma@binary@orbit@component",
@@ -1837,6 +1839,7 @@ null
 "component": "secondary"
 },
 "constraint_addl_vars": [
+"mass@secondary@star@component",
 "mass@primary@star@component",
 "period@binary@orbit@component",
 "sma@binary@orbit@component",
@@ -2287,11 +2290,11 @@ null
 "context": "compute",
 "description": "Atmosphere table",
 "choices": [
-"extern_atmx",
-"extern_planckint",
-"blackbody",
+"phoenix",
 "ck2004",
-"phoenix"
+"extern_atmx",
+"blackbody",
+"extern_planckint"
 ],
 "value": "ck2004",
 "copy_for": {
@@ -2523,11 +2526,11 @@ null
 "context": "compute",
 "description": "Atmosphere table",
 "choices": [
-"extern_atmx",
-"extern_planckint",
-"blackbody",
+"phoenix",
 "ck2004",
-"phoenix"
+"extern_atmx",
+"blackbody",
+"extern_planckint"
 ],
 "value": "ck2004",
 "copy_for": false,
@@ -2541,11 +2544,11 @@ null
 "context": "compute",
 "description": "Atmosphere table",
 "choices": [
-"extern_atmx",
-"extern_planckint",
-"blackbody",
+"phoenix",
 "ck2004",
-"phoenix"
+"extern_atmx",
+"blackbody",
+"extern_planckint"
 ],
 "value": "ck2004",
 "copy_for": false,
@@ -2751,7 +2754,7 @@ null
 "qualifier": "phoebe_version",
 "context": "setting",
 "description": "Version of PHOEBE",
-"value": "2.4.2",
+"value": "2.4.4",
 "copy_for": false,
 "readonly": true,
 "advanced": true,
