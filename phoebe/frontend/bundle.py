@@ -985,12 +985,12 @@ class Bundle(ParameterSet):
 
         if phoebe_version_import < StrictVersion("2.4.4"):
             # update mass constraints
-            for constraint in b.filter(constraint_func='mass', context='constraint', **_skip_filter_checks).to_list():
+            for constraint in b.filter(constraint_func=['mass', 'requivsumfrac', 'requivratio'], context='constraint', **_skip_filter_checks).to_list():
                 logger.warning("re-creating {} constraint".format(constraint.twig))
                 solved_for = constraint.get_constrained_parameter()
                 b.remove_constraint(uniqueid=constraint.uniqueid)
-                new_constraint = b.add_constraint('mass', component=constraint.component)
-                if solved_for.qualifier != 'mass':
+                new_constraint = b.add_constraint(constraint.constraint_func, component=constraint.component)
+                if solved_for.qualifier != constraint.constraint_func:
                     new_constraint.flip_for(solved_for.twig)
 
 

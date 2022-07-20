@@ -1443,6 +1443,7 @@ def requivratio(b, orbit=None, solve_for=None, **kwargs):
         params = [requivratio, requivsumfrac, requiv1, requiv2, sma]
 
         if requivsumfrac.is_constraint is not None and requivratio not in requivsumfrac.is_constraint.addl_vars:
+            requivsumfrac.is_constraint._addl_var_params = None  # resets cache
             requivsumfrac.is_constraint._addl_vars.append(ConstraintVar(b, requivratio.twig))
 
     else:
@@ -1554,7 +1555,9 @@ def requivsumfrac(b, orbit=None, solve_for=None, **kwargs):
         params = [requivratio, requivsumfrac, requiv1, requiv2, sma]
 
         if requivratio.is_constraint is not None and requivsumfrac not in requivratio.is_constraint.addl_vars:
+            requivratio.is_constraint._addl_var_params = None  # resets cache
             requivratio.is_constraint._addl_vars.append(ConstraintVar(b, requivsumfrac.twig))
+
     else:
         requivratio = None
         requivratio_constrained = True

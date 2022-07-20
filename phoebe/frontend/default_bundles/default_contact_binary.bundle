@@ -1664,7 +1664,8 @@ null
 "requivratio@binary@orbit@component",
 "requiv@primary@star@component",
 "requiv@secondary@star@component",
-"sma@binary@orbit@component"
+"sma@binary@orbit@component",
+"requivsumfrac@binary@orbit@component"
 ],
 "in_solar_units": true,
 "Class": "ConstraintParameter"
