@@ -1718,16 +1718,10 @@ def mass(b, component, solve_for=None, **kwargs):
         else:
             rhs = mass / mass_sibling
 
-        # qthing = (4*np.pi**2 * sma**3 ) / (period**2 * mass * G)
-        # if hier.get_primary_or_secondary(component) == 'primary':
-        #     rhs = qthing - 1.0
-        # else:
-        #     rhs = 1 / (qthing - 1.0)
-
     else:
         raise NotImplementedError
 
-    return lhs, rhs, [mass_sibling, period, sma, q], {'component': component}
+    return lhs, rhs, [mass, mass_sibling, period, sma, q], {'component': component}
 
 
     # ecosw_def = FloatParameter(qualifier='ecosw', value=0.0, default_unit=u.dimensionless_unscaled, limits=(-1.0,1.0), description='Eccentricity times cos of argument of periastron')

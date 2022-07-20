@@ -85,6 +85,10 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.4.4 - constraint flipping bugfix
+
+* fix bug where flipping Kepler's third law constraint multiple times would fail.
+
 ### 2.4.3 - use_server with features bugfix
 
 * fix typo that raised error when using use_server with features attached

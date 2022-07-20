@@ -983,6 +983,16 @@ class Bundle(ParameterSet):
                     p = IntParameter(qualifier='nlags', value=int(nlags_default), limit=(1,1e6), description='number of lags to use when computing/plotting the autocorrelation function')
                     b._attach_params([p], context='solution', solution=solution, compute=solution_ps.compute, kind='emcee')
 
+        if phoebe_version_import < StrictVersion("2.4.4"):
+            # update mass constraints
+            for constraint in b.filter(constraint_func='mass', context='constraint', **_skip_filter_checks).to_list():
+                logger.warning("re-creating {} constraint".format(constraint.twig))
+                solved_for = constraint.get_constrained_parameter()
+                b.remove_constraint(uniqueid=constraint.uniqueid)
+                new_constraint = b.add_constraint('mass', component=constraint.component)
+                if solved_for.qualifier != 'mass':
+                    new_constraint.flip_for(solved_for.twig)
+
 
         if conf_interactive_checks:
             logger.debug("re-enabling interactive_checks")
