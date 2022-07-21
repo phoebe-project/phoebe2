@@ -878,11 +878,11 @@ null
 "context": "compute",
 "description": "Atmosphere table",
 "choices": [
+"phoenix",
+"ck2004",
 "extern_atmx",
 "tmap",
 "extern_planckint",
-"phoenix",
-"ck2004",
 "blackbody"
 ],
 "value": "ck2004",
@@ -1079,11 +1079,11 @@ null
 "context": "compute",
 "description": "Atmosphere table",
 "choices": [
+"phoenix",
+"ck2004",
 "extern_atmx",
 "tmap",
 "extern_planckint",
-"phoenix",
-"ck2004",
 "blackbody"
 ],
 "value": "ck2004",
@@ -1229,7 +1229,7 @@ null
 "qualifier": "phoebe_version",
 "context": "setting",
 "description": "Version of PHOEBE",
-"value": "2.4.2.dev",
+"value": "2.4.4.dev",
 "copy_for": false,
 "readonly": true,
 "advanced": true,

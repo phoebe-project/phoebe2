@@ -11592,7 +11592,7 @@ class ConstraintParameter(Parameter):
             return ps.to_list()[0]
         else:
             if self._bundle is not None:
-                logger.debug("ConstraintParameter.get_parameter: reverting to filtering on bundle, could not {} find in {}".format(kwargs, vars.twigs))
+                logger.debug("ConstraintParameter.get_parameter: reverting to filtering on bundle, could not find {} in {}".format(kwargs, vars.twigs))
                 kwargs['context'] = [c for c in self._bundle.contexts if c!='constraint']
                 return self._bundle.get_parameter(**kwargs)
             raise ValueError("no result found for {} in bundle after checking in {}".format(kwargs, vars.twigs))
@@ -12204,15 +12204,8 @@ class ConstraintParameter(Parameter):
             expression = expression
 
         elif _use_sympy:
-
-
             eq_safe = "({}) - {}".format(self._value, currently_constrained_var.safe_label)
-
-            #~ print "*** solving {} for {}".format(eq_safe, newly_constrained_var.safe_label)
-
             expression = sympy.solve(eq_safe, newly_constrained_var.safe_label)[0]
-
-            #~ print "*** solution: {}".format(expression)
 
         else:
             # TODO: ability for built-in constraints to flip themselves
