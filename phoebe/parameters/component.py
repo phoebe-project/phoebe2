@@ -236,7 +236,7 @@ def star(component, **kwargs):
                                    required_shape=[None],
                                    description='Bolometric limb darkening coefficients (used only for irradiation).')]
 
-    params += [FloatParameter(qualifier='mass', latexfmt=r'M_\mathrm{{ {component} }}', value=kwargs.get('mass', 1.0), default_unit=u.solMass, description='Mass')]
+    params += [FloatParameter(qualifier='mass', latexfmt=r'M_\mathrm{{ {component} }}', value=kwargs.get('mass', 1.0), limits=(0.0, None), default_unit=u.solMass, description='Mass')]
 
     constraints = []
     # constraints handled by set_hierarchy:

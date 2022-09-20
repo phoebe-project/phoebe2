@@ -426,8 +426,8 @@ null
 "description": "Source for bolometric limb darkening coefficients (used only for irradiation; 'auto' to interpolate from the applicable table according to the 'atm' parameter, or the name of a specific atmosphere table)",
 "choices": [
 "auto",
-"phoenix",
-"ck2004"
+"ck2004",
+"phoenix"
 ],
 "value": "auto",
 "visible_if": "ld_mode_bol:lookup",
@@ -463,7 +463,7 @@ null
 "value": 1.0,
 "default_unit": "solMass",
 "limits": [
-null,
+0.0,
 null
 ],
 "copy_for": false,
@@ -877,11 +877,11 @@ null
 "context": "compute",
 "description": "Atmosphere table",
 "choices": [
-"phoenix",
-"ck2004",
-"extern_atmx",
+"extern_planckint",
 "blackbody",
-"extern_planckint"
+"ck2004",
+"phoenix",
+"extern_atmx"
 ],
 "value": "ck2004",
 "copy_for": {
@@ -1033,11 +1033,11 @@ null
 "context": "compute",
 "description": "Atmosphere table",
 "choices": [
-"phoenix",
-"ck2004",
-"extern_atmx",
+"extern_planckint",
 "blackbody",
-"extern_planckint"
+"ck2004",
+"phoenix",
+"extern_atmx"
 ],
 "value": "ck2004",
 "copy_for": false,
