@@ -538,6 +538,15 @@ class System(object):
             else:
                 raise NotImplementedError("profile_func='{}' not supported".format(profile_func))
 
+            # By design, the wavelengths array needs to contain central wavelength.
+            # For that reason we use an internal wavelengths array which we then
+            # interpolate to the requested wavelengths array.
+            wmin, wmax = wavelengths.min(), wavelengths.max()
+            min_dispersion = (wavelengths[1:]-wavelengths[:-1]).min()
+            lower_range = np.arange(profile_rest, wmin-min_dispersion, -min_dispersion)[::-1]
+            upper_range = np.arange(profile_rest+min_dispersion, wmax+min_dispersion, min_dispersion)
+            internal_wavelengths = np.concatenate((lower_range, upper_range))
+
             visibilities = meshes.get_column_flat('visibilities', components)
 
             abs_intensities = meshes.get_column_flat('abs_intensities:{}'.format(dataset), components)
@@ -547,10 +556,10 @@ class System(object):
             areas = meshes.get_column_flat('areas_si', components)
 
             rvs = (meshes.get_column_flat("rvs:{}".format(dataset), components)*u.solRad/u.d).to(u.m/u.s).value
-            dls = rvs*profile_rest/c.c.si.value
+            dls = profile_rest*rvs/c.c.si.value
 
-            line = func(sv(wavelengths, profile_rest, profile_sv))
-            lines = np.array([np.interp(wavelengths, wavelengths+dl, line) for dl in dls])
+            line = func(sv(internal_wavelengths, profile_rest, profile_sv))
+            lines = np.array([np.interp(wavelengths, internal_wavelengths+dl, line) for dl in dls])
             if not np.any(visibilities):
                 avg_line = np.full_like(wavelengths, np.nan)
             else:
