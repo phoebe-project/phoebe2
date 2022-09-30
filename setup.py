@@ -406,7 +406,7 @@ else:
 
 setup (name = 'phoebe',
        version = '2.4.5',
-       description = 'PHOEBE devel version',
+       description = 'PHOEBE 2.4',
        long_description=long_description,
        author = 'PHOEBE development team',
        author_email = 'phoebe-devel@lists.sourceforge.net',

@@ -87,7 +87,7 @@ CHANGELOG
 
 ### 2.4.5 - negative mass bugfix
 
-* fix bug where mass could be set to a negative value.
+* fix bug where mass could be set to a negative value causing constraints to resolve to nans.
 
 ### 2.4.4 - constraint flipping bugfix
 
