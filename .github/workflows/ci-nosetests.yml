@@ -5,10 +5,7 @@ name: tests
 
 on:
   push:
-    branches:
-    - '**'
   pull_request:
-    types: [opened, reopened]
 
 jobs:
   build:
