@@ -85,6 +85,10 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.4.5 - negative mass bugfix
+
+* fix bug where mass could be set to a negative value causing constraints to resolve to nans.
+
 ### 2.4.4 - constraint flipping bugfix
 
 * fix bug where flipping Kepler's third law constraint multiple times would fail.
