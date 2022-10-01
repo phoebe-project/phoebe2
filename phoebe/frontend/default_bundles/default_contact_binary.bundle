@@ -463,7 +463,7 @@ null
 "value": 1.0089067994531355,
 "default_unit": "solMass",
 "limits": [
-null,
+1e-12,
 null
 ],
 "copy_for": false,
@@ -811,7 +811,7 @@ null
 "value": 1.0089067994531355,
 "default_unit": "solMass",
 "limits": [
-null,
+1e-12,
 null
 ],
 "copy_for": false,
@@ -2290,11 +2290,11 @@ null
 "context": "compute",
 "description": "Atmosphere table",
 "choices": [
-"phoenix",
-"ck2004",
 "extern_atmx",
 "blackbody",
-"extern_planckint"
+"extern_planckint",
+"phoenix",
+"ck2004"
 ],
 "value": "ck2004",
 "copy_for": {
@@ -2526,11 +2526,11 @@ null
 "context": "compute",
 "description": "Atmosphere table",
 "choices": [
-"phoenix",
-"ck2004",
 "extern_atmx",
 "blackbody",
-"extern_planckint"
+"extern_planckint",
+"phoenix",
+"ck2004"
 ],
 "value": "ck2004",
 "copy_for": false,
@@ -2544,11 +2544,11 @@ null
 "context": "compute",
 "description": "Atmosphere table",
 "choices": [
-"phoenix",
-"ck2004",
 "extern_atmx",
 "blackbody",
-"extern_planckint"
+"extern_planckint",
+"phoenix",
+"ck2004"
 ],
 "value": "ck2004",
 "copy_for": false,
@@ -2754,7 +2754,7 @@ null
 "qualifier": "phoebe_version",
 "context": "setting",
 "description": "Version of PHOEBE",
-"value": "2.4.4",
+"value": "2.4.5",
 "copy_for": false,
 "readonly": true,
 "advanced": true,
