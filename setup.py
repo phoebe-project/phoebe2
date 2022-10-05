@@ -5,18 +5,31 @@ PHOEBE_SKIP_SCRIPTS=TRUE: will not install phoebe-server and phoebe-autofig exec
 """
 import sys
 
+# try:
+#   import numpy
+# except ImportError:
+#   print("Numpy is needed for running and building of PHOEBE")
+#   sys.exit(1)
+
 try:
   import numpy
+  import setuptools
+  import packaging
 except ImportError:
-  print("Numpy is needed for running and building of PHOEBE")
+  print("Numpy, setuptools and packaging are needed for the running and building of PHOEBE")
   sys.exit(1)
 
-from numpy.distutils.core import setup, Extension
-from numpy.distutils.command.build_ext import build_ext
-from numpy.distutils.command.build_py import build_py
+# from numpy.distutils.core import setup, Extension
+# from numpy.distutils.command.build_ext import build_ext
+# from numpy.distutils.command.build_py import build_py
+#
+# from distutils.version import Version, StrictVersion
+# from distutils.cmd import Command
 
-from distutils.version import LooseVersion, StrictVersion
-from distutils.cmd import Command
+from setuptools import setup, Command, Extension
+from setuptools.command.build_ext import build_ext
+from setuptools.command.build_py import build_py
+from packaging.version import Version
 
 import platform
 import os
@@ -92,7 +105,7 @@ def check_unix_compiler(plat, plat_ver, compiler, extensions, compiler_name):
     name = 'gcc'
     compiler_found = True
     ver = find_version_gcc(s)
-    if ver != '': version_ok = LooseVersion(ver) >= LooseVersion("5.0")
+    if ver != '': version_ok = Version(ver) >= Version("5.0")
 
   # LLVm clang compiler
   elif re.search(r'^clang', compiler_name):
@@ -102,7 +115,7 @@ def check_unix_compiler(plat, plat_ver, compiler, extensions, compiler_name):
     # https://stackoverflow.com/questions/19774778/when-is-it-necessary-to-use-use-the-flag-stdlib-libstdc
     if plat == 'Darwin':
       opt ="-stdlib=libc++"
-      if LooseVersion(plat_ver) < LooseVersion("13.0"): #OS X Mavericks
+      if Version(plat_ver) < Version("13.0"): #OS X Mavericks
         for e in extensions:
           if not (opt in e.extra_compile_args):
             e.extra_compile_args.append(opt)
@@ -111,9 +124,9 @@ def check_unix_compiler(plat, plat_ver, compiler, extensions, compiler_name):
 
     if ver != '':
       if ver[0] == 'clang': # CLANG version
-        version_ok = LooseVersion(ver[1]) >= LooseVersion("3.3")
+        version_ok = Version(ver[1]) >= Version("3.3")
       else:                 # LLVM version
-        version_ok = LooseVersion(ver[1]) >= LooseVersion("7.0")
+        version_ok = Version(ver[1]) >= Version("7.0")
 
   # Intel compilers
   elif re.search(r'^icc', compiler_name) or re.search(r'^icpc', compiler_name):
@@ -121,7 +134,7 @@ def check_unix_compiler(plat, plat_ver, compiler, extensions, compiler_name):
     compiler_found = True
 
     ver = find_version_intel(s)
-    version_ok = LooseVersion(ver) >= LooseVersion("16")
+    version_ok = Version(ver) >= Version("16")
 
   # compiler could be masquerading under different name
   # check this out:
@@ -168,15 +181,15 @@ def check_unix_compiler(plat, plat_ver, compiler, extensions, compiler_name):
         name, ver = out.split(' ')
 
         if name == 'gcc':
-          version_ok = LooseVersion(ver) >= LooseVersion("5.0")
+          version_ok = Version(ver) >= Version("5.0")
           compiler_found = True
 
         if name == 'clang':
-          version_ok = LooseVersion(ver) >= LooseVersion("3.3") # not LLVM version !!!
+          version_ok = Version(ver) >= Version("3.3") # not LLVM version !!!
           compiler_found = True
 
         if name == 'icc':
-          version_ok = LooseVersion(ver) >= LooseVersion("1600")
+          version_ok = Version(ver) >= Version("1600")
           compiler_found = True
     except:
       print("Unable to build a test program to determine the compiler.")
@@ -312,35 +325,35 @@ class import_check(Command):
     try:
       import astropy
       astropy_version = astropy.__version__
-      if LooseVersion(astropy_version) < LooseVersion('1.0'):
+      if Version(astropy_version) < Version('1.0'):
         required.append('astropy 1.0+')
     except:
       required.append('astropy')
     try:
       import scipy
       scipy_version = scipy.__version__
-      if LooseVersion(scipy_version) < LooseVersion('0.1'):
+      if Version(scipy_version) < Version('0.1'):
         required.append('scipy 0.1+')
     except:
       required.append('scipy')
     try:
       import matplotlib
       mpl_version = matplotlib.__version__
-      if LooseVersion(mpl_version) < LooseVersion('1.4.3'):
+      if Version(mpl_version) < Version('1.4.3'):
         optional.append('matplotlib 1.4.3+')
     except:
       optional.append('matplotlib')
     try:
       import corner
       corner_version = corner.__version__
-      if LooseVersion(corner_version) < LooseVersion('2.0.0'):
+      if Version(corner_version) < Version('2.0.0'):
         required.append('corner 2.0+')
     except:
       required.append('corner')
     try:
       import sympy
       sympy_version = sympy.__version__
-      if LooseVersion(sympy_version) < LooseVersion('1.0'):
+      if Version(sympy_version) < Version('1.0'):
         optional.append('sympy 1.0+')
     except:
       optional.append('sympy')
@@ -370,13 +383,13 @@ ext_modules = [
       sources = ['phoebe/lib/libphoebe.cpp'],
       language='c++',
       extra_compile_args = ["-std=c++11"],
-      include_dirs=[numpy.get_include()]
+     include_dirs=[numpy.get_include()]
       ),
 
     Extension('phoebe.algorithms.ceclipse',
       language='c++',
       sources = ['phoebe/algorithms/ceclipse.cpp'],
-      include_dirs=[numpy.get_include()]
+     include_dirs=[numpy.get_include()]
       ),
 ]
 
