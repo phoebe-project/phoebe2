@@ -260,6 +260,8 @@ def lc_geometry(**kwargs):
         if `phase_bin` is True.
     * `orbit` (string, optional, default=top-level orbit): Orbit to use for
         phasing the light curve referenced in the `lc_datasets` parameter
+    * `analytical_model` (string, optional, default='two-gaussian): Analytical
+        model to fit the light curve with ('two-gaussian' or 'polyfit').
     * `t0_near_times` (bool, optional, default=True): Whether the returned value
         for t0_supconj should be forced to be in the range of the referenced
         observations.
@@ -365,7 +367,7 @@ def ebai(**kwargs):
     """
     Create a <phoebe.parameters.ParameterSet> for solver options for the
     ebai artificial neural network solver.
-    
+
     This solver requires scikit-learn to be installed if using the `knn` method.
     To install scikit-learn, see https://scikit-learn.org/stable/install.html.
 
@@ -378,12 +380,12 @@ def ebai(**kwargs):
 
     The input light curve datasets (`lc_datasets`) are each normalized
     according to `lc_combine`, combined and
-    fitted with an analytical model (two-Gaussian for contact binaries and 
-    detached if ebai_method=`mlp`, polyfit for detached with ebai_method=`knn`), 
-    which is then itself normalized and used as input to `ebai`.  
-    Any necessary phase-shift required to ensure the primary is at a phase of 0 is used 
-    to provide the proposed value for `t0_supconj`.  The normalized model is then sent 
-    through the pre-trained `ebai` model, resulting in proposed values for 
+    fitted with an analytical model (two-Gaussian for contact binaries and
+    detached if ebai_method=`mlp`, polyfit for detached with ebai_method=`knn`),
+    which is then itself normalized and used as input to `ebai`.
+    Any necessary phase-shift required to ensure the primary is at a phase of 0 is used
+    to provide the proposed value for `t0_supconj`.  The normalized model is then sent
+    through the pre-trained `ebai` model, resulting in proposed values for
     `teffratio`, `requivsumfrac`, `esinw`, `ecosw`, and `incl` for detached systems,
     and `teffratio`, `q`, `fillout_factor` and `incl` for contact systems.
 
