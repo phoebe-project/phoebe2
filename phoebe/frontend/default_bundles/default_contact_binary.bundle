@@ -2866,6 +2866,7 @@ null
 "context": "setting",
 "description": "Version of PHOEBE",
 "value": "2.4.5.dev",
+"value": "2.4.6",
 "copy_for": false,
 "readonly": true,
 "advanced": true,
