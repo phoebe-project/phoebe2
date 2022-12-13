@@ -983,6 +983,16 @@ class Bundle(ParameterSet):
                     p = IntParameter(qualifier='nlags', value=int(nlags_default), limit=(1,1e6), description='number of lags to use when computing/plotting the autocorrelation function')
                     b._attach_params([p], context='solution', solution=solution, compute=solution_ps.compute, kind='emcee')
 
+        if phoebe_version_import < StrictVersion("2.4.4"):
+            # update mass constraints
+            for constraint in b.filter(constraint_func=['mass', 'requivsumfrac', 'requivratio'], context='constraint', **_skip_filter_checks).to_list():
+                logger.warning("re-creating {} constraint".format(constraint.twig))
+                solved_for = constraint.get_constrained_parameter()
+                b.remove_constraint(uniqueid=constraint.uniqueid)
+                new_constraint = b.add_constraint(constraint.constraint_func, component=constraint.component)
+                if solved_for.qualifier != constraint.constraint_func:
+                    new_constraint.flip_for(solved_for.twig)
+
 
         if conf_interactive_checks:
             logger.debug("re-enabling interactive_checks")
@@ -11416,7 +11426,7 @@ class Bundle(ParameterSet):
         sample_from = self.get_value(qualifier='sample_from', compute=compute, sample_from=kwargs.get('sample_from', None), default=[], expand=True)
         exclude_distributions = [dist for dist in self.distributions if dist not in sample_from]
         exclude_solutions = [sol for sol in self.solutions if sol not in sample_from]
-        exclude_features = [feature for feature in self.features if not self.get_value(qualifier='enabled', feature=feature, compoute=compute, **_skip_filter_checks)]
+        exclude_features = [feature for feature in self.features if not self.get_value(qualifier='enabled', feature=feature, compute=compute, **_skip_filter_checks)]
         # we need to include uniqueids if needing to apply the solution during sample_from
         incl_uniqueid = len(exclude_solutions) != len(self.solutions)
         script.append("bdict = json.loads('{}', object_pairs_hook=phoebe.utils.parse_json);".format(json.dumps(self.exclude(context=exclude_contexts, **_skip_filter_checks).exclude(qualifier=exclude_qualifiers, **_skip_filter_checks).exclude(distribution=exclude_distributions, **_skip_filter_checks).exclude(solution=exclude_solutions, **_skip_filter_checks).exclude(feature=exclude_features, **_skip_filter_checks).to_json(incl_uniqueid=incl_uniqueid, exclude=['description', 'advanced', 'readonly', 'copy_for', 'latexfmt', 'labels_latex', 'label_latex']))))

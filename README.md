@@ -85,6 +85,25 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.4.6 - potential to requiv TypeError bugfix
+
+* fix bug where libphoebe was incorrectly raising an error suggesting the potential was out of bounds.
+
+### 2.4.5 - negative mass bugfix
+
+* fix bug where mass could be set to a negative value causing constraints to resolve to nans.
+
+### 2.4.4 - constraint flipping bugfix
+
+* fix bug where flipping Kepler's third law constraint multiple times would fail.
+* fix bug when flipping requivsumfrac and requivratio constraints.
+
+### 2.4.3 - use_server with features bugfix
+
+* fix typo that raised error when using use_server with features attached
+* added new `addl_slurm_kwargs` parameter to pass any options to slurm scheduler
+
+
 ### 2.4.2 - l3 handling distance in absolute pblum_mode bugfix
 
 * fix conversion between l3 and l3_frac to account for distance when pblum_mode
