@@ -85,6 +85,10 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.4.7 - line profile bugfix
+
+* fix bug where wavelength arrays that did not include the central wavelength were returning nans for fluxes.
+
 ### 2.4.6 - potential to requiv TypeError bugfix
 
 * fix bug where libphoebe was incorrectly raising an error suggesting the potential was out of bounds.
