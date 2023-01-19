@@ -2008,10 +2008,9 @@ class Star_roche(Star):
         # TODO: may be able to get away with removing the features check and just doing for pulsations, etc?
         # TODO: what about dpdt, deccdt, dincldt, etc?
 
-        if len(self.features) > 0:
-            for feature in self.features:
-                if feature._remeshing_required:
-                    return True
+        for feature in self.features:
+            if feature._remeshing_required:
+                return True
         
         return self.is_misaligned or self.ecc != 0 or self.dynamics_method != 'keplerian'
 
