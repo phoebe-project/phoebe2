@@ -55,7 +55,7 @@ jobs:
     name: ${{ matrix.os }} python${{ matrix.python-version}} numpy${{ matrix.numpy-version }} scipy${{ matrix.scipy-version }} astropy${{ matrix.astropy-version}}
     steps:
     - name: Checkout PHOEBE
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
 
     # # - name: Setup conda
     # #   uses: conda-incubator/setup-miniconda@v2
