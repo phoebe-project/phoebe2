@@ -67,7 +67,7 @@ jobs:
         python -m pip install "numpy~=${{ matrix.numpy-version }}" --no-cache-dir --ignore-installed
         python -m pip install "scipy~=${{ matrix.scipy-version }}"
         python -m pip install "astropy~=${{ matrix.astropy-version }}"
-        python -m pip install nose rebound requests pytest asdf matplotlib sympy requests tqdm corner
+        python -m pip install rebound requests pytest asdf matplotlib sympy requests tqdm corner
 
     - name: Test numpy, scipy, astropy install/versions
       run: |
@@ -95,9 +95,9 @@ jobs:
       run: |
         python -c "import photodynam"
 
-    - name: Run nosetests
+    - name: Run tests
       run: |
-        nosetests -v -s -d -w tests/nosetests/
+        pytest --verbose --capture=no --full-trace tests/nosetests/
 
     # - name: Checkout benchmarks
     #   if: ${{ matrix.os == 'ubuntu-latest' && matrix.python-version == 3.6 && matrix.astropy-version == '' && matrix.numpy-version == '' && matrix.scipy-version == ''}}
