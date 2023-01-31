@@ -19,10 +19,16 @@ jobs:
         scipy-version: ["1.8", "1.9", "1.10"]
         os: [ubuntu-latest, macos-11] # https://docs.github.com/en/actions/using-github-hosted-runners/about-github-hosted-runners
         include:
-        - astropy-version: "5.0"
+        - python-version: 3.8
+          astropy-version: "5.0"
           numpy-version: "1.23"
-        - astropy-version: "5.0"
+          scipy-version: "1.10"          
+          os: ubuntu-latest
+        - python-version: 3.8
+          astropy-version: "5.0"
           numpy-version: "1.24"
+          scipy-version: "1.10"          
+          os: ubuntu-latest
         #   # run a single build on macOS-10.15 with latest packages
         #   - os: macOS-10.15
         #     python-version: 3.6
