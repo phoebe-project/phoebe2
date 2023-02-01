@@ -87,7 +87,7 @@ jobs:
         python -m pip install "numpy==${{ matrix.numpy-version }}.*" --no-cache-dir --ignore-installed
         python -m pip install "scipy==${{ matrix.scipy-version }}.*" --no-deps
         python -m pip install "astropy==${{ matrix.astropy-version }}.*" --no-deps
-        python -m pip install rebound requests pytest matplotlib sympy requests tqdm corner pyerfa pipdeptree
+        python -m pip install rebound requests pytest matplotlib sympy tqdm corner pyerfa pipdeptree
 
     - name: Run pipdeptree to see package dependencies
       run: |
