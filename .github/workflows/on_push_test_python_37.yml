@@ -19,14 +19,12 @@ jobs:
         numpy-version: [1.15, 1.21]
         # scipy-version: [1.4, 1.5, 1.6, 1.7]
         scipy-version: [1.4, 1.7]
-        # mpl-version: [3.3, 3.4, 3.5, 3.6]
-        mpl-version: [3.3, 3.6]
+        # mpl-version: [3.3, 3.4, 3.5]
+        mpl-version: [3.3, 3.5]
         os: [ubuntu-latest, macos-11] # https://docs.github.com/en/actions/using-github-hosted-runners/about-github-hosted-runners
         exclude:
         - astropy-version: 2.0  # not sure why this is failing
           os: "macos-11"
-        - mpl-version: 3.6
-          numpy-version: 1.15
 
     name: ${{ matrix.os }} python${{ matrix.python-version}} numpy ${{ matrix.numpy-version }} scipy ${{ matrix.scipy-version }} astropy ${{ matrix.astropy-version}} mpl ${{ matrix.mpl-version }}
     steps:
