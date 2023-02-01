@@ -99,7 +99,7 @@ jobs:
         python -m pip install "scipy==${{ matrix.scipy-version }}.*" --no-deps
         python -m pip install "astropy==${{ matrix.astropy-version }}.*" --no-deps
         python -m pip install "matplotlib==${{ matrix.mpl-version }}.*" --no-deps
-        python -m pip install rebound requests pytest sympy tqdm corner yaml pyerfa pipdeptree
+        python -m pip install rebound requests pytest sympy tqdm corner pyyaml pyerfa pipdeptree
 
     - name: Run pipdeptree to see package dependencies
       run: |
