@@ -133,8 +133,7 @@ jobs:
 
     - name: Run tests
       run: |
-        # nosetests -v -s -d -w tests/nosetests/
-        pytest --verbose --capture=no --full-trace tests/nosetests/
+        pytest --verbose --capture=no tests/nosetests/
 
     # - name: Checkout benchmarks
     #   if: ${{ matrix.os == 'ubuntu-latest' && matrix.python-version == 3.6 && matrix.astropy-version == '' && matrix.numpy-version == '' && matrix.scipy-version == ''}}
