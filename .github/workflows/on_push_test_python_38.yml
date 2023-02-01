@@ -85,9 +85,9 @@ jobs:
     - name: Install numpy${{ matrix.numpy-version }}, scipy${{ matrix.scipy-version }}, astropy${{ matrix.astropy-version }}
       run: |
         python -m pip install "numpy==${{ matrix.numpy-version }}.*" --no-cache-dir --ignore-installed
-        python -m pip install "scipy==${{ matrix.scipy-version }}.*"
-        python -m pip install "astropy==${{ matrix.astropy-version }}.*"
-        python -m pip install rebound requests pytest asdf matplotlib sympy requests tqdm corner
+        python -m pip install "scipy==${{ matrix.scipy-version }}.*" --upgrade-strategy only-if-needed
+        python -m pip install "astropy==${{ matrix.astropy-version }}.*" --upgrade-strategy only-if-needed
+        python -m pip install rebound requests pytest asdf matplotlib sympy requests tqdm corner --upgrade-strategy only-if-needed
 
     - name: Test numpy, scipy, astropy install/versions
       run: |
