@@ -12,37 +12,37 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: [3.8]
-        # astropy-version: [3.0, 4.0, 5.0]
-        astropy-version: [3.0, 5.0]
-        # numpy-version: [1.18, 1.19, 1.20, 1.21, 1.22, 1.23, 1.24]
-        numpy-version: [1.18, 1.22, 1.24]
-        # scipy-version: [1.8, 1.9, 1.10]
-        scipy-version: [1.8, 1.10]
-        # mpl-version: [3.2, 3.3, 3.4, 3.5, 3.6]
-        mpl-version: [3.2, 3.6]
+        python-version: ["3.8"]
+        # astropy-version: ["3.0", "4.0", "5.0"]
+        astropy-version: ["3.0", "5.0"]
+        # numpy-version: ["1.18", "1.19", "1.20", "1.21", "1.22", "1.23", "1.24"]
+        numpy-version: ["1.18", "1.22", "1.24"]
+        # scipy-version: ["1.8", "1.9", "1.10"]
+        scipy-version: ["1.8", "1.10"]
+        # mpl-version: ["3.2", "3.3", "3.4", "3.5", "3.6"]
+        mpl-version: ["3.2", "3.6"]
         os: [ubuntu-latest, macos-11]  # https://docs.github.com/en/actions/using-github-hosted-runners/about-github-hosted-runners
         exclude:
-        - mpl-version: 3.6        # requires numpy 1.19+
-          numpy-version: 1.18
-        - scipy-version: 1.10   # requires numpy 1.19.5+
-          numpy-version: 1.18
-        - astropy-version: 3.0  # requires numpy <=1.21
-          numpy-version: 1.22
-        # - astropy-version: 3.0
-        #   numpy-version: 1.23
-        - astropy-version: 3.0
-          numpy-version: 1.24
-        # - astropy-version: 4.0  # needs numpy <=1.21
-        #   numpy-version: 1.22
-        # - astropy-version: 4.0
-        #   numpy-version: 1.23
-        # - astropy-version: 4.0
-        #   numpy-version: 1.24
-        - astropy-version: 5.0
-          numpy-version: 1.18
-        # - astropy-version: 5.0
-        #   numpy-version: 1.19
+        - mpl-version: "3.6"        # requires numpy 1.19+
+          numpy-version: "1.18"
+        - scipy-version: "1.10"   # requires numpy 1.19.5+
+          numpy-version: "1.18"
+        - astropy-version: "3.0"  # requires numpy <=1.21
+          numpy-version: "1.22"
+        # - astropy-version: "3.0"
+        #   numpy-version: "1.23"
+        - astropy-version: "3.0"
+          numpy-version: "1.24"
+        # - astropy-version: "4.0"  # needs numpy <=1.21
+        #   numpy-version: "1.22"
+        # - astropy-version: "4.0"
+        #   numpy-version: "1.23"
+        # - astropy-version: "4.0"
+        #   numpy-version: "1.24"
+        - astropy-version: "5.0"
+          numpy-version: "1.18"
+        # - astropy-version: "5.0"
+        #   numpy-version: "1.19"
 
     name: ${{ matrix.os }} python${{ matrix.python-version}} numpy ${{ matrix.numpy-version }} scipy ${{ matrix.scipy-version }} astropy ${{ matrix.astropy-version}} mpl ${{ matrix.mpl-version }}
     steps:
