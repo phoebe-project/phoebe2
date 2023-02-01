@@ -84,7 +84,7 @@ jobs:
       run: |
         python -m pip install --upgrade pip
 
-    - name: Resolve a set of requirements:
+    - name: Resolve a set of requirements
       run: |
         python -m pip install numpy=="${{ matrix.numpy-version }}.*" scipy=="${{ matrix.scipy-version }}.*" astropy=="${{ matrix.astropy-version }}.*" --ignore-installed --report --dry-run
         python -m pip install rebound requests pytest matplotlib sympy tqdm corner pyerfa pipdeptree --ignore-installed --report --dry-run
