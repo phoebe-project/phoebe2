@@ -23,6 +23,8 @@ jobs:
         # os: [ubuntu-latest, macos-11]  # https://docs.github.com/en/actions/using-github-hosted-runners/about-github-hosted-runners
         os: [ubuntu-latest]  # https://docs.github.com/en/actions/using-github-hosted-runners/about-github-hosted-runners
         exclude:
+        - scipy-version: "1.10"  # requires numpy 1.19.5+
+          numpy-version: "1.18"
         - astropy-version: "3.0"
           numpy-version: "1.22"
         # - astropy-version: "3.0"
@@ -46,7 +48,7 @@ jobs:
         #     numpy-version: ""
         #     scipy-version: ""
 
-    name: ${{ matrix.os }} python${{ matrix.python-version}} numpy${{ matrix.numpy-version }} scipy${{ matrix.scipy-version }} astropy${{ matrix.astropy-version}}
+    name: ${{ matrix.os }} python${{ matrix.python-version}} numpy ${{ matrix.numpy-version }} scipy ${{ matrix.scipy-version }} astropy ${{ matrix.astropy-version}}
     steps:
     - name: Checkout PHOEBE
       uses: actions/checkout@v3
@@ -81,6 +83,11 @@ jobs:
     - name: Update pip
       run: |
         python -m pip install --upgrade pip
+
+    - name: Resolve a set of requirements:
+      run: |
+        python -m pip install numpy=="${{ matrix.numpy-version }}.*" scipy=="${{ matrix.scipy-version }}.*" astropy=="${{ matrix.astropy-version }}.*" --ignore-installed --report --dry-run
+        python -m pip install rebound requests pytest matplotlib sympy tqdm corner pyerfa pipdeptree --ignore-installed --report --dry-run
 
     - name: Install numpy ${{ matrix.numpy-version }}, scipy ${{ matrix.scipy-version }}, astropy ${{ matrix.astropy-version }} and dependencies
       run: |
