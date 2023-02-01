@@ -93,13 +93,13 @@ jobs:
     #     python -m pip install numpy=="${{ matrix.numpy-version }}.*" scipy=="${{ matrix.scipy-version }}.*" astropy=="${{ matrix.astropy-version }}.*" --ignore-installed --report --dry-run
     #     python -m pip install rebound requests pytest matplotlib sympy tqdm corner pyerfa pipdeptree --ignore-installed --report --dry-run
 
-    - name: Install numpy ${{ matrix.numpy-version }}, scipy ${{ matrix.scipy-version }}, astropy ${{ matrix.astropy-version }} and dependencies
+    - name: Install numpy ${{ matrix.numpy-version }}, scipy ${{ matrix.scipy-version }}, astropy ${{ matrix.astropy-version }}, matplotlib ${{ matrix.mpl-version }} and dependencies
       run: |
         python -m pip install "numpy==${{ matrix.numpy-version }}.*" --no-cache-dir --ignore-installed
         python -m pip install "scipy==${{ matrix.scipy-version }}.*" --no-deps
         python -m pip install "astropy==${{ matrix.astropy-version }}.*" --no-deps
         python -m pip install "matplotlib==${{ matrix.mpl-version }}.*" --no-deps
-        python -m pip install rebound requests pytest sympy tqdm corner pyerfa pipdeptree
+        python -m pip install rebound requests pytest sympy tqdm corner yaml pyerfa pipdeptree
 
     - name: Run pipdeptree to see package dependencies
       run: |
