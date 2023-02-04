@@ -3,7 +3,7 @@
 name: Python 3.9 test suite
 
 on:
-  pull_request:
+  push:
 
 jobs:
   build:
