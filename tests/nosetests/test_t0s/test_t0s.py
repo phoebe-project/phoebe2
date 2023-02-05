@@ -6,7 +6,7 @@ from phoebe import u
 import numpy as np
 import matplotlib.pyplot as plt
 
-from nose.tools import assert_raises
+import pytest
 
 phoebe.interactive_on()
 
@@ -67,7 +67,8 @@ def test_binary(verbose=False):
     assert_t0s(p1_ref, p1_supconj, p1_perpass)
 
     # cannot flip both constraints to solve for t0_supconj
-    assert_raises(ValueError, b.flip_constraint, 't0_perpass', solve_for='t0_supconj')
+    with pytest.raises(ValueError) as e_info:
+        b.flip_constraint('t0_perpass', solve_for='t0_supconj')
 
     b.flip_constraint('t0_supconj', solve_for='t0_ref')
     b.flip_constraint('t0_perpass', solve_for='t0_supconj')
