@@ -3,7 +3,12 @@
 name: Python 3.9 test suite
 
 on:
+  pull_request:
   push:
+    branches:
+      - 'master'
+      - 'feature-*'
+      - 'bugfix-*'
 
 jobs:
   build:
