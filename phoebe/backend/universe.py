@@ -3026,7 +3026,7 @@ class Feature(object):
     kind of change it exacts to the mesh. For example, pulsations will require
     recomputing a mesh while spots will not. By default, the mesh will be
     recomputed (set in this superclass' `__init__()` method) but inherited
-    classes should overload `self.remeshing_required()`.
+    classes should overload `self._remeshing_required`.
     """
     def __init__(self, *args, **kwargs):
         pass
