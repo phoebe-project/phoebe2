@@ -2,7 +2,7 @@
 """
 
 import phoebe
-from nose.tools import assert_raises
+import pytest
 
 def test_esinw_ecosw(verbose=False):
     if verbose: print("b=phoebe.default_binary()")
@@ -23,7 +23,8 @@ def test_esinw_ecosw(verbose=False):
     if verbose: print(b.filter(qualifier=['ecosw', 'esinw', 'ecc', 'per0']))
 
     assert(b.run_checks().passed==False)
-    assert_raises(ValueError, b.run_compute)
+    with pytest.raises(ValueError) as e_info:
+        b.run_compute()
 
     if verbose: print("b.set_value('per0', 10)")
     b.set_value('per0', 10)

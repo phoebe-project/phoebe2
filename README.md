@@ -85,6 +85,11 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.4.8 - spots optimization bugfix
+
+* spots no longer force the mesh to be recomputed at each timepoint.
+* updates for numpy compatibility and wider test matrix.
+
 ### 2.4.7 - line profile bugfix
 
 * fix bug where wavelength arrays that did not include the central wavelength were returning nans for fluxes.

@@ -24,8 +24,8 @@ def _legacy_test(filename='default.phoebe', verbose=True):
     params = np.loadtxt(os.path.join(dir, filename), dtype='str', delimiter = '=',
     converters = {0: lambda s: s.strip(), 1: lambda s: s.strip()})
 
-    lcno = np.int(params[:,1][list(params[:,0]).index('phoebe_lcno')])
-    rvno = np.int(params[:,1][list(params[:,0]).index('phoebe_rvno')])
+    lcno = int(params[:,1][list(params[:,0]).index('phoebe_lcno')])
+    rvno = int(params[:,1][list(params[:,0]).index('phoebe_rvno')])
 
 
 
