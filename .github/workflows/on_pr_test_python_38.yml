@@ -1,0 +1,114 @@
+# This workflow will install dependencies and run tests on pull requests to all branches.
+
+name: Python 3.8 test suite
+
+on:
+  pull_request:
+  push:
+    branches:
+      - 'master'
+      - 'feature-*'
+      - 'bugfix-*'
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.8"]
+        # astropy-version: ["3.0", "4.0", "5.0"]
+        astropy-version: ["3.0", "5.0"]
+        # numpy-version: ["1.18", "1.19", "1.20", "1.21", "1.22", "1.23", "1.24"]
+        numpy-version: ["1.18", "1.22", "1.24"]
+        # scipy-version: ["1.8", "1.9", "1.10"]
+        scipy-version: ["1.8", "1.10"]
+        # mpl-version: ["3.2", "3.3", "3.4", "3.5", "3.6"]
+        mpl-version: ["3.2", "3.6"]
+        os: [ubuntu-latest, macos-11]  # https://docs.github.com/en/actions/using-github-hosted-runners/about-github-hosted-runners
+        exclude:
+        - os: "macos-11"          # astropy failing to build. Ticket open.
+          numpy-version: "1.18"
+          scipy-version: "1.8"
+          astropy-version: "3.0"
+        - mpl-version: "3.6"      # requires numpy 1.19+
+          numpy-version: "1.18"
+        - scipy-version: "1.10"   # requires numpy 1.19.5+
+          numpy-version: "1.18"
+        - astropy-version: "3.0"  # requires numpy <=1.21
+          numpy-version: "1.22"
+        # - astropy-version: "3.0"
+        #   numpy-version: "1.23"
+        - astropy-version: "3.0"
+          numpy-version: "1.24"
+        # - astropy-version: "4.0"  # needs numpy <=1.21
+        #   numpy-version: "1.22"
+        # - astropy-version: "4.0"
+        #   numpy-version: "1.23"
+        # - astropy-version: "4.0"
+        #   numpy-version: "1.24"
+        - astropy-version: "5.0"
+          numpy-version: "1.18"
+        # - astropy-version: "5.0"
+        #   numpy-version: "1.19"
+
+    name: ${{ matrix.os }} python${{ matrix.python-version}} numpy ${{ matrix.numpy-version }} scipy ${{ matrix.scipy-version }} astropy ${{ matrix.astropy-version}} mpl ${{ matrix.mpl-version }}
+    steps:
+    - name: Checkout PHOEBE
+      uses: actions/checkout@v3
+
+    - name: Setup python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: PHOEBE environment variables
+      run: |
+        export PHOEBE_ENABLE_PLOTTING='FALSE'
+        export PHOEBE_UPDATE_PASSBAND_IGNORE_VERSION='TRUE'
+
+    - name: Update pip
+      run: |
+        python -m pip install --upgrade pip
+
+    - name: Install numpy ${{ matrix.numpy-version }}, scipy ${{ matrix.scipy-version }}, astropy ${{ matrix.astropy-version }}, matplotlib ${{ matrix.mpl-version }} and dependencies
+      run: |
+        python -m pip install "numpy==${{ matrix.numpy-version }}.*" --no-cache-dir --ignore-installed
+        python -m pip install "scipy==${{ matrix.scipy-version }}.*" --no-deps
+        python -m pip install "astropy==${{ matrix.astropy-version }}.*" --no-deps
+        python -m pip install "matplotlib==${{ matrix.mpl-version }}.*" --no-deps
+        python -m pip install rebound requests pytest sympy tqdm corner pyyaml pyerfa pipdeptree
+
+    - name: Run pipdeptree to see package dependencies
+      run: |
+        pipdeptree
+
+    - name: Test numpy, scipy, astropy, matplotlib install/versions
+      run: |
+        python -c "import numpy, scipy, astropy, matplotlib; print('numpy: {}\nscipy: {}\nastropy: {}\nmatplotlib: {}\n'.format(numpy.__version__, scipy.__version__, astropy.__version__, matplotlib.__version__))"
+
+    - name: Install PHOEBE from source
+      run: |
+        python setup.py build && python setup.py install --user
+
+    - name: Checkout photodynam
+      uses: actions/checkout@v2
+      with:
+        repository: phoebe-project/photodynam
+        path: photodynam
+
+    - name: Install photodynam
+      run: |
+        cd photodynam
+        make
+        sudo cp photodynam /usr/local/bin/
+        python setup.py build && python3 setup.py install --user
+        cd ..
+
+    - name: Test photodynam install
+      run: |
+        python -c "import photodynam"
+
+    - name: Run tests
+      run: |
+        pytest --verbose --capture=no tests/nosetests/

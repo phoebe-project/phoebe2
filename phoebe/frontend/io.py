@@ -1,7 +1,6 @@
 import numpy as np
 import phoebe as phb
 import os.path
-import sys
 import logging
 
 try:
@@ -24,7 +23,6 @@ from phoebe import list_passbands as _list_passbands
 from phoebe.distortions import roche
 # from phoebe.constraints.builtin import t0_ref_to_supconj
 
-import libphoebe
 logger = logging.getLogger("IO")
 logger.addHandler(logging.NullHandler())
 
@@ -37,17 +35,18 @@ _default_passband_map_2to1 = {v:k for k,v in _default_passband_map_1to2.items()}
 def _is_file(obj):
     return isinstance(obj, _IOBase) or obj.__class__.__name__ in ['FileStorage']
 
-"""
-Dictionaries of parameters for conversion between phoebe1 and phoebe 2
 
 """
+Dictionaries of parameters for conversion between phoebe1 and phoebe 2
+"""
+
 
 _1to2par = {'ld_model':'ld_func',
             'bol':'ld_coeffs_bol',
             'rvcoff': 'ld_coeffs',
             'lccoff':'ld_coeffs',
             'active': 'enabled',
-#            'model': 'morphology',
+            # 'model': 'morphology',
             'filter': 'passband',
             'hjd0':'t0_ref',
             'period': 'period',  # sidereal
@@ -89,8 +88,8 @@ _1to2par = {'ld_model':'ld_func',
             }
 #            'rate':'rate'}
 
-#TODO: add back proximity_rv maybe?
-#TODO: add back 'excess': 'extinction',
+# TODO: add back proximity_rv maybe?
+# TODO: add back 'excess': 'extinction',
 
 _2to1par = {v:k for k,v in _1to2par.items()}
 
@@ -101,7 +100,7 @@ _units1 = {'incl': 'deg',
            'vga':'km/s',
            'teff': 'K',
            'perr0': 'rad',
-           'dperdt': 'rad/d', # could be deg/d depending on config setting in legacy
+           'dperdt': 'rad/d',  # could be deg/d depending on config setting in legacy
            'flux':'W/m2',
            'sigmalc': 'W/m2',
            'sigmarv': 'km/s',
@@ -120,7 +119,7 @@ _parsect = {'t0':'component',
             'dperdt':'component',
             'hla': 'component',
             'cla':'component',
-       #     'el3':'component',
+            # 'el3':'component',
             'reffect':'compute',
             'reflections':'compute',
             'finegrid':'mesh',
@@ -132,7 +131,7 @@ _parsect = {'t0':'component',
             'proximity_rv2': 'compute'}
 
 
-#_bool1to2 = {1:True, 0:False}
+# _bool1to2 = {1:True, 0:False}
 
 _bool2to1 = {True:1, False:0}
 
@@ -142,6 +141,7 @@ _bool1to2 = {1:True, 0:False}
 ld_legacy -
 
 """
+
 
 def ld_to_phoebe(pn, d, rvdep=None, dataid=None, law=None):
     if 'bol' in pn:
@@ -163,47 +163,47 @@ def ld_to_phoebe(pn, d, rvdep=None, dataid=None, law=None):
         d['index'] = 1
 
     return [pnew, d]
-"""
-ret_dict - finds the phoebe 2 twig associated with a given parameter
-
-pname:  name of the parameter
-
-dataid: name of the dataset
-
-rvdep = determines whether rv belongs to primary or secondary
-
-"""
 
 
 def ret_dict(pname, val, dataid=None, rvdep=None, comid=None):
-#    pname = pname.split('[')[0]
+    """
+    ret_dict - finds the phoebe 2 twig associated with a given parameter
+
+    pname:  name of the parameter
+
+    dataid: name of the dataset
+
+    rvdep = determines whether rv belongs to primary or secondary
+
+    """
+
+    # pname = pname.split('[')[0]
     pieces = pname.split('_')
     pnew = pieces[-1]
     d = {}
-    #on the very rare occasion phoebe 1 has a separate unit parameters
+    # on the very rare occasion phoebe 1 has a separate unit parameters
     if pnew == 'units':
         pnew = pieces[-2]+'_'+pieces[-1]
 
     if pnew == 'switch':
-       pnew = pieces[1]
-       if pnew  == 'proximity':
-           pnew = pnew+'_'+pieces[2]
-           d['context'] = 'compute'
+        pnew = pieces[1]
+        if pnew == 'proximity':
+            pnew = pnew+'_'+pieces[2]
+            d['context'] = 'compute'
 # component specific parameters end with 1 or 2 in phoebe1
     if pnew[-1] == '1':
         d['component'] = 'primary'
-#        d.setdefault('context', 'component')
+        # d.setdefault('context', 'component')
         d['context'] = 'component'
         pnew = pnew[:-1]
 
     elif pnew[-1] == '2':
         d['component'] = 'secondary'
-#        d.setdefault('context', 'component')
+        # d.setdefault('context', 'component')
         d['context'] = 'component'
         pnew = pnew[:-1]
 
-# even though gridsize belongs to each component it is located in the compute parameter set
-
+    # even though gridsize belongs to each component it is located in the compute parameter set
 
     if pieces[1] == 'lc':
         d['dataset'] = dataid
@@ -215,7 +215,7 @@ def ret_dict(pname, val, dataid=None, rvdep=None, comid=None):
         d['context'] = 'dataset'
 
     elif pieces[1] == 'ld':
-        pnew, d  = ld_to_phoebe(pnew, d, rvdep, dataid)
+        pnew, d = ld_to_phoebe(pnew, d, rvdep, dataid)
 
     elif pieces[1] == 'spots':
         d['component'] = rvdep
@@ -243,7 +243,7 @@ def ret_dict(pname, val, dataid=None, rvdep=None, comid=None):
                 d['context'] = None
 
         if pnew in ['atm', 'model', 'cindex', 'finesize', 'reffect', 'reflections']:
-            d['context']  ='compute'
+            d['context'] = 'compute'
 
         if 'proximity' in pnew:
             d['context'] = 'compute'
@@ -252,11 +252,11 @@ def ret_dict(pname, val, dataid=None, rvdep=None, comid=None):
 
             d.setdefault('component', 'binary')
 
-#        if d['context'] == 'compute':
-#            d.setdefault('compute', comid)
+        # if d['context'] == 'compute':
+        #     d.setdefault('compute', comid)
 
         if pnew == 'reflections':
-            d['value'] = int(val)#+1
+            d['value'] = int(val)  # +1
 
         else:
             d['value'] = val
@@ -267,14 +267,13 @@ def ret_dict(pname, val, dataid=None, rvdep=None, comid=None):
             d['unit'] = _units1[pnew]
 
     else:
-        d ={}
+        d = {}
         logger.info("Parameter "+str(pname)+" has no Phoebe 2 counterpart")
-
 
     return pnew, d
 
-def load_lc_data(filename, indep, dep, indweight=None, mzero=None, bundle=None, dir='./'):
 
+def load_lc_data(filename, indep, dep, indweight=None, mzero=None, bundle=None, dir='./'):
     """
     load dictionary with lc data
     """
@@ -295,8 +294,8 @@ def load_lc_data(filename, indep, dep, indweight=None, mzero=None, bundle=None, 
         logger.warning("Could not load data file referenced at {}. Dataset will be empty.".format(load_file))
         return {}
     ncol = len(lcdata[0])
-    
-    #check if there are enough columns for errors
+
+    # check if there are enough columns for errors
     if ncol >= 3:
         sigma = True
         # convert standard weight to standard deviation
@@ -309,7 +308,7 @@ def load_lc_data(filename, indep, dep, indweight=None, mzero=None, bundle=None, 
         sigma = False
         logger.warning('A sigma column was mentioned in the .phoebe file but is not present in the lc data file')
 
-    #if phase convert to time
+    # if phase convert to time
     if indep == 'Phase':
         logger.warning("Phoebe 2 doesn't accept phases, converting to time with respect to the given ephemeris")
         times = bundle.to_time(lcdata[:,0])
@@ -319,7 +318,7 @@ def load_lc_data(filename, indep, dep, indweight=None, mzero=None, bundle=None, 
         mag = lcdata[:,1]
         flux = 10**(-0.4*(mag-mzero))
 
-        if sigma == True:
+        if sigma:
             mag_err = lcdata[:,2]
             flux_err = np.abs(10**(-0.4*((mag+mag_err)-mzero)) - flux)
             lcdata[:,2] = flux_err
@@ -329,10 +328,11 @@ def load_lc_data(filename, indep, dep, indweight=None, mzero=None, bundle=None, 
     d['phoebe_lc_time'] = lcdata[:,0]
     d['phoebe_lc_flux'] = lcdata[:,1]
 
-    if sigma == True:
+    if sigma:
         d['phoebe_lc_sigmalc'] = lcdata[:,2]
 
     return d
+
 
 def load_rv_data(filename, indep, dep, indweight=None, dir='./'):
 
@@ -342,7 +342,6 @@ def load_rv_data(filename, indep, dep, indweight=None, dir='./'):
     if dir is None:
         logger.warning("to load referenced data files, pass filename as string instead of file object")
         return {}
-
 
     if '/' in filename:
         path, filename = os.path.split(filename)
@@ -356,26 +355,27 @@ def load_rv_data(filename, indep, dep, indweight=None, dir='./'):
         logger.warning("Could not load data file referenced at {}. Dataset will be empty.".format(load_file))
         return {}
 
-    d ={}
+    d = {}
     d['phoebe_rv_time'] = rvdata[:,0]
     d['phoebe_rv_vel'] = rvdata[:,1]
     ncol = len(rvdata[0])
 
-    if indweight=="Standard deviation":
+    if indweight == "Standard deviation":
 
         if ncol >= 3:
             d['phoebe_rv_sigmarv'] = rvdata[:,2]
         else:
             logger.warning('A sigma column is mentioned in the .phoebe file but is not present in the rv data file')
-    elif indweight =="Standard weight":
-                if ncol >= 3:
-                    sigma = np.sqrt(1/rvdata[:,2])
-                    d['phoebe_rv_sigmarv'] = sigma
-                    logger.warning('Standard weight has been converted to Standard deviation.')
+    elif indweight == "Standard weight":
+        if ncol >= 3:
+            sigma = np.sqrt(1/rvdata[:,2])
+            d['phoebe_rv_sigmarv'] = sigma
+            logger.warning('Standard weight has been converted to Standard deviation.')
     else:
         logger.warning('Phoebe 2 currently only supports standard deviaton')
 
     return d
+
 
 def det_dataset(eb, passband, dataid, comp, time):
 
@@ -386,8 +386,8 @@ def det_dataset(eb, passband, dataid, comp, time):
     rvpt - relevant phoebe 1 parameters
 
     """
-    rvs = eb.get_dataset(kind='rv', **_skip_filter_checks).datasets
-    #first check to see if there are currently in RV datasets
+    # rvs = eb.get_dataset(kind='rv', **_skip_filter_checks).datasets
+    # first check to see if there are currently in RV datasets
     if dataid == 'Undefined':
         dataid = None
 #    if len(rvs) == 0:
@@ -395,46 +395,44 @@ def det_dataset(eb, passband, dataid, comp, time):
 
     try:
         eb._check_label(dataid)
-
         rv_dataset = eb.add_dataset('rv', dataset=dataid, times=[], **_skip_filter_checks)
 
     except ValueError:
-
         logger.warning("The name picked for the radial velocity curve is forbidden. Applying default name instead")
         rv_dataset = eb.add_dataset('rv', times=[], **_skip_filter_checks)
 
 #     else:
-#     #now we have to determine if we add to an existing dataset or make a new one
+#     # now we have to determine if we add to an existing dataset or make a new one
 #         rvs = eb.get_dataset(kind='rv').datasets
 #         found = False
 #         #set the component of the companion
-#
+
 #         if comp == 'primary':
 #             comp_o = 'primary'
 #         else:
 #             comp_o = 'secondary'
 #         for x in rvs:
 #             test_dataset = eb.get_dataset(x, check_visible=False)
-#
-#
+
+
 #             if len(test_dataset.get_value(qualifier='rvs', component=comp_o, check_visible=False)) == 0:                #so at least it has an empty spot now check against filter and length
 # #               removing reference to time_o. If there are no rvs there should be no times
 # #                time_o = test_dataset.get_value('times', component=comp_o)
 #                 passband_o = test_dataset.get_value('passband')
-#
+
 # #                if np.all(time_o == time) and (passband == passband_o):
 #                 if (passband == passband_o):
 #                     rv_dataset = test_dataset
 #                     found = True
-#
+
 #         if not found:
 #             try:
 #                 eb._check_label(dataid)
-#
+
 #                 rv_dataset = eb.add_dataset('rv', dataset=dataid, times=[])
-#
+
 #             except ValueError:
-#
+
 #                 logger.warning("The name picked for the lightcurve is forbidden. Applying default name instead")
 #                 rv_dataset = eb.add_dataset('rv', times=[])
 
@@ -454,9 +452,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True,
     conf_interactive_constraints_state = conf.interactive_constraints
     conf.interactive_off(suppress_warning=True)
 
-
     if _is_file(filename):
-        f = filename
         legacy_file_dir = None
 
     elif isinstance(filename, str):
@@ -464,24 +460,20 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True,
         legacy_file_dir = os.path.dirname(filename)
 
         logger.debug("importing from {}".format(filename))
-        f = open(filename, 'r')
 
     else:
         raise TypeError("filename must be string or file object, got {}".format(type(filename)))
 
-# load the phoebe file
-
-#    params = np.loadtxt(filename, dtype='str', delimiter = '=')
-    params = np.loadtxt(filename, dtype='str', delimiter = '=',
-    converters = {0: lambda s: s.strip(), 1: lambda s: s.strip()})
+    # load the phoebe file
+    params = np.loadtxt(filename, dtype='str', delimiter='=',
+                        converters={0: lambda s: s.strip(), 1: lambda s: s.strip()})
 
     morphology = params[:,1][list(params[:,0]).index('phoebe_model')]
 
-
-# load an empty legacy bundle and initialize obvious parameter sets
+    # load an empty legacy bundle and initialize obvious parameter sets
     if 'Overcontact' in morphology:
-#        raise NotImplementedError
-        contact_binary= True
+        # raise NotImplementedError
+        contact_binary = True
         semi_detached = False
         eb = phb.Bundle.default_binary(contact_binary=True)
     elif 'Semi-detached' in morphology:
@@ -492,33 +484,29 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True,
         semi_detached = False
         contact_binary = False
         eb = phb.Bundle.default_binary()
-#    comid = []
-#    if add_compute_phoebe == True:
-    #    comid.append('phoebe01')
-#        eb.add_compute('phoebe')#, compute=comid[0])
-    if add_compute_legacy == True:
-    #    comid.append('lega1')
-        eb.add_compute('legacy')#, compute=comid[-1])
+    # comid = []
+    # if add_compute_phoebe == True:
+        # comid.append('phoebe01')
+        # eb.add_compute('phoebe')  # , compute=comid[0])
+    if add_compute_legacy:
+        # comid.append('lega1')
+        eb.add_compute('legacy')  # , compute=comid[-1])
 
-
-#basic filter on parameters that make no sense in phoebe 2
-    ind = [list(params[:,0]).index(s) for s in params[:,0] if not ".ADJ" in s and not ".MIN" in s and not ".MAX" in s and not ".STEP" in s and not "gui_" in s]
+    # basic filter on parameters that make no sense in phoebe 2
+    ind = [list(params[:,0]).index(s) for s in params[:,0] if ".ADJ" not in s and ".MIN" not in s and ".MAX" not in s and ".STEP" not in s and "gui_" not in s]
     params = params[ind]
 
-# determine number of lcs and rvs
-    rvno = np.int(params[:,1][list(params[:,0]).index('phoebe_rvno')])
-    lcno = np.int(params[:,1][list(params[:,0]).index('phoebe_lcno')])
-# and spots
-    spotno = np.int(params[:,1][list(params[:,0]).index('phoebe_spots_no')])
+    # determine number of lcs and rvs
+    rvno = int(params[:,1][list(params[:,0]).index('phoebe_rvno')])
+    lcno = int(params[:,1][list(params[:,0]).index('phoebe_lcno')])
+    # and spots
+    spotno = int(params[:,1][list(params[:,0]).index('phoebe_spots_no')])
 
-# delete parameters that have already been accounted for and find lc and rv parameters
-
+    # delete parameters that have already been accounted for and find lc and rv parameters
     params = np.delete(params, [list(params[:,0]).index('phoebe_lcno'), list(params[:,0]).index('phoebe_rvno')], axis=0)
 
-
-# check to see if reflection is on
-
-    ref_effect = np.int(params[:,1][list(params[:,0]).index('phoebe_reffect_switch')])
+    # check to see if reflection is on
+    ref_effect = int(params[:,1][list(params[:,0]).index('phoebe_reffect_switch')])
 
     if ref_effect == 0:
 
@@ -527,7 +515,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True,
 
     if not add_compute_legacy:
         params = np.delete(params, [list(params[:,0]).index('phoebe_reffect_reflections'), list(params[:,0]).index('phoebe_ie_switch'),
-                list(params[:,0]).index('phoebe_grid_finesize1'), list(params[:,0]).index('phoebe_grid_finesize2')], axis=0)
+                           list(params[:,0]).index('phoebe_grid_finesize1'), list(params[:,0]).index('phoebe_grid_finesize2')], axis=0)
 
     if 'Overcontact' in morphology:
         params = np.delete(params, [list(params[:,0]).index('phoebe_pot2.VAL')], axis=0)
@@ -566,10 +554,10 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True,
 # create mzero and grab it if it exists
     mzero = None
     if 'phoebe_mnorm' in params:
-        mzero = np.float(params[:,1][list(params[:,0]).index('phoebe_mnorm')])
+        mzero = float(params[:,1][list(params[:,0]).index('phoebe_mnorm')])
 # determine if luminosities are decoupled and set pblum_mode accordingly
     try:
-        decoupled_luminosity = np.int(params[:,1][list(params[:,0]).index('phoebe_usecla_switch')])
+        decoupled_luminosity = int(params[:,1][list(params[:,0]).index('phoebe_usecla_switch')])
     except:
         pass
 #    if decoupled_luminosity == 0:
@@ -586,8 +574,8 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True,
 #        clain = list(params[:,0]).index('phoebe_cla['+str(x)+'].VAL')
         params[:,0][hlain] = 'phoebe_lc_hla1['+str(x)+'].VAL'
 #        params[:,0][clain] = 'phoebe_lc_cla2['+str(x)+'].VAL'
-        hla = np.float(params[:,1][hlain]) #pull for possible conversion of l3
-#        cla = np.float(params[:,1][clain]) #pull for possible conversion of l3
+        hla = float(params[:,1][hlain]) #pull for possible conversion of l3
+#        cla = float(params[:,1][clain]) #pull for possible conversion of l3
 
 #        if contact_binary:
 #            params = np.delete(params, [list(params[:,0]).index('phoebe_lc_cla2['+str(x)+'].VAL')], axis=0)
@@ -612,10 +600,10 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True,
 
 #we do this here because we may need it to convert phases to times
 #
-#    ecc = np.float(params[:,1][list(params[:,0]).index('phoebe_ecc.VAL')])
-#    perr0 = np.float(params[:,1][list(params[:,0]).index('phoebe_perr0.VAL')])
-#    period = np.float(params[:,1][list(params[:,0]).index('phoebe_ecc.VAL')])
-#    t0_ref = np.float(params[:,1][list(params[:,0]).index('phoebe_hjd0.VAL')])
+#    ecc = float(params[:,1][list(params[:,0]).index('phoebe_ecc.VAL')])
+#    perr0 = float(params[:,1][list(params[:,0]).index('phoebe_perr0.VAL')])
+#    period = float(params[:,1][list(params[:,0]).index('phoebe_ecc.VAL')])
+#    t0_ref = float(params[:,1][list(params[:,0]).index('phoebe_hjd0.VAL')])
 
 # create datasets and fill with the correct parameters
     for x in range(len(params)):
@@ -653,13 +641,13 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True,
                 comp_no = ['', 'primary', 'secondary'].index(d['component'])
 
                 q_in = list(params[:,0]).index('phoebe_rm.VAL')
-                q = np.float(params[:,1][q_in])
+                q = float(params[:,1][q_in])
                 F_in = list(params[:,0]).index('phoebe_f{}.VAL'.format(comp_no))
-                F = np.float(params[:,1][F_in])
+                F = float(params[:,1][F_in])
                 a_in = list(params[:,0]).index('phoebe_sma.VAL')
-                a = np.float(params[:,1][a_in])
+                a = float(params[:,1][a_in])
                 e_in = list(params[:,0]).index('phoebe_ecc.VAL')
-                e = np.float(params[:,1][e_in])
+                e = float(params[:,1][e_in])
                 delta = 1-e # defined at periastron
 
                 d['value'] = roche.pot_to_requiv(float(val), a, q, F, delta, component=comp_no)
@@ -682,12 +670,12 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True,
             try:
                 #if being reimported after phoebe2 save this parameter won't exist
                 pshift_in = list(params[:,0]).index('phoebe_pshift.VAL')
-                pshift = np.float(params[:,1][pshift_in])
+                pshift = float(params[:,1][pshift_in])
             except:
                 pshift = 0.0
 
             period_in = list(params[:,0]).index('phoebe_period.VAL')
-            period = np.float(params[:,1][period_in])
+            period = float(params[:,1][period_in])
 
             t0 = float(val)+pshift*period
     #       new
@@ -724,7 +712,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True,
             d['value'] = val
             eb.set_value_all(check_visible=False, **d)
             # change parameter and value to ntriangles
-            val = N_to_Ntriangles(int(np.float(val)))
+            val = N_to_Ntriangles(int(float(val)))
             d['qualifier'] = 'ntriangles'
             d['value'] = val
 #        elif pnew == 'refl_num':
@@ -825,7 +813,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True,
             lc_dict[parameter] = lcpt[:,1][y].strip('"')
 
         #add third light
-        l3 = np.float(params[:,1][list(params[:,0]).index('phoebe_el3['+str(x)+'].VAL')])
+        l3 = float(params[:,1][list(params[:,0]).index('phoebe_el3['+str(x)+'].VAL')])
 
 
 #        if params[:,1][list(params[:,0]).index('phoebe_el3_units')].strip('"') == 'Total light':
@@ -1109,9 +1097,9 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True,
 
         spotin = [list(spotpars[:,0]).index(s) for s in spotpars[:,0] if "["+str(x)+"]" in s]
         spotpt = spotpars[spotin]
-        source =  np.int(spotpt[:,1][list(spotpt[:,0]).index('phoebe_spots_source['+str(x)+']')])
+        source =  int(spotpt[:,1][list(spotpt[:,0]).index('phoebe_spots_source['+str(x)+']')])
         spotpt = np.delete(spotpt, list(spotpt[:,0]).index('phoebe_spots_source['+str(x)+']'), axis=0)
-        enabled = np.int(spotpt[:,1][list(spotpt[:,0]).index('phoebe_spots_active_switch['+str(x)+']')])
+        enabled = int(spotpt[:,1][list(spotpt[:,0]).index('phoebe_spots_active_switch['+str(x)+']')])
         spotpt = np.delete(spotpt, list(spotpt[:,0]).index('phoebe_spots_active_switch['+str(x)+']'), axis=0)
 
         if source == 1:
@@ -2167,7 +2155,7 @@ def N_to_Ntriangles(N):
     """
 
     theta = np.array([np.pi/2*(k-0.5)/N for k in range(1, N+1)])
-    phi = np.array([[np.pi*(l-0.5)/Mk for l in range(1, Mk+1)] for Mk in np.array(1 + 1.3*N*np.sin(theta), dtype=int)])
+    phi = [[np.pi*(l-0.5)/Mk for l in range(1, Mk+1)] for Mk in np.array(1 + 1.3*N*np.sin(theta), dtype=int)]
     Ntri = 2*np.array([len(p) for p in phi]).sum()
 
     return Ntri
