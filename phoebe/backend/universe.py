@@ -1734,11 +1734,14 @@ class Star(Body):
 
         rvs = -1*self.mesh.velocities.for_computations[:,2]
 
-
         # Gravitational redshift
         if self.do_rv_grav:
-            rv_grav = c.G*(self.mass*u.solMass)/(self.instantaneous_rpole*u.solRad)/c.c
-            # rvs are in solRad/d internally
+            # self.mass is in solar masses
+            # self.instantaneous_rpole is in Roche units, i.e. r/a
+            rpole = self.instantaneous_rpole*self.sma*u.solRad
+            rv_grav = c.G*(self.mass*u.solMass)/rpole/c.c
+
+            # rvs are in solRad/d internally, so we need to convert:
             rv_grav = rv_grav.to('solRad/d').value
 
             rvs += rv_grav
