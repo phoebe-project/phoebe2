@@ -2145,11 +2145,8 @@ class JktebopBackend(BaseBackendByDataset):
         rA = b.get_value(qualifier='requiv', component=starrefs[0], context='component', unit=u.solRad, **_skip_filter_checks)
         rB = b.get_value(qualifier='requiv', component=starrefs[1], context='component', unit=u.solRad, **_skip_filter_checks)
         sma = b.get_value(qualifier='sma', component=orbitref, context='component', unit=u.solRad, **_skip_filter_checks)
-        sma_A = b.get_value(qualifier='sma', component=starrefs[0], context='component', unit=u.solRad, **_skip_filter_checks)
-        sma_B = b.get_value(qualifier='sma', component=starrefs[1], context='component', unit=u.solRad, **_skip_filter_checks)
         incl = b.get_value(qualifier='incl', component=orbitref, context='component', unit=u.deg, **_skip_filter_checks)
         q = b.get_value(qualifier='q', component=orbitref, context='component', **_skip_filter_checks)
-        ecc = b.get_value(qualifier='ecc', component=orbitref, context='component', **_skip_filter_checks)
         ecosw = b.get_value(qualifier='ecosw', component=orbitref, context='component', **_skip_filter_checks)
         esinw = b.get_value(qualifier='esinw', component=orbitref, context='component', **_skip_filter_checks)
 
@@ -2170,11 +2167,7 @@ class JktebopBackend(BaseBackendByDataset):
                     ecosw=ecosw, esinw=esinw,
                     gravbA=gravbA, gravbB=gravbB,
                     period=period, t0_supconj=t0_supconj,
-                    pblums=kwargs.get('pblums'),
-                    sma_A=sma_A,
-                    sma_B=sma_B,
-                    ecc=ecc
-                    )
+                    pblums=kwargs.get('pblums'))
 
     def _run_single_dataset(self, b, info, **kwargs):
         """
@@ -2190,15 +2183,12 @@ class JktebopBackend(BaseBackendByDataset):
         rA = kwargs.get('rA')
         rB = kwargs.get('rB')
         sma = kwargs.get('sma')
-        sma_A = kwargs.get('sma_A')
-        sma_B = kwargs.get('sma_B')
         incl = kwargs.get('incl')
         q = kwargs.get('q')
         if distortion_method == 'sphere':
             q *= -1
         ecosw = kwargs.get('ecosw')
         esinw = kwargs.get('esinw')
-        ecc = kwargs.get('ecc')
         gravbA = kwargs.get('gravbA')
         gravbB = kwargs.get('gravbB')
         period = kwargs.get('period')
@@ -2347,8 +2337,7 @@ class JktebopBackend(BaseBackendByDataset):
         #~ fi.write('rv2 llaqr-rv2.dat llaqr-rv2.out 55.0 -10.0 0 0\n')
         if info['kind'] == 'rv':
             # NOTE: we disable systemic velocity as it will be added in bundle.run_compute
-            sma_ = sma_A if info['component'] == starrefs[0] else sma_B
-            K = np.pi * 2*(sma_*u.solRad).to(u.km).value * np.sin((incl*u.deg).to(u.rad).value) / ((period*u.d).to(u.s).value * np.sqrt(1-ecc**2))
+            K = np.pi * (sma*u.solRad).to(u.km).value * np.sin((incl*u.deg).to(u.rad).value) / (period*u.d).to(u.s).value
             fi.write('{} {} {} {} {} 0 0\n'.format('rv1' if info['component'] == starrefs[0] else 'rv2', tmpfilenamervin, tmpfilenamervout, K, 0.0))
 
 
