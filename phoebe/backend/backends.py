@@ -2231,6 +2231,23 @@ class JktebopBackend(BaseBackendByDataset):
             # TODO: provide a more useful error statement
             raise ValueError("jktebop only accepts the following options for ld_func: {}".format(ldfuncs.keys()))
 
+        # Check for finite integration time (should be an if statement instead of a try except)
+        try:
+            fti_oversample = b[f"fti_oversample@{info['dataset']}@{compute}"].value
+            exptime = b[f"exptime@{info['dataset']}"].value
+        except AttributeError:
+            fti_oversample = None
+            exptime = None
+
+        # fti_oversample = b.get_value(         # This fails for some reason with "two values present (jktebop, phoebe)" or "no value present"
+        #     qualifier='fti_oversample', dataset=info['dataset'], check_visible=True, check_default=True
+        # )
+        # exptime = b.get_value(qualifier='exptime', dataset=info['dataset'], check_visible=True, check_default=True)
+        if fti_oversample == 'none' or fti_oversample == 0:
+            fti_oversample = None
+        if exptime == 'none' or exptime == 0:
+            exptime = None
+
         # create the input file for jktebop
         # uncomment this block, comment out the following block and the os.remove at the end
         # for testing
@@ -2357,8 +2374,8 @@ class JktebopBackend(BaseBackendByDataset):
         # occupying a total time interval of NINTERVAL (seconds) by including this line:
         #   NUMI  [numint]  [ninterval]
 
-        # TODO: allow exposure times?
-
+        if fti_oversample is not None and exptime is not None:
+            fi.write(f'NUMINT {fti_oversample} {exptime}\n')
 
         fi.close()
 
