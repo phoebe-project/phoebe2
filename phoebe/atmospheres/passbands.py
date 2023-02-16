@@ -130,39 +130,6 @@ class Passband:
                  wlunits=u.AA, calibrated=False, reference='', version=1.0,
                  comments='', oversampling=1, ptf_order=3, from_file=False):
         """
-        Arguments
-        ----------
-        * `ptf` (string, optional, default=None): passband transmission file: a
-            2-column file with wavelength in `wlunits` and transmission in
-            arbitrary units.
-        * `pbset` (string, optional, default='Johnson'): name of the passband
-            set (i.e. Johnson).
-        * `pbname` (string, optional, default='V'): name of the passband name
-            (i.e. V).
-        * `effwl` (float, optional, default=5500.0): effective wavelength in
-            `wlunits`.
-        * `wlunits` (unit, optional, default=u.AA): wavelength units from
-            astropy.units used in `ptf` and `effwl`.
-        * `calibrated` (bool, optional, default=False): True if transmission is
-            in true fractional light, False if it is in relative proportions.
-        * `reference` (string, optional, default=''): passband transmission data
-            reference (i.e. ADPS).
-        * `version` (float, optional, default=1.0): file version.
-        * `comments` (string, optional, default=''): any additional comments
-            about the passband.
-        * `oversampling` (int, optional, default=1): the multiplicative factor
-            of PTF dispersion to attain higher integration accuracy.
-        * `ptf_order` (int, optional, default=3): spline order for fitting
-            the passband transmission function.
-        * `from_file` (bool, optional, default=False): a switch that instructs
-            the class instance to skip all calculations and load all data from
-            the file passed to the <phoebe.atmospheres.passbands.Passband.load>
-            method.
-
-        Returns
-        ---------
-        * an instatiated <phoebe.atmospheres.passbands.Passband> object.
-
         <phoebe.atmospheres.passbands.Passband> class holds data and tools for
         passband-related computations, such as blackbody intensity, model
         atmosphere intensity, etc.
@@ -216,6 +183,39 @@ class Passband:
         ```
 
         see <phoebe.atmospheres.passbands.content>
+
+        Arguments
+        ----------
+        * `ptf` (string, optional, default=None): passband transmission file: a
+            2-column file with wavelength in `wlunits` and transmission in
+            arbitrary units.
+        * `pbset` (string, optional, default='Johnson'): name of the passband
+            set (i.e. Johnson).
+        * `pbname` (string, optional, default='V'): name of the passband name
+            (i.e. V).
+        * `effwl` (float, optional, default=5500.0): effective wavelength in
+            `wlunits`.
+        * `wlunits` (unit, optional, default=u.AA): wavelength units from
+            astropy.units used in `ptf` and `effwl`.
+        * `calibrated` (bool, optional, default=False): True if transmission is
+            in true fractional light, False if it is in relative proportions.
+        * `reference` (string, optional, default=''): passband transmission data
+            reference (i.e. ADPS).
+        * `version` (float, optional, default=1.0): file version.
+        * `comments` (string, optional, default=''): any additional comments
+            about the passband.
+        * `oversampling` (int, optional, default=1): the multiplicative factor
+            of PTF dispersion to attain higher integration accuracy.
+        * `ptf_order` (int, optional, default=3): spline order for fitting
+            the passband transmission function.
+        * `from_file` (bool, optional, default=False): a switch that instructs
+            the class instance to skip all calculations and load all data from
+            the file passed to the <phoebe.atmospheres.passbands.Passband.load>
+            method.
+
+        Returns
+        ---------
+        * an instatiated <phoebe.atmospheres.passbands.Passband> object.
         """
 
         self.h = h.value
@@ -753,25 +753,6 @@ class Passband:
         """
         Computes blackbody intensity interpolation functions/tables.
 
-        Arguments
-        ----------
-        * `teffs` (array, optional, default=None): an array of effective
-          temperatures. If None, a default array from ~300K to ~500000K with
-          97 steps is used. The default array is uniform in log10 scale.
-        * `include_extinction` (boolean, optional, default=False): should the
-          extinction tables be computed as well. The mean effect of reddening
-          (a weighted average) on a passband uses the Gordon et al. (2009,
-          2014) prescription of extinction.
-        * `rvs` (array, optional, default=None): a custom array of extinction
-          factor Rv values. Rv is defined at Av / E(B-V) where Av is the
-          visual extinction in magnitudes. If None, the default linspace(2, 6,
-          16) is used.
-        * `ebvs` (array, optional, default=None): a custom array of color
-          excess E(B-V) values. If None, the default linspace(0, 3, 30) is
-          used.
-        * `verbose` (bool, optional, default=False): set to True to display
-           progress in the terminal.
-
         Intensities are computed across the passed range of effective
         temperatures. If `teffs=None`, the function falls back onto the
         default temperature range, ~316K to ~501kK. It does this for two
@@ -794,6 +775,25 @@ class Passband:
         For extinction, the function first adopts extinction functions a(x)
         and b(x) from Gordon et al. (2014), applies it to the table of Planck
         functions and then repeats the above process.
+
+        Arguments
+        ----------
+        * `teffs` (array, optional, default=None): an array of effective
+          temperatures. If None, a default array from ~300K to ~500000K with
+          97 steps is used. The default array is uniform in log10 scale.
+        * `include_extinction` (boolean, optional, default=False): should the
+          extinction tables be computed as well. The mean effect of reddening
+          (a weighted average) on a passband uses the Gordon et al. (2009,
+          2014) prescription of extinction.
+        * `rvs` (array, optional, default=None): a custom array of extinction
+          factor Rv values. Rv is defined at Av / E(B-V) where Av is the
+          visual extinction in magnitudes. If None, the default linspace(2, 6,
+          16) is used.
+        * `ebvs` (array, optional, default=None): a custom array of color
+          excess E(B-V) values. If None, the default linspace(0, 3, 30) is
+          used.
+        * `verbose` (bool, optional, default=False): set to True to display
+           progress in the terminal.
         """
 
         if verbose:
