@@ -33,6 +33,7 @@ def initiate_sun_earth_system(pb_str, atm='blackbody'):
 
     b.set_value_all('irrad_method', 'none')
     b.set_value_all('blending_method', value='none')
+    # b.set_value_all('ld_blending_method', value='none')
 
     if atm == 'blackbody':
         b.set_value_all('atm', value='blackbody')

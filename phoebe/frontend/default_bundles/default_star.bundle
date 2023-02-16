@@ -427,8 +427,8 @@ null
 "choices": [
 "auto",
 "phoenix",
-"tmap",
-"ck2004"
+"ck2004",
+"tmap"
 ],
 "value": "auto",
 "visible_if": "ld_mode_bol:lookup",
@@ -878,10 +878,12 @@ null
 "context": "compute",
 "description": "Atmosphere table",
 "choices": [
+"ck2004",
 "extern_atmx",
+"phoenix",
 "tmap",
-"extern_planckint",
-"blackbody"
+"blackbody",
+"extern_planckint"
 ],
 "value": "ck2004",
 "copy_for": {
@@ -904,7 +906,7 @@ null
 "nearest",
 "linear"
 ],
-"value": "linear",
+"value": "none",
 "visible_if": "atm:!blackbody",
 "copy_for": {
 "kind": [
@@ -926,8 +928,8 @@ null
 "nearest",
 "linear"
 ],
-"value": "nearest",
-"visible_if": "atm:!blackbody,blending_method:!none",
+"value": "none",
+"visible_if": "atm:!blackbody",
 "copy_for": {
 "kind": [
 "star"
@@ -1077,10 +1079,12 @@ null
 "context": "compute",
 "description": "Atmosphere table",
 "choices": [
+"ck2004",
 "extern_atmx",
+"phoenix",
 "tmap",
-"extern_planckint",
-"blackbody"
+"blackbody",
+"extern_planckint"
 ],
 "value": "ck2004",
 "copy_for": false,
@@ -1098,7 +1102,7 @@ null
 "nearest",
 "linear"
 ],
-"value": "linear",
+"value": "none",
 "visible_if": "atm:!blackbody",
 "copy_for": false,
 "Class": "ChoiceParameter"
@@ -1115,8 +1119,8 @@ null
 "nearest",
 "linear"
 ],
-"value": "nearest",
-"visible_if": "atm:!blackbody,blending_method:!none",
+"value": "none",
+"visible_if": "atm:!blackbody",
 "copy_for": false,
 "Class": "ChoiceParameter"
 },
@@ -1225,7 +1229,7 @@ null
 "qualifier": "phoebe_version",
 "context": "setting",
 "description": "Version of PHOEBE",
-"value": "2.4.6.dev",
+"value": "2.4.8.dev+feature-blending",
 "copy_for": false,
 "readonly": true,
 "advanced": true,

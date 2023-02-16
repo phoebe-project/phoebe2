@@ -10308,7 +10308,12 @@ class Bundle(ParameterSet):
                 teff = self.get_value(qualifier='teff', component=ldcs_param.component, context='component', unit='K', **_skip_filter_checks)
                 logg = self.get_value(qualifier='logg', component=ldcs_param.component, context='component', **_skip_filter_checks)
                 abun = self.get_value(qualifier='abun', component=ldcs_param.component, context='component', **_skip_filter_checks)
-                ld_extrapolation_method = compute_ps.get_value(qualifier='ld_blending_method', component=ldcs_param.component, **_skip_filter_checks)
+
+                # NOTE: only compute_ps.kind == 'phoebe' defines this parameter, so for
+                # all other backends that do not have this parameter, the following
+                # expression will default to 'none'.
+                ld_extrapolation_method = compute_ps.get_value(qualifier='ld_blending_method', component=ldcs_param.component, default='none', **_skip_filter_checks)
+                
                 if is_bol:
                     intens_weighting = 'energy'
                 else:
