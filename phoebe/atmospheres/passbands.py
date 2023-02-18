@@ -268,7 +268,11 @@ class Passband:
         self.ptf_photon_area = interpolate.splint(self.wl[0], self.wl[-1], self.ptf_photon_func, 0)
 
         # Initialize (empty) history:
-        self.history = {}
+        self.history = []
+
+        # If any comments are passed, add them to history:
+        if comments != '':
+            self.add_to_history(comments)
 
         # Initialize passband tables:
         self.atm_axes = dict()
@@ -289,13 +293,27 @@ class Passband:
         self.ndp = dict()
 
     def __repr__(self):
-        return '<Passband: %s:%s>' % (self.pbset, self.pbname)
+        return f'<Passband: {self.pbset}:{self.pbname}>'
 
     def __str__(self):
         # old passband files do not have versions embedded, that is why we have to do this:
         if not hasattr(self, 'version') or self.version is None:
             self.version = 1.0
-        return('Passband: %s:%s\nVersion:  %1.1f\nProvides: %s' % (self.pbset, self.pbname, self.version, self.content))
+        return f'Passband: {self.pbset}:{self.pbname}\nVersion:  {self.version:1.1f}\nProvides: {self.content}\nHistory:  {self.history}'
+
+    def add_to_history(self, comment):
+        """
+        Adds a comment to the passband file header.
+
+        Parameters
+        ----------
+        * `comment` (string, required): comment to be added to the passband header.
+        """
+
+        if not isinstance(comment, str):
+            raise ValueError('passband header comments must be strings.')
+        
+        self.history.append(f'{time.ctime()}: {comment}')
 
     def on_updated_ptf(self, ptf, wlunits=u.AA, oversampling=1, ptf_order=3):
         """
@@ -364,13 +382,13 @@ class Passband:
         header['CONTENT'] = str(self.content)
 
         # Add all existing history entries:
-        for entry in self.history.keys():
-            header['HISTORY'] = entry + ': ' + self.history[entry] + '-END-'
+        for entry in self.history:
+            header['history'] = entry
 
         # Append any new history entry:
         if history_entry:
-            header['HISTORY'] = '%s: %s' % (timestamp, history_entry) + '-END-'
-            self.history[timestamp] = history_entry
+            self.history.append(f'{timestamp}: {history_entry}')
+            header['history'] = self.history[-1]
 
         if 'extern_planckint:Inorm' in self.content or 'extern_atmx:Inorm' in self.content:
             header['WD_IDX'] = self.extern_wd_idx
@@ -385,7 +403,12 @@ class Passband:
         data.append(fits.table_to_hdu(Table(self.ptf_table, meta={'extname': 'PTFTABLE'})))
 
         if 'blackbody:Inorm' in self.content:
-            bb_func = Table({'teff': self._bb_func_energy[0], 'logi_e': self._bb_func_energy[1], 'logi_p': self._bb_func_photon[1]}, meta={'extname': 'BB_FUNC'})
+            bb_func = Table({
+                'teff': self._bb_func_energy[0],
+                'logi_e': self._bb_func_energy[1],
+                'logi_p': self._bb_func_photon[1]},
+                meta={'extname': 'BB_FUNC'
+            })
             data.append(fits.table_to_hdu(bb_func))
 
         if 'blackbody:ext' in self.content:
@@ -542,13 +565,14 @@ class Passband:
             self.ptf_photon_area = header['ptfparea']
 
             self.content = eval(header['content'], {'__builtins__':None}, {})
+            self.history = list(header.get('history', ''))
 
-            try:
-                history = ''.join([l.ljust(72) if '-END-' not in l else l for l in header['HISTORY']]).split('-END-')
-            except KeyError:
-                history = []
+            # try:
+            #     history = ''.join([l.ljust(72) if '-END-' not in l else l for l in header['HISTORY']]).split('-END-')
+            # except KeyError:
+            #     history = []
 
-            self.history = {h.split(': ')[0]: ': '.join(h.split(': ')[1:]) for h in history if len(h.split(': ')) > 1}
+            # self.history = {h.split(': ')[0]: ': '.join(h.split(': ')[1:]) for h in history if len(h.split(': ')) > 1}
 
             self.atm_axes = dict()
             self.ext_axes = dict()
@@ -2027,10 +2051,10 @@ class Passband:
         # print(f'{teffs=}\n{loggs=}\n{abuns=}\n{ldatm=}\n{ld_func=}\n{ld_coeffs=}\n{intens_weighting=}\n{ld_extrapolation_method=}\n{raise_on_nans=}')
 
         if ldatm in [None, 'none', 'blackbody', 'extern_planckint', 'extern_atmx'] and ld_func == 'interp':
-            raise ValueError(f'{ldatm=} cannot be used with {ld_func=}.')
+            raise ValueError(f'ldatm={ldatm} cannot be used with ld_func={ld_func}.')
 
         if ldatm in [None, 'none', 'blackbody', 'extern_planckint', 'extern_atmx'] and ld_func != 'interp' and ld_coeffs is None:
-            raise ValueError(f'{ldatm=} with {ld_func=} cannot be used without passing ld_coeffs.')
+            raise ValueError(f'ldatm={ldatm} with ld_func={ld_func} cannot be used without passing ld_coeffs.')
 
         if ld_func != 'interp' and ld_coeffs is None:
             ld_coeffs = self.interpolate_ldcoeffs(teffs, loggs, abuns, ldatm, ld_func, intens_weighting=intens_weighting, ld_extrapolation_method=ld_extrapolation_method)
