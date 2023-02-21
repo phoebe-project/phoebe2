@@ -310,7 +310,7 @@ class Passband:
         data.append(primary_hdu)
 
         # Tables:
-        ptf_table = Table(self.ptf_table)
+        atms = np.unique([content.split(':')[0] for content in self.content])
         data.append(fits.table_to_hdu(Table(self.ptf_table, meta={'extname': 'PTFTABLE'})))
 
         if 'blackbody:Inorm' in self.content:
@@ -322,7 +322,7 @@ class Passband:
             data.append(fits.table_to_hdu(Table({'ebv': self._bb_extinct_axes[1]}, meta={'extname': 'BB_EBVS'})))
             data.append(fits.table_to_hdu(Table({'rv': self._bb_extinct_axes[2]}, meta={'extname': 'BB_RVS'})))
 
-        if 'ck2004:Inorm' in self.content:
+        if 'ck2004' in atms:
             ck_teffs, ck_loggs, ck_abuns = self._ck2004_axes
             data.append(fits.table_to_hdu(Table({'teff': ck_teffs}, meta={'extname': 'CK_TEFFS'})))
             data.append(fits.table_to_hdu(Table({'logg': ck_loggs}, meta={'extname': 'CK_LOGGS'})))
@@ -338,7 +338,7 @@ class Passband:
             data.append(fits.table_to_hdu(Table({'ebv': ck_ebvs}, meta={'extname': 'CK_EBVS'})))
             data.append(fits.table_to_hdu(Table({'rv': ck_rvs}, meta={'extname': 'CK_RVS'})))
 
-        if 'phoenix:Inorm' in self.content:
+        if 'phoenix' in atms:
             ph_teffs, ph_loggs, ph_abuns = self._phoenix_axes
             data.append(fits.table_to_hdu(Table({'teff': ph_teffs}, meta={'extname': 'PH_TEFFS'})))
             data.append(fits.table_to_hdu(Table({'logg': ph_loggs}, meta={'extname': 'PH_LOGGS'})))
