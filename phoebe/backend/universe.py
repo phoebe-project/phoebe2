@@ -1275,10 +1275,15 @@ class Star(Body):
         if isinstance(atm_override, dict):
             atm_override = atm_override.get(component, None)
         atm = b.get_value(qualifier='atm', compute=compute, component=component, atm=atm_override, **_skip_filter_checks) if compute is not None else atm_override if atm_override is not None else 'ck2004'
+        
         blending_method_override = kwargs.pop('blending_method', None)
         blending_method = b.get_value(qualifier='blending_method', compute=compute, component=component, blending_method=blending_method_override, **_skip_filter_checks) if compute is not None else blending_method_override if blending_method_override is not None else 'linear'
         ld_blending_method_override = kwargs.pop('ld_blending_method', None)
         ld_blending_method = b.get_value(qualifier='ld_blending_method', compute=compute, component=component, ld_blending_method=ld_blending_method_override, **_skip_filter_checks) if compute is not None else ld_blending_method_override if ld_blending_method_override is not None else 'nearest'
+        if atm == 'blackbody':  # TODO: what about atm=='extern_atmx'?
+            # blackbody model atmospheres cannot be blended into themselves:
+            blending_method = 'none'
+            ld_blending_method = 'none'
         passband_override = kwargs.pop('passband', None)
         passband = {ds: b.get_value(qualifier='passband', dataset=ds, passband=passband_override, **_skip_filter_checks) for ds in datasets_intens}
         intens_weighting_override = kwargs.pop('intens_weighting', None)
@@ -1301,7 +1306,6 @@ class Star(Body):
         ld_coeffs['bol'] = b.get_value(qualifier='ld_coeffs_bol', component=component, context='component', ld_coeffs_bol=ld_coeffs_bol_override, **_skip_filter_checks)
         profile_rest_override = kwargs.pop('profile_rest', None)
         lp_profile_rest = {ds: b.get_value(qualifier='profile_rest', dataset=ds, unit=u.nm, profile_rest=profile_rest_override, **_skip_filter_checks) for ds in datasets_lp}
-
 
         # we'll pass kwargs on here so they can be overridden by the classmethod
         # of any subclass and then intercepted again by the __init__ by the
@@ -1873,7 +1877,7 @@ class Star(Body):
                 ld_extrapolation_method=ld_extrapolation_method,
                 blending_method=blending_method
             ).flatten()
-            
+
             # Beaming/boosting
             if boosting_method == 'none' or ignore_effects:
                 boost_factors = 1.0

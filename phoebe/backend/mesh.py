@@ -320,6 +320,12 @@ class ComputedColumn(object):
             return 0
         return len(self.for_computations)
 
+    def __repr__(self):
+        return f'<ComputedColumn in {self._mesh}, length {len(self)}>'
+
+    def __str__(self):
+        return f'<ComputedColumn in {self._mesh}, length {len(self)}>\n    vertices: {self._vertices}\n    centers: {self._centers}'
+
     @property
     def shape(self):
         return self.for_computations.shape

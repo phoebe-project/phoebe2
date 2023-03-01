@@ -2,10 +2,9 @@
 """
 
 import phoebe
-from phoebe import u
 import numpy as np
-import matplotlib.pyplot as plt
 import os
+
 
 def _get_ld_coeffs(ld_coeff, ld_func, ld_mode='manual'):
     # length of ld_coeffs depends on ld_func
@@ -27,13 +26,11 @@ def _get_ld_coeffs(ld_coeff, ld_func, ld_mode='manual'):
 def test_binary(plot=False, gen_comp=False):
     b = phoebe.Bundle.default_binary()
 
-
     period = b.get_value('period@binary')
-    b.add_dataset('lc', times=np.linspace(0,period,21))
+    b.add_dataset('lc', times=np.linspace(0, period, 21))
     b.add_compute('phoebe', irrad_method='none', compute='phoebe2')
     if gen_comp:
         b.add_compute('legacy', refl_num=0, compute='phoebe1')
-
 
     # set matching limb-darkening for bolometric
     b.set_value_all('ld_mode_bol', 'manual')
@@ -44,7 +41,7 @@ def test_binary(plot=False, gen_comp=False):
     b.set_value_all('ld_func', 'linear')
     b.set_value_all('ld_coeffs', [0.])
 
-    #turn off albedos (legacy requirement)
+    # turn off albedos (legacy requirement)
     b.set_value_all('irrad_frac_refl_bol',  0.0)
 
     for ld_func in b.get('ld_func', component='primary').choices + ['interp']:
@@ -63,7 +60,6 @@ def test_binary(plot=False, gen_comp=False):
                 ld_coeffs = _get_ld_coeffs(ld_coeff, ld_func)
                 ld_coeffs_source = 'none'
 
-
             if ld_func=='interp':
                 atm = 'ck2004'
                 atm_ph1 = 'extern_atmx'
@@ -77,8 +73,7 @@ def test_binary(plot=False, gen_comp=False):
 
             # some ld_funcs aren't supported by legacy.  So let's fall back
             # on logarthmic at least to make sure there isn't a large offset
-            if ld_func in ['logarithmic', 'linear', 'square_root']:
-                # TODO: add linear and square_root once bugs 111 and 112 are fixed
+            if ld_func in ['linear', 'logarithmic', 'square_root']:
                 ld_func_ph1 = ld_func
                 ld_coeffs_ph1 = ld_coeffs
                 exact_comparison = exact_comparison
@@ -135,7 +130,7 @@ def test_binary(plot=False, gen_comp=False):
             if plot:
                 b.plot(dataset='lc01', show=True)
 
-            assert(np.allclose(phoebe2_val, phoebe1_val, rtol=5e-3 if exact_comparison else 0.3, atol=0.))
+            assert np.allclose(phoebe2_val, phoebe1_val, rtol=5e-3 if exact_comparison else 0.3, atol=0.)
 
 
     b.set_value_all('ld_mode', 'manual')
@@ -204,4 +199,4 @@ if __name__ == '__main__':
     logger = phoebe.logger(clevel='INFO')
 
 
-    b = test_binary(plot=False, gen_comp=True)
+    b = test_binary(plot=plot, gen_comp=True)

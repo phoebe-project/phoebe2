@@ -1,6 +1,3 @@
-#from phoebe.c import h, c, k_B
-#from phoebe import u
-from numpy.linalg.linalg import _raise_linalgerror_eigenvalues_nonconvergence
 from phoebe import __version__ as phoebe_version
 from phoebe import conf, mpi
 from phoebe.utils import _bytes
@@ -127,6 +124,7 @@ def raise_out_of_bounds(nanvals, atm=None, ldatm=None, intens_weighting=None):
     value_error += f'values={nanvals}'
     raise ValueError(value_error)
 
+
 class Passband:
     def __init__(self, ptf=None, pbset='Johnson', pbname='V', effwl=5500.0,
                  wlunits=u.AA, calibrated=False, reference='', version=1.0,
@@ -189,7 +187,7 @@ class Passband:
         Arguments
         ----------
         * `ptf` (string, optional, default=None): passband transmission file: a
-            2-column file with wavelength in @wlunits and transmission in
+            2-column file with wavelength in `wlunits` and transmission in
             arbitrary units.
         * `pbset` (string, optional, default='Johnson'): name of the passband
             set (i.e. Johnson).
@@ -199,8 +197,8 @@ class Passband:
             `wlunits`.
         * `wlunits` (unit, optional, default=u.AA): wavelength units from
             astropy.units used in `ptf` and `effwl`.
-        * `calibrated` (bool, optional, default=False): true if transmission is
-            in true fractional light, false if it is in relative proportions.
+        * `calibrated` (bool, optional, default=False): True if transmission is
+            in true fractional light, False if it is in relative proportions.
         * `reference` (string, optional, default=''): passband transmission data
             reference (i.e. ADPS).
         * `version` (float, optional, default=1.0): file version.
@@ -219,10 +217,6 @@ class Passband:
         ---------
         * an instatiated <phoebe.atmospheres.passbands.Passband> object.
         """
-        if "'" in pbset or '"' in pbset:
-            raise ValueError("pbset cannot contain quotation marks")
-        if "'" in pbname or '"' in pbname:
-            raise ValueError("pbset cannot contain quotation marks")
 
         self.h = h.value
         self.c = c.value
@@ -230,6 +224,11 @@ class Passband:
 
         if from_file:
             return
+
+        if "'" in pbset or '"' in pbset:
+            raise ValueError("pbset cannot contain quotation marks")
+        if "'" in pbname or '"' in pbname:
+            raise ValueError("pbname cannot contain quotation marks")
 
         # Initialize content list; each method that adds any content
         # to the passband file needs to add a corresponding label to the
@@ -269,7 +268,11 @@ class Passband:
         self.ptf_photon_area = interpolate.splint(self.wl[0], self.wl[-1], self.ptf_photon_func, 0)
 
         # Initialize (empty) history:
-        self.history = {}
+        self.history = []
+
+        # If any comments are passed, add them to history:
+        if comments != '':
+            self.add_to_history(comments)
 
         # Initialize passband tables:
         self.atm_axes = dict()
@@ -290,13 +293,27 @@ class Passband:
         self.ndp = dict()
 
     def __repr__(self):
-        return '<Passband: %s:%s>' % (self.pbset, self.pbname)
+        return f'<Passband: {self.pbset}:{self.pbname}>'
 
     def __str__(self):
         # old passband files do not have versions embedded, that is why we have to do this:
         if not hasattr(self, 'version') or self.version is None:
             self.version = 1.0
-        return('Passband: %s:%s\nVersion:  %1.1f\nProvides: %s' % (self.pbset, self.pbname, self.version, self.content))
+        return f'Passband: {self.pbset}:{self.pbname}\nVersion:  {self.version:1.1f}\nProvides: {self.content}\nHistory:  {self.history}'
+
+    def add_to_history(self, comment):
+        """
+        Adds a comment to the passband file header.
+
+        Parameters
+        ----------
+        * `comment` (string, required): comment to be added to the passband header.
+        """
+
+        if not isinstance(comment, str):
+            raise ValueError('passband header comments must be strings.')
+        
+        self.history.append(f'{time.ctime()}: {comment}')
 
     def on_updated_ptf(self, ptf, wlunits=u.AA, oversampling=1, ptf_order=3):
         """
@@ -365,13 +382,13 @@ class Passband:
         header['CONTENT'] = str(self.content)
 
         # Add all existing history entries:
-        for entry in self.history.keys():
-            header['HISTORY'] = entry + ': ' + self.history[entry] + '-END-'
+        for entry in self.history:
+            header['history'] = entry
 
         # Append any new history entry:
         if history_entry:
-            header['HISTORY'] = '%s: %s' % (timestamp, history_entry) + '-END-'
-            self.history[timestamp] = history_entry
+            self.history.append(f'{timestamp}: {history_entry}')
+            header['history'] = self.history[-1]
 
         if 'extern_planckint:Inorm' in self.content or 'extern_atmx:Inorm' in self.content:
             header['WD_IDX'] = self.extern_wd_idx
@@ -386,7 +403,12 @@ class Passband:
         data.append(fits.table_to_hdu(Table(self.ptf_table, meta={'extname': 'PTFTABLE'})))
 
         if 'blackbody:Inorm' in self.content:
-            bb_func = Table({'teff': self._bb_func_energy[0], 'logi_e': self._bb_func_energy[1], 'logi_p': self._bb_func_photon[1]}, meta={'extname': 'BB_FUNC'})
+            bb_func = Table({
+                'teff': self._bb_func_energy[0],
+                'logi_e': self._bb_func_energy[1],
+                'logi_p': self._bb_func_photon[1]},
+                meta={'extname': 'BB_FUNC'
+            })
             data.append(fits.table_to_hdu(bb_func))
 
         if 'blackbody:ext' in self.content:
@@ -543,13 +565,14 @@ class Passband:
             self.ptf_photon_area = header['ptfparea']
 
             self.content = eval(header['content'], {'__builtins__':None}, {})
+            self.history = list(header.get('history', ''))
 
-            try:
-                history = ''.join([l.ljust(72) if '-END-' not in l else l for l in header['HISTORY']]).split('-END-')
-            except KeyError:
-                history = []
+            # try:
+            #     history = ''.join([l.ljust(72) if '-END-' not in l else l for l in header['HISTORY']]).split('-END-')
+            # except KeyError:
+            #     history = []
 
-            self.history = {h.split(': ')[0]: ': '.join(h.split(': ')[1:]) for h in history if len(h.split(': ')) > 1}
+            # self.history = {h.split(': ')[0]: ': '.join(h.split(': ')[1:]) for h in history if len(h.split(': ')) > 1}
 
             self.atm_axes = dict()
             self.ext_axes = dict()
@@ -839,8 +862,8 @@ class Passband:
             ext_func = libphoebe.gordon_extinction(wls)  # (47, 2)
             ext = ext_func @ ext_pars  # (47, 480)
             flux_fracs = 10**(-0.4*ext)  # (47, 480)
-            integrand_energy = (pbpfs_energy[:,None,:]*flux_fracs[:,:,None]).T  # ~25ms  (97, 480, 47)
-            integrand_photon = (pbpfs_photon[:,None,:]*flux_fracs[:,:,None]).T  # ~25ms  (97, 480, 47)
+            integrand_energy = (pbpfs_energy[:, None, :]*flux_fracs[:, :, None]).T  # ~25ms  (97, 480, 47)
+            integrand_photon = (pbpfs_photon[:, None, :]*flux_fracs[:, :, None]).T  # ~25ms  (97, 480, 47)
             # integrand = np.einsum('ji,jk->ikj', pbpfs, flux_fracs)  # ~30ms
 
             extincted_intensities_energy = np.trapz(integrand_energy, self.wl, axis=2)  # (97, 480)
@@ -1126,7 +1149,7 @@ class Passband:
         if f'{atm}:Imu' not in self.content:
             self.content.append(f'{atm}:Imu')
 
-    def _ld(self, mu=1.0, ld_coeffs=[0.5], ld_func='linear'):
+    def _ld(self, mu=1.0, ld_coeffs=np.array([[0.5]]), ld_func='linear'):
         ld_coeffs = np.atleast_2d(ld_coeffs)
 
         if ld_func == 'linear':
@@ -1391,7 +1414,7 @@ class Passband:
             raise ValueError(f'Limb darkening coefficients for ldatm={ldatm} are not available; please compute them first.')
 
         axes = self.atm_axes[ldatm][:-1]
-        table = self.ld_photon_grid[ldatm] if intens_weighting == 'photon' else self.ld_energy_grid['ck2004']
+        table = self.ld_photon_grid[ldatm] if intens_weighting == 'photon' else self.ld_energy_grid[ldatm]
 
         req = ndpolator.tabulate((teffs, loggs, abuns))
         ndp = ndpolator.Ndpolator(axes, table)
@@ -1694,6 +1717,10 @@ class Passband:
           table.
         * NotImplementedError: if `ld_func` is not supported.
         """
+        # import inspect
+        # print(f'{teffs=}\n{loggs=}\n{abuns=}\n{atm=}\n{ldatm=}\n{ldint=}\n{ld_func=}\n{ld_coeffs=}\n{intens_weighting=}\n{atm_extrapolation_method=}\n{ld_extrapolation_method=}\n{blending_method=}\n{return_nanmask=}')
+        # for fi in inspect.stack():
+        #     print(fi)
 
         if atm not in ['blackbody', 'extern_planckint', 'extern_atmx', 'ck2004', 'phoenix', 'tmap']:
             raise RuntimeError(f'atm={atm} is not supported.')
@@ -1709,6 +1736,9 @@ class Passband:
 
         raise_on_nans = True if atm_extrapolation_method == 'none' else False
 
+        # tabulate requested atmosphere parameters:
+        req = ndpolator.tabulate((teffs, loggs, abuns))
+
         if atm == 'blackbody' and 'blackbody:Inorm' in self.content:
             # check if the required tables for the chosen ldatm are available:
             if ldatm == 'none' and ld_coeffs is None:
@@ -1720,8 +1750,7 @@ class Passband:
             if blending_method == 'blackbody':
                 raise ValueError(f'the combination of atm={atm} and blending_method={blending_method} is not valid.')
 
-            # tabulate requested atmosphere parameters and look up intensities:
-            req = ndpolator.tabulate((teffs, loggs, abuns))
+            # calculate intensities:
             if intens_weighting == 'photon':
                 intensities = 10**self._log10_Inorm_bb_photon(req[:,0]).reshape(-1, 1)
             else:  # if intens_weighting=='energy':
@@ -1762,6 +1791,7 @@ class Passband:
             else:
                 intensities = 10**self._log10_Inorm(atm=atm, teffs=teffs, loggs=loggs, abuns=abuns, intens_weighting=intens_weighting, atm_extrapolation_method=atm_extrapolation_method, ld_extrapolation_method=ld_extrapolation_method, blending_method=blending_method, raise_on_nans=raise_on_nans, return_nanmask=return_nanmask)
 
+        # print(f'{intensities.flatten()=}')
         return intensities
 
     def _log10_Imu(self, atm, teffs, loggs, abuns, mus, intens_weighting='photon', atm_extrapolation_method='none', ld_extrapolation_method='none', blending_method='none', raise_on_nans=True, return_nanmask=False):
@@ -1972,7 +2002,8 @@ class Passband:
             atm_extrapolation_method=atm_extrapolation_method,
             ld_extrapolation_method=ld_extrapolation_method,
             blending_method=blending_method
-        )
+        ).flatten()
+
         ld = self._ld(ld_func=ld_func, mu=mus, ld_coeffs=ld_coeffs)
         retval = Inorm * ld
 
@@ -1984,30 +2015,66 @@ class Passband:
 
         Arguments
         ----------
+        * `teffs` (float or array, required): effective temperatures for ldint computation
+        * `loggs` (float or array, required): surface gravities for ldint computation
+        * `abuns` (float or array, required): chemical abundances for ldint computation
+        * `ldatm` (string, optional, required with ld_func='interp'): model atmosphere to
+            be used for interpolation
         * `ld_func` (string, optional, default='linear'): limb darkening function
         * `ld_coeffs` (array, optional, default=[[0.5]]): limb darkening coefficients
+        * `intens_weighting` (string, optional, default='photon'): intensity weighting
+            scheme
+        * `ld_extrapolation_method` (string, optional, default='none'): off-grid
+            extrapolation method when ld_func='interp'; one of ['none', 'nearest',
+            'linear']
+        * `raise_on_nans` (boolean, optional, default=True): in the off-grid case when
+            ld_func='interp', should an error be raised
 
         Returns
         -------
-        * (float or array) ldint value(s)
+        * (array) ldint values
+
+        Specific behavior:
+
+        if ldatm is one of ['none', 'blackbody', 'extern_planckint', 'extern_atmx']:
+            ld_func == 'interp': raise an error
+            ld_func != 'interp' and ld_coeffs == 'none': raise an error
+            ld_func != 'interp' and ld_coeffs is a (1, M) array: broadcast to (N, M) array
+            ld_func != 'interp' and ld_coeffs is a (N, M) array: do nothing
+        if ldatm is one of ['ck2004', 'phoenix', 'tmap']:
+            ld_func == 'interp': do nothing
+            ld_func != 'interp' and ld_coeffs == 'none': interpolate ld_coeffs
+            ld_func != 'interp' and ld_coeffs is a (1, M) array: broadcast to (N, M) array
+            ld_func != 'interp' and ld_coeffs is a (N, M) array: do nothing
         """
+
+        # print(f'{teffs=}\n{loggs=}\n{abuns=}\n{ldatm=}\n{ld_func=}\n{ld_coeffs=}\n{intens_weighting=}\n{ld_extrapolation_method=}\n{raise_on_nans=}')
+
+        if ldatm in [None, 'none', 'blackbody', 'extern_planckint', 'extern_atmx'] and ld_func == 'interp':
+            raise ValueError(f'ldatm={ldatm} cannot be used with ld_func={ld_func}.')
+
+        if ldatm in [None, 'none', 'blackbody', 'extern_planckint', 'extern_atmx'] and ld_func != 'interp' and ld_coeffs is None:
+            raise ValueError(f'ldatm={ldatm} with ld_func={ld_func} cannot be used without passing ld_coeffs.')
+
+        if ld_func != 'interp' and ld_coeffs is None:
+            ld_coeffs = self.interpolate_ldcoeffs(teffs, loggs, abuns, ldatm, ld_func, intens_weighting=intens_weighting, ld_extrapolation_method=ld_extrapolation_method)
+
+        req = ndpolator.tabulate((teffs, loggs, abuns))
 
         if ld_coeffs is not None:
             ld_coeffs = np.atleast_2d(ld_coeffs)
-
-        req = ndpolator.tabulate((teffs, loggs, abuns))
-        ldints = np.ones(shape=(len(req), 1))
+            ld_coeffs = np.broadcast_to(ld_coeffs, (len(req), ld_coeffs.shape[1]))  # (1, M) -> (N, M) or (N, M) -> (N, M)
 
         if ld_func == 'linear':
-            ldints *= 1-ld_coeffs[:,0]/3
+            ldints = 1-ld_coeffs[:,0]/3
         elif ld_func == 'logarithmic':
-            ldints *= 1-ld_coeffs[:,0]/3+2.*ld_coeffs[:,1]/9
+            ldints = 1-ld_coeffs[:,0]/3+2.*ld_coeffs[:,1]/9
         elif ld_func == 'square_root':
-            ldints *= 1-ld_coeffs[:,0]/3-ld_coeffs[:,1]/5
+            ldints = 1-ld_coeffs[:,0]/3-ld_coeffs[:,1]/5
         elif ld_func == 'quadratic':
-            ldints *= 1-ld_coeffs[:,0]/3-ld_coeffs[:,1]/6
+            ldints = 1-ld_coeffs[:,0]/3-ld_coeffs[:,1]/6
         elif ld_func == 'power':
-            ldints *= 1-ld_coeffs[:,0]/5-ld_coeffs[:,1]/3-3.*ld_coeffs[:,2]/7-ld_coeffs[:,3]/2
+            ldints = 1-ld_coeffs[:,0]/5-ld_coeffs[:,1]/3-3.*ld_coeffs[:,2]/7-ld_coeffs[:,3]/2
         elif ld_func == 'interp':
             axes = self.atm_axes[ldatm][:-1]
             grid = self.ldint_photon_grid[ldatm] if intens_weighting == 'photon' else self.ldint_energy_grid[ldatm]
