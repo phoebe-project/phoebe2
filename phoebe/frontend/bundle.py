@@ -3799,7 +3799,7 @@ class Bundle(ParameterSet):
                                         [pbparam, atmparam],
                                         True)
 
-                for check,content in [(pb_needs_Imu, '{}:Imu'.format(atm)),
+                for check,content in [(pb_needs_Imu and atm not in ['extern_planckint', 'extern_atmx', 'blackbody'], '{}:Imu'.format(atm)),
                                       (pb_needs_ld and atm not in ['extern_planckint', 'extern_atmx', 'blackbody'], '{}:ld'.format(atm)),
                                       (pb_needs_ldint and atm not in ['extern_planckint', 'extern_atmx', 'blackbody'], '{}:ldint'.format(atm)),
                                       (pb_needs_ext, '{}:ext'.format(atm)),
