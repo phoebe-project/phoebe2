@@ -425,8 +425,7 @@ class Passband:
             data.append(fits.table_to_hdu(Table({'mu': ck_mus}, meta={'extname': 'CK_MUS'})))
 
         if 'ck2004:ext' in self.content:
-            ck_ebvs = self._ck2004_extinct_axes[-2]
-            ck_rvs = self._ck2004_extinct_axes[-1]
+            ck_teffs, ck_loggs, ck_abuns, ck_ebvs, ck_rvs = self.ext_axes['ck2004']
             data.append(fits.table_to_hdu(Table({'ebv': ck_ebvs}, meta={'extname': 'CK_EBVS'})))
             data.append(fits.table_to_hdu(Table({'rv': ck_rvs}, meta={'extname': 'CK_RVS'})))
 
@@ -439,8 +438,7 @@ class Passband:
             data.append(fits.table_to_hdu(Table({'mu': ph_mus}, meta={'extname': 'PH_MUS'})))
 
         if 'phoenix:ext' in self.content:
-            ph_ebvs = self._phoenix_extinct_axes[-2]
-            ph_rvs = self._phoenix_extinct_axes[-1]
+            ph_teffs, ph_loggs, ph_abuns, ph_ebvs, ph_rvs = self.ext_axes['phoenix']
             data.append(fits.table_to_hdu(Table({'ebv': ph_ebvs}, meta={'extname': 'PH_EBVS'})))
             data.append(fits.table_to_hdu(Table({'rv': ph_rvs}, meta={'extname': 'PH_RVS'})))
 
@@ -453,8 +451,7 @@ class Passband:
             data.append(fits.table_to_hdu(Table({'mu': tm_mus}, meta={'extname': 'TM_MUS'})))
 
         if 'tmap:ext' in self.content:
-            tm_ebvs = self._tmap_extinct_axes[-2]
-            tm_rvs = self._tmap_extinct_axes[-1]
+            tm_teffs, tm_loggs, tm_abuns, tm_ebvs, tm_rvs = self.ext_axes['tmap']
             data.append(fits.table_to_hdu(Table({'ebv': tm_ebvs}, meta={'extname': 'TM_EBVS'})))
             data.append(fits.table_to_hdu(Table({'rv': tm_rvs}, meta={'extname': 'TM_RVS'})))
 
@@ -480,8 +477,8 @@ class Passband:
             data.append(fits.ImageHDU(self.ldint_photon_grid['ck2004'], name='CKIPGRID'))
 
         if 'ck2004:ext' in self.content:
-            data.append(fits.ImageHDU(self._ck2004_extinct_energy_grid, name='CKXEGRID'))
-            data.append(fits.ImageHDU(self._ck2004_extinct_photon_grid, name='CKXPGRID'))
+            data.append(fits.ImageHDU(self.ext_energy_grid['ck2004'], name='CKXEGRID'))
+            data.append(fits.ImageHDU(self.ext_photon_grid['ck2004'], name='CKXPGRID'))
 
         if 'phoenix:Imu' in self.content:
             data.append(fits.ImageHDU(self.atm_energy_grid['phoenix'], name='PHFEGRID'))
@@ -500,8 +497,8 @@ class Passband:
             data.append(fits.ImageHDU(self.ldint_photon_grid['phoenix'], name='PHIPGRID'))
 
         if 'phoenix:ext' in self.content:
-            data.append(fits.ImageHDU(self._phoenix_extinct_energy_grid, name='PHXEGRID'))
-            data.append(fits.ImageHDU(self._phoenix_extinct_photon_grid, name='PHXPGRID'))
+            data.append(fits.ImageHDU(self.ext_energy_grid['phoenix'], name='PHXEGRID'))
+            data.append(fits.ImageHDU(self.ext_photon_grid['phoenix'], name='PHXPGRID'))
 
         if 'tmap:Imu' in self.content:
             data.append(fits.ImageHDU(self.atm_energy_grid['tmap'], name='TMFEGRID'))
@@ -520,8 +517,8 @@ class Passband:
             data.append(fits.ImageHDU(self.ldint_photon_grid['tmap'], name='TMIPGRID'))
 
         if 'tmap:ext' in self.content:
-            data.append(fits.ImageHDU(self._tmap_extinct_energy_grid, name='TMXEGRID'))
-            data.append(fits.ImageHDU(self._tmap_extinct_photon_grid, name='TMXPGRID'))
+            data.append(fits.ImageHDU(self.ext_energy_grid['tmap'], name='TMXEGRID'))
+            data.append(fits.ImageHDU(self.ext_photon_grid['tmap'], name='TMXPGRID'))
 
         pb = fits.HDUList(data)
         pb.writeto(archive, overwrite=overwrite)
@@ -679,9 +676,9 @@ class Passband:
                     self.ldint_photon_grid['phoenix'] = hdul['phipgrid'].data
 
                 if 'phoenix:ext' in self.content:
-                    self._phoenix_extinct_axes = (np.array(list(hdul['ph_teffs'].data['teff'])),np.array(list(hdul['ph_loggs'].data['logg'])), np.array(list(hdul['ph_abuns'].data['abun'])), np.array(list(hdul['ph_ebvs'].data['ebv'])), np.array(list(hdul['ph_rvs'].data['rv'])))
-                    self._phoenix_extinct_energy_grid = hdul['phxegrid'].data
-                    self._phoenix_extinct_photon_grid = hdul['phxpgrid'].data
+                    self.ext_axes['phoenix'] = (np.array(list(hdul['ph_teffs'].data['teff'])), np.array(list(hdul['ph_loggs'].data['logg'])), np.array(list(hdul['ph_abuns'].data['abun'])), np.array(list(hdul['ph_ebvs'].data['ebv'])), np.array(list(hdul['ph_rvs'].data['rv'])))
+                    self.ext_energy_grid['phoenix'] = hdul['phxegrid'].data
+                    self.ext_photon_grid['phoenix'] = hdul['phxpgrid'].data
 
                 if 'tmap:Imu' in self.content:
                     self.atm_axes['tmap'] = (np.array(list(hdul['tm_teffs'].data['teff'])), np.array(list(hdul['tm_loggs'].data['logg'])), np.array(list(hdul['tm_abuns'].data['abun'])), np.array(list(hdul['tm_mus'].data['mu'])))
@@ -709,9 +706,9 @@ class Passband:
                     self.ldint_photon_grid['tmap'] = hdul['tmipgrid'].data
 
                 if 'tmap:ext' in self.content:
-                    self._tmap_extinct_axes = (np.array(list(hdul['tm_teffs'].data['teff'])), np.array(list(hdul['tm_loggs'].data['logg'])), np.array(list(hdul['tm_abuns'].data['abun'])), np.array(list(hdul['tm_ebvs'].data['ebv'])), np.array(list(hdul['tm_rvs'].data['rv'])))
-                    self._tmap_extinct_energy_grid = hdul['tmxegrid'].data
-                    self._tmap_extinct_photon_grid = hdul['tmxpgrid'].data
+                    self.ext_axes['tmap'] = (np.array(list(hdul['tm_teffs'].data['teff'])), np.array(list(hdul['tm_loggs'].data['logg'])), np.array(list(hdul['tm_abuns'].data['abun'])), np.array(list(hdul['tm_ebvs'].data['ebv'])), np.array(list(hdul['tm_rvs'].data['rv'])))
+                    self.ext_energy_grid['tmap'] = hdul['tmxegrid'].data
+                    self.ext_photon_grid['tmap'] = hdul['tmxpgrid'].data
 
         return self
 
@@ -983,7 +980,7 @@ class Passband:
                 rvs = np.linspace(2., 6., 16)
             if ebvs is None:
                 ebvs = np.linspace(0., 3., 30)
-            
+
             ebv_list = np.tile(np.repeat(ebvs, len(rvs)), nmodels)
             rv_list = np.tile(rvs, nmodels*len(ebvs))
 
@@ -1104,7 +1101,7 @@ class Passband:
 
             if f'{atm}:ext' not in self.content:
                 self.content.append(f'{atm}:ext')
-        
+
         # Set the limb (mu=0) to 0; in log this formally means flux density=1W/m3, but compared to ~10 that is
         # the typical table[:,:,:,1,:] value, for all practical purposes that is still 0.
         self.atm_energy_grid[atm][:,:,:,0,:][~np.isnan(self.atm_energy_grid[atm][:,:,:,1,:])] = 0.0
@@ -1386,7 +1383,7 @@ class Passband:
         * `ldatm` (string, default='ck2004'): limb darkening table: 'ck2004' or 'phoenix'
         * `ld_func` (string, default='power'): limb darkening fitting function: 'linear',
           'logarithmic', 'square_root', 'quadratic', 'power' or 'all'
-        * `intens_weighting` (string, optional, default='photon'): 
+        * `intens_weighting` (string, optional, default='photon'):
         * `ld_extrapolation_method` (string, optional, default='none'): extrapolation mode:
             'none', 'nearest', 'linear'
 
@@ -1623,19 +1620,19 @@ class Passband:
                     if shift.sum() == 0:
                         raise ValueError('how did we get here?')
 
-                    # project the vertex distance to the nearest hyperface/hyperedge:                    
+                    # project the vertex distance to the nearest hyperface/hyperedge:
                     distance_vector *= shift
                     distance = np.linalg.norm(distance_vector)
 
                     if distance > 1:
                         blints_per_corner.append(log10_Inorm_bb[si])
                         continue
-                    
+
                     alpha = blending_factor(distance)
 
                     blints_per_corner.append((1-alpha)*log10_Inorm_bb[si] + alpha*log10_Inorm[nanmask][si])
                     # print(f'distance={distance}, alpha={alpha}, bb={ints_bb[si]}, ck={ints_ck[nanmask][si]}, bl={blints_per_corner[-1]}')
-                    
+
                 log10_Inorm_bl[si] = np.mean(blints_per_corner)
 
             log10_Inorm[nanmask] = log10_Inorm_bl[:,None]
@@ -1727,10 +1724,10 @@ class Passband:
 
         if ldatm not in ['none', 'ck2004', 'phoenix', 'tmap']:
             raise ValueError(f'ldatm={ldatm} is not supported.')
-        
+
         if intens_weighting not in ['energy', 'photon']:
             raise ValueError(f'intens_weighting={intens_weighting} is not supported.')
-        
+
         if blending_method not in ['none', 'blackbody']:
             raise ValueError(f'blending_method={blending_method} is not supported.')
 
@@ -1784,7 +1781,7 @@ class Passband:
         else:
             if f'{atm}:Imu' not in self.content:
                 raise ValueError(f'atm={atm} tables are not available in the {self.pbset}:{self.pbname} passband.')
-            
+
             if return_nanmask:
                 intensities, nanmask = self._log10_Inorm(atm=atm, teffs=teffs, loggs=loggs, abuns=abuns, intens_weighting=intens_weighting, atm_extrapolation_method=atm_extrapolation_method, ld_extrapolation_method=ld_extrapolation_method, blending_method=blending_method, raise_on_nans=raise_on_nans, return_nanmask=return_nanmask)
                 intensities = (10**intensities, nanmask)
@@ -1878,19 +1875,19 @@ class Passband:
                     if shift.sum() == 0:
                         raise ValueError('how did we get here?')
 
-                    # project the vertex distance to the nearest hyperface/hyperedge:                    
+                    # project the vertex distance to the nearest hyperface/hyperedge:
                     distance_vector *= shift
                     distance = np.linalg.norm(distance_vector)
 
                     if distance > 1:
                         blints_per_corner.append(log10_Imu_bb[si])
                         continue
-                    
+
                     alpha = blending_factor(distance)
 
                     blints_per_corner.append((1-alpha)*log10_Imu_bb[si] + alpha*log10_Imu[nanmask][si])
                     # print(f'distance={distance}, alpha={alpha}, bb={ints_bb[si]}, ck={ints_ck[nanmask][si]}, bl={blints_per_corner[-1]}')
-                    
+
                 log10_Imu_bl[si] = np.mean(blints_per_corner)
 
             log10_Imu[nanmask] = log10_Imu_bl[:,None]
@@ -1975,7 +1972,7 @@ class Passband:
 
             if atm not in self.content and f'{atm}:Imu' not in self.content:
                 raise ValueError(f'atm={atm} tables are not available in the {self.pbset}:{self.pbname} passband.')
-            
+
             if return_nanmask:
                 intensities, nanmask = self._log10_Imu(atm=atm, teffs=teffs, loggs=loggs, abuns=abuns, mus=mus, intens_weighting=intens_weighting, atm_extrapolation_method=atm_extrapolation_method, ld_extrapolation_method=ld_extrapolation_method, blending_method=blending_method, raise_on_nans=raise_on_nans, return_nanmask=return_nanmask)
                 intensities = (10**intensities, nanmask)
@@ -3094,22 +3091,22 @@ if __name__ == '__main__':
     )
 
     pb.compute_blackbody_intensities(include_extinction=True)
-    pb.compute_bb_reddening(verbose=True)
+#    pb.compute_bb_reddening(verbose=True)
 
-    pb.compute_intensities(atm='ck2004', path='tables/ck2004', impute=True, verbose=True)
+    pb.compute_intensities(atm='ck2004', path='tables/ck2004', impute=True, include_extinction=True, verbose=True)
     pb.compute_ldcoeffs(ldatm='ck2004')
     pb.compute_ldints(ldatm='ck2004')
-    pb.compute_ck2004_reddening(path='tables/ck2004', verbose=True)
+#    pb.compute_ck2004_reddening(path='tables/ck2004', verbose=True)
 
-    pb.compute_intensities(atm='phoenix', path='tables/phoenix', impute=True, verbose=True)
+    pb.compute_intensities(atm='phoenix', path='tables/phoenix', impute=True, include_extinction=True, verbose=True)
     pb.compute_ldcoeffs(ldatm='phoenix')
     pb.compute_ldints(ldatm='phoenix')
-    pb.compute_phoenix_reddening(path='tables/phoenix', verbose=True)
+#    pb.compute_phoenix_reddening(path='tables/phoenix', verbose=True)
 
-    pb.compute_intensities(atm='tmap', path='tables/tmap', impute=True, verbose=True)
+    pb.compute_intensities(atm='tmap', path='tables/tmap', include_extinction=True, impute=True, verbose=True)
     pb.compute_ldcoeffs(ldatm='tmap')
     pb.compute_ldints(ldatm='tmap')
-    pb.compute_tmap_reddening(path='tables/tmap', verbose=True)
+#    pb.compute_tmap_reddening(path='tables/tmap', verbose=True)
 
     pb.import_wd_atmcof('tables/wd/atmcofplanck.dat', 'tables/wd/atmcof.dat', 7)
 
