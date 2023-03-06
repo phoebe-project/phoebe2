@@ -5,12 +5,6 @@ PHOEBE_SKIP_SCRIPTS=TRUE: will not install phoebe-server and phoebe-autofig exec
 """
 import sys
 
-# try:
-#   import numpy
-# except ImportError:
-#   print("Numpy is needed for running and building of PHOEBE")
-#   sys.exit(1)
-
 try:
   import numpy
   import setuptools
