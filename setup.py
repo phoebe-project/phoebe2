@@ -393,22 +393,19 @@ def _env_variable_bool(key, default):
     else:
         return False
 
-# numpy distutils does not support passing long_description_content_type
-# so we'll have to manually convert to rst and strip out the html in the header
-# but we also don't want to have to make m2r a hard dependency for installation
-try:
-    import m2r
-except ImportError:
-    with open('README.md', 'rb') as fh:
-        long_description = fh.read().decode("utf-8")
-else:
-    long_description_s = m2r.parse_from_file("README.md").split('\n')
-    long_description = "\n".join(long_description_s[long_description_s.index("INTRODUCTION"):])
+# numpy distutils did not support passing long_description_content_type
+# so we had to manually convert to rst and strip out the html in the header
+# however no such issues with setuptools
+
+from pathlib import Path
+this_directory = Path(__file__).parent
+long_description = (this_directory / "README.md").read_text()
 
 setup (name = 'phoebe',
        version = '2.4.11',
        description = 'PHOEBE 2.4',
        long_description=long_description,
+       long_description_content_type='text/markdown',
        author = 'PHOEBE development team',
        author_email = 'phoebe-devel@lists.sourceforge.net',
        url = 'http://github.com/phoebe-project/phoebe2',
