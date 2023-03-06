@@ -13,12 +13,6 @@ except ImportError:
   print("Numpy, setuptools and packaging are needed for the running and building of PHOEBE")
   sys.exit(1)
 
-# from numpy.distutils.core import setup, Extension
-# from numpy.distutils.command.build_ext import build_ext
-# from numpy.distutils.command.build_py import build_py
-#
-# from distutils.version import Version, StrictVersion
-# from distutils.cmd import Command
 
 from setuptools import setup, Command, Extension
 from setuptools.command.build_ext import build_ext
