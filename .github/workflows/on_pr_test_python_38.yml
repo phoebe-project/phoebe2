@@ -32,6 +32,10 @@ jobs:
           numpy-version: "1.18"
           scipy-version: "1.8"
           astropy-version: "3.0"
+        - os: "macos-12"          # astropy failing to build. Ticket amended.
+          numpy-version: "1.18"
+          scipy-version: "1.8"
+          astropy-version: "3.0"
         - mpl-version: "3.6"      # requires numpy 1.19+
           numpy-version: "1.18"
         - scipy-version: "1.10"   # requires numpy 1.19.5+
