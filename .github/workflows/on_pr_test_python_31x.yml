@@ -24,13 +24,18 @@ jobs:
         scipy-version: ["1.8", "1.10"]
         # mpl-version: ["3.2", "3.3", "3.4", "3.5", "3.6"]
         mpl-version: ["3.2", "3.6"]
-        os: [ubuntu-latest, macos-11] # https://docs.github.com/en/actions/using-github-hosted-runners/about-github-hosted-runners
+        os: [ubuntu-latest, macos-11, macos-12] # https://docs.github.com/en/actions/using-github-hosted-runners/about-github-hosted-runners
         exclude:
         - python-version: "3.11"
           scipy-version: "1.8"
         - python-version: "3.11"  # numpy 1.22 requires python 3.8<=3.10
           numpy-version: "1.22"
         - os: macos-11            # URGENT: test_rm.py:test_binary fails
+          python-version: "3.11"
+          numpy-version: "1.24"
+          scipy-version: "1.10"
+          astropy-version: "5.0"
+        - os: macos-12            # URGENT: test_rm.py:test_binary fails
           python-version: "3.11"
           numpy-version: "1.24"
           scipy-version: "1.10"
