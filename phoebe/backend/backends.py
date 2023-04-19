@@ -2141,6 +2141,11 @@ class JktebopBackend(BaseBackendByDataset):
         ringsize = computeparams.get_value(qualifier='ringsize', unit=u.deg, ringsize=kwargs.get('ringsize', None), **_skip_filter_checks)
         distortion_method = computeparams.get_value(qualifier='distortion_method', distortion_method=kwargs.get('distortion_method', None), **_skip_filter_checks)
         irrad_method = computeparams.get_value(qualifier='irrad_method', irrad_method=kwargs.get('irrad_method', None), **_skip_filter_checks)
+        fti_method = computeparams.get_value(qualifier='fti_method', fti_method=kwargs.get('fti_method', None), **_skip_filter_checks)
+        if fti_method == 'oversample':
+            fti_oversample = computeparams.get_value(qualifier='fti_oversample', fti_oversample=kwargs.get('fti_oversample', None), **_skip_filter_checks)
+        else:
+            fti_oversample = 0
 
         rA = b.get_value(qualifier='requiv', component=starrefs[0], context='component', unit=u.solRad, **_skip_filter_checks)
         rB = b.get_value(qualifier='requiv', component=starrefs[1], context='component', unit=u.solRad, **_skip_filter_checks)
@@ -2165,6 +2170,8 @@ class JktebopBackend(BaseBackendByDataset):
                     ringsize=ringsize,
                     distortion_method=distortion_method,
                     irrad_method=irrad_method,
+                    fti_method=fti_method,
+                    fti_oversample=fti_oversample,
                     rA=rA, rB=rB,
                     sma=sma, incl=incl, q=q,
                     ecosw=ecosw, esinw=esinw,
@@ -2187,6 +2194,8 @@ class JktebopBackend(BaseBackendByDataset):
         ringsize = kwargs.get('ringsize')
         distortion_method = kwargs.get('distortion_method')
         irrad_method = kwargs.get('irrad_method')
+        fti_method = kwargs.get('fti_method')
+        fti_oversample = kwargs.get('fti_oversample')
         rA = kwargs.get('rA')
         rB = kwargs.get('rB')
         sma = kwargs.get('sma')
@@ -2205,13 +2214,19 @@ class JktebopBackend(BaseBackendByDataset):
         t0_supconj = kwargs.get('t0_supconj')
 
         # get dataset-dependent things that we need
-        ldfuncA = b.get_value(qualifier='ld_func', component=starrefs[0], dataset=info['dataset'], context='dataset', **_skip_filter_checks)
-        ldfuncB = b.get_value(qualifier='ld_func', component=starrefs[1], dataset=info['dataset'], context='dataset', **_skip_filter_checks)
+        ds_ps = b.filter(dataset=info['dataset'], context='dataset', **_skip_filter_checks)
+        ldfuncA = ds_ps.get_value(qualifier='ld_func', component=starrefs[0], **_skip_filter_checks)
+        ldfuncB = ds_ps.get_value(qualifier='ld_func', component=starrefs[1], **_skip_filter_checks)
+
+        if 'exptime' in ds_ps.qualifiers:
+            exptime = ds_ps.get_value(qualifier='exptime', unit=u.s, **_skip_filter_checks)
+        else:
+            exptime = 0.0
 
         # use check_visible=False to access the ld_coeffs from
         # compute_ld_coeffs(set_value=True) done in _worker_setup
-        ldcoeffsA = b.get_value(qualifier='ld_coeffs', component=starrefs[0], dataset=info['dataset'], context='dataset', **_skip_filter_checks)
-        ldcoeffsB = b.get_value(qualifier='ld_coeffs', component=starrefs[1], dataset=info['dataset'], context='dataset', **_skip_filter_checks)
+        ldcoeffsA = ds_ps.get_value(qualifier='ld_coeffs', component=starrefs[0], **_skip_filter_checks)
+        ldcoeffsB = ds_ps.get_value(qualifier='ld_coeffs', component=starrefs[1], **_skip_filter_checks)
 
         if irrad_method == "biaxial-spheroid":
             albA = b.get_value(qualifier='irrad_frac_refl_bol', component=starrefs[0], context='component', **_skip_filter_checks)
@@ -2230,23 +2245,6 @@ class JktebopBackend(BaseBackendByDataset):
             # NOTE: this is now handle in b.run_checks, so should never happen
             # TODO: provide a more useful error statement
             raise ValueError("jktebop only accepts the following options for ld_func: {}".format(ldfuncs.keys()))
-
-        # Check for finite integration time (should be an if statement instead of a try except)
-        try:
-            fti_oversample = b[f"fti_oversample@{info['dataset']}@{compute}"].value
-            exptime = b[f"exptime@{info['dataset']}"].value
-        except AttributeError:
-            fti_oversample = None
-            exptime = None
-
-        # fti_oversample = b.get_value(         # This fails for some reason with "two values present (jktebop, phoebe)" or "no value present"
-        #     qualifier='fti_oversample', dataset=info['dataset'], check_visible=True, check_default=True
-        # )
-        # exptime = b.get_value(qualifier='exptime', dataset=info['dataset'], check_visible=True, check_default=True)
-        if fti_oversample == 'none' or fti_oversample == 0:
-            fti_oversample = None
-        if exptime == 'none' or exptime == 0:
-            exptime = None
 
         # create the input file for jktebop
         # uncomment this block, comment out the following block and the os.remove at the end
@@ -2374,8 +2372,8 @@ class JktebopBackend(BaseBackendByDataset):
         # occupying a total time interval of NINTERVAL (seconds) by including this line:
         #   NUMI  [numint]  [ninterval]
 
-        if fti_oversample is not None and exptime is not None:
-            fi.write(f'NUMINT {fti_oversample} {exptime}\n')
+        if fti_method == 'oversample' and fti_oversample > 0 and exptime > 0:
+            fi.write(f'NUMI {fti_oversample} {exptime}\n')
 
         fi.close()
 
