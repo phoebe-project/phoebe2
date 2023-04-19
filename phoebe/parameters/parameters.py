@@ -8372,8 +8372,8 @@ class SelectParameter(Parameter):
         if isinstance(value, str):
             value = [value]
 
-        if not isinstance(value, list):
-            raise TypeError("value must be a list of strings, received {}".format(type(value)))
+        if not isinstance(value, (list, tuple, np.ndarray)):
+            raise TypeError("value must be a list, tuple, or array of strings, received {}".format(type(value)))
 
         try:
             value = [str(v) for v in value]

@@ -1747,11 +1747,14 @@ class Star(Body):
 
         rvs = -1*self.mesh.velocities.for_computations[:,2]
 
-
         # Gravitational redshift
         if self.do_rv_grav:
-            rv_grav = c.G*(self.mass*u.solMass)/(self.instantaneous_rpole*u.solRad)/c.c
-            # rvs are in solRad/d internally
+            # self.mass is in solar masses
+            # self.instantaneous_rpole is in Roche units, i.e. r/a
+            rpole = self.instantaneous_rpole*self.sma*u.solRad
+            rv_grav = c.G*(self.mass*u.solMass)/rpole/c.c
+
+            # rvs are in solRad/d internally, so we need to convert:
             rv_grav = rv_grav.to('solRad/d').value
 
             rvs += rv_grav
@@ -2009,7 +2012,9 @@ class Star_roche(Star):
 
     @property
     def needs_recompute_instantaneous(self):
-        return self.needs_remesh
+        # recompute instantaneous for asynchronous spots, even if meshing
+        # doesn't need to be recomputed
+        return self.needs_remesh or (len(self.features) and self.F != 1.0)
 
     @property
     def needs_remesh(self):
@@ -2022,7 +2027,7 @@ class Star_roche(Star):
         for feature in self.features:
             if feature._remeshing_required:
                 return True
-        
+
         return self.is_misaligned or self.ecc != 0 or self.dynamics_method != 'keplerian'
 
     @property
@@ -2437,6 +2442,12 @@ class Star_rotstar(Star):
     @property
     def is_convex(self):
         return True
+
+    @property
+    def needs_recompute_instantaneous(self):
+        # recompute instantaneous for asynchronous spots, even if meshing
+        # doesn't need to be recomputed
+        return self.needs_remesh or (len(self.features) and self.F != 1.0)
 
     @property
     def needs_remesh(self):

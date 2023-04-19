@@ -2164,7 +2164,7 @@ null,
 "compute": "phoebe01",
 "kind": "phoebe",
 "context": "compute",
-"description": "Which method to use to handle all irradiation effects (reflection, redistribution)",
+"description": "Which method to use to handle all irradiation effects (reflection)",
 "choices": [
 "none",
 "wilson",
