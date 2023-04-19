@@ -85,6 +85,17 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.4.10
+
+* fixes implementation of gravitational redshift.
+* fixes an unitialized value problem in gradients resulting in nans for effective temperatures.
+* minor updates to passband exporting to support upcoming 2.5 release on the passbands server.
+* allows setting SelectParameter to an array or tuple (in addition to a list).
+
+### 2.4.9 - asynchronous spots bugfix
+
+* fixes bug introduced in 2.4.8 and ensures that temperatures are recomputed for spots when the star is rotating asynchronously.
+
 ### 2.4.8 - spots optimization bugfix
 
 * spots no longer force the mesh to be recomputed at each timepoint.
