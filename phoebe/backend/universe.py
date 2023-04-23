@@ -2001,9 +2001,7 @@ class Star_roche(Star):
 
     @property
     def needs_recompute_instantaneous(self):
-        # recompute instantaneous for asynchronous spots, even if meshing
-        # doesn't need to be recomputed
-        return self.needs_remesh or (len(self.features) and self.F != 1.0)
+        return self.needs_remesh or np.any([feature.needs_recompute_instantaneous for feature in self.features])
 
     @property
     def needs_remesh(self):
@@ -2244,6 +2242,10 @@ class Star_roche_envelope_half(Star):
         return False
 
     @property
+    def needs_recompute_instantaneous(self):
+        return self.needs_remesh
+
+    @property
     def needs_remesh(self):
         """
         whether the star needs to be re-meshed (for any reason)
@@ -2422,17 +2424,13 @@ class Star_rotstar(Star):
                                                     datasets,
                                                     **kwargs)
 
-
-
     @property
     def is_convex(self):
         return True
 
     @property
     def needs_recompute_instantaneous(self):
-        # recompute instantaneous for asynchronous spots, even if meshing
-        # doesn't need to be recomputed
-        return self.needs_remesh or (len(self.features) and self.F != 1.0)
+        return self.needs_remesh or np.any([feature.needs_recompute_instantaneous for feature in self.features])
 
     @property
     def needs_remesh(self):
@@ -2606,10 +2604,13 @@ class Star_sphere(Star):
                                                    datasets,
                                                    **kwargs)
 
-
     @property
     def is_convex(self):
         return True
+
+    @property
+    def needs_recompute_instantaneous(self):
+        return self.needs_remesh or np.any([feature.needs_recompute_instantaneous for feature in self.features])
 
     @property
     def needs_remesh(self):
@@ -2718,7 +2719,6 @@ class Star_sphere(Star):
 
         return new_mesh, scale
 
-
 class Star_none(Star):
     """
     Override everything to do nothing... the Star just exists to be a mass
@@ -2728,6 +2728,10 @@ class Star_none(Star):
     @property
     def is_convex(self):
         return True
+
+    @property
+    def needs_recompute_instantaneous(self):
+        return False
 
     @property
     def needs_remesh(self):
@@ -3047,6 +3051,10 @@ class Feature(object):
         return True
 
     @property
+    def needs_recompute_instantaneous(self):
+        return True
+
+    @property
     def proto_coords(self):
         """
         Override this to True if all methods (except process_coords*... those
@@ -3103,9 +3111,13 @@ class Feature(object):
         return teffs
 
 class Spot(Feature):
-    def __init__(self, colat, longitude, dlongdt, radius, relteff, t0, **kwargs):
+    def __init__(self, colat, longitude, dlongdt, radius, relteff, t0, _on_a_single_star=False, **kwargs):
         """
-        Initialize a Spot feature
+        Initialize a Spot feature.
+
+        Note: the `_on_a_single_star` parameter is a bandaid to solve the issue of mesh
+        rotation -- single star meshes are not rotated while binary component meshes are
+        rotated, causing a disconnect in what dlongdt represents.
         """
         super(Spot, self).__init__(**kwargs)
         self._colat = colat
@@ -3114,6 +3126,7 @@ class Spot(Feature):
         self._relteff = relteff
         self._dlongdt = dlongdt
         self._t0 = t0
+        self._on_a_single_star = _on_a_single_star
 
     @classmethod
     def from_bundle(cls, b, feature):
@@ -3127,6 +3140,7 @@ class Spot(Feature):
         longitude = feature_ps.get_value(qualifier='long', unit=u.rad, **_skip_filter_checks)
 
         if len(b.hierarchy.get_stars())>=2:
+            _on_a_single_star = False
             star_ps = b.get_component(component=feature_ps.component, **_skip_filter_checks)
             orbit_ps = b.get_component(component=b.hierarchy.get_parent_of(feature_ps.component), **_skip_filter_checks)
             # TODO: how should this handle dpdt?
@@ -3136,8 +3150,11 @@ class Spot(Feature):
             # syncpar = period_anom_orb / period_star
             period_anom_orb = orbit_ps.get_value(qualifier='period_anom', unit=u.d, **_skip_filter_checks)
             period_star = star_ps.get_value(qualifier='period', unit=u.d, **_skip_filter_checks)
-            dlongdt = 2*pi * (period_anom_orb/period_star - 1) / period_anom_orb
+            dlongdt = 2*np.pi * (period_anom_orb/period_star - 1) / period_anom_orb
+            dlongdt = 2*np.pi/period_star
+            print(f'{period_anom_orb=} {period_star=} {dlongdt=}')
         else:
+            _on_a_single_star = True
             star_ps = b.get_component(component=feature_ps.component, **_skip_filter_checks)
             dlongdt = star_ps.get_value(qualifier='freq', unit=u.rad/u.d, **_skip_filter_checks)
             longitude += np.pi/2
@@ -3147,10 +3164,18 @@ class Spot(Feature):
 
         t0 = b.get_value(qualifier='t0', context='system', unit=u.d, **_skip_filter_checks)
 
-        return cls(colat, longitude, dlongdt, radius, relteff, t0)
+        return cls(colat, longitude, dlongdt, radius, relteff, t0, _on_a_single_star)
 
     @property
     def _remeshing_required(self):
+        return False
+
+    @property
+    def needs_recompute_instantaneous(self):
+        if self._on_a_single_star:
+            return True
+        if self._dlongdt != 0 or self._dperdt != 0:
+            return True
         return False
 
     @property
@@ -3163,19 +3188,21 @@ class Spot(Feature):
         """
         s is the spin vector in roche coordinates
         time is the current time
+        returns spot center in roche coordinates
         """
         t = time - self._t0
         longitude = self._longitude + self._dlongdt * t
+        print(f'{longitude=}')
 
         # define the basis vectors in the spin (primed) coordinates in terms of
         # the Roche coordinates.
         # ez' = s
-        # ex' =  (ex - s(s.ex)) /|i - s(s.ex)|
-        # ey' = s x ex'
+        # ex' =  (ex - s(s.ex)) / ||ex - s(s.ex)||
+        # ey' = ez' x ex'
         ex = np.array([1., 0., 0.])
         ezp = s
-        exp = (ex - s*np.dot(s,ex))
-        eyp = np.cross(s, exp)
+        exp = (ex - s*np.dot(s, ex))/np.linalg.norm(ex - s*np.dot(s, ex))
+        eyp = np.cross(ezp, exp)
 
         return np.sin(self._colat)*np.cos(longitude)*exp +\
                   np.sin(self._colat)*np.sin(longitude)*eyp +\
@@ -3195,7 +3222,7 @@ class Spot(Feature):
             # then assume at t0
             t = self._t0
 
-        pointing_vector = self.pointing_vector(s,t)
+        pointing_vector = self.pointing_vector(s, t)
         logger.debug("spot.process_teffs at t={} with pointing_vector={} and radius={}".format(t, pointing_vector, self._radius))
 
         cos_alpha_coords = np.dot(coords, pointing_vector) / np.linalg.norm(coords, axis=1)

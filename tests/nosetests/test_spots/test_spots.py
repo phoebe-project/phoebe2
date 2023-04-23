@@ -7,7 +7,70 @@ import numpy as np
 import matplotlib.pyplot as plt
 import os
 
-def test_binary(plot=False, gen_comp=False):
+def test_single(plot=False):
+    b = phoebe.default_star()
+
+    b.add_spot(radius=30, colat=80, long=0, relteff=0.9)
+
+    times = np.linspace(0, 10-10/100, 100)
+    b.set_value('period', 10)
+    b.add_dataset('mesh', times=times, columns=['teffs'])
+
+    b.run_compute(distortion_method='rotstar', irrad_method='none')
+    if plot:
+        b['mesh'].plot(animate=True, save='single.mp4', fc='teffs')
+    
+    return b
+
+def test_binary(plot=False):
+    b = phoebe.default_binary()
+    b.set_value('period@orbit', 10)
+    b['syncpar@primary'] = 1.0
+
+    b.add_spot(component='primary', radius=30, colat=80, long=0, relteff=0.9)
+
+    times = np.linspace(0, 10-10/100, 100)
+    b.add_dataset('mesh', times=times, columns=['teffs'])
+    b.run_compute(irrad_method='none', model='phoebe2model')
+    if plot:
+        b['mesh'].plot(animate=True, save='binary.mp4', fc='teffs')
+    
+    return b
+
+def test_supersynchronous_binary(plot=False):
+    b = phoebe.default_binary()
+    b.set_value('period@orbit', 10)
+    b['syncpar@primary'] = 5.0
+
+    b.add_spot(component='primary', radius=30, colat=80, long=0, relteff=0.9)
+
+    times = np.linspace(0, 10-10/100, 100)
+    b.add_dataset('mesh', times=times, columns=['teffs'])
+    b.run_compute(irrad_method='none', model='phoebe2model')
+    if plot:
+        b['mesh'].plot(animate=True, save='supersynchronous.mp4', fc='teffs')
+    
+    return b
+
+def test_misaligned_binary(plot=False):
+    b = phoebe.default_binary()
+    b.set_value('period@orbit', 10)
+    b.set_value('yaw@primary', 0)
+    b.set_value('pitch@primary', -90)
+    b.set_value('syncpar@primary', 1.0)
+
+    b.add_spot(component='primary', radius=30, colat=45, long=0, relteff=0.9)
+
+    times = np.linspace(0, 10-10/100, 100)
+    b.add_dataset('mesh', times=times, columns=['teffs'])
+    b.run_compute(irrad_method='none', model='phoebe2model')
+
+    if plot:
+        b['mesh'].plot(animate=True, save='misaligned.mp4', fc='teffs')
+    
+    return b
+
+def test_binary_against_legacy(plot=False, gen_comp=False):
     b = phoebe.Bundle.default_binary()
 
     b.add_spot(component='primary', relteff=0.9, radius=20, colat=45, long=90, feature='spot01')
@@ -59,7 +122,10 @@ def test_binary(plot=False, gen_comp=False):
     return b
 
 if __name__ == '__main__':
-    logger = phoebe.logger(clevel='DEBUG')
+    # logger = phoebe.logger(clevel='DEBUG')
 
-
-    b = test_binary(plot=True, gen_comp=True)
+    # b = test_single(plot=True)
+    # b = test_binary(plot=False)
+    # b = test_supersynchronous_binary(plot=True)
+    b = test_misaligned_binary(plot=True)
+    # b = test_binary(plot=True, gen_comp=True)
