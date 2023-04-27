@@ -1778,7 +1778,7 @@ def mass(b, component, solve_for=None, **kwargs):
     #
     # return lhs, rhs, [esinw, ecosw, ecc, per0], {'orbit': orbit}
 
-_validsolvefor['comp_sma'] = ['sma@orbit', 'incl@orbit']
+_validsolvefor['comp_sma'] = ['sma@orbit', 'incl@orbit', 'q']
 def comp_sma(b, component, solve_for=None, **kwargs):
     """
     Create a constraint for the star's semi-major axes WITHIN its
@@ -1854,12 +1854,20 @@ def comp_sma(b, component, solve_for=None, **kwargs):
         lhs = sma
         rhs = compsma * qthing
 
+    elif solve_for == q:
+        if hier.get_primary_or_secondary(component)=='primary':
+            lhs = q
+            rhs = 1.0 / ((sma / compsma) - 1.0)
+        else:
+            lhs = q
+            rhs = (sma / compsma) - 1.0
+
     else:
         raise NotImplementedError
 
     return lhs, rhs, [], {'component': component}
 
-_validsolvefor['comp_asini'] = ['asini@star', 'sma@orbit']
+_validsolvefor['comp_asini'] = ['asini@star', 'sma@orbit', 'q']
 def comp_asini(b, component, solve_for=None, **kwargs):
     """
     Create a constraint for the star's projected semi-major axes WITHIN its
