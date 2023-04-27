@@ -1934,6 +1934,13 @@ def comp_asini(b, component, solve_for=None, **kwargs):
         lhs = sma
         rhs = compasini / sin(incl) * qthing
 
+    elif solve_for == q:
+        if hier.get_primary_or_secondary(component)=='primary':
+            lhs = q
+            rhs = 1 / (((sma + sin(incl)) / compasini) - 1)
+        else:
+            lhs = q
+            rhs = ((sma + sin(incl)) / compasini) - 1
     else:
         raise NotImplementedError
 
