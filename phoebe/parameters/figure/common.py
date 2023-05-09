@@ -205,9 +205,9 @@ def _figure_style_nosources(b, cycler='default', **kwargs):
 
     params += [ChoiceParameter(qualifier='color', value=b._mplcolorcyclers.get(cycler).get(kwargs.get('color', None)), choices=_mplcolors, description='Default color when plotted via run_figure')]
 
-    params += [ChoiceParameter(qualifier='marker', value=b._mplmarkercyclers.get(cycler).get(kwargs.get('marker', None)) if kwargs.get('marker', None) is not "None" else "None", choices=["None"] + _mplmarkers, description='Default marker when plotted via run_figure')]
+    params += [ChoiceParameter(qualifier='marker', value=b._mplmarkercyclers.get(cycler).get(kwargs.get('marker', None)) if kwargs.get('marker', None) != "None" else "None", choices=["None"] + _mplmarkers, description='Default marker when plotted via run_figure')]
 
-    params += [ChoiceParameter(qualifier='linestyle', value=b._mpllinestylecyclers.get(cycler).get(kwargs.get('linestyle', None)) if kwargs.get('linestyle', None) is not "None" else "None", choices=["None"] + _mpllinestyles, description='Default linestyle when plotted via run_figure')]
+    params += [ChoiceParameter(qualifier='linestyle', value=b._mpllinestylecyclers.get(cycler).get(kwargs.get('linestyle', None)) if kwargs.get('linestyle', None) != "None" else "None", choices=["None"] + _mpllinestyles, description='Default linestyle when plotted via run_figure')]
 
     return params
 
