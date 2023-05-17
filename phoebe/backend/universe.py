@@ -1137,7 +1137,6 @@ class Star(Body):
         self.ld_coeffs = ld_coeffs
         self.ld_coeffs_source = ld_coeffs_source
         self.lp_profile_rest = lp_profile_rest
-        self.boosting_index = kwargs.get('boosting_index', 1.0)
         self.boosting_method = kwargs.get('boosting_method', 'none')
 
         # Let's create a dictionary to handle how each dataset should scale between
@@ -1799,8 +1798,7 @@ class Star(Body):
             raise NotImplementedError
 
         boosting_method = kwargs.get('boosting_method', self.boosting_method)
-        if boosting_method == 'manual':
-            bindex = kwargs.get('boosting_index', self.boosting_index)
+
 
         logger.debug("ld_func={}, ld_coeffs={}, atm={}, ldatm={}".format(ld_func, ld_coeffs, atm, ldatm))
 
@@ -1885,6 +1883,7 @@ class Star(Body):
             if boosting_method == 'none' or ignore_effects:
                 boost_factors = 1.0
             elif boosting_method == 'manual':
+                bindex = kwargs.get('boosting_index', self.boosting_index)
                 boost_factors = 1.0 + bindex * self.mesh.velocities.for_computations[:, 2] / 37241.94167601236
             elif boosting_method == 'linear':
                 logger.debug("calling pb.bindex for boosting_method='linear'")
