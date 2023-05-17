@@ -243,7 +243,7 @@ _forbidden_labels += ['times', 'fluxes', 'sigmas', 'sigmas_lnf',
 # from compute:
 _forbidden_labels += ['enabled', 'dynamics_method', 'ltte', 'comments',
                       'gr', 'stepsize', 'integrator',
-                      'irrad_method', 'boosting_method', 'mesh_method', 'distortion_method',
+                      'irrad_method', 'mesh_method', 'distortion_method',
                       'ntriangles', 'rv_grav',
                       'mesh_offset', 'mesh_init_phi', 'horizon_method', 'eclipse_method',
                       'atm', 'lc_method', 'rv_method', 'fti_method', 'fti_oversample',
