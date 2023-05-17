@@ -200,6 +200,9 @@ def lc(syn=False, as_ps=True, is_lc=True, **kwargs):
                                        value=kwargs.get('ld_coeffs', [0.5, 0.5]), default_unit=u.dimensionless_unscaled,
                                        required_shape=[None],
                                        description='Limb darkening coefficients')]
+        params += [ChoiceParameter(qualifier='boosting_method', copy_for={'kind': ['star'], 'component': '*'}, component='_default',
+                                   value=kwargs.get('boosting_method', 'none'), choices=['none', 'manual'],
+                                   description='Method to use for Doppler boosting')]
         params += [FloatArrayParameter(visible_if='boosting_method:manual', qualifier='boosting_index',
                                        copy_for={'kind': ['star'], 'component': '*'}, component='_default',
                                        value=kwargs.get('boosting_index', 1.0), default_unit=u.dimensionless_unscaled,
