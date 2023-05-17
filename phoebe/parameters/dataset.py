@@ -197,6 +197,11 @@ def lc(syn=False, as_ps=True, is_lc=True, **kwargs):
                                        value=kwargs.get('ld_coeffs', [0.5, 0.5]), default_unit=u.dimensionless_unscaled,
                                        required_shape=[None],
                                        description='Limb darkening coefficients')]
+        params += [FloatArrayParameter(visible_if='boosting_method:manual', qualifier='boosting_index',
+                                       copy_for={'kind': ['star'], 'component': '*'}, component='_default',
+                                       value=kwargs.get('boosting_index', 1.0), default_unit=u.dimensionless_unscaled,
+                                       required_shape=[None],
+                                       description='Boosting index')]
 
         passbands._init_passbands()  # NOTE: this only actually does something on the first call
         params += [ChoiceParameter(qualifier='passband', value=kwargs.get('passband', 'Johnson:V'), choices=passbands.list_passbands(), description='Passband')]
