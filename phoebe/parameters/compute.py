@@ -133,7 +133,7 @@ def phoebe(**kwargs):
 
 
     # PHYSICS
-    # TODO: should either of these be per-dataset... if so: copy_for={'kind': ['rv_dep', 'lc_dep'], 'dataset': '*'}, dataset='_default' and then edit universe.py to pull for the correct dataset (will need to become dataset-dependent dictionary a la ld_func)
+    # TODO: should either of these be per-dataset... if so: copy_for={'kind': ['rv', 'lc'], 'dataset': '*'}, dataset='_default' and then edit universe.py to pull for the correct dataset (will need to become dataset-dependent dictionary a la ld_func)
     params += [ChoiceParameter(qualifier='irrad_method', value=kwargs.get('irrad_method', 'horvat'), choices=['none', 'wilson', 'horvat'], description='Which method to use to handle all irradiation effects (reflection)')]
 #boosting method moved to per dataset below:
 #    params += [ChoiceParameter(qualifier='boosting_method', value=kwargs.get('boosting_method', 'none'), choices=['none','manual'], advanced=True, description='Type of boosting method')]
@@ -180,7 +180,7 @@ def phoebe(**kwargs):
     # means that this should exist for each component/dataset pair with the
     # rv_dep kind
     # params += [ChoiceParameter(qualifier='lc_method', copy_for = {'kind': ['lc'], 'dataset': '*'}, dataset='_default', value=kwargs.get('lc_method', 'numerical'), choices=['numerical', 'analytical'] if conf.devel else ['numerical'], advanced=True, description='Method to use for computing LC fluxes')]
-    params += [ChoiceParameter(qualifier='boosting_method', copy_for = {'kind': ['lc_dep','rv_dep'], 'dataset': '*'}, dataset='_default', value=kwargs.get('boosting_method', 'none'), choices=['none','manual'], advanced=True, description='Type of boosting method')]
+#    params += [ChoiceParameter(qualifier='boosting_method', copy_for = {'kind': ['lc_dep','rv_dep'], 'dataset': '*'}, dataset='_default', value=kwargs.get('boosting_method', 'none'), choices=['none','manual'], advanced=True, description='Type of boosting method')]
     params += [ChoiceParameter(qualifier='fti_method', copy_for = {'kind': ['lc'], 'dataset': '*'}, dataset='_default', value=kwargs.get('fti_method', 'none'), choices=['none', 'oversample'], description='How to handle finite-time integration (when non-zero exptime)')]
     params += [IntParameter(visible_if='fti_method:oversample', qualifier='fti_oversample', copy_for={'kind': ['lc'], 'dataset': '*'}, dataset='_default', value=kwargs.get('fti_oversample', 5), limits=(1,None), default_unit=u.dimensionless_unscaled, description='Number of times to sample per-datapoint for finite-time integration')]
 
