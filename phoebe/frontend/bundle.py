@@ -4248,7 +4248,7 @@ class Bundle(ParameterSet):
             # importing a bundle from old releases may still have 'linear' as an option, so we'll check here
             if compute_kind in ['phoebe'] and self.get_value(qualifier='boosting_method', compute=compute, boosting_method=kwargs.get('boosting_method', None), **_skip_filter_checks) not in ['none','manual']:
                 report.add_item(self,
-                                "support for interpolated ('linear') beaming/boosting has been removed since PHOEBE 2.2.  Set boosting_method to 'none' or 'manual'.",
+                                "support for interpolated ('linear') beaming/boosting in compute options has been removed since PHOEBE 2.2.  'manual' boosting is now supported in the dataset options instead.",
                                 [self.get_parameter(qualifier='boosting_method', compute=compute, boosting_method=kwargs.get('boosting_method', None), **_skip_filter_checks)
                                 ]+addl_parameters,
                                 True, 'run_compute')
