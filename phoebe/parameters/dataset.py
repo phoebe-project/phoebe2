@@ -133,6 +133,9 @@ def lc(syn=False, as_ps=True, is_lc=True, **kwargs):
         and will automtically be checked during
         <phoebe.frontend.bundle.Bundle.run_compute>.  Only applicable
        if `ld_mode` is 'manual'.  Only applicable if `syn` is False.
+    * `boosting_method` (string, optional, default='none'): method to use for Doppler boosting ('none' for no boosting, 'manual' for user-supplied boosting index).
+    * `boosting_index` (float, optional): boosting index. Only applicable if
+    `boosting_method` is 'manual'.   
     * `passband` (string, optional): passband.  Only applicable if `syn` is False.
     * `intens_weighting` (string, optional): whether passband intensities are
         weighted by energy or photons.  Only applicable if `syn` is False.
