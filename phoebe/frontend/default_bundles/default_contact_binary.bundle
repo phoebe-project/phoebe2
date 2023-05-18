@@ -426,9 +426,9 @@ null
 "description": "Source for bolometric limb darkening coefficients (used only for irradiation; 'auto' to interpolate from the applicable table according to the 'atm' parameter, or the name of a specific atmosphere table)",
 "choices": [
 "auto",
-"ck2004",
 "phoenix",
-"tmap"
+"tmap",
+"ck2004"
 ],
 "value": "auto",
 "visible_if": "ld_mode_bol:lookup",
@@ -775,9 +775,9 @@ null
 "description": "Source for bolometric limb darkening coefficients (used only for irradiation; 'auto' to interpolate from the applicable table according to the 'atm' parameter, or the name of a specific atmosphere table)",
 "choices": [
 "auto",
-"ck2004",
 "phoenix",
-"tmap"
+"tmap",
+"ck2004"
 ],
 "value": "auto",
 "visible_if": "ld_mode_bol:lookup",
@@ -2278,11 +2278,11 @@ null
 "context": "compute",
 "description": "Atmosphere table",
 "choices": [
-"blackbody",
-"ck2004",
+"extern_atmx",
 "extern_planckint",
+"blackbody",
 "phoenix",
-"extern_atmx"
+"ck2004"
 ],
 "value": "ck2004",
 "copy_for": {
@@ -2291,28 +2291,6 @@ null
 ],
 "component": "*"
 },
-"Class": "ChoiceParameter"
-},
-{
-"qualifier": "boosting_method",
-"dataset": "_default",
-"compute": "phoebe01",
-"kind": "phoebe",
-"context": "compute",
-"description": "Type of boosting method",
-"choices": [
-"none",
-"manual"
-],
-"value": "none",
-"copy_for": {
-"kind": [
-"lc_dep",
-"rv_dep"
-],
-"dataset": "*"
-},
-"advanced": true,
 "Class": "ChoiceParameter"
 },
 {
@@ -2536,11 +2514,11 @@ null
 "context": "compute",
 "description": "Atmosphere table",
 "choices": [
-"blackbody",
-"ck2004",
+"extern_atmx",
 "extern_planckint",
+"blackbody",
 "phoenix",
-"extern_atmx"
+"ck2004"
 ],
 "value": "ck2004",
 "copy_for": false,
@@ -2554,11 +2532,11 @@ null
 "context": "compute",
 "description": "Atmosphere table",
 "choices": [
-"blackbody",
-"ck2004",
+"extern_atmx",
 "extern_planckint",
+"blackbody",
 "phoenix",
-"extern_atmx"
+"ck2004"
 ],
 "value": "ck2004",
 "copy_for": false,
