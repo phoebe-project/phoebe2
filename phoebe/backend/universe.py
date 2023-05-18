@@ -100,7 +100,6 @@ class System(object):
                  horizon_method='boolean',
                  dynamics_method='keplerian',
                  irrad_method='none',
-#                 boosting_method='none',
                  parent_envelope_of={}):
         """
         :parameter dict bodies_dict: dictionary of component names and Bodies (or subclass of Body)
@@ -117,7 +116,6 @@ class System(object):
         for body in self._bodies.values():
             body.system = self
             body.dynamics_method = dynamics_method
-#            body.boosting_method = boosting_method
 
         return
 
@@ -158,13 +156,11 @@ class System(object):
             horizon_method = compute_ps.get_value(qualifier='horizon_method', horizon_method=kwargs.get('horizon_method', None), **_skip_filter_checks)
             dynamics_method = compute_ps.get_value(qualifier='dynamics_method', dynamics_method=kwargs.get('dynamics_method', None), **_skip_filter_checks)
             irrad_method = compute_ps.get_value(qualifier='irrad_method', irrad_method=kwargs.get('irrad_method', None), **_skip_filter_checks)
-#            boosting_method = compute_ps.get_value(qualifier='boosting_method', boosting_method=kwargs.get('boosting_method', None), **_skip_filter_checks)
         else:
             eclipse_method = 'native'
             horizon_method = 'boolean'
             dynamics_method = 'keplerian'
             irrad_method = 'none'
-#            boosting_method = 'none'
             compute_ps = None
 
         # NOTE: here we use globals()[Classname] because getattr doesn't work in
@@ -200,7 +196,6 @@ class System(object):
                    horizon_method=horizon_method,
                    dynamics_method=dynamics_method,
                    irrad_method=irrad_method,
-#                   boosting_method=boosting_method,
                    parent_envelope_of=parent_envelope_of)
 
     def items(self):
