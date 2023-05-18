@@ -181,7 +181,7 @@ def phoebe(**kwargs):
     # means that this should exist for each component/dataset pair with the
     # rv_dep kind
     # params += [ChoiceParameter(qualifier='lc_method', copy_for = {'kind': ['lc'], 'dataset': '*'}, dataset='_default', value=kwargs.get('lc_method', 'numerical'), choices=['numerical', 'analytical'] if conf.devel else ['numerical'], advanced=True, description='Method to use for computing LC fluxes')]
-    params += [ChoiceParameter(qualifier='boosting_method', copy_for = {'kind': ['lc_dep','rv_dep'], 'dataset': '*'}, dataset='_default', value=kwargs.get('boosting_method', 'none'), choices=['none','manual'], advanced=True, description='Type of boosting method')]
+#    params += [ChoiceParameter(qualifier='boosting_method', copy_for = {'kind': ['lc_dep','rv_dep'], 'dataset': '*'}, dataset='_default', value=kwargs.get('boosting_method', 'none'), choices=['none','manual'], advanced=True, description='Type of boosting method')]
     params += [ChoiceParameter(qualifier='fti_method', copy_for = {'kind': ['lc'], 'dataset': '*'}, dataset='_default', value=kwargs.get('fti_method', 'none'), choices=['none', 'oversample'], description='How to handle finite-time integration (when non-zero exptime)')]
     params += [IntParameter(visible_if='fti_method:oversample', qualifier='fti_oversample', copy_for={'kind': ['lc'], 'dataset': '*'}, dataset='_default', value=kwargs.get('fti_oversample', 5), limits=(1,None), default_unit=u.dimensionless_unscaled, description='Number of times to sample per-datapoint for finite-time integration')]
 
