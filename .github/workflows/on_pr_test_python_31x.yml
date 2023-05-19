@@ -35,7 +35,11 @@ jobs:
           numpy-version: "1.24"
           scipy-version: "1.10"
           astropy-version: "5.0"
-
+        - os: macos-12            # URGENT: test_rm.py:test_binary fails
+          python-version: "3.11"
+          numpy-version: "1.24"
+          scipy-version: "1.10"
+          astropy-version: "5.0"
     name: ${{ matrix.os }} python${{ matrix.python-version}} numpy ${{ matrix.numpy-version }} scipy ${{ matrix.scipy-version }} astropy ${{ matrix.astropy-version}}
     steps:
     - name: Checkout PHOEBE
