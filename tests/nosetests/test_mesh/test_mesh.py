@@ -4,8 +4,13 @@
 import phoebe
 from phoebe import u
 import numpy as np
-import matplotlib.pyplot as plt
 import os
+try:
+    import matplotlib.pyplot as plt
+    PLOTTING_ENABLED = True
+except:
+    PLOTTING_ENABLED = False
+
 
 def _phoebe_v_legacy_lc_protomesh(b, gridsize=10, plot=False, gen_comp=False):
     """
@@ -83,11 +88,8 @@ def _phoebe_v_legacy_lc_protomesh(b, gridsize=10, plot=False, gen_comp=False):
                     # the secondary star from phoebe1 is rotated about the z-axis
                     phoebe2_val *= -1
 
-
-            if plot:
+            if PLOTTING_ENABLED and plot:
                 print("{}@{}@{} max diff: {}".format(qualifier, component, dataset, max(np.abs(phoebe1_val-phoebe2_val))))
-
-            if plot:
                 x1 = b.get_value(section='model', model='phoebe1model', component=component, dataset='mesh01', qualifier='xs')
                 # x2 = b.get_value(section='model', model='phoebe2model', component=component, dataset='mesh01', qualifier='xs')[::2]
 

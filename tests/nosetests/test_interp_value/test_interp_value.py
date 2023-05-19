@@ -1,7 +1,5 @@
 import phoebe
 from phoebe import u
-# import numpy as np
-# import matplotlib.pyplot as plt
 
 
 def test_interp_value():

@@ -6,7 +6,6 @@
 import numpy as np
 from numpy import linalg as la
 import libphoebe
-import matplotlib.pyplot as plt
 
 def potential_roche(r, q, F, d):
   r1 = np.array([r[0]- d, r[1], r[2]]);
