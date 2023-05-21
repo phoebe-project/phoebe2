@@ -532,6 +532,10 @@ def jktebop(**kwargs):
         treatment of `distortion_method`.
     * `irrad_method` (string, optional, default='none'): method to use for
         irradiation (ellc does not support irradiation).
+    * `fti_method` (string, optional, default='none'): method to use when accounting
+        for finite exposure times.  NEW IN 2.4.11.
+    * `fti_oversample` (int, optional, default=1): number of integration points
+        used to account for finite exposure time.  Only used if `fti_method`='oversample'.
 
     Returns
     --------
@@ -559,8 +563,8 @@ def jktebop(**kwargs):
     params += [ChoiceParameter(qualifier='distortion_method', value=kwargs.get('distortion_method', 'sphere/biaxial spheroid'), choices=["sphere/biaxial spheroid", "sphere"], description='Method to use for distorting stars (applies to all components). sphere/biaxial-spheroid: spheres for eclipse shapes and biaxial spheroid for calculation of ellipsoidal effects and reflection, sphere: sphere for eclipse shapes and no ellipsoidal or reflection effects')]
     params += [ChoiceParameter(qualifier='irrad_method', value=kwargs.get('irrad_method', 'biaxial-spheroid'), choices=['none', 'biaxial-spheroid'], description='Which method to use to handle all irradiation effects')]
 
-    params += [ChoiceParameter(qualifier='fti_method', copy_for = {'kind': ['lc'], 'dataset': '*'}, dataset='_default', value=kwargs.get('fti_method', 'none'), choices=['none', 'oversample'], description='How to handle finite-time integration (when non-zero exptime)')]
-    params += [IntParameter(visible_if='fti_method:oversample', qualifier='fti_oversample', copy_for={'kind': ['lc'], 'dataset': '*'}, dataset='_default', value=kwargs.get('fti_oversample', 5), limits=(1,None), default_unit=u.dimensionless_unscaled, description='Number of times to sample per-datapoint for finite-time integration')]
+    params += [ChoiceParameter(qualifier='fti_method', copy_for = {'kind': ['lc'], 'dataset': '*'}, dataset='_default', value=kwargs.get('fti_method', 'none'), choices=['none', 'jktebop', 'oversample'], description='How to handle finite-time integration (when non-zero exptime).  jktebop: use jktebop\'s native oversampling. oversample: use phoebe\'s oversampling')]
+    params += [IntParameter(visible_if='fti_method:jktebop|oversample', qualifier='fti_oversample', copy_for={'kind': ['lc'], 'dataset': '*'}, dataset='_default', value=kwargs.get('fti_oversample', 5), limits=(1, None), default_unit=u.dimensionless_unscaled, description='number of integration points used to account for finite exposure time.')]
 
     return ParameterSet(params)
 

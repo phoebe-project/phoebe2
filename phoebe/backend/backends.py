@@ -2141,11 +2141,6 @@ class JktebopBackend(BaseBackendByDataset):
         ringsize = computeparams.get_value(qualifier='ringsize', unit=u.deg, ringsize=kwargs.get('ringsize', None), **_skip_filter_checks)
         distortion_method = computeparams.get_value(qualifier='distortion_method', distortion_method=kwargs.get('distortion_method', None), **_skip_filter_checks)
         irrad_method = computeparams.get_value(qualifier='irrad_method', irrad_method=kwargs.get('irrad_method', None), **_skip_filter_checks)
-        fti_method = computeparams.get_value(qualifier='fti_method', fti_method=kwargs.get('fti_method', None), **_skip_filter_checks)
-        if fti_method == 'oversample':
-            fti_oversample = computeparams.get_value(qualifier='fti_oversample', fti_oversample=kwargs.get('fti_oversample', None), **_skip_filter_checks)
-        else:
-            fti_oversample = 0
 
         rA = b.get_value(qualifier='requiv', component=starrefs[0], context='component', unit=u.solRad, **_skip_filter_checks)
         rB = b.get_value(qualifier='requiv', component=starrefs[1], context='component', unit=u.solRad, **_skip_filter_checks)
@@ -2194,8 +2189,6 @@ class JktebopBackend(BaseBackendByDataset):
         ringsize = kwargs.get('ringsize')
         distortion_method = kwargs.get('distortion_method')
         irrad_method = kwargs.get('irrad_method')
-        fti_method = kwargs.get('fti_method')
-        fti_oversample = kwargs.get('fti_oversample')
         rA = kwargs.get('rA')
         rB = kwargs.get('rB')
         sma = kwargs.get('sma')
@@ -2217,6 +2210,13 @@ class JktebopBackend(BaseBackendByDataset):
         ds_ps = b.filter(dataset=info['dataset'], context='dataset', **_skip_filter_checks)
         ldfuncA = ds_ps.get_value(qualifier='ld_func', component=starrefs[0], **_skip_filter_checks)
         ldfuncB = ds_ps.get_value(qualifier='ld_func', component=starrefs[1], **_skip_filter_checks)
+
+        computeparams = b.filter(compute=compute, context='compute', **_skip_filter_checks)
+        fti_method = computeparams.get_value(qualifier='fti_method', dataset=info['dataset'], fti_method=kwargs.get('fti_method', None), default='none', **_skip_filter_checks)
+        if fti_method == 'jktebop':
+            fti_oversample = computeparams.get_value(qualifier='fti_oversample', dataset=info['dataset'], fti_oversample=kwargs.get('fti_oversample', None), **_skip_filter_checks)
+        else:
+            fti_oversample = 0
 
         if 'exptime' in ds_ps.qualifiers:
             exptime = ds_ps.get_value(qualifier='exptime', unit=u.s, **_skip_filter_checks)
