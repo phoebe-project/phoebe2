@@ -2,9 +2,12 @@
 """
 
 import phoebe
-from phoebe import u
 import numpy as np
-import matplotlib.pyplot as plt
+try:
+    import matplotlib.pyplot as plt
+    PLOTTING_ENABLED = True
+except:
+    PLOTTING_ENABLED = False
 import os
 
 
@@ -80,7 +83,7 @@ def _jktebop_ext_vs_phoebe2(case, plot=False, gen_comp=False):
     # else:
     #     b.import_model(os.path.join(os.path.dirname(__file__), 'test_rvs_{}.comp.model'.format(ind)), model='legnumresults', overwrite=True)
 
-    if plot:
+    if plot and PLOTTING_ENABLED:
         fig, axs = plt.subplots(2, 1, sharex=True, gridspec_kw={'height_ratios': [2, 1]}, figsize=(6, 4))
         axs[0].plot(b['times@jktebop_model1@primary'].get_value(), b['rvs@jktebop_model1@primary'].get_value(), '+', c = 'k', label = 'jktebop backend primary')
         axs[0].plot(b['times@jktebop_model1@secondary'].get_value(), b['rvs@jktebop_model1@secondary'].get_value(), 'x', c = 'k', label = 'jktebop backend secondary')
@@ -98,7 +101,7 @@ def _jktebop_ext_vs_phoebe2(case, plot=False, gen_comp=False):
 
         plt.show()
 
-    if plot:
+    if plot and PLOTTING_ENABLED:
         fig, axs = plt.subplots(2, 1, sharex=True, gridspec_kw={'height_ratios': [2, 1]}, figsize=(6, 4))
         axs[0].plot(b['times@phoebe_model1@primary'].get_value(), b['rvs@phoebe_model1@primary'].get_value(), '+', c = 'k', label = 'phoebe primary')
         axs[0].plot(b['times@phoebe_model1@secondary'].get_value(), b['rvs@phoebe_model1@secondary'].get_value(), 'x', c = 'k', label = 'phoebe secondary')
