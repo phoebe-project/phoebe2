@@ -1086,6 +1086,7 @@ class Star(Body):
                  extinct, Rv,
                  ld_mode, ld_func, ld_coeffs, ld_coeffs_source,
                  lp_profile_rest,
+                 boosting_method, boosting_index,
                  requiv, sma,
                  polar_direction_uvw,
                  freq_rot,
@@ -1132,7 +1133,8 @@ class Star(Body):
         self.ld_coeffs = ld_coeffs
         self.ld_coeffs_source = ld_coeffs_source
         self.lp_profile_rest = lp_profile_rest
-        self.boosting_method = kwargs.get('boosting_method', 'none')
+        self.boosting_method = boosting_method
+        self.boosting_index = boosting_index
 
         # Let's create a dictionary to handle how each dataset should scale between
         # absolute and relative intensities.
@@ -1290,6 +1292,10 @@ class Star(Body):
         ld_coeffs['bol'] = b.get_value(qualifier='ld_coeffs_bol', component=component, context='component', ld_coeffs_bol=ld_coeffs_bol_override, **_skip_filter_checks)
         profile_rest_override = kwargs.pop('profile_rest', None)
         lp_profile_rest = {ds: b.get_value(qualifier='profile_rest', dataset=ds, unit=u.nm, profile_rest=profile_rest_override, **_skip_filter_checks) for ds in datasets_lp}
+        boosting_method_override = kwargs.pop('boosting_method', None)
+        boosting_method = {ds: b.get_value(qualifier='boosting_method', dataset=ds, component=component, ld_mode=boosting_method_override, **_skip_filter_checks) for ds in datasets_intens}
+        boosting_index_override = kwargs.pop('boosting_index', None)
+        boosting_index = {ds: b.get_value(qualifier='boosting_index', dataset=ds, component=component, ld_mode=boosting_index_override, **_skip_filter_checks) for ds in datasets_intens}
 
 
         # we'll pass kwargs on here so they can be overridden by the classmethod
@@ -1312,6 +1318,8 @@ class Star(Body):
                    ld_coeffs,
                    ld_coeffs_source,
                    lp_profile_rest,
+                   boosting_method,
+                   boosting_index,
                    requiv,
                    sma,
                    polar_direction_uvw,
@@ -1769,6 +1777,10 @@ class Star(Body):
         ld_func = kwargs.get('ld_func', self.ld_func.get(dataset, None))
         ld_coeffs = kwargs.get('ld_coeffs', self.ld_coeffs.get(dataset, None)) if ld_mode == 'manual' else None
         ld_coeffs_source = kwargs.get('ld_coeffs_source', self.ld_coeffs_source.get(dataset, 'none')) if ld_mode == 'lookup' else None
+
+        boosting_method = kwargs.get('boosting_method', self.boosting_method.get(dataset, None))
+        bindex = kwargs.get('boosting_index', self.boosting_index.get(dataset, None)) if boosting_method == 'manual' else None
+
         if ld_mode == 'interp':
             # calls to pb.Imu need to pass on ld_func='interp'
             # NOTE: we'll do another check when calling pb.Imu, but we'll also
@@ -1792,7 +1804,7 @@ class Star(Body):
         else:
             raise NotImplementedError
 
-        boosting_method = kwargs.get('boosting_method', self.boosting_method)
+
 
 
         logger.debug("ld_func={}, ld_coeffs={}, atm={}, ldatm={}".format(ld_func, ld_coeffs, atm, ldatm))
@@ -1874,11 +1886,13 @@ class Star(Body):
                                      photon_weighted=intens_weighting=='photon')
 
 
+
             # Beaming/boosting
             if boosting_method == 'none' or ignore_effects:
                 boost_factors = 1.0
             elif boosting_method == 'manual':
-                bindex = kwargs.get('boosting_index', self.boosting_index)
+                # bindex = kwargs.get('boosting_index', self.boosting_index)
+                # bindex = kwargs.get('boosting_index', self.boosting_index.get(dataset, None))
                 boost_factors = 1.0 + bindex * self.mesh.velocities.for_computations[:, 2] / 37241.94167601236
             elif boosting_method == 'linear':
                 logger.debug("calling pb.bindex for boosting_method='linear'")
@@ -1949,6 +1963,7 @@ class Star_roche(Star):
                  extinct, Rv,
                  ld_mode, ld_func, ld_coeffs, ld_coeffs_source,
                  lp_profile_rest,
+                 boosting_method, boosting_index,
                  requiv, sma,
                  polar_direction_uvw,
                  freq_rot,
@@ -1973,6 +1988,7 @@ class Star_roche(Star):
                                          extinct, Rv,
                                          ld_mode, ld_func, ld_coeffs, ld_coeffs_source,
                                          lp_profile_rest,
+                                         boosting_method, boosting_index,
                                          requiv, sma,
                                          polar_direction_uvw,
                                          freq_rot,
@@ -2177,6 +2193,7 @@ class Star_roche_envelope_half(Star):
                  extinct, Rv,
                  ld_mode, ld_func, ld_coeffs, ld_coeffs_source,
                  lp_profile_rest,
+                 boosting_method, boosting_index,
                  requiv, sma,
                  polar_direction_uvw,
                  freq_rot,
@@ -2205,6 +2222,7 @@ class Star_roche_envelope_half(Star):
                                          extinct, Rv,
                                          ld_mode, ld_func, ld_coeffs, ld_coeffs_source,
                                          lp_profile_rest,
+                                         boosting_method, boosting_index,
                                          requiv, sma,
                                          polar_direction_uvw,
                                          freq_rot,
@@ -2380,6 +2398,7 @@ class Star_rotstar(Star):
                  extinct, Rv,
                  ld_mode, ld_func, ld_coeffs, ld_coeffs_source,
                  lp_profile_rest,
+                 boosting_method, boosting_index,
                  requiv, sma,
                  polar_direction_uvw,
                  freq_rot,
@@ -2403,6 +2422,7 @@ class Star_rotstar(Star):
                                            extinct, Rv,
                                            ld_mode, ld_func, ld_coeffs, ld_coeffs_source,
                                            lp_profile_rest,
+                                           boosting_method, boosting_index,
                                            requiv, sma,
                                            polar_direction_uvw,
                                            freq_rot,
@@ -2562,6 +2582,7 @@ class Star_sphere(Star):
                  extinct, Rv,
                  ld_mode, ld_func, ld_coeffs, ld_coeffs_source,
                  lp_profile_rest,
+                 boosting_method, boosting_index,
                  requiv, sma,
                  polar_direction_uvw,
                  freq_rot,
@@ -2586,6 +2607,7 @@ class Star_sphere(Star):
                                           extinct, Rv,
                                           ld_mode, ld_func, ld_coeffs, ld_coeffs_source,
                                           lp_profile_rest,
+                                          boosting_method, boosting_index,
                                           requiv, sma,
                                           polar_direction_uvw,
                                           freq_rot,
