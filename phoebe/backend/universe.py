@@ -1295,7 +1295,7 @@ class Star(Body):
         boosting_method_override = kwargs.pop('boosting_method', None)
         boosting_method = {ds: b.get_value(qualifier='boosting_method', dataset=ds, component=component, boosting_method=boosting_method_override, **_skip_filter_checks) for ds in datasets_intens}
         boosting_index_override = kwargs.pop('boosting_index', None)
-        boosting_index = {ds: b.get_value(qualifier='boosting_index', dataset=ds, component=component, ld_mode=boosting_index_override, **_skip_filter_checks) for ds in datasets_intens}
+        boosting_index = {ds: b.get_value(qualifier='boosting_index', dataset=ds, component=component, boosting_index=boosting_index_override, **_skip_filter_checks) for ds in datasets_intens}
 
 
         # we'll pass kwargs on here so they can be overridden by the classmethod
