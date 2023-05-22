@@ -1293,7 +1293,7 @@ class Star(Body):
         profile_rest_override = kwargs.pop('profile_rest', None)
         lp_profile_rest = {ds: b.get_value(qualifier='profile_rest', dataset=ds, unit=u.nm, profile_rest=profile_rest_override, **_skip_filter_checks) for ds in datasets_lp}
         boosting_method_override = kwargs.pop('boosting_method', None)
-        boosting_method = {ds: b.get_value(qualifier='boosting_method', dataset=ds, component=component, ld_mode=boosting_method_override, **_skip_filter_checks) for ds in datasets_intens}
+        boosting_method = {ds: b.get_value(qualifier='boosting_method', dataset=ds, component=component, boosting_method=boosting_method_override, **_skip_filter_checks) for ds in datasets_intens}
         boosting_index_override = kwargs.pop('boosting_index', None)
         boosting_index = {ds: b.get_value(qualifier='boosting_index', dataset=ds, component=component, ld_mode=boosting_index_override, **_skip_filter_checks) for ds in datasets_intens}
 
