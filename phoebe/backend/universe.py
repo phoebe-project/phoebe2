@@ -1133,7 +1133,8 @@ class Star(Body):
         self.ld_coeffs = ld_coeffs
         self.ld_coeffs_source = ld_coeffs_source
         self.lp_profile_rest = lp_profile_rest
-        self.boosting_method = kwargs.get('boosting_method', 'none')
+        self.boosting_method = boosting_method
+        self.boosting_index = boosting_index
 
         # Let's create a dictionary to handle how each dataset should scale between
         # absolute and relative intensities.
@@ -1292,9 +1293,9 @@ class Star(Body):
         profile_rest_override = kwargs.pop('profile_rest', None)
         lp_profile_rest = {ds: b.get_value(qualifier='profile_rest', dataset=ds, unit=u.nm, profile_rest=profile_rest_override, **_skip_filter_checks) for ds in datasets_lp}
         boosting_method_override = kwargs.pop('boosting_method', None)
-        boosting_method = {ds: b.get_value(qualifier='boosting_method', dataset=ds, component=component, boosting_method=boosting_method_override, **_skip_filter_checks) for ds in datasets_intens}
+        boosting_method = {ds: b.get_value(qualifier='boosting_method', dataset=ds, component=component, ld_mode=boosting_method_override, **_skip_filter_checks) for ds in datasets_intens}
         boosting_index_override = kwargs.pop('boosting_index', None)
-        boosting_index = {ds: b.get_value(qualifier='boosting_index', dataset=ds, component=component, boosting_index=boosting_index_override, **_skip_filter_checks) for ds in datasets_intens}
+        boosting_index = {ds: b.get_value(qualifier='boosting_index', dataset=ds, component=component, ld_mode=boosting_index_override, **_skip_filter_checks) for ds in datasets_intens}
 
 
         # we'll pass kwargs on here so they can be overridden by the classmethod
@@ -1803,8 +1804,6 @@ class Star(Body):
         else:
             raise NotImplementedError
 
-        boosting_method = kwargs.get('boosting_method', self.boosting_method)
-
 
 
 
@@ -1892,7 +1891,8 @@ class Star(Body):
             if boosting_method == 'none' or ignore_effects:
                 boost_factors = 1.0
             elif boosting_method == 'manual':
-                bindex = kwargs.get('boosting_index', self.boosting_index)
+                # bindex = kwargs.get('boosting_index', self.boosting_index)
+                # bindex = kwargs.get('boosting_index', self.boosting_index.get(dataset, None))
                 boost_factors = 1.0 + bindex * self.mesh.velocities.for_computations[:, 2] / 37241.94167601236
             elif boosting_method == 'linear':
                 logger.debug("calling pb.bindex for boosting_method='linear'")
