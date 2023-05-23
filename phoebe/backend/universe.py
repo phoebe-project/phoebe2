@@ -3111,7 +3111,7 @@ class Feature(object):
         return teffs
 
 class Spot(Feature):
-    def __init__(self, colat, longitude, dlongdt, radius, relteff, t0, _on_a_single_star=False, **kwargs):
+    def __init__(self, colat, long, dlongdt, radius, relteff, t0, _on_a_single_star=False, **kwargs):
         """
         Initialize a Spot feature.
 
@@ -3121,7 +3121,7 @@ class Spot(Feature):
         """
         super(Spot, self).__init__(**kwargs)
         self._colat = colat
-        self._longitude = longitude
+        self._long = long
         self._radius = radius
         self._relteff = relteff
         self._dlongdt = dlongdt
@@ -3137,7 +3137,7 @@ class Spot(Feature):
         feature_ps = b.get_feature(feature=feature, **_skip_filter_checks)
 
         colat = feature_ps.get_value(qualifier='colat', unit=u.rad, **_skip_filter_checks)
-        longitude = feature_ps.get_value(qualifier='long', unit=u.rad, **_skip_filter_checks)
+        long = feature_ps.get_value(qualifier='long', unit=u.rad, **_skip_filter_checks)
 
         if len(b.hierarchy.get_stars())>=2:
             _on_a_single_star = False
@@ -3152,19 +3152,19 @@ class Spot(Feature):
             period_star = star_ps.get_value(qualifier='period', unit=u.d, **_skip_filter_checks)
             dlongdt = 2*np.pi * (period_anom_orb/period_star - 1) / period_anom_orb
             dlongdt = 2*np.pi/period_star
-            print(f'{period_anom_orb=} {period_star=} {dlongdt=}')
+            logger.debug(f'{period_anom_orb=} {period_star=} {dlongdt=}')
         else:
             _on_a_single_star = True
             star_ps = b.get_component(component=feature_ps.component, **_skip_filter_checks)
             dlongdt = star_ps.get_value(qualifier='freq', unit=u.rad/u.d, **_skip_filter_checks)
-            longitude += np.pi/2
+            long += np.pi/2
 
         radius = feature_ps.get_value(qualifier='radius', unit=u.rad, **_skip_filter_checks)
         relteff = feature_ps.get_value(qualifier='relteff', unit=u.dimensionless_unscaled, **_skip_filter_checks)
 
         t0 = b.get_value(qualifier='t0', context='system', unit=u.d, **_skip_filter_checks)
 
-        return cls(colat, longitude, dlongdt, radius, relteff, t0, _on_a_single_star)
+        return cls(colat, long, dlongdt, radius, relteff, t0, _on_a_single_star)
 
     @property
     def _remeshing_required(self):
@@ -3191,8 +3191,7 @@ class Spot(Feature):
         returns spot center in roche coordinates
         """
         t = time - self._t0
-        longitude = self._longitude + self._dlongdt * t
-        print(f'{longitude=}')
+        long = self._long + self._dlongdt * t
 
         # define the basis vectors in the spin (primed) coordinates in terms of
         # the Roche coordinates.
@@ -3204,9 +3203,7 @@ class Spot(Feature):
         exp = (ex - s*np.dot(s, ex))/np.linalg.norm(ex - s*np.dot(s, ex))
         eyp = np.cross(ezp, exp)
 
-        return np.sin(self._colat)*np.cos(longitude)*exp +\
-                  np.sin(self._colat)*np.sin(longitude)*eyp +\
-                  np.cos(self._colat)*ezp
+        return np.sin(self._colat)*np.cos(long)*exp + np.sin(self._colat)*np.sin(long)*eyp + np.cos(self._colat)*ezp
 
     def process_teffs(self, teffs, coords, s=np.array([0., 0., 1.]), t=None):
         """

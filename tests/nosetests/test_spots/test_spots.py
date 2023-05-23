@@ -5,6 +5,7 @@ import phoebe
 import numpy as np
 import os
 
+
 def test_single(plot=False):
     b = phoebe.default_star()
 
@@ -17,8 +18,9 @@ def test_single(plot=False):
     b.run_compute(distortion_method='rotstar', irrad_method='none')
     if plot:
         b['mesh'].plot(animate=True, save='single.mp4', fc='teffs')
-    
+
     return b
+
 
 def test_binary(plot=False):
     b = phoebe.default_binary()
@@ -32,8 +34,9 @@ def test_binary(plot=False):
     b.run_compute(irrad_method='none', model='phoebe2model')
     if plot:
         b['mesh'].plot(animate=True, save='binary.mp4', fc='teffs')
-    
+
     return b
+
 
 def test_supersynchronous_binary(plot=False):
     b = phoebe.default_binary()
@@ -47,8 +50,9 @@ def test_supersynchronous_binary(plot=False):
     b.run_compute(irrad_method='none', model='phoebe2model')
     if plot:
         b['mesh'].plot(animate=True, save='supersynchronous.mp4', fc='teffs')
-    
+
     return b
+
 
 def test_misaligned_binary(plot=False):
     b = phoebe.default_binary()
@@ -65,15 +69,16 @@ def test_misaligned_binary(plot=False):
 
     if plot:
         b['mesh'].plot(animate=True, save='misaligned.mp4', fc='teffs')
-    
+
     return b
+
 
 def test_binary_against_legacy(plot=False, gen_comp=False):
     b = phoebe.Bundle.default_binary()
 
     b.add_spot(component='primary', relteff=0.9, radius=20, colat=45, long=90, feature='spot01')
 
-    b.add_dataset('lc', times=np.linspace(0,1,26))
+    b.add_dataset('lc', times=np.linspace(0, 1, 26))
     b.add_dataset('mesh', times=[0], columns=['teffs'])
     b.add_compute('phoebe', compute='phoebe2')
     if gen_comp:
@@ -91,8 +96,7 @@ def test_binary_against_legacy(plot=False, gen_comp=False):
     b.set_value_all('ld_func', 'logarithmic')
     b.set_value_all('ld_coeffs', [0.0, 0.0])
 
-
-    #turn off albedos (legacy requirement)
+    # turn off albedos (legacy requirement)
     b.set_value_all('irrad_frac_refl_bol',  0.0)
 
     print("running phoebe2 model...")
@@ -115,15 +119,16 @@ def test_binary_against_legacy(plot=False, gen_comp=False):
 
         b.plot(dataset='lc01', legend=True, show=True)
 
-    assert(np.allclose(phoebe2_val, phoebe1_val, rtol=2e-3, atol=5e-4))
+    assert np.allclose(phoebe2_val, phoebe1_val, rtol=2e-3, atol=5e-4)
 
     return b
+
 
 if __name__ == '__main__':
     # logger = phoebe.logger(clevel='DEBUG')
 
-    # b = test_single(plot=True)
-    # b = test_binary(plot=False)
-    # b = test_supersynchronous_binary(plot=True)
-    b = test_misaligned_binary(plot=True)
-    # b = test_binary(plot=True, gen_comp=True)
+    test_single(plot=True)
+    test_binary(plot=True)
+    test_supersynchronous_binary(plot=True)
+    # test_misaligned_binary(plot=True)
+    # test_binary(plot=True, gen_comp=True)
