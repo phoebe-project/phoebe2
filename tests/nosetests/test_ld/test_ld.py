@@ -2,9 +2,7 @@
 """
 
 import phoebe
-from phoebe import u
 import numpy as np
-import matplotlib.pyplot as plt
 import os
 
 def _get_ld_coeffs(ld_coeff, ld_func, ld_mode='manual'):
