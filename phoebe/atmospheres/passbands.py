@@ -218,6 +218,11 @@ class Passband:
         * an instatiated <phoebe.atmospheres.passbands.Passband> object.
         """
 
+        if "'" in pbset or '"' in pbset:
+            raise ValueError("pbset cannot contain quotation marks")
+        if "'" in pbname or '"' in pbname:
+            raise ValueError("pbname cannot contain quotation marks")
+
         self.h = h.value
         self.c = c.value
         self.k = k_B.value
@@ -275,22 +280,26 @@ class Passband:
             self.add_to_history(comments)
 
         # Initialize passband tables:
-        self.atm_axes = dict()
-        self.ext_axes = dict()
-        self.atm_energy_grid = dict()
-        self.atm_photon_grid = dict()
-        self.ld_energy_grid = dict()
-        self.ld_photon_grid = dict()
-        self.ldint_energy_grid = dict()
-        self.ldint_photon_grid = dict()
-        self.ext_energy_grid = dict()
-        self.ext_photon_grid = dict()
-        self.nntree = dict()
-        self.indices = dict()
-        self.ics = dict()
-        self.blending_region = dict()
-        self.mapper = dict()
-        self.ndp = dict()
+        self.atm_axes = dict()            # model atmosphere axes
+        self.ext_axes = dict()            # interstellar extinction axes
+        self.atm_energy_grid = dict()     # energy-weighted intensities
+        self.atm_photon_grid = dict()     # photon-weighted intensities
+        self.ld_energy_grid = dict()      # energy-weighted limb darkening coefficients
+        self.ld_photon_grid = dict()      # photon-weighted limb darkening coefficients
+        self.ldint_energy_grid = dict()   # energy-weighted integrated limb darkening functions
+        self.ldint_photon_grid = dict()   # photon-weighted integrated limb darkening functions
+        self.ext_energy_grid = dict()     # energy-weighted interstellar extinction coefficients
+        self.ext_photon_grid = dict()     # photon-weighted interstellar extinction coefficients
+
+        # Initialize n-dimensional interpolators:
+        self.ndp = dict()                 # n-dimensional interpolators
+
+        # Initialize blending- and extrapolation-related tables:
+        # self.nntree = dict()              # nearest neighbor tree for blending and extrapolation
+        # self.indices = dict()             # nearest neighbor indices for blending and extrapolation
+        # self.ics = dict()                 # inferior corners for blending and extrapolation
+        self.blending_region = dict()     # blending regions
+        self.mapper = dict()              # mapping from model atmosphere axes to interpolation axes
 
     def __repr__(self):
         return f'<Passband: {self.pbset}:{self.pbname}>'
@@ -523,7 +532,7 @@ class Passband:
         pb.writeto(archive, overwrite=overwrite)
 
     @classmethod
-    def load(cls, archive, load_content=True):
+    def load(cls, archive, load_content=True, init_extrapolation=True):
         """
         Loads the passband contents from a fits file.
 
@@ -533,6 +542,9 @@ class Passband:
         * `load_content` (bool, optional, default=True): whether to load all
             table contents.  If False, only the headers will be loaded into
             the structure.
+        * `init_extrapolation` (bool, optional, default=True): whether to
+            initialize all structures needed for blending and interpolation.
+            These are quite expensive to initialize.
 
         Returns
         --------
@@ -580,12 +592,15 @@ class Passband:
             self.ldint_photon_grid = dict()
             self.ext_energy_grid = dict()
             self.ext_photon_grid = dict()
-            self.nntree = dict()
-            self.indices = dict()
-            self.ics = dict()
-            self.blending_region = dict()
-            self.mapper = dict()
+
             self.ndp = dict()
+
+            if init_extrapolation:
+                # self.nntree = dict()
+                # self.indices = dict()
+                # self.ics = dict()
+                self.blending_region = dict()
+                self.mapper = dict()
 
             self.ptf_table = hdul['ptftable'].data
             self.wl = np.linspace(self.ptf_table['wl'][0], self.ptf_table['wl'][-1], int(self.wl_oversampling*len(self.ptf_table['wl'])))
@@ -616,29 +631,39 @@ class Passband:
                     self._bb_extinct_energy_grid = hdul['bbegrid'].data
                     self._bb_extinct_photon_grid = hdul['bbpgrid'].data
 
-                if 'ck2004:Imu' in self.content:
-                    self.atm_axes['ck2004'] = (np.array(list(hdul['ck_teffs'].data['teff'])), np.array(list(hdul['ck_loggs'].data['logg'])), np.array(list(hdul['ck_abuns'].data['abun'])), np.array(list(hdul['ck_mus'].data['mu'])))
-                    self.atm_energy_grid['ck2004'] = hdul['ckfegrid'].data
-                    self.atm_photon_grid['ck2004'] = hdul['ckfpgrid'].data
+                for atm in ['ck2004', 'phoenix', 'tmap']:
+                    if f'{atm}:Imu' in self.content:
+                        prefix = atm[:2]
+                        self.atm_axes[atm] = (
+                            np.array(list(hdul[f'{prefix}_teffs'].data['teff'])),
+                            np.array(list(hdul[f'{prefix}_loggs'].data['logg'])),
+                            np.array(list(hdul[f'{prefix}_abuns'].data['abun'])),
+                            np.array(list(hdul[f'{prefix}_mus'].data['mu'])))
+                        self.atm_energy_grid[atm] = hdul[f'{prefix}fegrid'].data
+                        self.atm_photon_grid[atm] = hdul[f'{prefix}fpgrid'].data
 
-                    # Rebuild the table of non-null indices for the nearest neighbor lookup:
-                    self.nntree['ck2004'], self.indices['ck2004'] = ndpolator.kdtree(self.atm_axes['ck2004'][:-1], self.atm_photon_grid['ck2004'][...,-1,:])
+                        self.ndp[f'imu@photon@{atm}'] = ndpolator.Ndpolator(self.atm_axes[atm], self.atm_photon_grid[atm])
+                        self.ndp[f'imu@energy@{atm}'] = ndpolator.Ndpolator(self.atm_axes[atm], self.atm_energy_grid[atm])
 
-                    # Rebuild blending map:
-                    self.blending_region['ck2004'] = ((750, 10000), (0.5, 0.5), (0.5, 0.5))
-                    self.mapper['ck2004'] = lambda v: ndpolator.map_to_cube(v, self.atm_axes['ck2004'][:-1], self.blending_region['ck2004'])
+                        if init_extrapolation:
+                            # Rebuild the table of non-null indices for the nearest neighbor lookup:
+                            # self.nntree[atm], self.indices[atm] = ndpolator.kdtree(self.atm_axes[atm][:-1], self.atm_photon_grid[atm][...,-1,:])
 
-                    # Rebuild the table of inferior corners for extrapolation:
-                    raxes = self.atm_axes['ck2004'][:-1]
-                    subgrid = self.atm_photon_grid['ck2004'][...,-1,:]
-                    self.ics['ck2004'] = np.array([(i, j, k) for i in range(0, len(raxes[0])-1) for j in range(0, len(raxes[1])-1) for k in range(0, len(raxes[2])-1) if ~np.any(np.isnan(subgrid[i:i+2,j:j+2,k:k+2]))])
+                            # Rebuild blending map:
+                            self.blending_region[atm] = ((750, 10000), (0.5, 0.5), (0.5, 0.5))
+                            self.mapper[atm] = lambda v: ndpolator.map_to_cube(v, self.atm_axes[atm][:-1], self.blending_region[atm])
 
-                    self.ndp['imu@photon@ck2004'] = ndpolator.Ndpolator(self.atm_axes['ck2004'], self.atm_photon_grid['ck2004'])
-                    self.ndp['imu@energy@ck2004'] = ndpolator.Ndpolator(self.atm_axes['ck2004'], self.atm_energy_grid['ck2004'])
+                            # Rebuild the table of inferior corners for extrapolation:
+                            # raxes = self.atm_axes[atm][:-1]
+                            # subgrid = self.atm_photon_grid[atm][...,-1,:]
+                            # self.ics[atm] = np.array([(i, j, k) for i in range(0, len(raxes[0])-1) for j in range(0, len(raxes[1])-1) for k in range(0, len(raxes[2])-1) if ~np.any(np.isnan(subgrid[i:i+2,j:j+2,k:k+2]))])
 
-                if 'ck2004:ld' in self.content:
-                    self.ld_energy_grid['ck2004'] = hdul['cklegrid'].data
-                    self.ld_photon_grid['ck2004'] = hdul['cklpgrid'].data
+                    if f'{atm}:ld' in self.content:
+                        self.ld_energy_grid[atm] = hdul[f'{prefix}legrid'].data
+                        self.ld_photon_grid[atm] = hdul[f'{prefix}lpgrid'].data
+
+                        self.ndp[f'ld@photon@{atm}'] = ndpolator.Ndpolator(self.atm_axes[atm][:-1], self.ld_photon_grid[atm])
+                        self.ndp[f'ld@energy@{atm}'] = ndpolator.Ndpolator(self.atm_axes[atm][:-1], self.ld_energy_grid[atm])
 
                 if 'ck2004:ldint' in self.content:
                     self.ldint_energy_grid['ck2004'] = hdul['ckiegrid'].data
@@ -649,26 +674,33 @@ class Passband:
                     self.ext_energy_grid['ck2004'] = hdul['ckxegrid'].data
                     self.ext_photon_grid['ck2004'] = hdul['ckxpgrid'].data
 
-                if 'phoenix:Imu' in self.content:
-                    self.atm_axes['phoenix'] = (np.array(list(hdul['ph_teffs'].data['teff'])), np.array(list(hdul['ph_loggs'].data['logg'])), np.array(list(hdul['ph_abuns'].data['abun'])), np.array(list(hdul['ph_mus'].data['mu'])))
-                    self.atm_energy_grid['phoenix'] = hdul['phfegrid'].data
-                    self.atm_photon_grid['phoenix'] = hdul['phfpgrid'].data
+                # if 'phoenix:Imu' in self.content:
+                #     self.atm_axes['phoenix'] = (np.array(list(hdul['ph_teffs'].data['teff'])), np.array(list(hdul['ph_loggs'].data['logg'])), np.array(list(hdul['ph_abuns'].data['abun'])), np.array(list(hdul['ph_mus'].data['mu'])))
+                #     self.atm_energy_grid['phoenix'] = hdul['phfegrid'].data
+                #     self.atm_photon_grid['phoenix'] = hdul['phfpgrid'].data
 
-                    # Rebuild the table of non-null indices for the nearest neighbor lookup:
-                    self.nntree['phoenix'], self.indices['phoenix'] = ndpolator.kdtree(self.atm_axes['phoenix'][:-1], self.atm_photon_grid['phoenix'][...,-1,:])
+                #     self.ndp['imu@photon@phoenix'] = ndpolator.Ndpolator(self.atm_axes['phoenix'], self.atm_photon_grid['phoenix'])
+                #     self.ndp['imu@energy@phoenix'] = ndpolator.Ndpolator(self.atm_axes['phoenix'], self.atm_energy_grid['phoenix'])
 
-                    # Rebuild blending map:
-                    self.blending_region['phoenix'] = ((750, 2000), (0.5, 0.5), (0.5, 0.5))
-                    self.mapper['phoenix'] = lambda v: ndpolator.map_to_cube(v, self.atm_axes['phoenix'][:-1], self.blending_region['phoenix'])
+                #     if init_extrapolation:
+                #         # Rebuild the table of non-null indices for the nearest neighbor lookup:
+                #         self.nntree['phoenix'], self.indices['phoenix'] = ndpolator.kdtree(self.atm_axes['phoenix'][:-1], self.atm_photon_grid['phoenix'][...,-1,:])
 
-                    # Rebuild the table of inferior corners for extrapolation:
-                    raxes = self.atm_axes['phoenix'][:-1]
-                    subgrid = self.atm_photon_grid['phoenix'][...,-1,:]
-                    self.ics['phoenix'] = np.array([(i, j, k) for i in range(0,len(raxes[0])-1) for j in range(0,len(raxes[1])-1) for k in range(0,len(raxes[2])-1) if ~np.any(np.isnan(subgrid[i:i+2,j:j+2,k:k+2]))])
+                #         # Rebuild blending map:
+                #         self.blending_region['phoenix'] = ((750, 2000), (0.5, 0.5), (0.5, 0.5))
+                #         self.mapper['phoenix'] = lambda v: ndpolator.map_to_cube(v, self.atm_axes['phoenix'][:-1], self.blending_region['phoenix'])
 
-                if 'phoenix:ld' in self.content:
-                    self.ld_energy_grid['phoenix'] = hdul['phlegrid'].data
-                    self.ld_photon_grid['phoenix'] = hdul['phlpgrid'].data
+                #         # Rebuild the table of inferior corners for extrapolation:
+                #         raxes = self.atm_axes['phoenix'][:-1]
+                #         subgrid = self.atm_photon_grid['phoenix'][...,-1,:]
+                #         self.ics['phoenix'] = np.array([(i, j, k) for i in range(0,len(raxes[0])-1) for j in range(0,len(raxes[1])-1) for k in range(0,len(raxes[2])-1) if ~np.any(np.isnan(subgrid[i:i+2,j:j+2,k:k+2]))])
+
+                # if 'phoenix:ld' in self.content:
+                #     self.ld_energy_grid['phoenix'] = hdul['phlegrid'].data
+                #     self.ld_photon_grid['phoenix'] = hdul['phlpgrid'].data
+
+                #     self.ndp['ld@photon@phoenix'] = ndpolator.Ndpolator(self.atm_axes['phoenix'], self.ld_photon_grid['phoenix'])
+                #     self.ndp['ld@energy@phoenix'] = ndpolator.Ndpolator(self.atm_axes['phoenix'], self.ld_energy_grid['phoenix'])
 
                 if 'phoenix:ldint' in self.content:
                     self.ldint_energy_grid['phoenix'] = hdul['phiegrid'].data
@@ -679,26 +711,33 @@ class Passband:
                     self.ext_energy_grid['phoenix'] = hdul['phxegrid'].data
                     self.ext_photon_grid['phoenix'] = hdul['phxpgrid'].data
 
-                if 'tmap:Imu' in self.content:
-                    self.atm_axes['tmap'] = (np.array(list(hdul['tm_teffs'].data['teff'])), np.array(list(hdul['tm_loggs'].data['logg'])), np.array(list(hdul['tm_abuns'].data['abun'])), np.array(list(hdul['tm_mus'].data['mu'])))
-                    self.atm_energy_grid['tmap'] = hdul['tmfegrid'].data
-                    self.atm_photon_grid['tmap'] = hdul['tmfpgrid'].data
+                # if 'tmap:Imu' in self.content:
+                #     self.atm_axes['tmap'] = (np.array(list(hdul['tm_teffs'].data['teff'])), np.array(list(hdul['tm_loggs'].data['logg'])), np.array(list(hdul['tm_abuns'].data['abun'])), np.array(list(hdul['tm_mus'].data['mu'])))
+                #     self.atm_energy_grid['tmap'] = hdul['tmfegrid'].data
+                #     self.atm_photon_grid['tmap'] = hdul['tmfpgrid'].data
 
-                    # Rebuild the table of non-null indices for the nearest neighbor lookup:
-                    self.nntree['tmap'], self.indices['tmap'] = ndpolator.kdtree(self.atm_axes['tmap'][:-1], self.atm_photon_grid['tmap'][...,-1,:])
+                #     self.ndp['imu@photon@tmap'] = ndpolator.Ndpolator(self.atm_axes['tmap'], self.atm_photon_grid['tmap'])
+                #     self.ndp['imu@energy@tmap'] = ndpolator.Ndpolator(self.atm_axes['tmap'], self.atm_energy_grid['tmap'])
 
-                    # Rebuild blending map:
-                    self.blending_region['tmap'] = ((10000, 10000), (0.5, 0.5), (0.25, 0.25))
-                    self.mapper['tmap'] = lambda v: ndpolator.map_to_cube(v, self.atm_axes['tmap'][:-1], self.blending_region['tmap'])
+                #     if init_extrapolation:
+                #         # Rebuild the table of non-null indices for the nearest neighbor lookup:
+                #         self.nntree['tmap'], self.indices['tmap'] = ndpolator.kdtree(self.atm_axes['tmap'][:-1], self.atm_photon_grid['tmap'][...,-1,:])
 
-                    # Rebuild the table of inferior corners for extrapolation:
-                    raxes = self.atm_axes['tmap'][:-1]
-                    subgrid = self.atm_photon_grid['tmap'][...,-1,:]
-                    self.ics['tmap'] = np.array([(i, j, k) for i in range(0,len(raxes[0])-1) for j in range(0,len(raxes[1])-1) for k in range(0,len(raxes[2])-1) if ~np.any(np.isnan(subgrid[i:i+2,j:j+2,k:k+2]))])
+                #         # Rebuild blending map:
+                #         self.blending_region['tmap'] = ((10000, 10000), (0.5, 0.5), (0.25, 0.25))
+                #         self.mapper['tmap'] = lambda v: ndpolator.map_to_cube(v, self.atm_axes['tmap'][:-1], self.blending_region['tmap'])
 
-                if 'tmap:ld' in self.content:
-                    self.ld_energy_grid['tmap'] = hdul['tmlegrid'].data
-                    self.ld_photon_grid['tmap'] = hdul['tmlpgrid'].data
+                #         # Rebuild the table of inferior corners for extrapolation:
+                #         raxes = self.atm_axes['tmap'][:-1]
+                #         subgrid = self.atm_photon_grid['tmap'][...,-1,:]
+                #         self.ics['tmap'] = np.array([(i, j, k) for i in range(0,len(raxes[0])-1) for j in range(0,len(raxes[1])-1) for k in range(0,len(raxes[2])-1) if ~np.any(np.isnan(subgrid[i:i+2,j:j+2,k:k+2]))])
+
+                # if 'tmap:ld' in self.content:
+                #     self.ld_energy_grid['tmap'] = hdul['tmlegrid'].data
+                #     self.ld_photon_grid['tmap'] = hdul['tmlpgrid'].data
+
+                #     self.ndp['ld@photon@tmap'] = ndpolator.Ndpolator(self.atm_axes['tmap'], self.ld_photon_grid['tmap'])
+                #     self.ndp['ld@energy@tmap'] = ndpolator.Ndpolator(self.atm_axes['tmap'], self.ld_energy_grid['tmap'])
 
                 if 'tmap:ldint' in self.content:
                     self.ldint_energy_grid['tmap'] = hdul['tmiegrid'].data
@@ -1105,8 +1144,6 @@ class Passband:
         # the typical table[:,:,:,1,:] value, for all practical purposes that is still 0.
         self.atm_energy_grid[atm][:,:,:,0,:][~np.isnan(self.atm_energy_grid[atm][:,:,:,1,:])] = 0.0
         self.atm_photon_grid[atm][:,:,:,0,:][~np.isnan(self.atm_photon_grid[atm][:,:,:,1,:])] = 0.0
-        # self._ck2004_boosting_energy_grid[:,:,:,0,:] = 0.0
-        # self._ck2004_boosting_photon_grid[:,:,:,0,:] = 0.0
 
         for i, int_energy in enumerate(ints_energy):
             self.atm_energy_grid[atm][teffs[int(i/len(mus))] == self.atm_axes[atm][0], loggs[int(i/len(mus))] == self.atm_axes[atm][1], abuns[int(i/len(mus))] == self.atm_axes[atm][2], mus[i%len(mus)] == self.atm_axes[atm][3], 0] = int_energy
@@ -1126,18 +1163,18 @@ class Passband:
                     ndpolator.impute_grid(self.atm_axes[atm][:-1], grid[...,i,:])
 
         # Build the table of non-null indices for the nearest neighbor lookup:
-        self.indices[atm] = np.argwhere(~np.isnan(self.atm_photon_grid[atm][...,-1,:]))
-        non_nan_vertices = np.array([ [self.atm_axes[atm][i][self.indices[atm][k][i]] for i in range(len(self.atm_axes[atm])-1)] for k in range(len(self.indices[atm]))])
-        self.nntree[atm] = cKDTree(non_nan_vertices, copy_data=True)
+        # self.indices[atm] = np.argwhere(~np.isnan(self.atm_photon_grid[atm][...,-1,:]))
+        # non_nan_vertices = np.array([ [self.atm_axes[atm][i][self.indices[atm][k][i]] for i in range(len(self.atm_axes[atm])-1)] for k in range(len(self.indices[atm]))])
+        # self.nntree[atm] = cKDTree(non_nan_vertices, copy_data=True)
 
         # Set up the blending region:
         self.blending_region[atm] = brs
         self.mapper[atm] = lambda v: ndpolator.map_to_cube(v, self.atm_axes[atm][:-1], self.blending_region[atm])
 
         # Store all inferior corners for quick nearest neighbor lookup:
-        raxes = self.atm_axes[atm][:-1]
-        subgrid = self.atm_photon_grid[atm][...,-1,:]
-        self.ics[atm] = np.array([(i, j, k) for i in range(0,len(raxes[0])-1) for j in range(0,len(raxes[1])-1) for k in range(0,len(raxes[2])-1) if ~np.any(np.isnan(subgrid[i:i+2,j:j+2,k:k+2]))])
+        # raxes = self.atm_axes[atm][:-1]
+        # subgrid = self.atm_photon_grid[atm][...,-1,:]
+        # self.ics[atm] = np.array([(i, j, k) for i in range(0,len(raxes[0])-1) for j in range(0,len(raxes[1])-1) for k in range(0,len(raxes[2])-1) if ~np.any(np.isnan(subgrid[i:i+2,j:j+2,k:k+2]))])
 
         self.ndp[f'imu@photon@{atm}'] = ndpolator.Ndpolator(self.atm_axes[atm], self.atm_photon_grid[atm])
         self.ndp[f'imu@energy@{atm}'] = ndpolator.Ndpolator(self.atm_axes[atm], self.atm_energy_grid[atm])
@@ -1408,14 +1445,8 @@ class Passband:
 
         if f'{ldatm}:ld' not in self.content:
             raise ValueError(f'Limb darkening coefficients for ldatm={ldatm} are not available; please compute them first.')
-
-        axes = self.atm_axes[ldatm][:-1]
-        table = self.ld_photon_grid[ldatm] if intens_weighting == 'photon' else self.ld_energy_grid[ldatm]
-
         req = ndpolator.tabulate((teffs, loggs, abuns))
-        ndp = ndpolator.Ndpolator(axes, table)
-        # ld_coeffs = libphoebe.interp(req, axes, table)
-        ld_coeffs = ndp.interp(req, extrapolation_method=ld_extrapolation_method)
+        ld_coeffs = self.ndp[f'ld@{intens_weighting}@{ldatm}'].interp(req, extrapolation_method=ld_extrapolation_method)
 
         return ld_coeffs[s[ld_func]]
 
@@ -1601,19 +1632,19 @@ class Passband:
             log10_Inorm_bl = np.empty_like(teffs[nanmask])
             for si, selem in enumerate(nv):
                 ic = [np.searchsorted(naxes[k], selem[k])-1 for k in range(len(naxes))]
-                seps = (np.abs(self.ics[atm]-np.array(ic))).sum(axis=1)
+                seps = (np.abs(ndp.ics[atm]-np.array(ic))).sum(axis=1)
                 corners = np.argwhere(seps == seps.min()).flatten()
 
                 blints_per_corner = []
                 for corner in corners:
-                    slc = tuple([slice(self.ics[atm][corner][i], self.ics[atm][corner][i]+2) for i in range(len(self.ics[atm][corner]))])
+                    slc = tuple([slice(ndp.ics[atm][corner][i], ndp.ics[atm][corner][i]+2) for i in range(len(ndp.ics[atm][corner]))])
                     coords = [naxes[i][slc[i]] for i in range(len(naxes))]
                     verts = np.array(np.meshgrid(*coords)).T.reshape(-1, len(naxes))  # faster than itertools.product(*coords)
                     distance_vectors = selem-verts
                     distances = np.linalg.norm(distance_vectors, axis=1)
                     distance_vector = distance_vectors[distances.argmin()]
 
-                    shift = ic-self.ics[atm][corner]
+                    shift = ic-ndp.ics[atm][corner]
                     shift = shift != 0
 
                     if shift.sum() == 0:
@@ -1835,14 +1866,7 @@ class Passband:
             _description_
         """
 
-        # a temporary shortcut for testing purposes only:
-        if atm == 'ck2004':
-            ndp = self.ndp[f'imu@{intens_weighting}@{atm}']
-        else:
-            axes = self.atm_axes[atm]
-            grid = self.atm_photon_grid[atm] if intens_weighting == 'photon' else self.atm_energy_grid[atm]
-            ndp = ndpolator.Ndpolator(axes, grid)
-
+        ndp = self.ndp[f'imu@{intens_weighting}@{atm}']
         req = ndp.tabulate((teffs, loggs, abuns, mus))
         log10_Imu, nanmask = ndp.interp(req, raise_on_nans=raise_on_nans, return_nanmask=True, extrapolation_method=atm_extrapolation_method)
 
@@ -1851,24 +1875,24 @@ class Passband:
 
         if blending_method == 'blackbody':
             log10_Imu_bb = np.log10(self.Imu(atm='blackbody', teffs=teffs[nanmask], loggs=loggs[nanmask], abuns=abuns[nanmask], mus=mus[nanmask], ldatm=atm, ld_extrapolation_method=ld_extrapolation_method, intens_weighting=intens_weighting))
-            nv, naxes = ndpolator.map_to_cube(req[nanmask], axes, self.blending_region[atm], return_naxes=True)
+            nv, naxes = ndpolator.map_to_cube(req[nanmask], ndp.axes, self.blending_region[atm], return_naxes=True)
 
             log10_Imu_bl = np.empty_like(teffs[nanmask])
             for si, selem in enumerate(nv):
                 ic = [np.searchsorted(naxes[k], selem[k])-1 for k in range(len(naxes))]
-                seps = (np.abs(self.ics[atm]-np.array(ic))).sum(axis=1)
+                seps = (np.abs(ndp.ics[atm]-np.array(ic))).sum(axis=1)
                 corners = np.argwhere(seps == seps.min()).flatten()
 
                 blints_per_corner = []
                 for corner in corners:
-                    slc = tuple([slice(self.ics[atm][corner][i], self.ics[atm][corner][i]+2) for i in range(len(self.ics[atm][corner]))])
+                    slc = tuple([slice(ndp.ics[atm][corner][i], ndp.ics[atm][corner][i]+2) for i in range(len(ndp.ics[atm][corner]))])
                     coords = [naxes[i][slc[i]] for i in range(len(naxes))]
                     verts = np.array(np.meshgrid(*coords)).T.reshape(-1, len(naxes))  # faster than itertools.product(*coords)
                     distance_vectors = selem-verts
                     distances = np.linalg.norm(distance_vectors, axis=1)
                     distance_vector = distance_vectors[distances.argmin()]
 
-                    shift = ic-self.ics[atm][corner]
+                    shift = ic-ndp.ics[atm][corner]
                     shift = shift != 0
 
                     if shift.sum() == 0:

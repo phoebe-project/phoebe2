@@ -13,13 +13,13 @@ class Ndpolator():
 
         if impute:
             raise NotImplementedError('consider if this is worth implementing here.')
-        
+
         self.indices = np.argwhere(~np.isnan(grid[...,0]))
         non_nan_vertices = np.array([ [self.axes[i][self.indices[k][i]] for i in range(len(self.axes))] for k in range(len(self.indices))])
         self.nntree = cKDTree(non_nan_vertices, copy_data=True)
         ranges = (range(len(ax)-1) for ax in axes)
         slices = [tuple([slice(elem, elem+2) for elem in x]) for x in product(*ranges)]
-        self.ics = np.array([s.start for slc in slices for s in slc if ~np.any(np.isnan(grid[slc]))], dtype=int).reshape(-1, len(axes))
+        self.ics = np.array([s.start for slc in slices for s in slc if ~np.any(np.isnan(grid[slc]))], dtype=int).reshape(-1, len(axes))  # bottleneck
 
     def tabulate(self, arrs):
         arrs = [np.atleast_1d(arr) for arr in arrs]
