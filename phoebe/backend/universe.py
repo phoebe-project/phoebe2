@@ -628,6 +628,9 @@ class System(object):
 
             return {'flux': np.sum(intensities*areas*mus*visibilities)*ptfarea}
 
+        elif kind=='vis':
+            return {'vises': 0.5}
+
         else:
             raise NotImplementedError("observe for dataset with kind '{}' not implemented".format(kind))
 

@@ -240,7 +240,6 @@ def lc(syn=False, as_ps=True, is_lc=True, **kwargs):
 
         params += [FloatParameter(qualifier='exptime', value=kwargs.get('exptime', 0.0), default_unit=u.s, description='Exposure time (time is defined as mid-exposure)')]
 
-
     return ParameterSet(params) if as_ps else params, constraints
 
 def rv(syn=False, as_ps=True, **kwargs):
@@ -778,8 +777,28 @@ def mesh(syn=False, as_ps=True, **kwargs):
 
     return ParameterSet(params) if as_ps else params, constraints
 
+def vis(syn=False, as_ps=True, **kwargs):
+    """
+    Create a <phoebe.parameters.ParameterSet> for an interferometric visibility |V|^2 dataset.
+
+    """
+
+    params, constraints = [], []
+
+    params += [FloatArrayParameter(qualifier='times', value=kwargs.get('times', []), required_shape=[None], readonly=syn, default_unit=u.d, description='Model (synthetic) times' if syn else 'Observed times')]
+    params += [FloatArrayParameter(qualifier='u', value=kwargs.get('u', []), required_shape=[None], readonly=syn, default_unit=u.m, description='Synthetic baseline u' if syn else 'Observed baseline u')]
+    params += [FloatArrayParameter(qualifier='v', value=kwargs.get('v', []), required_shape=[None], readonly=syn, default_unit=u.m, description='Synthetic baseline v' if syn else 'Observed baseline v')]
+    params += [FloatArrayParameter(qualifier='wavelengths', value=kwargs.get('wavelengths', []), required_shape=[None], readonly=syn, default_unit=u.m, description='Synthetic wavelengths' if syn else 'Observed wavelengths')]
+    params += [FloatArrayParameter(qualifier='vises', value=_empty_array(kwargs, 'vises'), required_shape=[None] if not syn else None, readonly=syn, default_unit=u.dimensionless_unscaled, description='Synthetic interferometric squared visibility |V|^2' if syn else 'Observed interferometric visibility |V|^2')]
+
+    if not syn:
+        params += [FloatArrayParameter(qualifier='compute_times', value=kwargs.get('compute_times', []), required_shape=[None], default_unit=u.d, description='Times to use during run_compute.  If empty, will use times parameter')]
+        params += [FloatArrayParameter(qualifier='sigmas', value=_empty_array(kwargs, 'sigmas'), required_shape=[None], default_unit=u.dimensionless_unscaled, description='Observed uncertainty of visibility')]
+
+    return ParameterSet(params) if as_ps else params, constraints
 
 # del _empty_array
 # del deepcopy
 # del download_passband, list_installed_passbands, list_online_passbands, list_passbands, parameter_from_json, parse_json, send_if_client, update_if_client
 # del fnmatch
+

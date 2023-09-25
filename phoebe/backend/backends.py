@@ -218,6 +218,8 @@ def _extract_from_bundle(b, compute, dataset=None, times=None,
             # then the Parameters in the model only exist at the system-level
             # and are not tagged by component
             dataset_components = [None]
+        elif dataset_kind in ['vis']:
+            dataset_components = [None]
         elif dataset_kind in ['lp']:
             # TODO: eventually spectra and RVs as well (maybe even LCs and ORBs)
             dataset_components = b.hierarchy.get_stars() + b.hierarchy.get_orbits()
@@ -1524,6 +1526,15 @@ class PhoebeBackend(BaseBackendByTime):
                                                           time, info,
                                                           dataset=mesh_dataset,
                                                           component=info['component']))
+
+            elif kind=='vis':
+                obs = system.observe(info['dataset'],
+                                     kind=kind,
+                                     components=info['component'])
+
+                packetlist.append(_make_packet('vises',
+                                              obs['vises']*u.dimensionless_unscaled,
+                                              time, info))
 
             else:
                 raise NotImplementedError("kind {} not yet supported by this backend".format(kind))

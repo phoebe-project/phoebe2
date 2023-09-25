@@ -4739,6 +4739,7 @@ class ParameterSet(object):
                         'y': 'etvs',
                         'z': 0}
             sigmas_avail = ['etvs']
+
         elif ps.kind in ['emcee', 'dynesty', 'lc_periodogram', 'rv_periodogram', 'lc_geometry', 'rv_geometry', 'ebai']:
             pass
             # handled below
@@ -4753,6 +4754,13 @@ class ParameterSet(object):
                 pass
             else:
                 return []
+
+        elif ps.kind == 'vis':
+            defaults = {'x': 'times',
+                        'y': 'vises',
+                        'z': 0}
+            sigmas_avail = ['vises']
+
         else:
             logger.debug("could not find plotting defaults for ps.meta: {}, ps.twigs: {}".format(ps.meta, ps.twigs))
             raise NotImplementedError("defaults for kind {} (dataset: {}) not yet implemented".format(ps.kind, ps.dataset))
