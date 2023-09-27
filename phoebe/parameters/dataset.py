@@ -781,6 +781,8 @@ def vis(syn=False, as_ps=True, **kwargs):
     """
     Create a <phoebe.parameters.ParameterSet> for an interferometric visibility |V|^2 dataset.
 
+    Note: see lc().
+
     """
 
     params, constraints = [], []
@@ -795,10 +797,18 @@ def vis(syn=False, as_ps=True, **kwargs):
         params += [FloatArrayParameter(qualifier='compute_times', value=kwargs.get('compute_times', []), required_shape=[None], default_unit=u.d, description='Times to use during run_compute.  If empty, will use times parameter')]
         params += [FloatArrayParameter(qualifier='sigmas', value=_empty_array(kwargs, 'sigmas'), required_shape=[None], default_unit=u.dimensionless_unscaled, description='Observed uncertainty of visibility')]
 
+    # print("params = ", params)  # dbg
+
+    # THIS DOES NOT WORK! cf. b.plot()
+    # lc_params, lc_constraints = lc(syn=syn, as_ps=False, is_lc=False, **kwargs)
+    # params += lc_params
+    # constraints += lc_constraints
+
     return ParameterSet(params) if as_ps else params, constraints
 
 # del _empty_array
 # del deepcopy
 # del download_passband, list_installed_passbands, list_online_passbands, list_passbands, parameter_from_json, parse_json, send_if_client, update_if_client
 # del fnmatch
+
 

@@ -1,3 +1,5 @@
+
+import sys
 import os
 import numpy as np
 
@@ -15,6 +17,7 @@ from phoebe.parameters import StringParameter, DictParameter, ArrayParameter, Pa
 from phoebe.parameters.parameters import _extract_index_from_string
 from phoebe import dynamics
 from phoebe.backend import universe, etvs, horizon_analytic
+from phoebe.backend import interferometry
 from phoebe.atmospheres import passbands
 from phoebe.distortions  import roche
 from phoebe.frontend import io
@@ -102,7 +105,8 @@ def _needs_mesh(b, dataset, kind, component, compute):
         # then we don't have meshes for this backend, so all should be False
         return False
 
-    if kind not in ['mesh', 'lc', 'rv', 'lp']:
+    # Note: 'vis' is included too (for future mesh-based computations)
+    if kind not in ['mesh', 'lc', 'rv', 'lp', 'vis']:
         return False
 
     # if kind == 'lc' and compute_kind=='phoebe' and b.get_value(qualifier='lc_method', compute=compute, dataset=dataset, context='compute')=='analytical':
@@ -299,14 +303,16 @@ def _extract_from_bundle(b, compute, dataset=None, times=None,
                     info['mesh_kinds'] = [b.filter(dataset=ds, context='dataset', **_skip_filter_checks).kind for ds in info['mesh_datasets']]
 
                 if by_time:
-                    for time_ in this_times:
+                    for i, time_ in enumerate(this_times):
+                        info['original_index'] = i
+                        info_ = info.copy()
                         # TODO: handle some deltatime allowance here?
                         if time_ in times:
                             ind = times.index(time_)
-                            infolists[ind].append(info)
+                            infolists[ind].append(info_)
                         else:
                             times.append(time_)
-                            infolists.append([info])
+                            infolists.append([info_])
                 else:
                     # TODO: this doesn't appear to be different than needed_syns,
                     # unless we change the structure to be per-dataset.
@@ -393,8 +399,12 @@ def _make_packet(qualifier, value, time, info, **kwargs):
               'kind': kwargs.get('kind', info['kind']),
               'qualifier': qualifier,
               'value': value,
-              'time': time
               }
+
+    if 'index' in kwargs.keys():
+        packet['index'] = kwargs.get('index')
+    else:
+        packet['time'] = time
 
     return packet
 
@@ -1151,18 +1161,33 @@ class PhoebeBackend(BaseBackendByTime):
                                 populate_kinds.append(mesh_kind)
 
             logger.debug("rank:{}/{} PhoebeBackend._run_single_time: calling system.populate_observables at time={}".format(mpi.myrank, mpi.nprocs, time))
-            system.populate_observables(time, populate_kinds, populate_datasets)
+            system.populate_observables(time, populate_kinds, populate_datasets, b=b)
+
+        # save temporary positions (for interferometry)
+        system.xi = xi
+        system.yi = yi
+        system.zi = zi
+        system.distance = b.get_value('distance@system')
 
         logger.debug("rank:{}/{} PhoebeBackend._run_single_time: filling packets at time={}".format(mpi.myrank, mpi.nprocs, time))
         # now let's loop through and prepare a packet which will fill the synthetics
         packetlist = []
+        previous = None
         for k, info in enumerate(infolist):
             packet = dict()
 
-            # i, time, info['kind'], info['component'], info['dataset']
+            #i, time, info['kind'], info['component'], info['dataset']
             cind = starrefs.index(info['component']) if info['component'] in starrefs else None
-            # ts[i], xs[cind][i], ys[cind][i], zs[cind][i], vxs[cind][i], vys[cind][i], vzs[cind][i]
+            #ts[i], xs[cind][i], ys[cind][i], zs[cind][i], vxs[cind][i], vys[cind][i], vzs[cind][i]
             kind = info['kind']
+            dataset = info['dataset']
+
+            # save baselines and wavelengths (for interferometry)
+            if kind == 'vis' and dataset != previous:
+                ucoord = b.get_value('u@'+dataset+'@dataset')
+                vcoord = b.get_value('v@'+dataset+'@dataset')
+                wavelengths = b.get_value('wavelengths@'+dataset+'@dataset')
+                previous = dataset
 
             # now check the kind to see what we need to fill
             if kind=='lp':
@@ -1264,6 +1289,21 @@ class PhoebeBackend(BaseBackendByTime):
                                               time_ecl-time,
                                               time, info))
 
+            elif kind=='vis':
+
+#                print("time = ", time)  # dbg
+#                print("info = ", info)  # dbg
+#                val = 0.0; obs = {'vises': val}  # dbg
+
+                obs = interferometry.vis(b, system, ucoord=ucoord, vcoord=vcoord, wavelengths=wavelengths, info=info)
+
+#                obs = system.observe(info['dataset'], kind=kind, components=info['component'])
+
+                packetlist.append(_make_packet('vises',
+                                 obs['vises']*u.dimensionless_unscaled,
+                                 time,
+                                 info,
+                                 index=info['original_index']))
 
             elif kind=='orb':
                 # ts[i], xs[cind][i], ys[cind][i], zs[cind][i], vxs[cind][i], vys[cind][i], vzs[cind][i]
@@ -1527,19 +1567,12 @@ class PhoebeBackend(BaseBackendByTime):
                                                           dataset=mesh_dataset,
                                                           component=info['component']))
 
-            elif kind=='vis':
-                obs = system.observe(info['dataset'],
-                                     kind=kind,
-                                     components=info['component'])
-
-                packetlist.append(_make_packet('vises',
-                                              obs['vises']*u.dimensionless_unscaled,
-                                              time, info))
-
             else:
                 raise NotImplementedError("kind {} not yet supported by this backend".format(kind))
 
         logger.debug("rank:{}/{} PhoebeBackend._run_single_time: returning packetlist at time={}".format(mpi.myrank, mpi.nprocs, time))
+
+#        print("packetlist = ", packetlist)  # dbg
 
         return packetlist
 

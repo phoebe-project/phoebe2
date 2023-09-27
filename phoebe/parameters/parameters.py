@@ -3363,9 +3363,8 @@ class ParameterSet(object):
                 twig = None
 
         if "index" in kwargs.keys():
-            return self.get_parameter(twig=twig,
-                                      **kwargs).set_index_value(value=value,
-                                                                **kwargs)
+            param = self.get_parameter(twig=twig, **kwargs)
+            return param.set_index_value(value=value, **kwargs)
 
         if "time" in kwargs.keys():
             if not len(self.filter(**kwargs)):
