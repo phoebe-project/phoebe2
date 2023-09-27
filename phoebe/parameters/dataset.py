@@ -781,7 +781,7 @@ def vis(syn=False, as_ps=True, **kwargs):
     """
     Create a <phoebe.parameters.ParameterSet> for an interferometric visibility |V|^2 dataset.
 
-    Note: see lc().
+    Note: See lc().
 
     """
 
