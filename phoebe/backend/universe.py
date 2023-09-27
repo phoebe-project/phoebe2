@@ -307,7 +307,7 @@ class System(object):
                                  ds=ds, Fs=Fs, ignore_effects=ignore_effects)
 
 
-    def populate_observables(self, time, kinds, datasets, ignore_effects=False, b=None):
+    def populate_observables(self, time, kinds, datasets, ignore_effects=False, **kwargs):
         """
         TODO: add documentation
 
@@ -322,7 +322,7 @@ class System(object):
 
         for kind, dataset in zip(kinds, datasets):
             for starref, body in self.items():
-                body.populate_observable(time, kind, dataset, ignore_effects=ignore_effects, b=b)
+                body.populate_observable(time, kind, dataset, ignore_effects=ignore_effects, **kwargs)
 
     def handle_reflection(self,  **kwargs):
         """
@@ -514,7 +514,7 @@ class System(object):
         return horizon
 
 
-    def observe(self, dataset, kind, components=None, **kwargs):
+    def observe(self, dataset, kind, components=None, ucoord=None, vcoord=None, wavelengths=None, info=None, **kwargs):
         """
         TODO: add documentation
 
@@ -636,7 +636,39 @@ class System(object):
 
         elif kind=='vis':
 
-            val = 0.0  # dbg
+#            val = 0.0; return {'vises': val}  # dbg
+            
+            visibilities = meshes.get_column_flat('visibilities', components)
+
+            if np.all(visibilities==0):
+                return {'vises': np.nan}
+
+#            abs_intensities = meshes.get_column_flat('abs_intensities:{}'.format(dataset), components)
+            mus = meshes.get_column_flat('mus', components)
+            areas = meshes.get_column_flat('areas_si', components)
+
+            j = info['original_index']
+            d = self.distance			# m
+            u_ = ucoord[j]			# m
+            v_ = vcoord[j]			# m
+            lambda_ = wavelengths[j]		# m
+
+            d *= (u.m/u.solRad).to('1')					# solRad
+            centers = meshes.get_column_flat('centers', components)	# solRad
+            xs = centers[:,0]						# solRad
+            ys = centers[:,1]						# solRad
+            x = xs/d							# rad
+            y = ys/d							# rad
+            u_ /= lambda_						# cycles per baseline
+            v_ /= lambda_						# cycles per baseline
+
+            Lum = areas*mus*visibilities
+            mu = Lum*np.exp(-2.0*np.pi*(0.0+1.0j) * (u_*x + v_*y))
+
+            mutot = np.sum(mu)
+            Lumtot = np.sum(Lum)
+            val = (mutot/Lumtot)**2
+
             return {'vises': val}
 
         else:
@@ -1277,7 +1309,8 @@ class Star(Body):
         if conf.devel and mesh_method=='marching' and compute is not None:
             kwargs.setdefault('mesh_init_phi', b.get_value(qualifier='mesh_init_phi', compute=compute, component=component, unit=u.rad, mesh_init_phi=kwargs.get('mesh_init_phi', None), **_skip_filter_checks))
 
-        datasets_intens = [ds for ds in b.filter(kind=['lc', 'rv', 'lp'], context='dataset').datasets if ds != '_default']
+        # Note: 'vis' is included too (for future mesh-based computations)
+        datasets_intens = [ds for ds in b.filter(kind=['lc', 'rv', 'lp', 'vis'], context='dataset').datasets if ds != '_default']
         datasets_lp = [ds for ds in b.filter(kind='lp', context='dataset', **_skip_filter_checks).datasets if ds != '_default']
         atm_override = kwargs.pop('atm', None)
         if isinstance(atm_override, dict):
@@ -1761,6 +1794,19 @@ class Star(Body):
         cols['rvs'] = rvs
         return cols
 
+    def _populate_vis(self, dataset, **kwargs):
+        """
+        Populate columns necessary for an interferometric visibility dataset
+
+        """
+        logger.debug("{}._populate_vis(dataset={})".format(self.component, dataset))
+
+        cols = self._populate_lc(dataset, **kwargs)
+
+        # Note: See observe().
+
+        return cols
+
     def _populate_lc(self, dataset, ignore_effects=False, **kwargs):
         """
         Populate columns necessary for an LC dataset
@@ -1772,6 +1818,7 @@ class Star(Body):
         """
         logger.debug("{}._populate_lc(dataset={}, ignore_effects={})".format(self.component, dataset, ignore_effects))
 
+#        print("dataset = ", dataset)  # dbg
 #        print("kwargs = ", kwargs)  # dbg
 
         lc_method = kwargs.get('lc_method', 'numerical')  # TODO: make sure this is actually passed
@@ -1781,7 +1828,7 @@ class Star(Body):
         atm = kwargs.get('atm', self.atm)
         extinct = kwargs.get('extinct', self.extinct)
         Rv = kwargs.get('Rv', self.Rv)
-        ld_mode = kwargs.get('ld_mode', self.ld_mode.get(dataset, None))
+        ld_mode = kwargs.get('ld_mode', self.ld_mode.get(dataset, 'manual'))
         ld_func = kwargs.get('ld_func', self.ld_func.get(dataset, None))
         ld_coeffs = kwargs.get('ld_coeffs', self.ld_coeffs.get(dataset, None)) if ld_mode == 'manual' else None
         ld_coeffs_source = kwargs.get('ld_coeffs_source', self.ld_coeffs_source.get(dataset, 'none')) if ld_mode == 'lookup' else None

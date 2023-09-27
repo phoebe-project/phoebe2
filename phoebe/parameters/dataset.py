@@ -800,9 +800,9 @@ def vis(syn=False, as_ps=True, **kwargs):
     # print("params = ", params)  # dbg
 
     # THIS DOES NOT WORK! cf. b.plot()
-    # lc_params, lc_constraints = lc(syn=syn, as_ps=False, is_lc=False, **kwargs)
-    # params += lc_params
-    # constraints += lc_constraints
+    lc_params, lc_constraints = lc(syn=syn, as_ps=False, is_lc=False, **kwargs)
+    params += lc_params
+    constraints += lc_constraints
 
     return ParameterSet(params) if as_ps else params, constraints
 

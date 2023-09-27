@@ -1161,7 +1161,7 @@ class PhoebeBackend(BaseBackendByTime):
                                 populate_kinds.append(mesh_kind)
 
             logger.debug("rank:{}/{} PhoebeBackend._run_single_time: calling system.populate_observables at time={}".format(mpi.myrank, mpi.nprocs, time))
-            system.populate_observables(time, populate_kinds, populate_datasets, b=b)
+            system.populate_observables(time, populate_kinds, populate_datasets)
 
         # save temporary positions (for interferometry)
         system.xi = xi
@@ -1295,9 +1295,10 @@ class PhoebeBackend(BaseBackendByTime):
 #                print("info = ", info)  # dbg
 #                val = 0.0; obs = {'vises': val}  # dbg
 
-                obs = interferometry.vis(b, system, ucoord=ucoord, vcoord=vcoord, wavelengths=wavelengths, info=info)
+#                obs = interferometry.vis(b, system, ucoord=ucoord, vcoord=vcoord, wavelengths=wavelengths, info=info)
+                obs = interferometry.vis_integrate(b, system, ucoord=ucoord, vcoord=vcoord, wavelengths=wavelengths, info=info)
 
-#                obs = system.observe(info['dataset'], kind=kind, components=info['component'])
+#                obs = system.observe(info['dataset'], kind=kind, components=info['component'], ucoord=ucoord, vcoord=vcoord, wavelengths=wavelengths, info=info)
 
                 packetlist.append(_make_packet('vises',
                                  obs['vises']*u.dimensionless_unscaled,

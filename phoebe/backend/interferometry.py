@@ -137,3 +137,51 @@ def vis(b, system, ucoord=None, vcoord=None, wavelengths=None, info={}):
     return {'vises': val}
 
 
+def vis_integrate(b, system, ucoord=None, vcoord=None, wavelengths=None, info={}):
+    """
+    Compute interferometric squared visibility |V|^2.
+    A complex model w. integration over meshes.
+
+    Note: see vis().
+
+    """
+
+    meshes = system.meshes
+    components = info['component']
+    dataset = info['dataset']
+
+    visibilities = meshes.get_column_flat('visibilities', components)
+
+    if np.all(visibilities==0):
+        return {'vises': np.nan}
+
+    abs_intensities = meshes.get_column_flat('abs_intensities:{}'.format(dataset), components)
+    mus = meshes.get_column_flat('mus', components)
+    areas = meshes.get_column_flat('areas_si', components)
+
+    j = info['original_index']
+    d = system.distance			# m
+    u = ucoord[j]			# m
+    v = vcoord[j]			# m
+    lambda_ = wavelengths[j]		# m
+
+    d *= (units.m/units.solRad).to('1')				# solRad
+    centers = meshes.get_column_flat('centers', components)	# solRad
+    xs = centers[:,0]						# solRad
+    ys = centers[:,1]						# solRad
+    x = xs/d							# rad
+    y = ys/d							# rad
+    u /= lambda_						# cycles per baseline
+    v /= lambda_						# cycles per baseline
+
+    Lum = abs_intensities*areas*mus*visibilities
+    mu = Lum*np.exp(-2.0*np.pi*(0.0+1.0j) * (u*x + v*y))
+
+    mutot = np.sum(mu)
+    Lumtot = np.sum(Lum)
+
+    val = (abs(mutot)/Lumtot)**2
+
+    return {'vises': val}
+
+
