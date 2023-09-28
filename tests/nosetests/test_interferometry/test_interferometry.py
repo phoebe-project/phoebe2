@@ -1,16 +1,19 @@
 #!/usr/bin/env python3
 
+import os
 import sys
 import numpy as np
 import phoebe
 from astropy import units
+
+dir_ = os.path.dirname(os.path.realpath(__file__))
 
 logger = phoebe.logger(clevel='INFO')
 #logger = phoebe.logger(clevel='DEBUG')
 
 b = phoebe.default_binary()
 
-times, u, v, wavelengths, vises, sigmas = np.loadtxt("Vis.dat", usecols=[0, 1, 2, 3, 5, 6], unpack=True)
+times, u, v, wavelengths, vises, sigmas = np.loadtxt(os.path.join(dir_, "Vis.dat"), usecols=[0, 1, 2, 3, 5, 6], unpack=True)
 
 b.add_dataset('vis', times=times, u=u, v=v, wavelengths=wavelengths, vises=vises, sigmas=sigmas)
 
