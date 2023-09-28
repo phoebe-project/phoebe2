@@ -14,7 +14,7 @@ times, u, v, wavelengths, vises, sigmas = np.loadtxt("Vis.dat", usecols=[0, 1, 2
 
 b.add_dataset('vis', times=times, u=u, v=v, wavelengths=wavelengths, vises=vises, sigmas=sigmas)
 
-b.set_value('distance', context = 'system', value=100*units.pc)
+b.set_value('distance', context = 'system', value=10*units.pc)
 
 b.run_compute()
 
@@ -44,7 +44,7 @@ vises = b['vises@vis01@phoebe01@latest@vis@model'].value
 np.savetxt('test_interferometry.out', np.c_[times, u, v, wavelengths, vises], header='times u v wavelenghts vises')
 
 b.plot(show=True)
-b.plot(x='u', show=True)
-b.plot(x='v', show=True)
+#b.plot(x='u', show=True)
+#b.plot(x='v', show=True)
 
 

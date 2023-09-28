@@ -1295,10 +1295,10 @@ class PhoebeBackend(BaseBackendByTime):
 #                print("info = ", info)  # dbg
 #                val = 0.0; obs = {'vises': val}  # dbg
 
-#                obs = interferometry.vis(b, system, ucoord=ucoord, vcoord=vcoord, wavelengths=wavelengths, info=info)
-                obs = interferometry.vis_integrate(b, system, ucoord=ucoord, vcoord=vcoord, wavelengths=wavelengths, info=info)
+                obs = interferometry.vis(b, system, ucoord=ucoord, vcoord=vcoord, wavelengths=wavelengths, info=info)
+#                obs = interferometry.vis_integrate(b, system, ucoord=ucoord, vcoord=vcoord, wavelengths=wavelengths, info=info)
 
-#                obs = system.observe(info['dataset'], kind=kind, components=info['component'], ucoord=ucoord, vcoord=vcoord, wavelengths=wavelengths, info=info)
+                # Note: interferometry.vis_integrate() is used instead of system.observe()
 
                 packetlist.append(_make_packet('vises',
                                  obs['vises']*u.dimensionless_unscaled,

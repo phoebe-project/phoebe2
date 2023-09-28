@@ -637,6 +637,8 @@ class System(object):
         else:
             raise NotImplementedError("observe for dataset with kind '{}' not implemented".format(kind))
 
+        # Note: See interferometry.vis_integrate().
+
 
 class Body(object):
     """

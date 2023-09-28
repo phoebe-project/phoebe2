@@ -4174,8 +4174,8 @@ class ParameterSet(object):
                 return_ += this_return
             return _handle_additional_calls(ps, return_)
 
-        if len(ps.components) > 1 and ps.context in ['model', 'dataset'] and ps.kind not in ['lc']:
-            # lc has per-component passband-dependent parameters in the dataset which are not plottable
+        if len(ps.components) > 1 and ps.context in ['model', 'dataset'] and ps.kind not in ['lc', 'vis']:
+            # lc, vis have per-component passband-dependent parameters in the dataset which are not plottable
             return_ = []
             for component in ps.filter(component=kwargs.get('component', filter_kwargs.get('component', None)), **_skip_filter_checks).exclude(qualifier=['*_phases', 'phases_*'], **_skip_filter_checks).components:
                 # print("*** component loop, component={}".format(component))
@@ -4292,6 +4292,10 @@ class ParameterSet(object):
             # entry in the dictionary to be the data-array itself
 
             current_value = kwargs.get(direction, None)
+
+#            print("kwargs = ", kwargs)  # dbg
+#            print("direction = ", direction)  # dbg
+#            print("ps = ", ps)  # dbg
 
             #### RETRIEVE DATA ARRAYS
             if isinstance(current_value, str):
