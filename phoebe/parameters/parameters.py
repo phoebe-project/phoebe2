@@ -3646,6 +3646,8 @@ class ParameterSet(object):
         Currently supports the following datasets:
         * <phoebe.parameters.dataset.lc>
         * <phoebe.parameters.dataset.rv>
+        * <phoebe.parameters.dataset.vis>
+        * <phoebe.parameters.dataset.clo>
 
         If necessary (due to the `compute_times`/`compute_phases` parameters
         or a change in the dataset `times` since the model was computed),
@@ -3722,6 +3724,10 @@ class ParameterSet(object):
             qualifier = 'fluxes'
         elif dataset_kind == 'rv':
             qualifier = 'rvs'
+        elif dataset_kind == 'vis':
+            qualifier = 'vises'
+        elif dataset_kind == 'clo':
+            qualifier = 'clos'
         else:
             # TODO: lp compared for a given time interpolating in wavelength?
             # NOTE: add to documentation if adding support for other datasets
