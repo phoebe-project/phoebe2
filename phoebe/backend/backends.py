@@ -106,7 +106,7 @@ def _needs_mesh(b, dataset, kind, component, compute):
         return False
 
     # Note: 'vis' is included too (for future mesh-based computations)
-    if kind not in ['mesh', 'lc', 'rv', 'lp', 'vis']:
+    if kind not in ['mesh', 'lc', 'rv', 'lp', 'vis', 'clo']:
         return False
 
     # if kind == 'lc' and compute_kind=='phoebe' and b.get_value(qualifier='lc_method', compute=compute, dataset=dataset, context='compute')=='analytical':
@@ -218,11 +218,9 @@ def _extract_from_bundle(b, compute, dataset=None, times=None,
         dataset_compute_ps = b.filter(context='compute', dataset=dataset, compute=compute, **_skip_filter_checks)
         dataset_kind = dataset_ps.kind
         time_qualifier = _timequalifier_by_kind(dataset_kind)
-        if dataset_kind in ['lc']:
+        if dataset_kind in ['lc', 'vis', 'clo']:
             # then the Parameters in the model only exist at the system-level
             # and are not tagged by component
-            dataset_components = [None]
-        elif dataset_kind in ['vis']:
             dataset_components = [None]
         elif dataset_kind in ['lp']:
             # TODO: eventually spectra and RVs as well (maybe even LCs and ORBs)
@@ -1197,6 +1195,14 @@ class PhoebeBackend(BaseBackendByTime):
                 else:
                     raise NotImplementedError("if_method='{}' not supported".format(if_method))
 
+            if kind == 'clo' and dataset != previous:
+                ucoord1 = b.get_value('u1@'+dataset+'@dataset')
+                vcoord1 = b.get_value('v1@'+dataset+'@dataset')
+                ucoord2 = b.get_value('u2@'+dataset+'@dataset')
+                vcoord2 = b.get_value('v2@'+dataset+'@dataset')
+                wavelengths = b.get_value('wavelengths@'+dataset+'@dataset')
+                previous = dataset
+
             # now check the kind to see what we need to fill
             if kind=='lp':
                 profile_func = b.get_value(qualifier='profile_func',
@@ -1301,14 +1307,24 @@ class PhoebeBackend(BaseBackendByTime):
 
 #                print("time = ", time)  # dbg
 #                print("info = ", info)  # dbg
-#                val = 0.0; obs = {'vises': val}  # dbg
+#                val = 0.0; obs = {'vis': val}  # dbg
 
                 obs = interferometry.vis(b, system, ucoord=ucoord, vcoord=vcoord, wavelengths=wavelengths, info=info)
 
                 # Note: interferometry.vis_integrate() is used instead of system.observe()
 
                 packetlist.append(_make_packet('vises',
-                                 obs['vises']*u.dimensionless_unscaled,
+                                 obs['vis']*u.dimensionless_unscaled,
+                                 time,
+                                 info,
+                                 index=info['original_index']))
+
+            elif kind=='clo':
+
+                obs = interferometry.clo(b, system, ucoord1=ucoord1, vcoord1=vcoord1, ucoord2=ucoord2, vcoord2=vcoord2, wavelengths=wavelengths, info=info)
+
+                packetlist.append(_make_packet('clos',
+                                 obs['clo']*u.dimensionless_unscaled,
                                  time,
                                  info,
                                  index=info['original_index']))

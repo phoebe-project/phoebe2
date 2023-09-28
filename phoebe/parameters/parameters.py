@@ -179,7 +179,7 @@ _forbidden_labels += ['protomesh', 'pbmesh']
 _forbidden_labels += ['bol']
 
 # forbid all kinds
-_forbidden_labels += ['lc', 'rv', 'lp', 'sp', 'orb', 'mesh', 'vis']
+_forbidden_labels += ['lc', 'rv', 'lp', 'sp', 'orb', 'mesh', 'vis', 'clo']
 _forbidden_labels += ['star', 'orbit', 'envelope']
 _forbidden_labels += ['spot', 'pulsation']
 _forbidden_labels += ['phoebe', 'legacy', 'jktebop', 'photodynam', 'ellc']
@@ -4174,7 +4174,7 @@ class ParameterSet(object):
                 return_ += this_return
             return _handle_additional_calls(ps, return_)
 
-        if len(ps.components) > 1 and ps.context in ['model', 'dataset'] and ps.kind not in ['lc', 'vis']:
+        if len(ps.components) > 1 and ps.context in ['model', 'dataset'] and ps.kind not in ['lc', 'vis', 'clo']:
             # lc, vis have per-component passband-dependent parameters in the dataset which are not plottable
             return_ = []
             for component in ps.filter(component=kwargs.get('component', filter_kwargs.get('component', None)), **_skip_filter_checks).exclude(qualifier=['*_phases', 'phases_*'], **_skip_filter_checks).components:
@@ -4763,6 +4763,12 @@ class ParameterSet(object):
                         'y': 'vises',
                         'z': 0}
             sigmas_avail = ['vises']
+
+        elif ps.kind == 'clo':
+            defaults = {'x': 'times',
+                        'y': 'clos',
+                        'z': 0}
+            sigmas_avail = ['clos']
 
         else:
             logger.debug("could not find plotting defaults for ps.meta: {}, ps.twigs: {}".format(ps.meta, ps.twigs))

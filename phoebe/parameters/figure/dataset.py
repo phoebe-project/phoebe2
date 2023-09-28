@@ -216,4 +216,23 @@ def vis(b, **kwargs):
 
     return ParameterSet(params)
 
+def clo(b, **kwargs):
+    params = []
+
+    params += [SelectParameter(qualifier='contexts', value=kwargs.get('contexts', '*'), choices=['dataset', 'model'], description='Contexts to include in the plot')]
+    params += [SelectParameter(qualifier='datasets', value=kwargs.get('datasets', '*'), choices=[''], description='Datasets to include in the plot')]
+    params += [SelectParameter(qualifier='models', value=kwargs.get('models', '*'), choices=[''], description='Models to include in the plot')]
+
+    params += [ChoiceParameter(qualifier='x', value=kwargs.get('x', 'times'), choices=['times', 'u1', 'v1', 'u2', 'v2'], description='Array to plot along x-axis')]
+    params += [ChoiceParameter(qualifier='y', value=kwargs.get('y', 'clos'), choices=['clos', 'residuals'], description='Array to plot along y-axis')]
+
+    params += _label_units_lims('times', visible_if='x:times', default_unit=u.d, is_default=True, **kwargs)
+    params += _label_units_lims('u1', visible_if='x:u1', default_unit=u.m, is_default=True, **kwargs)
+    params += _label_units_lims('v1', visible_if='x:v1', default_unit=u.m, is_default=True, **kwargs)
+    params += _label_units_lims('u2', visible_if='x:u2', default_unit=u.m, is_default=True, **kwargs)
+    params += _label_units_lims('v2', visible_if='x:v2', default_unit=u.m, is_default=True, **kwargs)
+    params += _label_units_lims('clos', default_unit=u.dimensionless_unscaled, is_default=True, **kwargs)
+
+    return ParameterSet(params)
+
 

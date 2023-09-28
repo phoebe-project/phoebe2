@@ -639,6 +639,8 @@ class System(object):
 
         # Note: See interferometry.vis_integrate().
 
+        # Note: See interferometry.clo_integrate().
+
 
 class Body(object):
     """
@@ -1273,7 +1275,7 @@ class Star(Body):
             kwargs.setdefault('mesh_init_phi', b.get_value(qualifier='mesh_init_phi', compute=compute, component=component, unit=u.rad, mesh_init_phi=kwargs.get('mesh_init_phi', None), **_skip_filter_checks))
 
         # Note: 'vis' is included too (for future mesh-based computations)
-        datasets_intens = [ds for ds in b.filter(kind=['lc', 'rv', 'lp', 'vis'], context='dataset').datasets if ds != '_default']
+        datasets_intens = [ds for ds in b.filter(kind=['lc', 'rv', 'lp', 'vis', 'clo'], context='dataset').datasets if ds != '_default']
         datasets_lp = [ds for ds in b.filter(kind='lp', context='dataset', **_skip_filter_checks).datasets if ds != '_default']
         atm_override = kwargs.pop('atm', None)
         if isinstance(atm_override, dict):
@@ -1763,6 +1765,19 @@ class Star(Body):
 
         """
         logger.debug("{}._populate_vis(dataset={})".format(self.component, dataset))
+
+        cols = self._populate_lc(dataset, **kwargs)
+
+        # Note: See observe().
+
+        return cols
+
+    def _populate_clo(self, dataset, **kwargs):
+        """
+        Populate columns necessary for an interferometric closure phase dataset
+
+        """
+        logger.debug("{}._populate_clo(dataset={})".format(self.component, dataset))
 
         cols = self._populate_lc(dataset, **kwargs)
 

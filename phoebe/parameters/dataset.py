@@ -791,7 +791,39 @@ def vis(syn=False, as_ps=True, **kwargs):
     params += [FloatArrayParameter(qualifier='u', value=kwargs.get('u', []), required_shape=[None], readonly=syn, default_unit=u.m, description='Synthetic baseline u' if syn else 'Observed baseline u')]
     params += [FloatArrayParameter(qualifier='v', value=kwargs.get('v', []), required_shape=[None], readonly=syn, default_unit=u.m, description='Synthetic baseline v' if syn else 'Observed baseline v')]
     params += [FloatArrayParameter(qualifier='wavelengths', value=kwargs.get('wavelengths', []), required_shape=[None], readonly=syn, default_unit=u.m, description='Synthetic wavelengths' if syn else 'Observed wavelengths')]
-    params += [FloatArrayParameter(qualifier='vises', value=_empty_array(kwargs, 'vises'), required_shape=[None] if not syn else None, readonly=syn, default_unit=u.dimensionless_unscaled, description='Synthetic interferometric squared visibility |V|^2' if syn else 'Observed interferometric visibility |V|^2')]
+    params += [FloatArrayParameter(qualifier='vises', value=_empty_array(kwargs, 'vises'), required_shape=[None] if not syn else None, readonly=syn, default_unit=u.dimensionless_unscaled, description='Synthetic interferometric squared visibility |V|^2' if syn else 'Observed interferometric squared visibility |V|^2')]
+
+    if not syn:
+        params += [FloatArrayParameter(qualifier='compute_times', value=kwargs.get('compute_times', []), required_shape=[None], default_unit=u.d, description='Times to use during run_compute.  If empty, will use times parameter')]
+        params += [FloatArrayParameter(qualifier='sigmas', value=_empty_array(kwargs, 'sigmas'), required_shape=[None], default_unit=u.dimensionless_unscaled, description='Observed uncertainty of interferometric visibility')]
+
+    params += [ChoiceParameter(qualifier='if_method', value=kwargs.get('if_method', 'integrate'), choices=['integrate', 'simple'], description='Method to use for computing interferometric visibility (must be integrate for eclipse effects)')]
+
+    lc_params, lc_constraints = lc(syn=syn, as_ps=False, is_lc=False, **kwargs)
+    params += lc_params
+    constraints += lc_constraints
+
+    # print("params = ", params)  # dbg
+
+    return ParameterSet(params) if as_ps else params, constraints
+
+def clo(syn=False, as_ps=True, **kwargs):
+    """
+    Create a <phoebe.parameters.ParameterSet> for an interferometric closure phase arg T_3 dataset.
+
+    Note: See lc().
+
+    """
+
+    params, constraints = [], []
+
+    params += [FloatArrayParameter(qualifier='times', value=kwargs.get('times', []), required_shape=[None], readonly=syn, default_unit=u.d, description='Model (synthetic) times' if syn else 'Observed times')]
+    params += [FloatArrayParameter(qualifier='u1', value=kwargs.get('u1', []), required_shape=[None], readonly=syn, default_unit=u.m, description='Synthetic baseline u' if syn else 'Observed baseline u')]
+    params += [FloatArrayParameter(qualifier='v1', value=kwargs.get('v1', []), required_shape=[None], readonly=syn, default_unit=u.m, description='Synthetic baseline v' if syn else 'Observed baseline v')]
+    params += [FloatArrayParameter(qualifier='u2', value=kwargs.get('u2', []), required_shape=[None], readonly=syn, default_unit=u.m, description='Synthetic baseline u' if syn else 'Observed baseline u')]
+    params += [FloatArrayParameter(qualifier='v2', value=kwargs.get('v2', []), required_shape=[None], readonly=syn, default_unit=u.m, description='Synthetic baseline v' if syn else 'Observed baseline v')]
+    params += [FloatArrayParameter(qualifier='wavelengths', value=kwargs.get('wavelengths', []), required_shape=[None], readonly=syn, default_unit=u.m, description='Synthetic wavelengths' if syn else 'Observed wavelengths')]
+    params += [FloatArrayParameter(qualifier='clos', value=_empty_array(kwargs, 'clos'), required_shape=[None] if not syn else None, readonly=syn, default_unit=u.dimensionless_unscaled, description='Synthetic interferometric closure phase arg T_3' if syn else 'Observed interferometric closure phase arg T_3')]
 
     if not syn:
         params += [FloatArrayParameter(qualifier='compute_times', value=kwargs.get('compute_times', []), required_shape=[None], default_unit=u.d, description='Times to use during run_compute.  If empty, will use times parameter')]
@@ -802,8 +834,6 @@ def vis(syn=False, as_ps=True, **kwargs):
     lc_params, lc_constraints = lc(syn=syn, as_ps=False, is_lc=False, **kwargs)
     params += lc_params
     constraints += lc_constraints
-
-    # print("params = ", params)  # dbg
 
     return ParameterSet(params) if as_ps else params, constraints
 
