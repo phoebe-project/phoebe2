@@ -514,7 +514,7 @@ class System(object):
         return horizon
 
 
-    def observe(self, dataset, kind, components=None, ucoord=None, vcoord=None, wavelengths=None, info=None, **kwargs):
+    def observe(self, dataset, kind, components=None, info=None, **kwargs):
         """
         TODO: add documentation
 
