@@ -44,7 +44,7 @@ v = b['v@vis01@phoebe01@latest@vis@model'].value
 wavelengths = b['wavelengths@vis01@phoebe01@latest@vis@model'].value
 vises = b['vises@vis01@phoebe01@latest@vis@model'].value
 
-np.savetxt('test_interferometry.out', np.c_[times, u, v, wavelengths, vises], header='times u v wavelenghts vises')
+np.savetxt('test_interferometry2.out', np.c_[times, u, v, wavelengths, vises], header='times u v wavelenghts vises')
 
 #b.plot(show=True)
 #b.plot(x='u', show=True)

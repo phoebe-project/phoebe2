@@ -14,10 +14,10 @@ set zeroaxis
 set size ratio -1
 
 p \
-  "test_interferometry.out" u (+$2):(+$3):5 w p pt 5 lc palette z not,\
-  "test_interferometry.out" u (+$2):(-$3):5 w p pt 5 lc palette z not,\
-  "test_interferometry.out" u (-$2):(+$3):5 w p pt 5 lc palette z not,\
-  "test_interferometry.out" u (-$2):(-$3):5 w p pt 5 lc palette z not,\
+  "test_interferometry2.out" u (+$2):(+$3):5 w p pt 5 lc palette z not,\
+  "test_interferometry2.out" u (+$2):(-$3):5 w p pt 5 lc palette z not,\
+  "test_interferometry2.out" u (-$2):(+$3):5 w p pt 5 lc palette z not,\
+  "test_interferometry2.out" u (-$2):(-$3):5 w p pt 5 lc palette z not,\
 
 pa -1
 
