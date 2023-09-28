@@ -179,7 +179,7 @@ _forbidden_labels += ['protomesh', 'pbmesh']
 _forbidden_labels += ['bol']
 
 # forbid all kinds
-_forbidden_labels += ['lc', 'rv', 'lp', 'sp', 'orb', 'mesh']
+_forbidden_labels += ['lc', 'rv', 'lp', 'sp', 'orb', 'mesh', 'vis']
 _forbidden_labels += ['star', 'orbit', 'envelope']
 _forbidden_labels += ['spot', 'pulsation']
 _forbidden_labels += ['phoebe', 'legacy', 'jktebop', 'photodynam', 'ellc']

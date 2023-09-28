@@ -1189,6 +1189,14 @@ class PhoebeBackend(BaseBackendByTime):
                 wavelengths = b.get_value('wavelengths@'+dataset+'@dataset')
                 previous = dataset
 
+                if_method = b.get_value('if_method')
+                if if_method == 'integrate':
+                    interferometry.vis = interferometry.vis_integrate
+                elif if_method == 'simple':
+                    interferometry.vis = interferometry.vis_simple
+                else:
+                    raise NotImplementedError("if_method='{}' not supported".format(if_method))
+
             # now check the kind to see what we need to fill
             if kind=='lp':
                 profile_func = b.get_value(qualifier='profile_func',
@@ -1296,7 +1304,6 @@ class PhoebeBackend(BaseBackendByTime):
 #                val = 0.0; obs = {'vises': val}  # dbg
 
                 obs = interferometry.vis(b, system, ucoord=ucoord, vcoord=vcoord, wavelengths=wavelengths, info=info)
-#                obs = interferometry.vis_integrate(b, system, ucoord=ucoord, vcoord=vcoord, wavelengths=wavelengths, info=info)
 
                 # Note: interferometry.vis_integrate() is used instead of system.observe()
 

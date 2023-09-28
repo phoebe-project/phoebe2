@@ -64,7 +64,7 @@ def planck(T, lambda_):
     return 2.0*h*c**2/lambda_**5 / (np.exp(h*c/(lambda_*k_B*T))-1.0)
 
 
-def vis(b, system, ucoord=None, vcoord=None, wavelengths=None, info={}):
+def vis_simple(b, system, ucoord=None, vcoord=None, wavelengths=None, info={}):
     """
     Compute interferometric squared visibility |V|^2.
     A simple model of limb-darkened disk(s).
@@ -78,6 +78,7 @@ def vis(b, system, ucoord=None, vcoord=None, wavelengths=None, info={}):
 
     """
 
+#    print("vis_simple")
 #    print("b = ", b)
 #    print("b['distance@system'] = ", b['distance@system'])
 #    print("b['hierarchy@system'] = ", b['hierarchy@system'])
@@ -183,5 +184,8 @@ def vis_integrate(b, system, ucoord=None, vcoord=None, wavelengths=None, info={}
     val = (abs(mutot)/Lumtot)**2
 
     return {'vises': val}
+
+
+vis = vis_integrate
 
 
