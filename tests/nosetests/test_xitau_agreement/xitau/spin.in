@@ -1,0 +1,5 @@
+2		! nbod \\ sx, sy, sz [] spin axis unitvector & omega [rad/day] spin rate
+0.	0.	1.	 36.3522605882817	! (22)
+0.	0.	1.	 1.74346581307968	! Linus; synchronous
+
+

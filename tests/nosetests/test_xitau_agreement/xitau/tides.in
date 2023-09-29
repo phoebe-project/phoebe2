@@ -1,0 +1,10 @@
+2	! npl \\ capR [km] radius & k_2 [] Love number & Delta_t [sec] time lag & I [kg m^2] moment of inertia
+
+  76.5		0.3	0.	2.5103489183127285E+028		! (22); multipole_newshape/gravity.out
+  14.0		0.3	0.	3.70693991788442e+24		! Linus; vypocty1.plt
+
+1.d0	! dtspin [day], it should be an integer number of dt (see param.in)
+1.d0	! dtspinout [day]
+spin.out
+F		! debug_spin [T|F]
+
