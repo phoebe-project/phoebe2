@@ -26,11 +26,6 @@ for twig in b.twigs:
   f.write("%s\n" % (twig))
 f.close()
 
-# Note: Model (synthetic) baselines and wavelengths must be copied ex-post!
-b.set_value('u@latest@model', value=b.get_value('u@dataset'), ignore_readonly=True)
-b.set_value('v@latest@model', value=b.get_value('v@dataset'), ignore_readonly=True)
-b.set_value('wavelengths@latest@model', value=b.get_value('wavelengths@dataset'), ignore_readonly=True)
-
 print("b['vis@vis01@phoebe01@latest@vis@model'] = ", b['vis@vis01@phoebe01@latest@vis@model'])
 print("b['times@vis01@phoebe01@latest@vis@model'] = ", b['times@vis01@phoebe01@latest@vis@model'])
 print("b['u@vis01@phoebe01@latest@vis@model'] = ", b['u@vis01@phoebe01@latest@vis@model'])

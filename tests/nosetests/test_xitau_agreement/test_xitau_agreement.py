@@ -26,10 +26,6 @@ for twig in b.twigs:
   f.write("%s\n" % (twig))
 f.close()
 
-b.set_value('u@latest@model', value=b.get_value('u@dataset'), ignore_readonly=True)
-b.set_value('v@latest@model', value=b.get_value('v@dataset'), ignore_readonly=True)
-b.set_value('wavelengths@latest@model', value=b.get_value('wavelengths@dataset'), ignore_readonly=True)
-
 #print("b['times@vis01@vis@dataset'] = ", b['times@vis01@vis@dataset'])
 #print("b['u@vis01@vis@dataset'] = ", b['u@vis01@vis@dataset'])
 #print("b['v@vis01@vis@dataset'] = ", b['v@vis01@vis@dataset'])
