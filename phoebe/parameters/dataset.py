@@ -807,7 +807,7 @@ def vis(syn=False, as_ps=True, **kwargs):
 
     return ParameterSet(params) if as_ps else params, constraints
 
-def clo(syn=False, as_ps=True, **kwargs):
+def clo(syn=False, as_ps=True, is_clo=True, **kwargs):
     """
     Create a <phoebe.parameters.ParameterSet> for an interferometric closure phase arg T_3 dataset.
 
@@ -823,7 +823,9 @@ def clo(syn=False, as_ps=True, **kwargs):
     params += [FloatArrayParameter(qualifier='u2', value=kwargs.get('u2', []), required_shape=[None], readonly=syn, default_unit=u.m, description='Synthetic baseline u' if syn else 'Observed baseline u')]
     params += [FloatArrayParameter(qualifier='v2', value=kwargs.get('v2', []), required_shape=[None], readonly=syn, default_unit=u.m, description='Synthetic baseline v' if syn else 'Observed baseline v')]
     params += [FloatArrayParameter(qualifier='wavelengths', value=kwargs.get('wavelengths', []), required_shape=[None], readonly=syn, default_unit=u.m, description='Synthetic wavelengths' if syn else 'Observed wavelengths')]
-    params += [FloatArrayParameter(qualifier='clos', value=_empty_array(kwargs, 'clos'), required_shape=[None] if not syn else None, readonly=syn, default_unit=u.dimensionless_unscaled, description='Synthetic interferometric closure phase arg T_3' if syn else 'Observed interferometric closure phase arg T_3')]
+
+    if is_clo:
+        params += [FloatArrayParameter(qualifier='clos', value=_empty_array(kwargs, 'clos'), required_shape=[None] if not syn else None, readonly=syn, default_unit=u.dimensionless_unscaled, description='Synthetic interferometric closure phase arg T_3' if syn else 'Observed interferometric closure phase arg T_3')]
 
     if not syn:
         params += [FloatArrayParameter(qualifier='compute_times', value=kwargs.get('compute_times', []), required_shape=[None], default_unit=u.d, description='Times to use during run_compute.  If empty, will use times parameter')]
@@ -836,6 +838,21 @@ def clo(syn=False, as_ps=True, **kwargs):
     constraints += lc_constraints
 
     return ParameterSet(params) if as_ps else params, constraints
+
+def t3(syn=False, as_ps=True, **kwargs):
+    """
+    Create a <phoebe.parameters.ParameterSet> for an interferometric triple product |T_3| dataset.
+
+    Note: See lc().
+
+    """
+    
+    params, constraints = clo(syn=syn, as_ps=False, is_clo=False, **kwargs)
+
+    params += [FloatArrayParameter(qualifier='t3s', value=_empty_array(kwargs, 't3s'), required_shape=[None] if not syn else None, readonly=syn, default_unit=u.dimensionless_unscaled, description='Synthetic interferometric triple product |T_3|' if syn else 'Observed interferometric triple product |T_3|')]
+
+    return ParameterSet(params) if as_ps else params, constraints
+
 
 # del _empty_array
 # del deepcopy

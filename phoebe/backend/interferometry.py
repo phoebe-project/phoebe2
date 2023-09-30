@@ -101,7 +101,7 @@ def complexvis_simple(b, system, ucoord=None, vcoord=None, wavelengths=None, inf
 #    print("info = ", info)
 #    sys.exit(1)
 
-#    val = 0.5; return {'vises': val}  # dbg
+#    val = 0.5; return {'complexvis': val}  # dbg
 
     # Note: b.get_value() call is extremely slow!!! cf. backend.py
     j = info['original_index']
@@ -261,5 +261,6 @@ def clo_integrate(b, system, ucoord1=None, vcoord1=None, ucoord2=None, vcoord2=N
 complexvis = complexvis_integrate
 vis = vis_integrate
 clo = clo_integrate
+t3 = clo_integrate
 
 

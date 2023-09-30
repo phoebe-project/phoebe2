@@ -12126,6 +12126,9 @@ class Bundle(ParameterSet):
                 for clo_param in ml_params.filter(qualifier=['u1', 'v1', 'u2', 'v2', 'wavelengths'], kind='clo', **_skip_filter_checks).to_list():
                     clo_param.set_value(self.get_value(clo_param.twig+'@dataset'), ignore_readonly=True)
 
+                for t3_param in ml_params.filter(qualifier=['u1', 'v1', 'u2', 'v2', 'wavelengths'], kind='t3', **_skip_filter_checks).to_list():
+                    t3_param.set_value(self.get_value(t3_param.twig+'@dataset'), ignore_readonly=True)
+
                 ml_addl_params += [StringParameter(qualifier='comments', value=kwargs.get('comments', computeparams.get_value(qualifier='comments', default='', **_skip_filter_checks)), description='User-provided comments for this model.  Feel free to place any notes here.')]
                 self._attach_params(ml_params+ml_addl_params, check_copy_for=False, **metawargs)
 

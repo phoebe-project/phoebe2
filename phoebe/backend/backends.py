@@ -106,7 +106,7 @@ def _needs_mesh(b, dataset, kind, component, compute):
         return False
 
     # Note: 'vis' is included too (for future mesh-based computations)
-    if kind not in ['mesh', 'lc', 'rv', 'lp', 'vis', 'clo']:
+    if kind not in ['mesh', 'lc', 'rv', 'lp', 'vis', 'clo', 't3']:
         return False
 
     # if kind == 'lc' and compute_kind=='phoebe' and b.get_value(qualifier='lc_method', compute=compute, dataset=dataset, context='compute')=='analytical':
@@ -218,7 +218,7 @@ def _extract_from_bundle(b, compute, dataset=None, times=None,
         dataset_compute_ps = b.filter(context='compute', dataset=dataset, compute=compute, **_skip_filter_checks)
         dataset_kind = dataset_ps.kind
         time_qualifier = _timequalifier_by_kind(dataset_kind)
-        if dataset_kind in ['lc', 'vis', 'clo']:
+        if dataset_kind in ['lc', 'vis', 'clo', 't3']:
             # then the Parameters in the model only exist at the system-level
             # and are not tagged by component
             dataset_components = [None]
@@ -1195,7 +1195,7 @@ class PhoebeBackend(BaseBackendByTime):
                 else:
                     raise NotImplementedError("if_method='{}' not supported".format(if_method))
 
-            if kind == 'clo' and dataset != previous:
+            if (kind == 'clo' or kind == 't3') and dataset != previous:
                 ucoord1 = b.get_value('u1@'+dataset+'@dataset')
                 vcoord1 = b.get_value('v1@'+dataset+'@dataset')
                 ucoord2 = b.get_value('u2@'+dataset+'@dataset')
@@ -1325,6 +1325,16 @@ class PhoebeBackend(BaseBackendByTime):
 
                 packetlist.append(_make_packet('clos',
                                  obs['clo']*u.dimensionless_unscaled,
+                                 time,
+                                 info,
+                                 index=info['original_index']))
+
+            elif kind=='t3':
+
+                obs = interferometry.t3(b, system, ucoord1=ucoord1, vcoord1=vcoord1, ucoord2=ucoord2, vcoord2=vcoord2, wavelengths=wavelengths, info=info)
+
+                packetlist.append(_make_packet('t3s',
+                                 obs['t3']*u.dimensionless_unscaled,
                                  time,
                                  info,
                                  index=info['original_index']))

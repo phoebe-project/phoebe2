@@ -1275,7 +1275,7 @@ class Star(Body):
             kwargs.setdefault('mesh_init_phi', b.get_value(qualifier='mesh_init_phi', compute=compute, component=component, unit=u.rad, mesh_init_phi=kwargs.get('mesh_init_phi', None), **_skip_filter_checks))
 
         # Note: 'vis' is included too (for future mesh-based computations)
-        datasets_intens = [ds for ds in b.filter(kind=['lc', 'rv', 'lp', 'vis', 'clo'], context='dataset').datasets if ds != '_default']
+        datasets_intens = [ds for ds in b.filter(kind=['lc', 'rv', 'lp', 'vis', 'clo', 't3'], context='dataset').datasets if ds != '_default']
         datasets_lp = [ds for ds in b.filter(kind='lp', context='dataset', **_skip_filter_checks).datasets if ds != '_default']
         atm_override = kwargs.pop('atm', None)
         if isinstance(atm_override, dict):
@@ -1784,6 +1784,8 @@ class Star(Body):
         # Note: See observe().
 
         return cols
+
+    _populate_t3 = _populate_clo
 
     def _populate_lc(self, dataset, ignore_effects=False, **kwargs):
         """
