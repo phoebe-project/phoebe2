@@ -49,7 +49,7 @@ vises = b['vises@vis01@phoebe01@latest@vis@model'].value
 np.savetxt('test_xitau_agreement.out', np.c_[times, u, v, wavelengths, vises], header='times u v wavelenghts vises')
 
 #b.plot(show=True)
-b.plot(x='u', marker='.', linestyle='none', show=True)
+#b.plot(x='u', marker='.', linestyle='none', show=True)
 #b.plot(x='v', marker='.', linestyle='none', show=True)
 
 
