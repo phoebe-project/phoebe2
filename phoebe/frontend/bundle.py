@@ -133,9 +133,9 @@ def _get_add_func(mod, func, return_none_if_not_found=False):
 
 def _is_equiv_array_or_float(value1, value2):
     if hasattr(value1, '__iter__'):
-        return np.all(value1==value2)
+        return len(value1) == len(value2) and np.all(value1 == value2)
     else:
-        return value1==value2
+        return value1 == value2
 
 
 class RunChecksItem(object):
@@ -12259,7 +12259,7 @@ class Bundle(ParameterSet):
                         # store just the GP component in the model PS as well
                         gp_param = FloatArrayParameter(qualifier='gps', value=gp_y, default_unit=model_y.unit, readonly=True, description='GP contribution to the model {}'.format(yqualifier))
                         y_nogp_param = FloatArrayParameter(qualifier='{}_nogps'.format(yqualifier), value=model_y_dstimes, default_unit=model_y.unit, readonly=True, description='{} before adding gps'.format(yqualifier))
-                        if not np.all(ds_x == model_x):
+                        if len(ds_x) != len(model_x) or not np.all(ds_x == model_x):
                             logger.warning("model for dataset='{}' resampled at dataset times when adding GPs".format(ds))
                             model_ps.set_value(qualifier=xqualifier, dataset=ds, component=ds_comp, value=ds_x, ignore_readonly=True, **_skip_filter_checks)
 
