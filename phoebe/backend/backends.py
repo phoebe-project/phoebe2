@@ -1187,7 +1187,7 @@ class PhoebeBackend(BaseBackendByTime):
                 wavelengths = b.get_value('wavelengths@'+dataset+'@dataset')
                 previous = dataset
 
-                if_method = b.get_value('if_method')
+                if_method = b.get_value('if_method@'+dataset+'@dataset')
                 if if_method == 'integrate':
                     interferometry.vis = interferometry.vis_integrate
                 elif if_method == 'simple':
