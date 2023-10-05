@@ -989,9 +989,9 @@ class Bundle(ParameterSet):
                 logger.warning("re-creating {} constraint".format(constraint.twig))
                 solved_for = constraint.get_constrained_parameter()
                 b.remove_constraint(uniqueid=constraint.uniqueid)
-                new_constraint = b.add_constraint(constraint.constraint_func, component=constraint.component)
+                new_constraint_ps = b.add_constraint(constraint.constraint_func, component=constraint.component)
                 if solved_for.qualifier != constraint.constraint_func:
-                    new_constraint.flip_for(solved_for.twig)
+                    new_constraint_ps.get_parameter().flip_for(solved_for.twig)
 
 
         if conf_interactive_checks:
