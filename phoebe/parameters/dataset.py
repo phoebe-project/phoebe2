@@ -804,6 +804,9 @@ def vis(syn=False, as_ps=True, **kwargs):
         Only applicable if `syn` is False.
     * `compute_times` (array/quantity, optional): times at which to compute the model.
         Only applicable if `syn` is False.
+    * `if_method` (string, optional, default='integrate'):
+        which method to use for computing interferometric visibilities.
+        If 'simple', eclipse effects will not be computed.
     * `ld_mode` (string, optional, default='interp'): mode to use for handling
         limb-darkening.  Note that 'interp' is not available for all values
         of `atm` (availability can be checked by calling
@@ -891,6 +894,9 @@ def clo(syn=False, as_ps=True, is_clo=True, **kwargs):
         Only applicable if `syn` is False.
     * `compute_times` (array/quantity, optional): times at which to compute the model.
         Only applicable if `syn` is False.
+    * `if_method` (string, optional, default='integrate'):
+        which method to use for computing interferometric visibilities.
+        If 'simple', eclipse effects will not be computed.
     * `ld_mode` (string, optional, default='interp'): mode to use for handling
         limb-darkening.  Note that 'interp' is not available for all values
         of `atm` (availability can be checked by calling
@@ -977,6 +983,9 @@ def t3(syn=False, as_ps=True, **kwargs):
         Only applicable if `syn` is False.
     * `compute_times` (array/quantity, optional): times at which to compute the model.
         Only applicable if `syn` is False.
+    * `if_method` (string, optional, default='integrate'):
+        which method to use for computing interferometric visibilities.
+        If 'simple', eclipse effects will not be computed.
     * `ld_mode` (string, optional, default='interp'): mode to use for handling
         limb-darkening.  Note that 'interp' is not available for all values
         of `atm` (availability can be checked by calling
