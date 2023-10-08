@@ -307,7 +307,7 @@ class System(object):
                                  ds=ds, Fs=Fs, ignore_effects=ignore_effects)
 
 
-    def populate_observables(self, time, kinds, datasets, ignore_effects=False, **kwargs):
+    def populate_observables(self, time, kinds, datasets, ignore_effects=False):
         """
         TODO: add documentation
 
@@ -322,7 +322,7 @@ class System(object):
 
         for kind, dataset in zip(kinds, datasets):
             for starref, body in self.items():
-                body.populate_observable(time, kind, dataset, ignore_effects=ignore_effects, **kwargs)
+                body.populate_observable(time, kind, dataset, ignore_effects=ignore_effects)
 
     def handle_reflection(self,  **kwargs):
         """
@@ -514,7 +514,7 @@ class System(object):
         return horizon
 
 
-    def observe(self, dataset, kind, components=None, info=None, **kwargs):
+    def observe(self, dataset, kind, components=None, **kwargs):
         """
         TODO: add documentation
 
@@ -638,8 +638,6 @@ class System(object):
             raise NotImplementedError("observe for dataset with kind '{}' not implemented".format(kind))
 
         # Note: See interferometry.vis_integrate().
-
-        # Note: See interferometry.clo_integrate().
 
 
 class Body(object):

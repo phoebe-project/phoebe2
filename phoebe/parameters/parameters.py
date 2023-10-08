@@ -3650,6 +3650,7 @@ class ParameterSet(object):
         * <phoebe.parameters.dataset.rv>
         * <phoebe.parameters.dataset.vis>
         * <phoebe.parameters.dataset.clo>
+        * <phoebe.parameters.dataset.t3>
 
         If necessary (due to the `compute_times`/`compute_phases` parameters
         or a change in the dataset `times` since the model was computed),

@@ -1,5 +1,4 @@
 
-import sys
 import os
 import numpy as np
 
@@ -1174,20 +1173,20 @@ class PhoebeBackend(BaseBackendByTime):
         for k, info in enumerate(infolist):
             packet = dict()
 
-            #i, time, info['kind'], info['component'], info['dataset']
+            # i, time, info['kind'], info['component'], info['dataset']
             cind = starrefs.index(info['component']) if info['component'] in starrefs else None
-            #ts[i], xs[cind][i], ys[cind][i], zs[cind][i], vxs[cind][i], vys[cind][i], vzs[cind][i]
+            # ts[i], xs[cind][i], ys[cind][i], zs[cind][i], vxs[cind][i], vys[cind][i], vzs[cind][i]
             kind = info['kind']
             dataset = info['dataset']
 
             # save baselines and wavelengths (for interferometry)
             if kind == 'vis' and dataset != previous:
-                ucoord = b.get_value('u@'+dataset+'@dataset')
-                vcoord = b.get_value('v@'+dataset+'@dataset')
-                wavelengths = b.get_value('wavelengths@'+dataset+'@dataset')
+                ucoord = b.get_value(qualifier='u', dataset=dataset, context='dataset')
+                vcoord = b.get_value(qualifier='v', dataset=dataset, context='dataset')
+                wavelengths = b.get_value(qualifier='wavelengths', dataset=dataset, context='dataset')
                 previous = dataset
 
-                if_method = b.get_value('if_method@'+dataset+'@dataset')
+                if_method = b.get_value(qualifier='if_method', dataset=dataset, context='dataset')
                 if if_method == 'integrate':
                     interferometry.vis = interferometry.vis_integrate
                 elif if_method == 'simple':
@@ -1196,11 +1195,11 @@ class PhoebeBackend(BaseBackendByTime):
                     raise NotImplementedError("if_method='{}' not supported".format(if_method))
 
             if (kind == 'clo' or kind == 't3') and dataset != previous:
-                ucoord1 = b.get_value('u1@'+dataset+'@dataset')
-                vcoord1 = b.get_value('v1@'+dataset+'@dataset')
-                ucoord2 = b.get_value('u2@'+dataset+'@dataset')
-                vcoord2 = b.get_value('v2@'+dataset+'@dataset')
-                wavelengths = b.get_value('wavelengths@'+dataset+'@dataset')
+                ucoord1 = b.get_value(qualifier='u1', dataset=dataset, context='dataset')
+                vcoord1 = b.get_value(qualifier='v1', dataset=dataset, context='dataset')
+                ucoord2 = b.get_value(qualifier='u2', dataset=dataset, context='dataset')
+                vcoord2 = b.get_value(qualifier='v2', dataset=dataset, context='dataset')
+                wavelengths = b.get_value(qualifier='wavelengths', dataset=dataset, context='dataset')
                 previous = dataset
 
             # now check the kind to see what we need to fill
