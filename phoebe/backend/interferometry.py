@@ -13,7 +13,7 @@ Reference: Brož (2017, ApJS 230, 19).
 import numpy as np
 from scipy.special import j1
 from astropy import units
-from astropy import constants as const
+from astropy import constants as c
 
 
 def j32(x):
@@ -53,15 +53,15 @@ def j32(x):
         return 0.0
 
 
-def planck(T, lambda_):
+def planck(lambda_, T=None):
     """
     Planck function, i.e., black-body intensity in J s^-1 sr^-1 m^-2 m^-1 units.
 
     """
-    h = const.h.value
-    c = const.c.value
-    k_B = const.k_B.value
-    return 2.0*h*c**2/lambda_**5 / (np.exp(h*c/(lambda_*k_B*T))-1.0)
+    h = c.h.value
+    c_ = c.c.value
+    k_B = c.k_B.value
+    return 2.0*h*c_**2/lambda_**5 / (np.exp(h*c_/(lambda_*k_B*T))-1.0)
 
 
 def complexvis_simple(b, system, ucoord=None, vcoord=None, wavelengths=None, info={}):
@@ -130,7 +130,7 @@ def complexvis_simple(b, system, ucoord=None, vcoord=None, wavelengths=None, inf
         beta = coeff
 
         # Note: luminosity should be passband & integrated over surface!
-        Lum_lambda = np.pi*(body.requiv*units.solRad.to('m'))**2 * planck(lambda_, body.teff)
+        Lum_lambda = np.pi*(body.requiv*units.solRad.to('m'))**2 * planck(lambda_, T=body.teff)
 
         mu = Lum_lambda * 1.0/(alpha/2.0 + beta/3.0)
         mu *= (alpha*j1(arg)/arg + beta*np.sqrt(np.pi/2.0)*j32(arg)/arg**(3.0/2.0))
@@ -139,7 +139,7 @@ def complexvis_simple(b, system, ucoord=None, vcoord=None, wavelengths=None, inf
         mutot += mu
         Lumtot += Lum_lambda
 
-    val = mutot/Lumtot**2
+    val = mutot/Lumtot
 
     return {'complexvis': val}
 
