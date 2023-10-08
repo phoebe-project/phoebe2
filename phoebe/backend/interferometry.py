@@ -10,7 +10,6 @@ Reference: Brož (2017, ApJS 230, 19).
 
 """
 
-import sys
 import numpy as np
 from scipy.special import j1
 from astropy import units
@@ -99,11 +98,11 @@ def complexvis_simple(b, system, ucoord=None, vcoord=None, wavelengths=None, inf
 #    print("system.bodies[0]._mesh = ", system.bodies[0]._mesh)
 #    print("system.xi = ", system.xi)    
 #    print("info = ", info)
-#    sys.exit(1)
+#    import sys; sys.exit(1)
 
 #    val = 0.5; return {'complexvis': val}  # dbg
 
-    # Note: b.get_value() call is extremely slow!!! cf. backend.py
+    # Note: b.get_value() call is extremely slow!!! cf. backends.py
     j = info['original_index']
     d = system.distance					# m
     u = ucoord[j]					# m
@@ -152,7 +151,6 @@ def vis_simple(b, system, ucoord=None, vcoord=None, wavelengths=None, info={}):
     Note: See complexvis_simple().
 
     """
-
     mu = complexvis_simple(b, system, ucoord=ucoord, vcoord=vcoord, wavelengths=wavelengths, info=info)
     mu = mu['complexvis']
     val = (abs(mu))**2

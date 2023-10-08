@@ -237,7 +237,8 @@ _forbidden_labels += ['times', 'fluxes', 'sigmas', 'sigmas_lnf',
                      'normal_intensities', 'abs_normal_intensities',
                      'boost_factors', 'ldint', 'ptfarea',
                      'pblum', 'pblum_ext', 'abs_pblum', 'abs_pblum_ext',
-                     'u', 'v', 'wavelengths', 'vises', 'clos', 'if_method',
+                     'u', 'v', 'wavelengths', 'vises', 'if_method',
+                     'u1', 'v1', 'u2', 'v2', 'clos', 't3s',
                      ]
 
 

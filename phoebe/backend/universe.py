@@ -1806,7 +1806,7 @@ class Star(Body):
         atm = kwargs.get('atm', self.atm)
         extinct = kwargs.get('extinct', self.extinct)
         Rv = kwargs.get('Rv', self.Rv)
-        ld_mode = kwargs.get('ld_mode', self.ld_mode.get(dataset, 'manual'))
+        ld_mode = kwargs.get('ld_mode', self.ld_mode.get(dataset, None))
         ld_func = kwargs.get('ld_func', self.ld_func.get(dataset, None))
         ld_coeffs = kwargs.get('ld_coeffs', self.ld_coeffs.get(dataset, None)) if ld_mode == 'manual' else None
         ld_coeffs_source = kwargs.get('ld_coeffs_source', self.ld_coeffs_source.get(dataset, 'none')) if ld_mode == 'lookup' else None
