@@ -85,6 +85,14 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.4.11
+
+* fix jktebop backend handling of mass-ratio and eccentricity for RVs.
+* bumps version requirements in pip for numpy, scipy, astropy.
+* allows sma@star and asini@star to flip to solve for q
+* fixes handling of spots on rotating single stars.
+* fixes constraint migration for 2.3 -> 2.4 
+
 ### 2.4.10
 
 * fixes implementation of gravitational redshift.
