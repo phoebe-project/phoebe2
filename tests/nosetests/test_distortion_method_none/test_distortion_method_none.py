@@ -5,13 +5,11 @@ import phoebe
 
 
 def test_binary(plot=False):
-
-
     b = phoebe.Bundle.default_binary()
     b.add_dataset('lc', times=[0])
     b.add_dataset('lp', times=[0])
     b.add_dataset('rv', times=[0])
-    b.add_dataset('mesh', times=[0])
+    b.add_dataset('mesh', compute_times=[0])
 
     for comp in ['primary', 'secondary']:
         b.set_value_all('distortion_method', value='roche')

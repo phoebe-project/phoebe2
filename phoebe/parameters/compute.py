@@ -300,6 +300,8 @@ def legacy(**kwargs):
     params += [ChoiceParameter(qualifier='fti_method', copy_for = {'kind': ['lc'], 'dataset': '*'}, dataset='_default', value=kwargs.get('fti_method', 'none'), choices=['none', 'oversample'], description='How to handle finite-time integration (when non-zero exptime)')]
     params += [IntParameter(visible_if='fti_method:oversample', qualifier='fti_oversample', copy_for={'kind': ['lc'], 'dataset': '*'}, dataset='_default', value=kwargs.get('fti_oversample', 5), limits=(1,None), default_unit=u.dimensionless_unscaled, description='Number of times to sample per-datapoint for finite-time integration')]
 
+    params += [ChoiceParameter(visible_if='atm:!blackbody,blending_method:!none', copy_for = {'kind': ['star'], 'component': '*'}, component='_default', qualifier='ld_blending_method', value=kwargs.get('ld_blending_method', 'nearest'), choices=['none', 'nearest', 'linear'], description='Method to use for extrapolating limb-darkening during blending (for all datasets and bolometric for irradiation, if applicable)')]
+
 
     return ParameterSet(params)
 

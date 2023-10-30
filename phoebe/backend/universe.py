@@ -15,6 +15,8 @@ from phoebe import u
 from phoebe import c
 from phoebe import conf
 
+from cndpolator import ainfo
+
 import logging
 logger = logging.getLogger("UNIVERSE")
 logger.addHandler(logging.NullHandler())
@@ -1663,8 +1665,10 @@ class Star(Body):
         # abs_normal_intensities are directly out of the passbands module and are
         # emergent normal intensities in this dataset's passband/atm in absolute units
         abs_normal_intensities = self.mesh['abs_normal_intensities:{}'.format(dataset)].centers
+        # print(f'compute_luminosity: {abs_normal_intensities.shape=}')
 
         ldint = self.mesh['ldint:{}'.format(dataset)].centers
+        # print(f'compute_luminosity: {ldint.shape=}')
         ptfarea = self.get_ptfarea(dataset) # just a float
 
         # Our total integrated intensity in absolute units (luminosity) is now
@@ -1673,6 +1677,7 @@ class Star(Body):
         # limbdarkened as if they were at mu=1, and multiplied by their respective areas
 
         abs_luminosity = np.sum(abs_normal_intensities*areas*ldint)*ptfarea*np.pi
+        # print(f'compute_luminosity: {abs_luminosity=}')
 
         # NOTE: when this is computed the first time (for the sake of determining
         # pblum_scale), get_pblum_scale will return 1.0
@@ -1835,10 +1840,14 @@ class Star(Body):
 
             self.set_ptfarea(dataset, ptfarea)
 
+            query_pts = np.ascontiguousarray(np.stack((
+                self.mesh.teffs.for_computations,
+                self.mesh.loggs.for_computations,
+                self.mesh.abuns.for_computations
+            )).T)
+
             ldint = pb.ldint(
-                teffs=self.mesh.teffs.for_computations,
-                loggs=self.mesh.loggs.for_computations,
-                abuns=self.mesh.abuns.for_computations,
+                query_pts=query_pts,
                 ldatm=ldatm,
                 ld_func=ld_func if ld_mode != 'interp' else ld_mode,
                 ld_coeffs=ld_coeffs,
@@ -1847,10 +1856,13 @@ class Star(Body):
                 raise_on_nans=True
             ).flatten()
 
+            # print(f'{query_pts.shape=}')
+            # print(f'{ldint.shape=}')
+            # print(f'{ldint[:5,:]=}')
+            # [0.78913106 0.78944129 0.78953682 0.78953682 0.78944129]
+
             abs_normal_intensities = pb.Inorm(
-                teffs=self.mesh.teffs.for_computations,
-                loggs=self.mesh.loggs.for_computations,
-                abuns=self.mesh.abuns.for_computations,
+                query_pts=query_pts,
                 atm=atm,
                 ldatm=ldatm,
                 ldint=ldint,
@@ -1862,14 +1874,25 @@ class Star(Body):
                 blending_method=blending_method
             ).flatten()
 
+            # print(abs_normal_intensities[:5])
+            # [4.14597115e+13 4.17244100e+13 4.18061229e+13 4.18061229e+13 4.17244100e+13]
+
+            query_pts = np.ascontiguousarray(np.stack((
+                self.mesh.teffs.for_computations,
+                self.mesh.loggs.for_computations,
+                self.mesh.abuns.for_computations,
+                np.abs(self.mesh.mus_for_computations),
+            )).T)
+            # print(f'{self.mesh.mus_for_computations=}')
+            # print(ainfo(query_pts))
+
             # abs_intensities are the projected (limb-darkened) passband intensities
             # TODO: why do we need to use abs(mus) here?
             # ! Because the interpolation within Imu will otherwise fail.
             # ! It would be best to pass only [visibilities > 0] elements to Imu.
-            abs_intensities = pb.Imu(teffs=self.mesh.teffs.for_computations,
-                loggs=self.mesh.loggs.for_computations,
-                abuns=self.mesh.abuns.for_computations,
-                mus=abs(self.mesh.mus_for_computations),
+
+            abs_intensities = pb.Imu(
+                query_pts=query_pts,
                 atm=atm,
                 ldatm=ldatm,
                 ldint=ldint,
@@ -1880,6 +1903,13 @@ class Star(Body):
                 ld_extrapolation_method=ld_extrapolation_method,
                 blending_method=blending_method
             ).flatten()
+            # print(f'{abs_normal_intensities[:5]=}')
+
+            # for i in range(len(query_pts)):
+            #     print(f'{query_pts[i,0]} {query_pts[i,1]} {query_pts[i,2]} {query_pts[i,3]} {ldint[i]} {abs_normal_intensities[i]} {abs_intensities[i]}')
+            
+            # print(abs_intensities[:5])
+            # [4.29491526e+13 3.91889231e+13 3.91933678e+13 3.91954156e+13 3.91930293e+13]
 
             # Beaming/boosting
             if boosting_method == 'none' or ignore_effects:
@@ -1925,6 +1955,7 @@ class Star(Body):
             # Handle pblum - distance and l3 scaling happens when integrating (in observe)
             # we need to scale each triangle so that the summed normal_intensities over the
             # entire star is equivalent to pblum / 4pi
+            print(f'{self.get_pblum_scale(dataset)=}')
             normal_intensities = abs_normal_intensities * self.get_pblum_scale(dataset)
             intensities = abs_intensities * self.get_pblum_scale(dataset)
 

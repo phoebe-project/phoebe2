@@ -32,7 +32,7 @@ def test_binary(plot=False, gen_comp=False):
     if gen_comp:
         b.add_compute('legacy', refl_num=0, compute='phoebe1')
 
-    # set matching limb-darkening for bolometric
+    # set matching limb-darkening for bolometric:
     b.set_value_all('ld_mode_bol', 'manual')
     b.set_value_all('ld_func_bol', 'linear')
     b.set_value_all('ld_coeffs_bol', [0.])
@@ -41,15 +41,15 @@ def test_binary(plot=False, gen_comp=False):
     b.set_value_all('ld_func', 'linear')
     b.set_value_all('ld_coeffs', [0.])
 
-    # turn off albedos (legacy requirement)
-    b.set_value_all('irrad_frac_refl_bol',  0.0)
+    # turn off albedos (legacy requirement):
+    b.set_value_all('irrad_frac_refl_bol', 0.0)
 
     for ld_func in b.get('ld_func', component='primary').choices + ['interp']:
         # let's test all of these against legacy.  For some we don't have
-        # exact comparisons, so we'll get close and leave a really lose
+        # exact comparisons, so we'll get close and leave a really loose
         # tolerance.
 
-        ld_coeff_loop = [None] if ld_func=='interp' else [0.2, 'ck2004']
+        ld_coeff_loop = [None] if ld_func == 'interp' else [0.2, 'ck2004']
 
         for ld_coeff in ld_coeff_loop:
 
@@ -60,16 +60,14 @@ def test_binary(plot=False, gen_comp=False):
                 ld_coeffs = _get_ld_coeffs(ld_coeff, ld_func)
                 ld_coeffs_source = 'none'
 
-            if ld_func=='interp':
+            if ld_func == 'interp':
                 atm = 'ck2004'
                 atm_ph1 = 'extern_atmx'
                 exact_comparison = False
-
             else:
                 atm = 'extern_atmx'
                 atm_ph1 = 'extern_atmx'
                 exact_comparison = True
-
 
             # some ld_funcs aren't supported by legacy.  So let's fall back
             # on logarthmic at least to make sure there isn't a large offset
@@ -128,7 +126,10 @@ def test_binary(plot=False, gen_comp=False):
                 print("exact_comparison: {}, max (rel): {}".format(exact_comparison, abs((phoebe2_val-phoebe1_val)/phoebe1_val).max()))
 
             if plot:
-                b.plot(dataset='lc01', show=True)
+                plt.plot(np.linspace(0, period, 21), phoebe1_val, label='legacy')
+                plt.plot(np.linspace(0, period, 21), phoebe2_val, label='phoebe')
+                plt.legend()
+                plt.show()
 
             assert np.allclose(phoebe2_val, phoebe1_val, rtol=5e-3 if exact_comparison else 0.3, atol=0.)
 
@@ -196,7 +197,6 @@ def test_binary(plot=False, gen_comp=False):
     return b
 
 if __name__ == '__main__':
-    logger = phoebe.logger(clevel='INFO')
+    # logger = phoebe.logger(clevel='INFO')
 
-
-    b = test_binary(plot=plot, gen_comp=True)
+    b = test_binary(plot=True, gen_comp=True)
