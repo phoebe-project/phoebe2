@@ -1955,7 +1955,7 @@ class Star(Body):
             # Handle pblum - distance and l3 scaling happens when integrating (in observe)
             # we need to scale each triangle so that the summed normal_intensities over the
             # entire star is equivalent to pblum / 4pi
-            print(f'{self.get_pblum_scale(dataset)=}')
+            # print(f'{self.get_pblum_scale(dataset)=}')
             normal_intensities = abs_normal_intensities * self.get_pblum_scale(dataset)
             intensities = abs_intensities * self.get_pblum_scale(dataset)
 
