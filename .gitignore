@@ -18,7 +18,8 @@ MANIFEST
 *.log
 *.txt
 *.png
+*.so
+*.egg-info
 .DS_Store
-libphoebe.so
 
 *.swp

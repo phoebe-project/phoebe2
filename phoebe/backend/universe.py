@@ -2432,7 +2432,7 @@ class Star_rotstar(Star):
     def needs_recompute_instantaneous(self):
         # recompute instantaneous for asynchronous spots, even if meshing
         # doesn't need to be recomputed
-        return self.needs_remesh or (len(self.features) and self.F != 1.0)
+        return self.needs_remesh or (not self.is_single and len(self.features) and self.F != 1)
 
     @property
     def needs_remesh(self):
