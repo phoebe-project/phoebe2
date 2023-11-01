@@ -2225,6 +2225,7 @@ class JktebopBackend(BaseBackendByDataset):
 
         pblums = kwargs.get('pblums').get(info['dataset'])
         sbratio = (pblums.get(starrefs[1])/b.get_value(qualifier='requiv', component=starrefs[1], context='component', unit=u.solRad)**2)/(pblums.get(starrefs[0])/b.get_value(qualifier='requiv', component=starrefs[0], context='component', unit=u.solRad)**2)
+        sbratio = sbratio[0]
 
         # let's make sure we'll be able to make the translation later
         if ldfuncA not in _jktebop_ld_func.keys() or ldfuncB not in _jktebop_ld_func.keys():
@@ -2726,6 +2727,7 @@ class EllcBackend(BaseBackendByDataset):
 
         pblums = kwargs.get('pblums', {}).get(info['dataset'], {})
         sbratio = (pblums.get(starrefs[1])/b.get_value(qualifier='requiv', component=starrefs[1], context='component', unit=u.solRad, **_skip_filter_checks)**2)/(pblums.get(starrefs[0])/b.get_value(qualifier='requiv', component=starrefs[0], context='component', unit=u.solRad, **_skip_filter_checks)**2)
+        sbratio = sbratio[0]
 
         if info['kind'] == 'lc':
             # third light handled by run_compute
