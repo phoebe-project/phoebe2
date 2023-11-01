@@ -3,8 +3,13 @@
 
 import phoebe
 import numpy as np
-import matplotlib.pyplot as plt
 import os
+try:
+    import matplotlib.pyplot as plt
+    PLOTTING_ENABLED = True
+except:
+    PLOTTING_ENABLED = False
+
 
 
 def test_binary(plot=False):
@@ -25,7 +30,7 @@ def test_binary(plot=False):
     b.run_compute(kind='phoebe', fti_method='none')
     fluxes = b.get_value('fluxes', context='model')
 
-    if plot:
+    if PLOTTING_ENABLED and plot:
         print("fti off")
         print(abs(fluxes_legacy-fluxes).max())
         plt.plot(times, fluxes_legacy, 'k-', label='legacy')
@@ -39,7 +44,7 @@ def test_binary(plot=False):
     fluxes_legacy = np.loadtxt(os.path.join(dir, 'kic12004834.fti.data'), unpack=True, usecols=(1,))
     fluxes = b.get_value('fluxes', context='model')
 
-    if plot:
+    if PLOTTING_ENABLED and plot:
         print("fti on")
         print(abs(fluxes_legacy-fluxes).max())
         b.plot(show=True)

@@ -4,7 +4,11 @@
 import phoebe
 from phoebe import u
 import numpy as np
-import matplotlib.pyplot as plt
+try:
+    import matplotlib.pyplot as plt
+    PLOTTING_ENABLED = True
+except:
+    PLOTTING_ENABLED = False
 
 
 def _keplerian_v_nbody(b, plot=False):
@@ -65,7 +69,7 @@ def _phoebe_v_photodynam(b, plot=False):
         # TODO: why the small discrepancy (visible especially in y, still <1e-11) - possibly a difference in time0 or just a precision limit in the photodynam backend since loading from a file??
 
 
-        if plot:
+        if PLOTTING_ENABLED and plot:
             for k in ['us', 'vs', 'ws', 'vus', 'vvs', 'vws']:
                 plt.cla()
                 plt.plot(b.get_value('times', model='phoeberesults', component=comp, unit=u.d), b.get_value(k, model='phoeberesults', component=comp), 'r-')
