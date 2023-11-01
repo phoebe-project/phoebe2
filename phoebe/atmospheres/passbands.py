@@ -223,7 +223,7 @@ class Passband:
         if "'" in pbset or '"' in pbset:
             raise ValueError("pbset cannot contain quotation marks")
         if "'" in pbname or '"' in pbname:
-            raise ValueError("pbname cannot contain quotation marks")
+            raise ValueError("pbset cannot contain quotation marks")
 
         self.h = h.value
         self.c = c.value
@@ -733,10 +733,10 @@ class Passband:
                 #     self.ldint_energy_grid['phoenix'] = hdul['phiegrid'].data
                 #     self.ldint_photon_grid['phoenix'] = hdul['phipgrid'].data
 
-                #if 'phoenix:ext' in self.content:
-                #    self.ext_axes['phoenix'] = (np.array(list(hdul['ph_teffs'].data['teff'])), np.array(list(hdul['ph_loggs'].data['logg'])), np.array(list(hdul['ph_abuns'].data['abun'])), np.array(list(hdul['ph_ebvs'].data['ebv'])), np.array(list(hdul['ph_rvs'].data['rv'])))
-                #    self.ext_energy_grid['phoenix'] = hdul['phxegrid'].data
-                #    self.ext_photon_grid['phoenix'] = hdul['phxpgrid'].data
+                # if 'phoenix:ext' in self.content:
+                #     self._phoenix_extinct_axes = (np.array(list(hdul['ph_teffs'].data['teff'])),np.array(list(hdul['ph_loggs'].data['logg'])), np.array(list(hdul['ph_abuns'].data['abun'])), np.array(list(hdul['ph_ebvs'].data['ebv'])), np.array(list(hdul['ph_rvs'].data['rv'])))
+                #     self._phoenix_extinct_energy_grid = hdul['phxegrid'].data
+                #     self._phoenix_extinct_photon_grid = hdul['phxpgrid'].data
 
                 # if 'tmap:Imu' in self.content:
                 #     self.atm_axes['tmap'] = (np.array(list(hdul['tm_teffs'].data['teff'])), np.array(list(hdul['tm_loggs'].data['logg'])), np.array(list(hdul['tm_abuns'].data['abun'])), np.array(list(hdul['tm_mus'].data['mu'])))
@@ -770,10 +770,10 @@ class Passband:
                 #     self.ldint_energy_grid['tmap'] = hdul['tmiegrid'].data
                 #     self.ldint_photon_grid['tmap'] = hdul['tmipgrid'].data
 
-                #if 'tmap:ext' in self.content:
-                #    self.ext_axes['tmap'] = (np.array(list(hdul['tm_teffs'].data['teff'])), np.array(list(hdul['tm_loggs'].data['logg'])), np.array(list(hdul['tm_abuns'].data['abun'])), np.array(list(hdul['tm_ebvs'].data['ebv'])), np.array(list(hdul['tm_rvs'].data['rv'])))
-                #    self.ext_energy_grid['tmap'] = hdul['tmxegrid'].data
-                #    self.ext_photon_grid['tmap'] = hdul['tmxpgrid'].data
+                # if 'tmap:ext' in self.content:
+                #     self._tmap_extinct_axes = (np.array(list(hdul['tm_teffs'].data['teff'])), np.array(list(hdul['tm_loggs'].data['logg'])), np.array(list(hdul['tm_abuns'].data['abun'])), np.array(list(hdul['tm_ebvs'].data['ebv'])), np.array(list(hdul['tm_rvs'].data['rv'])))
+                #     self._tmap_extinct_energy_grid = hdul['tmxegrid'].data
+                #     self._tmap_extinct_photon_grid = hdul['tmxpgrid'].data
 
         return self
 
@@ -1783,9 +1783,6 @@ class Passband:
 
         raise_on_nans = True if atm_extrapolation_method == 'none' else False
 
-        # tabulate requested atmosphere parameters:
-        req = ndpolator.tabulate((teffs, loggs, abuns))
-
         if atm == 'blackbody' and 'blackbody:Inorm' in self.content:
             # check if the required tables for the chosen ldatm are available:
             if ldatm == 'none' and ld_coeffs is None:
@@ -1797,7 +1794,6 @@ class Passband:
             # if blending_method == 'blackbody':
             #     raise ValueError(f'the combination of atm={atm} and blending_method={blending_method} is not valid.')
 
-            # calculate intensities:
             if intens_weighting == 'photon':
                 intensities = 10**self._log10_Inorm_bb_photon(query_pts[:,0]).reshape(-1, 1)
             else:  # if intens_weighting == 'energy':
@@ -2033,11 +2029,8 @@ class Passband:
         ).reshape(-1, 1)  # FIXME: sort out this reshaping business all over the code
 
         ld = self._ld(ld_func=ld_func, mu=mus, ld_coeffs=ld_coeffs).reshape(-1, 1)
-        # print(f'{Inorm.shape=}')
-        # print(f'{ld.shape=}')
-        retval = Inorm * ld
-        # print(f'{retval.shape=}')
 
+        retval = Inorm * ld
         return retval
 
     def ldint(self, query_pts, ldatm=None, ld_func='linear', ld_coeffs=np.array([[0.5]]), intens_weighting='photon', ld_extrapolation_method='none', raise_on_nans=True):
@@ -2066,7 +2059,6 @@ class Passband:
 
         if ld_coeffs is not None:
             ld_coeffs = np.atleast_2d(ld_coeffs)
-            ld_coeffs = np.broadcast_to(ld_coeffs, (len(req), ld_coeffs.shape[1]))  # (1, M) -> (N, M) or (N, M) -> (N, M)
 
         if ld_coeffs is None:
             # FIXME: ldatm should be taken from ld_coeffs_source; is it?
