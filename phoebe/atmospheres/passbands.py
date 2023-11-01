@@ -223,7 +223,7 @@ class Passband:
         if "'" in pbset or '"' in pbset:
             raise ValueError("pbset cannot contain quotation marks")
         if "'" in pbname or '"' in pbname:
-            raise ValueError("pbset cannot contain quotation marks")
+            raise ValueError("pbname cannot contain quotation marks")
 
         self.h = h.value
         self.c = c.value
@@ -231,11 +231,6 @@ class Passband:
 
         if from_file:
             return
-
-        if "'" in pbset or '"' in pbset:
-            raise ValueError("pbset cannot contain quotation marks")
-        if "'" in pbname or '"' in pbname:
-            raise ValueError("pbname cannot contain quotation marks")
 
         # Initialize content list; each method that adds any content
         # to the passband file needs to add a corresponding label to the

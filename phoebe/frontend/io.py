@@ -190,6 +190,7 @@ def ret_dict(pname, val, dataid=None, rvdep=None, comid=None):
         if pnew == 'proximity':
             pnew = pnew+'_'+pieces[2]
             d['context'] = 'compute'
+    
     # component specific parameters end with 1 or 2 in phoebe1
     if pnew[-1] == '1':
         d['component'] = 'primary'
@@ -401,40 +402,40 @@ def det_dataset(eb, passband, dataid, comp, time):
         logger.warning("The name picked for the radial velocity curve is forbidden. Applying default name instead")
         rv_dataset = eb.add_dataset('rv', times=[], **_skip_filter_checks)
 
-    #     else:
+    # else:
     #     # now we have to determine if we add to an existing dataset or make a new one
-    #         rvs = eb.get_dataset(kind='rv').datasets
-    #         found = False
-    #         #set the component of the companion
+    #     rvs = eb.get_dataset(kind='rv').datasets
+    #     found = False
+    #     #set the component of the companion
 
-    #         if comp == 'primary':
-    #             comp_o = 'primary'
-    #         else:
-    #             comp_o = 'secondary'
-    #         for x in rvs:
-    #             test_dataset = eb.get_dataset(x, check_visible=False)
+    #     if comp == 'primary':
+    #         comp_o = 'primary'
+    #     else:
+    #         comp_o = 'secondary'
+    #     for x in rvs:
+    #         test_dataset = eb.get_dataset(x, check_visible=False)
 
 
-    #             if len(test_dataset.get_value(qualifier='rvs', component=comp_o, check_visible=False)) == 0:                #so at least it has an empty spot now check against filter and length
-    # #               removing reference to time_o. If there are no rvs there should be no times
-    # #                time_o = test_dataset.get_value('times', component=comp_o)
-    #                 passband_o = test_dataset.get_value('passband')
+    #         if len(test_dataset.get_value(qualifier='rvs', component=comp_o, check_visible=False)) == 0:                #so at least it has an empty spot now check against filter and length
+    #             # removing reference to time_o. If there are no rvs there should be no times
+    #             # time_o = test_dataset.get_value('times', component=comp_o)
+    #             passband_o = test_dataset.get_value('passband')
 
-    # #                if np.all(time_o == time) and (passband == passband_o):
-    #                 if (passband == passband_o):
-    #                     rv_dataset = test_dataset
-    #                     found = True
+    #             # if np.all(time_o == time) and (passband == passband_o):
+    #             if (passband == passband_o):
+    #                 rv_dataset = test_dataset
+    #                 found = True
 
-    #         if not found:
-    #             try:
-    #                 eb._check_label(dataid)
+    #     if not found:
+    #         try:
+    #             eb._check_label(dataid)
 
-    #                 rv_dataset = eb.add_dataset('rv', dataset=dataid, times=[])
+    #             rv_dataset = eb.add_dataset('rv', dataset=dataid, times=[])
 
-    #             except ValueError:
+    #         except ValueError:
 
-    #                 logger.warning("The name picked for the lightcurve is forbidden. Applying default name instead")
-    #                 rv_dataset = eb.add_dataset('rv', times=[])
+    #             logger.warning("The name picked for the lightcurve is forbidden. Applying default name instead")
+    #             rv_dataset = eb.add_dataset('rv', times=[])
 
     return rv_dataset
 
