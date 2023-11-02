@@ -17,6 +17,8 @@ jobs:
       matrix:
         python-version: ["3.7", "3.8", "3.9", "3.10", "3.11"]
         os: [ubuntu-latest, macos-latest]  # https://docs.github.com/en/actions/using-github-hosted-runners/about-github-hosted-runners
+        toolchain:
+            - {compiler: gcc, version: 13}  # https://github.com/fortran-lang/setup-fortran
 
     name: ${{ matrix.os }} python${{ matrix.python-version}}
     steps:
@@ -77,14 +79,17 @@ jobs:
         python -c "import photodynam"
 
     - name: Setup GNU Fortran
-      uses: modflowpy/install-gfortran-action@v1
+      id: setup-fortran
+      uses: fortran-lang/setup-fortran@v1
 
     - name: Install jktebop
+      env:
+        FC: ${{ steps.setup-fortran.outputs.fc }}
       run: |
         wget https://www.astro.keele.ac.uk/jkt/codes/jktebop-v43.tgz
         tar -xvzf jktebop-v43.tgz
         cd jktebop43
-        gfortran -o jktebop jktebop.f
+        ${{ env.FC }} -o jktebop jktebop.f
         echo $(pwd) >> $GITHUB_PATH
         cd ..
 
