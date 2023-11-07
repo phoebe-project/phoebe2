@@ -10772,8 +10772,8 @@ class Bundle(ParameterSet):
                     else:
                         ld_func = 'interp'
                         ld_coeffs = None
-                    atm_extrapolation_method = compute_ps.get_value(qualifier='blending_method', component=component, **_skip_filter_checks)
-                    ld_extrapolation_method = compute_ps.get_value(qualifier='ld_blending_method', component=component, **_skip_filter_checks)
+                    atm_extrapolation_method = compute_ps.get_value(qualifier='blending_method', component=component, default='none', **_skip_filter_checks)
+                    ld_extrapolation_method = compute_ps.get_value(qualifier='ld_blending_method', component=component, default='none', **_skip_filter_checks)
                     blending_method = 'none' if atm_extrapolation_method == 'none' else 'blackbody'
 
                     if atms[component] == 'blackbody' and ld_mode!='manual':

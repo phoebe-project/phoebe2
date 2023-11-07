@@ -255,12 +255,6 @@ def legacy(**kwargs):
     * `gridsize` (int, optional, default=60): number of meshpoints for WD.
     * `distortion_method` (string, optional, default='roche'): method to use
         for distorting stars (legacy only supports roche).
-    * `blending_method` (string, optional, default='none'): Method to use for
-        blending. (Only applicable if `atm` is not 'blackbody')
-    * `ld_blending_method` (string, optional, default='none'): Method to use
-        for extrapolating limb-darkening during blending (for all datasets and
-        bolometric for irradiation, if applicable).  (Only applicable if `atm`
-        is not 'blackbody' and `blending_method` is not 'none')
     * `irrad_method` (string, optional, default='wilson'): which method to use
         to handle irradiation.
     * `refl_num` (int, optional, default=1): number of reflections (only applicable
@@ -305,10 +299,6 @@ def legacy(**kwargs):
 
     params += [ChoiceParameter(qualifier='fti_method', copy_for = {'kind': ['lc'], 'dataset': '*'}, dataset='_default', value=kwargs.get('fti_method', 'none'), choices=['none', 'oversample'], description='How to handle finite-time integration (when non-zero exptime)')]
     params += [IntParameter(visible_if='fti_method:oversample', qualifier='fti_oversample', copy_for={'kind': ['lc'], 'dataset': '*'}, dataset='_default', value=kwargs.get('fti_oversample', 5), limits=(1,None), default_unit=u.dimensionless_unscaled, description='Number of times to sample per-datapoint for finite-time integration')]
-
-    params += [ChoiceParameter(visible_if='atm:!blackbody', copy_for = {'kind': ['star'], 'component': '*'}, component='_default', qualifier='blending_method', value=kwargs.get('blending_method', 'linear'), choices=['none', 'nearest', 'linear'], description='Method to use for blending')]
-    params += [ChoiceParameter(visible_if='atm:!blackbody,blending_method:!none', copy_for = {'kind': ['star'], 'component': '*'}, component='_default', qualifier='ld_blending_method', value=kwargs.get('ld_blending_method', 'nearest'), choices=['none', 'nearest', 'linear'], description='Method to use for extrapolating limb-darkening during blending (for all datasets and bolometric for irradiation, if applicable)')]
-
 
     return ParameterSet(params)
 
@@ -537,12 +527,6 @@ def jktebop(**kwargs):
          atmosphere tables (considerable overhead, but more accurate for
          distorted stars).
     * `ringsize` (float, optional, default=5): integration ring size.
-    * `blending_method` (string, optional, default='none'): Method to use for
-        blending. (Only applicable if `atm` is not 'blackbody')
-    * `ld_blending_method` (string, optional, default='none'): Method to use
-        for extrapolating limb-darkening during blending (for all datasets and
-        bolometric for irradiation, if applicable).  (Only applicable if `atm`
-        is not 'blackbody' and `blending_method` is not 'none')
     * `rv_method` (string, optional, default='dynamical'): Method to use for
         computing RVs.  jktebop only supports dynamical (Keplerian) RVs.
     * `distortion_method` (string, optional, default='sphere/biaxial spheroid'):
@@ -584,9 +568,6 @@ def jktebop(**kwargs):
 
     params += [ChoiceParameter(qualifier='fti_method', copy_for = {'kind': ['lc'], 'dataset': '*'}, dataset='_default', value=kwargs.get('fti_method', 'none'), choices=['none', 'oversample'], description='How to handle finite-time integration (when non-zero exptime)')]
     params += [IntParameter(visible_if='fti_method:oversample', qualifier='fti_oversample', copy_for={'kind': ['lc'], 'dataset': '*'}, dataset='_default', value=kwargs.get('fti_oversample', 5), limits=(1,None), default_unit=u.dimensionless_unscaled, description='Number of times to sample per-datapoint for finite-time integration')]
-
-    params += [ChoiceParameter(visible_if='atm:!blackbody', copy_for = {'kind': ['star'], 'component': '*'}, component='_default', qualifier='blending_method', value=kwargs.get('blending_method', 'linear'), choices=['none', 'nearest', 'linear'], description='Method to use for blending')]
-    params += [ChoiceParameter(visible_if='atm:!blackbody,blending_method:!none', copy_for = {'kind': ['star'], 'component': '*'}, component='_default', qualifier='ld_blending_method', value=kwargs.get('ld_blending_method', 'nearest'), choices=['none', 'nearest', 'linear'], description='Method to use for extrapolating limb-darkening during blending (for all datasets and bolometric for irradiation, if applicable)')]
 
     return ParameterSet(params)
 
@@ -709,12 +690,6 @@ def ellc(**kwargs):
         calculation of local surface gravity for calculation of gravity darkening
         or a (much faster) approximation based on functional form fit to local
         gravity at 4 points on the star.
-    * `blending_method` (string, optional, default='none'): Method to use for
-        blending. (Only applicable if `atm` is not 'blackbody')
-    * `ld_blending_method` (string, optional, default='none'): Method to use
-        for extrapolating limb-darkening during blending (for all datasets and
-        bolometric for irradiation, if applicable).  (Only applicable if `atm`
-        is not 'blackbody' and `blending_method` is not 'none')
     * `rv_method` (string, optional, default='flux-weighted'): which method to
         use for computing radial velocities.
     * `irrad_method` (string, optional, default='none'): method to use for
@@ -754,9 +729,6 @@ def ellc(**kwargs):
     # copy for RV datasets once exptime support for RVs in phoebe
     params += [ChoiceParameter(qualifier='fti_method', copy_for = {'kind': ['lc'], 'dataset': '*'}, dataset='_default', value=kwargs.get('fti_method', 'none'), choices=['none', 'ellc', 'oversample'], description='How to handle finite-time integration (when non-zero exptime).  ellc: use ellcs native oversampling. oversample: use phoebe\'s oversampling')]
     params += [IntParameter(visible_if='fti_method:ellc|oversample', qualifier='fti_oversample', copy_for={'kind': ['lc'], 'dataset': '*'}, dataset='_default', value=kwargs.get('fti_oversample', 5), limits=(1, None), default_unit=u.dimensionless_unscaled, description='number of integration points used to account for finite exposure time.')]
-
-    params += [ChoiceParameter(visible_if='atm:!blackbody', copy_for = {'kind': ['star'], 'component': '*'}, component='_default', qualifier='blending_method', value=kwargs.get('blending_method', 'linear'), choices=['none', 'nearest', 'linear'], description='Method to use for blending')]
-    params += [ChoiceParameter(visible_if='atm:!blackbody,blending_method:!none', copy_for = {'kind': ['star'], 'component': '*'}, component='_default', qualifier='ld_blending_method', value=kwargs.get('ld_blending_method', 'nearest'), choices=['none', 'nearest', 'linear'], description='Method to use for extrapolating limb-darkening during blending (for all datasets and bolometric for irradiation, if applicable)')]
 
     params += [ChoiceParameter(qualifier='irrad_method', value=kwargs.get('irrad_method', 'lambert'), choices=['lambert', 'none'], description='Which method to use to handle all irradiation effects.  Note that irradiation and rv_method=\'flux-weighted\' cannot be used together.')]
 
