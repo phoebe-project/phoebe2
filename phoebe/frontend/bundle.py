@@ -10321,12 +10321,12 @@ class Bundle(ParameterSet):
                 logger.info("{} ld_coeffs lookup for dataset='{}' component='{}' passband='{}' from ld_coeffs_source='{}'".format(ld_func, ldcs_param.dataset, ldcs_param.component, passband, ldcs))
                 logger.debug("pb.interpolate_ldcoeffs(teff={} logg={}, abun={}, ld_coeffs={} ld_func={} intens_weighting={})".format(teff, logg, abun, ldcs, ld_func, intens_weighting))
 
+                query_pts = np.array([[teff, logg, abun],])
+
                 # interpolate_ldcoeffs() always returns an array, so we need
                 # the first element of the array.
                 ld_coeffs = pb.interpolate_ldcoeffs(
-                    teffs=teff,
-                    loggs=logg,
-                    abuns=abun,
+                    query_pts=query_pts,
                     ldatm=ldcs,
                     ld_func=ld_func,
                     intens_weighting=intens_weighting,
@@ -10500,7 +10500,6 @@ class Bundle(ParameterSet):
                 raise NotImplementedError("l3_mode='{}' not supported.".format(l3_mode))
 
         return l3s
-
     def compute_pblums(self, compute=None, model=None, pblum=True, pblum_abs=False,
                        pblum_scale=False, pbflux=False,
                        set_value=False, unit=None, **kwargs):
@@ -10659,6 +10658,8 @@ class Bundle(ParameterSet):
         pblum_method = kwargs.pop('pblum_method', compute_ps.get_value(qualifier='pblum_method', default='phoebe', **_skip_filter_checks))
         t0 = self.get_value(qualifier='t0', context='system', unit=u.d, t0=kwargs.pop('t0', None), **_skip_filter_checks)
 
+        # print(f'{compute=} {model=} {pblum=} {pblum_abs=} {pblum_scale=} {pbflux=} {set_value=} {unit=} {pblum_method=}')
+
         # don't allow things like model='mymodel', etc
         forbidden_keys = parameters._meta_fields_filter
         if not kwargs.get('skip_checks', False):
@@ -10752,6 +10753,7 @@ class Bundle(ParameterSet):
                         continue
 
                     pblums_abs[dataset][component] = float(star.compute_luminosity(dataset, scaled=False))
+                    # print(f'{pblums_abs[dataset][component]=}')
 
             elif pblum_method == 'stefan-boltzmann':
                 for component in valid_components:
@@ -10770,8 +10772,8 @@ class Bundle(ParameterSet):
                     else:
                         ld_func = 'interp'
                         ld_coeffs = None
-                    atm_extrapolation_method = compute_ps.get_value(qualifier='blending_method', component=component, **_skip_filter_checks)
-                    ld_extrapolation_method = compute_ps.get_value(qualifier='ld_blending_method', component=component, **_skip_filter_checks)
+                    atm_extrapolation_method = compute_ps.get_value(qualifier='blending_method', component=component, default='none', **_skip_filter_checks)
+                    ld_extrapolation_method = compute_ps.get_value(qualifier='ld_blending_method', component=component, default='none', **_skip_filter_checks)
                     blending_method = 'none' if atm_extrapolation_method == 'none' else 'blackbody'
 
                     if atms[component] == 'blackbody' and ld_mode!='manual':
@@ -10782,10 +10784,10 @@ class Bundle(ParameterSet):
                         required_content += ['{}:ldint'.format(atms[component])]
                     pb = get_passband(passband, content=required_content)
 
+                    query_pts = np.ascontiguousarray( ((teffs[component], loggs[component], abuns[component]),) )
+
                     abs_normal_intensities = pb.Inorm(
-                        teffs=teffs[component],
-                        loggs=loggs[component],
-                        abuns=abuns[component],
+                        query_pts=query_pts,
                         atm=atms[component],
                         ldatm=atms[component],
                         ldint=None,
@@ -10797,11 +10799,10 @@ class Bundle(ParameterSet):
                         blending_method=blending_method,
                         return_nanmask=False
                     ).flatten()
+                    # print(f'compute_pblums: {abs_normal_intensities=}')
 
                     ldint = pb.ldint(
-                        teffs=teffs[component],
-                        loggs=loggs[component],
-                        abuns=abuns[component],
+                        query_pts=query_pts,
                         ldatm=atms[component],
                         ld_func=ld_func,
                         ld_coeffs=ld_coeffs,
@@ -10809,6 +10810,7 @@ class Bundle(ParameterSet):
                         ld_extrapolation_method=ld_extrapolation_method,
                         raise_on_nans=True
                     ).flatten()
+                    # print(f'compute_pblums: {ldint=}')
 
                     if intens_weighting=='photon':
                         ptfarea = pb.ptf_photon_area/pb.h/pb.c
@@ -10817,7 +10819,7 @@ class Bundle(ParameterSet):
 
                     logger.info("estimating pblum for {}@{} using atm='{}' and stefan-boltzmann approximation".format(dataset, component, atm))
                     # requiv in m, Inorm in W/m**3, ldint unitless, ptfarea in m -> pblum_abs in W
-                    pblums_abs[dataset][component] = 4 * np.pi * requivs[component]**2 * abs_normal_intensities * ldint * ptfarea
+                    pblums_abs[dataset][component] = float(4 * np.pi * requivs[component]**2 * abs_normal_intensities * ldint * ptfarea)
 
             else:
                 raise ValueError("pblum_method='{}' not supported".format(pblum_method))

@@ -18,18 +18,15 @@ import os
 
 def _legacy_test(filename='default.phoebe', verbose=True):
 
-    #locate file
+    # locate file
     dir = os.path.dirname(os.path.realpath(__file__))
-    #load in phoebe parameter file
-    params = np.loadtxt(os.path.join(dir, filename), dtype='str', delimiter = '=',
-    converters = {0: lambda s: s.strip(), 1: lambda s: s.strip()})
+    # load in phoebe parameter file
+    params = np.loadtxt(os.path.join(dir, filename), dtype='str', delimiter='=', converters={0: lambda s: s.strip(), 1: lambda s: s.strip()})
 
     lcno = int(params[:,1][list(params[:,0]).index('phoebe_lcno')])
     rvno = int(params[:,1][list(params[:,0]).index('phoebe_rvno')])
 
-
-
-    #load phoebe2 file
+    # load phoebe2 file
     if verbose:
         print(dir)
         print(os.path.join(dir, filename))

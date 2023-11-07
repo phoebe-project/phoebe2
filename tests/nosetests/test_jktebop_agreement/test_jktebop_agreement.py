@@ -133,5 +133,5 @@ def test_jktebop(plot=False, gen_comp=False):
 
 
 if __name__ == '__main__':
-    logger = phoebe.logger('debug')
+#    logger = phoebe.logger('debug')
     test_jktebop(plot=True, gen_comp=False)

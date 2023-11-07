@@ -3,7 +3,33 @@ from scipy.special import binom as binomial
 from scipy.spatial import cKDTree
 from itertools import product
 
+import cndpolator
+
 __version__ = '0.1.0'
+
+class Cndpolator():
+    def __init__(self, axes, grid):
+        self.axes = axes
+        self.grid = grid
+
+        self.neighbors = np.argwhere(~np.isnan(grid[...,0]))
+
+    def find_indices(self, query_pts):
+        return cndpolator.find(self.axes, query_pts)
+    
+    def find_hypercubes(self, indices, grid):
+        return cndpolator.hypercubes(indices, grid)
+    
+    def interp(self, query_pts, indices=None, hypercubes=None, raise_on_nans=False, return_nanmask=False, extrapolation_method=None):
+        # if extrapolation_method is not None or raise_on_nans == True or return_nanmask == True:
+        #     print(f'{extrapolation_method=} {raise_on_nans=} {return_nanmask=}')
+            # raise ValueError('Almost there, implementing this as we speak.')
+        if indices is None:
+            indices = self.find_indices(query_pts)
+        if hypercubes is None:
+            hypercubes = self.find_hypercubes(indices, self.grid)
+        
+        return cndpolator.ndpolate(query_pts, indices, self.axes, hypercubes)
 
 
 class Ndpolator():
@@ -13,13 +39,13 @@ class Ndpolator():
 
         if impute:
             raise NotImplementedError('consider if this is worth implementing here.')
-        
+
         self.indices = np.argwhere(~np.isnan(grid[...,0]))
         non_nan_vertices = np.array([ [self.axes[i][self.indices[k][i]] for i in range(len(self.axes))] for k in range(len(self.indices))])
         self.nntree = cKDTree(non_nan_vertices, copy_data=True)
         ranges = (range(len(ax)-1) for ax in axes)
         slices = [tuple([slice(elem, elem+2) for elem in x]) for x in product(*ranges)]
-        self.ics = np.array([s.start for slc in slices for s in slc if ~np.any(np.isnan(grid[slc]))], dtype=int).reshape(-1, len(axes))
+        self.ics = np.array([s.start for slc in slices for s in slc if ~np.any(np.isnan(grid[slc]))], dtype=int).reshape(-1, len(axes))  # bottleneck
 
     def tabulate(self, arrs):
         arrs = [np.atleast_1d(arr) for arr in arrs]

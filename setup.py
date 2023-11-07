@@ -373,6 +373,13 @@ ext_modules = [
       include_dirs=[numpy.get_include()]
       ),
 
+    Extension(
+      'cndpolator',
+      sources=['phoebe/dependencies/ndpolator/ndpolator.c'],
+      language='c',
+      include_dirs=[numpy.get_include()],
+    ),
+
     Extension('phoebe.algorithms.ceclipse',
       language='c++',
       sources = ['phoebe/algorithms/ceclipse.cpp'],

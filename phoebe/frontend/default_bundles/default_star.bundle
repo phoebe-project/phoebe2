@@ -427,8 +427,7 @@ null
 "choices": [
 "auto",
 "phoenix",
-"ck2004",
-"tmap"
+"ck2004"
 ],
 "value": "auto",
 "visible_if": "ld_mode_bol:lookup",
@@ -880,10 +879,9 @@ null
 "choices": [
 "ck2004",
 "extern_atmx",
-"phoenix",
-"tmap",
 "blackbody",
-"extern_planckint"
+"extern_planckint",
+"phoenix"
 ],
 "value": "ck2004",
 "copy_for": {
@@ -1081,10 +1079,9 @@ null
 "choices": [
 "ck2004",
 "extern_atmx",
-"phoenix",
-"tmap",
 "blackbody",
-"extern_planckint"
+"extern_planckint",
+"phoenix"
 ],
 "value": "ck2004",
 "copy_for": false,
@@ -1229,7 +1226,7 @@ null
 "qualifier": "phoebe_version",
 "context": "setting",
 "description": "Version of PHOEBE",
-"value": "2.4.8.dev+feature-blending",
+"value": "2.4.11.dev+feature-blending",
 "copy_for": false,
 "readonly": true,
 "advanced": true,
