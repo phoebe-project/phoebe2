@@ -1,7 +1,6 @@
 import phoebe
 
 def test_reimport(filename=None):
-
     if filename:
         b = phoebe.from_legacy(filename)
     else:
@@ -35,7 +34,6 @@ def test_reimport(filename=None):
                 assert val1 == val2
             except:
                 assert np.all(val1 == val2)
-
 
 if __name__ == '__main__':
     # logger= phoebe.logger()

@@ -200,3 +200,4 @@ if __name__ == '__main__':
     # logger = phoebe.logger(clevel='INFO')
 
     b = test_binary(plot=True, gen_comp=True)
+

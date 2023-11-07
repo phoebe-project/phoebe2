@@ -10819,9 +10819,7 @@ class Bundle(ParameterSet):
 
                     logger.info("estimating pblum for {}@{} using atm='{}' and stefan-boltzmann approximation".format(dataset, component, atm))
                     # requiv in m, Inorm in W/m**3, ldint unitless, ptfarea in m -> pblum_abs in W
-                    pblums_abs[dataset][component] = 4 * np.pi * requivs[component]**2 * abs_normal_intensities * ldint * ptfarea
-                    # print(f'compute_pblums: {pblums_abs[dataset][component]=}')
-                    # exit()
+                    pblums_abs[dataset][component] = float(4 * np.pi * requivs[component]**2 * abs_normal_intensities * ldint * ptfarea)
 
             else:
                 raise ValueError("pblum_method='{}' not supported".format(pblum_method))

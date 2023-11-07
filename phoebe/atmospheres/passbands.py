@@ -223,7 +223,7 @@ class Passband:
         if "'" in pbset or '"' in pbset:
             raise ValueError("pbset cannot contain quotation marks")
         if "'" in pbname or '"' in pbname:
-            raise ValueError("pbset cannot contain quotation marks")
+            raise ValueError("pbname cannot contain quotation marks")
 
         self.h = h.value
         self.c = c.value
@@ -231,11 +231,6 @@ class Passband:
 
         if from_file:
             return
-
-        if "'" in pbset or '"' in pbset:
-            raise ValueError("pbset cannot contain quotation marks")
-        if "'" in pbname or '"' in pbname:
-            raise ValueError("pbname cannot contain quotation marks")
 
         # Initialize content list; each method that adds any content
         # to the passband file needs to add a corresponding label to the
@@ -1815,7 +1810,7 @@ class Passband:
             if ldint is None:
                 ldint = self.ldint(query_pts=query_pts, ldatm=ldatm, ld_func=ld_func, ld_coeffs=ld_coeffs, intens_weighting=intens_weighting, ld_extrapolation_method=ld_extrapolation_method, raise_on_nans=raise_on_nans)
             
-            print(f'{intensities.shape=} {ldint.shape=} {intensities[:5]=} {ldint[:5]=}')
+            # print(f'{intensities.shape=} {ldint.shape=} {intensities[:5]=} {ldint[:5]=}')
             intensities /= ldint.reshape(-1, 1)
 
         elif atm == 'extern_atmx' and 'extern_atmx:Inorm' in self.content:
