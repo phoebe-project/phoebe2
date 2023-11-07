@@ -255,6 +255,12 @@ def legacy(**kwargs):
     * `gridsize` (int, optional, default=60): number of meshpoints for WD.
     * `distortion_method` (string, optional, default='roche'): method to use
         for distorting stars (legacy only supports roche).
+    * `blending_method` (string, optional, default='none'): Method to use for
+        blending. (Only applicable if `atm` is not 'blackbody')
+    * `ld_blending_method` (string, optional, default='none'): Method to use
+        for extrapolating limb-darkening during blending (for all datasets and
+        bolometric for irradiation, if applicable).  (Only applicable if `atm`
+        is not 'blackbody' and `blending_method` is not 'none')
     * `irrad_method` (string, optional, default='wilson'): which method to use
         to handle irradiation.
     * `refl_num` (int, optional, default=1): number of reflections (only applicable
@@ -531,6 +537,12 @@ def jktebop(**kwargs):
          atmosphere tables (considerable overhead, but more accurate for
          distorted stars).
     * `ringsize` (float, optional, default=5): integration ring size.
+    * `blending_method` (string, optional, default='none'): Method to use for
+        blending. (Only applicable if `atm` is not 'blackbody')
+    * `ld_blending_method` (string, optional, default='none'): Method to use
+        for extrapolating limb-darkening during blending (for all datasets and
+        bolometric for irradiation, if applicable).  (Only applicable if `atm`
+        is not 'blackbody' and `blending_method` is not 'none')
     * `rv_method` (string, optional, default='dynamical'): Method to use for
         computing RVs.  jktebop only supports dynamical (Keplerian) RVs.
     * `distortion_method` (string, optional, default='sphere/biaxial spheroid'):
@@ -697,6 +709,12 @@ def ellc(**kwargs):
         calculation of local surface gravity for calculation of gravity darkening
         or a (much faster) approximation based on functional form fit to local
         gravity at 4 points on the star.
+    * `blending_method` (string, optional, default='none'): Method to use for
+        blending. (Only applicable if `atm` is not 'blackbody')
+    * `ld_blending_method` (string, optional, default='none'): Method to use
+        for extrapolating limb-darkening during blending (for all datasets and
+        bolometric for irradiation, if applicable).  (Only applicable if `atm`
+        is not 'blackbody' and `blending_method` is not 'none')
     * `rv_method` (string, optional, default='flux-weighted'): which method to
         use for computing radial velocities.
     * `irrad_method` (string, optional, default='none'): method to use for
