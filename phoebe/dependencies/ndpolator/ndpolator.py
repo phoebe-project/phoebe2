@@ -29,7 +29,7 @@ class Cndpolator():
     def find_hypercubes(self, indices, grid):
         return cndpolator.hypercubes(indices, grid)
     
-    def interp(self, query_pts, indices=None, flags=None, hypercubes=None, extrapolation_method='none', raise_on_nans=True):
+    def interp(self, query_pts, indices=None, flags=None, hypercubes=None, extrapolation_method='none', raise_on_nans=True, return_nanmask=False):
         if indices is None or flags is None:
             indices, flags = self.find_indices(query_pts)
             if raise_on_nans and np.any(flags):

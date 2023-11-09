@@ -38,12 +38,12 @@ int find_first_geq_than(double *arr, int l, int r, double x, double tol, int *fl
         m = l + (r - l) / 2;
     }
 
+    *flag = (x < arr[0] || arr[l] < x) ? NDP_OUT_OF_BOUNDS : NDP_ON_GRID;
+
     if (fabs((x - arr[l - 1]) / (arr[l] - arr[l - 1])) < tol)
         return -(l - 1);
     if (fabs((arr[l] - x) / (arr[l] - arr[l - 1])) < tol)
         return -l;
-
-    *flag = (x < arr[0] || arr[l] < x) ? NDP_OUT_OF_BOUNDS : NDP_ON_GRID;
 
     return l;
 }
