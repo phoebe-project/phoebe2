@@ -25,7 +25,7 @@ int free_array(array *a)
     return NDPOLATOR_SUCCESS;
 }
 
-int find_first_geq_than(double *arr, int l, int r, double x, double tol)
+int find_first_geq_than(double *arr, int l, int r, double x, double tol, int *flag)
 {
     int m = l + (r - l) / 2;
 
@@ -38,10 +38,12 @@ int find_first_geq_than(double *arr, int l, int r, double x, double tol)
         m = l + (r - l) / 2;
     }
 
-    if (fabs( (x-arr[l-1])/(arr[l]-arr[l-1]) ) < tol)
-        return -(l-1);
-    if (fabs( (arr[l]-x)/(arr[l]-arr[l-1]) ) < tol)
+    if (fabs((x - arr[l - 1]) / (arr[l] - arr[l - 1])) < tol)
+        return -(l - 1);
+    if (fabs((arr[l] - x) / (arr[l] - arr[l - 1])) < tol)
         return -l;
+
+    *flag = (x < arr[0] || arr[l] < x) ? NDP_OUT_OF_BOUNDS : NDP_ON_GRID;
 
     return l;
 }
@@ -56,7 +58,7 @@ int c_ndpolate(int N, int vdim, double *x, double *fv)
             // printf("j=%d fv[%d]=%3.3f, fv[%d]=%3.3f, ", j, (1 << (N - i - 1)) + j, fv[(1 << (N - i - 1)) + j], j, fv[j]);
             for (k = 0; k < vdim; k++) {
                 // fv[j] += (fv[(1 << (N - i - 1)) + j]-fv[j]) * x[i];
-                fv[j*vdim+k] += (fv[((1 << (N - i - 1)) + j)*vdim+k] - fv[j*vdim+k]) * x[i];
+                fv[j * vdim + k] += (fv[((1 << (N - i - 1)) + j) * vdim + k] - fv[j * vdim + k]) * x[i];
             }
             // printf("corr=%3.3f\n", fv[j]);
         }
@@ -67,18 +69,22 @@ int c_ndpolate(int N, int vdim, double *x, double *fv)
 
 PyObject *vectorized_find_first_geq_than(PyObject *axes, PyArrayObject *query_pts)
 {
-    int i, j;
+    int i, j, flag;
 
     npy_intp *query_pts_shape = PyArray_SHAPE(query_pts);
 
     int naxes = PyTuple_Size(axes);
     int nelems = PyArray_DIM(query_pts, 0);
 
+    npy_intp flags_shape[] = {nelems};
+
     int *ms = malloc(nelems * naxes * sizeof(*ms));
+
+    int *flag_data = calloc(nelems, sizeof(*flag_data));
 
     double *query_pts_data = (double *) PyArray_DATA(query_pts);
 
-    PyObject *indices;
+    PyObject *indices, *flags, *combo;
 
     int debug = 0;
 
@@ -86,7 +92,7 @@ PyObject *vectorized_find_first_geq_than(PyObject *axes, PyArrayObject *query_pt
         printf("vecfind: naxes=%d, nelems=%d\n", naxes, nelems);
         for (i = 0; i < nelems; i++)
             for (j = 0; j < naxes; j++)
-                printf("%d %d %lf\n", i, j, query_pts_data[i*naxes+j]);
+                printf("%d %d %lf\n", i, j, query_pts_data[i * naxes + j]);
     }
 
     for (i = 0; i < naxes; i++) {
@@ -94,26 +100,40 @@ PyObject *vectorized_find_first_geq_than(PyObject *axes, PyArrayObject *query_pt
         double *axis = (double *) PyArray_DATA(npaxis);
         int axis_length = PyArray_SIZE(npaxis);
 
-        for (j = 0; j < nelems; j++)
-            ms[j * naxes + i] = find_first_geq_than(axis, 0, axis_length - 1, query_pts_data[j * naxes + i], 1e-3);
+        for (j = 0; j < nelems; j++) {
+            ms[j * naxes + i] = find_first_geq_than(axis, 0, axis_length - 1, query_pts_data[j * naxes + i], 1e-3, &flag);
+            flag_data[j] |= flag;
+        }
     }
+
+    if (debug)
+        for (i = 0; i < nelems; i++)
+            printf("flag_data[%d] = %d\n", i, flag_data[i]);
 
     indices = PyArray_SimpleNewFromData(2, query_pts_shape, NPY_INT, ms);
     PyArray_ENABLEFLAGS((PyArrayObject *) indices, NPY_ARRAY_OWNDATA);
 
-    return indices;
+    flags = PyArray_SimpleNewFromData(1, flags_shape, NPY_INT, flag_data);
+    PyArray_ENABLEFLAGS((PyArrayObject *) flags, NPY_ARRAY_OWNDATA);
+
+    combo = PyTuple_New(2);
+    PyTuple_SET_ITEM(combo, 0, indices);
+    PyTuple_SET_ITEM(combo, 1, flags);
+
+    return combo;
 }
 
 static PyObject *find(PyObject *self, PyObject *args)
 {
-    PyObject *tuple_of_axes, *indices;
+    PyObject *tuple_of_axes, *indices_and_flags;
     PyArrayObject *query_pts;
 
     if (!PyArg_ParseTuple(args, "OO", &tuple_of_axes, &query_pts))
         return NULL;
 
-    indices = vectorized_find_first_geq_than(tuple_of_axes, query_pts);
-    return indices;
+    indices_and_flags = vectorized_find_first_geq_than(tuple_of_axes, query_pts);
+
+    return indices_and_flags;
 }
 
 void map_to_unit_cube(PyObject *axes, PyArrayObject *interpolants)
@@ -168,7 +188,8 @@ PyObject *extract_hypercube(PyArrayObject *indices, PyArrayObject *grid)
     for (i = 0; i < nelems; i++) {
         for (j = 0; j < naxes; j++) {
             if (debug)
-                printf("nelem %d/%d: index[%d/%d]=%d\n", i, nelems, j, naxes, index[i*naxes+j]);
+                printf("nelem %d/%d: index[%d/%d]=% d\n", i + 1, nelems, j, naxes - 1, index[i * naxes + j]);
+
             PyObject *slice = index[i * naxes + j] > 0 ? PySlice_New(PyLong_FromLong(index[i * naxes + j] - 1), PyLong_FromLong(index[i * naxes + j] + 1), NULL) : PyLong_FromLong(-index[i * naxes + j]);
             PyTuple_SetItem(slices, j, slice);
         }
@@ -200,7 +221,6 @@ static PyObject *ainfo(PyObject *self, PyObject *args)
 {
     int i, ndim, size;
     PyArrayObject *array;
-    double *data;
     npy_intp *dims, *shape, *strides;
 
     if (!PyArg_ParseTuple(args, "O", &array))
@@ -218,19 +238,19 @@ static PyObject *ainfo(PyObject *self, PyObject *args)
 
     dims = PyArray_DIMS(array);
     printf("array->dims = [");
-    for (i=0; i<ndim-1; i++)
+    for (i = 0; i < ndim - 1; i++)
         printf("%ld, ", dims[i]);
     printf("%ld]\n", dims[i]);
 
     shape = PyArray_SHAPE(array);
     printf("array->shape = [");
-    for (i=0; i<ndim-1; i++)
+    for (i = 0; i < ndim - 1; i++)
         printf("%ld, ", shape[i]);
     printf("%ld]\n", shape[i]);
 
     strides = PyArray_STRIDES(array);
     printf("array->strides = [");
-    for (i=0; i<ndim-1; i++)
+    for (i = 0; i < ndim - 1; i++)
         printf("%ld, ", strides[i]);
     printf("%ld]\n", strides[i]);
 
@@ -247,26 +267,36 @@ static PyObject *ainfo(PyObject *self, PyObject *args)
     printf("array->is_farray_ro: %d\n", PyArray_ISFARRAY_RO(array));
     printf("array->is_isonesegment: %d\n", PyArray_ISONESEGMENT(array));
 
-    data = (double *) PyArray_DATA(array);
-    printf("data = [");
-    for (i = 0; i < size-1; i++)
-        printf("%lf, ", data[i]);
-    printf("%lf]\n", data[i]);
+    if (PyArray_TYPE(array) == 5) {
+        int *data = (int *) PyArray_DATA(array);
+        printf("data = [");
+        for (i = 0; i < size - 1; i++)
+            printf("%d, ", data[i]);
+        printf("%d]\n", data[i]);
+    } else {
+        double *data = (double *) PyArray_DATA(array);
+        printf("data = [");
+        for (i = 0; i < size - 1; i++)
+            printf("%lf, ", data[i]);
+        printf("%lf]\n", data[i]);
+    }
 
     return Py_BuildValue("");
 }
 
 static PyObject *ndpolate(PyObject *self, PyObject *args)
 {
-    PyArrayObject *query_pts, *indices;
+    PyArrayObject *query_pts, *indices, *flags;
     PyObject *axes, *hypercubes;
 
     PyArrayObject *hypercube;
     PyObject *interpolated_array;
 
     double *x, *fv;
-    int *index;
+    int *index, *flag;
     double *grid, *query_pt;
+
+    ndp_extrapolation_method extrapolation_method = NDP_METHOD_NONE; /* default value */
 
     double *interpolated_values;
 
@@ -274,72 +304,82 @@ static PyObject *ndpolate(PyObject *self, PyObject *args)
 
     int debug = 0;
 
-    if (!PyArg_ParseTuple(args, "OOOO", &query_pts, &indices, &axes, &hypercubes))
+    if (!PyArg_ParseTuple(args, "OOOOOi|i", &query_pts, &indices, &flags, &axes, &hypercubes, &vdim, &extrapolation_method))
         return NULL;
 
     nelems = PyArray_DIM(indices, 0);
     naxes = PyArray_DIM(indices, 1);
 
-    /* allocate the N-D point of interest to the maximum possible
-     * dimension of the hypercubes to avoid having to allocate/free
-     * its memory for each hypercube in the loop below. */
-    x = malloc(naxes*sizeof(*x));
-
-    index = (int *) PyArray_DATA(indices);
-    query_pt = (double *) PyArray_DATA(query_pts);
-
-    /* In order to allocate memory for the interpolated array, we need
-     * to know the dimensionality of the vertex values. This information
-     * is stored in hypercubes, so we grab the first hypercube just to
-     * assign vdim and then reuse it in the loop over all nelems. Note
-     * that the dimensionality of the hypercube itself does not play
-     * a role here, only the dimensionality of its vertices, which are
-     * the same for all hypercubes. */
-    hypercube = (PyArrayObject *) PyTuple_GetItem(hypercubes, 0);
-    vdim = PyArray_DIM(hypercube, PyArray_NDIM(hypercube)-1);
-
     if (debug) {
         printf("nelems=%d\n", nelems);
         printf("naxes=%d\n", naxes);
         printf("vdim=%d\n", vdim);
+        printf("extrapolation_method=%d\n", extrapolation_method);
     }
 
-    interpolated_values = malloc(nelems*vdim*sizeof(*interpolated_values));
+    /* allocate the N-D point of interest to the maximum possible
+     * dimension of the hypercubes to avoid having to allocate/free
+     * its memory for each hypercube in the loop below. */
+    x = malloc(naxes * sizeof(*x));
+
+    index = (int *) PyArray_DATA(indices);
+    flag = (int *) PyArray_DATA(flags);
+    query_pt = (double *) PyArray_DATA(query_pts);
+
+    interpolated_values = malloc(nelems * vdim * sizeof(*interpolated_values));
 
     for (i = 0; i < nelems; i++) {
+        if (flag[i] != 0) {
+            switch (extrapolation_method) {
+                case NDP_METHOD_NONE:
+                    for (j = 0; j < vdim; j++)
+                        interpolated_values[i * vdim + j] = Py_NAN;
+                    continue;
+                    break;
+                case NDP_METHOD_NEAREST:
+                    break;
+                case NDP_METHOD_LINEAR:
+                    break;
+                default:
+                    /* raise an error here about an invalid extrapolation method */
+                    return NULL;
+                    break;
+            }
+        }
+
         hypercube = (PyArrayObject *) PyTuple_GetItem(hypercubes, i);
 
-        dim = PyArray_NDIM(hypercube) - 1;  /* hypercube dimensionality */
+        dim = PyArray_NDIM(hypercube) - 1; /* hypercube dimensionality */
         grid = (double *) PyArray_DATA(hypercube);
 
         if (debug) {
             printf("hypercube %d, dim=%d\n", i, dim);
             printf("  query_pt = [");
-            for (j = 0; j < naxes-1; j++) {
-                printf("%lf, ", query_pt[i*naxes+j]);
+            for (j = 0; j < naxes - 1; j++) {
+                printf("%lf, ", query_pt[i * naxes + j]);
             }
-            printf("%lf]\n", query_pt[i*naxes+j]);
+            printf("%lf]\n", query_pt[i * naxes + j]);
 
             printf("  indices = [");
-            for (j = 0; j < naxes-1; j++) {
-                printf("%d, ", index[i*naxes+j]);
+            for (j = 0; j < naxes - 1; j++) {
+                printf("%d, ", index[i * naxes + j]);
             }
-            printf("%d]\n", index[i*naxes+j]);
+            printf("%d]\n", index[i * naxes + j]);
 
             printf("  grid = [\n");
             for (j = 0; j < (1 << dim); j++) {
                 printf("         [");
-                for (k = 0; k < vdim-1; k++) {
-                    printf(" %lf, ", grid[j*vdim+k]);
+                for (k = 0; k < vdim - 1; k++) {
+                    printf(" %lf, ", grid[j * vdim + k]);
                 }
-                printf("%lf ],\n", grid[j*vdim+k]);
+                printf("%lf ],\n", grid[j * vdim + k]);
             }
             printf("         ]\n");
         }
 
         /* handle the case where the vertex itself was requested: */
         if (dim == 0) {
-            memcpy(interpolated_values + i*vdim, grid, vdim*sizeof(*interpolated_values));
+            memcpy(interpolated_values + i * vdim, grid, vdim * sizeof(*interpolated_values));
             continue;
         }
 
@@ -364,13 +404,13 @@ static PyObject *ndpolate(PyObject *self, PyObject *args)
 
         if (debug) {
             printf("    fv = [");
-            for (j = 0; j < vdim-1; j++) {
+            for (j = 0; j < vdim - 1; j++) {
                 printf(" %lf, ", fv[j]);
             }
             printf("%lf ]\n", fv[j]);
         }
 
-        memcpy(interpolated_values + i*vdim, fv, vdim*sizeof(*interpolated_values));
+        memcpy(interpolated_values + i * vdim, fv, vdim * sizeof(*interpolated_values));
 
         free(fv);
     }

@@ -2,10 +2,18 @@ import numpy as np
 from scipy.special import binom as binomial
 from scipy.spatial import cKDTree
 from itertools import product
+from enum import IntEnum
 
 import cndpolator
 
 __version__ = '0.1.0'
+
+
+class ExtrapolationMethod(IntEnum):
+    NONE = 0
+    NEAREST = 1
+    LINEAR = 2
+
 
 class Cndpolator():
     def __init__(self, axes, grid):
@@ -15,21 +23,21 @@ class Cndpolator():
         self.neighbors = np.argwhere(~np.isnan(grid[...,0]))
 
     def find_indices(self, query_pts):
-        return cndpolator.find(self.axes, query_pts)
+        indices, flags = cndpolator.find(self.axes, query_pts)
+        return indices, flags
     
     def find_hypercubes(self, indices, grid):
         return cndpolator.hypercubes(indices, grid)
     
-    def interp(self, query_pts, indices=None, hypercubes=None, raise_on_nans=False, return_nanmask=False, extrapolation_method=None):
-        # if extrapolation_method is not None or raise_on_nans == True or return_nanmask == True:
-        #     print(f'{extrapolation_method=} {raise_on_nans=} {return_nanmask=}')
-            # raise ValueError('Almost there, implementing this as we speak.')
-        if indices is None:
-            indices = self.find_indices(query_pts)
+    def interp(self, query_pts, indices=None, flags=None, hypercubes=None, extrapolation_method='none', raise_on_nans=True):
+        if indices is None or flags is None:
+            indices, flags = self.find_indices(query_pts)
+            if raise_on_nans and np.any(flags):
+                raise ValueError(f'the following queried points are out of bounds:\n{query_pts[flags != 0]}')
         if hypercubes is None:
             hypercubes = self.find_hypercubes(indices, self.grid)
         
-        return cndpolator.ndpolate(query_pts, indices, self.axes, hypercubes)
+        return cndpolator.ndpolate(query_pts, indices, flags, self.axes, hypercubes, self.grid.shape[-1], ExtrapolationMethod.NONE)
 
 
 class Ndpolator():

@@ -11,4 +11,15 @@ typedef struct array {
     double *data;
 } array;
 
+typedef enum ndp_extrapolation_method {
+    NDP_METHOD_NONE = 0,
+    NDP_METHOD_NEAREST,
+    NDP_METHOD_LINEAR
+} ndp_extrapolation_method;
+
+enum {
+    NDP_ON_GRID = 0,
+    NDP_OUT_OF_BOUNDS = 1
+};
+
 #endif
