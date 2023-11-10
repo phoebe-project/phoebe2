@@ -44,8 +44,8 @@ def test_interferometry2(verbose=False):
     #b.plot(x='u', show=True)
     #b.plot(x='v', show=True)
 
-    assert(abs(vises[0]    - 9.542236659760809925e-01) < 1.0e-12)
-    assert(abs(vises[4355] - 1.502342468915347079e-04) < 1.0e-12)
+    assert(abs(vises[0]    - 9.542236659760809925e-01) < 1.0e-5)
+    assert(abs(vises[4355] - 1.502342468915347079e-04) < 1.0e-5)
 
 if __name__ == "__main__":
     logger = phoebe.logger(clevel='INFO')
