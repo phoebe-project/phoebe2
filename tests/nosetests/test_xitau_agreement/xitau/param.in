@@ -1,7 +1,0 @@
-0.0d0 1.5d0 0.01d0	! tstart, tstop, dt [days]
-0.01d0 20.0d0		! dtout, dtdump [days] <- dtout is the output timestep, which is sampled and then LINEARLY interpolated!
-F T F F T F		! J2 and J4 potentials, check close encounters, Jacobi integral, energy integral, binary output, integer*2 output <- NOT used in this code version
--1. -1. -1. -1. F	! rmin, rmax, rmaxu, qmin, lclose <- dtto
-out.dat
-unknown
-
