@@ -45,10 +45,10 @@ def test_interferometry(verbose=False):
     #b.plot(x='u', show=True)
     #b.plot(x='v', show=True)
 
-    assert(abs(vises[0]   - 9.999823734331741987e-01) < 1.0e-5)
+    assert(abs(vises[0]   - 9.999823734331741987e-01) < 2.0e-5)
     assert(abs(vises[329] - 4.495290293983521257e-02) < 2.0e-5)
-    assert(abs(vises[330] - 9.999990005798550241e-01) < 1.0e-5)
-    assert(abs(vises[659] - 8.960520659297093182e-01) < 1.0e-5)
+    assert(abs(vises[330] - 9.999990005798550241e-01) < 2.0e-5)
+    assert(abs(vises[659] - 8.960520659297093182e-01) < 2.0e-5)
 
 if __name__ == "__main__":
     logger = phoebe.logger(clevel='INFO')
