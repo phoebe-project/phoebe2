@@ -240,7 +240,6 @@ def lc(syn=False, as_ps=True, is_lc=True, **kwargs):
 
         params += [FloatParameter(qualifier='exptime', value=kwargs.get('exptime', 0.0), default_unit=u.s, description='Exposure time (time is defined as mid-exposure)')]
 
-
     return ParameterSet(params) if as_ps else params, constraints
 
 def rv(syn=False, as_ps=True, **kwargs):
@@ -778,8 +777,258 @@ def mesh(syn=False, as_ps=True, **kwargs):
 
     return ParameterSet(params) if as_ps else params, constraints
 
+def vis(syn=False, as_ps=True, **kwargs):
+    """
+    Create a <phoebe.parameters.ParameterSet> for an interferometric visibility |V|^2 dataset.
+
+    Generally, this will be used as an input to the kind argument in
+    <phoebe.frontend.bundle.Bundle.add_dataset> as
+    `b.add_dataset('vis')`.  In this case, all `**kwargs` will be
+    passed on to set the values as described in the arguments below.  Alternatively,
+    see <phoebe.parameters.ParameterSet.set_value> to set/change the values
+    after creating the Parameters.
+
+    Arguments
+    ----------
+    * `syn` (bool, optional, default=False): whether to create the parameters
+        for the synthetic (model) instead of the observational (dataset).
+    * `as_ps` (bool, optional, default=True): whether to return the parameters
+        as a <phoebe.parameters.ParameterSet> instead of a list of
+        <phoebe.parameters.Parameter> objects.
+    * `times` (array/quantity, optional): observed times.
+    * `u` (array/quantity, optional): baselines in u-direction (in metres).
+    * `v` (array/quantity, optional): baselines in v-direction (in metres).
+    * `wavelengths` (array/quantity, optional): observed wavelengths (in metres).
+    * `vises` (array/quantity, optional): observed interferometric visibilities |V|^2.
+    * `sigmas` (array/quantity, optional): errors on interferometeric visibilities.
+        Only applicable if `syn` is False.
+    * `compute_times` (array/quantity, optional): times at which to compute the model.
+        Only applicable if `syn` is False.
+    * `if_method` (string, optional, default='integrate'):
+        which method to use for computing interferometric visibilities.
+        If 'simple', eclipse effects will not be computed.
+    * `ld_mode` (string, optional, default='interp'): mode to use for handling
+        limb-darkening.  Note that 'interp' is not available for all values
+        of `atm` (availability can be checked by calling
+        <phoebe.frontend.bundle.Bundle.run_checks> and will automatically be checked
+        during <phoebe.frontend.bundle.Bundle.run_compute>).  Only applicable
+        if `syn` is False.
+    * `ld_func` (string, optional, default='logarithmic'): function/law to use for
+        limb-darkening model. Not applicable if `ld_mode` is 'interp'.  Only
+        applicable if `syn` is False.
+    * `ld_coeffs_source` (string, optional, default='auto'): source for limb-darkening
+        coefficients ('auto' to interpolate from the applicable table according
+        to the 'atm' parameter, or the name of a specific atmosphere table).
+        Only applicable if `ld_mode` is 'lookup'.  Only applicable if
+        `syn` is False.
+    * `ld_coeffs` (list, optional): limb-darkening coefficients.  Must be of
+        the approriate length given the value of `ld_coeffs_source` which can
+        be checked by calling <phoebe.frontend.bundle.Bundle.run_checks>
+        and will automtically be checked during
+        <phoebe.frontend.bundle.Bundle.run_compute>.  Only applicable
+       if `ld_mode` is 'manual'.  Only applicable if `syn` is False.
+    * `passband` (string, optional): passband.  Only applicable if `syn` is False.
+    * `intens_weighting` (string, optional): whether passband intensities are
+        weighted by energy or photons.  Only applicable if `syn` is False.
+
+    Returns
+    --------
+    * (<phoebe.parameters.ParameterSet> or list, list): ParameterSet (if `as_ps`)
+        or list of all newly created
+        <phoebe.parameters.Parameter> objects and a list of all necessary
+        constraints.
+
+    """
+
+    params, constraints = [], []
+
+    params += [FloatArrayParameter(qualifier='times', value=kwargs.get('times', []), required_shape=[None], readonly=syn, default_unit=u.d, description='Model (synthetic) times' if syn else 'Observed times')]
+    params += [FloatArrayParameter(qualifier='u', value=kwargs.get('u', []), required_shape=[None], readonly=syn, default_unit=u.m, description='Synthetic baseline u' if syn else 'Observed baseline u')]
+    params += [FloatArrayParameter(qualifier='v', value=kwargs.get('v', []), required_shape=[None], readonly=syn, default_unit=u.m, description='Synthetic baseline v' if syn else 'Observed baseline v')]
+    params += [FloatArrayParameter(qualifier='wavelengths', value=kwargs.get('wavelengths', []), required_shape=[None], readonly=syn, default_unit=u.m, description='Synthetic wavelengths' if syn else 'Observed wavelengths')]
+    params += [FloatArrayParameter(qualifier='vises', value=_empty_array(kwargs, 'vises'), required_shape=[None] if not syn else None, readonly=syn, default_unit=u.dimensionless_unscaled, description='Synthetic interferometric squared visibility |V|^2' if syn else 'Observed interferometric squared visibility |V|^2')]
+
+    if not syn:
+        params += [FloatArrayParameter(qualifier='compute_times', value=kwargs.get('compute_times', []), required_shape=[None], default_unit=u.d, description='Times to use during run_compute.  If empty, will use times parameter')]
+        params += [FloatArrayParameter(qualifier='sigmas', value=_empty_array(kwargs, 'sigmas'), required_shape=[None], default_unit=u.dimensionless_unscaled, description='Observed uncertainty of interferometric visibility')]
+
+    params += [ChoiceParameter(qualifier='if_method', value=kwargs.get('if_method', 'integrate'), choices=['integrate', 'simple'], description='Method to use for computing interferometric visibility (must be integrate for eclipse effects)')]
+
+    lc_params, lc_constraints = lc(syn=syn, as_ps=False, is_lc=False, **kwargs)
+    params += lc_params
+    constraints += lc_constraints
+
+    # print("params = ", params)  # dbg
+
+    return ParameterSet(params) if as_ps else params, constraints
+
+def clo(syn=False, as_ps=True, is_clo=True, **kwargs):
+    """
+    Create a <phoebe.parameters.ParameterSet> for an interferometric closure phase arg T_3 dataset.
+
+    Generally, this will be used as an input to the kind argument in
+    <phoebe.frontend.bundle.Bundle.add_dataset> as
+    `b.add_dataset('vis')`.  In this case, all `**kwargs` will be
+    passed on to set the values as described in the arguments below.  Alternatively,
+    see <phoebe.parameters.ParameterSet.set_value> to set/change the values
+    after creating the Parameters.
+
+    Arguments
+    ----------
+    * `syn` (bool, optional, default=False): whether to create the parameters
+        for the synthetic (model) instead of the observational (dataset).
+    * `as_ps` (bool, optional, default=True): whether to return the parameters
+        as a <phoebe.parameters.ParameterSet> instead of a list of
+        <phoebe.parameters.Parameter> objects.
+    * `is_clo` (bool, optional, default=True): whether to build all parameters
+        or just baselines and wavelengths.  Generally this is only used internally
+        by the t3 dataset.
+    * `times` (array/quantity, optional): observed times.
+    * `u1` (array/quantity, optional): 1st baselines in u-direction (in metres).
+    * `v1` (array/quantity, optional): 1st baselines in v-direction (in metres).
+    * `u2` (array/quantity, optional): 2nd baselines in u-direction (in metres).
+    * `v2` (array/quantity, optional): 2nd baselines in v-direction (in metres).
+    * `wavelengths` (array/quantity, optional): observed wavelengths (in metres).
+    * `clos` (array/quantity, optional): observed interferometric closure phases arg T_3.
+    * `sigmas` (array/quantity, optional): errors on interferometeric closure phases.
+        Only applicable if `syn` is False.
+    * `compute_times` (array/quantity, optional): times at which to compute the model.
+        Only applicable if `syn` is False.
+    * `if_method` (string, optional, default='integrate'):
+        which method to use for computing interferometric visibilities.
+        If 'simple', eclipse effects will not be computed.
+    * `ld_mode` (string, optional, default='interp'): mode to use for handling
+        limb-darkening.  Note that 'interp' is not available for all values
+        of `atm` (availability can be checked by calling
+        <phoebe.frontend.bundle.Bundle.run_checks> and will automatically be checked
+        during <phoebe.frontend.bundle.Bundle.run_compute>).  Only applicable
+        if `syn` is False.
+    * `ld_func` (string, optional, default='logarithmic'): function/law to use for
+        limb-darkening model. Not applicable if `ld_mode` is 'interp'.  Only
+        applicable if `syn` is False.
+    * `ld_coeffs_source` (string, optional, default='auto'): source for limb-darkening
+        coefficients ('auto' to interpolate from the applicable table according
+        to the 'atm' parameter, or the name of a specific atmosphere table).
+        Only applicable if `ld_mode` is 'lookup'.  Only applicable if
+        `syn` is False.
+    * `ld_coeffs` (list, optional): limb-darkening coefficients.  Must be of
+        the approriate length given the value of `ld_coeffs_source` which can
+        be checked by calling <phoebe.frontend.bundle.Bundle.run_checks>
+        and will automtically be checked during
+        <phoebe.frontend.bundle.Bundle.run_compute>.  Only applicable
+       if `ld_mode` is 'manual'.  Only applicable if `syn` is False.
+    * `passband` (string, optional): passband.  Only applicable if `syn` is False.
+    * `intens_weighting` (string, optional): whether passband intensities are
+        weighted by energy or photons.  Only applicable if `syn` is False.
+
+    Returns
+    --------
+    * (<phoebe.parameters.ParameterSet> or list, list): ParameterSet (if `as_ps`)
+        or list of all newly created
+        <phoebe.parameters.Parameter> objects and a list of all necessary
+        constraints.
+
+    """
+
+    params, constraints = [], []
+
+    params += [FloatArrayParameter(qualifier='times', value=kwargs.get('times', []), required_shape=[None], readonly=syn, default_unit=u.d, description='Model (synthetic) times' if syn else 'Observed times')]
+    params += [FloatArrayParameter(qualifier='u1', value=kwargs.get('u1', []), required_shape=[None], readonly=syn, default_unit=u.m, description='Synthetic baseline u' if syn else 'Observed baseline u')]
+    params += [FloatArrayParameter(qualifier='v1', value=kwargs.get('v1', []), required_shape=[None], readonly=syn, default_unit=u.m, description='Synthetic baseline v' if syn else 'Observed baseline v')]
+    params += [FloatArrayParameter(qualifier='u2', value=kwargs.get('u2', []), required_shape=[None], readonly=syn, default_unit=u.m, description='Synthetic baseline u' if syn else 'Observed baseline u')]
+    params += [FloatArrayParameter(qualifier='v2', value=kwargs.get('v2', []), required_shape=[None], readonly=syn, default_unit=u.m, description='Synthetic baseline v' if syn else 'Observed baseline v')]
+    params += [FloatArrayParameter(qualifier='wavelengths', value=kwargs.get('wavelengths', []), required_shape=[None], readonly=syn, default_unit=u.m, description='Synthetic wavelengths' if syn else 'Observed wavelengths')]
+
+    if is_clo:
+        params += [FloatArrayParameter(qualifier='clos', value=_empty_array(kwargs, 'clos'), required_shape=[None] if not syn else None, readonly=syn, default_unit=u.dimensionless_unscaled, description='Synthetic interferometric closure phase arg T_3' if syn else 'Observed interferometric closure phase arg T_3')]
+
+    if not syn:
+        params += [FloatArrayParameter(qualifier='compute_times', value=kwargs.get('compute_times', []), required_shape=[None], default_unit=u.d, description='Times to use during run_compute.  If empty, will use times parameter')]
+        params += [FloatArrayParameter(qualifier='sigmas', value=_empty_array(kwargs, 'sigmas'), required_shape=[None], default_unit=u.dimensionless_unscaled, description='Observed uncertainty of visibility')]
+
+    params += [ChoiceParameter(qualifier='if_method', value=kwargs.get('if_method', 'integrate'), choices=['integrate', 'simple'], description='Method to use for computing interferometric visibility (must be integrate for eclipse effects)')]
+
+    lc_params, lc_constraints = lc(syn=syn, as_ps=False, is_lc=False, **kwargs)
+    params += lc_params
+    constraints += lc_constraints
+
+    return ParameterSet(params) if as_ps else params, constraints
+
+def t3(syn=False, as_ps=True, **kwargs):
+    """
+    Create a <phoebe.parameters.ParameterSet> for an interferometric triple product |T_3| dataset.
+
+    Generally, this will be used as an input to the kind argument in
+    <phoebe.frontend.bundle.Bundle.add_dataset> as
+    `b.add_dataset('vis')`.  In this case, all `**kwargs` will be
+    passed on to set the values as described in the arguments below.  Alternatively,
+    see <phoebe.parameters.ParameterSet.set_value> to set/change the values
+    after creating the Parameters.
+
+    Arguments
+    ----------
+    * `syn` (bool, optional, default=False): whether to create the parameters
+        for the synthetic (model) instead of the observational (dataset).
+    * `as_ps` (bool, optional, default=True): whether to return the parameters
+        as a <phoebe.parameters.ParameterSet> instead of a list of
+        <phoebe.parameters.Parameter> objects.
+    * `times` (array/quantity, optional): observed times.
+    * `u1` (array/quantity, optional): 1st baselines in u-direction (in metres).
+    * `v1` (array/quantity, optional): 1st baselines in v-direction (in metres).
+    * `u2` (array/quantity, optional): 2nd baselines in u-direction (in metres).
+    * `v2` (array/quantity, optional): 2nd baselines in v-direction (in metres).
+    * `wavelengths` (array/quantity, optional): observed wavelengths (in metres).
+    * `t3s` (array/quantity, optional): observed interferometric triple products |T_3|.
+    * `sigmas` (array/quantity, optional): errors on interferometeric triple products.
+        Only applicable if `syn` is False.
+    * `compute_times` (array/quantity, optional): times at which to compute the model.
+        Only applicable if `syn` is False.
+    * `if_method` (string, optional, default='integrate'):
+        which method to use for computing interferometric visibilities.
+        If 'simple', eclipse effects will not be computed.
+    * `ld_mode` (string, optional, default='interp'): mode to use for handling
+        limb-darkening.  Note that 'interp' is not available for all values
+        of `atm` (availability can be checked by calling
+        <phoebe.frontend.bundle.Bundle.run_checks> and will automatically be checked
+        during <phoebe.frontend.bundle.Bundle.run_compute>).  Only applicable
+        if `syn` is False.
+    * `ld_func` (string, optional, default='logarithmic'): function/law to use for
+        limb-darkening model. Not applicable if `ld_mode` is 'interp'.  Only
+        applicable if `syn` is False.
+    * `ld_coeffs_source` (string, optional, default='auto'): source for limb-darkening
+        coefficients ('auto' to interpolate from the applicable table according
+        to the 'atm' parameter, or the name of a specific atmosphere table).
+        Only applicable if `ld_mode` is 'lookup'.  Only applicable if
+        `syn` is False.
+    * `ld_coeffs` (list, optional): limb-darkening coefficients.  Must be of
+        the approriate length given the value of `ld_coeffs_source` which can
+        be checked by calling <phoebe.frontend.bundle.Bundle.run_checks>
+        and will automtically be checked during
+        <phoebe.frontend.bundle.Bundle.run_compute>.  Only applicable
+       if `ld_mode` is 'manual'.  Only applicable if `syn` is False.
+    * `passband` (string, optional): passband.  Only applicable if `syn` is False.
+    * `intens_weighting` (string, optional): whether passband intensities are
+        weighted by energy or photons.  Only applicable if `syn` is False.
+
+    Returns
+    --------
+    * (<phoebe.parameters.ParameterSet> or list, list): ParameterSet (if `as_ps`)
+        or list of all newly created
+        <phoebe.parameters.Parameter> objects and a list of all necessary
+        constraints.
+
+    """
+    
+    params, constraints = clo(syn=syn, as_ps=False, is_clo=False, **kwargs)
+
+    params += [FloatArrayParameter(qualifier='t3s', value=_empty_array(kwargs, 't3s'), required_shape=[None] if not syn else None, readonly=syn, default_unit=u.dimensionless_unscaled, description='Synthetic interferometric triple product |T_3|' if syn else 'Observed interferometric triple product |T_3|')]
+
+    return ParameterSet(params) if as_ps else params, constraints
+
 
 # del _empty_array
 # del deepcopy
 # del download_passband, list_installed_passbands, list_online_passbands, list_passbands, parameter_from_json, parse_json, send_if_client, update_if_client
 # del fnmatch
+
+

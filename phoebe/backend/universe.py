@@ -8,6 +8,7 @@ import copy
 from phoebe.atmospheres import passbands
 from phoebe.distortions import roche, rotstar
 from phoebe.backend import eclipse, oc_geometry, mesh, mesh_wd
+from phoebe.backend import interferometry
 from phoebe.utils import _bytes
 import libphoebe
 
@@ -118,6 +119,11 @@ class System(object):
             body.system = self
             body.dynamics_method = dynamics_method
             body.boosting_method = boosting_method
+
+        self.distance = None
+        self.xi = None
+        self.yi = None
+        self.zi = None
 
         return
 
@@ -631,7 +637,7 @@ class System(object):
         else:
             raise NotImplementedError("observe for dataset with kind '{}' not implemented".format(kind))
 
-
+        # Note: See interferometry.vis_integrate().
 
 
 class Body(object):
@@ -1266,7 +1272,8 @@ class Star(Body):
         if conf.devel and mesh_method=='marching' and compute is not None:
             kwargs.setdefault('mesh_init_phi', b.get_value(qualifier='mesh_init_phi', compute=compute, component=component, unit=u.rad, mesh_init_phi=kwargs.get('mesh_init_phi', None), **_skip_filter_checks))
 
-        datasets_intens = [ds for ds in b.filter(kind=['lc', 'rv', 'lp'], context='dataset').datasets if ds != '_default']
+        # Note: 'vis' is included too (for future mesh-based computations)
+        datasets_intens = [ds for ds in b.filter(kind=['lc', 'rv', 'lp', 'vis', 'clo', 't3'], context='dataset').datasets if ds != '_default']
         datasets_lp = [ds for ds in b.filter(kind='lp', context='dataset', **_skip_filter_checks).datasets if ds != '_default']
         atm_override = kwargs.pop('atm', None)
         if isinstance(atm_override, dict):
@@ -1750,6 +1757,33 @@ class Star(Body):
         cols['rvs'] = rvs
         return cols
 
+    def _populate_vis(self, dataset, **kwargs):
+        """
+        Populate columns necessary for an interferometric visibility dataset
+
+        """
+        logger.debug("{}._populate_vis(dataset={})".format(self.component, dataset))
+
+        cols = self._populate_lc(dataset, **kwargs)
+
+        # Note: See observe().
+
+        return cols
+
+    def _populate_clo(self, dataset, **kwargs):
+        """
+        Populate columns necessary for an interferometric closure phase dataset
+
+        """
+        logger.debug("{}._populate_clo(dataset={})".format(self.component, dataset))
+
+        cols = self._populate_lc(dataset, **kwargs)
+
+        # Note: See observe().
+
+        return cols
+
+    _populate_t3 = _populate_clo
 
     def _populate_lc(self, dataset, ignore_effects=False, **kwargs):
         """
@@ -1762,6 +1796,9 @@ class Star(Body):
         """
         logger.debug("{}._populate_lc(dataset={}, ignore_effects={})".format(self.component, dataset, ignore_effects))
 
+#        print("dataset = ", dataset)  # dbg
+#        print("kwargs = ", kwargs)  # dbg
+
         lc_method = kwargs.get('lc_method', 'numerical')  # TODO: make sure this is actually passed
 
         passband = kwargs.get('passband', self.passband.get(dataset, None))
@@ -1773,6 +1810,7 @@ class Star(Body):
         ld_func = kwargs.get('ld_func', self.ld_func.get(dataset, None))
         ld_coeffs = kwargs.get('ld_coeffs', self.ld_coeffs.get(dataset, None)) if ld_mode == 'manual' else None
         ld_coeffs_source = kwargs.get('ld_coeffs_source', self.ld_coeffs_source.get(dataset, 'none')) if ld_mode == 'lookup' else None
+
         if ld_mode == 'interp':
             # calls to pb.Imu need to pass on ld_func='interp'
             # NOTE: we'll do another check when calling pb.Imu, but we'll also

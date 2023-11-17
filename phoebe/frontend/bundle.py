@@ -3073,7 +3073,7 @@ class Bundle(ParameterSet):
 
         # parameters that can be fitted are only in the component or dataset context,
         # must be float parameters and must not be constrained (and must be visible)
-        excluded_qualifiers = ['times', 'sigmas', 'fluxes', 'rvs', 'wavelengths', 'flux_densities']
+        excluded_qualifiers = ['times', 'sigmas', 'fluxes', 'rvs', 'wavelengths', 'flux_densities', 'u', 'v', 'vises', 'clos']
         excluded_qualifiers += ['compute_times', 'compute_phases']
         excluded_qualifiers += ['ra', 'dec', 't0']
         ps = self.filter(context=['component', 'dataset', 'system', 'feature'], check_visible=check_visible, check_default=True)
@@ -12118,6 +12118,16 @@ class Bundle(ParameterSet):
                         rv_param.set_value(rv_param.get_value(unit=u.km/u.s)+rv_offset, ignore_readonly=True)
                     else:
                         rv_param.set_value(rv_param.get_value(unit=u.km/u.s)+vgamma+rv_offset, ignore_readonly=True)
+
+                # Note: Model (synthetic) baselines and wavelengths must be copied ex-post!
+                for vis_param in ml_params.filter(qualifier=['u', 'v', 'wavelengths'], kind='vis', **_skip_filter_checks).to_list():
+                    vis_param.set_value(self.get_value(vis_param.twig+'@dataset'), ignore_readonly=True)
+
+                for clo_param in ml_params.filter(qualifier=['u1', 'v1', 'u2', 'v2', 'wavelengths'], kind='clo', **_skip_filter_checks).to_list():
+                    clo_param.set_value(self.get_value(clo_param.twig+'@dataset'), ignore_readonly=True)
+
+                for t3_param in ml_params.filter(qualifier=['u1', 'v1', 'u2', 'v2', 'wavelengths'], kind='t3', **_skip_filter_checks).to_list():
+                    t3_param.set_value(self.get_value(t3_param.twig+'@dataset'), ignore_readonly=True)
 
                 ml_addl_params += [StringParameter(qualifier='comments', value=kwargs.get('comments', computeparams.get_value(qualifier='comments', default='', **_skip_filter_checks)), description='User-provided comments for this model.  Feel free to place any notes here.')]
                 self._attach_params(ml_params+ml_addl_params, check_copy_for=False, **metawargs)

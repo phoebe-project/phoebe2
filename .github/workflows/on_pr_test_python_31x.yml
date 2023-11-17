@@ -117,3 +117,4 @@ jobs:
     - name: Run tests
       run: |
         pytest --verbose --capture=no --full-trace tests/nosetests/
+
