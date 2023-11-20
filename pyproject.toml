@@ -1,0 +1,94 @@
+[build-system]
+requires = ["setuptools", "numpy", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "phoebe"
+version = "2.4.12"
+description = "PHOEBE: modeling and analysis of eclipsing binary stars"
+license = { text = "GPL-3.0-or-later" }
+authors = [
+    { name = "Andrej Prša", email = "aprsa@villanova.edu" },
+    { name = "Kyle Conroy", email = "kyle.conroy@villanova.edu" },
+    { name = "Martin Horvat", email = "martin.horvat@fmf.uni-lj.si" },
+    { name = "Dave Jones", email = "djones@iac.es" },
+    { name = "Michael Abdul-Masih", email = "michael.abdul-masih@eso.org" },
+    { name = "Bert Pablo", email = "hpablo@aavso.org" },
+    { name = "Joe Giammarco", email = "giammarc@eastern.edu" },
+]
+maintainers = [
+    { name = "Kyle Conroy", email = "kyle.conroy@villanova.edu" },
+    { name = "Andrej Prša", email = "aprsa@villanova.edu" },
+]
+readme = "README.md"
+keywords = [
+    "phoebe",
+    "science",
+    "astronomy",
+    "astrophysics",
+    "binary stars",
+    "eclipsing binary stars",
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: C",
+    "Natural Language :: English",
+]
+requires-python = ">=3.7"
+dependencies = [
+    "numpy",
+    "scipy",
+    "astropy",
+    "pytest",
+    "tqdm",
+    "corner",
+    "requests",
+    "python-socketio",
+    "flask",
+    "flask-cors",
+    "flask-socketio",
+    "gevent",
+    "gevent-websocket",
+]
+
+[tool.setuptools]
+packages = [
+    "phoebe",
+    "phoebe.parameters",
+    "phoebe.parameters.solver",
+    "phoebe.parameters.figure",
+    "phoebe.frontend",
+    "phoebe.constraints",
+    "phoebe.dynamics",
+    "phoebe.distortions",
+    "phoebe.algorithms",
+    "phoebe.atmospheres",
+    "phoebe.backend",
+    "phoebe.solverbackends",
+    "phoebe.solverbackends.ebai",
+    "phoebe.solverbackends.knn",
+    "phoebe.utils",
+    "phoebe.helpers",
+    "phoebe.pool",
+    "phoebe.dependencies",
+    "phoebe.dependencies.autofig",
+    "phoebe.dependencies.nparray",
+    "phoebe.dependencies.distl",
+    "phoebe.dependencies.crimpl",
+    "phoebe.dependencies.unitsiau2015",
+    "phoebe.dependencies.ligeor",
+    "phoebe.dependencies.ligeor.ebai",
+    "phoebe.dependencies.ligeor.ebai.database",
+    "phoebe.dependencies.ligeor.eclipse",
+    "phoebe.dependencies.ligeor.models",
+    "phoebe.dependencies.ligeor.utils",
+]
+
+[project.urls]
+homepage = "http://phoebe-project.org"
+repository = "https://github.com/phoebe-project/phoebe2"
+documentation = "http://phoebe-project.org/docs"
