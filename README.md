@@ -11,7 +11,7 @@ PHOEBE 2.4
   <a href="https://pypi.org/project/phoebe/"><img src="https://img.shields.io/badge/pip-phoebe-blue.svg"/></a>
   <a href="http://phoebe-project.org/install"><img src="https://img.shields.io/badge/python-3.6+-blue.svg"/></a>
   <a href="https://github.com/phoebe-project/phoebe2/blob/master/LICENSE"><img src="https://img.shields.io/badge/license-GPL3-blue.svg"/></a>
-  <a href="https://github.com/phoebe-project/phoebe2/actions/workflows/ci-nosetests.yml?query=branch%3Amaster"><img src="https://github.com/phoebe-project/phoebe2/actions/workflows/ci-nosetests.yml/badge.svg?branch=master"/></a>
+  <a href="https://github.com/phoebe-project/phoebe2/actions/workflows/ci-tests.yml?query=branch%3Amaster"><img src="https://github.com/phoebe-project/phoebe2/actions/workflows/ci-tests.yml/badge.svg?branch=master"/></a>
   <a href="http://phoebe-project.org/docs/2.3"><img src="https://github.com/phoebe-project/phoebe2-docs/actions/workflows/build-docs.yml/badge.svg?branch=2.3"/></a>
 <br/>
   <a href="https://ui.adsabs.harvard.edu/abs/2016ApJS..227...29P"><img src="https://img.shields.io/badge/ApJS-Prsa+2016-lightgrey.svg"/></a>
