@@ -39,24 +39,9 @@ jobs:
       run: |
         python -m pip install --upgrade pip
 
-    # - name: Install core install requirements
-    #   run: |
-    #     python -m pip install numpy packaging
-
-    # - name: Install phoebe import requirements
-    #   run: |
-    #     python -m pip install astropy scipy corner
-
     - name: Install phoebe optional modules
       run: |
-        python -m pip install rebound requests sympy tqdm corner pyyaml pyerfa matplotlib pytest
-    # - name: Install phoebe UI requirements
-    #   run: |
-    #     python -m pip install python-socketio gevent gevent-websocket flask flask-cors flask-socketio
-  
-    # - name: Install phoebe optional modules
-    #   run: |
-    #     python -m pip install rebound requests sympy tqdm corner pyyaml pyerfa matplotlib pytest
+        python -m pip install rebound
 
     - name: Install PHOEBE from source
       run: |
