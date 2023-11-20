@@ -23,7 +23,7 @@ jobs:
     name: ${{ matrix.os }} python${{ matrix.python-version}}
     steps:
     - name: Checkout PHOEBE
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: Setup python ${{ matrix.python-version }}
       uses: actions/setup-python@v4
@@ -53,7 +53,7 @@ jobs:
         pipdeptree
 
     - name: Checkout photodynam
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       with:
         repository: phoebe-project/photodynam
         path: photodynam
