@@ -1,15 +1,25 @@
-[build-system]
-requires = ["setuptools", "numpy", "wheel"]
-build-backend = "setuptools.build_meta"
+# PHOEBE build specification
+# 
+# Refer to the following document for specification:
+#   https://packaging.python.org/en/latest/specifications/
+# 
+# Key specification is given here:
+#   https://packaging.python.org/en/latest/specifications/declaring-project-metadata/#declaring-project-metadata
+# 
+# Classifier strings are given here:
+#   https://pypi.org/classifiers/
 
 [project]
 name = "phoebe"
 version = "2.4.12"
 description = "PHOEBE: modeling and analysis of eclipsing binary stars"
+readme = "README.md"
+requires-python = ">=3.7"
 license = { text = "GPL-3.0-or-later" }
 authors = [
     { name = "Andrej Prša", email = "aprsa@villanova.edu" },
     { name = "Kyle Conroy", email = "kyle.conroy@villanova.edu" },
+    { name = "Angela Kochoska", email = "angela.kochoska@villanova.edu" },
     { name = "Martin Horvat", email = "martin.horvat@fmf.uni-lj.si" },
     { name = "Dave Jones", email = "djones@iac.es" },
     { name = "Michael Abdul-Masih", email = "michael.abdul-masih@eso.org" },
@@ -20,7 +30,6 @@ maintainers = [
     { name = "Kyle Conroy", email = "kyle.conroy@villanova.edu" },
     { name = "Andrej Prša", email = "aprsa@villanova.edu" },
 ]
-readme = "README.md"
 keywords = [
     "phoebe",
     "science",
@@ -31,14 +40,23 @@ keywords = [
 ]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
+    "Environment :: Console",
+    "Intended Audience :: Education",
     "Intended Audience :: Science/Research",
-    "Topic :: Scientific/Engineering",
-    "Topic :: Software Development :: Libraries :: Python Modules",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+    "Natural Language :: English",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS",
     "Programming Language :: Python :: 3",
     "Programming Language :: C",
-    "Natural Language :: English",
+    "Programming Language :: C++",
+    "Topic :: Education",
+    "Topic :: Scientific/Engineering :: Astronomy",
+    "Topic :: Scientific/Engineering :: Physics",
+    "Topic :: Scientific/Engineering :: Visualization",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Software Development :: User Interfaces"
 ]
-requires-python = ">=3.7"
 dependencies = [
     "numpy",
     "scipy",
@@ -54,6 +72,15 @@ dependencies = [
     "gevent",
     "gevent-websocket",
 ]
+
+[project.urls]
+homepage = "http://phoebe-project.org"
+repository = "https://github.com/phoebe-project/phoebe2"
+documentation = "http://phoebe-project.org/docs"
+
+[build-system]
+requires = ["setuptools", "numpy", "wheel"]
+build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
 packages = [
@@ -87,8 +114,3 @@ packages = [
     "phoebe.dependencies.ligeor.models",
     "phoebe.dependencies.ligeor.utils",
 ]
-
-[project.urls]
-homepage = "http://phoebe-project.org"
-repository = "https://github.com/phoebe-project/phoebe2"
-documentation = "http://phoebe-project.org/docs"
