@@ -19,13 +19,21 @@ query_pts = np.array([
 
 
 def test_extrapolation():
-    # test extrapolation_method='none':
+    extrapolation_method = 'none'
 
+    raise_on_nans = True
     with pytest.raises(ValueError):
-        inorm = ndp.interp(query_pts, extrapolation_method='none', raise_on_nans=True)
+        inorm = ndp.interp(query_pts, extrapolation_method=extrapolation_method, raise_on_nans=raise_on_nans)
 
-    inorm = ndp.interp(query_pts, extrapolation_method='none', raise_on_nans=False).flatten()
+    raise_on_nans = False
+    inorm = ndp.interp(query_pts, extrapolation_method=extrapolation_method, raise_on_nans=raise_on_nans).flatten()
+    print(f'{extrapolation_method=}, {raise_on_nans=}, {inorm=}: ')
     assert np.isnan(inorm[0]) and np.isnan(inorm[2])
+
+    extrapolation_method = 'nearest'
+
+    inorm = ndp.interp(query_pts, extrapolation_method='nearest', raise_on_nans=False).flatten()
+    print(f'{extrapolation_method=}, {raise_on_nans=}, {inorm=}: ')
 
 if __name__ == '__main__':
     test_extrapolation()

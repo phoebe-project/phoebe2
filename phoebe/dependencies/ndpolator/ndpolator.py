@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.special import binom as binomial
 from scipy.spatial import cKDTree
+from scipy.spatial.distance import cdist
 from itertools import product
 from enum import IntEnum
 
@@ -20,12 +21,44 @@ class Cndpolator():
         self.axes = axes
         self.grid = grid
 
-        self.neighbors = np.argwhere(~np.isnan(grid[...,0]))
+        self.nodes = np.argwhere(~np.isnan(grid[..., 0]))
+        self.coords = np.array([axis[index] for axis, index in zip(axes, self.nodes.T)]).T
+        # print(f'{self.nodes.shape=}\n{self.nodes=}')
 
     def find_indices(self, query_pts):
         indices, flags = cndpolator.find(self.axes, query_pts)
         return indices, flags
     
+    def find_nearest(self, query_pts, flags):
+        if len(query_pts) == 0 or flags.sum() == 0:
+            return None
+
+        # initialize an empty array of nearest values:
+        values = np.nan*np.ones(len(query_pts))
+
+        # if there are no off-grid elements, return:
+        if flags.sum() == 0:
+            return values
+
+        nearest = -1*np.ones(len(query_pts), dtype=int)
+
+        # print(f'{query_pts=}')
+        # query_pts = query_pts[np.newaxis, :, :]
+        # A = (self.nodes-pts)**2
+        # B = np.sum(A, axis=2)
+        # C = np.argmin(B, axis=0)
+        # print(f'{self.nodes.shape=}, {pts.shape=}, {A.shape=}, {B.shape=}, {C.shape=}')
+        # print(f'{self.nodes=} {query_pts=} {A=} {B=} {C=}')
+        # print(f'{self.nodes[C]=}')
+        nearest[flags != 0] = np.argmin(np.square(self.coords[:, np.newaxis, :]-query_pts[flags != 0][np.newaxis, :, :]).sum(axis=2), axis=0)
+        # print(f'{nearest=}')
+        # print(f'{nearest[flags != 0]=}')
+        # print(f'{self.nodes[nearest[flags != 0]]=}')
+        # print(f'{np.array([self.grid[tuple(node)] for node in self.nodes[nearest[flags != 0]]])=}')
+        values[flags != 0] = np.array([self.grid[tuple(node)] for node in self.nodes[nearest[flags != 0]]]).flatten()
+        # print(f'{values=}')
+        return np.ascontiguousarray(values)
+
     def find_hypercubes(self, indices, grid):
         return cndpolator.hypercubes(indices, grid)
     
@@ -37,7 +70,19 @@ class Cndpolator():
         if hypercubes is None:
             hypercubes = self.find_hypercubes(indices, self.grid)
         
-        return cndpolator.ndpolate(query_pts, indices, flags, self.axes, hypercubes, self.grid.shape[-1], ExtrapolationMethod.NONE)
+        if extrapolation_method == 'none':
+            nearest_values = None
+            extrapolation_method = ExtrapolationMethod.NONE
+        elif extrapolation_method == 'nearest':
+            nearest_values = self.find_nearest(query_pts, flags)
+            extrapolation_method = ExtrapolationMethod.NEAREST
+        elif extrapolation_method == 'linear':
+            # handle nearest hypercube passing
+            extrapolation_method = ExtrapolationMethod.LINEAR
+        else:
+            raise ValueError(f'{extrapolation_method=} is not recognized.')
+
+        return cndpolator.ndpolate(query_pts, indices, flags, self.axes, hypercubes, nearest_values, self.grid.shape[-1], extrapolation_method)
 
 
 class Ndpolator():

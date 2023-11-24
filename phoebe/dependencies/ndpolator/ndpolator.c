@@ -48,6 +48,50 @@ int find_first_geq_than(double *arr, int l, int r, double x, double tol, int *fl
     return l;
 }
 
+int extract_non_nans(int naxes, int *axis_shape, double *axes, double *grid)
+{
+    int i, j;
+
+    for (i = 0; i < naxes; i++) {
+        for (j = 0; j < axis_shape[i]; j++) {
+
+        }
+    }
+}
+
+// int find_nearest_point(double *query_pt, int naxes, int *axis_len, double *axes, double *grid)
+// {
+//     int i, j;
+//     double distance, min_distance = 1e10;
+
+//     for (i = 0; i < naxes; i++) {
+//         distance = 0.0;
+//         for (j = 0; j < axis_len[i]; j++) {
+//             if (isnan(grid[i * naxes + j]))
+//                 continue;
+//             distance += (query_pt[i] - axes[i][j]) * *2;
+//         }
+//     }
+
+//     return 0;
+// }
+
+// int find_nearest_point_optimized(double *query_pt, int N, int *indices, int *gridsize)
+// {
+//     int *queue;
+//     int dim, gs = 1;
+//     int front = 0, back = 0;
+
+//     for (dim = 0; dim < N; dim++)
+//         gs *= gridsize[dim];
+
+//     queue = malloc(gs * N * sizeof(*queue)); /* should be reduced to the maximum possible length given sparsity */
+
+//     free(queue);
+
+//     return 0;
+// }
+
 int c_ndpolate(int N, int vdim, double *x, double *fv)
 {
     int i, j, k;
@@ -286,7 +330,7 @@ static PyObject *ainfo(PyObject *self, PyObject *args)
 
 static PyObject *ndpolate(PyObject *self, PyObject *args)
 {
-    PyArrayObject *query_pts, *indices, *flags;
+    PyArrayObject *query_pts, *indices, *flags, *nearest_values;
     PyObject *axes, *hypercubes;
 
     PyArrayObject *hypercube;
@@ -294,7 +338,7 @@ static PyObject *ndpolate(PyObject *self, PyObject *args)
 
     double *x, *fv;
     int *index, *flag;
-    double *grid, *query_pt;
+    double *grid, *query_pt, *nearest;
 
     ndp_extrapolation_method extrapolation_method = NDP_METHOD_NONE; /* default value */
 
@@ -304,7 +348,7 @@ static PyObject *ndpolate(PyObject *self, PyObject *args)
 
     int debug = 0;
 
-    if (!PyArg_ParseTuple(args, "OOOOOi|i", &query_pts, &indices, &flags, &axes, &hypercubes, &vdim, &extrapolation_method))
+    if (!PyArg_ParseTuple(args, "OOOOOOi|i", &query_pts, &indices, &flags, &axes, &hypercubes, &nearest_values, &vdim, &extrapolation_method))
         return NULL;
 
     nelems = PyArray_DIM(indices, 0);
@@ -322,9 +366,10 @@ static PyObject *ndpolate(PyObject *self, PyObject *args)
      * its memory for each hypercube in the loop below. */
     x = malloc(naxes * sizeof(*x));
 
+    query_pt = (double *) PyArray_DATA(query_pts);
     index = (int *) PyArray_DATA(indices);
     flag = (int *) PyArray_DATA(flags);
-    query_pt = (double *) PyArray_DATA(query_pts);
+    nearest = (PyObject *) nearest_values != Py_None ? (double *) PyArray_DATA(nearest_values) : NULL;
 
     interpolated_values = malloc(nelems * vdim * sizeof(*interpolated_values));
 
@@ -337,6 +382,9 @@ static PyObject *ndpolate(PyObject *self, PyObject *args)
                     continue;
                     break;
                 case NDP_METHOD_NEAREST:
+                    for (j = 0; j < vdim; j++)
+                        interpolated_values[i * vdim + j] = nearest[i * vdim + j];
+                    continue;
                     break;
                 case NDP_METHOD_LINEAR:
                     break;
