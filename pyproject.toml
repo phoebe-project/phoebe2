@@ -1,0 +1,116 @@
+# PHOEBE build specification
+# 
+# Refer to the following document for specification:
+#   https://packaging.python.org/en/latest/specifications/
+# 
+# Key specification is given here:
+#   https://packaging.python.org/en/latest/specifications/declaring-project-metadata/#declaring-project-metadata
+# 
+# Classifier strings are given here:
+#   https://pypi.org/classifiers/
+
+[project]
+name = "phoebe"
+version = "2.4.12"
+description = "PHOEBE: modeling and analysis of eclipsing binary stars"
+readme = "README.md"
+requires-python = ">=3.7"
+license = { text = "GPL-3.0-or-later" }
+authors = [
+    { name = "Andrej Prša", email = "aprsa@villanova.edu" },
+    { name = "Kyle Conroy", email = "kyle.conroy@villanova.edu" },
+    { name = "Angela Kochoska", email = "angela.kochoska@villanova.edu" },
+    { name = "Martin Horvat", email = "martin.horvat@fmf.uni-lj.si" },
+    { name = "Dave Jones", email = "djones@iac.es" },
+    { name = "Michael Abdul-Masih", email = "michael.abdul-masih@eso.org" },
+    { name = "Bert Pablo", email = "hpablo@aavso.org" },
+    { name = "Joe Giammarco", email = "giammarc@eastern.edu" },
+]
+maintainers = [
+    { name = "Kyle Conroy", email = "kyle.conroy@villanova.edu" },
+    { name = "Andrej Prša", email = "aprsa@villanova.edu" },
+]
+keywords = [
+    "phoebe",
+    "science",
+    "astronomy",
+    "astrophysics",
+    "binary stars",
+    "eclipsing binary stars",
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Environment :: Console",
+    "Intended Audience :: Education",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+    "Natural Language :: English",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: C",
+    "Programming Language :: C++",
+    "Topic :: Education",
+    "Topic :: Scientific/Engineering :: Astronomy",
+    "Topic :: Scientific/Engineering :: Physics",
+    "Topic :: Scientific/Engineering :: Visualization",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Software Development :: User Interfaces"
+]
+dependencies = [
+    "numpy",
+    "scipy",
+    "astropy",
+    "pytest",
+    "tqdm",
+    "corner",
+    "requests",
+    "python-socketio",
+    "flask",
+    "flask-cors",
+    "flask-socketio",
+    "gevent",
+    "gevent-websocket",
+]
+
+[project.urls]
+homepage = "http://phoebe-project.org"
+repository = "https://github.com/phoebe-project/phoebe2"
+documentation = "http://phoebe-project.org/docs"
+
+[build-system]
+requires = ["setuptools", "numpy", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = [
+    "phoebe",
+    "phoebe.parameters",
+    "phoebe.parameters.solver",
+    "phoebe.parameters.figure",
+    "phoebe.frontend",
+    "phoebe.constraints",
+    "phoebe.dynamics",
+    "phoebe.distortions",
+    "phoebe.algorithms",
+    "phoebe.atmospheres",
+    "phoebe.backend",
+    "phoebe.solverbackends",
+    "phoebe.solverbackends.ebai",
+    "phoebe.solverbackends.knn",
+    "phoebe.utils",
+    "phoebe.helpers",
+    "phoebe.pool",
+    "phoebe.dependencies",
+    "phoebe.dependencies.autofig",
+    "phoebe.dependencies.nparray",
+    "phoebe.dependencies.distl",
+    "phoebe.dependencies.crimpl",
+    "phoebe.dependencies.unitsiau2015",
+    "phoebe.dependencies.ligeor",
+    "phoebe.dependencies.ligeor.ebai",
+    "phoebe.dependencies.ligeor.ebai.database",
+    "phoebe.dependencies.ligeor.eclipse",
+    "phoebe.dependencies.ligeor.models",
+    "phoebe.dependencies.ligeor.utils",
+]

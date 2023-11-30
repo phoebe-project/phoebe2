@@ -20,7 +20,7 @@ from phoebe.dependencies import nparray
 from phoebe.helpers import get_emcee_object as _get_emcee_object
 from phoebe import pool as _pool
 
-from distutils.version import LooseVersion, StrictVersion
+from packaging.version import parse
 from copy import deepcopy as _deepcopy
 import multiprocessing
 import pickle
@@ -1337,7 +1337,7 @@ class EmceeBackend(BaseSolverBackend):
             raise ImportError("could not import emcee.  Install (pip install emcee) and restart phoebe.")
 
         try:
-            if LooseVersion(emcee.__version__) < LooseVersion("3.0.0"):
+            if parse(emcee.__version__) < parse("3.0.0"):
                 raise ImportError("emcee backend requires emcee 3.0+, {} found.  Update emcee and restart phoebe.".format(emcee.__version__))
         except ValueError:
             # see https://github.com/phoebe-project/phoebe2/issues/378

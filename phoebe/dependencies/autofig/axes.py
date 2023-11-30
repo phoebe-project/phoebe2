@@ -8,7 +8,7 @@ from matplotlib import colorbar as mplcolorbar
 from matplotlib import gridspec as gridspec
 from matplotlib import __version__ as _mplversion
 
-from distutils.version import StrictVersion
+from packaging.version import parse
 
 from . import common
 from . import callbacks
@@ -1011,7 +1011,7 @@ class Axes(object):
 
             for i,ax in enumerate(axes):
                 try:
-                    if StrictVersion(_mplversion) < StrictVersion("3.4.0"):
+                    if parse(_mplversion) < parse("3.4.0"):
                         ax.change_geometry(rows, cols, i+1)
                     else:
                         ax.set_subplotspec(gridspec.SubplotSpec(gridspec.GridSpec(rows, cols, figure=fig), i))
