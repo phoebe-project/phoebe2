@@ -16,7 +16,7 @@ import sys
 import subprocess
 
 if len(sys.argv)==1:
-    do = ['tutorials', 'doctests', 'nosetests', 'pylint', 'benchmark']
+    do = ['tutorials', 'doctests', 'tests', 'pylint', 'benchmark']
 else:
     do = sys.argv
 
@@ -33,14 +33,12 @@ if 'tutorials' in do:
         ipynbtest.test_all_in_dir(os.path.join(cwd, '../docs/examples'), interactive='interactive' in do)
 
 
-if 'nosetests' in do:
-    print("TESTING NOSETESTS... (no output until finished or failed)")
-    os.chdir(os.path.join(cwd, 'nosetests'))
-    # import nose
-    # nose.run()
-    out = subprocess.check_output('nosetests -xv', shell=True, stderr=subprocess.DEVNULL).decode('utf-8').strip()
+if 'tests' in do:
+    print("RUNNING TESTS... (no output until finished or failed)")
+    os.chdir(os.path.join(cwd, 'tests'))
+    out = subprocess.check_output('tests -xv', shell=True, stderr=subprocess.DEVNULL).decode('utf-8').strip()
     if 'FAILED' in out:
-        print("NOSETESTS FAILED: \n{}".format(out))
+        print("TESTS FAILED: \n{}".format(out))
         exit()
 
 # TODO: run style checks

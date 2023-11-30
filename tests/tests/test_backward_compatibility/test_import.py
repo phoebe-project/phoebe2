@@ -6,7 +6,7 @@
 import phoebe
 import numpy as np
 
-from distutils.version import LooseVersion, StrictVersion
+from packaging.version import parse
 
 import os
 dir = os.path.dirname(os.path.realpath(__file__))
@@ -20,7 +20,7 @@ def _export_21(filename, plot=False):
     """
 
 
-    if LooseVersion(phoebe.__version__) >= LooseVersion("2.2"):
+    if parse(phoebe.__version__) >= parse("2.2"):
        raise ImportError("script runs on PHOEBE 2.1.x")
        exit()
 
@@ -46,7 +46,7 @@ def _export_22(filename, plot=False):
     """
 
 
-    if LooseVersion(phoebe.__version__) >= LooseVersion("2.3"):
+    if parse(phoebe.__version__) >= parse("2.3"):
        raise ImportError("script runs on PHOEBE 2.2.x")
        exit()
 
@@ -72,7 +72,7 @@ def _export_23(filename, plot=False):
     """
 
 
-    if LooseVersion(phoebe.__version__) >= LooseVersion("2.4"):
+    if parse(phoebe.__version__) >= parse("2.4"):
        raise ImportError("script runs on PHOEBE 2.3.x")
        exit()
 
@@ -130,13 +130,13 @@ def test_23(verbose=False, plot=False):
 if __name__ == '__main__':
     logger = phoebe.logger(clevel='WARNING')
 
-    # if LooseVersion(phoebe.__version__) >= LooseVersion("2.1.0") and LooseVersion(phoebe.__version__) < LooseVersion("2.2.0"):
+    # if parse(phoebe.__version__) >= parse("2.1.0") and parse(phoebe.__version__) < parse("2.2.0"):
         # _export_21('21_export.phoebe')
         # exit()
-    # if LooseVersion(phoebe.__version__) >= LooseVersion("2.2.0") and LooseVersion(phoebe.__version__) < LooseVersion("2.3.0"):
+    # if parse(phoebe.__version__) >= parse("2.2.0") and parse(phoebe.__version__) < parse("2.3.0"):
     #     _export_22('22_export.phoebe')
     #     exit()
-    # if LooseVersion(phoebe.__version__) >= LooseVersion("2.3.0") and LooseVersion(phoebe.__version__) < LooseVersion("2.4.0"):
+    # if parse(phoebe.__version__) >= parse("2.3.0") and parse(phoebe.__version__) < parse("2.4.0"):
     #     _export_23('23_export.phoebe')
     #     exit()
 

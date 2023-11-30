@@ -13,7 +13,7 @@ import json
 import atexit
 import time
 from datetime import datetime
-from distutils.version import StrictVersion
+from packaging.version import parse
 from copy import deepcopy as _deepcopy
 import pickle as _pickle
 from inspect import getsource as _getsource
@@ -133,9 +133,9 @@ def _get_add_func(mod, func, return_none_if_not_found=False):
 
 def _is_equiv_array_or_float(value1, value2):
     if hasattr(value1, '__iter__'):
-        return np.all(value1==value2)
+        return len(value1) == len(value2) and np.all(value1 == value2)
     else:
-        return value1==value2
+        return value1 == value2
 
 
 class RunChecksItem(object):
@@ -615,8 +615,8 @@ class Bundle(ParameterSet):
         b = cls(data)
 
         version = b.get_value(qualifier='phoebe_version', check_default=False, check_visible=False)
-        phoebe_version_import = StrictVersion(version.split('.dev')[0])
-        phoebe_version_this = StrictVersion(__version__.split('.dev')[0])
+        phoebe_version_import = parse(version.split('.dev')[0])
+        phoebe_version_this = parse(__version__.split('.dev')[0])
 
         logger.debug("importing from PHOEBE v {} into v {}".format(phoebe_version_import, phoebe_version_this))
 
@@ -641,7 +641,7 @@ class Bundle(ParameterSet):
             logger.debug("temporarily disabling interactive_checks")
             conf._interactive_checks = False
 
-        if phoebe_version_import < StrictVersion("2.1.0"):
+        if phoebe_version_import < parse("2.1.0"):
             logger.warning("importing from an older version ({}) of PHOEBE into version {}".format(phoebe_version_import, phoebe_version_this))
 
             # rpole -> requiv: https://github.com/phoebe-project/phoebe2/pull/300
@@ -727,13 +727,13 @@ class Bundle(ParameterSet):
             # make sure constraints are updated according to conf.interactive_constraints
             b.run_delayed_constraints()
 
-        if phoebe_version_import < StrictVersion("2.1.2"):
+        if phoebe_version_import < parse("2.1.2"):
             b._import_before_v211 = True
             warning = "importing from an older version ({}) of PHOEBE which did not support constraints in solar units.  All constraints will remain in SI, but calling set_hierarchy will likely fail.".format(phoebe_version_import)
             print("WARNING: {}".format(warning))
             logger.warning(warning)
 
-        if phoebe_version_import < StrictVersion("2.2.0"):
+        if phoebe_version_import < parse("2.2.0"):
             warning = "importing from an older version ({}) of PHOEBE to PHOEBE 2.2.  Previous versions did not support compute_times, ld_mode/ld_coeffs_source, pblum_mode, l3_mode, etc... all datasets will be migrated to include all new options.  This may take some time.  Please check all values.".format(phoebe_version_import)
             # print("WARNING: {}".format(warning))
             logger.warning(warning)
@@ -838,7 +838,7 @@ class Bundle(ParameterSet):
             logger.debug("restoring previous models")
             b._attach_params(ps_model, context='model')
 
-        if phoebe_version_import < StrictVersion("2.3.0"):
+        if phoebe_version_import < parse("2.3.0"):
             warning = "importing from an older version ({}) of PHOEBE to PHOEBE 2.3.  The previous versions did not support sample_from, etc... all compute options will be migrated to include all new options.  Additionally, extinction parameters will be moved from the dataset to system context.  This may take some time.  Please check all values.".format(phoebe_version_import)
             logger.warning(warning)
 
@@ -910,13 +910,13 @@ class Bundle(ParameterSet):
             # call set_hierarchy to force asini@component constraints (comp_asini) to be built
             b.set_hierarchy()
 
-        elif phoebe_version_import < StrictVersion("2.3.25"):
+        elif phoebe_version_import < parse("2.3.25"):
             # elif here since the if above already call set_hierarchy and we want to avoid doing that twice since its expensive
 
             # call set_hierarchy to force mass constraints to be rebuilt
             b.set_hierarchy()
 
-        if phoebe_version_import < StrictVersion("2.4.0") or ".dev" in version:
+        if phoebe_version_import < parse("2.4.0") or ".dev" in version:
             warning = "importing from an older version ({}) of PHOEBE to PHOEBE 2.4.  This may take some time.  Please check all values.".format(phoebe_version_import)
             logger.warning(warning)
 
@@ -983,7 +983,7 @@ class Bundle(ParameterSet):
                     p = IntParameter(qualifier='nlags', value=int(nlags_default), limit=(1,1e6), description='number of lags to use when computing/plotting the autocorrelation function')
                     b._attach_params([p], context='solution', solution=solution, compute=solution_ps.compute, kind='emcee')
 
-        if phoebe_version_import < StrictVersion("2.4.4"):
+        if phoebe_version_import < parse("2.4.4"):
             # update mass constraints
             for constraint in b.filter(constraint_func=['mass', 'requivsumfrac', 'requivratio'], context='constraint', **_skip_filter_checks).to_list():
                 logger.warning("re-creating {} constraint".format(constraint.twig))
@@ -12269,7 +12269,7 @@ class Bundle(ParameterSet):
                         # store just the GP component in the model PS as well
                         gp_param = FloatArrayParameter(qualifier='gps', value=gp_y, default_unit=model_y.unit, readonly=True, description='GP contribution to the model {}'.format(yqualifier))
                         y_nogp_param = FloatArrayParameter(qualifier='{}_nogps'.format(yqualifier), value=model_y_dstimes, default_unit=model_y.unit, readonly=True, description='{} before adding gps'.format(yqualifier))
-                        if not np.all(ds_x == model_x):
+                        if len(ds_x) != len(model_x) or not np.all(ds_x == model_x):
                             logger.warning("model for dataset='{}' resampled at dataset times when adding GPs".format(ds))
                             model_ps.set_value(qualifier=xqualifier, dataset=ds, component=ds_comp, value=ds_x, ignore_readonly=True, **_skip_filter_checks)
 

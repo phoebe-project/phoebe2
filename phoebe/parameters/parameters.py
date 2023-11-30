@@ -676,22 +676,22 @@ class ParameterSet(object):
         return "ParameterSet: {} parameters\n".format(len(self._params))+param_info
 
     def __lt__(self, other):
-        raise NotImplementedError("comparison operators with ParameterSets are not supported")
+        return NotImplemented
 
     def __le__(self, other):
-        raise NotImplementedError("comparison operators with ParameterSets are not supported")
+        return NotImplemented
 
     def __gt__(self, other):
-        raise NotImplementedError("comparison operators with ParameterSets are not supported")
+        return NotImplemented
 
     def __ge__(self, other):
-        raise NotImplementedError("comparison operators with ParameterSets are not supported")
+        return NotImplemented
 
     def __eq__(self, other):
-        raise NotImplementedError("comparison operators with ParameterSets are not supported")
+        return NotImplemented
 
     def __ne__(self, other):
-        raise NotImplementedError("comparison operators with ParameterSets are not supported")
+        return NotImplemented
 
     def copy(self):
         """
@@ -1749,7 +1749,7 @@ class ParameterSet(object):
             ps._bundle = self._bundle
             return ps
         else:
-            raise NotImplementedError
+            return NotImplemented
 
     def __sub__(self, other):
         """Subtracting 2 PSs returns a new PS with items in the first but not second."""
@@ -1764,7 +1764,7 @@ class ParameterSet(object):
             ps._bundle = self._bundle
             return ps
         else:
-            raise NotImplementedError
+            return NotImplemented
 
     def __mul__(self, other):
         """
@@ -1780,7 +1780,7 @@ class ParameterSet(object):
             ps._bundle = self._bundle
             return ps
         else:
-            raise NotImplementedError
+            return NotImplemented
 
     @classmethod
     def open(cls, filename):
