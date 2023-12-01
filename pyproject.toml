@@ -102,6 +102,7 @@ packages = [
     "phoebe.helpers",
     "phoebe.pool",
     "phoebe.dependencies",
+    "phoebe.dependencies.ndpolator",
     "phoebe.dependencies.autofig",
     "phoebe.dependencies.nparray",
     "phoebe.dependencies.distl",
