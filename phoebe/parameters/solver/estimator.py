@@ -1,11 +1,5 @@
 
 from phoebe.parameters import *
-from phoebe import conf
-from phoebe import geomspace as _geomspace
-from phoebe import linspace as _linspace
-
-from distutils.version import StrictVersion
-import numpy as np
 
 
 ### NOTE: if creating new parameters, add to the _forbidden_labels list in parameters.py

@@ -3,7 +3,7 @@ import numpy as np
 import json
 import os
 
-from distutils.version import LooseVersion
+from packaging.version import parse
 
 __version__ = '1.2.0'
 version = __version__
@@ -175,12 +175,12 @@ def geomspace(start, stop, num, endpoint=True, unit=None):
     -----------
     * <Geomspace>
     """
-    if LooseVersion(np.__version__) >= LooseVersion("1.13"):
+    if parse(np.__version__) >= parse("1.13"):
         return _wrappers.Geomspace(start, stop, num, endpoint, unit)
     else:
         raise NotImplementedError("geomspace requires numpy version >= 1.13")
 
-if LooseVersion(np.__version__) >= LooseVersion("1.13"):
+if parse(np.__version__) >= parse("1.13"):
     geomspace.__doc__ = __docprefix__ + "\n".join([l.lstrip() for l in geomspace.__doc__.split("\n")]) + __docsep__ + np.geomspace.__doc__.replace("&gt;", ">")
 
 def full(shape, fill_value, unit=None):
