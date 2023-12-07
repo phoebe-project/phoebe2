@@ -19,6 +19,7 @@ MANIFEST
 *.log
 *.txt
 *.png
+*.o
 *.so
 *.egg-info
 .DS_Store
