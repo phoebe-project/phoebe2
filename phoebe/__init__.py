@@ -26,9 +26,9 @@ import multiprocessing as _multiprocessing
 import atexit
 import re
 
-# People shouldn't import Phoebe from the installation directory (inspired upon
-# pymc warning message).
-if _os.getcwd().find(_os.path.abspath(_os.path.split(_os.path.split(__file__)[0])[0]))>-1:
+# People shouldn't import phoebe from the root directory or from root/phoebe:
+_root_dir = _os.path.abspath(_os.path.split(_os.path.split(__file__)[0])[0])
+if _os.getcwd() == _root_dir or _os.path.join(_root_dir, 'phoebe') in _os.getcwd():
     # We have a clash of package name with the standard library: we implement an
     # "io" module and also they do. This means that you can import Phoebe from its
     # main source tree; then there is no difference between io from here and io
