@@ -20,7 +20,7 @@ def test_contact_vol(plot=False):
     assert abs(res['lvolume'] - lvolume0) < 1e-10*lvolume0
 
     if plot:
-        print(f'{res=}')
+        print(f'res={res}')
 
 
 if __name__ == '__main__':
