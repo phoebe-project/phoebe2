@@ -10246,8 +10246,9 @@ class Bundle(ParameterSet):
             appropriate length given the respective value of `ld_func`).
         """
 
+        # check to make sure value of passed compute is valid
         if compute is None:
-            if len(self.computes)==1:
+            if len(self.computes) == 1:
                 compute = self.computes[0]
             else:
                 raise ValueError("must provide compute")
@@ -10258,7 +10259,9 @@ class Bundle(ParameterSet):
         # we'll add 'bol' to the list of default datasets... but only if bolometric is needed for irradiation
         needs_bol = compute_ps.get_value(qualifier='irrad_method', irrad_method=kwargs.get('irrad_method', None), default='none', **_skip_filter_checks) != 'none'
 
-        datasets = kwargs.pop('dataset', self.datasets + ['bol'] if needs_bol else self.datasets)
+        datasets = kwargs.pop('dataset', self.datasets + ['bol'] if needs_bol else self._datasets_that_require_meshing(compute))
+        if len(datasets) == 0:
+            return {}
         components = kwargs.pop('component', self.components)
 
         # don't allow things like model='mymodel', etc
@@ -10383,6 +10386,16 @@ class Bundle(ParameterSet):
 
         return system
 
+    def _datasets_that_require_meshing(self, compute):
+        print('entering _datasets_that_require_meshing()')
+        datasets = self.filter(compute=compute, qualifier='enabled', value=True, **_skip_filter_checks).datasets
+        ds_kinds = [self.filter(dataset=ds, context='dataset', **_skip_filter_checks).kind for ds in datasets]
+        return [ds for ds, kind in zip(datasets, ds_kinds) 
+                if kind == 'lc'
+                or kind == 'lp'
+                or (kind == 'rv' and len(self.filter(qualifier='rv_method', dataset=ds, compute=compute, value='flux-weighted', **_skip_filter_checks)) > 0)
+        ]
+
     def compute_l3s(self, compute=None, use_pbfluxes={},
                    set_value=False, **kwargs):
         """
@@ -10426,11 +10439,10 @@ class Bundle(ParameterSet):
         """
         logger.debug("b.compute_l3s")
 
+        # either take user-passed datasets or datasets that have an l3_mode:
         datasets = kwargs.pop('dataset', self.filter('l3_mode', check_visible=True).datasets)
         if isinstance(datasets, str):
             datasets = [datasets]
-
-
 
         if compute is None:
             if len(self.computes)==1:
@@ -10620,7 +10632,26 @@ class Bundle(ParameterSet):
         """
         logger.debug("b.compute_pblums")
 
-        datasets = kwargs.pop('dataset', self.filter(qualifier='passband').datasets)
+        # check to make sure value of passed compute is valid
+        if compute is None:
+            if len(self.computes) == 1:
+                compute = self.computes[0]
+            else:
+                raise ValueError("must provide compute")
+        if not isinstance(compute, str):
+            raise TypeError("compute must be a single value (string)")
+
+        compute_ps = self.get_compute(compute=compute, **_skip_filter_checks)
+        ret_structured_dicts = kwargs.get('ret_structured_dicts', False)
+
+        # either take user-passed datasets or datasets that require a mesh:
+        datasets = kwargs.pop('dataset') if 'dataset' in kwargs else self._datasets_that_require_meshing(compute)
+
+        if len(datasets) == 0:
+            if ret_structured_dicts:
+                return None, {}, {}, {}, {}
+            return {}
+
         if isinstance(datasets, str):
             datasets = [datasets]
 
@@ -10638,16 +10669,6 @@ class Bundle(ParameterSet):
         else:
             components = valid_components
 
-        # check to make sure value of passed compute is valid
-        if compute is None:
-            if len(self.computes)==1:
-                compute = self.computes[0]
-            else:
-                raise ValueError("must provide compute")
-        if not isinstance(compute, str):
-            raise TypeError("compute must be a single value (string)")
-
-        compute_ps = self.get_compute(compute=compute, **_skip_filter_checks)
         # NOTE: this is flipped so that stefan-boltzmann can manually be used even if the compute-options have kind='phoebe' and don't have that choice
         pblum_method = kwargs.pop('pblum_method', compute_ps.get_value(qualifier='pblum_method', default='phoebe', **_skip_filter_checks))
         t0 = self.get_value(qualifier='t0', context='system', unit=u.d, t0=kwargs.pop('t0', None), **_skip_filter_checks)
@@ -10716,7 +10737,6 @@ class Bundle(ParameterSet):
         else:
             raise ValueError("pblum_method='{}' not supported".format(pblum_method))
 
-        ret_structured_dicts = kwargs.get('ret_structured_dicts', False)
         ret = {}
 
         # pblum_*: {dataset: {component: value}}
@@ -11666,6 +11686,7 @@ class Bundle(ParameterSet):
         * ValueError: if any given dataset is enabled in more than one set of
             compute options sent to run_compute.
         """
+
         # NOTE: if we're already in client mode, we'll never get here in the client
         # there detach is handled slightly differently (see parameters._send_if_client)
         if isinstance(detach, str):
@@ -11912,8 +11933,10 @@ class Bundle(ParameterSet):
                 # TODO: have this return a dictionary like pblums/l3s that we can pass on to the backend?
 
                 # we need to check both for enabled but also passed via dataset kwarg
-                ds_kinds_enabled = self.filter(dataset=dataset_this_compute, context='dataset', **_skip_filter_checks).kinds
-                if 'lc' in ds_kinds_enabled or 'rv' in ds_kinds_enabled or 'lp' in ds_kinds_enabled:
+                # ds_kinds_enabled = self.filter(dataset=dataset_this_compute, context='dataset', **_skip_filter_checks).kinds
+                datasets = self._datasets_that_require_meshing(compute)
+                if len(datasets) > 0:
+                # if 'lc' in ds_kinds_enabled or 'rv' in ds_kinds_enabled or 'lp' in ds_kinds_enabled:
                     logger.info("run_compute: computing necessary ld_coeffs, pblums, l3s")
                     self.compute_ld_coeffs(compute=compute, skip_checks=True, set_value=True, **{k:v for k,v in kwargs.items() if k in computeparams.qualifiers})
                     # NOTE that if pblum_method != 'phoebe', then system will be None
