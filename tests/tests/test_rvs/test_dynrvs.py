@@ -5,7 +5,8 @@ import numpy as np
 def test_dynrvs(verbose=False):
     """
     This test checks whether PHOEBE computes dynamical RVs without building
-    a mesh, and whether the computed RVs are close to the flux-weighted RVs.
+    a mesh (as otherwise run_compute would fail with atm out-of-bounds errors), 
+    and whether the computed RVs are close to the flux-weighted RVs.
     """
     b = phoebe.default_binary()
     b.add_dataset('rv', compute_times=phoebe.linspace(0, 1, 21), dataset='dynrv')
