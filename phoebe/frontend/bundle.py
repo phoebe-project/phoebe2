@@ -10391,6 +10391,8 @@ class Bundle(ParameterSet):
     def _datasets_where(self, compute, mesh_needed=False, l3_needed=False):
         datasets = self.filter(compute=compute, qualifier='enabled', value=True, **_skip_filter_checks).datasets
         ds_kinds = [self.filter(dataset=ds, context='dataset', **_skip_filter_checks).kind for ds in datasets]
+        backend = self.filter(compute=compute).kind
+
         subset = []
 
         if l3_needed:
@@ -10400,6 +10402,7 @@ class Bundle(ParameterSet):
             subset += [ds for ds, kind in zip(datasets, ds_kinds) 
                 if kind == 'lc'
                 or kind == 'lp'
+                or (kind == 'rv' and backend != 'phoebe')
                 or (kind == 'rv' and len(self.filter(qualifier='rv_method', dataset=ds, compute=compute, value='flux-weighted', **_skip_filter_checks)) > 0)
             ]
 
@@ -11744,6 +11747,7 @@ class Bundle(ParameterSet):
         # NOTE: _prepare_compute calls run_checks_compute and will handle raising
         # any necessary errors
         model, computes, datasets, do_create_fig_params, changed_params, overwrite_ps, kwargs = self._prepare_compute(compute, model, dataset, from_export=False, **kwargs)
+
         _ = kwargs.pop('do_create_fig_params', None)
 
         if use_server is None:
@@ -11943,8 +11947,7 @@ class Bundle(ParameterSet):
                 # TODO: have this return a dictionary like pblums/l3s that we can pass on to the backend?
 
                 # we need to check both for enabled but also passed via dataset kwarg
-                datasets = self._datasets_where(compute=compute, mesh_needed=True)
-                if len(datasets) > 0:
+                if len(self._datasets_where(compute=compute, mesh_needed=True)) > 0:
                     logger.info("run_compute: computing necessary ld_coeffs, pblums, l3s")
                     self.compute_ld_coeffs(compute=compute, skip_checks=True, set_value=True, **{k:v for k,v in kwargs.items() if k in computeparams.qualifiers})
                     # NOTE that if pblum_method != 'phoebe', then system will be None
