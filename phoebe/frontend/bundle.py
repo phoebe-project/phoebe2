@@ -10396,7 +10396,7 @@ class Bundle(ParameterSet):
         subset = []
 
         if l3_needed:
-            subset += [ds for ds in datasets if len(self.filter('l3_mode', dataset=ds, check_visible=True)) > 0]
+            subset += [ds for ds in datasets if len(self.filter(qualifier='l3_mode', dataset=ds, context='dataset', check_visible=True)) > 0]
 
         if mesh_needed:
             subset += [ds for ds, kind in zip(datasets, ds_kinds) 
