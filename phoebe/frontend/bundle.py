@@ -10461,7 +10461,7 @@ class Bundle(ParameterSet):
             raise TypeError("compute must be a single value (string)")
 
         # either take user-passed datasets or datasets that have an l3_mode:
-        datasets = kwargs.pop('dataset', self._datasets_where(compute=compute, l3_needed=True))
+        datasets = kwargs.pop('dataset') if 'dataset' in kwargs else self._datasets_where(compute=compute, l3_needed=True)
         if isinstance(datasets, str):
             datasets = [datasets]
 
