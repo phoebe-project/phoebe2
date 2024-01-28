@@ -10389,7 +10389,7 @@ class Bundle(ParameterSet):
         return system
 
     def _datasets_where(self, compute, mesh_needed=False, l3_needed=False):
-        datasets = self.filter(compute=compute, qualifier='enabled', value=True, **_skip_filter_checks).datasets
+        datasets = self.filter(compute=compute, context='compute', qualifier='enabled', value=True, **_skip_filter_checks).datasets
         ds_kinds = [self.filter(dataset=ds, context='dataset', **_skip_filter_checks).kind for ds in datasets]
         backend = self.filter(compute=compute, context='compute', **_skip_filter_checks).kind
 
