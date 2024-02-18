@@ -11,8 +11,12 @@ ext_modules = [
 
     Extension(
       'cndpolator',
-      sources=['phoebe/dependencies/ndpolator/ndpolator.c'],
+      sources=[
+          'phoebe/dependencies/ndpolator/ndpolator.c',
+          'phoebe/dependencies/ndpolator/ndp_types.c',
+      ],
       language='c',
+      extra_compile_args=["-Werror", "-O0", "-g"],
       include_dirs=[numpy.get_include()],
     ),
 

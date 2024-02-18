@@ -277,6 +277,7 @@ class Passband:
             self.add_to_history(comments)
 
         # Initialize passband tables:
+
         self.atm_axes = dict()            # model atmosphere axes
         self.ext_axes = dict()            # interstellar extinction axes
         self.atm_energy_grid = dict()     # energy-weighted intensities
@@ -295,8 +296,8 @@ class Passband:
         # self.nntree = dict()              # nearest neighbor tree for blending and extrapolation
         # self.indices = dict()             # nearest neighbor indices for blending and extrapolation
         # self.ics = dict()                 # inferior corners for blending and extrapolation
-        self.blending_region = dict()     # blending regions
-        self.mapper = dict()              # mapping from model atmosphere axes to interpolation axes
+        # self.blending_region = dict()     # blending regions
+        # self.mapper = dict()              # mapping from model atmosphere axes to interpolation axes
 
     def __repr__(self):
         return f'<Passband: {self.pbset}:{self.pbname}>'
@@ -631,48 +632,45 @@ class Passband:
                 for atm in ['ck2004', 'phoenix', 'tmap']:
                     if f'{atm}:Imu' in self.content:
                         prefix = atm[:2]
-                        self.atm_axes[atm] = (
+                        axes = (
                             np.array(list(hdul[f'{prefix}_teffs'].data['teff'])),
                             np.array(list(hdul[f'{prefix}_loggs'].data['logg'])),
                             np.array(list(hdul[f'{prefix}_abuns'].data['abun'])),
-                            np.array(list(hdul[f'{prefix}_mus'].data['mu'])))
+                        )
+                        
                         self.atm_energy_grid[atm] = hdul[f'{prefix}fegrid'].data
                         self.atm_photon_grid[atm] = hdul[f'{prefix}fpgrid'].data
 
-                        # inorm interpolator:
-                        self.ndp[f'inorm@photon@{atm}'] = ndpolator.Cndpolator(self.atm_axes[atm][:-1], self.atm_photon_grid[atm][...,-1,:])
-                        self.ndp[f'inorm@energy@{atm}'] = ndpolator.Cndpolator(self.atm_axes[atm][:-1], self.atm_energy_grid[atm][...,-1,:])
+                        # ndpolator instance for interpolating and extrapolating:
+                        self.ndp[atm] = ndpolator.Cndpolator(axes=axes)
 
-                        # imu interpolator:
-                        self.ndp[f'imu@photon@{atm}'] = ndpolator.Cndpolator(self.atm_axes[atm], self.atm_photon_grid[atm])
-                        self.ndp[f'imu@energy@{atm}'] = ndpolator.Cndpolator(self.atm_axes[atm], self.atm_energy_grid[atm])
+                        # normal passband intensities:
+                        self.ndp[atm].register('inorm@photon', None, self.atm_photon_grid[atm][...,-1,:])
+                        self.ndp[atm].register('inorm@energy', None, self.atm_energy_grid[atm][...,-1,:])
+
+                        # specific passband intensities:
+                        mus = np.array(list(hdul[f'{prefix}_mus'].data['mu']))
+                        self.ndp[atm].register('imu@photon', (mus,), self.atm_photon_grid[atm])
+                        self.ndp[atm].register('imu@energy', (mus,), self.atm_energy_grid[atm])
 
                         if init_extrapolation:
-                            # Rebuild the table of non-null indices for the nearest neighbor lookup:
-                            # self.nntree[atm], self.indices[atm] = ndpolator.kdtree(self.atm_axes[atm][:-1], self.atm_photon_grid[atm][...,-1,:])
-
-                            # Rebuild blending map:
+                            # CHECKME: probably obsolete
                             self.blending_region[atm] = ((750, 10000), (0.5, 0.5), (0.5, 0.5))
-                            self.mapper[atm] = lambda v: ndpolator.map_to_cube(v, self.atm_axes[atm][:-1], self.blending_region[atm])
-
-                            # Rebuild the table of inferior corners for extrapolation:
-                            # raxes = self.atm_axes[atm][:-1]
-                            # subgrid = self.atm_photon_grid[atm][...,-1,:]
-                            # self.ics[atm] = np.array([(i, j, k) for i in range(0, len(raxes[0])-1) for j in range(0, len(raxes[1])-1) for k in range(0, len(raxes[2])-1) if ~np.any(np.isnan(subgrid[i:i+2,j:j+2,k:k+2]))])
+                            self.mapper[atm] = lambda v: ndpolator.map_to_cube(v, axes, self.blending_region[atm])
 
                     if f'{atm}:ld' in self.content:
                         self.ld_energy_grid[atm] = hdul[f'{prefix}legrid'].data
                         self.ld_photon_grid[atm] = hdul[f'{prefix}lpgrid'].data
 
-                        self.ndp[f'ld@photon@{atm}'] = ndpolator.Cndpolator(self.atm_axes[atm][:-1], self.ld_photon_grid[atm])
-                        self.ndp[f'ld@energy@{atm}'] = ndpolator.Cndpolator(self.atm_axes[atm][:-1], self.ld_energy_grid[atm])
+                        self.ndp[atm].register('ld@photon', None, self.ld_photon_grid[atm])
+                        self.ndp[atm].register('ld@energy', None, self.ld_energy_grid[atm])
 
                     if f'{atm}:ldint' in self.content:
                         self.ldint_energy_grid[atm] = hdul[f'{prefix}iegrid'].data
                         self.ldint_photon_grid[atm] = hdul[f'{prefix}ipgrid'].data
 
-                        self.ndp[f'ldint@photon@{atm}'] = ndpolator.Cndpolator(self.atm_axes[atm][:-1], self.ldint_photon_grid[atm])
-                        self.ndp[f'ldint@energy@{atm}'] = ndpolator.Cndpolator(self.atm_axes[atm][:-1], self.ldint_energy_grid[atm])
+                        self.ndp[atm].register('ldint@photon', None, self.ldint_photon_grid[atm])
+                        self.ndp[atm].register('ldint@energy', None, self.ldint_energy_grid[atm])
 
                     if f'{atm}:ext' in self.content:
                         self.ext_axes[atm] = (
@@ -686,89 +684,6 @@ class Passband:
                         self.ext_photon_grid[atm] = hdul[f'{prefix}xpgrid'].data
 
                         # TODO: add ndp entries; should we do ndp.get('key', ndpolator.Cndpolator(...))? Do we need to store the actual grids at all?
-
-                # if 'ck2004:ldint' in self.content:
-                #     self.ldint_energy_grid['ck2004'] = hdul['ckiegrid'].data
-                #     self.ldint_photon_grid['ck2004'] = hdul['ckipgrid'].data
-
-                # if 'ck2004:ext' in self.content:
-                #     self.ext_axes['ck2004'] = (np.array(list(hdul['ck_teffs'].data['teff'])), np.array(list(hdul['ck_loggs'].data['logg'])), np.array(list(hdul['ck_abuns'].data['abun'])), np.array(list(hdul['ck_ebvs'].data['ebv'])), np.array(list(hdul['ck_rvs'].data['rv'])))
-                #     self.ext_energy_grid['ck2004'] = hdul['ckxegrid'].data
-                #     self.ext_photon_grid['ck2004'] = hdul['ckxpgrid'].data
-
-                # if 'phoenix:Imu' in self.content:
-                #     self.atm_axes['phoenix'] = (np.array(list(hdul['ph_teffs'].data['teff'])), np.array(list(hdul['ph_loggs'].data['logg'])), np.array(list(hdul['ph_abuns'].data['abun'])), np.array(list(hdul['ph_mus'].data['mu'])))
-                #     self.atm_energy_grid['phoenix'] = hdul['phfegrid'].data
-                #     self.atm_photon_grid['phoenix'] = hdul['phfpgrid'].data
-
-                #     self.ndp['imu@photon@phoenix'] = ndpolator.Ndpolator(self.atm_axes['phoenix'], self.atm_photon_grid['phoenix'])
-                #     self.ndp['imu@energy@phoenix'] = ndpolator.Ndpolator(self.atm_axes['phoenix'], self.atm_energy_grid['phoenix'])
-
-                #     if init_extrapolation:
-                #         # Rebuild the table of non-null indices for the nearest neighbor lookup:
-                #         self.nntree['phoenix'], self.indices['phoenix'] = ndpolator.kdtree(self.atm_axes['phoenix'][:-1], self.atm_photon_grid['phoenix'][...,-1,:])
-
-                #         # Rebuild blending map:
-                #         self.blending_region['phoenix'] = ((750, 2000), (0.5, 0.5), (0.5, 0.5))
-                #         self.mapper['phoenix'] = lambda v: ndpolator.map_to_cube(v, self.atm_axes['phoenix'][:-1], self.blending_region['phoenix'])
-
-                #         # Rebuild the table of inferior corners for extrapolation:
-                #         raxes = self.atm_axes['phoenix'][:-1]
-                #         subgrid = self.atm_photon_grid['phoenix'][...,-1,:]
-                #         self.ics['phoenix'] = np.array([(i, j, k) for i in range(0,len(raxes[0])-1) for j in range(0,len(raxes[1])-1) for k in range(0,len(raxes[2])-1) if ~np.any(np.isnan(subgrid[i:i+2,j:j+2,k:k+2]))])
-
-                # if 'phoenix:ld' in self.content:
-                #     self.ld_energy_grid['phoenix'] = hdul['phlegrid'].data
-                #     self.ld_photon_grid['phoenix'] = hdul['phlpgrid'].data
-
-                #     self.ndp['ld@photon@phoenix'] = ndpolator.Ndpolator(self.atm_axes['phoenix'], self.ld_photon_grid['phoenix'])
-                #     self.ndp['ld@energy@phoenix'] = ndpolator.Ndpolator(self.atm_axes['phoenix'], self.ld_energy_grid['phoenix'])
-
-                # if 'phoenix:ldint' in self.content:
-                #     self.ldint_energy_grid['phoenix'] = hdul['phiegrid'].data
-                #     self.ldint_photon_grid['phoenix'] = hdul['phipgrid'].data
-
-                # if 'phoenix:ext' in self.content:
-                #     self._phoenix_extinct_axes = (np.array(list(hdul['ph_teffs'].data['teff'])),np.array(list(hdul['ph_loggs'].data['logg'])), np.array(list(hdul['ph_abuns'].data['abun'])), np.array(list(hdul['ph_ebvs'].data['ebv'])), np.array(list(hdul['ph_rvs'].data['rv'])))
-                #     self._phoenix_extinct_energy_grid = hdul['phxegrid'].data
-                #     self._phoenix_extinct_photon_grid = hdul['phxpgrid'].data
-
-                # if 'tmap:Imu' in self.content:
-                #     self.atm_axes['tmap'] = (np.array(list(hdul['tm_teffs'].data['teff'])), np.array(list(hdul['tm_loggs'].data['logg'])), np.array(list(hdul['tm_abuns'].data['abun'])), np.array(list(hdul['tm_mus'].data['mu'])))
-                #     self.atm_energy_grid['tmap'] = hdul['tmfegrid'].data
-                #     self.atm_photon_grid['tmap'] = hdul['tmfpgrid'].data
-
-                #     self.ndp['imu@photon@tmap'] = ndpolator.Ndpolator(self.atm_axes['tmap'], self.atm_photon_grid['tmap'])
-                #     self.ndp['imu@energy@tmap'] = ndpolator.Ndpolator(self.atm_axes['tmap'], self.atm_energy_grid['tmap'])
-
-                #     if init_extrapolation:
-                #         # Rebuild the table of non-null indices for the nearest neighbor lookup:
-                #         self.nntree['tmap'], self.indices['tmap'] = ndpolator.kdtree(self.atm_axes['tmap'][:-1], self.atm_photon_grid['tmap'][...,-1,:])
-
-                #         # Rebuild blending map:
-                #         self.blending_region['tmap'] = ((10000, 10000), (0.5, 0.5), (0.25, 0.25))
-                #         self.mapper['tmap'] = lambda v: ndpolator.map_to_cube(v, self.atm_axes['tmap'][:-1], self.blending_region['tmap'])
-
-                #         # Rebuild the table of inferior corners for extrapolation:
-                #         raxes = self.atm_axes['tmap'][:-1]
-                #         subgrid = self.atm_photon_grid['tmap'][...,-1,:]
-                #         self.ics['tmap'] = np.array([(i, j, k) for i in range(0,len(raxes[0])-1) for j in range(0,len(raxes[1])-1) for k in range(0,len(raxes[2])-1) if ~np.any(np.isnan(subgrid[i:i+2,j:j+2,k:k+2]))])
-
-                # if 'tmap:ld' in self.content:
-                #     self.ld_energy_grid['tmap'] = hdul['tmlegrid'].data
-                #     self.ld_photon_grid['tmap'] = hdul['tmlpgrid'].data
-
-                #     self.ndp['ld@photon@tmap'] = ndpolator.Ndpolator(self.atm_axes['tmap'], self.ld_photon_grid['tmap'])
-                #     self.ndp['ld@energy@tmap'] = ndpolator.Ndpolator(self.atm_axes['tmap'], self.ld_energy_grid['tmap'])
-
-                # if 'tmap:ldint' in self.content:
-                #     self.ldint_energy_grid['tmap'] = hdul['tmiegrid'].data
-                #     self.ldint_photon_grid['tmap'] = hdul['tmipgrid'].data
-
-                # if 'tmap:ext' in self.content:
-                #     self._tmap_extinct_axes = (np.array(list(hdul['tm_teffs'].data['teff'])), np.array(list(hdul['tm_loggs'].data['logg'])), np.array(list(hdul['tm_abuns'].data['abun'])), np.array(list(hdul['tm_ebvs'].data['ebv'])), np.array(list(hdul['tm_rvs'].data['rv'])))
-                #     self._tmap_extinct_energy_grid = hdul['tmxegrid'].data
-                #     self._tmap_extinct_photon_grid = hdul['tmxpgrid'].data
 
         return self
 
@@ -1190,16 +1105,17 @@ class Passband:
         # self.nntree[atm] = cKDTree(non_nan_vertices, copy_data=True)
 
         # Set up the blending region:
-        self.blending_region[atm] = brs
-        self.mapper[atm] = lambda v: ndpolator.map_to_cube(v, self.atm_axes[atm][:-1], self.blending_region[atm])
+        # self.blending_region[atm] = brs
+        # self.mapper[atm] = lambda v: ndpolator.map_to_cube(v, self.atm_axes[atm][:-1], self.blending_region[atm])
 
         # Store all inferior corners for quick nearest neighbor lookup:
         # raxes = self.atm_axes[atm][:-1]
         # subgrid = self.atm_photon_grid[atm][...,-1,:]
         # self.ics[atm] = np.array([(i, j, k) for i in range(0,len(raxes[0])-1) for j in range(0,len(raxes[1])-1) for k in range(0,len(raxes[2])-1) if ~np.any(np.isnan(subgrid[i:i+2,j:j+2,k:k+2]))])
 
-        self.ndp[f'imu@photon@{atm}'] = ndpolator.Cndpolator(self.atm_axes[atm], self.atm_photon_grid[atm])
-        self.ndp[f'imu@energy@{atm}'] = ndpolator.Cndpolator(self.atm_axes[atm], self.atm_energy_grid[atm])
+        mus = self.atm_axes[atm][-1]
+        self.ndp[atm].register('imu@photon', (mus,), self.atm_photon_grid[atm])
+        self.ndp[atm].register('imu@energy', (mus,), self.atm_energy_grid[atm])
 
         if f'{atm}:Imu' not in self.content:
             self.content.append(f'{atm}:Imu')
@@ -1466,7 +1382,7 @@ class Passband:
         if f'{ldatm}:ld' not in self.content:
             raise ValueError(f'Limb darkening coefficients for ldatm={ldatm} are not available; please compute them first.')
 
-        ld_coeffs = self.ndp[f'ld@{intens_weighting}@{ldatm}'].interp(query_pts, extrapolation_method=ld_extrapolation_method)
+        ld_coeffs = self.ndp[ldatm].interp(f'ld@{intens_weighting}', query_pts, extrapolation_method=ld_extrapolation_method)
         return ld_coeffs[s[ld_func]]
 
     def interpolate_extinct(self, teffs=5772., loggs=4.43, abuns=0.0, atm='blackbody',  ebvs=0.0, rvs=3.1, intens_weighting='photon', extrapolation_method='none'):
@@ -1635,8 +1551,7 @@ class Passband:
             _description_
         """
 
-        ndp = self.ndp[f'inorm@{intens_weighting}@{atm}']
-        log10_Inorm = ndp.interp(query_pts, raise_on_nans=raise_on_nans, return_nanmask=True, extrapolation_method=atm_extrapolation_method)
+        log10_Inorm = self.ndp[atm].interp(f'inorm@{intens_weighting}', query_pts, extrapolation_method=atm_extrapolation_method)
         # log10_Inorm, nanmask = ndp.interp(req, raise_on_nans=raise_on_nans, return_nanmask=True, extrapolation_method=atm_extrapolation_method)
         nanmask = np.zeros_like(log10_Inorm)
         # nanmask is a mask of elements that were nans before extrapolation.
@@ -1869,9 +1784,7 @@ class Passband:
             _description_
         """
 
-        ndp = self.ndp[f'imu@{intens_weighting}@{atm}']
-        log10_Imu = ndp.interp(query_pts, raise_on_nans=raise_on_nans, return_nanmask=True, extrapolation_method=atm_extrapolation_method)
-        # log10_Imu, nanmask = ndp.interp(req, raise_on_nans=raise_on_nans, return_nanmask=True, extrapolation_method=atm_extrapolation_method)
+        log10_Imu = self.ndp[atm].interp(f'imu@{intens_weighting}', query_pts, extrapolation_method=atm_extrapolation_method)
         nanmask = np.zeros_like(log10_Imu)
 
         if ~np.any(nanmask):
@@ -2048,8 +1961,7 @@ class Passband:
         """
 
         if ld_func == 'interp':
-            ndp = self.ndp[f'ldint@{intens_weighting}@{ldatm}']
-            ldints = ndp.interp(query_pts, extrapolation_method=ld_extrapolation_method, return_nanmask=False, raise_on_nans=raise_on_nans)
+            ldints = self.ndp[ldatm].interp(f'ldint@{intens_weighting}', query_pts, extrapolation_method=ld_extrapolation_method)
             return ldints
 
         if ld_coeffs is not None:
@@ -3037,6 +2949,7 @@ def Inorm_bol_bb(Teff=5772., logg=4.43, abun=0.0, atm='blackbody', intens_weight
 
     return factor * sigma_sb.value * Teff**4 / np.pi
 
+
 if __name__ == '__main__':
     # This will generate bolometric and Johnson V passband files. Note that
     # extinction for the bolometric band cannot be computed because it falls
@@ -3084,22 +2997,22 @@ if __name__ == '__main__':
     )
 
     pb.compute_blackbody_intensities(include_extinction=True)
-#    pb.compute_bb_reddening(verbose=True)
+    # pb.compute_bb_reddening(verbose=True)
 
     pb.compute_intensities(atm='ck2004', path='tables/ck2004', impute=True, include_extinction=True, verbose=True)
     pb.compute_ldcoeffs(ldatm='ck2004')
     pb.compute_ldints(ldatm='ck2004')
-#    pb.compute_ck2004_reddening(path='tables/ck2004', verbose=True)
+    # pb.compute_ck2004_reddening(path='tables/ck2004', verbose=True)
 
     pb.compute_intensities(atm='phoenix', path='tables/phoenix', impute=True, include_extinction=True, verbose=True)
     pb.compute_ldcoeffs(ldatm='phoenix')
     pb.compute_ldints(ldatm='phoenix')
-#    pb.compute_phoenix_reddening(path='tables/phoenix', verbose=True)
+    # pb.compute_phoenix_reddening(path='tables/phoenix', verbose=True)
 
     pb.compute_intensities(atm='tmap', path='tables/tmap', include_extinction=True, impute=True, verbose=True)
     pb.compute_ldcoeffs(ldatm='tmap')
     pb.compute_ldints(ldatm='tmap')
-#    pb.compute_tmap_reddening(path='tables/tmap', verbose=True)
+    # pb.compute_tmap_reddening(path='tables/tmap', verbose=True)
 
     pb.import_wd_atmcof('tables/wd/atmcofplanck.dat', 'tables/wd/atmcof.dat', 7)
 

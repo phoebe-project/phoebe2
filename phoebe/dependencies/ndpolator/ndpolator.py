@@ -1,7 +1,6 @@
 import numpy as np
 from scipy.special import binom as binomial
 from scipy.spatial import cKDTree
-from scipy.spatial.distance import cdist
 from itertools import product
 from enum import IntEnum
 
@@ -16,73 +15,180 @@ class ExtrapolationMethod(IntEnum):
     LINEAR = 2
 
 
+class AxisFlag(IntEnum):
+    SPANNING_AXIS = 1
+    ADDITIONAL_AXIS = 2
+
+
 class Cndpolator():
-    def __init__(self, axes, grid):
+    """
+    This class implements interpolation and extrapolation in n dimensions.
+    """
+    def __init__(self, axes):
+        """
+        Instantiates a Cndpolator class. The class relies on `axes` to span
+        the interpolation hypercubes. Only basic (spanning) axes should
+        be passed here. The axes and the nanmask are stored, and a list of
+        defined nodes (nodes with non-nan values) and a list of fully defined
+        hypercubes (hypercubes with all non-nan vertices) is also stored.
+
+        Parameters
+        ----------
+        axes : tuple of ndarrays
+            Axes that span the atmosphere grid. Only the required (spanning)
+            axes should be included here; any additional axes should be
+            registered separately.
+        nanmask : ndarray
+            For n axes of length m_i, nanmask will be a (m_0 x m_1 x ... x m_n-1)-
+            shaped array of nan values.
+        """
+
         self.axes = axes
-        self.grid = grid
+        self.table = dict()
 
-        self.nodes = np.argwhere(~np.isnan(grid[..., 0]))
-        self.coords = np.array([axis[index] for axis, index in zip(axes, self.nodes.T)]).T
-        # print(f'{self.nodes.shape=}\n{self.nodes=}')
+    def __repr__(self) -> str:
+        return f'<Ndpolator N={len(self.axes)}, {len(self.table)} tables>'
 
-    def find_indices(self, query_pts):
-        indices, flags = cndpolator.find(self.axes, query_pts)
-        return indices, flags
-    
-    def find_nearest(self, query_pts, flags):
-        if len(query_pts) == 0 or flags.sum() == 0:
-            return None
+    def __str__(self) -> str:
+        return f'<Ndpolator N={len(self.axes)}, {len(self.table)} tables>'
 
-        # initialize an empty array of nearest values:
-        values = np.nan*np.ones(len(query_pts))
+    @property
+    def tables(self):
+        """
+        Prints a list of tables attached to the ndpolator.
 
-        # if there are no off-grid elements, return:
-        if flags.sum() == 0:
-            return values
+        Returns
+        -------
+        list of strings
+            table names (references) attached to the ndpolator
+        """
+        return list(self.table.keys())
 
-        nearest = -1*np.ones(len(query_pts), dtype=int)
+    def register(self, table, adtl_axes, grid):
+        if not isinstance(table, str):
+            raise ValueError('parameter `table` must be a string')
 
-        # print(f'{query_pts=}')
-        # query_pts = query_pts[np.newaxis, :, :]
-        # A = (self.nodes-pts)**2
-        # B = np.sum(A, axis=2)
-        # C = np.argmin(B, axis=0)
-        # print(f'{self.nodes.shape=}, {pts.shape=}, {A.shape=}, {B.shape=}, {C.shape=}')
-        # print(f'{self.nodes=} {query_pts=} {A=} {B=} {C=}')
-        # print(f'{self.nodes[C]=}')
-        nearest[flags != 0] = np.argmin(np.square(self.coords[:, np.newaxis, :]-query_pts[flags != 0][np.newaxis, :, :]).sum(axis=2), axis=0)
-        # print(f'{nearest=}')
-        # print(f'{nearest[flags != 0]=}')
-        # print(f'{self.nodes[nearest[flags != 0]]=}')
-        # print(f'{np.array([self.grid[tuple(node)] for node in self.nodes[nearest[flags != 0]]])=}')
-        values[flags != 0] = np.array([self.grid[tuple(node)] for node in self.nodes[nearest[flags != 0]]]).flatten()
-        # print(f'{values=}')
-        return np.ascontiguousarray(values)
+        self.table[table] = (adtl_axes, np.ascontiguousarray(grid))
 
-    def find_hypercubes(self, indices, grid):
-        return cndpolator.hypercubes(indices, grid)
-    
-    def interp(self, query_pts, indices=None, flags=None, hypercubes=None, extrapolation_method='none', raise_on_nans=True, return_nanmask=False):
-        if indices is None or flags is None:
-            indices, flags = self.find_indices(query_pts)
-            if raise_on_nans and np.any(flags):
-                raise ValueError(f'the following queried points are out of bounds:\n{query_pts[flags != 0]}')
-        if hypercubes is None:
-            hypercubes = self.find_hypercubes(indices, self.grid)
-        
+    def find_indices(self, table, query_pts):
+        adtl_axes = self.table[table][0]
+        axes = self.axes if adtl_axes is None else self.axes + adtl_axes
+        indices, flags, normed_query_pts = cndpolator.find(axes, query_pts)
+        return indices, flags, normed_query_pts
+
+    def find_hypercubes(self, table, indices, flags, adtl_axes=None):
+        axes = self.axes if adtl_axes is None else self.axes + adtl_axes
+        grid = self.table[table][1]
+        hypercubes = cndpolator.hypercubes(indices, axes, flags, grid)
+        return hypercubes
+
+    def interp(self, table, query_pts, extrapolation_method=0):
         if extrapolation_method == 'none':
-            nearest_values = None
-            extrapolation_method = ExtrapolationMethod.NONE
+            extrapolation_method = 0
         elif extrapolation_method == 'nearest':
-            nearest_values = self.find_nearest(query_pts, flags)
-            extrapolation_method = ExtrapolationMethod.NEAREST
+            extrapolation_method = 1
         elif extrapolation_method == 'linear':
-            # handle nearest hypercube passing
-            extrapolation_method = ExtrapolationMethod.LINEAR
+            extrapolation_method = 2
+        else:
+            raise ValueError(f"extrapolation_method={extrapolation_method} is not valid; it must be one of ['none', 'nearest', 'linear'].")
+
+        axes = self.axes if self.table[table][0] is None else self.axes + self.table[table][0]
+        return cndpolator.ndpolate(query_pts, axes, self.table[table][1], 3, extrapolation_method)
+
+    def interp_old(self, table, query_pts, normed_query_pts, indices, flags, hypercubes, extrapolation_method='none', raise_on_nans=True, return_nanmask=False):
+        """
+        Interpolate (or extrapolate) on the table referenced by `label` in
+        `normed_query_pts`. This is considered a low-level function: you can
+        use it but there is a higher-level `ndpolate` function that might be
+        more appropriate as the default use case. This function should be used
+        when optimization is key because it takes intermediary values as input
+        that can be reused across different tables.
+
+        Parameters
+        ----------
+        table : str
+            table label; table has to be registered with the ndpolator using
+            the `register()` method.
+        query_pts : ndarray
+            user-provided query points. These are not used for any computing
+            purposes, only for reporting an out-of-bounds when necessary.
+        normed_query_pts : ndarray
+            unit hypercube-normalized query points. These are computed by the
+            `find_indices()` method. The ndarray dimension is N x D, where N
+            is the number of query points and D is hypercube dimensionality.
+        indices : ndarray
+            D-dimensional array of superior hypercube vertex indices that
+            contain the query point if the query point is within the grid, or
+            the nearest hypercube (might not be fully defined) if the query
+            point is off the grid. These are computed by the `find_indices()`
+            method.
+        flags : ndarray
+            N-dimensional array of integer flags that qualify the position of
+            each query point. The flag value 0 means that the query point is
+            within a fully defined hypercube. Flag values > 0 denote an
+            exception of the query point (see `find_indices()` for details).
+            The flags are computed by the `find_indices()` method.
+        hypercubes : ndarray
+            N-dimensional array of (D x v)-dimensional hypercubes, where v is
+            the dimension of the table values.
+        extrapolation_method : str, optional, default='none'
+            if a query point is flagged (off-grid), how should extrapolation
+            be done. If `'none'`, no extrapolation will be done and an
+            exception will be raised. If `'nearest'`, the value of the nearest
+            defined vertex will be used. If `'linear'`, linear extrapolation
+            from the nearest fully defined hypercube will be used.
+        raise_on_nans : bool, optional, default=True
+            if the interpolation of any query point results in a nan, raise an
+            exception.
+        return_nanmask : bool, optional, default=False
+            not currently implemented.
+
+        Returns
+        -------
+        ndarray
+            (N x v)-dimensional array of interpolated values.
+
+        Raises
+        ------
+        ValueError
+            if `raise_on_nans` is set and any of the queried points are out of
+            bounds.
+        """
+
+        if raise_on_nans and np.any(flags >= 2):
+            error_message = 'the following queried points are out of bounds:\n'
+            for i, query_pt in enumerate(query_pts):
+                if np.any(flags[i] == 2):
+                    error_message += f'  {query_pt}\n'
+            raise ValueError(error_message)
+
+        # dimensionality of the interpolant:
+        vdim = hypercubes[0].shape[-1]
+
+        if np.all(flags == 0) or extrapolation_method == 'none':
+            extrapolation_method = ExtrapolationMethod.NONE
+        elif extrapolation_method == 'nearest' or extrapolation_method == 'linear':
+            table = self.table[table][1]
+            extrapolation_method = ExtrapolationMethod.NEAREST if extrapolation_method == 'nearest' else ExtrapolationMethod.LINEAR
         else:
             raise ValueError(f'{extrapolation_method=} is not recognized.')
 
-        return cndpolator.ndpolate(query_pts, indices, flags, self.axes, hypercubes, nearest_values, self.grid.shape[-1], extrapolation_method)
+        return cndpolator.ndpolate(normed_query_pts, indices, flags, hypercubes, vdim, extrapolation_method)
+
+    def ndpolate(self, table, query_pts, extrapolation_method='none', raise_on_nans=True):
+        indices, flags, normed_query_pts = self.find_indices(table=table, query_pts=query_pts)
+        print(f'{indices=} {flags=} {normed_query_pts=}')
+        hypercubes = self.find_hypercubes(table=table, indices=indices, flags=flags)
+        return self.interp(
+            table=table,
+            query_pts=query_pts,
+            normed_query_pts=normed_query_pts,
+            indices=indices,
+            flags=flags,
+            hypercubes=hypercubes,
+            extrapolation_method=extrapolation_method,
+            raise_on_nans=raise_on_nans
+        )
 
 
 class Ndpolator():
@@ -94,7 +200,7 @@ class Ndpolator():
             raise NotImplementedError('consider if this is worth implementing here.')
 
         self.indices = np.argwhere(~np.isnan(grid[...,0]))
-        non_nan_vertices = np.array([ [self.axes[i][self.indices[k][i]] for i in range(len(self.axes))] for k in range(len(self.indices))])
+        non_nan_vertices = np.array([[self.axes[i][self.indices[k][i]] for i in range(len(self.axes))] for k in range(len(self.indices))])
         self.nntree = cKDTree(non_nan_vertices, copy_data=True)
         ranges = (range(len(ax)-1) for ax in axes)
         slices = [tuple([slice(elem, elem+2) for elem in x]) for x in product(*ranges)]
@@ -131,7 +237,7 @@ class Ndpolator():
                 lfv[j] += (x[N-i-1]-n[j, N-i-1])/(n[j+powers[N-i-1], N-i-1]-n[j, N-i-1])*(lfv[j+powers[N-i-1]]-lfv[j])
 
         return lfv[0]
-        
+
     def interp(self, req, raise_on_nans=True, return_nanmask=False, extrapolation_method='none'):
         los = np.array([np.searchsorted(self.axes[k], req[:,k], 'left')-1 for k in range(req.shape[1])], dtype=int).T
         his = los+2
@@ -209,6 +315,7 @@ class Ndpolator():
             raise ValueError(r'extrapolation_method={extrapolation_method} is not supported.')
 
         return (vals, nanmask) if return_nanmask else vals
+
 
 def tabulate(args):
     """
@@ -497,6 +604,6 @@ def find_nearest_hypercubes(nv, naxes, ics):
     # print(f'ic.shape={ic.shape}')  # (5, 3)
     # print(f'ics.shape={ics.shape}')  # (2947, 3)
     seps = (np.abs(ics[:,None,:]-ic)).sum(axis=2)  # (2947, 5, 3) -> (2947, 5)
-    corners = np.argwhere(seps == seps.min(axis=0)) # (N, 2)
+    corners = np.argwhere(seps == seps.min(axis=0))  # (N, 2)
 
     return corners
