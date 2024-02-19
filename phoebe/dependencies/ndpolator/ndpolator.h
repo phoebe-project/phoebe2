@@ -50,15 +50,15 @@ struct index_info {
 /**
  * <!-- struct hypercube_info -->
  * @brief Stores all fields related to the hypercubes.
- * 
+ *
  * @details
- * Function #find_hypercubes() computes a single deliverable that is stored
- * in this structure: an array of #ndp_hypercube @p hypercubes. In order to
- * allow for future expansion, the @p hypercubes field is packed inside the
- * #hypercube_info struct.
+ * Function #find_hypercubes() computes an array of #ndp_hypercube @p
+ * hypercubes that correspond to each query point, and sets the out-of-bounds
+ * flag for any query points that are off grid.
  */
 
 struct hypercube_info {
+    int *out_of_bounds;
     ndp_hypercube **hypercubes;
 };
 

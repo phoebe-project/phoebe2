@@ -1382,22 +1382,21 @@ class Passband:
         if f'{ldatm}:ld' not in self.content:
             raise ValueError(f'Limb darkening coefficients for ldatm={ldatm} are not available; please compute them first.')
 
-        ld_coeffs = self.ndp[ldatm].interp(f'ld@{intens_weighting}', query_pts, extrapolation_method=ld_extrapolation_method)
+        ld_coeffs = self.ndp[ldatm].ndpolate(f'ld@{intens_weighting}', query_pts, extrapolation_method=ld_extrapolation_method)
         return ld_coeffs[s[ld_func]]
 
-    def interpolate_extinct(self, teffs=5772., loggs=4.43, abuns=0.0, atm='blackbody',  ebvs=0.0, rvs=3.1, intens_weighting='photon', extrapolation_method='none'):
+    def interpolate_extinct(self,  query_pts, atm='blackbody',  ebvs=0.0, rvs=3.1, intens_weighting='photon', extrapolation_method='none'):
         """
         Interpolates the passband-stored tables of extinction corrections
 
         Arguments
         ----------
-        * `teffs` (float, optional, default=5772): effective temperature.
-        * `loggs` (float, optional, default=4.43): log surface gravity
-        * `abuns` (float, optional, default=0.0): abundance
+        * `query_pts` (ndarray): an NxD-dimensional ndarray, where N is the number of query points and D their dimension
         * `atm` (string, optional, default='blackbody'): atmosphere model.
         * `ebvs` (float, optional, default=0.0)
         * `rvs` (float, optional, default=3.1)
         * `intens_weighting`
+        * `extrapolation_method`
 
         Returns
         ---------
@@ -1409,7 +1408,7 @@ class Passband:
         """
 
         if f'{atm}:ext' not in self.content:
-            raise  ValueError(f"extinction factors for atm={atm} not found for the {self.pbset}:{self.pbname} passband.")
+            raise ValueError(f"extinction factors for atm={atm} not found for the {self.pbset}:{self.pbname} passband.")
 
         axes = self.ext_axes[atm]
         if intens_weighting == 'photon':
@@ -1417,14 +1416,9 @@ class Passband:
         else:
             table = self.ext_energy_grid[atm]
 
-        ndp = ndpolator.Cndpolator(axes, table)
+        ndp = self.ndp[atm]
 
-        if atm == 'blackbody':
-            req = ndp.tabulate((teffs, rvs, ebvs))
-        else:
-            req = ndp.tabulate((teffs, loggs, abuns, ebvs, rvs))
-
-        extinct_factor = ndp.interp(req, extrapolation_method=extrapolation_method)
+        extinct_factor = ndp.ndpolate(f'ext@{intens_weighting}', query_pts, extrapolation_method=extrapolation_method)
         return extinct_factor
 
     def import_wd_atmcof(self, plfile, atmfile, wdidx, Nabun=19, Nlogg=11, Npb=25, Nints=4):
@@ -1551,7 +1545,7 @@ class Passband:
             _description_
         """
 
-        log10_Inorm = self.ndp[atm].interp(f'inorm@{intens_weighting}', query_pts, extrapolation_method=atm_extrapolation_method)
+        log10_Inorm = self.ndp[atm].ndpolate(f'inorm@{intens_weighting}', query_pts, extrapolation_method=atm_extrapolation_method)
         # log10_Inorm, nanmask = ndp.interp(req, raise_on_nans=raise_on_nans, return_nanmask=True, extrapolation_method=atm_extrapolation_method)
         nanmask = np.zeros_like(log10_Inorm)
         # nanmask is a mask of elements that were nans before extrapolation.
@@ -1784,7 +1778,7 @@ class Passband:
             _description_
         """
 
-        log10_Imu = self.ndp[atm].interp(f'imu@{intens_weighting}', query_pts, extrapolation_method=atm_extrapolation_method)
+        log10_Imu = self.ndp[atm].ndpolate(f'imu@{intens_weighting}', query_pts, extrapolation_method=atm_extrapolation_method)
         nanmask = np.zeros_like(log10_Imu)
 
         if ~np.any(nanmask):
@@ -1961,7 +1955,7 @@ class Passband:
         """
 
         if ld_func == 'interp':
-            ldints = self.ndp[ldatm].interp(f'ldint@{intens_weighting}', query_pts, extrapolation_method=ld_extrapolation_method)
+            ldints = self.ndp[ldatm].ndpolate(f'ldint@{intens_weighting}', query_pts, extrapolation_method=ld_extrapolation_method)
             return ldints
 
         if ld_coeffs is not None:

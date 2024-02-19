@@ -476,6 +476,7 @@ struct hypercube_info find_hypercubes(int nelems, int *index, int *flag, ndp_tab
     ndp_axes *axes = table->axes;
 
     ndp_hypercube **hypercubes = malloc(nelems*sizeof(*hypercubes));
+    int *out_of_bounds = calloc(nelems, sizeof(*out_of_bounds));
 
     // printf("find_hypercubes:\n");
 
@@ -512,6 +513,9 @@ struct hypercube_info find_hypercubes(int nelems, int *index, int *flag, ndp_tab
             // printf("\b], ");
 
             tidx = idx2pos(axes, table->vdim, cidx);
+            if (table->grid[tidx] != table->grid[tidx])  /* true if nan */
+                out_of_bounds[i] = 1;
+
             // printf("tidx = %d, table[tidx] = %f\n", tidx, table->grid[tidx]);
 
             memcpy(hc_vertices + j*table->vdim, table->grid + tidx, table->vdim*sizeof(*hc_vertices));
@@ -523,6 +527,7 @@ struct hypercube_info find_hypercubes(int nelems, int *index, int *flag, ndp_tab
     }
 
     rv.hypercubes = hypercubes;
+    rv.out_of_bounds = out_of_bounds;
     return rv;
 }
 
@@ -573,7 +578,7 @@ ndp_query *ndpolate(int nelems, double *query_pts, ndp_table *table, ndp_extrapo
     struct hypercube_info hi;
     ndp_hypercube *hypercube;
 
-    int debug = 0;
+    int debug = 1;
 
     query->nelems = nelems;
     query->elems = query_pts;
@@ -584,20 +589,9 @@ ndp_query *ndpolate(int nelems, double *query_pts, ndp_table *table, ndp_extrapo
     query->indices = ii.index;
     query->flags = ii.flag;
 
-    /* flag any out-of-bounds query points: */
-    for (int i = 0; i < nelems; i++) {
-        for (int j = 0; j < table->axes->len; j++) {
-            if (query->flags[i*table->axes->len+j] == NDP_OUT_OF_BOUNDS) {
-                query->out_of_bounds[i] = 1;
-                if (debug)
-                    printf("  query point %d is out of bounds.\n", i);
-                break;
-            }
-        }
-    }
-
     hi = find_hypercubes(nelems, query->indices, query->flags, table);
     query->hypercubes = hi.hypercubes;
+    query->out_of_bounds = hi.out_of_bounds;
 
     if (debug) {
         for (int i = 0; i < query->nelems; i++) {
@@ -934,18 +928,22 @@ static PyObject *py_ainfo(PyObject *self, PyObject *args)
  * @return an ndarray of interpolated/extrapolated values.
  */
 
-static PyObject *py_ndpolate(PyObject *self, PyObject *args)
+static PyObject *py_ndpolate(PyObject *self, PyObject *args, PyObject *kwargs)
 {
     PyArrayObject *py_query_pts, *py_grid;
-    PyObject *py_axes;
+    PyObject *py_axes, *py_rv;
     int nbasic = 0;
 
     ndp_extrapolation_method extrapolation_method = NDP_METHOD_NONE;  /* default value */
 
-    if (!PyArg_ParseTuple(args, "OOO|ii", &py_query_pts, &py_axes, &py_grid, &nbasic, &extrapolation_method))
+    static char *kwlist[] = {"query_pts", "axes", "grid", "nbasic", "extrapolation_method", NULL};
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "OOO|ii", kwlist, &py_query_pts, &py_axes, &py_grid, &nbasic, &extrapolation_method))
+    // if (!PyArg_ParseTuple(args, "OOO|ii", &py_query_pts, &py_axes, &py_grid, &nbasic, &extrapolation_method))
         return NULL;
 
     ndp_table *table = ndp_table_new_from_python(py_axes, nbasic, py_grid);
+    PyObject *py_capsule = PyCapsule_New((void *) table, NULL, NULL);
 
     int nelems = PyArray_DIM(py_query_pts, 0);
     double *query_pts = PyArray_DATA(py_query_pts);
@@ -956,7 +954,11 @@ static PyObject *py_ndpolate(PyObject *self, PyObject *args)
     PyObject *py_interps = PyArray_SimpleNewFromData(2, adim, NPY_DOUBLE, query->interps);
     PyArray_ENABLEFLAGS((PyArrayObject *) py_interps, NPY_ARRAY_OWNDATA);
 
-    return py_interps;
+    py_rv = PyTuple_New(2);
+    PyTuple_SetItem(py_rv, 0, py_interps);
+    PyTuple_SetItem(py_rv, 1, py_capsule);
+
+    return py_rv;
 }
 
 /**
@@ -1014,7 +1016,7 @@ int ndp_register_enums(PyObject *self)
 
 static PyMethodDef cndpolator_methods[] =
 {
-    {"ndpolate", py_ndpolate, METH_VARARGS, "C version of N-dimensional interpolation"},
+    {"ndpolate", (PyCFunction) py_ndpolate, METH_VARARGS | METH_KEYWORDS, "C implementation of N-dimensional interpolation"},
     {"find", py_find, METH_VARARGS, "find first greater-or-equal than"},
     {"hypercubes", py_hypercubes, METH_VARARGS, "create a hypercube from the passed indices and a function value grid"},
     {"ainfo", py_ainfo, METH_VARARGS, "array information for internal purposes"},

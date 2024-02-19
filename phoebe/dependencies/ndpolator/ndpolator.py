@@ -82,7 +82,7 @@ class Cndpolator():
         hypercubes = cndpolator.hypercubes(indices, axes, flags, grid)
         return hypercubes
 
-    def interp(self, table, query_pts, extrapolation_method=0):
+    def ndpolate(self, table, query_pts, extrapolation_method=0):
         if extrapolation_method == 'none':
             extrapolation_method = 0
         elif extrapolation_method == 'nearest':
@@ -92,103 +92,12 @@ class Cndpolator():
         else:
             raise ValueError(f"extrapolation_method={extrapolation_method} is not valid; it must be one of ['none', 'nearest', 'linear'].")
 
-        axes = self.axes if self.table[table][0] is None else self.axes + self.table[table][0]
-        return cndpolator.ndpolate(query_pts, axes, self.table[table][1], 3, extrapolation_method)
+        attached_axes = self.table[table][0]
+        grid = self.table[table][1]
 
-    def interp_old(self, table, query_pts, normed_query_pts, indices, flags, hypercubes, extrapolation_method='none', raise_on_nans=True, return_nanmask=False):
-        """
-        Interpolate (or extrapolate) on the table referenced by `label` in
-        `normed_query_pts`. This is considered a low-level function: you can
-        use it but there is a higher-level `ndpolate` function that might be
-        more appropriate as the default use case. This function should be used
-        when optimization is key because it takes intermediary values as input
-        that can be reused across different tables.
-
-        Parameters
-        ----------
-        table : str
-            table label; table has to be registered with the ndpolator using
-            the `register()` method.
-        query_pts : ndarray
-            user-provided query points. These are not used for any computing
-            purposes, only for reporting an out-of-bounds when necessary.
-        normed_query_pts : ndarray
-            unit hypercube-normalized query points. These are computed by the
-            `find_indices()` method. The ndarray dimension is N x D, where N
-            is the number of query points and D is hypercube dimensionality.
-        indices : ndarray
-            D-dimensional array of superior hypercube vertex indices that
-            contain the query point if the query point is within the grid, or
-            the nearest hypercube (might not be fully defined) if the query
-            point is off the grid. These are computed by the `find_indices()`
-            method.
-        flags : ndarray
-            N-dimensional array of integer flags that qualify the position of
-            each query point. The flag value 0 means that the query point is
-            within a fully defined hypercube. Flag values > 0 denote an
-            exception of the query point (see `find_indices()` for details).
-            The flags are computed by the `find_indices()` method.
-        hypercubes : ndarray
-            N-dimensional array of (D x v)-dimensional hypercubes, where v is
-            the dimension of the table values.
-        extrapolation_method : str, optional, default='none'
-            if a query point is flagged (off-grid), how should extrapolation
-            be done. If `'none'`, no extrapolation will be done and an
-            exception will be raised. If `'nearest'`, the value of the nearest
-            defined vertex will be used. If `'linear'`, linear extrapolation
-            from the nearest fully defined hypercube will be used.
-        raise_on_nans : bool, optional, default=True
-            if the interpolation of any query point results in a nan, raise an
-            exception.
-        return_nanmask : bool, optional, default=False
-            not currently implemented.
-
-        Returns
-        -------
-        ndarray
-            (N x v)-dimensional array of interpolated values.
-
-        Raises
-        ------
-        ValueError
-            if `raise_on_nans` is set and any of the queried points are out of
-            bounds.
-        """
-
-        if raise_on_nans and np.any(flags >= 2):
-            error_message = 'the following queried points are out of bounds:\n'
-            for i, query_pt in enumerate(query_pts):
-                if np.any(flags[i] == 2):
-                    error_message += f'  {query_pt}\n'
-            raise ValueError(error_message)
-
-        # dimensionality of the interpolant:
-        vdim = hypercubes[0].shape[-1]
-
-        if np.all(flags == 0) or extrapolation_method == 'none':
-            extrapolation_method = ExtrapolationMethod.NONE
-        elif extrapolation_method == 'nearest' or extrapolation_method == 'linear':
-            table = self.table[table][1]
-            extrapolation_method = ExtrapolationMethod.NEAREST if extrapolation_method == 'nearest' else ExtrapolationMethod.LINEAR
-        else:
-            raise ValueError(f'{extrapolation_method=} is not recognized.')
-
-        return cndpolator.ndpolate(normed_query_pts, indices, flags, hypercubes, vdim, extrapolation_method)
-
-    def ndpolate(self, table, query_pts, extrapolation_method='none', raise_on_nans=True):
-        indices, flags, normed_query_pts = self.find_indices(table=table, query_pts=query_pts)
-        print(f'{indices=} {flags=} {normed_query_pts=}')
-        hypercubes = self.find_hypercubes(table=table, indices=indices, flags=flags)
-        return self.interp(
-            table=table,
-            query_pts=query_pts,
-            normed_query_pts=normed_query_pts,
-            indices=indices,
-            flags=flags,
-            hypercubes=hypercubes,
-            extrapolation_method=extrapolation_method,
-            raise_on_nans=raise_on_nans
-        )
+        axes = self.axes if attached_axes is None else self.axes + attached_axes
+        interps, table_capsule = cndpolator.ndpolate(query_pts=query_pts, axes=axes, grid=grid, nbasic=len(self.axes), extrapolation_method=extrapolation_method)
+        return interps
 
 
 class Ndpolator():
