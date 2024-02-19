@@ -255,7 +255,7 @@ ndp_table *ndp_table_new()
 
 ndp_table *ndp_table_new_from_data(ndp_axes *axes, int vdim, double *grid)
 {
-    int nverts = 1;
+    int nverts = 1, pos;
 
     ndp_table *table = malloc(sizeof(*table));
 
@@ -264,17 +264,21 @@ ndp_table *ndp_table_new_from_data(ndp_axes *axes, int vdim, double *grid)
     table->grid = grid;
 
     /* count all vertices in the grid: */
-    for (int i = 0; i < axes->len; i++)
+    for (int i = 0; i < axes->nbasic; i++)
         nverts *= axes->axis[i]->len;
 
     /* collect all non-nan vertices: */
     table->ndefs = 0;
     table->defined_vertices = malloc(nverts * sizeof(*(table->defined_vertices)));
     for (int i = 0; i < nverts; i++) {
-        if (grid[i*vdim] == grid[i*vdim]) {  /* false if nan */
-            table->defined_vertices[i] = i*vdim;
+        pos = i*axes->cplen[axes->nbasic-1]*vdim;
+        if (grid[pos] == grid[pos]) {  /* false if nan */
+            table->defined_vertices[table->ndefs] = pos;
+            // printf("% 4d/%d: pos=% 5d val=%f\n", i, nverts-1, pos, grid[pos]);
             table->ndefs++;
         }
+        // else
+            // printf("% 4d/%d: ***** UNDEFINED *****\n", i, nverts);
     }
 
     /* collect all fully defined hypercubes: */

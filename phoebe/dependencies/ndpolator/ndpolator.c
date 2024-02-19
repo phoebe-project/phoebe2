@@ -1,6 +1,7 @@
 #include <math.h>
 #include <stdarg.h>
 #include <stdlib.h>
+#include <string.h>
 
 /**
  * @private
@@ -214,10 +215,18 @@ int idx2pos(ndp_axes *axes, int vdim, int *index)
 
 int *pos2idx(ndp_axes *axes, int vdim, int pos)
 {
+    int debug = 0;
     int *index = malloc(axes->len * sizeof(*index));
 
     for (int i=0; i < axes->len; i++)
         index[i] = pos / vdim / axes->cplen[i] % axes->axis[i]->len;
+
+    if (debug) {
+        printf("pos = %d idx = [", pos);
+        for (int j = 0; j < axes->len; j++)
+            printf("%d ", index[j]);
+        printf("\b]\n");
+    }
 
     return index;
 }
@@ -271,15 +280,27 @@ int c_ndpolate(int naxes, int vdim, double *x, double *fv)
 
 /**
  * <!-- find_nearest_defined_index() -->
- * @brief Finds the nearest defined index (i.e., with non-nan function values) on the grid.
- * 
- * @param normed_elem 
- * @param elem_index 
- * @param table 
- * 
+ * @brief Finds the nearest defined index (i.e., with non-nan function values)
+ * on the grid.
+ *
+ * @param normed_elem unit hypercube-normalized query point
+ * @param elem_index indices of the nearest hypercube's inferior corner
+ * @param table a #ndp_table instance with full ndpolator definition
+ *
  * @details
- * Description.
+ * When #ndp_extrapolation_method is set to #NDP_METHOD_NEAREST, this function
+ * is called to find the nearest defined vertex on the grid. The passed @p
+ * table stores a list of all defined basic vertices in a (private) array
+ * @p table->defined_vertices; this function computes Euclidean square
+ * distances for each defined vertex from the requested element and returns
+ * the position of the nearest element. The search is further optimized by
+ * searching only through basic axes first.
  * 
+ * The reason we need to pass both @p normed_elem and @p elem_index is because
+ * @p normed_elem is given relative to the hypercube that is determined by @p
+ * elem_index. As the search is done in absolute index space rather than axis
+ * space, we need to convert @p normed_elem from relative to absolute indices.
+ *
  * @return int 
  */
 
@@ -288,26 +309,39 @@ int find_nearest_defined_index(double *normed_elem, int *elem_index, ndp_table *
     int min_pos;
     double dist, min_dist = 1e50;
 
-    int grid_index[table->axes->len];
+    int *grid_index;
 
     for (int i = 0; i < table->ndefs; i++) {
         /* convert position to indices: */
-        // printf("pos = %d idx = [", i);
-        for (int j = 0; j < table->axes->len; j++) {
-            grid_index[j] = (i / table->vdim / table->axes->cplen[j]) % table->axes->axis[j]->len;
-            // printf("%d ", grid_index[j]);
-        }
-        // printf("\b]\n");
+        grid_index = pos2idx(table->axes, table->vdim, table->defined_vertices[i]);
 
-        /* calculate the distance (squared) and find the position of the nearest vertex: */
+        // printf("i=%d pos=%d index=[", i, table->defined_vertices[i]);
+        // for (int j = 0; j < table->axes->len; j++)
+        //     printf("%d ", grid_index[j]);
+        // printf("\b] ");
+
+        /* find the distance to the basic vertex: */
         dist = 0.0;
-        for (int j = 0; j < table->axes->len; j++) {
+        for (int j = 0; j < table->axes->nbasic; j++) {
             dist += (elem_index[j]+normed_elem[j]-grid_index[j])*(elem_index[j]+normed_elem[j]-grid_index[j]);
         }
         if (dist < min_dist) {
             min_dist = dist;
-            min_pos = i;
+            min_pos = table->defined_vertices[i];
         }
+
+        // printf("dist=%e\n", dist);
+
+        free(grid_index);
+    }
+
+    // printf("min dist=%e, pos=%d\n", min_dist, min_pos);
+
+    /* attached axes are guaranteed to be defined for all basic vertices, so
+     * we can round the normed element to get the index value:
+     */
+    for (int j = table->axes->nbasic; j < table->axes->len; j++) {
+        min_pos += table->axes->cplen[j] * max(0, min(table->axes->axis[j]->len-1, round(elem_index[j]+normed_elem[j])));
     }
 
     return min_pos;
@@ -532,16 +566,20 @@ struct hypercube_info find_hypercubes(int nelems, int *index, int *flag, ndp_tab
 
 ndp_query *ndpolate(int nelems, double *query_pts, ndp_table *table, ndp_extrapolation_method extrapolation_method)
 {
+    int k;
     ndp_query *query = ndp_query_new();
     double selected[table->axes->len];
+    struct index_info ii;
+    struct hypercube_info hi;
+    ndp_hypercube *hypercube;
 
-    // printf("ndpolate():\n");
+    int debug = 0;
 
     query->nelems = nelems;
     query->elems = query_pts;
     query->out_of_bounds = calloc(nelems, sizeof(*(query->out_of_bounds)));
 
-    struct index_info ii = find_indices(nelems, query_pts, table->axes);
+    ii = find_indices(nelems, query_pts, table->axes);
     query->normed_elems = ii.normed_qpts;
     query->indices = ii.index;
     query->flags = ii.flag;
@@ -551,27 +589,29 @@ ndp_query *ndpolate(int nelems, double *query_pts, ndp_table *table, ndp_extrapo
         for (int j = 0; j < table->axes->len; j++) {
             if (query->flags[i*table->axes->len+j] == NDP_OUT_OF_BOUNDS) {
                 query->out_of_bounds[i] = 1;
-                // printf("  query point %d is out of bounds.\n", i);
+                if (debug)
+                    printf("  query point %d is out of bounds.\n", i);
                 break;
             }
         }
     }
 
-    struct hypercube_info hi = find_hypercubes(nelems, query->indices, query->flags, table);
+    hi = find_hypercubes(nelems, query->indices, query->flags, table);
     query->hypercubes = hi.hypercubes;
 
-    // for (int i = 0; i < query->nelems; i++) {
-    //     ndp_hypercube *hypercube = query->hypercubes[i];
-    //     printf("  hypercube %d: dim=%d vdim=%d v=[", i, hypercube->dim, hypercube->vdim);
-    //     for (int j = 0; j < 1 << hypercube->dim; j++) {
-    //         printf("{");
-    //         for (int k = 0; k < hypercube->vdim; k++) {
-    //             printf("%2.2f, ", hypercube->v[j*hypercube->vdim+k]);
-    //         }
-    //         printf("\b\b} ");
-    //     }
-    //     printf("\b]\n");
-    // }
+    if (debug) {
+        for (int i = 0; i < query->nelems; i++) {
+            ndp_hypercube *hypercube = query->hypercubes[i];
+            printf("  hypercube %d: dim=%d vdim=%d v=[", i, hypercube->dim, hypercube->vdim);
+            for (int j = 0; j < 1 << hypercube->dim; j++) {
+                printf("{");
+                for (int k = 0; k < hypercube->vdim; k++)
+                    printf("%2.2f, ", hypercube->v[j*hypercube->vdim+k]);
+                printf("\b\b} ");
+            }
+            printf("\b]\n");
+        }
+    }
 
     query->interps = malloc(nelems * table->vdim * sizeof(*(query->interps)));
     for (int i = 0; i < nelems; i++) {
@@ -583,22 +623,27 @@ ndp_query *ndpolate(int nelems, double *query_pts, ndp_table *table, ndp_extrapo
                         query->interps[i*table->vdim+j] = NAN;
                     continue;
                 break;
-                case NDP_METHOD_NEAREST:
+                case NDP_METHOD_NEAREST: {
                     double *normed_elem = query->normed_elems + i * table->axes->len;
                     int *elem_index = query->indices + i * table->axes->len;
                     int nearest = find_nearest_defined_index(normed_elem, elem_index, table);
 
-                    // printf("  i=%d dim=%d vdim=%d nqpts=[", i, query->hypercubes[i]->dim, query->hypercubes[i]->vdim);
-                    // for (int j = 0; j < table->axes->len; j++)
-                    //     printf("%2.2f ", query->normed_elems[i*table->axes->len + j]);
-                    // printf("\b]\n");
+                    if (debug) {
+                        printf("  i=%d dim=%d vdim=%d nqpts=[", i, query->hypercubes[i]->dim, query->hypercubes[i]->vdim);
+                        for (int j = 0; j < table->axes->len; j++)
+                            printf("%2.2f ", query->normed_elems[i*table->axes->len + j]);
+                        printf("\b]\n");
 
-                    // printf("nearest: %d, value: %f\n", nearest, table->grid[table->vdim*nearest]);
+                        printf("nearest: %d, value: %f\n", nearest, table->grid[table->vdim*nearest]);
+                    }
+
                     memcpy(query->interps + i*table->vdim, table->grid + nearest*table->vdim, table->vdim*sizeof(*(query->interps)));
                     continue;
+                }
                 break;
                 case NDP_METHOD_LINEAR:
-                    // printf("all ready if the hypercube is fully defined... otherwise lookup\n");
+                    if (debug)
+                        printf("all ready if the hypercube is fully defined... otherwise lookup\n");
                 break;
                 default:
                     /* invalid extrapolation method */
@@ -608,9 +653,9 @@ ndp_query *ndpolate(int nelems, double *query_pts, ndp_table *table, ndp_extrapo
         }
 
         /* continue with regular interpolation: */
-        ndp_hypercube *hypercube = query->hypercubes[i];
+        hypercube = query->hypercubes[i];
 
-        int k = 0;
+        k = 0;
         for (int j = 0; j < table->axes->len; j++) {
             /* skip when queried coordinate coincides with a vertex: */
             if (query->flags[i * table->axes->len + j] == NDP_ON_VERTEX)
@@ -619,10 +664,12 @@ ndp_query *ndpolate(int nelems, double *query_pts, ndp_table *table, ndp_extrapo
             k++;
         }
 
-        // printf("  i=%d dim=%d vdim=%d nqpts=[", i, hypercube->dim, hypercube->vdim);
-        // for (int j = 0; j < table->axes->len; j++)
-        //     printf("%2.2f ", query->normed_elems[i*table->axes->len + j]);
-        // printf("\b]\n");
+        if (debug) {
+            printf("  i=%d dim=%d vdim=%d nqpts=[", i, hypercube->dim, hypercube->vdim);
+            for (int j = 0; j < table->axes->len; j++)
+                printf("%2.2f ", query->normed_elems[i*table->axes->len + j]);
+            printf("\b]\n");
+        }
 
         c_ndpolate(hypercube->dim, hypercube->vdim, selected, hypercube->v);
         memcpy(query->interps + i*table->vdim, hypercube->v, table->vdim * sizeof(*(query->interps)));
