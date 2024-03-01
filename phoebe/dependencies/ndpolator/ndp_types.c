@@ -1,3 +1,8 @@
+/**
+ * @file ndp_types.c
+ * @brief Ndpolator's type constructors and destructors.
+ */
+
 #include <stdlib.h>
 #include <stdio.h>
 
@@ -201,6 +206,99 @@ int ndp_axes_free(ndp_axes *axes)
 }
 
 /**
+ * @brief #ndp_query_pts constructor.
+ *
+ * @details
+ * Initializes a new #ndp_query_pts instance. It sets @p nelems and @p naxes
+ * to 0 and it NULLifies all arrays.
+ *
+ * @return An initialized #ndp_query_pts instance.
+ */
+
+ndp_query_pts *ndp_query_pts_new()
+{
+    ndp_query_pts *qpts = malloc(sizeof(*qpts));
+
+    qpts->nelems = 0;
+    qpts->naxes = 0;
+    qpts->indices = NULL;
+    qpts->flags = NULL;
+    qpts->requested = NULL;
+    qpts->normed = NULL;
+
+    return qpts;
+}
+
+ndp_query_pts *ndp_query_pts_new_from_data(int nelems, int naxes, int *indices, int *flags, double *requested, double *normed)
+{
+    ndp_query_pts *qpts = malloc(sizeof(*qpts));
+
+    qpts->nelems = nelems;
+    qpts->naxes = naxes;
+    qpts->indices = indices;
+    qpts->flags = flags;
+    qpts->requested = requested;
+    qpts->normed = normed;
+
+    return qpts;
+}
+
+/**
+ * @brief An #ndp_query_pts instance memory allocator.
+ *
+ * @param qpts an #ndp_query_pts instance
+ * @param nelems number of query points
+ * @param naxes query points dimension (number of axes)
+ *
+ * @details
+ * Allocates memory for the #ndp_query_pts instance. Each array in the struct
+ * has @p nelems x @p naxes elements.
+ *
+ * @return int an #ndp_status code.
+ */
+
+int ndp_query_pts_alloc(ndp_query_pts *qpts, int nelems, int naxes)
+{
+    qpts->nelems = nelems;
+    qpts->naxes = naxes;
+
+    qpts->indices = malloc(nelems * naxes * sizeof(*(qpts->indices)));
+    qpts->flags = malloc(nelems * naxes * sizeof(*(qpts->flags)));
+    qpts->requested = malloc(nelems * naxes * sizeof(*(qpts->requested)));
+    qpts->normed = malloc(nelems * naxes * sizeof(*(qpts->normed)));
+
+    return NDP_SUCCESS;
+}
+
+/**
+ * @brief #ndp_query_pts destructor.
+ *
+ * @param qpts a #ndp_query_pts instance to be freed
+ *
+ * @details
+ * Frees memory allocated for the #ndp_query_pts instance. That includes all
+ * array memory, and the #ndp_query_pts instance itself.
+ *
+ * @return #ndp_status code.
+ */
+
+int ndp_query_pts_free(ndp_query_pts *qpts)
+{
+    if (qpts->indices)
+        free(qpts->indices);
+    if (qpts->flags)
+        free(qpts->flags);
+    if (qpts->requested)
+        free(qpts->normed);
+    if (qpts->normed)
+        free(qpts->normed);
+    
+    free(qpts);
+
+    return NDP_SUCCESS;
+}
+
+/**
  * @brief #ndp_table constructor.
  *
  * @details
@@ -217,11 +315,9 @@ ndp_table *ndp_table_new()
     table->axes = NULL;
     table->grid = NULL;
 
-    table->ndefs = 0;
-    table->defined_vertices = NULL;
-
-    table->hcdefs = 0;
-    table->defined_hypercubes = NULL;
+    table->nverts = 0;
+    table->vmask = NULL;
+    table->hcmask = NULL;
 
     return table;
 }
@@ -255,60 +351,102 @@ ndp_table *ndp_table_new()
 
 ndp_table *ndp_table_new_from_data(ndp_axes *axes, int vdim, double *grid)
 {
-    int nverts = 1, pos;
+    int pos;
+    int ith_corner[axes->nbasic], cidx[axes->nbasic];
 
-    ndp_table *table = malloc(sizeof(*table));
+    ndp_table *table = ndp_table_new();
 
     table->axes = axes;
     table->vdim = vdim;
     table->grid = grid;
 
     /* count all vertices in the grid: */
+    table->nverts = 1;
     for (int i = 0; i < axes->nbasic; i++)
-        nverts *= axes->axis[i]->len;
+        table->nverts *= axes->axis[i]->len;
 
     /* collect all non-nan vertices: */
-    table->ndefs = 0;
-    table->defined_vertices = malloc(nverts * sizeof(*(table->defined_vertices)));
-    for (int i = 0; i < nverts; i++) {
+    table->vmask = calloc(table->nverts, sizeof(*(table->vmask)));
+    for (int i = 0; i < table->nverts; i++) {
         pos = i*axes->cplen[axes->nbasic-1]*vdim;
-        if (grid[pos] == grid[pos]) {  /* false if nan */
-            table->defined_vertices[table->ndefs] = pos;
-            // printf("% 4d/%d: pos=% 5d val=%f\n", i, nverts-1, pos, grid[pos]);
-            table->ndefs++;
-        }
-        // else
-            // printf("% 4d/%d: ***** UNDEFINED *****\n", i, nverts);
+        if (grid[pos] == grid[pos])  /* false if nan */
+            table->vmask[i] = 1;
     }
 
-    /* collect all fully defined hypercubes: */
-    table->hcdefs = 0;
-    table->defined_hypercubes = malloc(table->ndefs * sizeof(*(table->defined_vertices)));
-    for (int i = 0; i < table->ndefs; i++) {
+    // printf("axes->len = %d\n", axes->len);
+    // printf("axes->nbasic = %d\n", axes->nbasic);
+    // printf("table->vdim = %d\n", table->vdim);
+
+    // for (int i = 0, sum = 0; i < table->nverts; i++) {
+    //     sum += table->vmask[i];
+    //     if (i == table->nverts-1)
+    //         printf("%d non-nan vertices found.\n", sum);
+    // }
+
+    table->hcmask = calloc(table->nverts, sizeof(*(table->hcmask)));
+    for (int i = 0; i < table->nverts; i++) {
         int nan_encountered = 0;
-        int *ic = pos2idx(table->axes, vdim, table->defined_vertices[i]);
-        for (int j = 0; j < 1 << table->axes->len; j++) {
-            int tpos;
-            int cidx[table->axes->len];  /* current index variation */
-            for (int k = 0; k < table->axes->len; k++) {
-                cidx[k] = ic[k]-1+(j / (1 << (table->axes->len-1))) % 2;
-            }
-            tpos = idx2pos(table->axes, table->vdim, cidx);
-            if (tpos < 0 || grid[tpos] != grid[tpos]) {  /* true if off-the-grid or nan */
+
+        /* skip undefined vertices: */
+        if (table->vmask[i] == 0)
+            continue;
+
+        /* convert running index to per-axis indices of the superior corner of the hypercube: */
+        for (int k = 0; k < axes->nbasic; k++) {
+            ith_corner[k] = (i / (axes->cplen[k] / axes->cplen[axes->nbasic-1])) % axes->axis[k]->len;
+            // printf("i=%d k=%d cplen[k]=%d cplen[nbasic-1]=%d num=%d\n", i, k, axes->cplen[k], axes->cplen[axes->nbasic-1], i / (axes->cplen[k] / axes->cplen[axes->nbasic-1]));
+            /* skip edge elements: */
+            if (ith_corner[k] == 0) {
                 nan_encountered = 1;
                 break;
             }
         }
-        free(ic);
 
         if (nan_encountered)
             continue;
 
-        table->defined_hypercubes[i] = table->defined_vertices[i];
-        table->hcdefs++;
+        // printf("i=% 3d c=[", i);
+        // for (int k = 0; k < axes->nbasic; k++)
+        //     printf("%d ", ith_corner[k]);
+        // printf("\b]\n");
+
+        /* loop over all basic hypercube vertices and see if they're all defined: */
+        for (int j = 0; j < 1 << table->axes->nbasic; j++) {
+            // printf("  c%d=[", j);
+            for (int k = 0; k < table->axes->nbasic; k++) {
+                cidx[k] = ith_corner[k]-1+(j / (1 << (table->axes->nbasic-k-1))) % 2;
+                // printf("%d ", cidx[k]);
+            }
+            // printf("\b]\n");
+
+            /* convert per-axis indices to running index: */
+            pos = 0;
+            for (int k = 0; k < table->axes->nbasic; k++)
+                pos += cidx[k] * axes->cplen[k] / axes->cplen[axes->nbasic-1];
+
+            if (!table->vmask[pos]) {
+                nan_encountered = 1;
+                break;
+            }
+
+            // int check[3];
+            // for (int k = 0; k < axes->nbasic; k++)
+            //     check[k] = (pos / axes->cplen[k] * axes->cplen[axes->nbasic-1]) % axes->axis[k]->len;
+
+            // printf("c=[%d, %d, %d], pos=%d, c=[%d, %d, %d]\n", cidx[0], cidx[1], cidx[2], pos, check[0], check[1], check[2]);
+        }
+
+        if (nan_encountered)
+            continue;
+        
+        table->hcmask[i] = 1;
     }
 
-    // printf("%d fully qualified hcs found.\n", table->hcdefs);
+    // for (int i = 0, sum = 0; i < table->nverts; i++) {
+    //     sum += table->hcmask[i];
+    //     if (i == table->nverts-1)
+    //         printf("%d fully defined hypercubes found.\n", sum);
+    // }
 
     return table;
 }
@@ -366,11 +504,11 @@ int ndp_table_free(ndp_table *table)
     if (table->grid)
         free(table->grid);
 
-    if (table->defined_vertices)
-        free(table->defined_vertices);
+    if (table->vmask)
+        free(table->vmask);
 
-    if (table->defined_hypercubes)
-        free(table->defined_hypercubes);
+    if (table->hcmask)
+        free(table->hcmask);
 
     free(table);
 
@@ -401,6 +539,8 @@ ndp_hypercube *ndp_hypercube_new()
  *
  * @param dim hypercube dimension, typically equal to the number of axes
  * @param vdim grid function value length (a.k.a. vertex dimension)
+ * @param fdhc fully defined hypercube flag (1 for fully defined, 0 if there
+ * are nans among the function values)
  * @param v hypercube function values in 2<sup>dim</sup> vertices, each
  * @p vdim long
  *
@@ -414,12 +554,15 @@ ndp_hypercube *ndp_hypercube_new()
  * @return An initialized #ndp_hypercube instance.
  */
 
-ndp_hypercube *ndp_hypercube_new_from_data(int dim, int vdim, double *v)
+ndp_hypercube *ndp_hypercube_new_from_data(int dim, int vdim, int fdhc, double *v)
 {
     ndp_hypercube *hc = malloc(sizeof(*hc));
+
     hc->dim = dim;
     hc->vdim = vdim;
+    hc->fdhc = fdhc;
     hc->v = v;
+
     return hc;
 }
 
@@ -441,6 +584,7 @@ int ndp_hypercube_print(ndp_hypercube *hc, const char *prefix)
 {
     printf("%shc->dim = %d\n", prefix, hc->dim);
     printf("%shc->vdim = %d\n", prefix, hc->vdim);
+    printf("%shc->fdhc = %d\n", prefix, hc->fdhc);
 
     printf("%shc->v = [", prefix);
     for (int i = 0; i < (1<<hc->dim); i++) {
@@ -488,10 +632,6 @@ ndp_query *ndp_query_new()
 {
     ndp_query *query = malloc(sizeof(*query));
 
-    query->nelems = 0;
-    query->elems = NULL;
-    query->normed_elems = NULL;
-
     return query;
 }
 
@@ -509,8 +649,6 @@ ndp_query *ndp_query_new()
 
 int ndp_query_free(ndp_query *query)
 {
-    free(query->elems);
-    free(query->normed_elems);
     free(query);
 
     return NDP_SUCCESS;

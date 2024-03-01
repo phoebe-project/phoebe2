@@ -1,3 +1,8 @@
+/**
+ * @file ndp_types.h
+ * @brief Ndpolator's type definitions and constructor/desctructor prototypes.
+ */
+
 #ifndef NDP_TYPES_H
     #define NDP_TYPES_H 1
 
@@ -70,6 +75,36 @@ ndp_axes *ndp_axes_new_from_python(PyObject *py_axes, int nbasic);
 int ndp_axes_free(ndp_axes *axes);
 
 /**
+ * <!-- typedef struct ndp_query_pts -->
+ * @brief Ndpolator's structure for query points.
+ *
+ * @details
+ * Query points (points of interest) are given by n coordinates that
+ * correspond to n #ndp_axis instances stored in #ndp_axes. Their number is
+ * given by the @p nelems field and their dimension by the @p naxes field. The
+ * @p indices array provides superior corners of the hypercube that contains a
+ * query point; the @p flags array tags each query point component with one of
+ * the #ndp_vertex_flag flags: #NDP_ON_GRID, #NDP_ON_VERTEX, or
+ * #NDP_OUT_OF_BOUNDS. The actual query points (as passed to ndpolator, in
+ * axis units) are stored in the @p requested array, and the unit-hypercube
+ * normalized units are stored in the @p normed array.
+ */
+
+typedef struct ndp_query_pts {
+    int nelems;         /*!< number of query points */
+    int naxes;          /*!< query point dimension (number of axes) */
+    int *indices;       /*!< an array of superior hypercube indices */
+    int *flags;         /*!< an array of flags, one per query point component */
+    double *requested;  /*!< an array of absolute query points (in axis units) */
+    double *normed;     /*!< an array of unit-hypercube normalized query points */
+} ndp_query_pts;
+
+ndp_query_pts *ndp_query_pts_new();
+ndp_query_pts *ndp_query_pts_new_from_data(int nelems, int naxes, int *indices, int *flags, double *requested, double *normed);
+int ndp_query_pts_alloc(ndp_query_pts *qpts, int nelems, int naxes);
+int ndp_query_pts_free();
+
+/**
  * <!-- typedef struct ndp_table -->
  * @brief Ndpolator's complete table structure.
  *
@@ -82,13 +117,12 @@ int ndp_axes_free(ndp_axes *axes);
  */
 
 typedef struct ndp_table {
-    int vdim;
-    ndp_axes *axes;
-    double *grid;
-    int ndefs;                /*!< @private number of defined vertices */
-    int *defined_vertices;    /*!< @private positions of defined vertices in @grid */
-    int hcdefs;               /*!< @private number of fully defined hypercubes */
-    int *defined_hypercubes;  /*!< @private positions of fully defined hypercubes */
+    int vdim;        /*!< function value length (1 for scalars, >1 for arrays) */
+    ndp_axes *axes;  /*!< an #ndp_axes instance that defines all axes */
+    double *grid;    /*!< an array that holds all function values, in C-native order */
+    int nverts;      /*!< @private number of basic grid points */
+    int *vmask;      /*!< @private nverts-length mask of nodes (defined grid points) */
+    int *hcmask;     /*!< @private nverts-length mask of fully defined hypercubes */
 } ndp_table;
 
 ndp_table *ndp_table_new();
@@ -114,20 +148,21 @@ int ndp_table_free(ndp_table *table);
  */
 
 typedef struct ndp_hypercube {
-    int dim;    /*!< dimension of the hypercube */
-    int vdim;   /*!< function value length */
-    double *v;  /*!< hypercube vertex function values, in C order (last axis runs fastest)*/
+    int dim;      /*!< dimension of the hypercube */
+    int vdim;     /*!< function value length */
+    int fdhc;     /*!< flag that indicates whether the hypercube is fully defined */
+    double *v;    /*!< hypercube vertex function values, in C order (last axis runs fastest)*/
 } ndp_hypercube;
 
 ndp_hypercube *ndp_hypercube_new();
-ndp_hypercube *ndp_hypercube_new_from_data(int dim, int vdim, double *v);
+ndp_hypercube *ndp_hypercube_new_from_data(int dim, int vdim, int fdhc, double *v);
 int ndp_hypercube_alloc(ndp_hypercube *hc, int dim, int vdim);
 int ndp_hypercube_print(ndp_hypercube *hc, const char *prefix);
 int ndp_hypercube_free(ndp_hypercube *hc);
 
 /* defined in ndpolator.c: */
-extern int idx2pos(ndp_axes *axes, int vdim, int *index);
-extern int *pos2idx(ndp_axes *axes, int vdim, int pos);
+extern int idx2pos(ndp_axes *axes, int vdim, int *index, int *pos);
+extern int pos2idx(ndp_axes *axes, int vdim, int pos, int *idx);
 
 /**
  * <!-- typedef struct ndp_query -->
@@ -141,21 +176,41 @@ extern int *pos2idx(ndp_axes *axes, int vdim, int pos);
  */
 
 typedef struct ndp_query {
-    int nelems;                  /*!< number of query points */
     int extrapolation_method;    /*!< a #ndp_extrapolation_method */
-
-    double *elems;               /*!< an array of (flattened) query points, stacked in the C-order (last axis varies the fastest) */
-    double *normed_elems;        /*!< @private an array of unit-normalized query points */
-    int *out_of_bounds;          /*!< @private an array of out-of-bounds flags, per query point */
-    int *indices;                /*!< an array of (flattened) indices of the superior hypercube vertex */
-    int *flags;                  /*!< an array of (flattened) flags per query point component (see #ndp_vertex_flag)*/
-
     ndp_hypercube **hypercubes;  /*!< an array of hypercubes, one per query point */
-
     double *interps;             /*!< an array of interpolants -- results of interpolation/extrapolation */
 } ndp_query;
 
 ndp_query *ndp_query_new();
 int ndp_query_free(ndp_query *query);
+
+
+
+
+
+
+/**
+ * <!-- struct index_info -->
+ * @brief Stores all fields related to query point indexing.
+ *
+ * @details
+ * Function #find_indices() computes three main deliverables that are stored
+ * in this structure: (1) an array of indices, @p index, that correspond to
+ * the superior hypercube corner that contains or is adjacent to the query
+ * point; (2) an array of #ndp_vertex_flag flags, @p flag, for each component
+ * of the query point; and (3) an array of unit hypercube-normalized query
+ * points. Structure arrays are allocated by #find_indices() and need to be
+ * freed once they are no longer required, typically by #ndp_query_free().
+ */
+
+/**
+ * <!-- struct hypercube_info -->
+ * @brief Stores all fields related to the hypercubes.
+ *
+ * @details
+ * Function #find_hypercubes() computes an array of #ndp_hypercube @p
+ * hypercubes that correspond to each query point, and sets the out-of-bounds
+ * flag for any query points that are off grid.
+ */
 
 #endif

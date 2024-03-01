@@ -1,3 +1,8 @@
+/**
+ * @file ndpolator.c
+ * @brief Main functions and python bindings.
+ */
+
 #include <math.h>
 #include <stdarg.h>
 #include <stdlib.h>
@@ -113,12 +118,12 @@ void _ainfo(PyArrayObject *array, int print_data)
  * <!-- find_first_geq_than() -->
  * @brief Finds the superior hypercube vertex for the passed parameter.
  *
- * @param axis array of scalars to be searched, must be sorted in ascending
- * order
+ * @param axis an #ndp_axis instance to be searched, must be sorted in
+ * ascending order
  * @param l index of the left search boundary in the @p axis, normally 0, but
  * can be anything between 0 and @p r-1
- * @param r index of the right search boundary in the @p axis, normally
- * len(@p axis)-1, but can be anything between @p l+1 and len(@p axis)-1
+ * @param r index of the right search boundary in the @p axis, normally len(@p
+ * axis)-1, but can be anything between @p l+1 and len(@p axis)-1
  * @param x value to be found in @p axis
  * @param rtol relative (fractional) tolerance to determine if @p x coincides
  * with a vertex in @p axis
@@ -138,12 +143,12 @@ void _ainfo(PyArrayObject *array, int print_data)
  * the requested value @p x. It also sets the @p flag accordingly. 
  */
 
-int find_first_geq_than(double *axis, int l, int r, double x, double rtol, int *flag)
+int find_first_geq_than(ndp_axis *axis, int l, int r, double x, double rtol, int *flag)
 {
     int m = l + (r - l) / 2;
 
     while (l != r) {
-        if (axis[m] < x)
+        if (x > axis->val[m])
             l = m + 1;
         else
             r = m;
@@ -151,18 +156,11 @@ int find_first_geq_than(double *axis, int l, int r, double x, double rtol, int *
         m = l + (r - l) / 2;
     }
 
-    *flag = (x < axis[0] || axis[r] < x) ? NDP_OUT_OF_BOUNDS : NDP_ON_GRID;
+    *flag = (x < axis->val[0] || x > axis->val[axis->len-1]) ? NDP_OUT_OF_BOUNDS : NDP_ON_GRID;
 
-    if (fabs((x - axis[l - 1]) / (axis[l] - axis[l - 1])) < rtol) {
+    if ((l > 0 && fabs( (x - axis->val[l]) / (axis->val[l]-axis->val[l-1]) ) < rtol) ||
+        (l < axis->len && fabs((x-axis->val[l]) / (axis->val[l+1] - axis->val[l])) < rtol))
         *flag |= NDP_ON_VERTEX;
-        return l-1;
-        // return -(l - 1);
-    }
-    if (fabs((axis[l] - x) / (axis[l] - axis[l - 1])) < rtol) {
-        *flag |= NDP_ON_VERTEX;
-        return l;
-        // return -l;
-    }
 
     return l;
 }
@@ -174,6 +172,8 @@ int find_first_geq_than(double *axis, int l, int r, double x, double rtol, int *
  * @param axes a ndp_axes structure that holds all ndpolator axes
  * @param vdim vertex length (number of function values per grid point)
  * @param index a naxes-dimensional array of indices
+ * @param pos placeholder for the position index in the NDP grid that
+ * corresponds to per-axis indices
  *
  * @details
  * For efficiency, all ndpolator arrays are 1-dimensional, where axes are
@@ -181,18 +181,18 @@ int find_first_geq_than(double *axis, int l, int r, double x, double rtol, int *
  * elements can be done either by position in the 1-dimensional array, or
  * per-axis indices. This function converts from the index representation to
  * position.
- * 
- * @return position index in the NDP grid that corresponds to per-axis
- * indices.
+ *
+ * @return #ndp_status.
  */
 
-int idx2pos(ndp_axes *axes, int vdim, int *index)
+int idx2pos(ndp_axes *axes, int vdim, int *index, int *pos)
 {
-    int pos = axes->cplen[0]*index[0];
+    *pos = axes->cplen[0]*index[0];
     for (int i = 1; i < axes->len; i++)
-        pos += axes->cplen[i]*index[i];
+        *pos += axes->cplen[i]*index[i];
+    *pos *= vdim;
 
-    return vdim*pos;
+    return NDP_SUCCESS;
 }
 
 /**
@@ -202,6 +202,7 @@ int idx2pos(ndp_axes *axes, int vdim, int *index)
  * @param axes a ndp_axes structure that holds all ndpolator axes
  * @param vdim vertex length (number of function values per grid point)
  * @param pos position index in the grid
+ * @param idx an array of per-axis indices; must be allocated
  *
  * @details
  * For efficiency, all ndpolator arrays are 1-dimensional, where axes are
@@ -210,25 +211,24 @@ int idx2pos(ndp_axes *axes, int vdim, int *index)
  * per-axis indices. This function converts from position index representation
  * to an array of per-axis indices.
  * 
- * @return an array of per-axis indices
+ * @return #ndp_status.
  */
 
-int *pos2idx(ndp_axes *axes, int vdim, int pos)
+int pos2idx(ndp_axes *axes, int vdim, int pos, int *idx)
 {
     int debug = 0;
-    int *index = malloc(axes->len * sizeof(*index));
 
     for (int i=0; i < axes->len; i++)
-        index[i] = pos / vdim / axes->cplen[i] % axes->axis[i]->len;
+        idx[i] = pos / vdim / axes->cplen[i] % axes->axis[i]->len;
 
     if (debug) {
         printf("pos = %d idx = [", pos);
         for (int j = 0; j < axes->len; j++)
-            printf("%d ", index[j]);
+            printf("%d ", idx[j]);
         printf("\b]\n");
     }
 
-    return index;
+    return NDP_SUCCESS;
 }
 
 /**
@@ -279,72 +279,102 @@ int c_ndpolate(int naxes, int vdim, double *x, double *fv)
 }
 
 /**
- * <!-- find_nearest_defined_index() -->
- * @brief Finds the nearest defined index (i.e., with non-nan function values)
- * on the grid.
+ * <!-- find_nearest() -->
+ * @brief Finds the nearest defined value on the grid.
  *
  * @param normed_elem unit hypercube-normalized query point
- * @param elem_index indices of the nearest hypercube's inferior corner
+ * @param elem_index superior corner of the containing/nearest hypercube
+ * @param elem_flag flag per component of the query point
  * @param table a #ndp_table instance with full ndpolator definition
+ * @param mask a boolean array that flags grid elements as defined
  *
  * @details
- * When #ndp_extrapolation_method is set to #NDP_METHOD_NEAREST, this function
- * is called to find the nearest defined vertex on the grid. The passed @p
- * table stores a list of all defined basic vertices in a (private) array
- * @p table->defined_vertices; this function computes Euclidean square
- * distances for each defined vertex from the requested element and returns
- * the position of the nearest element. The search is further optimized by
- * searching only through basic axes first.
- * 
- * The reason we need to pass both @p normed_elem and @p elem_index is because
- * @p normed_elem is given relative to the hypercube that is determined by @p
- * elem_index. As the search is done in absolute index space rather than axis
- * space, we need to convert @p normed_elem from relative to absolute indices.
+ * When extrapolating, we need to either find the nearest defined vertex or
+ * the nearest defined hypercube.
  *
- * @return int 
+ * Parameter @p normed_elem provides coordinates of the query point in unit
+ * hypercube space. For example, `normed_elem=(0.3, 0.8, 0.2)` provides
+ * coordinates of the query point with respect to the inferior hypercube
+ * corner, which in this case would be within the hypercube. On the other
+ * hand, `normed_elem=(-0.2, 0.3, 0.4)` would lie outside of the hypercube.
+ *
+ * Parameter @p elem_index provides coordinates of the superior hypercube
+ * corner (i.e., indices of each axis where the corresponding value is the
+ * first value greater than the query point coordinate). For example, if the
+ * query point (in index space) is `(4.2, 5.6, 8.9)`, then `elem_index=(5, 6,
+ * 9)`.
+ *
+ * Parameter @p elem_flag flags each coordinate of the @p normed_elem. Flags
+ * can be either #NDP_ON_GRID, #NDP_ON_VERTEX, or #NDP_OUT_OF_BOUNDS. This is
+ * important because @p elem_index points to the nearest larger axis value if
+ * the coordinate does not coincide with the axis vertex, and it points to
+ * the vertex itself if it coincides with the coordinate. For example, if
+ * `axis=[0,1,2,3,4]` and the requested element is `1.5`, then @p elem_index
+ * will equal 2; if the requested element is `1.0`, then @p elem_index will
+ * equal 1; if the requested element is `-0.3`, then @p elem_index will equal
+ * 0. In order to correctly account for out-of-bounds and on-vertex requests,
+ * the function needs to be aware of the flags.
+ * 
+ * Parameter @p table is an #ndp_table structure that defines all relevant
+ * grid parameters. Of particular use here is the grid of function values and
+ * all axis definitions.
+ *
+ * Finally, parameter @p mask flags basic grid points with defined values. Two
+ * masks are precomputed during #ndp_table initialization: @p table->vmask and
+ * @p table->hcmask. The first one masks defined vertices, and the second one
+ * masks fully defined hypercubes. If a vertex (or a hypercube) is defined,
+ * the value of the mask is set to 1; otherwise it is set to 0. These arrays
+ * have @p table->nverts elements, which equals to the product of the lengths
+ * of all basic axes.
+ *
+ * The function computes Euclidean square distances for each masked grid point
+ * from the requested element and returns the pointer to the nearest function
+ * value. The search is optimized by searching over basic axes first.
+ *
+ * @return allocated pointer to the nearest coordinates. The calling function
+ * must free the memory once done.
  */
 
-int find_nearest_defined_index(double *normed_elem, int *elem_index, ndp_table *table)
+int *find_nearest(double *normed_elem, int *elem_index, int *elem_flag, ndp_table *table, int *mask)
 {
     int min_pos;
     double dist, min_dist = 1e50;
+    int *coords = malloc(table->axes->len * sizeof(*coords));
 
-    int *grid_index;
-
-    for (int i = 0; i < table->ndefs; i++) {
-        /* convert position to indices: */
-        grid_index = pos2idx(table->axes, table->vdim, table->defined_vertices[i]);
-
-        // printf("i=%d pos=%d index=[", i, table->defined_vertices[i]);
-        // for (int j = 0; j < table->axes->len; j++)
-        //     printf("%d ", grid_index[j]);
-        // printf("\b] ");
+    for (int i = 0; i < table->nverts; i++) {
+        /* skip if vertex is undefined: */
+        if (!mask[i])
+            continue;
 
         /* find the distance to the basic vertex: */
         dist = 0.0;
         for (int j = 0; j < table->axes->nbasic; j++) {
-            dist += (elem_index[j]+normed_elem[j]-grid_index[j])*(elem_index[j]+normed_elem[j]-grid_index[j]);
+            /* converts running index to j-th coordinate: */
+            int coord = i / (table->axes->cplen[j] / table->axes->cplen[table->axes->nbasic-1]) % table->axes->axis[j]->len;
+            if ((NDP_ON_VERTEX & elem_flag[j]) || (NDP_OUT_OF_BOUNDS & elem_flag[j]))
+                dist += (elem_index[j]+normed_elem[j]-coord)*(elem_index[j]+normed_elem[j]-coord);
+            else
+                dist += (elem_index[j]+normed_elem[j]-1-coord)*(elem_index[j]+normed_elem[j]-1-coord);
         }
+
         if (dist < min_dist) {
             min_dist = dist;
-            min_pos = table->defined_vertices[i];
+            min_pos = i;
         }
-
-        // printf("dist=%e\n", dist);
-
-        free(grid_index);
     }
 
-    // printf("min dist=%e, pos=%d\n", min_dist, min_pos);
-
-    /* attached axes are guaranteed to be defined for all basic vertices, so
-     * we can round the normed element to get the index value:
-     */
-    for (int j = table->axes->nbasic; j < table->axes->len; j++) {
-        min_pos += table->axes->cplen[j] * max(0, min(table->axes->axis[j]->len-1, round(elem_index[j]+normed_elem[j])));
+    /* Assemble the coordinates: */
+    // printf("nearest = [");
+    for (int i = 0; i < table->axes->nbasic; i++) {
+        coords[i] = min_pos / (table->axes->cplen[i] / table->axes->cplen[table->axes->nbasic-1]) % table->axes->axis[i]->len;
+        // printf("%d, ", coords[i]);
     }
+    // printf("\b\b], dist=%f pos=", min_dist);
 
-    return min_pos;
+    for (int i = table->axes->nbasic; i < table->axes->len; i++)
+        coords[i] = max(0, min(table->axes->axis[i]->len-1, round(elem_index[i]+normed_elem[i])));
+
+    return coords;
 }
 
 /**
@@ -367,20 +397,16 @@ int find_nearest_defined_index(double *normed_elem, int *elem_index, ndp_table *
  * boundaries are flagged by #NDP_OUT_OF_BOUNDS. Finally, all components that
  * do fall within the grid are flagged by #NDP_ON_GRID.
  *
- * @return an #index_info struct of indices, flags and normalized query
- * points.
+ * @return a #ndp_query_pts instance.
  */
 
-struct index_info find_indices(int nelems, double *qpts, ndp_axes *axes)
+ndp_query_pts *find_indices(int nelems, double *qpts, ndp_axes *axes)
 {
-    struct index_info rv;
-    int *index = malloc(nelems * axes->len * sizeof(*index));
-    int *flag = calloc(nelems * axes->len, sizeof(*flag));
-    double *normed_qpts = malloc(nelems * axes->len * sizeof(*normed_qpts));
-
+    ndp_query_pts *query_pts = ndp_query_pts_new();
     double rtol = 1e-3;  /* relative tolerance for vertex matching */
+    int debug = 1;
 
-    int debug = 0;
+    ndp_query_pts_alloc(query_pts, nelems, axes->len);
 
     if (debug) {
         printf("find_indices():\n  number of query points=%d\n  query point dimension=%d\n", nelems, axes->len);
@@ -396,11 +422,17 @@ struct index_info find_indices(int nelems, double *qpts, ndp_axes *axes)
     for (int i = 0; i < axes->len; i++) {
         for (int j = 0; j < nelems; j++) {
             int k = j*axes->len + i;
-            index[k] = find_first_geq_than(axes->axis[i]->val, 0, axes->axis[i]->len - 1, qpts[k], rtol, &flag[k]);
-            if (flag[k] == NDP_ON_VERTEX)
-                normed_qpts[k] = 0.0;  /* we need this for extrapolation-by-nearest */
-            else
-                normed_qpts[k] = (qpts[k] - axes->axis[i]->val[max(index[k] - 1, 0)])/(axes->axis[i]->val[max(index[k], 1)] - axes->axis[i]->val[max(index[k] - 1, 0)]);
+            double lo, hi;
+            query_pts->requested[k] = qpts[k];
+            query_pts->indices[k] = find_first_geq_than(axes->axis[i], 0, axes->axis[i]->len - 1, qpts[k], rtol, &query_pts->flags[k]);
+            if ((query_pts->flags[k] & NDP_ON_VERTEX) == NDP_ON_VERTEX) {
+                query_pts->normed[k] = 0.0;
+                continue;
+            }
+            /* no need to worry about the upper boundary here, indices can't ever be above axlen-1 */
+            lo = axes->axis[i]->val[max(0, query_pts->indices[k]-1)];
+            hi = axes->axis[i]->val[max(1, query_pts->indices[k])];
+            query_pts->normed[k] = (qpts[k] - lo)/(hi - lo);
         }
     }
 
@@ -414,29 +446,25 @@ struct index_info find_indices(int nelems, double *qpts, ndp_axes *axes)
 
             printf("  indices = [");
             for (int j = 0; j < axes->len; j++) {
-                printf("%d ", index[i*axes->len + j]);
+                printf("%d ", query_pts->indices[i*axes->len + j]);
             }
             printf("\b]");
 
             printf("  flags = [");
             for (int j = 0; j < axes->len; j++) {
-                printf("%d ", flag[i*axes->len + j]);
+                printf("%d ", query_pts->flags[i*axes->len + j]);
             }
             printf("\b]");
 
             printf("  normed_query_pt = [");
             for (int j = 0; j < axes->len; j++) {
-                printf("%2.2f ", normed_qpts[i*axes->len + j]);
+                printf("%3.3f ", query_pts->normed[i*axes->len + j]);
             }
             printf("\b]\n");
         }
     }
 
-    rv.index = index;
-    rv.flag = flag;
-    rv.normed_qpts = normed_qpts;
-
-    return rv;
+    return query_pts;
 }
 
 /**
@@ -445,8 +473,8 @@ struct index_info find_indices(int nelems, double *qpts, ndp_axes *axes)
  * to) the query points identified by indices.
  *
  * @param nelems number of query points
- * @param index a @p nelems -by- @p naxes array of indices
- * @param flag a @p nelems -by- @p naxes array of flags
+ * @param indices a @p nelems -by- @p naxes array of indices
+ * @param flags a @p nelems -by- @p naxes array of flags
  * @param table a (@p naxes + 1)-dimensional grid of @p vdim -dimensional
  * arrays
  *
@@ -467,68 +495,93 @@ struct index_info find_indices(int nelems, double *qpts, ndp_axes *axes)
  * @return a #hypercube_info struct of hypercubes.
  */
 
-struct hypercube_info find_hypercubes(int nelems, int *index, int *flag, ndp_table *table)
+ndp_hypercube **find_hypercubes(ndp_query_pts *qpts, ndp_table *table)
 {
-    int i, j, k, l, tidx, *iptr;
+    int fdhc, tidx, *iptr;
     int dim_reduction, hc_size;
-    struct hypercube_info rv;
+    double *hc_vertices;
 
     ndp_axes *axes = table->axes;
+    int cidx[axes->len];
 
-    ndp_hypercube **hypercubes = malloc(nelems*sizeof(*hypercubes));
-    int *out_of_bounds = calloc(nelems, sizeof(*out_of_bounds));
+    int nelems = qpts->nelems;
+    int *indices = qpts->indices;
+    int *flags = qpts->flags;
 
-    // printf("find_hypercubes:\n");
+    ndp_hypercube **hypercubes = malloc(nelems * sizeof(*hypercubes));
 
-    for (i = 0; i < nelems; i++) {
-        iptr = &index[i*axes->len];
+    int debug = 1;
 
-        // printf("  flags = [");
-        dim_reduction = 0;
-        for (k = 0; k < axes->len; k++) {
-            // printf("%d ", flag[i*naxes+k]);
-            if (flag[i*axes->len+k] == NDP_ON_VERTEX)
-                dim_reduction++;
+    for (int i = 0; i < nelems; i++) {
+        /* assume the hypercube (or the relevant subcube) is fully defined: */
+        fdhc = 1;
+
+        /* if qpts are out of bounds, set fdhc to 0: */
+        for (int j = 0; j < axes->len; j++) {
+            int pos = i * axes->len + j;
+            if (NDP_OUT_OF_BOUNDS & flags[pos])
+                fdhc = 0;
         }
-        // printf("\b]\n");
-        hc_size = axes->len-dim_reduction;
-        double *hc_vertices = malloc(table->vdim * (1 << hc_size) * sizeof(*hc_vertices));
-        // printf("   hypercube size: %d\n", hc_size);
 
-        for (j = 0; j < (1 << hc_size); j++) {
-            int cidx[axes->len];  /* current index naxes-plet */
-            l = 0;
-            for (k = 0; k < axes->len; k++) {
-                if (flag[i*axes->len+k] == NDP_ON_VERTEX) {
+        /* point iptr to the i-th index multiplet: */
+        iptr = indices + i*axes->len;
+
+        // do not check whether the hypercube is fully defined before reducing
+        // its dimension: it may happen that we don't need the undefined parts
+        // of the hypercube!
+
+        /* reduce hypercube dimension for each query point component that coincides with the grid vertex: */
+        dim_reduction = 0;
+        for (int j = 0; j < axes->len; j++)
+            if ((NDP_ON_VERTEX & flags[i*axes->len+j]))
+                dim_reduction++;
+
+        hc_size = axes->len-dim_reduction;
+        hc_vertices = malloc(table->vdim * (1 << hc_size) * sizeof(*hc_vertices));
+
+        if (debug) {
+            printf("hypercube %d:\n", i);
+            printf("  basic indices: [");
+            for (int j = 0; j < axes->nbasic; j++)
+                printf("%d ", iptr[j]);
+            printf("\b]\n");
+            printf("  hypercube size: %d\n", hc_size);
+        }
+
+        for (int j = 0; j < (1 << hc_size); j++) {
+            for (int k = 0, l = 0; k < axes->len; k++) {
+                if (NDP_ON_VERTEX & flags[i*axes->len+k]) {
                     cidx[k] = iptr[k];
                     continue;
                 }
-                // cidx[k] = iptr[k]-1+(j / (1 << (hc_size-l-1))) % 2;
                 cidx[k] = max(iptr[k]-1+(j / (1 << (hc_size-l-1))) % 2, (j / (1 << (hc_size-l-1))) % 2);
                 l++;
             }
-            // printf("    cidx = [");
-            // for (k = 0; k < axes->len; k++)
-                // printf("%d ", cidx[k]);
-            // printf("\b], ");
+            if (debug) {
+                printf("    cidx = [");
+                for (int k = 0; k < axes->len; k++)
+                    printf("%d ", cidx[k]);
+                printf("\b], ");
+            }
 
-            tidx = idx2pos(axes, table->vdim, cidx);
+            idx2pos(axes, table->vdim, cidx, &tidx);
             if (table->grid[tidx] != table->grid[tidx])  /* true if nan */
-                out_of_bounds[i] = 1;
+                fdhc = 0;
 
-            // printf("tidx = %d, table[tidx] = %f\n", tidx, table->grid[tidx]);
+            if (debug)
+                printf("  tidx = %d, table[tidx] = %f\n", tidx, table->grid[tidx]);
 
             memcpy(hc_vertices + j*table->vdim, table->grid + tidx, table->vdim*sizeof(*hc_vertices));
         }
 
-        ndp_hypercube *hypercube = ndp_hypercube_new_from_data(hc_size, table->vdim, hc_vertices);
-        // ndp_hypercube_print(hypercube, "    ");
+        ndp_hypercube *hypercube = ndp_hypercube_new_from_data(hc_size, table->vdim, fdhc, hc_vertices);
+        if (debug)
+            ndp_hypercube_print(hypercube, "    ");
+
         hypercubes[i] = hypercube;
     }
 
-    rv.hypercubes = hypercubes;
-    rv.out_of_bounds = out_of_bounds;
-    return rv;
+    return hypercubes;
 }
 
 /**
@@ -556,9 +609,9 @@ struct hypercube_info find_hypercubes(int nelems, int *index, int *flag, ndp_tab
  * Once the supporting structures are initialized and populated, #ndpolate()
  * will first handle the out-of-bounds elements. It will set the value of NAN
  * if @p extrapolation_method = #NDP_METHOD_NONE, find the nearest defined
- * grid vertex by using #find_nearest_defined_index() and set the value to the
- * found nearest value if @p extrapolation_method = #NDP_METHOD_NEAREST, and
- * lookup the nearest fully defined hypercube for extrapolation if
+ * grid vertex by using #find_nearest() and set the value to the found nearest
+ * value if @p extrapolation_method = #NDP_METHOD_NEAREST, and lookup the
+ * nearest fully defined hypercube for extrapolation if
  * @p extrapolation_method = #NDP_METHOD_LINEAR.
  *
  * Finally, the ndpolator will loop through all hypercubes and call
@@ -569,48 +622,41 @@ struct hypercube_info find_hypercubes(int nelems, int *index, int *flag, ndp_tab
  * ndpolator run.
  */
 
-ndp_query *ndpolate(int nelems, double *query_pts, ndp_table *table, ndp_extrapolation_method extrapolation_method)
+ndp_query *ndpolate(ndp_query_pts *qpts, ndp_table *table, ndp_extrapolation_method extrapolation_method)
 {
-    int k;
     ndp_query *query = ndp_query_new();
     double selected[table->axes->len];
-    struct index_info ii;
-    struct hypercube_info hi;
     ndp_hypercube *hypercube;
 
     int debug = 1;
+    int nelems = qpts->nelems;
 
-    query->nelems = nelems;
-    query->elems = query_pts;
-    query->out_of_bounds = calloc(nelems, sizeof(*(query->out_of_bounds)));
-
-    ii = find_indices(nelems, query_pts, table->axes);
-    query->normed_elems = ii.normed_qpts;
-    query->indices = ii.index;
-    query->flags = ii.flag;
-
-    hi = find_hypercubes(nelems, query->indices, query->flags, table);
-    query->hypercubes = hi.hypercubes;
-    query->out_of_bounds = hi.out_of_bounds;
+    query->hypercubes = find_hypercubes(qpts, table);
 
     if (debug) {
-        for (int i = 0; i < query->nelems; i++) {
+        for (int i = 0; i < qpts->nelems; i++) {
             ndp_hypercube *hypercube = query->hypercubes[i];
-            printf("  hypercube %d: dim=%d vdim=%d v=[", i, hypercube->dim, hypercube->vdim);
+            printf("  hypercube %d: dim=%d vdim=%d fdhc=%d v=[", i, hypercube->dim, hypercube->vdim, hypercube->fdhc);
             for (int j = 0; j < 1 << hypercube->dim; j++) {
                 printf("{");
                 for (int k = 0; k < hypercube->vdim; k++)
                     printf("%2.2f, ", hypercube->v[j*hypercube->vdim+k]);
                 printf("\b\b} ");
             }
-            printf("\b]\n");
+            printf("\b] indices={");
+            for (int j = 0; j < table->axes->len; j++)
+                printf("%d, ", qpts->indices[i*table->axes->len+j]);
+            printf("\b\b} flags={");
+            for (int j = 0; j < table->axes->len; j++)
+                printf("%d, ", qpts->flags[i*table->axes->len+j]);
+            printf("\b\b}\n");
         }
     }
 
     query->interps = malloc(nelems * table->vdim * sizeof(*(query->interps)));
     for (int i = 0; i < nelems; i++) {
         /* handle out-of-bounds elements first: */
-        if (query->out_of_bounds[i]) {
+        if (!query->hypercubes[i]->fdhc) {
             switch (extrapolation_method) {
                 case NDP_METHOD_NONE:
                     for (int j = 0; j < table->vdim; j++)
@@ -618,26 +664,66 @@ ndp_query *ndpolate(int nelems, double *query_pts, ndp_table *table, ndp_extrapo
                     continue;
                 break;
                 case NDP_METHOD_NEAREST: {
-                    double *normed_elem = query->normed_elems + i * table->axes->len;
-                    int *elem_index = query->indices + i * table->axes->len;
-                    int nearest = find_nearest_defined_index(normed_elem, elem_index, table);
+                    double *normed_elem = qpts->normed + i * table->axes->len;
+                    int *elem_index = qpts->indices + i * table->axes->len;
+                    int *elem_flag = qpts->flags + i * table->axes->len;
+                    int pos;
 
-                    if (debug) {
-                        printf("  i=%d dim=%d vdim=%d nqpts=[", i, query->hypercubes[i]->dim, query->hypercubes[i]->vdim);
-                        for (int j = 0; j < table->axes->len; j++)
-                            printf("%2.2f ", query->normed_elems[i*table->axes->len + j]);
-                        printf("\b]\n");
-
-                        printf("nearest: %d, value: %f\n", nearest, table->grid[table->vdim*nearest]);
-                    }
-
-                    memcpy(query->interps + i*table->vdim, table->grid + nearest*table->vdim, table->vdim*sizeof(*(query->interps)));
+                    int *coords = find_nearest(normed_elem, elem_index, elem_flag, table, table->vmask);
+                    idx2pos(table->axes, table->vdim, coords, &pos);
+                    memcpy(query->interps + i*table->vdim, table->grid + pos, table->vdim * sizeof(*(query->interps)));
+                    free(coords);
                     continue;
                 }
                 break;
-                case NDP_METHOD_LINEAR:
-                    if (debug)
-                        printf("all ready if the hypercube is fully defined... otherwise lookup\n");
+                case NDP_METHOD_LINEAR: {
+                    double *normed_elem = qpts->normed + i * table->axes->len;
+                    int *elem_index = qpts->indices + i * table->axes->len;
+                    int *elem_flag = qpts->flags + i * table->axes->len;
+                    int cidx[table->axes->len];
+                    int pos;
+
+                    int *coords = find_nearest(normed_elem, elem_index, elem_flag, table, table->hcmask);
+                    double *hc_vertices = malloc(table->vdim * (1 << table->axes->len) * sizeof(*hc_vertices));
+
+                    if (debug) {
+                        printf("  coords = [");
+                        for (int k = 0; k < table->axes->len; k++) {
+                            printf("%d ", coords[k]);
+                        }
+                        printf("\b]\n");
+                    }
+
+                    for (int j = 0; j < (1 << table->axes->len); j++) {
+                        printf("  cidx[%d] = [", j);
+                        for (int k = 0; k < table->axes->len; k++) {
+                            cidx[k] = max(coords[k]-1+(j / (1 << (table->axes->len-k-1))) % 2, (j / (1 << (table->axes->len-k-1))) % 2);
+                            printf("%d ", cidx[k]);
+                        }
+                        printf("\b]\n");
+
+                        idx2pos(table->axes, table->vdim, cidx, &pos);
+                        memcpy(hc_vertices + j * table->vdim, table->grid + pos, table->vdim * sizeof(*hc_vertices));
+                    }
+
+                    ndp_hypercube_free(query->hypercubes[i]);
+                    hypercube = query->hypercubes[i] = ndp_hypercube_new_from_data(table->axes->len, table->vdim, /* fdhc = */ 1, hc_vertices);
+                    ndp_hypercube_print(hypercube, "    ");
+
+                    /* shift indices and normed query points to account for the new hypercube: */
+                    printf("  updated query_pt[%d] = [", i);
+                    for (int j = 0; j < table->axes->len; j++) {
+                        printf("%3.3f->", qpts->normed[i * table->axes->len + j]);
+                        qpts->normed[i * table->axes->len + j] += qpts->indices[i * table->axes->len + j] - coords[j] + (qpts->flags[i * table->axes->len + j] == NDP_OUT_OF_BOUNDS) + ((NDP_ON_VERTEX & qpts->flags[i * table->axes->len + j]) == NDP_ON_VERTEX && qpts->indices[i * table->axes->len + j] > 0);
+                        printf("%3.3f ", qpts->normed[i * table->axes->len + j]);
+                    }
+                    printf("\b]\n");
+
+                    c_ndpolate(hypercube->dim, hypercube->vdim, &qpts->normed[i * table->axes->len], hypercube->v);
+                    memcpy(query->interps + i*table->vdim, hypercube->v, table->vdim * sizeof(*(query->interps)));
+                    free(coords);
+                    continue;
+                }
                 break;
                 default:
                     /* invalid extrapolation method */
@@ -645,23 +731,26 @@ ndp_query *ndpolate(int nelems, double *query_pts, ndp_table *table, ndp_extrapo
                 break;
             }
         }
+        else {
+            /* continue with regular interpolation: */
+            hypercube = query->hypercubes[i];
+        }
 
-        /* continue with regular interpolation: */
-        hypercube = query->hypercubes[i];
-
-        k = 0;
-        for (int j = 0; j < table->axes->len; j++) {
+        printf("selected = [");
+        for (int j=0, k=0; j < table->axes->len; j++) {
             /* skip when queried coordinate coincides with a vertex: */
-            if (query->flags[i * table->axes->len + j] == NDP_ON_VERTEX)
+            if (qpts->flags[i * table->axes->len + j] == NDP_ON_VERTEX)
                 continue;
-            selected[k] = query->normed_elems[i * table->axes->len + j];
+            selected[k] = qpts->normed[i * table->axes->len + j];
+            printf("%lf ", selected[k]);
             k++;
         }
+        printf("\b]\n");
 
         if (debug) {
             printf("  i=%d dim=%d vdim=%d nqpts=[", i, hypercube->dim, hypercube->vdim);
             for (int j = 0; j < table->axes->len; j++)
-                printf("%2.2f ", query->normed_elems[i*table->axes->len + j]);
+                printf("%2.2f ", qpts->normed[i*table->axes->len + j]);
             printf("\b]\n");
         }
 
@@ -699,16 +788,14 @@ static PyObject *py_find(PyObject *self, PyObject *args)
 
     npy_intp *query_pts_shape;
 
-    struct index_info rv;
-
     int i, naxes, nelems, nbasic = 0;
 
     double *qpts;
-
     double *normed_qpts;
 
     ndp_axis **axis;
     ndp_axes *axes;
+    ndp_query_pts *query_pts;
 
     if (!PyArg_ParseTuple(args, "OO|i", &py_axes, &py_query_pts, &nbasic))
         return NULL;
@@ -730,20 +817,20 @@ static PyObject *py_find(PyObject *self, PyObject *args)
     }
 
     axes = ndp_axes_new_from_data(naxes, nbasic, axis);
-    rv = find_indices(nelems, qpts, axes);
+    query_pts = find_indices(nelems, qpts, axes);
 
     /* clean up: */
     for (i = 0; i < naxes; i++)
         free(axes->axis[i]);
     ndp_axes_free(axes);
 
-    py_indices = PyArray_SimpleNewFromData(2, query_pts_shape, NPY_INT, rv.index);
+    py_indices = PyArray_SimpleNewFromData(2, query_pts_shape, NPY_INT, query_pts->indices);
     PyArray_ENABLEFLAGS((PyArrayObject *) py_indices, NPY_ARRAY_OWNDATA);
 
-    py_flags = PyArray_SimpleNewFromData(2, query_pts_shape, NPY_INT, rv.flag);
+    py_flags = PyArray_SimpleNewFromData(2, query_pts_shape, NPY_INT, query_pts->flags);
     PyArray_ENABLEFLAGS((PyArrayObject *) py_flags, NPY_ARRAY_OWNDATA);
 
-    py_normed_query_pts = PyArray_SimpleNewFromData(2, query_pts_shape, NPY_DOUBLE, rv.normed_qpts);
+    py_normed_query_pts = PyArray_SimpleNewFromData(2, query_pts_shape, NPY_DOUBLE, query_pts->normed);
     PyArray_ENABLEFLAGS((PyArrayObject *) py_normed_query_pts, NPY_ARRAY_OWNDATA);
 
     py_combo = PyTuple_New(3);
@@ -779,15 +866,14 @@ static PyObject *py_hypercubes(PyObject *self, PyObject *args)
     PyObject *py_axes;
 
     ndp_table *table;
+    ndp_query_pts *qpts;
 
     int *indices, *flags;
     int nelems, naxes;
     int nbasic = 0;
 
-    struct hypercube_info rv;
     PyObject *py_hypercubes;
-
-    printf("hypercubes:\n");
+    ndp_hypercube **hypercubes;
 
     if (!PyArg_ParseTuple(args, "OOOO|i", &py_indices, &py_axes, &py_flags, &py_grid, &nbasic))
         return NULL;
@@ -799,25 +885,24 @@ static PyObject *py_hypercubes(PyObject *self, PyObject *args)
     indices = (int *) PyArray_DATA(py_indices);
     flags = (int *) PyArray_DATA(py_flags);
 
-    py_hypercubes = PyTuple_New(nelems);
+    qpts = ndp_query_pts_new_from_data(nelems, naxes, indices, flags, /* requested= */ NULL, /* normed= */ NULL);
 
-    printf("  nelems=%d\n", nelems);
-    printf("  naxes=%d\n", naxes);
+    py_hypercubes = PyTuple_New(nelems);
 
     table = ndp_table_new_from_python(py_axes, nbasic, py_grid);
 
-    rv = find_hypercubes(nelems, indices, flags, table);
+    hypercubes = find_hypercubes(qpts, table);
 
     for (int i = 0; i < nelems; i++) {
-        npy_intp shape[rv.hypercubes[i]->dim+1];
+        npy_intp shape[hypercubes[i]->dim+1];
         PyObject *py_hypercube;
         int j;
 
-        for (j = 0; j < rv.hypercubes[i]->dim; j++)
+        for (j = 0; j < hypercubes[i]->dim; j++)
             shape[j] = 2;
-        shape[j] = rv.hypercubes[i]->vdim;
+        shape[j] = hypercubes[i]->vdim;
 
-        py_hypercube = PyArray_SimpleNewFromData(rv.hypercubes[i]->dim+1, shape, NPY_DOUBLE, rv.hypercubes[i]->v);
+        py_hypercube = PyArray_SimpleNewFromData(hypercubes[i]->dim+1, shape, NPY_DOUBLE, hypercubes[i]->v);
         PyArray_ENABLEFLAGS((PyArrayObject *) py_hypercube, NPY_ARRAY_OWNDATA);
         PyTuple_SetItem(py_hypercubes, i, py_hypercube);
     }
@@ -939,16 +1024,17 @@ static PyObject *py_ndpolate(PyObject *self, PyObject *args, PyObject *kwargs)
     static char *kwlist[] = {"query_pts", "axes", "grid", "nbasic", "extrapolation_method", NULL};
 
     if (!PyArg_ParseTupleAndKeywords(args, kwargs, "OOO|ii", kwlist, &py_query_pts, &py_axes, &py_grid, &nbasic, &extrapolation_method))
-    // if (!PyArg_ParseTuple(args, "OOO|ii", &py_query_pts, &py_axes, &py_grid, &nbasic, &extrapolation_method))
         return NULL;
 
     ndp_table *table = ndp_table_new_from_python(py_axes, nbasic, py_grid);
     PyObject *py_capsule = PyCapsule_New((void *) table, NULL, NULL);
 
     int nelems = PyArray_DIM(py_query_pts, 0);
-    double *query_pts = PyArray_DATA(py_query_pts);
+    double *qpts = PyArray_DATA(py_query_pts);
 
-    ndp_query *query = ndpolate(nelems, query_pts, table, extrapolation_method);
+    ndp_query_pts *query_pts = find_indices(nelems, qpts, table->axes);
+
+    ndp_query *query = ndpolate(query_pts, table, extrapolation_method);
 
     npy_intp adim[] = {nelems, table->vdim};
     PyObject *py_interps = PyArray_SimpleNewFromData(2, adim, NPY_DOUBLE, query->interps);
