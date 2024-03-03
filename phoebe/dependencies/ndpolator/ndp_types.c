@@ -351,6 +351,7 @@ ndp_table *ndp_table_new()
 
 ndp_table *ndp_table_new_from_data(ndp_axes *axes, int vdim, double *grid)
 {
+    int debug = 0;
     int pos;
     int ith_corner[axes->nbasic], cidx[axes->nbasic];
 
@@ -373,16 +374,6 @@ ndp_table *ndp_table_new_from_data(ndp_axes *axes, int vdim, double *grid)
             table->vmask[i] = 1;
     }
 
-    // printf("axes->len = %d\n", axes->len);
-    // printf("axes->nbasic = %d\n", axes->nbasic);
-    // printf("table->vdim = %d\n", table->vdim);
-
-    // for (int i = 0, sum = 0; i < table->nverts; i++) {
-    //     sum += table->vmask[i];
-    //     if (i == table->nverts-1)
-    //         printf("%d non-nan vertices found.\n", sum);
-    // }
-
     table->hcmask = calloc(table->nverts, sizeof(*(table->hcmask)));
     for (int i = 0; i < table->nverts; i++) {
         int nan_encountered = 0;
@@ -394,7 +385,8 @@ ndp_table *ndp_table_new_from_data(ndp_axes *axes, int vdim, double *grid)
         /* convert running index to per-axis indices of the superior corner of the hypercube: */
         for (int k = 0; k < axes->nbasic; k++) {
             ith_corner[k] = (i / (axes->cplen[k] / axes->cplen[axes->nbasic-1])) % axes->axis[k]->len;
-            // printf("i=%d k=%d cplen[k]=%d cplen[nbasic-1]=%d num=%d\n", i, k, axes->cplen[k], axes->cplen[axes->nbasic-1], i / (axes->cplen[k] / axes->cplen[axes->nbasic-1]));
+            if (debug)
+                printf("i=%d k=%d cplen[k]=%d cplen[nbasic-1]=%d num=%d\n", i, k, axes->cplen[k], axes->cplen[axes->nbasic-1], i / (axes->cplen[k] / axes->cplen[axes->nbasic-1]));
             /* skip edge elements: */
             if (ith_corner[k] == 0) {
                 nan_encountered = 1;
@@ -405,19 +397,24 @@ ndp_table *ndp_table_new_from_data(ndp_axes *axes, int vdim, double *grid)
         if (nan_encountered)
             continue;
 
-        // printf("i=% 3d c=[", i);
-        // for (int k = 0; k < axes->nbasic; k++)
-        //     printf("%d ", ith_corner[k]);
-        // printf("\b]\n");
+        if (debug) {
+            printf("i=% 3d c=[", i);
+            for (int k = 0; k < axes->nbasic; k++)
+                printf("%d ", ith_corner[k]);
+            printf("\b]\n");
+        }
 
         /* loop over all basic hypercube vertices and see if they're all defined: */
-        for (int j = 0; j < 1 << table->axes->nbasic; j++) {
-            // printf("  c%d=[", j);
-            for (int k = 0; k < table->axes->nbasic; k++) {
+        for (int j = 0; j < 1 << table->axes->nbasic; j++) {                
+            for (int k = 0; k < table->axes->nbasic; k++)
                 cidx[k] = ith_corner[k]-1+(j / (1 << (table->axes->nbasic-k-1))) % 2;
-                // printf("%d ", cidx[k]);
+
+            if (debug) {
+                printf("  c%d=[", j);
+                for (int k = 0; k < table->axes->nbasic; k++)
+                    printf("%d ", cidx[k]);
+                printf("\b]\n");
             }
-            // printf("\b]\n");
 
             /* convert per-axis indices to running index: */
             pos = 0;
@@ -428,12 +425,6 @@ ndp_table *ndp_table_new_from_data(ndp_axes *axes, int vdim, double *grid)
                 nan_encountered = 1;
                 break;
             }
-
-            // int check[3];
-            // for (int k = 0; k < axes->nbasic; k++)
-            //     check[k] = (pos / axes->cplen[k] * axes->cplen[axes->nbasic-1]) % axes->axis[k]->len;
-
-            // printf("c=[%d, %d, %d], pos=%d, c=[%d, %d, %d]\n", cidx[0], cidx[1], cidx[2], pos, check[0], check[1], check[2]);
         }
 
         if (nan_encountered)
@@ -442,11 +433,13 @@ ndp_table *ndp_table_new_from_data(ndp_axes *axes, int vdim, double *grid)
         table->hcmask[i] = 1;
     }
 
-    // for (int i = 0, sum = 0; i < table->nverts; i++) {
-    //     sum += table->hcmask[i];
-    //     if (i == table->nverts-1)
-    //         printf("%d fully defined hypercubes found.\n", sum);
-    // }
+    if (debug) {
+        for (int i = 0, sum = 0; i < table->nverts; i++) {
+            sum += table->hcmask[i];
+            if (i == table->nverts-1)
+                printf("%d fully defined hypercubes found.\n", sum);
+        }
+    }
 
     return table;
 }

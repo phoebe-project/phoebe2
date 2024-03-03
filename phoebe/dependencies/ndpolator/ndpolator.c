@@ -261,17 +261,21 @@ int pos2idx(ndp_axes *axes, int vdim, int pos, int *idx)
 
 int c_ndpolate(int naxes, int vdim, double *x, double *fv)
 {
+    int debug = 0;
     int i, j, k;
 
     for (i = 0; i < naxes; i++) {
-        // printf("naxes=%d x[%d]=%3.3f\n", naxes, i, x[i]);
+        if (debug) {
+            printf("naxes=%d x[%d]=%3.3f\n", naxes, i, x[i]);
+        }
         for (j = 0; j < (1 << (naxes - i - 1)); j++) {
-            // printf("j=%d fv[%d]=%3.3f, fv[%d]=%3.3f, ", j, (1 << (naxes - i - 1)) + j, fv[(1 << (naxes - i - 1)) + j], j, fv[j]);
+            if (debug)
+                printf("j=%d fv[%d]=%3.3f, fv[%d]=%3.3f, ", j, (1 << (naxes - i - 1)) + j, fv[(1 << (naxes - i - 1)) + j], j, fv[j]);
             for (k = 0; k < vdim; k++) {
-                // fv[j] += (fv[(1 << (naxes - i - 1)) + j]-fv[j]) * x[i];
                 fv[j * vdim + k] += (fv[((1 << (naxes - i - 1)) + j) * vdim + k] - fv[j * vdim + k]) * x[i];
             }
-            // printf("corr=%3.3f\n", fv[j]);
+            if (debug)
+                printf("corr=%3.3f\n", fv[j]);
         }
     }
 
@@ -337,6 +341,7 @@ int c_ndpolate(int naxes, int vdim, double *x, double *fv)
 
 int *find_nearest(double *normed_elem, int *elem_index, int *elem_flag, ndp_table *table, int *mask)
 {
+    int debug = 0;
     int min_pos;
     double dist, min_dist = 1e50;
     int *coords = malloc(table->axes->len * sizeof(*coords));
@@ -364,12 +369,15 @@ int *find_nearest(double *normed_elem, int *elem_index, int *elem_flag, ndp_tabl
     }
 
     /* Assemble the coordinates: */
-    // printf("nearest = [");
-    for (int i = 0; i < table->axes->nbasic; i++) {
+    for (int i = 0; i < table->axes->nbasic; i++)
         coords[i] = min_pos / (table->axes->cplen[i] / table->axes->cplen[table->axes->nbasic-1]) % table->axes->axis[i]->len;
-        // printf("%d, ", coords[i]);
+
+    if (debug) {
+        printf("nearest = [");
+        for (int i = 0; i < table->axes->nbasic; i++)
+            printf("%d, ", coords[i]);
+        printf("\b\b], dist=%f pos=", min_dist);
     }
-    // printf("\b\b], dist=%f pos=", min_dist);
 
     for (int i = table->axes->nbasic; i < table->axes->len; i++)
         coords[i] = max(0, min(table->axes->axis[i]->len-1, round(elem_index[i]+normed_elem[i])));
@@ -402,9 +410,9 @@ int *find_nearest(double *normed_elem, int *elem_index, int *elem_flag, ndp_tabl
 
 ndp_query_pts *find_indices(int nelems, double *qpts, ndp_axes *axes)
 {
+    int debug = 0;
     ndp_query_pts *query_pts = ndp_query_pts_new();
     double rtol = 1e-3;  /* relative tolerance for vertex matching */
-    int debug = 1;
 
     ndp_query_pts_alloc(query_pts, nelems, axes->len);
 
@@ -510,7 +518,7 @@ ndp_hypercube **find_hypercubes(ndp_query_pts *qpts, ndp_table *table)
 
     ndp_hypercube **hypercubes = malloc(nelems * sizeof(*hypercubes));
 
-    int debug = 1;
+    int debug = 0;
 
     for (int i = 0; i < nelems; i++) {
         /* assume the hypercube (or the relevant subcube) is fully defined: */
@@ -628,7 +636,7 @@ ndp_query *ndpolate(ndp_query_pts *qpts, ndp_table *table, ndp_extrapolation_met
     double selected[table->axes->len];
     ndp_hypercube *hypercube;
 
-    int debug = 1;
+    int debug = 0;
     int nelems = qpts->nelems;
 
     query->hypercubes = find_hypercubes(qpts, table);
@@ -695,12 +703,15 @@ ndp_query *ndpolate(ndp_query_pts *qpts, ndp_table *table, ndp_extrapolation_met
                     }
 
                     for (int j = 0; j < (1 << table->axes->len); j++) {
-                        printf("  cidx[%d] = [", j);
-                        for (int k = 0; k < table->axes->len; k++) {
+                        for (int k = 0; k < table->axes->len; k++)
                             cidx[k] = max(coords[k]-1+(j / (1 << (table->axes->len-k-1))) % 2, (j / (1 << (table->axes->len-k-1))) % 2);
-                            printf("%d ", cidx[k]);
+
+                        if (debug) {
+                            printf("  cidx[%d] = [", j);
+                            for (int k = 0; k < table->axes->len; k++)
+                                printf("%d ", cidx[k]);
+                            printf("\b]\n");
                         }
-                        printf("\b]\n");
 
                         idx2pos(table->axes, table->vdim, cidx, &pos);
                         memcpy(hc_vertices + j * table->vdim, table->grid + pos, table->vdim * sizeof(*hc_vertices));
@@ -711,13 +722,15 @@ ndp_query *ndpolate(ndp_query_pts *qpts, ndp_table *table, ndp_extrapolation_met
                     ndp_hypercube_print(hypercube, "    ");
 
                     /* shift indices and normed query points to account for the new hypercube: */
-                    printf("  updated query_pt[%d] = [", i);
-                    for (int j = 0; j < table->axes->len; j++) {
-                        printf("%3.3f->", qpts->normed[i * table->axes->len + j]);
+                    for (int j = 0; j < table->axes->len; j++)
                         qpts->normed[i * table->axes->len + j] += qpts->indices[i * table->axes->len + j] - coords[j] + (qpts->flags[i * table->axes->len + j] == NDP_OUT_OF_BOUNDS) + ((NDP_ON_VERTEX & qpts->flags[i * table->axes->len + j]) == NDP_ON_VERTEX && qpts->indices[i * table->axes->len + j] > 0);
-                        printf("%3.3f ", qpts->normed[i * table->axes->len + j]);
+
+                    if (debug) {
+                        printf("  updated query_pt[%d] = [", i);
+                        for (int j = 0; j < table->axes->len; j++)
+                            printf("%3.3f ", qpts->normed[i * table->axes->len + j]);
+                        printf("\b]\n");
                     }
-                    printf("\b]\n");
 
                     c_ndpolate(hypercube->dim, hypercube->vdim, &qpts->normed[i * table->axes->len], hypercube->v);
                     memcpy(query->interps + i*table->vdim, hypercube->v, table->vdim * sizeof(*(query->interps)));
@@ -736,16 +749,13 @@ ndp_query *ndpolate(ndp_query_pts *qpts, ndp_table *table, ndp_extrapolation_met
             hypercube = query->hypercubes[i];
         }
 
-        printf("selected = [");
         for (int j=0, k=0; j < table->axes->len; j++) {
             /* skip when queried coordinate coincides with a vertex: */
             if (qpts->flags[i * table->axes->len + j] == NDP_ON_VERTEX)
                 continue;
             selected[k] = qpts->normed[i * table->axes->len + j];
-            printf("%lf ", selected[k]);
             k++;
         }
-        printf("\b]\n");
 
         if (debug) {
             printf("  i=%d dim=%d vdim=%d nqpts=[", i, hypercube->dim, hypercube->vdim);
@@ -927,69 +937,13 @@ static PyObject *py_hypercubes(PyObject *self, PyObject *args)
 
 static PyObject *py_ainfo(PyObject *self, PyObject *args)
 {
-    int i, ndim, size, print_data = 1;
+    int print_data = 1;
     PyArrayObject *array;
-    npy_intp *dims, *shape, *strides;
 
     if (!PyArg_ParseTuple(args, "O|i", &array, &print_data))
         return NULL;
 
-    ndim = PyArray_NDIM(array);
-    size = PyArray_SIZE(array);
-
-    printf("array->nd = %d\n", ndim);
-    printf("array->flags = %d\n", PyArray_FLAGS(array));
-    printf("array->type = %d\n", PyArray_TYPE(array));
-    printf("array->itemsize = %ld\n", PyArray_ITEMSIZE(array));
-    printf("array->size = %d\n", size);
-    printf("array->nbytes = %ld\n", PyArray_NBYTES(array));
-
-    dims = PyArray_DIMS(array);
-    printf("array->dims = [");
-    for (i = 0; i < ndim - 1; i++)
-        printf("%ld, ", dims[i]);
-    printf("%ld]\n", dims[i]);
-
-    shape = PyArray_SHAPE(array);
-    printf("array->shape = [");
-    for (i = 0; i < ndim - 1; i++)
-        printf("%ld, ", shape[i]);
-    printf("%ld]\n", shape[i]);
-
-    strides = PyArray_STRIDES(array);
-    printf("array->strides = [");
-    for (i = 0; i < ndim - 1; i++)
-        printf("%ld, ", strides[i]);
-    printf("%ld]\n", strides[i]);
-
-    printf("array->is_c_contiguous: %d\n", PyArray_IS_C_CONTIGUOUS(array));
-    printf("array->is_f_contiguous: %d\n", PyArray_IS_F_CONTIGUOUS(array));
-    printf("array->is_fortran: %d\n", PyArray_ISFORTRAN(array));
-    printf("array->is_writeable: %d\n", PyArray_ISWRITEABLE(array));
-    printf("array->is_aligned: %d\n", PyArray_ISALIGNED(array));
-    printf("array->is_behaved: %d\n", PyArray_ISBEHAVED(array));
-    printf("array->is_behaved_ro: %d\n", PyArray_ISBEHAVED_RO(array));
-    printf("array->is_carray: %d\n", PyArray_ISCARRAY(array));
-    printf("array->is_farray: %d\n", PyArray_ISFARRAY(array));
-    printf("array->is_carray_ro: %d\n", PyArray_ISCARRAY_RO(array));
-    printf("array->is_farray_ro: %d\n", PyArray_ISFARRAY_RO(array));
-    printf("array->is_isonesegment: %d\n", PyArray_ISONESEGMENT(array));
-
-    if (print_data) {
-        if (PyArray_TYPE(array) == 5) {
-            int *data = (int *) PyArray_DATA(array);
-            printf("data = [");
-            for (i = 0; i < size - 1; i++)
-                printf("%d, ", data[i]);
-            printf("%d]\n", data[i]);
-        } else {
-            double *data = (double *) PyArray_DATA(array);
-            printf("data = [");
-            for (i = 0; i < size - 1; i++)
-                printf("%lf, ", data[i]);
-            printf("%lf]\n", data[i]);
-        }
-    }
+    _ainfo(array, print_data);
 
     return Py_None;
 }
