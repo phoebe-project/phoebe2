@@ -38,9 +38,6 @@ class Cndpolator():
             Axes that span the atmosphere grid. Only the required (spanning)
             axes should be included here; any additional axes should be
             registered separately.
-        nanmask : ndarray
-            For n axes of length m_i, nanmask will be a (m_0 x m_1 x ... x m_n-1)-
-            shaped array of nan values.
         """
 
         self.axes = axes
@@ -68,7 +65,7 @@ class Cndpolator():
         if not isinstance(table, str):
             raise ValueError('parameter `table` must be a string')
 
-        self.table[table] = (adtl_axes, np.ascontiguousarray(grid))
+        self.table[table] = [adtl_axes, np.ascontiguousarray(grid), None]
 
     def find_indices(self, table, query_pts):
         adtl_axes = self.table[table][0]
@@ -92,11 +89,17 @@ class Cndpolator():
         else:
             raise ValueError(f"extrapolation_method={extrapolation_method} is not valid; it must be one of ['none', 'nearest', 'linear'].")
 
-        attached_axes = self.table[table][0]
-        grid = self.table[table][1]
+        capsule = self.table[table][2]
+        if capsule:
+            interps = cndpolator.ndpolate(capsule=capsule, query_pts=query_pts, nbasic=len(self.axes), extrapolation_method=extrapolation_method)
+        else:
+            attached_axes = self.table[table][0]
+            grid = self.table[table][1]
+            axes = self.axes if attached_axes is None else self.axes + attached_axes
 
-        axes = self.axes if attached_axes is None else self.axes + attached_axes
-        interps, table_capsule = cndpolator.ndpolate(query_pts=query_pts, axes=axes, grid=grid, nbasic=len(self.axes), extrapolation_method=extrapolation_method)
+            interps, capsule = cndpolator.ndpolate(query_pts=query_pts, axes=axes, grid=grid, nbasic=len(self.axes), extrapolation_method=extrapolation_method)
+            self.table[table][2] = capsule
+
         return interps
 
 

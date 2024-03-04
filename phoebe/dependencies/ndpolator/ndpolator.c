@@ -342,7 +342,7 @@ int c_ndpolate(int naxes, int vdim, double *x, double *fv)
 int *find_nearest(double *normed_elem, int *elem_index, int *elem_flag, ndp_table *table, int *mask)
 {
     int debug = 0;
-    int min_pos;
+    int min_pos = 0;
     double dist, min_dist = 1e50;
     int *coords = malloc(table->axes->len * sizeof(*coords));
 
@@ -719,7 +719,8 @@ ndp_query *ndpolate(ndp_query_pts *qpts, ndp_table *table, ndp_extrapolation_met
 
                     ndp_hypercube_free(query->hypercubes[i]);
                     hypercube = query->hypercubes[i] = ndp_hypercube_new_from_data(table->axes->len, table->vdim, /* fdhc = */ 1, hc_vertices);
-                    ndp_hypercube_print(hypercube, "    ");
+                    if (debug)
+                        ndp_hypercube_print(hypercube, "    ");
 
                     /* shift indices and normed query points to account for the new hypercube: */
                     for (int j = 0; j < table->axes->len; j++)
@@ -969,35 +970,52 @@ static PyObject *py_ainfo(PyObject *self, PyObject *args)
 
 static PyObject *py_ndpolate(PyObject *self, PyObject *args, PyObject *kwargs)
 {
-    PyArrayObject *py_query_pts, *py_grid;
-    PyObject *py_axes, *py_rv;
+    ndp_table *table;
+    int capsule_available = 0;
+
+    PyObject *py_rv;
+
+    /* default values: */
+    PyObject *py_capsule = NULL;
+    PyArrayObject *py_query_pts = NULL;
+    PyObject *py_axes = NULL;
+    PyArrayObject *py_grid = NULL;
     int nbasic = 0;
+    ndp_extrapolation_method extrapolation_method = NDP_METHOD_NONE;
 
-    ndp_extrapolation_method extrapolation_method = NDP_METHOD_NONE;  /* default value */
+    static char *kwlist[] = {"capsule", "query_pts", "axes", "grid", "nbasic", "extrapolation_method", NULL};
 
-    static char *kwlist[] = {"query_pts", "axes", "grid", "nbasic", "extrapolation_method", NULL};
-
-    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "OOO|ii", kwlist, &py_query_pts, &py_axes, &py_grid, &nbasic, &extrapolation_method))
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "|OOOOii", kwlist, &py_capsule, &py_query_pts, &py_axes, &py_grid, &nbasic, &extrapolation_method))
         return NULL;
 
-    ndp_table *table = ndp_table_new_from_python(py_axes, nbasic, py_grid);
-    PyObject *py_capsule = PyCapsule_New((void *) table, NULL, NULL);
+    if (PyCapsule_IsValid(py_capsule, NULL)) {
+        capsule_available = 1;
+        table = (ndp_table *) PyCapsule_GetPointer(py_capsule, NULL);
+    }
+    else if (py_query_pts && py_axes && py_grid) {
+        table = ndp_table_new_from_python(py_axes, nbasic, py_grid);
+        py_capsule = PyCapsule_New((void *) table, NULL, NULL);
+    }
+    else {
+        return NULL;
+    }
 
     int nelems = PyArray_DIM(py_query_pts, 0);
     double *qpts = PyArray_DATA(py_query_pts);
 
     ndp_query_pts *query_pts = find_indices(nelems, qpts, table->axes);
-
     ndp_query *query = ndpolate(query_pts, table, extrapolation_method);
 
     npy_intp adim[] = {nelems, table->vdim};
     PyObject *py_interps = PyArray_SimpleNewFromData(2, adim, NPY_DOUBLE, query->interps);
     PyArray_ENABLEFLAGS((PyArrayObject *) py_interps, NPY_ARRAY_OWNDATA);
 
+    if (capsule_available)
+        return py_interps;
+
     py_rv = PyTuple_New(2);
     PyTuple_SetItem(py_rv, 0, py_interps);
     PyTuple_SetItem(py_rv, 1, py_capsule);
-
     return py_rv;
 }
 
