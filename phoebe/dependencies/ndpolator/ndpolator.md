@@ -4,7 +4,7 @@ ndpolator: fast, n-dimensional linear interpolation and extrapolation on sparse 
 Introduction
 ------------
 
-Ndpolator allows you to interpolate and/or extrapolate function values on an n-dimensional cartesian grid with missing values.
+Ndpolator allows you to interpolate and/or extrapolate function values on an n-dimensional cartesian grid with missing values. Given a sequence of axes, ndpolator successively reduces the number of dimensions in which it interpolates and/or extrapolates. It starts with the corners of the ``N``-dimensional hypercube to obtain interpolated values in the ``(N-1)``-dimensional hyperplane while keeping the last axis constant. It then removes the last axis and forms an ``(N-1)``-dimensional hypercube from the interpolants. The process is then restarted and continued until we obtain the interpolant in the point of interest.
 
 Overall logic
 -------------
@@ -31,6 +31,29 @@ Continuing with our example above, say that ``q1 = [2.5, 6.2]`` is the query poi
 Let us consider another example: let ``q2 = [2.0, 6.5]``. This time the first component coincides with a vertex, and the dimension of the hypercube can be reduced to 1-D: ``hc2 = {(1, 1), (1, 2)}``. The original hypercube-normalized coordinate, ``nq2 = [0, 0.5]``, is then reduced to ``nq2 = [0.5]``. Interpolation then continues as before, this time in 1 dimension instead of 2.
 
 Finally, let us consider a query point off the grid: ``q3 = [0.8, 5.3]``. The corresponding normalized query point is ``nq3 = [-0.2, 0.3]`` and the enclosing hypercube does not exist. There are 3 extrapolation types: no extrapolation, extrapolation to the nearest node, and linear extrapolation. If no extrapolation is requested, a nan is returned. If extrapolation to the nearest node is requested, ndpolator finds the nearest node, in this case ``(0, 0)``, and it assigns its function value to the ndpolant. If linear extrapolation is requested, ndpolator finds the nearest fully defined hypercube, in this case ``(1, 1)``, and linearly extrapolates from that hypercube.
+
+Interpolation implementation details
+------------------------------------
+
+The algorithm takes an array of query points ``x``, an ``N``-dimensional array of inferior vertices ``lo``, an ``N``-dimensional array of superior vertices ``hi``, and an array of 2<sup>N</sup> function values ``fv``, sorted in the native C order:
+
+@f[
+    fv = \left[
+        \begin{array}{c}
+            f(x_{0,\mathrm{lo}}, \dots, x_{N-1, \mathrm{lo}}, x_{N, \mathrm{lo}}) \\
+            f(x_{0,\mathrm{lo}}, \dots, x_{N-1, \mathrm{lo}}, x_{N, \mathrm{hi}}) \\
+            f(x_{0,\mathrm{lo}}, \dots, x_{N-1, \mathrm{hi}}, x_{N, \mathrm{lo}}) \\
+            f(x_{0,\mathrm{lo}}, \dots, x_{N-1, \mathrm{hi}}, x_{N, \mathrm{hi}}) \\
+            \vdots \\
+            f(x_{0,\mathrm{hi}}, \dots, x_{N-1, \mathrm{hi}}, x_{N, \mathrm{lo}}) \\
+            f(x_{0,\mathrm{hi}}, \dots, x_{N-1, \mathrm{hi}}, x_{N, \mathrm{hi}}) \\
+        \end{array}
+    \right],
+@f]
+
+where @f$x_k@f$ are the function values for the ``k``-th axis. Interpolation proceeds from the last axis to the first, and array ``fv`` is modified in the process.
+
+Note that the choice of interpolating along the last axis is both arbitrary (we could just as easily choose any other axis to start with) and general (we could pivot the axes if another interpolation sequence is desired). For as long as the parameter space is sufficiently linear, the choice of axis sequence is not too important, but any local non-linearity will cause the sequence to matter.
 
 Summary of ndpolator's terminology
 ----------------------------------

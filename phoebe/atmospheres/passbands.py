@@ -1,9 +1,9 @@
 from phoebe import __version__ as phoebe_version
 from phoebe import conf, mpi
 from phoebe.utils import _bytes
+from tqdm import tqdm
 
 from phoebe.dependencies import ndpolator
-import cndpolator
 
 # NOTE: we'll import directly from astropy here to avoid
 # circular imports BUT any changes to these units/constants
@@ -16,7 +16,6 @@ from astropy.table import Table
 import numpy as np
 from scipy import interpolate, integrate
 from scipy.optimize import curve_fit as cfit
-from scipy.spatial import cKDTree
 from datetime import datetime
 import libphoebe
 import os
@@ -573,13 +572,6 @@ class Passband:
             self.content = eval(header['content'], {'__builtins__':None}, {})
             self.history = list(header.get('history', ''))
 
-            # try:
-            #     history = ''.join([l.ljust(72) if '-END-' not in l else l for l in header['HISTORY']]).split('-END-')
-            # except KeyError:
-            #     history = []
-
-            # self.history = {h.split(': ')[0]: ': '.join(h.split(': ')[1:]) for h in history if len(h.split(': ')) > 1}
-
             self.atm_axes = dict()
             self.ext_axes = dict()
             self.atm_energy_grid = dict()
@@ -967,7 +959,7 @@ class Passband:
         keep = (wls >= self.ptf_table['wl'][0]) & (wls <= self.ptf_table['wl'][-1])
         wls = wls[keep]
 
-        for i, model in enumerate(models):
+        for i, model in tqdm(enumerate(models), desc=atm, total=len(models), disable=not verbose, unit=' models'):
             with fits.open(model) as hdu:
                 seds = hdu[0].data*units  # must be in in W/m^3
 
@@ -991,13 +983,6 @@ class Passband:
                     flux_frac = np.exp(-0.9210340371976184*ext_lambda)  #10**(-0.4*ext_lambda)
                     # print(f'{pbints_energy.shape}, {fluxes_energy.shape}, {ext_energy.shape}, {flux_frac.shape}')
                     ext_energy[i], ext_photon[i] = np.dot([pbints_energy[-1]/fluxes_energy[-1], pbints_photon[-1]/fluxes_photon[-1]], flux_frac)
-
-                if verbose:
-                    sys.stdout.write('\r' + '%0.0f%% done.' % (100*float(i+1)/len(models)))
-                    sys.stdout.flush()
-
-            if verbose:
-                print('')
 
         # for cmi, cmu in enumerate(mus):
         #     fl = intensities[cmi,:]
@@ -1057,6 +1042,7 @@ class Passband:
         # self._ck2004_boosting_photon_grid = np.nan*np.ones((len(self.atm_axes['ck2004'][0]), len(self.atm_axes['ck2004'][1]), len(self.atm_axes['ck2004'][2]), len(self.atm_axes['ck2004'][3]), 1))
 
         if include_extinction:
+            # ? Should this not include mus as well?
             self.ext_axes[atm] = (np.unique(teffs), np.unique(loggs), np.unique(abuns), np.unique(ebvs), np.unique(rvs))
 
             teffs = np.repeat(teffs, len(ebvs)*len(rvs))
@@ -1113,9 +1099,18 @@ class Passband:
         # subgrid = self.atm_photon_grid[atm][...,-1,:]
         # self.ics[atm] = np.array([(i, j, k) for i in range(0,len(raxes[0])-1) for j in range(0,len(raxes[1])-1) for k in range(0,len(raxes[2])-1) if ~np.any(np.isnan(subgrid[i:i+2,j:j+2,k:k+2]))])
 
+        basic_axes = self.atm_axes[atm][:-1]
         mus = self.atm_axes[atm][-1]
+
+        self.ndp[atm] = ndpolator.Cndpolator(axes=basic_axes)
+        self.ndp[atm].register('inorm@photon', None, self.atm_photon_grid[atm][...,-1,:])
+        self.ndp[atm].register('inorm@energy', None, self.atm_energy_grid[atm][...,-1,:])
         self.ndp[atm].register('imu@photon', (mus,), self.atm_photon_grid[atm])
         self.ndp[atm].register('imu@energy', (mus,), self.atm_energy_grid[atm])
+
+        if include_extinction:
+            self.ndp[atm].register('iext@photon', self.ext_axes[3:], self.ext_photon_grid[atm])
+            self.ndp[atm].register('iext@energy', self.ext_axes[3:], self.ext_energy_grid[atm])
 
         if f'{atm}:Imu' not in self.content:
             self.content.append(f'{atm}:Imu')

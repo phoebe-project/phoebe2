@@ -243,13 +243,13 @@ int pos2idx(ndp_axes *axes, int vdim, int pos, int *idx)
  * @details
  * Interpolates (or extrapolates) function values on a @p naxes -dimensional
  * fully defined hypercube in a query point @p x. Function values are
- * @p vdim -dimensional. The hypercube is assumed normalized and @p x
+ * @p vdim -dimensional. The hypercube is assumed unit-normalized and @p x
  * components are relative to the hypercube. For example, if @p naxes = 3, the
- * hypercube will be 2<sup>3</sup> = 8-dimensional, with hypercube vertices at
- * {(0, 0, 0), (0, 0, 1), (0, 1, 0), (0, 1, 1), (1, 0, 0), (1, 0, 1), (1, 1,
- * 0), (1, 1, 1)}, and @p x a 3-dimensional array w.r.t. the hypercube, i.e.
- * @p x = (0.3, 0.4, 0.6) for interpolation, or @p x = (-0.2, -0.3, 0.6) for
- * extrapolation.
+ * hypercube will be an array of length 2<sup>3</sup> = 8, with hypercube
+ * vertices at {(0, 0, 0), (0, 0, 1), (0, 1, 0), (0, 1, 1), (1, 0, 0), (1, 0,
+ * 1), (1, 1, 0), (1, 1, 1)}, and @p x a 3-dimensional array w.r.t. the
+ * hypercube, i.e. @p x = (0.3, 0.4, 0.6) for interpolation, or @p x = (-0.2,
+ * -0.3, 0.6) for extrapolation.
  *
  * @warning
  * For optimization purposes, the function overwrites @p fv values. The user
