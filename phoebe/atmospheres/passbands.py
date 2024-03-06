@@ -1287,7 +1287,10 @@ class Passband:
         for Tindex in range(len(self.atm_axes[ldatm][0])):
             for lindex in range(len(self.atm_axes[ldatm][1])):
                 for mindex in range(len(self.atm_axes[ldatm][2])):
-                    IsE = 10**self.atm_energy_grid[ldatm][Tindex,lindex,mindex,:].flatten()
+                    if ldatm[:4]=='tmap':
+                        IsE = 10**self.atm_energy_grid[ldatm][Tindex,lindex,mindex,1:-1].flatten()
+                    else:
+                        IsE = 10**self.atm_energy_grid[ldatm][Tindex,lindex,mindex,:].flatten()
                     fEmask = np.isfinite(IsE)
                     if len(IsE[fEmask]) <= 1:
                         continue
@@ -1300,7 +1303,10 @@ class Passband:
                     cEnlin, pcov = cfit(f=self._ldlaw_nonlin, xdata=mus[fEmask], ydata=IsE[fEmask], sigma=sigma[fEmask], p0=[0.5, 0.5, 0.5, 0.5])
                     self.ld_energy_grid[ldatm][Tindex, lindex, mindex] = np.hstack((cElin, cElog, cEsqrt, cEquad, cEnlin))
 
-                    IsP = 10**self.atm_photon_grid[ldatm][Tindex,lindex,mindex,:].flatten()
+                    if ldatm[:4]=='tmap':
+                        IsP = 10**self.atm_photon_grid[ldatm][Tindex,lindex,mindex,1:-1].flatten()
+                    else:
+                        IsP = 10**self.atm_photon_grid[ldatm][Tindex,lindex,mindex,:].flatten()
                     fPmask = np.isfinite(IsP)
                     IsP /= IsP[fPmask][-1]
 
