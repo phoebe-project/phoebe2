@@ -3991,7 +3991,7 @@ class Bundle(ParameterSet):
                                             True, 'run_compute')
                         else:
                             atm = self.get_value(qualifier='atm', component=component, compute=compute, context='compute', atm=kwargs.get('atm', None), **_skip_filter_checks)
-                            if atm not in ['ck2004', 'phoenix', 'tmap']:
+                            if atm not in ['ck2004', 'phoenix', 'tmap_sdO', 'tmap_DA', 'tmap_DAO', 'tmap_DO']:
                                 if 'ck2004' in self.get_parameter(qualifier='atm', component=component, compute=compute, context='compute', atm=kwargs.get('atm', None), **_skip_filter_checks).choices:
                                     report.add_item(self,
                                                     "ld_mode='interp' not supported by atm='{}'.  Either change atm@{}@{} or ld_mode@{}@{}.".format(atm, component, compute, component, dataset),
