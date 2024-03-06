@@ -43,7 +43,7 @@ _url_tables_server = 'http://tables.phoebe-project.org'
 
 # Future atmosphere tables could exist in the passband files, but the current
 # release won't be able to handle those.
-_supported_atms = ['blackbody', 'ck2004', 'phoenix', 'tmap', 'extern_atmx', 'extern_planckint']
+_supported_atms = ['blackbody', 'ck2004', 'phoenix', 'tmap_sdO', 'tmap_DA', 'tmap_DAO', 'tmap_DO', 'extern_atmx', 'extern_planckint']
 
 # Global passband table. This dict should never be tinkered with outside
 # of the functions in this module; it might be nice to make it read-only
@@ -447,18 +447,53 @@ class Passband:
             data.append(fits.table_to_hdu(Table({'ebv': ph_ebvs}, meta={'extname': 'PH_EBVS'})))
             data.append(fits.table_to_hdu(Table({'rv': ph_rvs}, meta={'extname': 'PH_RVS'})))
 
-        if 'tmap:Imu' in self.content:
-            tm_teffs, tm_loggs, tm_abuns, tm_mus = self.atm_axes['tmap']
-            tm_teffs, tm_loggs, tm_abuns, tm_mus = self.atm_axes['tmap']
-            data.append(fits.table_to_hdu(Table({'teff': tm_teffs}, meta={'extname': 'TM_TEFFS'})))
-            data.append(fits.table_to_hdu(Table({'logg': tm_loggs}, meta={'extname': 'TM_LOGGS'})))
-            data.append(fits.table_to_hdu(Table({'abun': tm_abuns}, meta={'extname': 'TM_ABUNS'})))
-            data.append(fits.table_to_hdu(Table({'mu': tm_mus}, meta={'extname': 'TM_MUS'})))
+        if 'tmap_sdO:Imu' in self.content:
+            tmsdo_teffs, tmsdo_loggs, tmsdo_abuns, tmsdo_mus = self.atm_axes['tmap_sdO']
+            data.append(fits.table_to_hdu(Table({'teff': tmsdo_teffs}, meta={'extname': 'TMSDO_TEFFS'})))
+            data.append(fits.table_to_hdu(Table({'logg': tmsdo_loggs}, meta={'extname': 'TMSDO_LOGGS'})))
+            data.append(fits.table_to_hdu(Table({'abun': tmsdo_abuns}, meta={'extname': 'TMSDO_ABUNS'})))
+            data.append(fits.table_to_hdu(Table({'mu': tmsdo_mus}, meta={'extname': 'TMSDO_MUS'})))
 
-        if 'tmap:ext' in self.content:
-            tm_teffs, tm_loggs, tm_abuns, tm_ebvs, tm_rvs = self.ext_axes['tmap']
-            data.append(fits.table_to_hdu(Table({'ebv': tm_ebvs}, meta={'extname': 'TM_EBVS'})))
-            data.append(fits.table_to_hdu(Table({'rv': tm_rvs}, meta={'extname': 'TM_RVS'})))
+        if 'tmap_sdO:ext' in self.content:
+            tmsdo_teffs, tmsdo_loggs, tmsdo_abuns, tmsdo_ebvs, tmsdo_rvs = self.ext_axes['tmap_sdO']
+            data.append(fits.table_to_hdu(Table({'ebv': tmsdo_ebvs}, meta={'extname': 'TMSDO_EBVS'})))
+            data.append(fits.table_to_hdu(Table({'rv': tmsdo_rvs}, meta={'extname': 'TMSDO_RVS'})))
+
+        if 'tmap_DO:Imu' in self.content:
+            tmdo_teffs, tmdo_loggs, tmdo_abuns, tmdo_mus = self.atm_axes['tmap_DO']
+            data.append(fits.table_to_hdu(Table({'teff': tmdo_teffs}, meta={'extname': 'TMDO_TEFFS'})))
+            data.append(fits.table_to_hdu(Table({'logg': tmdo_loggs}, meta={'extname': 'TMDO_LOGGS'})))
+            data.append(fits.table_to_hdu(Table({'abun': tmdo_abuns}, meta={'extname': 'TMDO_ABUNS'})))
+            data.append(fits.table_to_hdu(Table({'mu': tmdo_mus}, meta={'extname': 'TMDO_MUS'})))
+
+        if 'tmap_DO:ext' in self.content:
+            tmdo_teffs, tmdo_loggs, tmdo_abuns, tmdo_ebvs, tmdo_rvs = self.ext_axes['tmap_DO']
+            data.append(fits.table_to_hdu(Table({'ebv': tmdo_ebvs}, meta={'extname': 'TMDO_EBVS'})))
+            data.append(fits.table_to_hdu(Table({'rv': tmdo_rvs}, meta={'extname': 'TMDO_RVS'})))
+
+        if 'tmap_DA:Imu' in self.content:
+            tmda_teffs, tmda_loggs, tmda_abuns, tmda_mus = self.atm_axes['tmap_DA']
+            data.append(fits.table_to_hdu(Table({'teff': tmda_teffs}, meta={'extname': 'TMDA_TEFFS'})))
+            data.append(fits.table_to_hdu(Table({'logg': tmda_loggs}, meta={'extname': 'TMDA_LOGGS'})))
+            data.append(fits.table_to_hdu(Table({'abun': tmda_abuns}, meta={'extname': 'TMDA_ABUNS'})))
+            data.append(fits.table_to_hdu(Table({'mu': tmda_mus}, meta={'extname': 'TMDA_MUS'})))
+
+        if 'tmap_DA:ext' in self.content:
+            tmda_teffs, tmda_loggs, tmda_abuns, tmda_ebvs, tmda_rvs = self.ext_axes['tmap_DA']
+            data.append(fits.table_to_hdu(Table({'ebv': tmda_ebvs}, meta={'extname': 'TMDA_EBVS'})))
+            data.append(fits.table_to_hdu(Table({'rv': tmda_rvs}, meta={'extname': 'TMDA_RVS'})))
+
+        if 'tmap_DAO:Imu' in self.content:
+            tmdao_teffs, tmdao_loggs, tmdao_abuns, tmdao_mus = self.atm_axes['tmap_DAO']
+            data.append(fits.table_to_hdu(Table({'teff': tmdao_teffs}, meta={'extname': 'TMDAO_TEFFS'})))
+            data.append(fits.table_to_hdu(Table({'logg': tmdao_loggs}, meta={'extname': 'TMDAO_LOGGS'})))
+            data.append(fits.table_to_hdu(Table({'abun': tmdao_abuns}, meta={'extname': 'TMDAO_ABUNS'})))
+            data.append(fits.table_to_hdu(Table({'mu': tmdao_mus}, meta={'extname': 'TMDAO_MUS'})))
+
+        if 'tmap_DAO:ext' in self.content:
+            tmdao_teffs, tmdao_loggs, tmdao_abuns, tmdao_ebvs, tmdao_rvs = self.ext_axes['tmap_DAO']
+            data.append(fits.table_to_hdu(Table({'ebv': tmdao_ebvs}, meta={'extname': 'TMDAO_EBVS'})))
+            data.append(fits.table_to_hdu(Table({'rv': tmdao_rvs}, meta={'extname': 'TMDAO_RVS'})))
 
         # Data:
         if 'blackbody:ext' in self.content:
@@ -505,25 +540,85 @@ class Passband:
             data.append(fits.ImageHDU(self.ext_energy_grid['phoenix'], name='PHXEGRID'))
             data.append(fits.ImageHDU(self.ext_photon_grid['phoenix'], name='PHXPGRID'))
 
-        if 'tmap:Imu' in self.content:
-            data.append(fits.ImageHDU(self.atm_energy_grid['tmap'], name='TMFEGRID'))
-            data.append(fits.ImageHDU(self.atm_photon_grid['tmap'], name='TMFPGRID'))
+        if 'tmap_sdO:Imu' in self.content:
+            data.append(fits.ImageHDU(self.atm_energy_grid['tmap_sdO'], name='TMSDOFEGRID'))
+            data.append(fits.ImageHDU(self.atm_photon_grid['tmap_sdO'], name='TMSDOFPGRID'))
 
             if export_inorm_tables:
-                data.append(fits.ImageHDU(self.atm_energy_grid['tmap'][..., -1, :], name='TMNEGRID'))
-                data.append(fits.ImageHDU(self.atm_photon_grid['tmap'][..., -1, :], name='TMNPGRID'))
+                data.append(fits.ImageHDU(self.atm_energy_grid['tmap_sdO'][..., -1, :], name='TMSDONEGRID'))
+                data.append(fits.ImageHDU(self.atm_photon_grid['tmap_sdO'][..., -1, :], name='TMSDONPGRID'))
 
-        if 'tmap:ld' in self.content:
-            data.append(fits.ImageHDU(self.ld_energy_grid['tmap'], name='TMLEGRID'))
-            data.append(fits.ImageHDU(self.ld_photon_grid['tmap'], name='TMLPGRID'))
+        if 'tmap_sdO:ld' in self.content:
+            data.append(fits.ImageHDU(self.ld_energy_grid['tmap_sdO'], name='TMSDOLEGRID'))
+            data.append(fits.ImageHDU(self.ld_photon_grid['tmap_sdO'], name='TMSDOLPGRID'))
 
-        if 'tmap:ldint' in self.content:
-            data.append(fits.ImageHDU(self.ldint_energy_grid['tmap'], name='TMIEGRID'))
-            data.append(fits.ImageHDU(self.ldint_photon_grid['tmap'], name='TMIPGRID'))
+        if 'tmap_sdO:ldint' in self.content:
+            data.append(fits.ImageHDU(self.ldint_energy_grid['tmap_sdO'], name='TMSDOIEGRID'))
+            data.append(fits.ImageHDU(self.ldint_photon_grid['tmap_sdO'], name='TMSDOIPGRID'))
 
-        if 'tmap:ext' in self.content:
-            data.append(fits.ImageHDU(self.ext_energy_grid['tmap'], name='TMXEGRID'))
-            data.append(fits.ImageHDU(self.ext_photon_grid['tmap'], name='TMXPGRID'))
+        if 'tmap_sdO:ext' in self.content:
+            data.append(fits.ImageHDU(self.ext_energy_grid['tmap_sdO'], name='TMSDOXEGRID'))
+            data.append(fits.ImageHDU(self.ext_photon_grid['tmap_sdO'], name='TMSDOXPGRID'))
+
+        if 'tmap_DA:Imu' in self.content:
+            data.append(fits.ImageHDU(self.atm_energy_grid['tmap_DA'], name='TMDAFEGRID'))
+            data.append(fits.ImageHDU(self.atm_photon_grid['tmap_DA'], name='TMDAFPGRID'))
+
+            if export_inorm_tables:
+                data.append(fits.ImageHDU(self.atm_energy_grid['tmap_DA'][..., -1, :], name='TMDANEGRID'))
+                data.append(fits.ImageHDU(self.atm_photon_grid['tmap_DA'][..., -1, :], name='TMDANPGRID'))
+
+        if 'tmap_DA:ld' in self.content:
+            data.append(fits.ImageHDU(self.ld_energy_grid['tmap_DA'], name='TMDALEGRID'))
+            data.append(fits.ImageHDU(self.ld_photon_grid['tmap_DA'], name='TMDALPGRID'))
+
+        if 'tmap_DA:ldint' in self.content:
+            data.append(fits.ImageHDU(self.ldint_energy_grid['tmap_DA'], name='TMDAIEGRID'))
+            data.append(fits.ImageHDU(self.ldint_photon_grid['tmap_DA'], name='TMDAIPGRID'))
+
+        if 'tmap_DA:ext' in self.content:
+            data.append(fits.ImageHDU(self.ext_energy_grid['tmap_DA'], name='TMDAXEGRID'))
+            data.append(fits.ImageHDU(self.ext_photon_grid['tmap_DA'], name='TMDAXPGRID'))
+
+        if 'tmap_DAO:Imu' in self.content:
+            data.append(fits.ImageHDU(self.atm_energy_grid['tmap_DAO'], name='TMDAOFEGRID'))
+            data.append(fits.ImageHDU(self.atm_photon_grid['tmap_DAO'], name='TMDAOFPGRID'))
+
+            if export_inorm_tables:
+                data.append(fits.ImageHDU(self.atm_energy_grid['tmap_DAO'][..., -1, :], name='TMDAONEGRID'))
+                data.append(fits.ImageHDU(self.atm_photon_grid['tmap_DAO'][..., -1, :], name='TMDAONPGRID'))
+
+        if 'tmap_DAO:ld' in self.content:
+            data.append(fits.ImageHDU(self.ld_energy_grid['tmap_DAO'], name='TMDAOLEGRID'))
+            data.append(fits.ImageHDU(self.ld_photon_grid['tmap_DAO'], name='TMDAOLPGRID'))
+
+        if 'tmap_DAO:ldint' in self.content:
+            data.append(fits.ImageHDU(self.ldint_energy_grid['tmap_DAO'], name='TMDAOIEGRID'))
+            data.append(fits.ImageHDU(self.ldint_photon_grid['tmap_DAO'], name='TMDAOIPGRID'))
+
+        if 'tmap_DAO:ext' in self.content:
+            data.append(fits.ImageHDU(self.ext_energy_grid['tmap_DAO'], name='TMDAOXEGRID'))
+            data.append(fits.ImageHDU(self.ext_photon_grid['tmap_DAO'], name='TMDAOXPGRID'))
+
+        if 'tmap_DO:Imu' in self.content:
+            data.append(fits.ImageHDU(self.atm_energy_grid['tmap_DAO'], name='TMDOFEGRID'))
+            data.append(fits.ImageHDU(self.atm_photon_grid['tmap_DAO'], name='TMDOFPGRID'))
+
+            if export_inorm_tables:
+                data.append(fits.ImageHDU(self.atm_energy_grid['tmap_DO'][..., -1, :], name='TMDONEGRID'))
+                data.append(fits.ImageHDU(self.atm_photon_grid['tmap_DO'][..., -1, :], name='TMDONPGRID'))
+
+        if 'tmap_DO:ld' in self.content:
+            data.append(fits.ImageHDU(self.ld_energy_grid['tmap_DO'], name='TMDOLEGRID'))
+            data.append(fits.ImageHDU(self.ld_photon_grid['tmap_DO'], name='TMDOLPGRID'))
+
+        if 'tmap_DO:ldint' in self.content:
+            data.append(fits.ImageHDU(self.ldint_energy_grid['tmap_DO'], name='TMDOIEGRID'))
+            data.append(fits.ImageHDU(self.ldint_photon_grid['tmap_DO'], name='TMDOIPGRID'))
+
+        if 'tmap_DO:ext' in self.content:
+            data.append(fits.ImageHDU(self.ext_energy_grid['tmap_DO'], name='TMDOXEGRID'))
+            data.append(fits.ImageHDU(self.ext_photon_grid['tmap_DO'], name='TMDOXPGRID'))
 
         pb = fits.HDUList(data)
         pb.writeto(archive, overwrite=overwrite)
@@ -621,9 +716,18 @@ class Passband:
                     self._bb_extinct_energy_grid = hdul['bbegrid'].data
                     self._bb_extinct_photon_grid = hdul['bbpgrid'].data
 
-                for atm in ['ck2004', 'phoenix', 'tmap']:
+                for atm in ['ck2004', 'phoenix', 'tmap_sdO', 'tmap_DA', 'tmap_DAO', 'tmap_DO']:
                     if f'{atm}:Imu' in self.content:
-                        prefix = atm[:2]
+                        if atm in ['phoenix','ck2004']:
+                            prefix = atm[:2]
+                        elif atm == 'tmap_sdO':
+                            prefix ='tmsdo'
+                        elif atm == 'tmap_DA':
+                            prefix = 'tmda'
+                        elif atm =='tmap_DAO':
+                            prefix = 'tmdao'
+                        elif atm == 'tmap_DO':
+                            prefix = 'tmdo'
                         axes = (
                             np.array(list(hdul[f'{prefix}_teffs'].data['teff'])),
                             np.array(list(hdul[f'{prefix}_loggs'].data['logg'])),
@@ -894,7 +998,7 @@ class Passband:
                 abuns[i] = float(relative_filename[12:16])
             brs = ((500, 1000), (0.5, 0.5), (0.5, 0.5))
             units = 1  # W/m^3
-        elif atm == 'tmap':
+        elif atm in ['tmap_sdO', 'tmap_DA', 'tmap_DAO', 'tmap_DO']:
             mus = np.array([0., 0.00136799, 0.00719419, 0.01761889, 0.03254691, 0.05183939, 0.07531619, 0.10275816, 0.13390887, 0.16847785, 0.20614219, 0.24655013, 0.28932435, 0.33406564, 0.38035639, 0.42776398, 0.47584619, 0.52415388, 0.57223605, 0.6196437, 0.66593427, 0.71067559, 0.75344991, 0.79385786, 0.83152216, 0.86609102, 0.89724188, 0.92468378, 0.9481606,  0.96745302, 0.98238112, 0.99280576, 0.99863193, 1.])
             wls = np.load(path+'/wavelengths.npy') # in meters
             for i, model in enumerate(models):
@@ -1168,7 +1272,10 @@ class Passband:
 
         self.ld_energy_grid[ldatm] = np.nan*np.ones((len(self.atm_axes[ldatm][0]), len(self.atm_axes[ldatm][1]), len(self.atm_axes[ldatm][2]), 11))
         self.ld_photon_grid[ldatm] = np.nan*np.ones((len(self.atm_axes[ldatm][0]), len(self.atm_axes[ldatm][1]), len(self.atm_axes[ldatm][2]), 11))
-        mus = self.atm_axes[ldatm][3] # starts with 0
+        if ldatm[:4]=='tmap':
+            mus = self.atm_axes[ldatm][3][1:-1] #removes extrapolated points in mu
+        else:
+            mus = self.atm_axes[ldatm][3] # starts with 0
         if weighting == 'uniform':
             sigma = np.ones(len(mus))
         elif weighting == 'interval':
@@ -1511,7 +1618,7 @@ class Passband:
         ----------
         * `query_pts` (ndarray, required): a C-contiguous DxN array of queried points
         atm : string
-            model atmosphere ('ck2004', 'phoenix', 'tmap')
+            model atmosphere ('ck2004', 'phoenix', 'tmap_sdO', 'tmap_DA', 'tmap_DAO', 'tmap_DO')
         intens_weighting : str, optional
             intensity weighting scheme, by default 'photon'
         atm_extrapolation_method : str, optional
@@ -1668,10 +1775,10 @@ class Passband:
         #     print(fi)
 
         # print(f'{query_pts.shape=} {atm=} {ldatm=} {ldint.shape=} {ld_func=} {ld_coeffs=} {intens_weighting=} {atm_extrapolation_method=} {ld_extrapolation_method=} {blending_method=} {return_nanmask=}')
-        if atm not in ['blackbody', 'extern_planckint', 'extern_atmx', 'ck2004', 'phoenix', 'tmap']:
+        if atm not in ['blackbody', 'extern_planckint', 'extern_atmx', 'ck2004', 'phoenix', 'tmap_sdO', 'tmap_DA', 'tmap_DAO', 'tmap_DO']:
             raise RuntimeError(f'atm={atm} is not supported.')
 
-        if ldatm not in ['none', 'ck2004', 'phoenix', 'tmap']:
+        if ldatm not in ['none', 'ck2004', 'phoenix', 'tmap_sdO', 'tmap_DA', 'tmap_DAO', 'tmap_DO']:
             raise ValueError(f'ldatm={ldatm} is not supported.')
 
         if intens_weighting not in ['energy', 'photon']:
@@ -1743,7 +1850,7 @@ class Passband:
         Parameters
         ----------
         atm : string
-            model atmosphere ('ck2004', 'phoenix', 'tmap')
+            model atmosphere ('ck2004', 'phoenix', 'tmap_sdO', 'tmap_DA', 'tmap_DAO', 'tmap_DO')
         * `query_pts` (ndarray, required): a C-contiguous DxN array of queried points
         intens_weighting : str, optional
             intensity weighting scheme, by default 'photon'
@@ -1879,17 +1986,17 @@ class Passband:
         * NotImplementedError: if `ld_func` is not supported.
         """
 
-        if atm not in ['blackbody', 'extern_planckint', 'extern_atmx', 'ck2004', 'phoenix', 'tmap']:
+        if atm not in ['blackbody', 'extern_planckint', 'extern_atmx', 'ck2004', 'phoenix', 'tmap_sdO', 'tmap_DA', 'tmap_DAO', 'tmap_DO']:
             raise RuntimeError(f'atm={atm} is not supported.')
 
-        if ldatm not in ['none', 'ck2004', 'phoenix', 'tmap']:
+        if ldatm not in ['none', 'ck2004', 'phoenix', 'tmap_sdO', 'tmap_DA', 'tmap_DAO', 'tmap_DO']:
             raise ValueError(f'ldatm={ldatm} is not supported.')
 
         raise_on_nans = True if atm_extrapolation_method == 'none' else False
 
         if ld_func == 'interp':
             # 'interp' works only for model atmospheres:
-            if atm not in ['ck2004', 'phoenix', 'tmap']:
+            if atm not in ['ck2004', 'phoenix', 'tmap_sdO', 'tmap_DA', 'tmap_DAO', 'tmap_DO']:
                 raise ValueError(f"atm={atm} cannot be used with ld_func={ld_func}.")
 
             if atm not in self.content and f'{atm}:Imu' not in self.content:
@@ -2967,9 +3074,21 @@ if __name__ == '__main__':
     pb.compute_ldcoeffs(ldatm='phoenix')
     pb.compute_ldints(ldatm='phoenix')
 
-    pb.compute_intensities(atm='tmap', path='tables/tmap', impute=True, verbose=True)
-    pb.compute_ldcoeffs(ldatm='tmap')
-    pb.compute_ldints(ldatm='tmap')
+    pb.compute_intensities(atm='tmap_sdO', path='tables/tmap_sdO', impute=True, verbose=True)
+    pb.compute_ldcoeffs(ldatm='tmap_sdO')
+    pb.compute_ldints(ldatm='tmap_sdO')
+
+    pb.compute_intensities(atm='tmap_DA', path='tables/tmap_DA', impute=True, verbose=True)
+    pb.compute_ldcoeffs(ldatm='tmap_DA')
+    pb.compute_ldints(ldatm='tmap_DA')
+
+    pb.compute_intensities(atm='tmap_DAO', path='tables/tmap_DAO', impute=True, verbose=True)
+    pb.compute_ldcoeffs(ldatm='tmap_DAO')
+    pb.compute_ldints(ldatm='tmap_DAO')
+
+    pb.compute_intensities(atm='tmap_DO', path='tables/tmap_DO', impute=True, verbose=True)
+    pb.compute_ldcoeffs(ldatm='tmap_DO')
+    pb.compute_ldints(ldatm='tmap_DO')
 
     pb.save('bolometric.fits')
 
@@ -2998,10 +3117,21 @@ if __name__ == '__main__':
     pb.compute_ldints(ldatm='phoenix')
     # pb.compute_phoenix_reddening(path='tables/phoenix', verbose=True)
 
-    pb.compute_intensities(atm='tmap', path='tables/tmap', include_extinction=True, impute=True, verbose=True)
-    pb.compute_ldcoeffs(ldatm='tmap')
-    pb.compute_ldints(ldatm='tmap')
-    # pb.compute_tmap_reddening(path='tables/tmap', verbose=True)
+    pb.compute_intensities(atm='tmap_sdO', path='tables/tmap_sdO', impute=True, verbose=True)
+    pb.compute_ldcoeffs(ldatm='tmap_sdO')
+    pb.compute_ldints(ldatm='tmap_sdO')
+
+    pb.compute_intensities(atm='tmap_DA', path='tables/tmap_DA', impute=True, verbose=True)
+    pb.compute_ldcoeffs(ldatm='tmap_DA')
+    pb.compute_ldints(ldatm='tmap_DA')
+
+    pb.compute_intensities(atm='tmap_DAO', path='tables/tmap_DAO', impute=True, verbose=True)
+    pb.compute_ldcoeffs(ldatm='tmap_DAO')
+    pb.compute_ldints(ldatm='tmap_DAO')
+
+    pb.compute_intensities(atm='tmap_DO', path='tables/tmap_DO', impute=True, verbose=True)
+    pb.compute_ldcoeffs(ldatm='tmap_DO')
+    pb.compute_ldints(ldatm='tmap_DO')
 
     pb.import_wd_atmcof('tables/wd/atmcofplanck.dat', 'tables/wd/atmcof.dat', 7)
 
