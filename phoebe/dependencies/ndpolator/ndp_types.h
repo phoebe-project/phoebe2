@@ -102,7 +102,7 @@ typedef struct ndp_query_pts {
 ndp_query_pts *ndp_query_pts_new();
 ndp_query_pts *ndp_query_pts_new_from_data(int nelems, int naxes, int *indices, int *flags, double *requested, double *normed);
 int ndp_query_pts_alloc(ndp_query_pts *qpts, int nelems, int naxes);
-int ndp_query_pts_free();
+int ndp_query_pts_free(ndp_query_pts *qpts);
 
 /**
  * <!-- typedef struct ndp_table -->
