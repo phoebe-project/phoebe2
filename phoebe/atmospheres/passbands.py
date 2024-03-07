@@ -127,7 +127,7 @@ def raise_out_of_bounds(nanvals, atm=None, ldatm=None, intens_weighting=None):
 
 
 class Passband:
-    def __init__(self, ptf=None, pbset='Johnson', pbname='V', effwl=5500.0,
+    def __init__(self, ptf=None, pbset='Johnson', pbname='V',
                  wlunits=u.AA, calibrated=False, reference='', version=1.0,
                  comments='', oversampling=1, ptf_order=3, from_file=False):
         """
@@ -138,7 +138,7 @@ class Passband:
         Step #1: initialize passband object
 
         ```py
-        pb = Passband(ptf='JOHNSON.V', pbset='Johnson', pbname='V', effwl=5500.0, wlunits=u.AA, calibrated=True, reference='ADPS', version=1.0, comments='')
+        pb = Passband(ptf='JOHNSON.V', pbset='Johnson', pbname='V', wlunits=u.AA, calibrated=True, reference='ADPS', version=1.0, comments='')
         ```
 
         Step #2: compute intensities for blackbody radiation:
@@ -194,10 +194,8 @@ class Passband:
             set (i.e. Johnson).
         * `pbname` (string, optional, default='V'): name of the passband name
             (i.e. V).
-        * `effwl` (float, optional, default=5500.0): effective wavelength in
-            `wlunits`.
         * `wlunits` (unit, optional, default=u.AA): wavelength units from
-            astropy.units used in `ptf` and `effwl`.
+            astropy.units used in `ptf`.
         * `calibrated` (bool, optional, default=False): True if transmission is
             in true fractional light, False if it is in relative proportions.
         * `reference` (string, optional, default=''): passband transmission data
@@ -224,10 +222,6 @@ class Passband:
         if "'" in pbname or '"' in pbname:
             raise ValueError("pbname cannot contain quotation marks")
 
-        self.h = h.value
-        self.c = c.value
-        self.k = k_B.value
-
         if from_file:
             return
 
@@ -239,7 +233,6 @@ class Passband:
         # Basic passband properties:
         self.pbset = pbset
         self.pbname = pbname
-        self.effwl = effwl
         self.calibrated = calibrated
         self.reference = reference
         self.version = version
@@ -267,6 +260,9 @@ class Passband:
         self.ptf_photon_func = interpolate.splrep(self.ptf_table['wl'], self.ptf_table['fl']*self.ptf_table['wl'], s=0, k=ptf_order)
         self.ptf_photon = lambda wl: interpolate.splev(wl, self.ptf_photon_func)
         self.ptf_photon_area = interpolate.splint(self.wl[0], self.wl[-1], self.ptf_photon_func, 0)
+
+        # Effective wavelength in wlunits:
+        self.effwl = (self.ptf_photon_area/self.ptf_area*u.m).to(wlunits)
 
         # Initialize (empty) history:
         self.history = []
@@ -784,7 +780,7 @@ class Passband:
         * monochromatic blackbody intensity
         """
 
-        return 2*self.h*self.c*self.c/lam**5 * 1./(np.exp(self.h*self.c/lam/self.k/Teff)-1)
+        return 2*h.value*c.value*c.value/lam**5 * 1./(np.exp(h.value*c.value/lam/k_B.value/Teff)-1)
 
     def _planck_deriv(self, lam, Teff):
         """
@@ -801,8 +797,8 @@ class Passband:
         * the derivative of monochromatic blackbody intensity
         """
 
-        expterm = np.exp(self.h*self.c/lam/self.k/Teff)
-        return 2*self.h*self.c*self.c/self.k/Teff/lam**7 * (expterm-1)**-2 * (self.h*self.c*expterm-5*lam*self.k*Teff*(expterm-1))
+        expterm = np.exp(h.value*c.value/lam/k_B.value/Teff)
+        return 2*h.value*c.value*c.value/k_B.value/Teff/lam**7 * (expterm-1)**-2 * (h.value*c.value*expterm-5*lam*k_B.value*Teff*(expterm-1))
 
     def _planck_spi(self, lam, Teff):
         """
@@ -823,7 +819,7 @@ class Passband:
         * the spectral index of monochromatic blackbody intensity
         """
 
-        hclkt = self.h*self.c/lam/self.k/Teff
+        hclkt = h.value*c.value/lam/k_B.value/Teff
         expterm = np.exp(hclkt)
         return hclkt * expterm/(expterm-1)
 
@@ -884,7 +880,7 @@ class Passband:
         wls = self.wl.reshape(-1, 1)
 
         # Planck functions:
-        pfs = 2*self.h*self.c*self.c/wls**5*1./(np.exp(self.h*self.c/(self.k*wls@teffs.reshape(1, -1)))-1)  # (47, 97)
+        pfs = 2*h.value*c.value*c.value/wls**5*1./(np.exp(h.value*c.value/(k_B.value*wls@teffs.reshape(1, -1)))-1)  # (47, 97)
 
         self.atm_axes['blackbody'] = (np.unique(teffs),)
 
@@ -1237,7 +1233,7 @@ class Passband:
 
         self.ld_energy_grid[ldatm] = np.nan*np.ones((len(self.atm_axes[ldatm][0]), len(self.atm_axes[ldatm][1]), len(self.atm_axes[ldatm][2]), 11))
         self.ld_photon_grid[ldatm] = np.nan*np.ones((len(self.atm_axes[ldatm][0]), len(self.atm_axes[ldatm][1]), len(self.atm_axes[ldatm][2]), 11))
-        if ldatm[:4]=='tmap':
+        if ldatm[:4] == 'tmap':
             mus = self.atm_axes[ldatm][3][1:-1] #removes extrapolated points in mu
         else:
             mus = self.atm_axes[ldatm][3] # starts with 0
@@ -1252,7 +1248,7 @@ class Passband:
         for Tindex in range(len(self.atm_axes[ldatm][0])):
             for lindex in range(len(self.atm_axes[ldatm][1])):
                 for mindex in range(len(self.atm_axes[ldatm][2])):
-                    if ldatm[:4]=='tmap':
+                    if ldatm[:4] == 'tmap':
                         IsE = 10**self.atm_energy_grid[ldatm][Tindex,lindex,mindex,1:-1].flatten()
                     else:
                         IsE = 10**self.atm_energy_grid[ldatm][Tindex,lindex,mindex,:].flatten()
@@ -1268,7 +1264,7 @@ class Passband:
                     cEnlin, pcov = cfit(f=self._ldlaw_nonlin, xdata=mus[fEmask], ydata=IsE[fEmask], sigma=sigma[fEmask], p0=[0.5, 0.5, 0.5, 0.5])
                     self.ld_energy_grid[ldatm][Tindex, lindex, mindex] = np.hstack((cElin, cElog, cEsqrt, cEquad, cEnlin))
 
-                    if ldatm[:4]=='tmap':
+                    if ldatm[:4] == 'tmap':
                         IsP = 10**self.atm_photon_grid[ldatm][Tindex,lindex,mindex,1:-1].flatten()
                     else:
                         IsP = 10**self.atm_photon_grid[ldatm][Tindex,lindex,mindex,:].flatten()
@@ -3027,7 +3023,6 @@ if __name__ == '__main__':
         ptf='tables/ptf/bolometric.ptf',
         pbset='Bolometric',
         pbname='900-40000',
-        effwl=1.955e-6,
         wlunits=u.m,
         calibrated=True,
         reference='Flat response to simulate bolometric throughput',
@@ -3067,7 +3062,6 @@ if __name__ == '__main__':
         ptf='tables/ptf/johnson_v.ptf',
         pbset='Johnson',
         pbname='V',
-        effwl=5500.,
         wlunits=u.AA,
         calibrated=True,
         reference='Maiz Apellaniz (2006), AJ 131, 1184',
