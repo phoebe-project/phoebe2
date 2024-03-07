@@ -295,8 +295,6 @@ class Passband:
         # self.nntree = dict()              # nearest neighbor tree for blending and extrapolation
         # self.indices = dict()             # nearest neighbor indices for blending and extrapolation
         # self.ics = dict()                 # inferior corners for blending and extrapolation
-        # self.blending_region = dict()     # blending regions
-        # self.mapper = dict()              # mapping from model atmosphere axes to interpolation axes
 
     def __repr__(self):
         return f'<Passband: {self.pbset}:{self.pbname}>'
@@ -680,13 +678,6 @@ class Passband:
 
             self.ndp = dict()
 
-            if init_extrapolation:
-                # self.nntree = dict()
-                # self.indices = dict()
-                # self.ics = dict()
-                self.blending_region = dict()
-                self.mapper = dict()
-
             self.ptf_table = hdul['ptftable'].data
             self.wl = np.linspace(self.ptf_table['wl'][0], self.ptf_table['wl'][-1], int(self.wl_oversampling*len(self.ptf_table['wl'])))
 
@@ -748,11 +739,6 @@ class Passband:
                         mus = np.array(list(hdul[f'{prefix}_mus'].data['mu']))
                         self.ndp[atm].register('imu@photon', (mus,), self.atm_photon_grid[atm])
                         self.ndp[atm].register('imu@energy', (mus,), self.atm_energy_grid[atm])
-
-                        if init_extrapolation:
-                            # CHECKME: probably obsolete
-                            self.blending_region[atm] = ((750, 10000), (0.5, 0.5), (0.5, 0.5))
-                            self.mapper[atm] = lambda v: ndpolator.map_to_cube(v, axes, self.blending_region[atm])
 
                     if f'{atm}:ld' in self.content:
                         self.ld_energy_grid[atm] = hdul[f'{prefix}legrid'].data
@@ -966,10 +952,6 @@ class Passband:
         * `abuns` (array): axis of all unique abundances
         * `mus` (array): axis of all unique specific angles
         * `wls` (array): spectral energy distribution wavelengths
-        * `brs` (array of tuples): blending regions for the lower and upper
-          axis boundaries; for example, (500, 5000) would correspond to the
-          blending region of 500 on the lower boundary and 5000 on the upper
-          boundary.
         * `units` (float): conversion units from model atmosphere intensity
           units to W/m^3.
         """
@@ -979,39 +961,36 @@ class Passband:
         teffs, loggs, abuns = np.empty(nmodels), np.empty(nmodels), np.empty(nmodels)
 
         if atm == 'ck2004':
-            mus = np.array([0., 0.001, 0.002, 0.003, 0.005, 0.01 , 0.015, 0.02 , 0.025, 0.03, 0.035, 0.04, 0.045, 0.05, 0.06, 0.07, 0.08, 0.09, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.])
+            mus = np.array([0., 0.001, 0.002, 0.003, 0.005, 0.01, 0.015, 0.02, 0.025, 0.03, 0.035, 0.04, 0.045, 0.05, 0.06, 0.07, 0.08, 0.09, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.])
             wls = np.arange(900., 39999.501, 0.5)/1e10  # AA -> m
             for i, model in enumerate(models):
                 relative_filename = model[model.rfind('/')+1:] # get relative pathname
                 teffs[i] = float(relative_filename[1:6])
                 loggs[i] = float(relative_filename[7:9])/10
                 abuns[i] = float(relative_filename[10:12])/10 * (-1 if relative_filename[9] == 'M' else 1)
-            brs = ((750, 10000), (0.5, 0.5), (0.5, 0.5))
             units = 1e7  # erg/s/cm^2/A -> W/m^3
         elif atm == 'phoenix':
-            mus = np.array([0., 0.001, 0.002, 0.003, 0.005, 0.01 , 0.015, 0.02 , 0.025, 0.03, 0.035, 0.04, 0.045, 0.05, 0.06, 0.07, 0.08, 0.09, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.])
+            mus = np.array([0., 0.001, 0.002, 0.003, 0.005, 0.01, 0.015, 0.02, 0.025, 0.03, 0.035, 0.04, 0.045, 0.05, 0.06, 0.07, 0.08, 0.09, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.])
             wls = np.arange(500., 26000.)/1e10  # AA -> m
             for i, model in enumerate(models):
                 relative_filename = model[model.rfind('/')+1:] # get relative pathname
                 teffs[i] = float(relative_filename[1:6])
                 loggs[i] = float(relative_filename[7:11])
                 abuns[i] = float(relative_filename[12:16])
-            brs = ((500, 1000), (0.5, 0.5), (0.5, 0.5))
             units = 1  # W/m^3
         elif atm in ['tmap_sdO', 'tmap_DA', 'tmap_DAO', 'tmap_DO']:
             mus = np.array([0., 0.00136799, 0.00719419, 0.01761889, 0.03254691, 0.05183939, 0.07531619, 0.10275816, 0.13390887, 0.16847785, 0.20614219, 0.24655013, 0.28932435, 0.33406564, 0.38035639, 0.42776398, 0.47584619, 0.52415388, 0.57223605, 0.6196437, 0.66593427, 0.71067559, 0.75344991, 0.79385786, 0.83152216, 0.86609102, 0.89724188, 0.92468378, 0.9481606,  0.96745302, 0.98238112, 0.99280576, 0.99863193, 1.])
-            wls = np.load(path+'/wavelengths.npy') # in meters
+            wls = np.load(path+'/wavelengths.npy')  # in meters
             for i, model in enumerate(models):
                 pars = re.split('[TGA.]+', model[model.rfind('/')+1:])
                 teffs[i] = float(pars[1])
                 loggs[i] = float(pars[2])/100
                 abuns[i] = float(pars[3])/100
-            brs = ((10000, 10000), (0.5, 0.5), (0.25, 0.25))
             units = 1  # W/m^3
         else:
             raise ValueError(f'atm={atm} is not supported.')
 
-        return models, teffs, loggs, abuns, mus, wls, brs, units
+        return models, teffs, loggs, abuns, mus, wls, units
 
     def compute_intensities(self, atm, path, impute=False, include_extinction=False, rvs=None, ebvs=None, verbose=True):
         """
@@ -1041,7 +1020,7 @@ class Passband:
         if verbose:
             print(f"Computing {atm} specific passband intensities for {self.pbset}:{self.pbname} {'with' if include_extinction else 'without'} extinction.")
 
-        models, teffs, loggs, abuns, mus, wls, brs, units = self.parse_atm_datafiles(atm, path)
+        models, teffs, loggs, abuns, mus, wls, units = self.parse_atm_datafiles(atm, path)
         nmodels = len(models)
 
         ints_energy, ints_photon = np.empty(nmodels*len(mus)), np.empty(nmodels*len(mus))
@@ -1169,8 +1148,8 @@ class Passband:
 
         # Set the limb (mu=0) to 0; in log this formally means flux density=1W/m3, but compared to ~10 that is
         # the typical table[:,:,:,1,:] value, for all practical purposes that is still 0.
-        self.atm_energy_grid[atm][:,:,:,0,:][~np.isnan(self.atm_energy_grid[atm][:,:,:,1,:])] = 0.0
-        self.atm_photon_grid[atm][:,:,:,0,:][~np.isnan(self.atm_photon_grid[atm][:,:,:,1,:])] = 0.0
+        # self.atm_energy_grid[atm][:,:,:,0,:][~np.isnan(self.atm_energy_grid[atm][:,:,:,1,:])] = 0.0
+        # self.atm_photon_grid[atm][:,:,:,0,:][~np.isnan(self.atm_photon_grid[atm][:,:,:,1,:])] = 0.0
 
         for i, int_energy in enumerate(ints_energy):
             self.atm_energy_grid[atm][teffs[int(i/len(mus))] == self.atm_axes[atm][0], loggs[int(i/len(mus))] == self.atm_axes[atm][1], abuns[int(i/len(mus))] == self.atm_axes[atm][2], mus[i%len(mus)] == self.atm_axes[atm][3], 0] = int_energy
@@ -1188,20 +1167,6 @@ class Passband:
             for grid in (self.atm_energy_grid[atm], self.atm_photon_grid[atm]):
                 for i in range(len(self.atm_axes[atm][-1])):
                     ndpolator.impute_grid(self.atm_axes[atm][:-1], grid[...,i,:])
-
-        # Build the table of non-null indices for the nearest neighbor lookup:
-        # self.indices[atm] = np.argwhere(~np.isnan(self.atm_photon_grid[atm][...,-1,:]))
-        # non_nan_vertices = np.array([ [self.atm_axes[atm][i][self.indices[atm][k][i]] for i in range(len(self.atm_axes[atm])-1)] for k in range(len(self.indices[atm]))])
-        # self.nntree[atm] = cKDTree(non_nan_vertices, copy_data=True)
-
-        # Set up the blending region:
-        # self.blending_region[atm] = brs
-        # self.mapper[atm] = lambda v: ndpolator.map_to_cube(v, self.atm_axes[atm][:-1], self.blending_region[atm])
-
-        # Store all inferior corners for quick nearest neighbor lookup:
-        # raxes = self.atm_axes[atm][:-1]
-        # subgrid = self.atm_photon_grid[atm][...,-1,:]
-        # self.ics[atm] = np.array([(i, j, k) for i in range(0,len(raxes[0])-1) for j in range(0,len(raxes[1])-1) for k in range(0,len(raxes[2])-1) if ~np.any(np.isnan(subgrid[i:i+2,j:j+2,k:k+2]))])
 
         basic_axes = self.atm_axes[atm][:-1]
         mus = self.atm_axes[atm][-1]
@@ -3111,17 +3076,14 @@ if __name__ == '__main__':
     )
 
     pb.compute_blackbody_intensities(include_extinction=True)
-    # pb.compute_bb_reddening(verbose=True)
 
     pb.compute_intensities(atm='ck2004', path='tables/ck2004', impute=True, include_extinction=True, verbose=True)
     pb.compute_ldcoeffs(ldatm='ck2004')
     pb.compute_ldints(ldatm='ck2004')
-    # pb.compute_ck2004_reddening(path='tables/ck2004', verbose=True)
 
     pb.compute_intensities(atm='phoenix', path='tables/phoenix', impute=True, include_extinction=True, verbose=True)
     pb.compute_ldcoeffs(ldatm='phoenix')
     pb.compute_ldints(ldatm='phoenix')
-    # pb.compute_phoenix_reddening(path='tables/phoenix', verbose=True)
 
     pb.compute_intensities(atm='tmap_sdO', path='tables/tmap_sdO', impute=True, verbose=True)
     pb.compute_ldcoeffs(ldatm='tmap_sdO')
