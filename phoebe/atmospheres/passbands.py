@@ -369,7 +369,7 @@ class Passband:
         header['TIMESTMP'] = timestamp
         header['PBSET'] = self.pbset
         header['PBNAME'] = self.pbname
-        header['EFFWL'] = self.effwl
+        header['EFFWL'] = self.effwl.value
         header['CALIBRTD'] = self.calibrated
         header['WLOVSMPL'] = self.wl_oversampling
         header['VERSION'] = self.version
@@ -649,7 +649,7 @@ class Passband:
 
             self.pbset = header['pbset']
             self.pbname = header['pbname']
-            self.effwl = header['effwl']
+            self.effwl = header['effwl'] * u.m
             self.calibrated = header['calibrtd']
             self.wl_oversampling = header.get('wlovsmpl', 1)
             self.comments = header['comments']
