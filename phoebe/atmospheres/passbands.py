@@ -3,7 +3,7 @@ from phoebe import conf, mpi
 from phoebe.utils import _bytes
 from tqdm import tqdm
 
-from phoebe.dependencies import ndpolator
+import ndpolator
 
 # NOTE: we'll import directly from astropy here to avoid
 # circular imports BUT any changes to these units/constants
@@ -725,7 +725,7 @@ class Passband:
                         self.atm_photon_grid[atm] = hdul[f'{prefix}fpgrid'].data
 
                         # ndpolator instance for interpolating and extrapolating:
-                        self.ndp[atm] = ndpolator.Cndpolator(axes=axes)
+                        self.ndp[atm] = ndpolator.Ndpolator(basic_axes=axes)
 
                         # normal passband intensities:
                         self.ndp[atm].register('inorm@photon', None, self.atm_photon_grid[atm][...,-1,:])
@@ -761,7 +761,7 @@ class Passband:
                         self.ext_energy_grid[atm] = hdul[f'{prefix}xegrid'].data
                         self.ext_photon_grid[atm] = hdul[f'{prefix}xpgrid'].data
 
-                        # TODO: add ndp entries; should we do ndp.get('key', ndpolator.Cndpolator(...))? Do we need to store the actual grids at all?
+                        # TODO: add ndp entries; should we do ndp.get('key', ndpolator.Ndpolator(...))? Do we need to store the actual grids at all?
 
         return self
 
@@ -1167,7 +1167,7 @@ class Passband:
         basic_axes = self.atm_axes[atm][:-1]
         mus = self.atm_axes[atm][-1]
 
-        self.ndp[atm] = ndpolator.Cndpolator(axes=basic_axes)
+        self.ndp[atm] = ndpolator.Ndpolator(basic_axes=basic_axes)
         self.ndp[atm].register('inorm@photon', None, self.atm_photon_grid[atm][...,-1,:])
         self.ndp[atm].register('inorm@energy', None, self.atm_energy_grid[atm][...,-1,:])
         self.ndp[atm].register('imu@photon', (mus,), self.atm_photon_grid[atm])

@@ -15,8 +15,6 @@ from phoebe import u
 from phoebe import c
 from phoebe import conf
 
-from cndpolator import ainfo
-
 import logging
 logger = logging.getLogger("UNIVERSE")
 logger.addHandler(logging.NullHandler())

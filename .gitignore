@@ -1,13 +1,13 @@
 /build
 /dist
 .vscode
+/phoebe/atmospheres/tables/scripts
 /phoebe/atmospheres/tables/ck2004
 /phoebe/atmospheres/tables/ck2004i
 /phoebe/atmospheres/tables/phoenix*
-/phoebe/atmospheres/tables/tmap
+/phoebe/atmospheres/tables/tmap*
 /phoebe/atmospheres/tables/tlusty
 /phoebe/atmospheres/tables/phoenix.orig
-/phoebe/dependencies/ndpolator/docs
 MANIFEST
 *checkme*
 *_tmp*
