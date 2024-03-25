@@ -442,52 +442,52 @@ class Passband:
             data.append(fits.table_to_hdu(Table({'rv': ph_rvs}, meta={'extname': 'PH_RVS'})))
 
         if 'tmap_sdO:Imu' in self.content:
-            tmsdo_teffs, tmsdo_loggs, tmsdo_abuns, tmsdo_mus = self.atm_axes['tmap_sdO']
-            data.append(fits.table_to_hdu(Table({'teff': tmsdo_teffs}, meta={'extname': 'TMSDO_TEFFS'})))
-            data.append(fits.table_to_hdu(Table({'logg': tmsdo_loggs}, meta={'extname': 'TMSDO_LOGGS'})))
-            data.append(fits.table_to_hdu(Table({'abun': tmsdo_abuns}, meta={'extname': 'TMSDO_ABUNS'})))
-            data.append(fits.table_to_hdu(Table({'mu': tmsdo_mus}, meta={'extname': 'TMSDO_MUS'})))
+            ts_teffs, ts_loggs, ts_abuns, ts_mus = self.atm_axes['tmap_sdO']
+            data.append(fits.table_to_hdu(Table({'teff': ts_teffs}, meta={'extname': 'TS_TEFFS'})))
+            data.append(fits.table_to_hdu(Table({'logg': ts_loggs}, meta={'extname': 'TS_LOGGS'})))
+            data.append(fits.table_to_hdu(Table({'abun': ts_abuns}, meta={'extname': 'TS_ABUNS'})))
+            data.append(fits.table_to_hdu(Table({'mu': ts_mus}, meta={'extname': 'TS_MUS'})))
 
         if 'tmap_sdO:ext' in self.content:
-            tmsdo_teffs, tmsdo_loggs, tmsdo_abuns, tmsdo_ebvs, tmsdo_rvs = self.ext_axes['tmap_sdO']
-            data.append(fits.table_to_hdu(Table({'ebv': tmsdo_ebvs}, meta={'extname': 'TMSDO_EBVS'})))
-            data.append(fits.table_to_hdu(Table({'rv': tmsdo_rvs}, meta={'extname': 'TMSDO_RVS'})))
+            ts_teffs, ts_loggs, ts_abuns, tso_ebvs, tso_rvs = self.ext_axes['tmap_sdO']
+            data.append(fits.table_to_hdu(Table({'ebv': ts_ebvs}, meta={'extname': 'TS_EBVS'})))
+            data.append(fits.table_to_hdu(Table({'rv': ts_rvs}, meta={'extname': 'TS_RVS'})))
 
         if 'tmap_DO:Imu' in self.content:
-            tmdo_teffs, tmdo_loggs, tmdo_abuns, tmdo_mus = self.atm_axes['tmap_DO']
-            data.append(fits.table_to_hdu(Table({'teff': tmdo_teffs}, meta={'extname': 'TMDO_TEFFS'})))
-            data.append(fits.table_to_hdu(Table({'logg': tmdo_loggs}, meta={'extname': 'TMDO_LOGGS'})))
-            data.append(fits.table_to_hdu(Table({'abun': tmdo_abuns}, meta={'extname': 'TMDO_ABUNS'})))
-            data.append(fits.table_to_hdu(Table({'mu': tmdo_mus}, meta={'extname': 'TMDO_MUS'})))
+            to_teffs, to_loggs, to_abuns, to_mus = self.atm_axes['tmap_DO']
+            data.append(fits.table_to_hdu(Table({'teff': to_teffs}, meta={'extname': 'TO_TEFFS'})))
+            data.append(fits.table_to_hdu(Table({'logg': to_loggs}, meta={'extname': 'TO_LOGGS'})))
+            data.append(fits.table_to_hdu(Table({'abun': to_abuns}, meta={'extname': 'TO_ABUNS'})))
+            data.append(fits.table_to_hdu(Table({'mu': to_mus}, meta={'extname': 'TO_MUS'})))
 
         if 'tmap_DO:ext' in self.content:
-            tmdo_teffs, tmdo_loggs, tmdo_abuns, tmdo_ebvs, tmdo_rvs = self.ext_axes['tmap_DO']
-            data.append(fits.table_to_hdu(Table({'ebv': tmdo_ebvs}, meta={'extname': 'TMDO_EBVS'})))
-            data.append(fits.table_to_hdu(Table({'rv': tmdo_rvs}, meta={'extname': 'TMDO_RVS'})))
+            to_teffs, to_loggs, to_abuns, to_ebvs, to_rvs = self.ext_axes['tmap_DO']
+            data.append(fits.table_to_hdu(Table({'ebv': to_ebvs}, meta={'extname': 'TO_EBVS'})))
+            data.append(fits.table_to_hdu(Table({'rv': to_rvs}, meta={'extname': 'TO_RVS'})))
 
         if 'tmap_DA:Imu' in self.content:
-            tmda_teffs, tmda_loggs, tmda_abuns, tmda_mus = self.atm_axes['tmap_DA']
-            data.append(fits.table_to_hdu(Table({'teff': tmda_teffs}, meta={'extname': 'TMDA_TEFFS'})))
-            data.append(fits.table_to_hdu(Table({'logg': tmda_loggs}, meta={'extname': 'TMDA_LOGGS'})))
-            data.append(fits.table_to_hdu(Table({'abun': tmda_abuns}, meta={'extname': 'TMDA_ABUNS'})))
-            data.append(fits.table_to_hdu(Table({'mu': tmda_mus}, meta={'extname': 'TMDA_MUS'})))
+            ta_teffs, ta_loggs, ta_abuns, ta_mus = self.atm_axes['tmap_DA']
+            data.append(fits.table_to_hdu(Table({'teff': ta_teffs}, meta={'extname': 'TA_TEFFS'})))
+            data.append(fits.table_to_hdu(Table({'logg': ta_loggs}, meta={'extname': 'TA_LOGGS'})))
+            data.append(fits.table_to_hdu(Table({'abun': ta_abuns}, meta={'extname': 'TA_ABUNS'})))
+            data.append(fits.table_to_hdu(Table({'mu': ta_mus}, meta={'extname': 'TA_MUS'})))
 
         if 'tmap_DA:ext' in self.content:
-            tmda_teffs, tmda_loggs, tmda_abuns, tmda_ebvs, tmda_rvs = self.ext_axes['tmap_DA']
-            data.append(fits.table_to_hdu(Table({'ebv': tmda_ebvs}, meta={'extname': 'TMDA_EBVS'})))
-            data.append(fits.table_to_hdu(Table({'rv': tmda_rvs}, meta={'extname': 'TMDA_RVS'})))
+            ta_teffs, ta_loggs, ta_abuns, ta_ebvs, ta_rvs = self.ext_axes['tmap_DA']
+            data.append(fits.table_to_hdu(Table({'ebv': ta_ebvs}, meta={'extname': 'TA_EBVS'})))
+            data.append(fits.table_to_hdu(Table({'rv': ta_rvs}, meta={'extname': 'TA_RVS'})))
 
         if 'tmap_DAO:Imu' in self.content:
-            tmdao_teffs, tmdao_loggs, tmdao_abuns, tmdao_mus = self.atm_axes['tmap_DAO']
-            data.append(fits.table_to_hdu(Table({'teff': tmdao_teffs}, meta={'extname': 'TMDAO_TEFFS'})))
-            data.append(fits.table_to_hdu(Table({'logg': tmdao_loggs}, meta={'extname': 'TMDAO_LOGGS'})))
-            data.append(fits.table_to_hdu(Table({'abun': tmdao_abuns}, meta={'extname': 'TMDAO_ABUNS'})))
-            data.append(fits.table_to_hdu(Table({'mu': tmdao_mus}, meta={'extname': 'TMDAO_MUS'})))
+            tm_teffs, tm_loggs, tm_abuns, tm_mus = self.atm_axes['tmap_DAO']
+            data.append(fits.table_to_hdu(Table({'teff': tm_teffs}, meta={'extname': 'TM_TEFFS'})))
+            data.append(fits.table_to_hdu(Table({'logg': tm_loggs}, meta={'extname': 'TM_LOGGS'})))
+            data.append(fits.table_to_hdu(Table({'abun': tm_abuns}, meta={'extname': 'TM_ABUNS'})))
+            data.append(fits.table_to_hdu(Table({'mu': tm_mus}, meta={'extname': 'TM_MUS'})))
 
         if 'tmap_DAO:ext' in self.content:
-            tmdao_teffs, tmdao_loggs, tmdao_abuns, tmdao_ebvs, tmdao_rvs = self.ext_axes['tmap_DAO']
-            data.append(fits.table_to_hdu(Table({'ebv': tmdao_ebvs}, meta={'extname': 'TMDAO_EBVS'})))
-            data.append(fits.table_to_hdu(Table({'rv': tmdao_rvs}, meta={'extname': 'TMDAO_RVS'})))
+            tm_teffs, tm_loggs, tm_abuns, tm_ebvs, tm_rvs = self.ext_axes['tmap_DAO']
+            data.append(fits.table_to_hdu(Table({'ebv': tm_ebvs}, meta={'extname': 'TM_EBVS'})))
+            data.append(fits.table_to_hdu(Table({'rv': tm_rvs}, meta={'extname': 'TM_RVS'})))
 
         # Data:
         if 'blackbody:ext' in self.content:
@@ -535,84 +535,84 @@ class Passband:
             data.append(fits.ImageHDU(self.ext_photon_grid['phoenix'], name='PHXPGRID'))
 
         if 'tmap_sdO:Imu' in self.content:
-            data.append(fits.ImageHDU(self.atm_energy_grid['tmap_sdO'], name='TMSDOFEGRID'))
-            data.append(fits.ImageHDU(self.atm_photon_grid['tmap_sdO'], name='TMSDOFPGRID'))
+            data.append(fits.ImageHDU(self.atm_energy_grid['tmap_sdO'], name='TSFEGRID'))
+            data.append(fits.ImageHDU(self.atm_photon_grid['tmap_sdO'], name='TSFPGRID'))
 
             if export_inorm_tables:
-                data.append(fits.ImageHDU(self.atm_energy_grid['tmap_sdO'][..., -1, :], name='TMSDONEGRID'))
-                data.append(fits.ImageHDU(self.atm_photon_grid['tmap_sdO'][..., -1, :], name='TMSDONPGRID'))
+                data.append(fits.ImageHDU(self.atm_energy_grid['tmap_sdO'][..., -1, :], name='TSNEGRID'))
+                data.append(fits.ImageHDU(self.atm_photon_grid['tmap_sdO'][..., -1, :], name='TSNPGRID'))
 
         if 'tmap_sdO:ld' in self.content:
-            data.append(fits.ImageHDU(self.ld_energy_grid['tmap_sdO'], name='TMSDOLEGRID'))
-            data.append(fits.ImageHDU(self.ld_photon_grid['tmap_sdO'], name='TMSDOLPGRID'))
+            data.append(fits.ImageHDU(self.ld_energy_grid['tmap_sdO'], name='TSLEGRID'))
+            data.append(fits.ImageHDU(self.ld_photon_grid['tmap_sdO'], name='TSLPGRID'))
 
         if 'tmap_sdO:ldint' in self.content:
-            data.append(fits.ImageHDU(self.ldint_energy_grid['tmap_sdO'], name='TMSDOIEGRID'))
-            data.append(fits.ImageHDU(self.ldint_photon_grid['tmap_sdO'], name='TMSDOIPGRID'))
+            data.append(fits.ImageHDU(self.ldint_energy_grid['tmap_sdO'], name='TSIEGRID'))
+            data.append(fits.ImageHDU(self.ldint_photon_grid['tmap_sdO'], name='TSIPGRID'))
 
         if 'tmap_sdO:ext' in self.content:
-            data.append(fits.ImageHDU(self.ext_energy_grid['tmap_sdO'], name='TMSDOXEGRID'))
-            data.append(fits.ImageHDU(self.ext_photon_grid['tmap_sdO'], name='TMSDOXPGRID'))
+            data.append(fits.ImageHDU(self.ext_energy_grid['tmap_sdO'], name='TSXEGRID'))
+            data.append(fits.ImageHDU(self.ext_photon_grid['tmap_sdO'], name='TSXPGRID'))
 
         if 'tmap_DA:Imu' in self.content:
-            data.append(fits.ImageHDU(self.atm_energy_grid['tmap_DA'], name='TMDAFEGRID'))
-            data.append(fits.ImageHDU(self.atm_photon_grid['tmap_DA'], name='TMDAFPGRID'))
+            data.append(fits.ImageHDU(self.atm_energy_grid['tmap_DA'], name='TAFEGRID'))
+            data.append(fits.ImageHDU(self.atm_photon_grid['tmap_DA'], name='TAFPGRID'))
 
             if export_inorm_tables:
-                data.append(fits.ImageHDU(self.atm_energy_grid['tmap_DA'][..., -1, :], name='TMDANEGRID'))
-                data.append(fits.ImageHDU(self.atm_photon_grid['tmap_DA'][..., -1, :], name='TMDANPGRID'))
+                data.append(fits.ImageHDU(self.atm_energy_grid['tmap_DA'][..., -1, :], name='TANEGRID'))
+                data.append(fits.ImageHDU(self.atm_photon_grid['tmap_DA'][..., -1, :], name='TANPGRID'))
 
         if 'tmap_DA:ld' in self.content:
-            data.append(fits.ImageHDU(self.ld_energy_grid['tmap_DA'], name='TMDALEGRID'))
-            data.append(fits.ImageHDU(self.ld_photon_grid['tmap_DA'], name='TMDALPGRID'))
+            data.append(fits.ImageHDU(self.ld_energy_grid['tmap_DA'], name='TALEGRID'))
+            data.append(fits.ImageHDU(self.ld_photon_grid['tmap_DA'], name='TALPGRID'))
 
         if 'tmap_DA:ldint' in self.content:
-            data.append(fits.ImageHDU(self.ldint_energy_grid['tmap_DA'], name='TMDAIEGRID'))
-            data.append(fits.ImageHDU(self.ldint_photon_grid['tmap_DA'], name='TMDAIPGRID'))
+            data.append(fits.ImageHDU(self.ldint_energy_grid['tmap_DA'], name='TAIEGRID'))
+            data.append(fits.ImageHDU(self.ldint_photon_grid['tmap_DA'], name='TAIPGRID'))
 
         if 'tmap_DA:ext' in self.content:
-            data.append(fits.ImageHDU(self.ext_energy_grid['tmap_DA'], name='TMDAXEGRID'))
-            data.append(fits.ImageHDU(self.ext_photon_grid['tmap_DA'], name='TMDAXPGRID'))
+            data.append(fits.ImageHDU(self.ext_energy_grid['tmap_DA'], name='TAXEGRID'))
+            data.append(fits.ImageHDU(self.ext_photon_grid['tmap_DA'], name='TAXPGRID'))
 
         if 'tmap_DAO:Imu' in self.content:
-            data.append(fits.ImageHDU(self.atm_energy_grid['tmap_DAO'], name='TMDAOFEGRID'))
-            data.append(fits.ImageHDU(self.atm_photon_grid['tmap_DAO'], name='TMDAOFPGRID'))
+            data.append(fits.ImageHDU(self.atm_energy_grid['tmap_DAO'], name='TMFEGRID'))
+            data.append(fits.ImageHDU(self.atm_photon_grid['tmap_DAO'], name='TMFPGRID'))
 
             if export_inorm_tables:
-                data.append(fits.ImageHDU(self.atm_energy_grid['tmap_DAO'][..., -1, :], name='TMDAONEGRID'))
-                data.append(fits.ImageHDU(self.atm_photon_grid['tmap_DAO'][..., -1, :], name='TMDAONPGRID'))
+                data.append(fits.ImageHDU(self.atm_energy_grid['tmap_DAO'][..., -1, :], name='TMNEGRID'))
+                data.append(fits.ImageHDU(self.atm_photon_grid['tmap_DAO'][..., -1, :], name='TMNPGRID'))
 
         if 'tmap_DAO:ld' in self.content:
-            data.append(fits.ImageHDU(self.ld_energy_grid['tmap_DAO'], name='TMDAOLEGRID'))
-            data.append(fits.ImageHDU(self.ld_photon_grid['tmap_DAO'], name='TMDAOLPGRID'))
+            data.append(fits.ImageHDU(self.ld_energy_grid['tmap_DAO'], name='TMLEGRID'))
+            data.append(fits.ImageHDU(self.ld_photon_grid['tmap_DAO'], name='TMLPGRID'))
 
         if 'tmap_DAO:ldint' in self.content:
-            data.append(fits.ImageHDU(self.ldint_energy_grid['tmap_DAO'], name='TMDAOIEGRID'))
-            data.append(fits.ImageHDU(self.ldint_photon_grid['tmap_DAO'], name='TMDAOIPGRID'))
+            data.append(fits.ImageHDU(self.ldint_energy_grid['tmap_DAO'], name='TMIEGRID'))
+            data.append(fits.ImageHDU(self.ldint_photon_grid['tmap_DAO'], name='TMIPGRID'))
 
         if 'tmap_DAO:ext' in self.content:
-            data.append(fits.ImageHDU(self.ext_energy_grid['tmap_DAO'], name='TMDAOXEGRID'))
-            data.append(fits.ImageHDU(self.ext_photon_grid['tmap_DAO'], name='TMDAOXPGRID'))
+            data.append(fits.ImageHDU(self.ext_energy_grid['tmap_DAO'], name='TMXEGRID'))
+            data.append(fits.ImageHDU(self.ext_photon_grid['tmap_DAO'], name='TMXPGRID'))
 
         if 'tmap_DO:Imu' in self.content:
-            data.append(fits.ImageHDU(self.atm_energy_grid['tmap_DAO'], name='TMDOFEGRID'))
-            data.append(fits.ImageHDU(self.atm_photon_grid['tmap_DAO'], name='TMDOFPGRID'))
+            data.append(fits.ImageHDU(self.atm_energy_grid['tmap_DAO'], name='TOFEGRID'))
+            data.append(fits.ImageHDU(self.atm_photon_grid['tmap_DAO'], name='TOFPGRID'))
 
             if export_inorm_tables:
-                data.append(fits.ImageHDU(self.atm_energy_grid['tmap_DO'][..., -1, :], name='TMDONEGRID'))
-                data.append(fits.ImageHDU(self.atm_photon_grid['tmap_DO'][..., -1, :], name='TMDONPGRID'))
+                data.append(fits.ImageHDU(self.atm_energy_grid['tmap_DO'][..., -1, :], name='TONEGRID'))
+                data.append(fits.ImageHDU(self.atm_photon_grid['tmap_DO'][..., -1, :], name='TONPGRID'))
 
         if 'tmap_DO:ld' in self.content:
-            data.append(fits.ImageHDU(self.ld_energy_grid['tmap_DO'], name='TMDOLEGRID'))
-            data.append(fits.ImageHDU(self.ld_photon_grid['tmap_DO'], name='TMDOLPGRID'))
+            data.append(fits.ImageHDU(self.ld_energy_grid['tmap_DO'], name='TOLEGRID'))
+            data.append(fits.ImageHDU(self.ld_photon_grid['tmap_DO'], name='TOLPGRID'))
 
         if 'tmap_DO:ldint' in self.content:
-            data.append(fits.ImageHDU(self.ldint_energy_grid['tmap_DO'], name='TMDOIEGRID'))
-            data.append(fits.ImageHDU(self.ldint_photon_grid['tmap_DO'], name='TMDOIPGRID'))
+            data.append(fits.ImageHDU(self.ldint_energy_grid['tmap_DO'], name='TOIEGRID'))
+            data.append(fits.ImageHDU(self.ldint_photon_grid['tmap_DO'], name='TOIPGRID'))
 
         if 'tmap_DO:ext' in self.content:
-            data.append(fits.ImageHDU(self.ext_energy_grid['tmap_DO'], name='TMDOXEGRID'))
-            data.append(fits.ImageHDU(self.ext_photon_grid['tmap_DO'], name='TMDOXPGRID'))
+            data.append(fits.ImageHDU(self.ext_energy_grid['tmap_DO'], name='TOXEGRID'))
+            data.append(fits.ImageHDU(self.ext_photon_grid['tmap_DO'], name='TOXPGRID'))
 
         pb = fits.HDUList(data)
         pb.writeto(archive, overwrite=overwrite)
@@ -708,13 +708,13 @@ class Passband:
                         if atm in ['phoenix','ck2004']:
                             prefix = atm[:2]
                         elif atm == 'tmap_sdO':
-                            prefix ='tmsdo'
+                            prefix ='ts'
                         elif atm == 'tmap_DA':
-                            prefix = 'tmda'
+                            prefix = 'ta'
                         elif atm =='tmap_DAO':
-                            prefix = 'tmdao'
+                            prefix = 'tm'
                         elif atm == 'tmap_DO':
-                            prefix = 'tmdo'
+                            prefix = 'to'
                         axes = (
                             np.array(list(hdul[f'{prefix}_teffs'].data['teff'])),
                             np.array(list(hdul[f'{prefix}_loggs'].data['logg'])),
