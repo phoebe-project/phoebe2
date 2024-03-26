@@ -720,6 +720,14 @@ class Passband:
                             np.array(list(hdul[f'{prefix}_loggs'].data['logg'])),
                             np.array(list(hdul[f'{prefix}_abuns'].data['abun'])),
                         )
+
+                        self.atm_axes[atm] = (
+                            np.array(list(hdul[f'{prefix}_teffs'].data['teff'])),
+                            np.array(list(hdul[f'{prefix}_loggs'].data['logg'])),
+                            np.array(list(hdul[f'{prefix}_abuns'].data['abun'])),
+                            np.array(list(hdul[f'{prefix}_mus'].data['mu']))
+                            ,
+                        )                        
                         
                         self.atm_energy_grid[atm] = hdul[f'{prefix}fegrid'].data
                         self.atm_photon_grid[atm] = hdul[f'{prefix}fpgrid'].data
