@@ -413,9 +413,11 @@ class Passband:
             data.append(fits.table_to_hdu(bb_func))
 
         if 'blackbody:ext' in self.content:
-            data.append(fits.table_to_hdu(Table({'teff': self._bb_extinct_axes[0]}, meta={'extname': 'BB_TEFFS'})))
-            data.append(fits.table_to_hdu(Table({'ebv': self._bb_extinct_axes[1]}, meta={'extname': 'BB_EBVS'})))
-            data.append(fits.table_to_hdu(Table({'rv': self._bb_extinct_axes[2]}, meta={'extname': 'BB_RVS'})))
+            # concatenate basic and associated axes:
+            axes = self.ndp['blackbody'].axes + self.ndp['blackbody'].table['ext@photon'][0]
+            data.append(fits.table_to_hdu(Table({'teff': axes[0]}, meta={'extname': 'BB_TEFFS'})))
+            data.append(fits.table_to_hdu(Table({'ebv': axes[1]}, meta={'extname': 'BB_EBVS'})))
+            data.append(fits.table_to_hdu(Table({'rv': axes[2]}, meta={'extname': 'BB_RVS'})))
 
         if 'ck2004' in atms:
             ck_teffs, ck_loggs, ck_abuns, ck_mus = self.atm_axes['ck2004']
@@ -491,8 +493,8 @@ class Passband:
 
         # Data:
         if 'blackbody:ext' in self.content:
-            data.append(fits.ImageHDU(self._bb_extinct_energy_grid, name='BBEGRID'))
-            data.append(fits.ImageHDU(self._bb_extinct_photon_grid, name='BBPGRID'))
+            data.append(fits.ImageHDU(self.ndp['blackbody'].table['ext@energy'][1], name='BBEGRID'))
+            data.append(fits.ImageHDU(self.ndp['blackbody'].table['ext@photon'][1], name='BBPGRID'))
 
         if 'ck2004:Imu' in self.content:
             data.append(fits.ImageHDU(self.atm_energy_grid['ck2004'], name='CKFEGRID'))
@@ -699,9 +701,15 @@ class Passband:
                     self._log10_Inorm_bb_photon = lambda Teff: interpolate.splev(Teff, self._bb_func_photon)
 
                 if 'blackbody:ext' in self.content:
-                    self._bb_extinct_axes = (np.array(list(hdul['bb_teffs'].data['teff'])), np.array(list(hdul['bb_ebvs'].data['ebv'])), np.array(list(hdul['bb_rvs'].data['rv'])))
-                    self._bb_extinct_energy_grid = hdul['bbegrid'].data
-                    self._bb_extinct_photon_grid = hdul['bbpgrid'].data
+                    axes = (
+                        np.array(list(hdul['bb_teffs'].data['teff'])),
+                        np.array(list(hdul['bb_ebvs'].data['ebv'])),
+                        np.array(list(hdul['bb_rvs'].data['rv']))
+                    )
+
+                    self.ndp['blackbody'] = ndpolator.Ndpolator(basic_axes=(axes[0],))
+                    self.ndp['blackbody'].register('ext@photon', (axes[1], axes[2]), hdul['bbegrid'].data)
+                    self.ndp['blackbody'].register('ext@energy', (axes[1], axes[2]), hdul['bbpgrid'].data)
 
                 for atm in ['ck2004', 'phoenix', 'tmap_sdO', 'tmap_DA', 'tmap_DAO', 'tmap_DO']:
                     if f'{atm}:Imu' in self.content:
@@ -912,7 +920,7 @@ class Passband:
             if ebvs is None:
                 ebvs = np.linspace(0., 3., 30)
 
-            self.ext_axes['blackbody'] = (np.unique(teffs), np.unique(rvs), np.unique(ebvs))
+            axes = (np.unique(teffs), np.unique(rvs), np.unique(ebvs))
 
             ebv_column = np.tile(ebvs, len(rvs))
             rvebv_column = ebv_column*np.repeat(rvs, len(ebvs))
@@ -930,8 +938,12 @@ class Passband:
             non_extincted_intensities_energy = np.trapz(pbpfs_energy, self.wl, axis=0)[:,None]  # (97, 1)
             non_extincted_intensities_photon = np.trapz(pbpfs_photon, self.wl, axis=0)[:,None]  # (97, 1)
 
-            self.ext_energy_grid['blackbody'] = (extincted_intensities_energy/non_extincted_intensities_energy).reshape(len(teffs), len(rvs), len(ebvs), 1)  # (97, 16, 30, 1)
-            self.ext_photon_grid['blackbody'] = (extincted_intensities_photon/non_extincted_intensities_photon).reshape(len(teffs), len(rvs), len(ebvs), 1)  # (97, 16, 30, 1)
+            egrid = (extincted_intensities_energy/non_extincted_intensities_energy).reshape(len(teffs), len(rvs), len(ebvs), 1)  # (97, 16, 30, 1)
+            pgrid = (extincted_intensities_photon/non_extincted_intensities_photon).reshape(len(teffs), len(rvs), len(ebvs), 1)  # (97, 16, 30, 1)
+
+            self.ndp['blackbody'] = ndpolator.Ndpolator(basic_axes=(axes[0],))
+            self.ndp['blackbody'].register('ext@photon', associated_axes=(axes[1], axes[2]), grid=pgrid)
+            self.ndp['blackbody'].register('ext@energy', associated_axes=(axes[1], axes[2]), grid=egrid)
 
             if 'blackbody:ext' not in self.content:
                 self.content.append('blackbody:ext')
@@ -996,7 +1008,7 @@ class Passband:
 
         return models, teffs, loggs, abuns, mus, wls, units
 
-    def compute_intensities(self, atm, path, impute=False, include_extinction=False, rvs=None, ebvs=None, verbose=True):
+    def compute_intensities(self, atm, path, include_extinction=False, rvs=None, ebvs=None, verbose=True):
         """
         Computes direction-dependent passband intensities using the passed `atm`
         model atmospheres.
@@ -1005,8 +1017,6 @@ class Passband:
         ----------
         * `atm` (string): name of the model atmosphere
         * `path` (string): path to the directory with SEDs in FITS format.
-        * `impute` (boolean, optional, default=False): should NaN values within
-            the grid be imputed.
         * `include_extinction` (boolean, optional, default=False): should the
             extinction tables be computed as well. The mean effect of reddening
             (a weighted average) on a passband uses the Gordon et al. (2009,
@@ -1164,14 +1174,6 @@ class Passband:
         # for i, Bavg in enumerate(boostingP):
         #     self._ck2004_boosting_photon_grid[Teff[i] == self.atm_axes['ck2004'][0], logg[i] == self.atm_axes['ck2004'][1], abun[i] == self.atm_axes['ck2004'][2], mu[i] == self.atm_axes['ck2004'][3], 0] = Bavg
 
-        # Impute if requested:
-        if impute:
-            if verbose:
-                print('Imputing the grids...')
-            for grid in (self.atm_energy_grid[atm], self.atm_photon_grid[atm]):
-                for i in range(len(self.atm_axes[atm][-1])):
-                    ndpolator.impute_grid(self.atm_axes[atm][:-1], grid[...,i,:])
-
         basic_axes = self.atm_axes[atm][:-1]
         mus = self.atm_axes[atm][-1]
 
@@ -1182,8 +1184,8 @@ class Passband:
         self.ndp[atm].register('imu@energy', (mus,), self.atm_energy_grid[atm])
 
         if include_extinction:
-            self.ndp[atm].register('iext@photon', self.ext_axes[3:], self.ext_photon_grid[atm])
-            self.ndp[atm].register('iext@energy', self.ext_axes[3:], self.ext_energy_grid[atm])
+            self.ndp[atm].register('ext@photon', self.ext_axes[3:], self.ext_photon_grid[atm])
+            self.ndp[atm].register('ext@energy', self.ext_axes[3:], self.ext_energy_grid[atm])
 
         if f'{atm}:Imu' not in self.content:
             self.content.append(f'{atm}:Imu')
@@ -1462,7 +1464,7 @@ class Passband:
         ld_coeffs = self.ndp[ldatm].ndpolate(f'ld@{intens_weighting}', query_pts, extrapolation_method=ld_extrapolation_method)
         return ld_coeffs[s[ld_func]]
 
-    def interpolate_extinct(self,  query_pts, atm='blackbody',  ebvs=0.0, rvs=3.1, intens_weighting='photon', extrapolation_method='none'):
+    def interpolate_extinct(self,  query_pts, atm='blackbody', intens_weighting='photon', extrapolation_method='none'):
         """
         Interpolates the passband-stored tables of extinction corrections
 
@@ -1487,14 +1489,7 @@ class Passband:
         if f'{atm}:ext' not in self.content:
             raise ValueError(f"extinction factors for atm={atm} not found for the {self.pbset}:{self.pbname} passband.")
 
-        axes = self.ext_axes[atm]
-        if intens_weighting == 'photon':
-            table = self.ext_photon_grid[atm]
-        else:
-            table = self.ext_energy_grid[atm]
-
         ndp = self.ndp[atm]
-
         extinct_factor = ndp.ndpolate(f'ext@{intens_weighting}', query_pts, extrapolation_method=extrapolation_method)
         return extinct_factor
 
@@ -3027,82 +3022,57 @@ if __name__ == '__main__':
     # off the extinction formula validity range in wavelength, and shouldn't
     # be computed anyway because it is only used for reflection purposes.
 
-    pb = Passband(
-        ptf='tables/ptf/bolometric.ptf',
-        pbset='Bolometric',
-        pbname='900-40000',
-        wlunits=u.m,
-        calibrated=True,
-        reference='Flat response to simulate bolometric throughput',
-        version=2.0,
-        comments=''
-    )
+    # try:
+    #     pb = Passband.load('tables/passbands/bolometric.fits')
+    # except FileNotFoundError:
+    #     pb = Passband(
+    #         ptf='tables/ptf/bolometric.ptf',
+    #         pbset='Bolometric',
+    #         pbname='900-40000',
+    #         wlunits=u.m,
+    #         calibrated=True,
+    #         reference='Flat response to simulate bolometric throughput',
+    #         version=2.5
+    #     )
 
-    pb.compute_blackbody_intensities(include_extinction=False)
+    # pb.version = 2.5
+    # pb.add_to_history('TMAP model atmospheres added.')
+    # pb.content = []
 
-    pb.compute_intensities(atm='ck2004', path='tables/ck2004', impute=True, verbose=True)
-    pb.compute_ldcoeffs(ldatm='ck2004')
-    pb.compute_ldints(ldatm='ck2004')
+    # pb.compute_blackbody_intensities(include_extinction=False)
 
-    pb.compute_intensities(atm='phoenix', path='tables/phoenix', impute=True, verbose=True)
-    pb.compute_ldcoeffs(ldatm='phoenix')
-    pb.compute_ldints(ldatm='phoenix')
+    # for atm in ['ck2004', 'phoenix', 'tmap_sdO', 'tmap_DA', 'tmap_DAO', 'tmap_DO']:
+    #     pb.compute_intensities(atm=atm, path=f'tables/{atm}', verbose=True)
+    #     pb.compute_ldcoeffs(ldatm=atm)
+    #     pb.compute_ldints(ldatm=atm)
 
-    pb.compute_intensities(atm='tmap_sdO', path='tables/tmap_sdO', impute=True, verbose=True)
-    pb.compute_ldcoeffs(ldatm='tmap_sdO')
-    pb.compute_ldints(ldatm='tmap_sdO')
+    # pb.save('bolometric.fits')
 
-    pb.compute_intensities(atm='tmap_DA', path='tables/tmap_DA', impute=True, verbose=True)
-    pb.compute_ldcoeffs(ldatm='tmap_DA')
-    pb.compute_ldints(ldatm='tmap_DA')
+    try:
+        pb = Passband.load('tables/passbands/johnson_v.fits')
+    except FileNotFoundError:
+        pb = Passband(
+            ptf='tables/ptf/johnson_v.ptf',
+            pbset='Johnson',
+            pbname='V',
+            wlunits=u.AA,
+            calibrated=True,
+            reference='Maiz Apellaniz (2006), AJ 131, 1184',
+            version=2.5,
+            comments=''
+        )
 
-    pb.compute_intensities(atm='tmap_DAO', path='tables/tmap_DAO', impute=True, verbose=True)
-    pb.compute_ldcoeffs(ldatm='tmap_DAO')
-    pb.compute_ldints(ldatm='tmap_DAO')
-
-    pb.compute_intensities(atm='tmap_DO', path='tables/tmap_DO', impute=True, verbose=True)
-    pb.compute_ldcoeffs(ldatm='tmap_DO')
-    pb.compute_ldints(ldatm='tmap_DO')
-
-    pb.save('bolometric.fits')
-
-    pb = Passband(
-        ptf='tables/ptf/johnson_v.ptf',
-        pbset='Johnson',
-        pbname='V',
-        wlunits=u.AA,
-        calibrated=True,
-        reference='Maiz Apellaniz (2006), AJ 131, 1184',
-        version=2.0,
-        comments=''
-    )
+    pb.version = 2.5
+    pb.add_to_history('TMAP model atmospheres added.')
+    pb.content = []
 
     pb.compute_blackbody_intensities(include_extinction=True)
 
-    pb.compute_intensities(atm='ck2004', path='tables/ck2004', impute=True, include_extinction=True, verbose=True)
-    pb.compute_ldcoeffs(ldatm='ck2004')
-    pb.compute_ldints(ldatm='ck2004')
+    # for atm in ['ck2004', 'phoenix', 'tmap_sdO', 'tmap_DA', 'tmap_DAO', 'tmap_DO']:
+    #     pb.compute_intensities(atm=atm, path=f'tables/{atm}', verbose=True)
+    #     pb.compute_ldcoeffs(ldatm=atm)
+    #     pb.compute_ldints(ldatm=atm)
 
-    pb.compute_intensities(atm='phoenix', path='tables/phoenix', impute=True, include_extinction=True, verbose=True)
-    pb.compute_ldcoeffs(ldatm='phoenix')
-    pb.compute_ldints(ldatm='phoenix')
-
-    pb.compute_intensities(atm='tmap_sdO', path='tables/tmap_sdO', impute=True, verbose=True)
-    pb.compute_ldcoeffs(ldatm='tmap_sdO')
-    pb.compute_ldints(ldatm='tmap_sdO')
-
-    pb.compute_intensities(atm='tmap_DA', path='tables/tmap_DA', impute=True, verbose=True)
-    pb.compute_ldcoeffs(ldatm='tmap_DA')
-    pb.compute_ldints(ldatm='tmap_DA')
-
-    pb.compute_intensities(atm='tmap_DAO', path='tables/tmap_DAO', impute=True, verbose=True)
-    pb.compute_ldcoeffs(ldatm='tmap_DAO')
-    pb.compute_ldints(ldatm='tmap_DAO')
-
-    pb.compute_intensities(atm='tmap_DO', path='tables/tmap_DO', impute=True, verbose=True)
-    pb.compute_ldcoeffs(ldatm='tmap_DO')
-    pb.compute_ldints(ldatm='tmap_DO')
-
-    pb.import_wd_atmcof('tables/wd/atmcofplanck.dat', 'tables/wd/atmcof.dat', 7)
+    # pb.import_wd_atmcof('tables/wd/atmcofplanck.dat', 'tables/wd/atmcof.dat', 7)
 
     pb.save('johnson_v.fits')
