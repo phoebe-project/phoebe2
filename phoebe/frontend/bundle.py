@@ -3991,7 +3991,7 @@ class Bundle(ParameterSet):
                                             True, 'run_compute')
                         else:
                             atm = self.get_value(qualifier='atm', component=component, compute=compute, context='compute', atm=kwargs.get('atm', None), **_skip_filter_checks)
-                            if atm not in ['ck2004', 'phoenix', 'tmap']:
+                            if atm not in ['ck2004', 'phoenix', 'tmap_sdO', 'tmap_DA', 'tmap_DAO', 'tmap_DO']:
                                 if 'ck2004' in self.get_parameter(qualifier='atm', component=component, compute=compute, context='compute', atm=kwargs.get('atm', None), **_skip_filter_checks).choices:
                                     report.add_item(self,
                                                     "ld_mode='interp' not supported by atm='{}'.  Either change atm@{}@{} or ld_mode@{}@{}.".format(atm, component, compute, component, dataset),
@@ -5370,6 +5370,8 @@ class Bundle(ParameterSet):
                          'Andras (2012)': 'https://ui.adsabs.harvard.edu/abs/2012MNRAS.420.1630P',
                          'Maxted (2016)': 'https://ui.adsabs.harvard.edu/abs/2016A%26A...591A.111M',
                          'Foreman-Mackey et al. (2013)': 'https://ui.adsabs.harvard.edu/abs/2013PASP..125..306F',
+                         'Reindl et al. (2016)': 'https://ui.adsabs.harvard.edu/abs/2016A%26A...587A.101R',
+                         'Reindl et al. (2023)': 'https://ui.adsabs.harvard.edu/abs/2023A%26A...677A..29R',
                          'Speagle (2020)': 'https://ui.adsabs.harvard.edu/abs/2020MNRAS.493.3132S',
                          'Skilling (2004)': 'https://ui.adsabs.harvard.edu/abs/2004AIPC..735..395S',
                          'Skilling (2006)': 'https://projecteuclid.org/euclid.ba/1340370944',
@@ -5467,6 +5469,10 @@ class Bundle(ParameterSet):
                 recs = _add_reason(recs, 'Castelli & Kurucz (2004)', 'ck2004 atmosphere tables')
             elif atmname == 'phoenix':
                 recs = _add_reason(recs, 'Husser et al. (2013)', 'phoenix atmosphere tables')
+            elif atmname == 'tmap_sdO':
+                recs = _add_reason(recs, 'Reindl et al. (2016)', 'TMAP atmosphere tables')
+            elif atmname in ['tmap_DA', 'tmap_DAO', 'tmap_DO']:
+                recs = _add_reason(recs, 'Reindl et al. (2023)', 'TMAP atmosphere tables')
             elif atmname in ['extern_planckint', 'extern_atmx']:
                 recs = _add_reason(recs, 'Prsa & Zwitter (2005)', '{} atmosphere tables'.format(atmname))
 
@@ -5476,7 +5482,11 @@ class Bundle(ParameterSet):
                 recs = _add_reason(recs, 'Castelli & Kurucz (2004)', 'ck2004 atmosphere tables for limb-darkening interpolation')
             elif atmname == 'phoenix':
                 recs = _add_reason(recs, 'Husser et al. (2013)', 'phoenix atmosphere tables for limb-darkening interpolation')
-
+            elif atmname == 'tmap_sdO':
+                recs = _add_reason(recs, 'Reindl et al. (2016)', 'TMAP atmosphere tables')
+            elif atmname in ['tmap_DA', 'tmap_DAO', 'tmap_DO']:
+                recs = _add_reason(recs, 'Reindl et al. (2023)', 'TMAP atmosphere tables')
+                
         # provide any references from features
         if len(self.filter(context='feature', kind='gp_sklearn').features):
             recs = _add_reason(recs, 'Kochoska et al. (in prep)', 'sklearn GPs introduced in PHOEBE')

@@ -2,7 +2,6 @@ include README.md
 include client-server/phoebe-server
 include client-server/phoebe-autofig
 include phoebe/lib/*.h
-include phoebe/dependencies/ndpolator/*.h
 recursive-include phoebe/atmospheres/tables *
 recursive-include phoebe/solverbackends *
 recursive-include phoebe/frontend/default_bundles *
