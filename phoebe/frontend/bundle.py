@@ -3754,7 +3754,6 @@ class Bundle(ParameterSet):
         all_pbs = list_passbands(full_dict=True)
         online_pbs = list_online_passbands(full_dict=True)
 
-        # TODO: is this robust against flipping constraints?
         pb_needs_ext = self.get_value(qualifier='ebv', context='system', **_skip_filter_checks) != 0
 
         for pbparam in self.filter(qualifier='passband', **_skip_filter_checks).to_list():
@@ -3772,7 +3771,6 @@ class Bundle(ParameterSet):
 
             missing_pb_content = []
 
-            # TODO: do we really want to run this every time we run checks? Perhaps move to init?
             if pb_needs_ext and pb in ['Stromgren:u', 'Johnson:U', 'SDSS:u', 'SDSS:uprime']:
                 # need to check for bugfix in coefficients from 2.3.4 release
                 installed_timestamp = installed_pbs.get(pb, {}).get('timestamp', None)
@@ -3783,10 +3781,10 @@ class Bundle(ParameterSet):
                                     True, 'run_compute')
 
             # NOTE: atms are not attached to datasets, but per-compute and per-component
-            for atmparam in self.filter(qualifier='atm', kind='phoebe', compute=computes, **_skip_filter_checks).to_list() + self.filter(qualifier='ld_coeffs_source').to_list():
-                if '_default' in atmparam.twig:
-                    continue
-
+            # NOTE: atmparam includes a '_default' compute pset, which depends on the
+            # ck2004 atmospheres; the checks should not include it. This is achieved
+            # by filtering check_visible=True in the line below:
+            for atmparam in self.filter(qualifier='atm', kind='phoebe', compute=computes, check_visible=True, check_default=False).to_list() + self.filter(qualifier='ld_coeffs_source').to_list():
                 # check to make sure passband supports the selected atm
                 atm = atmparam.get_value(**_skip_filter_checks)
                 if atmparam.qualifier == 'ld_coeffs_source' and atm == 'auto':
