@@ -3782,10 +3782,10 @@ class Bundle(ParameterSet):
                                     True, 'run_compute')
 
             # NOTE: atms are not attached to datasets, but per-compute and per-component
-            for atmparam in self.filter(qualifier='atm', kind='phoebe', compute=computes, **_skip_filter_checks).to_list() + self.filter(qualifier='ld_coeffs_source').to_list():
-                if '_default' in atmparam.twig:
-                    continue
-
+            # NOTE: atmparam includes a '_default' compute pset, which depends on the
+            # ck2004 atmospheres; the checks should not include it. This is achieved
+            # by filtering check_visible=False and check_default=True in the line below:
+            for atmparam in self.filter(qualifier='atm', kind='phoebe', compute=computes, check_visible=False, check_default=True).to_list() + self.filter(qualifier='ld_coeffs_source').to_list():
                 # check to make sure passband supports the selected atm
                 atm = atmparam.get_value(**_skip_filter_checks)
                 if atmparam.qualifier == 'ld_coeffs_source' and atm == 'auto':
