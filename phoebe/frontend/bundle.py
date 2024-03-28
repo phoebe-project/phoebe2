@@ -1,6 +1,7 @@
 import sys
 import subprocess
 import os
+import numpy as np
 
 try:
     from subprocess import DEVNULL
@@ -3753,6 +3754,7 @@ class Bundle(ParameterSet):
         all_pbs = list_passbands(full_dict=True)
         online_pbs = list_online_passbands(full_dict=True)
 
+        # TODO: is this robust against flipping constraints?
         pb_needs_ext = self.get_value(qualifier='ebv', context='system', **_skip_filter_checks) != 0
 
         for pbparam in self.filter(qualifier='passband', **_skip_filter_checks).to_list():
@@ -3764,11 +3766,12 @@ class Bundle(ParameterSet):
             pb = pbparam.get_value()
 
             pb_needs_Imu = True
-            pb_needs_ld = True #np.any([p.get_value()!='interp' for p in self.filter(qualifier='ld_mode', dataset=pbparam.dataset, context='dataset', **_skip_filter_checks).to_list()])
+            pb_needs_ld = True
             pb_needs_ldint = True
 
             missing_pb_content = []
 
+            # TODO: do we really want to run this every time we run checks? Perhaps move to init?
             if pb_needs_ext and pb in ['Stromgren:u', 'Johnson:U', 'SDSS:u', 'SDSS:uprime']:
                 # need to check for bugfix in coefficients from 2.3.4 release
                 installed_timestamp = installed_pbs.get(pb, {}).get('timestamp', None)
@@ -3780,6 +3783,8 @@ class Bundle(ParameterSet):
 
             # NOTE: atms are not attached to datasets, but per-compute and per-component
             for atmparam in self.filter(qualifier='atm', kind='phoebe', compute=computes, **_skip_filter_checks).to_list() + self.filter(qualifier='ld_coeffs_source').to_list():
+                if '_default' in atmparam.twig:
+                    continue
 
                 # check to make sure passband supports the selected atm
                 atm = atmparam.get_value(**_skip_filter_checks)
