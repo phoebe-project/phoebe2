@@ -4,7 +4,7 @@ import phoebe
 
 
 def test_distance_scaling_alt_backend(verbose=False, plot=False):
-    b = phoebe.Bundle.default_binary()
+    b = phoebe.default_binary()
 
     b.add_dataset('lc', compute_phases=[0.25])
     for backend in phoebe.list_available_computes():
