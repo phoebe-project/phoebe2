@@ -3765,7 +3765,7 @@ class Bundle(ParameterSet):
 
             pb_needs_Inorm = True
             pb_needs_Imu = True
-            pb_needs_ld = True #np.any([p.get_value()!='interp' for p in self.filter(qualifier='ld_mode', dataset=pbparam.dataset, context='dataset', **_skip_filter_checks).to_list()])
+            pb_needs_ld = True
             pb_needs_ldint = True
 
             missing_pb_content = []
@@ -3780,8 +3780,10 @@ class Bundle(ParameterSet):
                                     True, 'run_compute')
 
             # NOTE: atms are not attached to datasets, but per-compute and per-component
-            for atmparam in self.filter(qualifier='atm', kind='phoebe', compute=computes, **_skip_filter_checks).to_list() + self.filter(qualifier='ld_coeffs_source').to_list():
-
+            # NOTE: atmparam includes a '_default' compute pset, which depends on the
+            # ck2004 atmospheres; the checks should not include it. This is achieved
+            # by filtering check_visible=False and check_default=True in the line below:
+            for atmparam in self.filter(qualifier='atm', kind='phoebe', compute=computes, check_visible=False, check_default=True).to_list() + self.filter(qualifier='ld_coeffs_source').to_list():
                 # check to make sure passband supports the selected atm
                 atm = atmparam.get_value(**_skip_filter_checks)
                 if atmparam.qualifier == 'ld_coeffs_source' and atm == 'auto':
