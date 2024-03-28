@@ -12126,20 +12126,22 @@ class Bundle(ParameterSet):
                                 logger.debug("applying scale_factor={} to {} parameter in mesh".format(scale_factor, mesh_param.qualifier))
                                 mesh_param.set_value(mesh_param.get_value()*scale_factor, ignore_readonly=True)
 
-                # handle flux scaling based on distance and l3
-                # NOTE: this must happen AFTER dataset scaling
-                distance = self.get_value(qualifier='distance', context='system', unit=u.m, **_skip_filter_checks)
-                for flux_param in ml_params.filter(qualifier='fluxes', kind='lc', **_skip_filter_checks).to_list():
-                    dataset = flux_param.dataset
-                    if dataset in datasets_dsscaled:
-                        # then we already handle the scaling (including l3)
-                        # above in dataset-scaling
-                        continue
+                # alternate backends other than legacy already account for distance via pbflux
+                if computeparams.kind in ['phoebe', 'legacy']:
+                    # handle flux scaling based on distance and l3
+                    # NOTE: this must happen AFTER dataset scaling
+                    distance = self.get_value(qualifier='distance', context='system', unit=u.m, **_skip_filter_checks)
+                    for flux_param in ml_params.filter(qualifier='fluxes', kind='lc', **_skip_filter_checks).to_list():
+                        dataset = flux_param.dataset
+                        if dataset in datasets_dsscaled:
+                            # then we already handle the scaling (including l3)
+                            # above in dataset-scaling
+                            continue
 
-                    fluxes = flux_param.get_value(unit=u.W/u.m**2)
-                    fluxes = fluxes/distance**2 + l3s.get(dataset)
+                        fluxes = flux_param.get_value(unit=u.W/u.m**2)
+                        fluxes = fluxes/distance**2 + l3s.get(dataset)
 
-                    flux_param.set_value(fluxes, ignore_readonly=True)
+                        flux_param.set_value(fluxes, ignore_readonly=True)
 
                 # handle vgamma and rv_offset
                 vgamma = self.get_value(qualifier='vgamma', context='system', unit=u.km/u.s, **_skip_filter_checks)
