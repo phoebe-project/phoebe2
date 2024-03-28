@@ -137,68 +137,65 @@ class Passband:
 
         Step #1: initialize passband object
 
-        ```py
-        pb = Passband(ptf='JOHNSON.V', pbset='Johnson', pbname='V', wlunits=u.AA, calibrated=True, reference='ADPS', version=1.0, comments='')
-        ```
+        ```py pb = Passband(ptf='JOHNSON.V', pbset='Johnson', pbname='V',
+        wlunits=u.AA, calibrated=True, reference='ADPS', version=1.0,
+        comments='') ```
 
         Step #2: compute intensities for blackbody radiation:
 
-        ```py
-        pb.compute_blackbody_intensities()
-        ```
+        ```py pb.compute_blackbody_intensities() ```
 
-        Step #3: compute Castelli & Kurucz (2004) intensities. To do this,
-        the tables/ck2004 directory needs to be populated with non-filtered
+        Step #3: compute Castelli & Kurucz (2004) intensities. To do this, the
+        tables/ck2004 directory needs to be populated with non-filtered
         intensities available for download from %static%/ck2004.tar.
 
-        ```py
-        atmdir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tables/ck2004'))
-        pb.compute_ck2004_response(atmdir)
-        ```
+        ```py atmdir =
+        os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+        'tables/ck2004')) pb.compute_ck2004_response(atmdir) ```
 
         Step #4: -- optional -- import WD tables for comparison. This can only
         be done if the passband is in the list of supported passbands in WD.
         The WD index of the passband is passed to the import_wd_atmcof()
         function below as the last argument.
 
-        ```py
-        from phoebe.atmospheres import atmcof
-        atmdir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tables/wd'))
-        atmcof.init(atmdir+'/atmcofplanck.dat', atmdir+'/atmcof.dat')
-        pb.import_wd_atmcof(atmdir+'/atmcofplanck.dat', atmdir+'/atmcof.dat', 7)
-        ```
+        ```py from phoebe.atmospheres import atmcof atmdir =
+        os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+        'tables/wd')) atmcof.init(atmdir+'/atmcofplanck.dat',
+        atmdir+'/atmcof.dat') pb.import_wd_atmcof(atmdir+'/atmcofplanck.dat',
+        atmdir+'/atmcof.dat', 7) ```
 
         Step #5: save the passband file:
 
-        ```py
-        atmdir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tables/passbands'))
-        pb.save(atmdir + '/johnson_v.ptf')
-        ```
+        ```py atmdir =
+        os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+        'tables/passbands')) pb.save(atmdir + '/johnson_v.ptf') ```
 
         From now on you can use `pbset`:`pbname` as a passband qualifier, i.e.
         Johnson:V for the example above. Further details on supported model
         atmospheres are available by issuing:
 
-        ```py
-        pb.content
-        ```
+        ```py pb.content ```
 
         see <phoebe.atmospheres.passbands.content>
 
         Arguments
         ----------
-        * `ptf` (string, optional, default=None): passband transmission file: a
-            2-column file with wavelength in `wlunits` and transmission in
-            arbitrary units.
+        * `ptf` (string or numpy array, optional, default=None): passband
+          transmission; if str, assume it is a filename: a 2-column file with
+          wavelength in `wlunits` and transmission in arbitrary units; if
+          numpy array, it is a (N, 2)-shaped array that contains the same two
+          columns.
         * `pbset` (string, optional, default='Johnson'): name of the passband
             set (i.e. Johnson).
         * `pbname` (string, optional, default='V'): name of the passband name
             (i.e. V).
         * `wlunits` (unit, optional, default=u.AA): wavelength units from
             astropy.units used in `ptf`.
-        * `calibrated` (bool, optional, default=False): True if transmission is
+        * `calibrated` (bool, optional, default=False): True if transmission
+          is
             in true fractional light, False if it is in relative proportions.
-        * `reference` (string, optional, default=''): passband transmission data
+        * `reference` (string, optional, default=''): passband transmission
+          data
             reference (i.e. ADPS).
         * `version` (float, optional, default=1.0): file version.
         * `comments` (string, optional, default=''): any additional comments
@@ -209,8 +206,8 @@ class Passband:
             the passband transmission function.
         * `from_file` (bool, optional, default=False): a switch that instructs
             the class instance to skip all calculations and load all data from
-            the file passed to the <phoebe.atmospheres.passbands.Passband.load>
-            method.
+            the file passed to the
+            <phoebe.atmospheres.passbands.Passband.load> method.
 
         Returns
         ---------
@@ -242,9 +239,14 @@ class Passband:
         self.timestamp = None
 
         # Passband transmission function table:
-        ptf_table = np.loadtxt(ptf).T
-        ptf_table[0] = ptf_table[0]*wlunits.to(u.m)
-        self.ptf_table = {'wl': np.array(ptf_table[0]), 'fl': np.array(ptf_table[1])}
+        if isinstance(ptf, str):
+            ptf_table = np.loadtxt(ptf).T
+            ptf_table[0] = ptf_table[0]*wlunits.to(u.m)
+            self.ptf_table = {'wl': np.array(ptf_table[0]), 'fl': np.array(ptf_table[1])}
+        elif isinstance(ptf, np.ndarray):
+            self.ptf_table = {'wl': ptf[:,0]*wlunits.to(u.m), 'fl': ptf[:,1]}
+        else:
+            raise ValueError('argument `ptf` must either be a string (filename) or a (N, 2)-shaped array.')
 
         # Working (optionally oversampled) wavelength array:
         self.wl_oversampling = oversampling
@@ -781,7 +783,7 @@ class Passband:
 
         return self
 
-    def _planck(self, lam, Teff):
+    def _planck(self, lam, teff):
         """
         Computes monochromatic blackbody intensity in W/m^3 using the
         Planck function.
@@ -796,7 +798,7 @@ class Passband:
         * monochromatic blackbody intensity
         """
 
-        return 2*h.value*c.value*c.value/lam**5 * 1./(np.exp(h.value*c.value/lam/k_B.value/Teff)-1)
+        return 2*h.value*c.value*c.value/lam**5 * 1./(np.exp(h.value*c.value/lam/k_B.value/teff)-1)
 
     def _planck_deriv(self, lam, Teff):
         """
@@ -1464,7 +1466,7 @@ class Passband:
         ld_coeffs = self.ndp[ldatm].ndpolate(f'ld@{intens_weighting}', query_pts, extrapolation_method=ld_extrapolation_method)
         return ld_coeffs[s[ld_func]]
 
-    def interpolate_extinct(self,  query_pts, atm='blackbody', intens_weighting='photon', extrapolation_method='none'):
+    def interpolate_extinct(self, query_pts, atm='blackbody', intens_weighting='photon', extrapolation_method='none'):
         """
         Interpolates the passband-stored tables of extinction corrections
 
@@ -1739,34 +1741,28 @@ class Passband:
           table.
         * NotImplementedError: if `ld_func` is not supported.
         """
-        # import inspect
-        # print(f'{teffs=}\n{loggs=}\n{abuns=}\n{atm=}\n{ldatm=}\n{ldint=}\n{ld_func=}\n{ld_coeffs=}\n{intens_weighting=}\n{atm_extrapolation_method=}\n{ld_extrapolation_method=}\n{blending_method=}\n{return_nanmask=}')
-        # for fi in inspect.stack():
-        #     print(fi)
+        # if atm not in ['blackbody', 'extern_planckint', 'extern_atmx', 'ck2004', 'phoenix', 'tmap_sdO', 'tmap_DA', 'tmap_DAO', 'tmap_DO']:
+        #     raise ValueError(f'atm={atm} is not supported.')
 
-        # print(f'{query_pts.shape=} {atm=} {ldatm=} {ldint.shape=} {ld_func=} {ld_coeffs=} {intens_weighting=} {atm_extrapolation_method=} {ld_extrapolation_method=} {blending_method=} {return_nanmask=}')
-        if atm not in ['blackbody', 'extern_planckint', 'extern_atmx', 'ck2004', 'phoenix', 'tmap_sdO', 'tmap_DA', 'tmap_DAO', 'tmap_DO']:
-            raise RuntimeError(f'atm={atm} is not supported.')
+        # if ldatm not in ['none', 'ck2004', 'phoenix', 'tmap_sdO', 'tmap_DA', 'tmap_DAO', 'tmap_DO']:
+        #     raise ValueError(f'ldatm={ldatm} is not supported.')
 
-        if ldatm not in ['none', 'ck2004', 'phoenix', 'tmap_sdO', 'tmap_DA', 'tmap_DAO', 'tmap_DO']:
-            raise ValueError(f'ldatm={ldatm} is not supported.')
+        # if intens_weighting not in ['energy', 'photon']:
+        #     raise ValueError(f'intens_weighting={intens_weighting} is not supported.')
 
-        if intens_weighting not in ['energy', 'photon']:
-            raise ValueError(f'intens_weighting={intens_weighting} is not supported.')
+        # if blending_method not in ['none', 'blackbody']:
+        #     raise ValueError(f'blending_method={blending_method} is not supported.')
 
-        if blending_method not in ['none', 'blackbody']:
-            raise ValueError(f'blending_method={blending_method} is not supported.')
-
-        raise_on_nans = True if atm_extrapolation_method == 'none' else False
+        # raise_on_nans = True if atm_extrapolation_method == 'none' else False
 
         if atm == 'blackbody' and 'blackbody:Inorm' in self.content:
             # check if the required tables for the chosen ldatm are available:
-            if ldatm == 'none' and ld_coeffs is None:
-                raise ValueError("ld_coeffs must be passed when ldatm='none'.")
-            if ld_func == 'interp' and f'{ldatm}:Imu' not in self.content:
-                raise RuntimeError(f'passband {self.pbset}:{self.pbname} does not contain specific intensities for ldatm={ldatm}.')
-            if ld_func != 'interp' and ld_coeffs is None and f'{ldatm}:ld' not in self.content:
-                raise RuntimeError(f'passband {self.pbset}:{self.pbname} does not contain limb darkening coefficients for ldatm={ldatm}.')
+            # if ldatm == 'none' and ld_coeffs is None:
+            #     raise ValueError("ld_coeffs must be passed when ldatm='none'.")
+            # if ld_func == 'interp' and f'{ldatm}:Imu' not in self.content:
+            #     raise RuntimeError(f'passband {self.pbset}:{self.pbname} does not contain specific intensities for ldatm={ldatm}.')
+            # if ld_func != 'interp' and ld_coeffs is None and f'{ldatm}:ld' not in self.content:
+            #     raise RuntimeError(f'passband {self.pbset}:{self.pbname} does not contain limb darkening coefficients for ldatm={ldatm}.')
             # if blending_method == 'blackbody':
             #     raise ValueError(f'the combination of atm={atm} and blending_method={blending_method} is not valid.')
 
@@ -2050,7 +2046,7 @@ class Passband:
         elif ld_func == 'power':
             ldints[:,0] *= 1-ld_coeffs[:,0]/5-ld_coeffs[:,1]/3-3.*ld_coeffs[:,2]/7-ld_coeffs[:,3]/2
         else:
-            raise NotImplementedError(f'ld_func={ld_func} is not supported')
+            raise ValueError(f'ld_func={ld_func} is not recognized.')
 
         return ldints
 
@@ -3022,31 +3018,31 @@ if __name__ == '__main__':
     # off the extinction formula validity range in wavelength, and shouldn't
     # be computed anyway because it is only used for reflection purposes.
 
-    # try:
-    #     pb = Passband.load('tables/passbands/bolometric.fits')
-    # except FileNotFoundError:
-    #     pb = Passband(
-    #         ptf='tables/ptf/bolometric.ptf',
-    #         pbset='Bolometric',
-    #         pbname='900-40000',
-    #         wlunits=u.m,
-    #         calibrated=True,
-    #         reference='Flat response to simulate bolometric throughput',
-    #         version=2.5
-    #     )
+    try:
+        pb = Passband.load('tables/passbands/bolometric.fits')
+    except FileNotFoundError:
+        pb = Passband(
+            ptf='tables/ptf/bolometric.ptf',
+            pbset='Bolometric',
+            pbname='900-40000',
+            wlunits=u.m,
+            calibrated=True,
+            reference='Flat response to simulate bolometric throughput',
+            version=2.5
+        )
 
-    # pb.version = 2.5
-    # pb.add_to_history('TMAP model atmospheres added.')
-    # pb.content = []
+    pb.version = 2.5
+    pb.add_to_history('TMAP model atmospheres added.')
+    pb.content = []
 
-    # pb.compute_blackbody_intensities(include_extinction=False)
+    pb.compute_blackbody_intensities(include_extinction=False)
 
-    # for atm in ['ck2004', 'phoenix', 'tmap_sdO', 'tmap_DA', 'tmap_DAO', 'tmap_DO']:
-    #     pb.compute_intensities(atm=atm, path=f'tables/{atm}', verbose=True)
-    #     pb.compute_ldcoeffs(ldatm=atm)
-    #     pb.compute_ldints(ldatm=atm)
+    for atm in ['ck2004', 'phoenix', 'tmap_sdO', 'tmap_DA', 'tmap_DAO', 'tmap_DO']:
+        pb.compute_intensities(atm=atm, path=f'tables/{atm}', verbose=True)
+        pb.compute_ldcoeffs(ldatm=atm)
+        pb.compute_ldints(ldatm=atm)
 
-    # pb.save('bolometric.fits')
+    pb.save('bolometric.fits')
 
     try:
         pb = Passband.load('tables/passbands/johnson_v.fits')
@@ -3068,11 +3064,11 @@ if __name__ == '__main__':
 
     pb.compute_blackbody_intensities(include_extinction=True)
 
-    # for atm in ['ck2004', 'phoenix', 'tmap_sdO', 'tmap_DA', 'tmap_DAO', 'tmap_DO']:
-    #     pb.compute_intensities(atm=atm, path=f'tables/{atm}', verbose=True)
-    #     pb.compute_ldcoeffs(ldatm=atm)
-    #     pb.compute_ldints(ldatm=atm)
+    for atm in ['ck2004', 'phoenix', 'tmap_sdO', 'tmap_DA', 'tmap_DAO', 'tmap_DO']:
+        pb.compute_intensities(atm=atm, path=f'tables/{atm}', verbose=True)
+        pb.compute_ldcoeffs(ldatm=atm)
+        pb.compute_ldints(ldatm=atm)
 
-    # pb.import_wd_atmcof('tables/wd/atmcofplanck.dat', 'tables/wd/atmcof.dat', 7)
+    pb.import_wd_atmcof('tables/wd/atmcofplanck.dat', 'tables/wd/atmcof.dat', 7)
 
     pb.save('johnson_v.fits')
