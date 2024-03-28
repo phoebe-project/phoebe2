@@ -85,6 +85,12 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.4.13
+
+* optimization: dynamical RVs avoid unnecessary meshing
+* run_checks no longer requires ck2004 atmosphere tables if no datasets use ck2004
+* fix treatment of distance for alternate backends (ellc, jktebop)
+
 ### 2.4.12 - build system update
 
 * upgrade the build system to pyproject.toml with setuptools as backend and pip as frontend.
