@@ -1753,7 +1753,7 @@ class Passband:
         # if blending_method not in ['none', 'blackbody']:
         #     raise ValueError(f'blending_method={blending_method} is not supported.')
 
-        # raise_on_nans = True if atm_extrapolation_method == 'none' else False
+        raise_on_nans = True if atm_extrapolation_method == 'none' else False
 
         if atm == 'blackbody' and 'blackbody:Inorm' in self.content:
             # check if the required tables for the chosen ldatm are available:
