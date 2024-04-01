@@ -3,8 +3,8 @@
 
 import phoebe
 
-def test_forbidden(verbose=False):
 
+def test_forbidden(verbose=False):
     phoebe.devel_on()
 
     b = phoebe.default_binary(contact_binary=True)
@@ -38,20 +38,19 @@ def test_forbidden(verbose=False):
 
     b.add_server('remoteslurm')
 
-
     # TODO: include constraint_func?  Shouldn't matter since they're not in twigs
     should_be_forbidden = b.qualifiers + b.contexts + b.kinds + [c.split('@')[0] for c in b.get_parameter(qualifier='columns').choices]
 
     if verbose:
-        for l in should_be_forbidden:
-            if l not in phoebe.parameters.parameters._forbidden_labels:
-                print(l)
+        for label in should_be_forbidden:
+            if label not in phoebe.parameters.parameters._forbidden_labels:
+                print(label)
 
-    for l in should_be_forbidden:
-        assert(l in phoebe.parameters.parameters._forbidden_labels)
+    for label in should_be_forbidden:
+        assert label in phoebe.parameters.parameters._forbidden_labels
 
     phoebe.reset_settings()
-    return b
+
 
 if __name__ == '__main__':
-    b = test_forbidden(verbose=True)
+    test_forbidden(verbose=True)
