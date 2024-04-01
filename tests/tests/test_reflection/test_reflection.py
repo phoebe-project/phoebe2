@@ -5,6 +5,7 @@ import phoebe
 import numpy as np
 import os
 
+
 def test_binary(plot=False, gen_comp=False):
     b = phoebe.Bundle.default_binary()
 
@@ -17,7 +18,7 @@ def test_binary(plot=False, gen_comp=False):
     b.set_value('incl', component='binary', value=45.0)
 
     period = b.get_value('period@binary')
-    b.add_dataset('lc', times=np.linspace(0,period,21))
+    b.add_dataset('lc', times=np.linspace(0, period, 21))
     if plot:
         b.add_dataset('mesh', times=[0.0])
     b.add_compute('phoebe', compute='phoebe2', irrad_method='wilson')
@@ -37,13 +38,16 @@ def test_binary(plot=False, gen_comp=False):
     b.set_value_all('ld_coeffs', [0.0, 0.0])
 
     for alb in [1.0, 0.5, 0.0]:
-        if plot: print("alb = {}".format(alb))
+        if plot:
+            print("alb = {}".format(alb))
         b.set_value_all('irrad_frac_refl_bol', alb)
 
-        if plot: print("running phoebe2 model...")
+        if plot:
+            print("running phoebe2 model...")
         b.run_compute(compute='phoebe2', ntriangles=1000, model='phoebe2model', overwrite=True)
         if gen_comp:
-            if plot: print("running phoebe1 model...")
+            if plot:
+                print("running phoebe1 model...")
             b.run_compute(compute='phoebe1', gridsize=30, model='phoebe1model', overwrite=True)
             b.filter(model='phoebe1model').save('test_reflection_binary_{}.comp.model'.format(alb))
         else:
@@ -59,9 +63,8 @@ def test_binary(plot=False, gen_comp=False):
 
             b.plot(dataset='lc01', ylim=(1.96, 2.02), legend=True, show=True)
 
-        assert(np.allclose(phoebe2_val, phoebe1_val, rtol=1e-3, atol=0.))
+        assert np.allclose(phoebe2_val, phoebe1_val, rtol=1e-3, atol=0.)
 
-    return b
 
 def test_binary_ecc(plot=False, gen_comp=False):
     b = phoebe.Bundle.default_binary()
@@ -74,7 +77,7 @@ def test_binary_ecc(plot=False, gen_comp=False):
     b.set_value('ecc', value=0.1)
 
     period = b.get_value('period@binary')
-    b.add_dataset('lc', times=np.linspace(0,period,21))
+    b.add_dataset('lc', times=np.linspace(0, period, 21))
     if plot:
         b.add_dataset('mesh', times=[0.0])
     b.add_compute('phoebe', compute='phoebe2', irrad_method='wilson')
@@ -94,13 +97,16 @@ def test_binary_ecc(plot=False, gen_comp=False):
     b.set_value_all('ld_coeffs', [0.0, 0.0])
 
     for alb in [0.5]:
-        if plot: print("alb = {}".format(alb))
+        if plot:
+            print("alb = {}".format(alb))
         b.set_value_all('irrad_frac_refl_bol', alb)
 
-        if plot: print("running phoebe2 model...")
+        if plot:
+            print("running phoebe2 model...")
         b.run_compute(compute='phoebe2', ntriangles=1000, model='phoebe2model', overwrite=True)
         if gen_comp:
-            if plot: print("running phoebe1 model...")
+            if plot:
+                print("running phoebe1 model...")
             b.run_compute(compute='phoebe1', gridsize=30, model='phoebe1model', overwrite=True)
             b.filter(model='phoebe1model').save('test_reflection_ecc_{}.comp.model'.format(alb))
         else:
@@ -116,12 +122,10 @@ def test_binary_ecc(plot=False, gen_comp=False):
 
             b.plot(dataset='lc01', ylim=(1.96, 2.02), legend=True, show=True)
 
-        assert(np.allclose(phoebe2_val, phoebe1_val, rtol=1e-3, atol=0.))
+        assert np.allclose(phoebe2_val, phoebe1_val, rtol=1e-3, atol=0.)
 
-    return b
 
 def test_contact(plot=False, gen_comp=False):
-
     b = phoebe.default_binary(contact_binary=True)
 
     b.set_value('incl', component='binary', value=45.0)
@@ -131,12 +135,12 @@ def test_contact(plot=False, gen_comp=False):
     b['teff@primary'] = 10000.
     b['teff@secondary'] = 5000.
 
-    b.add_dataset('lc', times=np.linspace(0,3,21))
+    b.add_dataset('lc', times=np.linspace(0, 3, 21))
     if plot:
         b.add_dataset('mesh', times=[0.0])
     b.add_compute('phoebe', compute='phoebe2', irrad_method='wilson')
     if gen_comp:
-        b.add_compute('legacy', compute='phoebe1', refl_num=5, morphology = 'Overcontact binary not in thermal contact')
+        b.add_compute('legacy', compute='phoebe1', refl_num=5, morphology='Overcontact binary not in thermal contact')
 
     # set matching atmospheres
     b.set_value_all('atm', 'extern_planckint')
@@ -151,13 +155,16 @@ def test_contact(plot=False, gen_comp=False):
     b.set_value_all('ld_coeffs', [0.0, 0.0])
 
     for alb in [0, 0.5, 1.0]:
-        if plot: print("alb = {}".format(alb))
+        if plot:
+            print("alb = {}".format(alb))
         b.set_value_all('irrad_frac_refl_bol', alb)
 
-        if plot: print("running phoebe2 model...")
+        if plot:
+            print("running phoebe2 model...")
         b.run_compute(compute='phoebe2', ntriangles=1000, model='phoebe2model', overwrite=True)
         if gen_comp:
-            if plot: print("running phoebe1 model...")
+            if plot:
+                print("running phoebe1 model...")
             b.run_compute(compute='phoebe1', gridsize=30, model='phoebe1model', overwrite=True)
             b.filter(model='phoebe1model').save('test_reflection_contact_{}.comp.model'.format(alb))
         else:
@@ -176,13 +183,12 @@ def test_contact(plot=False, gen_comp=False):
         # this is quite a low rtol, but our reflection is more robust because
         # each "half" of the envelope can reflect with itself, whereas WD
         # only allows reflection between the two halves
-        assert(np.allclose(phoebe2_val, phoebe1_val, rtol=1e-2, atol=0.))
+        assert np.allclose(phoebe2_val, phoebe1_val, rtol=1e-2, atol=0.)
 
-    return b
 
 if __name__ == '__main__':
     logger = phoebe.logger(clevel='INFO')
 
-    b = test_binary(plot=True, gen_comp=True)
-    b = test_binary_ecc(plot=True, gen_comp=True)
-    b = test_contact(plot=True, gen_comp=True)
+    test_binary(plot=True, gen_comp=True)
+    test_binary_ecc(plot=True, gen_comp=True)
+    test_contact(plot=True, gen_comp=True)

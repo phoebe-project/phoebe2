@@ -36,12 +36,10 @@ def test_interp(plot=False):
     interp_fluxes = b['value@flux_densities@interp@model']
 
     diffs = np.abs(interp_fluxes-np.interp(interp_wavelengths, wavelengths, fluxes))
-    assert (np.all(diffs < 0.004))
+    assert np.all(diffs < 0.004)
 
     if plot:
         b.plot(show=True)
-
-    return b
 
 
 def test_multi_lp():
@@ -66,11 +64,10 @@ def test_multi_lp():
 
     assert (np.allclose(b['values@00.000000@flux_densities@model'], b['values@01.000000@flux_densities@model'], rtol=1e-6, atol=1e-6))
     assert (np.allclose(b['values@01.000000@flux_densities@model'], b['values@02.000000@flux_densities@model'], rtol=1e-6, atol=1e-6))
-    return b
 
 
 if __name__ == '__main__':
     logger = phoebe.logger(clevel='INFO')
 
-    b = test_interp()
-    b = test_multi_lp()
+    test_interp()
+    test_multi_lp()

@@ -5,11 +5,12 @@ import phoebe
 import numpy as np
 import os
 
+
 def test_binary(plot=False, gen_comp=False):
     b = phoebe.default_binary()
 
     period = b.get_value('period@binary')
-    b.add_dataset('lc', times=np.linspace(0,period,21))
+    b.add_dataset('lc', times=np.linspace(0, period, 21))
     b.add_compute('phoebe', irrad_method='none', compute='phoebe2')
     if gen_comp:
         b.add_compute('legacy', refl_num=0, compute='phoebe1')
@@ -26,9 +27,8 @@ def test_binary(plot=False, gen_comp=False):
     b.set_value_all('ld_func', 'linear')
     b.set_value_all('ld_coeffs', [0.0])
 
-    #turn off albedos (legacy requirement)
+    # turn off albedos (legacy requirement)
     b.set_value_all('irrad_frac_refl_bol',  0.0)
-
 
     # 0.51 starts to overlap
     for ecc in [0.3, 0.505]:
@@ -50,16 +50,13 @@ def test_binary(plot=False, gen_comp=False):
             phoebe1_val = b.get_value('fluxes@phoebe1model')
 
             if plot:
-                print("ecc: {} per0:: {} max (rel): {}".format(ecc , per0, abs((phoebe2_val-phoebe1_val)/phoebe1_val).max()))
+                print("ecc: {} per0:: {} max (rel): {}".format(ecc, per0, abs((phoebe2_val-phoebe1_val)/phoebe1_val).max()))
 
                 b.plot(dataset='lc01', show=True)
 
-            assert(np.allclose(phoebe2_val, phoebe1_val, rtol=1e-3 if ecc < 0.5 else 5e-3, atol=0.))
+            assert np.allclose(phoebe2_val, phoebe1_val, rtol=1e-3 if ecc < 0.5 else 5e-3, atol=0.)
 
-    return b
 
 if __name__ == '__main__':
     logger = phoebe.logger(clevel='DEBUG')
-
-
-    b = test_binary(plot=True, gen_comp=True)
+    test_binary(plot=True, gen_comp=True)

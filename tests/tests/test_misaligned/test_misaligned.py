@@ -3,6 +3,7 @@
 import phoebe
 import numpy as np
 
+
 def test_binary(plot=False):
     b = phoebe.Bundle.default_binary()
 
@@ -14,17 +15,14 @@ def test_binary(plot=False):
 
     b['distortion_method@secondary'] = 'rotstar'
 
-    b.add_dataset('lc', times=np.linspace(0,1,21))
-
+    b.add_dataset('lc', times=np.linspace(0, 1, 21))
     b.run_compute(irrad_method='none')
 
     # TODO: add comparisons????
     if plot:
         b.plot(show=True)
 
-    return b
 
 if __name__ == '__main__':
     logger = phoebe.logger(clevel='INFO')
-
-    b = test_binary(plot=True)
+    test_binary(plot=True)
