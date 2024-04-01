@@ -31,7 +31,6 @@ def _beta_vs_legacy(b, syncpar, plot=False, gen_comp=False):
 
 
 def test_binary(plot=False, gen_comp=False):
-
     b = phoebe.default_binary()
 
     # set equivalent radius of the secondary to be different from the primary to avoid

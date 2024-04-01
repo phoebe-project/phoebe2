@@ -2,13 +2,12 @@
 """
 
 import phoebe
-from phoebe import u
 import numpy as np
 import os
 try:
     import matplotlib.pyplot as plt
     PLOTTING_ENABLED = True
-except:
+except ImportError:
     PLOTTING_ENABLED = False
 
 
@@ -33,7 +32,7 @@ def _phoebe_v_legacy_lc_protomesh(b, gridsize=10, plot=False, gen_comp=False):
     # TODO: also compare phoebe1:kurucz to phoebe:extern_atmx
     b.set_value_all('atm', 'extern_planckint')
 
-    #turn off albedos (legacy requirement)
+    # turn off albedos (legacy requirement)
     b.set_value_all('irrad_frac_refl_bol',  0.0)
 
     if gen_comp:
@@ -42,7 +41,6 @@ def _phoebe_v_legacy_lc_protomesh(b, gridsize=10, plot=False, gen_comp=False):
     else:
         b.import_model(os.path.join(os.path.dirname(__file__), 'test_mesh.comp.model'), model='phoebe1model')
     b.run_compute('phoebe2', model='phoebe2model', irrad_method='none')
-
 
     compares = []
     # compares += [{'qualifier': 'us', 'dataset': 'mesh01', 'atol': 1e-10}]
@@ -58,18 +56,14 @@ def _phoebe_v_legacy_lc_protomesh(b, gridsize=10, plot=False, gen_comp=False):
     compares += [{'qualifier': 'loggs', 'dataset': 'mesh01', 'atol': 2e-4}]
     compares += [{'qualifier': 'teffs', 'dataset': 'mesh01', 'atol': 1e-5}]
 
-    compares += [{'qualifier': 'abs_normal_intensities', 'dataset': 'lc01', 'atol': 0, 'rtol': 1e-8}] # NOTE: these values are of order 1E14
-
+    compares += [{'qualifier': 'abs_normal_intensities', 'dataset': 'lc01', 'atol': 0, 'rtol': 1e-8}]  # NOTE: these values are of order 1E14
 
     for c in compares:
         qualifier = c['qualifier']
         dataset = c.get('dataset', 'protomesh')
         for component in b.hierarchy.get_stars():
-
-
             phoebe1_val = b.get_value(section='model', model='phoebe1model', component=component, dataset=dataset, qualifier=qualifier)
             phoebe2_val = b.get_value(section='model', model='phoebe2model', component=component, dataset=dataset, qualifier=qualifier)
-
 
             # phoebe2 wd-style mesh duplicates each trapezoid into two
             # triangles, so we only need every other.  It also handles
@@ -77,9 +71,9 @@ def _phoebe_v_legacy_lc_protomesh(b, gridsize=10, plot=False, gen_comp=False):
             # wrapper duplicates per-quadrant.  So we also need to reshape.
             # TODO: move this into the order that these are actually
             # exposed by PHOEBE to the user
-            phoebe2_val = phoebe2_val[::2].reshape(-1,4).flatten(order='F')
+            phoebe2_val = phoebe2_val[::2].reshape(-1, 4).flatten(order='F')
 
-            if component=='secondary':
+            if component == 'secondary':
                 # TODO: this logic should /REALLY/ be moved into the legacy backend wrapper
                 if qualifier in ['xs']:
                     # the secondary star from phoebe 1 is at (d=1, 0, 0)
@@ -93,7 +87,7 @@ def _phoebe_v_legacy_lc_protomesh(b, gridsize=10, plot=False, gen_comp=False):
                 x1 = b.get_value(section='model', model='phoebe1model', component=component, dataset='mesh01', qualifier='xs')
                 # x2 = b.get_value(section='model', model='phoebe2model', component=component, dataset='mesh01', qualifier='xs')[::2]
 
-                fig, (ax1, ax2) = plt.subplots(1,2)
+                fig, (ax1, ax2) = plt.subplots(1, 2)
                 ax1.plot(x1, phoebe1_val, 'bo')
                 ax1.plot(x1, phoebe2_val, 'r.')
 
@@ -108,16 +102,14 @@ def _phoebe_v_legacy_lc_protomesh(b, gridsize=10, plot=False, gen_comp=False):
                 plt.show()
                 plt.close(fig)
 
-            assert(np.allclose(phoebe1_val, phoebe2_val, atol=c.get('atol', 1e-7), rtol=c.get('rtol', 0.0)))
-
-
+            assert np.allclose(phoebe1_val, phoebe2_val, atol=c.get('atol', 1e-7), rtol=c.get('rtol', 0.0))
 
 
 def test_binary(plot=False, gen_comp=False):
     """
     """
 
-    phoebe.devel_on() # required for wd meshing
+    phoebe.devel_on()  # required for wd meshing
 
     # TODO: try an eccentric orbit over multiple phases (will need to wait for non-protomesh support from the legacy wrapper)
     # TODO: once ps.copy is implemented, just send b.copy() to each of these
@@ -125,10 +117,9 @@ def test_binary(plot=False, gen_comp=False):
     b = phoebe.Bundle.default_binary()
     _phoebe_v_legacy_lc_protomesh(b, plot=plot, gen_comp=gen_comp)
 
-    phoebe.devel_off() # reset for future tests
+    phoebe.devel_off()  # reset for future tests
+
 
 if __name__ == '__main__':
     logger = phoebe.logger('debug')
-
-
     test_binary(plot=True, gen_comp=True)

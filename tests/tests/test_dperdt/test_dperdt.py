@@ -10,7 +10,7 @@ def test_binary(plot=False, gen_comp=False):
     b = phoebe.Bundle.default_binary()
 
     period = b.get_value('period@binary')
-    b.add_dataset('lc', times=np.linspace(0,period,21))
+    b.add_dataset('lc', times=np.linspace(0, period, 21))
     b.add_compute('phoebe', irrad_method='none', compute='phoebe2')
     if gen_comp:
         b.add_compute('legacy', refl_num=0, compute='phoebe1')
@@ -28,7 +28,7 @@ def test_binary(plot=False, gen_comp=False):
     b.set_value_all('ld_coeffs', [0.0])
     b.set_value_all('ecc', 0.2)
 
-    #turn off albedos (legacy requirement)
+    # turn off albedos (legacy requirement)
     b.set_value_all('irrad_frac_refl_bol',  0.0)
 
     for dperdt in [-0.5, -0.25, 0.25, 0.5]:
@@ -48,15 +48,11 @@ def test_binary(plot=False, gen_comp=False):
 
         if plot:
             b.plot(dataset='lc01', show=True)
-
             print("max (rel):", abs((phoebe2_val-phoebe1_val)/phoebe1_val).max())
 
-        assert(np.allclose(phoebe2_val, phoebe1_val, rtol=5e-3, atol=0.))
+        assert np.allclose(phoebe2_val, phoebe1_val, rtol=5e-3, atol=0.)
 
-    return b
 
 if __name__ == '__main__':
     logger = phoebe.logger(clevel='INFO')
-
-
-    b = test_binary(plot=True, gen_comp=True)
+    test_binary(plot=True, gen_comp=True)

@@ -3,9 +3,8 @@
 
 import phoebe
 
+
 def test_latexrepr(verbose=False):
-
-
     b = phoebe.default_binary(contact_binary=True)
     b.add_dataset('lc')
     b.add_dataset('rv')
@@ -32,7 +31,6 @@ def test_latexrepr(verbose=False):
             print("param: {}".format(param.twig))
         param.latextwig
 
-    return b
 
 if __name__ == '__main__':
-    b = test_latexrepr(verbose=True)
+    test_latexrepr(verbose=True)

@@ -4,7 +4,6 @@ import os
 
 
 def test_binary(plot=False, gen_comp=False):
-
     cb = phoebe.Bundle.default_binary(contact_binary=True)
     cb.flip_constraint('pot', solve_for='requiv@primary')
     cb['pot@contact_envelope@component'] = 3.5
@@ -14,7 +13,7 @@ def test_binary(plot=False, gen_comp=False):
 
     # cb.set_value_all('incl',90.0)
 
-    times = cb.to_time(np.linspace(-.1,1.1,100))
+    times = cb.to_time(np.linspace(-.1, 1.1, 100))
     cb.add_dataset('lc', times=times, dataset='lc01')
     cb.add_dataset('rv', time=times, dataset='rv01')
 
@@ -36,7 +35,7 @@ def test_binary(plot=False, gen_comp=False):
     cb.set_value_all('rv_grav', False)
     cb.set_value_all('ltte', False)
 
-    #turn off albedos (legacy requirement)
+    # turn off albedos (legacy requirement):
     cb.set_value_all('irrad_frac_refl_bol',  0.0)
 
     print("running phoebe2 model...")
@@ -62,16 +61,15 @@ def test_binary(plot=False, gen_comp=False):
         cb.plot(dataset='lc01', legend=True, show=True)
         cb.plot(dataset='rv01', legend=True, show=True)
 
-    assert(np.allclose(phoebe2_val_lc, phoebe1_val_lc, rtol=7e-3, atol=0.))
+    assert np.allclose(phoebe2_val_lc, phoebe1_val_lc, rtol=7e-3, atol=0.)
     # note we can't use relative tolerances because those blow up near 0, so
     # instead we'll fake a relative tolerance by using the amplitude of the RV curve.
     rv_ampl = np.max(np.abs(phoebe1_val_rv1))
     rtol = 7e-3
-    assert(np.allclose(phoebe2_val_rv1, phoebe1_val_rv1, rtol=0., atol=rtol*rv_ampl))
-    assert(np.allclose(phoebe2_val_rv2, phoebe1_val_rv2, rtol=0., atol=rtol*rv_ampl))
-    return cb
+    assert np.allclose(phoebe2_val_rv1, phoebe1_val_rv1, rtol=0., atol=rtol*rv_ampl)
+    assert np.allclose(phoebe2_val_rv2, phoebe1_val_rv2, rtol=0., atol=rtol*rv_ampl)
+
 
 if __name__ == '__main__':
     logger = phoebe.logger(clevel='debug')
-
-    cb = test_binary(plot=True, gen_comp=True)
+    test_binary(plot=True, gen_comp=True)

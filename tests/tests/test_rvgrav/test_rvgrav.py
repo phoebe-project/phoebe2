@@ -1,6 +1,6 @@
 # Test gravitational redshift for the Sun. The theoretically
 # predicted value from GTR is ~633 m/s.
-# 
+#
 # The Sun-Jupiter system
 # expected RV semi-amplitude of the Sun is 12.5 m/s.
 
@@ -8,7 +8,6 @@
 
 import phoebe
 from phoebe import u, c
-# import libphoebe
 
 
 def initiate_sun_jupiter_system():
@@ -25,7 +24,7 @@ def initiate_sun_jupiter_system():
     b['teff@secondary'] = (500, 'K')
     b['requiv@secondary'] = 1.*c.R_jup
     b['atm@secondary'] = 'blackbody'
-    
+
     b['ld_mode_bol@secondary'] = 'manual'
     b['ld_func_bol@secondary'] = 'linear'
     b['ld_coeffs_bol@secondary'] = [0.5]
