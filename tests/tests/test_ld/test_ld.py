@@ -126,6 +126,7 @@ def test_binary(plot=False, gen_comp=False):
                 print("exact_comparison: {}, max (rel): {}".format(exact_comparison, abs((phoebe2_val-phoebe1_val)/phoebe1_val).max()))
 
             if plot:
+                import matplotlib.pyplot as plt
                 plt.plot(np.linspace(0, period, 21), phoebe1_val, label='legacy')
                 plt.plot(np.linspace(0, period, 21), phoebe2_val, label='phoebe')
                 plt.legend()

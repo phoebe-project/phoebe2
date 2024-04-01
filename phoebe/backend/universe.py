@@ -15,8 +15,6 @@ from phoebe import u
 from phoebe import c
 from phoebe import conf
 
-from cndpolator import ainfo
-
 import logging
 logger = logging.getLogger("UNIVERSE")
 logger.addHandler(logging.NullHandler())
@@ -1802,14 +1800,7 @@ class Star(Body):
             ldatm = atm
         elif ld_mode == 'lookup':
             if ld_coeffs_source == 'auto':
-                if atm == 'blackbody':
-                    ldatm = 'ck2004'
-                elif atm == 'extern_atmx':
-                    ldatm = 'ck2004'
-                elif atm == 'extern_planckint':
-                    ldatm = 'ck2004'
-                else:
-                    ldatm = atm
+                ldatm = 'ck2004' if atm in ['blackbody', 'extern_atmx', 'extern_planckint'] else atm
             else:
                 ldatm = ld_coeffs_source
         elif ld_mode == 'manual':
@@ -1823,8 +1814,7 @@ class Star(Body):
 
         pblum = kwargs.get('pblum', 4*np.pi)
 
-        if lc_method=='numerical':
-
+        if lc_method == 'numerical':
             pb = passbands.get_passband(passband)
 
             if ldatm != 'none' and '{}:ldint'.format(ldatm) not in pb.content:
@@ -1833,7 +1823,7 @@ class Star(Body):
                 else:
                     raise ValueError("{} not supported for limb-darkening with {}:{} passband.  Try changing the value of the atm parameter".format(ldatm, pb.pbset, pb.pbname))
 
-            if intens_weighting=='photon':
+            if intens_weighting == 'photon':
                 ptfarea = pb.ptf_photon_area/pb.h/pb.c
             else:
                 ptfarea = pb.ptf_area
@@ -1856,11 +1846,6 @@ class Star(Body):
                 raise_on_nans=True
             ).flatten()
 
-            # print(f'{query_pts.shape=}')
-            # print(f'{ldint.shape=}')
-            # print(f'{ldint[:5,:]=}')
-            # [0.78913106 0.78944129 0.78953682 0.78953682 0.78944129]
-
             abs_normal_intensities = pb.Inorm(
                 query_pts=query_pts,
                 atm=atm,
@@ -1874,17 +1859,19 @@ class Star(Body):
                 blending_method=blending_method
             ).flatten()
 
-            # print(abs_normal_intensities[:5])
-            # [4.14597115e+13 4.17244100e+13 4.18061229e+13 4.18061229e+13 4.17244100e+13]
-
-            query_pts = np.ascontiguousarray(np.stack((
-                self.mesh.teffs.for_computations,
-                self.mesh.loggs.for_computations,
-                self.mesh.abuns.for_computations,
-                np.abs(self.mesh.mus_for_computations),
-            )).T)
-            # print(f'{self.mesh.mus_for_computations=}')
-            # print(ainfo(query_pts))
+            if atm == 'blackbody' and extinct > 0:
+                query_pts = np.stack((
+                    self.mesh.teffs.for_computations,
+                    Rv * np.ones_like(self.mesh.teffs.for_computations),
+                    extinct * np.ones_like(self.mesh.teffs.for_computations)
+                )).T
+            else:
+                query_pts = np.stack((
+                    self.mesh.teffs.for_computations,
+                    self.mesh.loggs.for_computations,
+                    self.mesh.abuns.for_computations,
+                    np.abs(self.mesh.mus_for_computations),
+                )).T
 
             # abs_intensities are the projected (limb-darkened) passband intensities
             # TODO: why do we need to use abs(mus) here?
@@ -1903,13 +1890,6 @@ class Star(Body):
                 ld_extrapolation_method=ld_extrapolation_method,
                 blending_method=blending_method
             ).flatten()
-            # print(f'{abs_normal_intensities[:5]=}')
-
-            # for i in range(len(query_pts)):
-            #     print(f'{query_pts[i,0]} {query_pts[i,1]} {query_pts[i,2]} {query_pts[i,3]} {ldint[i]} {abs_normal_intensities[i]} {abs_intensities[i]}')
-            
-            # print(abs_intensities[:5])
-            # [4.29491526e+13 3.91889231e+13 3.91933678e+13 3.91954156e+13 3.91930293e+13]
 
             # Beaming/boosting
             if boosting_method == 'none' or ignore_effects:
@@ -1933,19 +1913,16 @@ class Star(Body):
             # normal intensities
             abs_intensities *= boost_factors
 
+            # interstellar extinction (reddening):
             if extinct == 0.0:
                 extinct_factors = 1.0
             else:
                 extinct_factors = pb.interpolate_extinct(
-                    teffs=self.mesh.teffs.for_computations,
-                    loggs=self.mesh.loggs.for_computations,
-                    abuns=self.mesh.abuns.for_computations,
-                    ebvs=extinct,
-                    rvs=Rv,
+                    query_pts=query_pts,
                     atm=atm,
                     intens_weighting=intens_weighting,
                     extrapolation_method=atm_extrapolation_method
-                )
+                ).flatten()
 
                 # extinction is NOT aspect dependent, so we'll correct both
                 # normal and directional intensities
@@ -1959,7 +1936,7 @@ class Star(Body):
             normal_intensities = abs_normal_intensities * self.get_pblum_scale(dataset)
             intensities = abs_intensities * self.get_pblum_scale(dataset)
 
-        elif lc_method=='analytical':
+        elif lc_method == 'analytical':
             raise NotImplementedError("analytical fluxes not yet supported")
             # TODO: this probably needs to be moved into observe or backends.phoebe
             # (assuming it doesn't result in per-triangle quantities)

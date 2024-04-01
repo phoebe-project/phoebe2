@@ -1,9 +1,9 @@
 from phoebe import __version__ as phoebe_version
 from phoebe import conf, mpi
 from phoebe.utils import _bytes
+from tqdm import tqdm
 
-from phoebe.dependencies import ndpolator
-import cndpolator
+import ndpolator
 
 # NOTE: we'll import directly from astropy here to avoid
 # circular imports BUT any changes to these units/constants
@@ -16,7 +16,6 @@ from astropy.table import Table
 import numpy as np
 from scipy import interpolate, integrate
 from scipy.optimize import curve_fit as cfit
-from scipy.spatial import cKDTree
 from datetime import datetime
 import libphoebe
 import os
@@ -44,7 +43,7 @@ _url_tables_server = 'http://tables.phoebe-project.org'
 
 # Future atmosphere tables could exist in the passband files, but the current
 # release won't be able to handle those.
-_supported_atms = ['blackbody', 'ck2004', 'phoenix', 'tmap', 'extern_atmx', 'extern_planckint']
+_supported_atms = ['blackbody', 'ck2004', 'phoenix', 'tmap_sdO', 'tmap_DA', 'tmap_DAO', 'tmap_DO', 'extern_atmx', 'extern_planckint']
 
 # Global passband table. This dict should never be tinkered with outside
 # of the functions in this module; it might be nice to make it read-only
@@ -128,7 +127,7 @@ def raise_out_of_bounds(nanvals, atm=None, ldatm=None, intens_weighting=None):
 
 
 class Passband:
-    def __init__(self, ptf=None, pbset='Johnson', pbname='V', effwl=5500.0,
+    def __init__(self, ptf=None, pbset='Johnson', pbname='V',
                  wlunits=u.AA, calibrated=False, reference='', version=1.0,
                  comments='', oversampling=1, ptf_order=3, from_file=False):
         """
@@ -138,70 +137,65 @@ class Passband:
 
         Step #1: initialize passband object
 
-        ```py
-        pb = Passband(ptf='JOHNSON.V', pbset='Johnson', pbname='V', effwl=5500.0, wlunits=u.AA, calibrated=True, reference='ADPS', version=1.0, comments='')
-        ```
+        ```py pb = Passband(ptf='JOHNSON.V', pbset='Johnson', pbname='V',
+        wlunits=u.AA, calibrated=True, reference='ADPS', version=1.0,
+        comments='') ```
 
         Step #2: compute intensities for blackbody radiation:
 
-        ```py
-        pb.compute_blackbody_intensities()
-        ```
+        ```py pb.compute_blackbody_intensities() ```
 
-        Step #3: compute Castelli & Kurucz (2004) intensities. To do this,
-        the tables/ck2004 directory needs to be populated with non-filtered
+        Step #3: compute Castelli & Kurucz (2004) intensities. To do this, the
+        tables/ck2004 directory needs to be populated with non-filtered
         intensities available for download from %static%/ck2004.tar.
 
-        ```py
-        atmdir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tables/ck2004'))
-        pb.compute_ck2004_response(atmdir)
-        ```
+        ```py atmdir =
+        os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+        'tables/ck2004')) pb.compute_ck2004_response(atmdir) ```
 
         Step #4: -- optional -- import WD tables for comparison. This can only
         be done if the passband is in the list of supported passbands in WD.
         The WD index of the passband is passed to the import_wd_atmcof()
         function below as the last argument.
 
-        ```py
-        from phoebe.atmospheres import atmcof
-        atmdir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tables/wd'))
-        atmcof.init(atmdir+'/atmcofplanck.dat', atmdir+'/atmcof.dat')
-        pb.import_wd_atmcof(atmdir+'/atmcofplanck.dat', atmdir+'/atmcof.dat', 7)
-        ```
+        ```py from phoebe.atmospheres import atmcof atmdir =
+        os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+        'tables/wd')) atmcof.init(atmdir+'/atmcofplanck.dat',
+        atmdir+'/atmcof.dat') pb.import_wd_atmcof(atmdir+'/atmcofplanck.dat',
+        atmdir+'/atmcof.dat', 7) ```
 
         Step #5: save the passband file:
 
-        ```py
-        atmdir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tables/passbands'))
-        pb.save(atmdir + '/johnson_v.ptf')
-        ```
+        ```py atmdir =
+        os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+        'tables/passbands')) pb.save(atmdir + '/johnson_v.ptf') ```
 
         From now on you can use `pbset`:`pbname` as a passband qualifier, i.e.
         Johnson:V for the example above. Further details on supported model
         atmospheres are available by issuing:
 
-        ```py
-        pb.content
-        ```
+        ```py pb.content ```
 
         see <phoebe.atmospheres.passbands.content>
 
         Arguments
         ----------
-        * `ptf` (string, optional, default=None): passband transmission file: a
-            2-column file with wavelength in `wlunits` and transmission in
-            arbitrary units.
+        * `ptf` (string or numpy array, optional, default=None): passband
+          transmission; if str, assume it is a filename: a 2-column file with
+          wavelength in `wlunits` and transmission in arbitrary units; if
+          numpy array, it is a (N, 2)-shaped array that contains the same two
+          columns.
         * `pbset` (string, optional, default='Johnson'): name of the passband
             set (i.e. Johnson).
         * `pbname` (string, optional, default='V'): name of the passband name
             (i.e. V).
-        * `effwl` (float, optional, default=5500.0): effective wavelength in
-            `wlunits`.
         * `wlunits` (unit, optional, default=u.AA): wavelength units from
-            astropy.units used in `ptf` and `effwl`.
-        * `calibrated` (bool, optional, default=False): True if transmission is
+            astropy.units used in `ptf`.
+        * `calibrated` (bool, optional, default=False): True if transmission
+          is
             in true fractional light, False if it is in relative proportions.
-        * `reference` (string, optional, default=''): passband transmission data
+        * `reference` (string, optional, default=''): passband transmission
+          data
             reference (i.e. ADPS).
         * `version` (float, optional, default=1.0): file version.
         * `comments` (string, optional, default=''): any additional comments
@@ -212,8 +206,8 @@ class Passband:
             the passband transmission function.
         * `from_file` (bool, optional, default=False): a switch that instructs
             the class instance to skip all calculations and load all data from
-            the file passed to the <phoebe.atmospheres.passbands.Passband.load>
-            method.
+            the file passed to the
+            <phoebe.atmospheres.passbands.Passband.load> method.
 
         Returns
         ---------
@@ -224,10 +218,6 @@ class Passband:
             raise ValueError("pbset cannot contain quotation marks")
         if "'" in pbname or '"' in pbname:
             raise ValueError("pbname cannot contain quotation marks")
-
-        self.h = h.value
-        self.c = c.value
-        self.k = k_B.value
 
         if from_file:
             return
@@ -240,7 +230,6 @@ class Passband:
         # Basic passband properties:
         self.pbset = pbset
         self.pbname = pbname
-        self.effwl = effwl
         self.calibrated = calibrated
         self.reference = reference
         self.version = version
@@ -250,9 +239,14 @@ class Passband:
         self.timestamp = None
 
         # Passband transmission function table:
-        ptf_table = np.loadtxt(ptf).T
-        ptf_table[0] = ptf_table[0]*wlunits.to(u.m)
-        self.ptf_table = {'wl': np.array(ptf_table[0]), 'fl': np.array(ptf_table[1])}
+        if isinstance(ptf, str):
+            ptf_table = np.loadtxt(ptf).T
+            ptf_table[0] = ptf_table[0]*wlunits.to(u.m)
+            self.ptf_table = {'wl': np.array(ptf_table[0]), 'fl': np.array(ptf_table[1])}
+        elif isinstance(ptf, np.ndarray):
+            self.ptf_table = {'wl': ptf[:,0]*wlunits.to(u.m), 'fl': ptf[:,1]}
+        else:
+            raise ValueError('argument `ptf` must either be a string (filename) or a (N, 2)-shaped array.')
 
         # Working (optionally oversampled) wavelength array:
         self.wl_oversampling = oversampling
@@ -269,6 +263,9 @@ class Passband:
         self.ptf_photon = lambda wl: interpolate.splev(wl, self.ptf_photon_func)
         self.ptf_photon_area = interpolate.splint(self.wl[0], self.wl[-1], self.ptf_photon_func, 0)
 
+        # Effective wavelength in wlunits:
+        self.effwl = (self.ptf_photon_area/self.ptf_area*u.m).to(wlunits)
+
         # Initialize (empty) history:
         self.history = []
 
@@ -277,6 +274,7 @@ class Passband:
             self.add_to_history(comments)
 
         # Initialize passband tables:
+
         self.atm_axes = dict()            # model atmosphere axes
         self.ext_axes = dict()            # interstellar extinction axes
         self.atm_energy_grid = dict()     # energy-weighted intensities
@@ -295,8 +293,6 @@ class Passband:
         # self.nntree = dict()              # nearest neighbor tree for blending and extrapolation
         # self.indices = dict()             # nearest neighbor indices for blending and extrapolation
         # self.ics = dict()                 # inferior corners for blending and extrapolation
-        self.blending_region = dict()     # blending regions
-        self.mapper = dict()              # mapping from model atmosphere axes to interpolation axes
 
     def __repr__(self):
         return f'<Passband: {self.pbset}:{self.pbname}>'
@@ -375,7 +371,7 @@ class Passband:
         header['TIMESTMP'] = timestamp
         header['PBSET'] = self.pbset
         header['PBNAME'] = self.pbname
-        header['EFFWL'] = self.effwl
+        header['EFFWL'] = self.effwl.value
         header['CALIBRTD'] = self.calibrated
         header['WLOVSMPL'] = self.wl_oversampling
         header['VERSION'] = self.version
@@ -419,9 +415,11 @@ class Passband:
             data.append(fits.table_to_hdu(bb_func))
 
         if 'blackbody:ext' in self.content:
-            data.append(fits.table_to_hdu(Table({'teff': self._bb_extinct_axes[0]}, meta={'extname': 'BB_TEFFS'})))
-            data.append(fits.table_to_hdu(Table({'ebv': self._bb_extinct_axes[1]}, meta={'extname': 'BB_EBVS'})))
-            data.append(fits.table_to_hdu(Table({'rv': self._bb_extinct_axes[2]}, meta={'extname': 'BB_RVS'})))
+            # concatenate basic and associated axes:
+            axes = self.ndp['blackbody'].axes + self.ndp['blackbody'].table['ext@photon'][0]
+            data.append(fits.table_to_hdu(Table({'teff': axes[0]}, meta={'extname': 'BB_TEFFS'})))
+            data.append(fits.table_to_hdu(Table({'ebv': axes[1]}, meta={'extname': 'BB_EBVS'})))
+            data.append(fits.table_to_hdu(Table({'rv': axes[2]}, meta={'extname': 'BB_RVS'})))
 
         if 'ck2004' in atms:
             ck_teffs, ck_loggs, ck_abuns, ck_mus = self.atm_axes['ck2004']
@@ -447,23 +445,58 @@ class Passband:
             data.append(fits.table_to_hdu(Table({'ebv': ph_ebvs}, meta={'extname': 'PH_EBVS'})))
             data.append(fits.table_to_hdu(Table({'rv': ph_rvs}, meta={'extname': 'PH_RVS'})))
 
-        if 'tmap:Imu' in self.content:
-            tm_teffs, tm_loggs, tm_abuns, tm_mus = self.atm_axes['tmap']
-            tm_teffs, tm_loggs, tm_abuns, tm_mus = self.atm_axes['tmap']
+        if 'tmap_sdO:Imu' in self.content:
+            ts_teffs, ts_loggs, ts_abuns, ts_mus = self.atm_axes['tmap_sdO']
+            data.append(fits.table_to_hdu(Table({'teff': ts_teffs}, meta={'extname': 'TS_TEFFS'})))
+            data.append(fits.table_to_hdu(Table({'logg': ts_loggs}, meta={'extname': 'TS_LOGGS'})))
+            data.append(fits.table_to_hdu(Table({'abun': ts_abuns}, meta={'extname': 'TS_ABUNS'})))
+            data.append(fits.table_to_hdu(Table({'mu': ts_mus}, meta={'extname': 'TS_MUS'})))
+
+        if 'tmap_sdO:ext' in self.content:
+            ts_teffs, ts_loggs, ts_abuns, tso_ebvs, tso_rvs = self.ext_axes['tmap_sdO']
+            data.append(fits.table_to_hdu(Table({'ebv': ts_ebvs}, meta={'extname': 'TS_EBVS'})))
+            data.append(fits.table_to_hdu(Table({'rv': ts_rvs}, meta={'extname': 'TS_RVS'})))
+
+        if 'tmap_DO:Imu' in self.content:
+            to_teffs, to_loggs, to_abuns, to_mus = self.atm_axes['tmap_DO']
+            data.append(fits.table_to_hdu(Table({'teff': to_teffs}, meta={'extname': 'TO_TEFFS'})))
+            data.append(fits.table_to_hdu(Table({'logg': to_loggs}, meta={'extname': 'TO_LOGGS'})))
+            data.append(fits.table_to_hdu(Table({'abun': to_abuns}, meta={'extname': 'TO_ABUNS'})))
+            data.append(fits.table_to_hdu(Table({'mu': to_mus}, meta={'extname': 'TO_MUS'})))
+
+        if 'tmap_DO:ext' in self.content:
+            to_teffs, to_loggs, to_abuns, to_ebvs, to_rvs = self.ext_axes['tmap_DO']
+            data.append(fits.table_to_hdu(Table({'ebv': to_ebvs}, meta={'extname': 'TO_EBVS'})))
+            data.append(fits.table_to_hdu(Table({'rv': to_rvs}, meta={'extname': 'TO_RVS'})))
+
+        if 'tmap_DA:Imu' in self.content:
+            ta_teffs, ta_loggs, ta_abuns, ta_mus = self.atm_axes['tmap_DA']
+            data.append(fits.table_to_hdu(Table({'teff': ta_teffs}, meta={'extname': 'TA_TEFFS'})))
+            data.append(fits.table_to_hdu(Table({'logg': ta_loggs}, meta={'extname': 'TA_LOGGS'})))
+            data.append(fits.table_to_hdu(Table({'abun': ta_abuns}, meta={'extname': 'TA_ABUNS'})))
+            data.append(fits.table_to_hdu(Table({'mu': ta_mus}, meta={'extname': 'TA_MUS'})))
+
+        if 'tmap_DA:ext' in self.content:
+            ta_teffs, ta_loggs, ta_abuns, ta_ebvs, ta_rvs = self.ext_axes['tmap_DA']
+            data.append(fits.table_to_hdu(Table({'ebv': ta_ebvs}, meta={'extname': 'TA_EBVS'})))
+            data.append(fits.table_to_hdu(Table({'rv': ta_rvs}, meta={'extname': 'TA_RVS'})))
+
+        if 'tmap_DAO:Imu' in self.content:
+            tm_teffs, tm_loggs, tm_abuns, tm_mus = self.atm_axes['tmap_DAO']
             data.append(fits.table_to_hdu(Table({'teff': tm_teffs}, meta={'extname': 'TM_TEFFS'})))
             data.append(fits.table_to_hdu(Table({'logg': tm_loggs}, meta={'extname': 'TM_LOGGS'})))
             data.append(fits.table_to_hdu(Table({'abun': tm_abuns}, meta={'extname': 'TM_ABUNS'})))
             data.append(fits.table_to_hdu(Table({'mu': tm_mus}, meta={'extname': 'TM_MUS'})))
 
-        if 'tmap:ext' in self.content:
-            tm_teffs, tm_loggs, tm_abuns, tm_ebvs, tm_rvs = self.ext_axes['tmap']
+        if 'tmap_DAO:ext' in self.content:
+            tm_teffs, tm_loggs, tm_abuns, tm_ebvs, tm_rvs = self.ext_axes['tmap_DAO']
             data.append(fits.table_to_hdu(Table({'ebv': tm_ebvs}, meta={'extname': 'TM_EBVS'})))
             data.append(fits.table_to_hdu(Table({'rv': tm_rvs}, meta={'extname': 'TM_RVS'})))
 
         # Data:
         if 'blackbody:ext' in self.content:
-            data.append(fits.ImageHDU(self._bb_extinct_energy_grid, name='BBEGRID'))
-            data.append(fits.ImageHDU(self._bb_extinct_photon_grid, name='BBPGRID'))
+            data.append(fits.ImageHDU(self.ndp['blackbody'].table['ext@energy'][1], name='BBEGRID'))
+            data.append(fits.ImageHDU(self.ndp['blackbody'].table['ext@photon'][1], name='BBPGRID'))
 
         if 'ck2004:Imu' in self.content:
             data.append(fits.ImageHDU(self.atm_energy_grid['ck2004'], name='CKFEGRID'))
@@ -505,25 +538,85 @@ class Passband:
             data.append(fits.ImageHDU(self.ext_energy_grid['phoenix'], name='PHXEGRID'))
             data.append(fits.ImageHDU(self.ext_photon_grid['phoenix'], name='PHXPGRID'))
 
-        if 'tmap:Imu' in self.content:
-            data.append(fits.ImageHDU(self.atm_energy_grid['tmap'], name='TMFEGRID'))
-            data.append(fits.ImageHDU(self.atm_photon_grid['tmap'], name='TMFPGRID'))
+        if 'tmap_sdO:Imu' in self.content:
+            data.append(fits.ImageHDU(self.atm_energy_grid['tmap_sdO'], name='TSFEGRID'))
+            data.append(fits.ImageHDU(self.atm_photon_grid['tmap_sdO'], name='TSFPGRID'))
 
             if export_inorm_tables:
-                data.append(fits.ImageHDU(self.atm_energy_grid['tmap'][..., -1, :], name='TMNEGRID'))
-                data.append(fits.ImageHDU(self.atm_photon_grid['tmap'][..., -1, :], name='TMNPGRID'))
+                data.append(fits.ImageHDU(self.atm_energy_grid['tmap_sdO'][..., -1, :], name='TSNEGRID'))
+                data.append(fits.ImageHDU(self.atm_photon_grid['tmap_sdO'][..., -1, :], name='TSNPGRID'))
 
-        if 'tmap:ld' in self.content:
-            data.append(fits.ImageHDU(self.ld_energy_grid['tmap'], name='TMLEGRID'))
-            data.append(fits.ImageHDU(self.ld_photon_grid['tmap'], name='TMLPGRID'))
+        if 'tmap_sdO:ld' in self.content:
+            data.append(fits.ImageHDU(self.ld_energy_grid['tmap_sdO'], name='TSLEGRID'))
+            data.append(fits.ImageHDU(self.ld_photon_grid['tmap_sdO'], name='TSLPGRID'))
 
-        if 'tmap:ldint' in self.content:
-            data.append(fits.ImageHDU(self.ldint_energy_grid['tmap'], name='TMIEGRID'))
-            data.append(fits.ImageHDU(self.ldint_photon_grid['tmap'], name='TMIPGRID'))
+        if 'tmap_sdO:ldint' in self.content:
+            data.append(fits.ImageHDU(self.ldint_energy_grid['tmap_sdO'], name='TSIEGRID'))
+            data.append(fits.ImageHDU(self.ldint_photon_grid['tmap_sdO'], name='TSIPGRID'))
 
-        if 'tmap:ext' in self.content:
-            data.append(fits.ImageHDU(self.ext_energy_grid['tmap'], name='TMXEGRID'))
-            data.append(fits.ImageHDU(self.ext_photon_grid['tmap'], name='TMXPGRID'))
+        if 'tmap_sdO:ext' in self.content:
+            data.append(fits.ImageHDU(self.ext_energy_grid['tmap_sdO'], name='TSXEGRID'))
+            data.append(fits.ImageHDU(self.ext_photon_grid['tmap_sdO'], name='TSXPGRID'))
+
+        if 'tmap_DA:Imu' in self.content:
+            data.append(fits.ImageHDU(self.atm_energy_grid['tmap_DA'], name='TAFEGRID'))
+            data.append(fits.ImageHDU(self.atm_photon_grid['tmap_DA'], name='TAFPGRID'))
+
+            if export_inorm_tables:
+                data.append(fits.ImageHDU(self.atm_energy_grid['tmap_DA'][..., -1, :], name='TANEGRID'))
+                data.append(fits.ImageHDU(self.atm_photon_grid['tmap_DA'][..., -1, :], name='TANPGRID'))
+
+        if 'tmap_DA:ld' in self.content:
+            data.append(fits.ImageHDU(self.ld_energy_grid['tmap_DA'], name='TALEGRID'))
+            data.append(fits.ImageHDU(self.ld_photon_grid['tmap_DA'], name='TALPGRID'))
+
+        if 'tmap_DA:ldint' in self.content:
+            data.append(fits.ImageHDU(self.ldint_energy_grid['tmap_DA'], name='TAIEGRID'))
+            data.append(fits.ImageHDU(self.ldint_photon_grid['tmap_DA'], name='TAIPGRID'))
+
+        if 'tmap_DA:ext' in self.content:
+            data.append(fits.ImageHDU(self.ext_energy_grid['tmap_DA'], name='TAXEGRID'))
+            data.append(fits.ImageHDU(self.ext_photon_grid['tmap_DA'], name='TAXPGRID'))
+
+        if 'tmap_DAO:Imu' in self.content:
+            data.append(fits.ImageHDU(self.atm_energy_grid['tmap_DAO'], name='TMFEGRID'))
+            data.append(fits.ImageHDU(self.atm_photon_grid['tmap_DAO'], name='TMFPGRID'))
+
+            if export_inorm_tables:
+                data.append(fits.ImageHDU(self.atm_energy_grid['tmap_DAO'][..., -1, :], name='TMNEGRID'))
+                data.append(fits.ImageHDU(self.atm_photon_grid['tmap_DAO'][..., -1, :], name='TMNPGRID'))
+
+        if 'tmap_DAO:ld' in self.content:
+            data.append(fits.ImageHDU(self.ld_energy_grid['tmap_DAO'], name='TMLEGRID'))
+            data.append(fits.ImageHDU(self.ld_photon_grid['tmap_DAO'], name='TMLPGRID'))
+
+        if 'tmap_DAO:ldint' in self.content:
+            data.append(fits.ImageHDU(self.ldint_energy_grid['tmap_DAO'], name='TMIEGRID'))
+            data.append(fits.ImageHDU(self.ldint_photon_grid['tmap_DAO'], name='TMIPGRID'))
+
+        if 'tmap_DAO:ext' in self.content:
+            data.append(fits.ImageHDU(self.ext_energy_grid['tmap_DAO'], name='TMXEGRID'))
+            data.append(fits.ImageHDU(self.ext_photon_grid['tmap_DAO'], name='TMXPGRID'))
+
+        if 'tmap_DO:Imu' in self.content:
+            data.append(fits.ImageHDU(self.atm_energy_grid['tmap_DAO'], name='TOFEGRID'))
+            data.append(fits.ImageHDU(self.atm_photon_grid['tmap_DAO'], name='TOFPGRID'))
+
+            if export_inorm_tables:
+                data.append(fits.ImageHDU(self.atm_energy_grid['tmap_DO'][..., -1, :], name='TONEGRID'))
+                data.append(fits.ImageHDU(self.atm_photon_grid['tmap_DO'][..., -1, :], name='TONPGRID'))
+
+        if 'tmap_DO:ld' in self.content:
+            data.append(fits.ImageHDU(self.ld_energy_grid['tmap_DO'], name='TOLEGRID'))
+            data.append(fits.ImageHDU(self.ld_photon_grid['tmap_DO'], name='TOLPGRID'))
+
+        if 'tmap_DO:ldint' in self.content:
+            data.append(fits.ImageHDU(self.ldint_energy_grid['tmap_DO'], name='TOIEGRID'))
+            data.append(fits.ImageHDU(self.ldint_photon_grid['tmap_DO'], name='TOIPGRID'))
+
+        if 'tmap_DO:ext' in self.content:
+            data.append(fits.ImageHDU(self.ext_energy_grid['tmap_DO'], name='TOXEGRID'))
+            data.append(fits.ImageHDU(self.ext_photon_grid['tmap_DO'], name='TOXPGRID'))
 
         pb = fits.HDUList(data)
         pb.writeto(archive, overwrite=overwrite)
@@ -560,7 +653,7 @@ class Passband:
 
             self.pbset = header['pbset']
             self.pbname = header['pbname']
-            self.effwl = header['effwl']
+            self.effwl = header['effwl'] * u.m
             self.calibrated = header['calibrtd']
             self.wl_oversampling = header.get('wlovsmpl', 1)
             self.comments = header['comments']
@@ -571,13 +664,6 @@ class Passband:
 
             self.content = eval(header['content'], {'__builtins__':None}, {})
             self.history = list(header.get('history', ''))
-
-            # try:
-            #     history = ''.join([l.ljust(72) if '-END-' not in l else l for l in header['HISTORY']]).split('-END-')
-            # except KeyError:
-            #     history = []
-
-            # self.history = {h.split(': ')[0]: ': '.join(h.split(': ')[1:]) for h in history if len(h.split(': ')) > 1}
 
             self.atm_axes = dict()
             self.ext_axes = dict()
@@ -591,13 +677,6 @@ class Passband:
             self.ext_photon_grid = dict()
 
             self.ndp = dict()
-
-            if init_extrapolation:
-                # self.nntree = dict()
-                # self.indices = dict()
-                # self.ics = dict()
-                self.blending_region = dict()
-                self.mapper = dict()
 
             self.ptf_table = hdul['ptftable'].data
             self.wl = np.linspace(self.ptf_table['wl'][0], self.ptf_table['wl'][-1], int(self.wl_oversampling*len(self.ptf_table['wl'])))
@@ -624,55 +703,70 @@ class Passband:
                     self._log10_Inorm_bb_photon = lambda Teff: interpolate.splev(Teff, self._bb_func_photon)
 
                 if 'blackbody:ext' in self.content:
-                    self._bb_extinct_axes = (np.array(list(hdul['bb_teffs'].data['teff'])), np.array(list(hdul['bb_ebvs'].data['ebv'])), np.array(list(hdul['bb_rvs'].data['rv'])))
-                    self._bb_extinct_energy_grid = hdul['bbegrid'].data
-                    self._bb_extinct_photon_grid = hdul['bbpgrid'].data
+                    axes = (
+                        np.array(list(hdul['bb_teffs'].data['teff'])),
+                        np.array(list(hdul['bb_ebvs'].data['ebv'])),
+                        np.array(list(hdul['bb_rvs'].data['rv']))
+                    )
 
-                for atm in ['ck2004', 'phoenix', 'tmap']:
+                    self.ndp['blackbody'] = ndpolator.Ndpolator(basic_axes=(axes[0],))
+                    self.ndp['blackbody'].register('ext@photon', (axes[1], axes[2]), hdul['bbegrid'].data)
+                    self.ndp['blackbody'].register('ext@energy', (axes[1], axes[2]), hdul['bbpgrid'].data)
+
+                for atm in ['ck2004', 'phoenix', 'tmap_sdO', 'tmap_DA', 'tmap_DAO', 'tmap_DO']:
                     if f'{atm}:Imu' in self.content:
-                        prefix = atm[:2]
+                        if atm in ['phoenix','ck2004']:
+                            prefix = atm[:2]
+                        elif atm == 'tmap_sdO':
+                            prefix ='ts'
+                        elif atm == 'tmap_DA':
+                            prefix = 'ta'
+                        elif atm =='tmap_DAO':
+                            prefix = 'tm'
+                        elif atm == 'tmap_DO':
+                            prefix = 'to'
+                        axes = (
+                            np.array(list(hdul[f'{prefix}_teffs'].data['teff'])),
+                            np.array(list(hdul[f'{prefix}_loggs'].data['logg'])),
+                            np.array(list(hdul[f'{prefix}_abuns'].data['abun'])),
+                        )
+
                         self.atm_axes[atm] = (
                             np.array(list(hdul[f'{prefix}_teffs'].data['teff'])),
                             np.array(list(hdul[f'{prefix}_loggs'].data['logg'])),
                             np.array(list(hdul[f'{prefix}_abuns'].data['abun'])),
-                            np.array(list(hdul[f'{prefix}_mus'].data['mu'])))
+                            np.array(list(hdul[f'{prefix}_mus'].data['mu']))
+                            ,
+                        )                        
+                        
                         self.atm_energy_grid[atm] = hdul[f'{prefix}fegrid'].data
                         self.atm_photon_grid[atm] = hdul[f'{prefix}fpgrid'].data
 
-                        # inorm interpolator:
-                        self.ndp[f'inorm@photon@{atm}'] = ndpolator.Cndpolator(self.atm_axes[atm][:-1], self.atm_photon_grid[atm][...,-1,:])
-                        self.ndp[f'inorm@energy@{atm}'] = ndpolator.Cndpolator(self.atm_axes[atm][:-1], self.atm_energy_grid[atm][...,-1,:])
+                        # ndpolator instance for interpolating and extrapolating:
+                        self.ndp[atm] = ndpolator.Ndpolator(basic_axes=axes)
 
-                        # imu interpolator:
-                        self.ndp[f'imu@photon@{atm}'] = ndpolator.Cndpolator(self.atm_axes[atm], self.atm_photon_grid[atm])
-                        self.ndp[f'imu@energy@{atm}'] = ndpolator.Cndpolator(self.atm_axes[atm], self.atm_energy_grid[atm])
+                        # normal passband intensities:
+                        self.ndp[atm].register('inorm@photon', None, self.atm_photon_grid[atm][...,-1,:])
+                        self.ndp[atm].register('inorm@energy', None, self.atm_energy_grid[atm][...,-1,:])
 
-                        if init_extrapolation:
-                            # Rebuild the table of non-null indices for the nearest neighbor lookup:
-                            # self.nntree[atm], self.indices[atm] = ndpolator.kdtree(self.atm_axes[atm][:-1], self.atm_photon_grid[atm][...,-1,:])
-
-                            # Rebuild blending map:
-                            self.blending_region[atm] = ((750, 10000), (0.5, 0.5), (0.5, 0.5))
-                            self.mapper[atm] = lambda v: ndpolator.map_to_cube(v, self.atm_axes[atm][:-1], self.blending_region[atm])
-
-                            # Rebuild the table of inferior corners for extrapolation:
-                            # raxes = self.atm_axes[atm][:-1]
-                            # subgrid = self.atm_photon_grid[atm][...,-1,:]
-                            # self.ics[atm] = np.array([(i, j, k) for i in range(0, len(raxes[0])-1) for j in range(0, len(raxes[1])-1) for k in range(0, len(raxes[2])-1) if ~np.any(np.isnan(subgrid[i:i+2,j:j+2,k:k+2]))])
+                        # specific passband intensities:
+                        mus = np.array(list(hdul[f'{prefix}_mus'].data['mu']))
+                        self.ndp[atm].register('imu@photon', (mus,), self.atm_photon_grid[atm])
+                        self.ndp[atm].register('imu@energy', (mus,), self.atm_energy_grid[atm])
 
                     if f'{atm}:ld' in self.content:
                         self.ld_energy_grid[atm] = hdul[f'{prefix}legrid'].data
                         self.ld_photon_grid[atm] = hdul[f'{prefix}lpgrid'].data
 
-                        self.ndp[f'ld@photon@{atm}'] = ndpolator.Cndpolator(self.atm_axes[atm][:-1], self.ld_photon_grid[atm])
-                        self.ndp[f'ld@energy@{atm}'] = ndpolator.Cndpolator(self.atm_axes[atm][:-1], self.ld_energy_grid[atm])
+                        self.ndp[atm].register('ld@photon', None, self.ld_photon_grid[atm])
+                        self.ndp[atm].register('ld@energy', None, self.ld_energy_grid[atm])
 
                     if f'{atm}:ldint' in self.content:
                         self.ldint_energy_grid[atm] = hdul[f'{prefix}iegrid'].data
                         self.ldint_photon_grid[atm] = hdul[f'{prefix}ipgrid'].data
 
-                        self.ndp[f'ldint@photon@{atm}'] = ndpolator.Cndpolator(self.atm_axes[atm][:-1], self.ldint_photon_grid[atm])
-                        self.ndp[f'ldint@energy@{atm}'] = ndpolator.Cndpolator(self.atm_axes[atm][:-1], self.ldint_energy_grid[atm])
+                        self.ndp[atm].register('ldint@photon', None, self.ldint_photon_grid[atm])
+                        self.ndp[atm].register('ldint@energy', None, self.ldint_energy_grid[atm])
 
                     if f'{atm}:ext' in self.content:
                         self.ext_axes[atm] = (
@@ -685,94 +779,11 @@ class Passband:
                         self.ext_energy_grid[atm] = hdul[f'{prefix}xegrid'].data
                         self.ext_photon_grid[atm] = hdul[f'{prefix}xpgrid'].data
 
-                        # TODO: add ndp entries; should we do ndp.get('key', ndpolator.Cndpolator(...))? Do we need to store the actual grids at all?
-
-                # if 'ck2004:ldint' in self.content:
-                #     self.ldint_energy_grid['ck2004'] = hdul['ckiegrid'].data
-                #     self.ldint_photon_grid['ck2004'] = hdul['ckipgrid'].data
-
-                # if 'ck2004:ext' in self.content:
-                #     self.ext_axes['ck2004'] = (np.array(list(hdul['ck_teffs'].data['teff'])), np.array(list(hdul['ck_loggs'].data['logg'])), np.array(list(hdul['ck_abuns'].data['abun'])), np.array(list(hdul['ck_ebvs'].data['ebv'])), np.array(list(hdul['ck_rvs'].data['rv'])))
-                #     self.ext_energy_grid['ck2004'] = hdul['ckxegrid'].data
-                #     self.ext_photon_grid['ck2004'] = hdul['ckxpgrid'].data
-
-                # if 'phoenix:Imu' in self.content:
-                #     self.atm_axes['phoenix'] = (np.array(list(hdul['ph_teffs'].data['teff'])), np.array(list(hdul['ph_loggs'].data['logg'])), np.array(list(hdul['ph_abuns'].data['abun'])), np.array(list(hdul['ph_mus'].data['mu'])))
-                #     self.atm_energy_grid['phoenix'] = hdul['phfegrid'].data
-                #     self.atm_photon_grid['phoenix'] = hdul['phfpgrid'].data
-
-                #     self.ndp['imu@photon@phoenix'] = ndpolator.Ndpolator(self.atm_axes['phoenix'], self.atm_photon_grid['phoenix'])
-                #     self.ndp['imu@energy@phoenix'] = ndpolator.Ndpolator(self.atm_axes['phoenix'], self.atm_energy_grid['phoenix'])
-
-                #     if init_extrapolation:
-                #         # Rebuild the table of non-null indices for the nearest neighbor lookup:
-                #         self.nntree['phoenix'], self.indices['phoenix'] = ndpolator.kdtree(self.atm_axes['phoenix'][:-1], self.atm_photon_grid['phoenix'][...,-1,:])
-
-                #         # Rebuild blending map:
-                #         self.blending_region['phoenix'] = ((750, 2000), (0.5, 0.5), (0.5, 0.5))
-                #         self.mapper['phoenix'] = lambda v: ndpolator.map_to_cube(v, self.atm_axes['phoenix'][:-1], self.blending_region['phoenix'])
-
-                #         # Rebuild the table of inferior corners for extrapolation:
-                #         raxes = self.atm_axes['phoenix'][:-1]
-                #         subgrid = self.atm_photon_grid['phoenix'][...,-1,:]
-                #         self.ics['phoenix'] = np.array([(i, j, k) for i in range(0,len(raxes[0])-1) for j in range(0,len(raxes[1])-1) for k in range(0,len(raxes[2])-1) if ~np.any(np.isnan(subgrid[i:i+2,j:j+2,k:k+2]))])
-
-                # if 'phoenix:ld' in self.content:
-                #     self.ld_energy_grid['phoenix'] = hdul['phlegrid'].data
-                #     self.ld_photon_grid['phoenix'] = hdul['phlpgrid'].data
-
-                #     self.ndp['ld@photon@phoenix'] = ndpolator.Ndpolator(self.atm_axes['phoenix'], self.ld_photon_grid['phoenix'])
-                #     self.ndp['ld@energy@phoenix'] = ndpolator.Ndpolator(self.atm_axes['phoenix'], self.ld_energy_grid['phoenix'])
-
-                # if 'phoenix:ldint' in self.content:
-                #     self.ldint_energy_grid['phoenix'] = hdul['phiegrid'].data
-                #     self.ldint_photon_grid['phoenix'] = hdul['phipgrid'].data
-
-                # if 'phoenix:ext' in self.content:
-                #     self._phoenix_extinct_axes = (np.array(list(hdul['ph_teffs'].data['teff'])),np.array(list(hdul['ph_loggs'].data['logg'])), np.array(list(hdul['ph_abuns'].data['abun'])), np.array(list(hdul['ph_ebvs'].data['ebv'])), np.array(list(hdul['ph_rvs'].data['rv'])))
-                #     self._phoenix_extinct_energy_grid = hdul['phxegrid'].data
-                #     self._phoenix_extinct_photon_grid = hdul['phxpgrid'].data
-
-                # if 'tmap:Imu' in self.content:
-                #     self.atm_axes['tmap'] = (np.array(list(hdul['tm_teffs'].data['teff'])), np.array(list(hdul['tm_loggs'].data['logg'])), np.array(list(hdul['tm_abuns'].data['abun'])), np.array(list(hdul['tm_mus'].data['mu'])))
-                #     self.atm_energy_grid['tmap'] = hdul['tmfegrid'].data
-                #     self.atm_photon_grid['tmap'] = hdul['tmfpgrid'].data
-
-                #     self.ndp['imu@photon@tmap'] = ndpolator.Ndpolator(self.atm_axes['tmap'], self.atm_photon_grid['tmap'])
-                #     self.ndp['imu@energy@tmap'] = ndpolator.Ndpolator(self.atm_axes['tmap'], self.atm_energy_grid['tmap'])
-
-                #     if init_extrapolation:
-                #         # Rebuild the table of non-null indices for the nearest neighbor lookup:
-                #         self.nntree['tmap'], self.indices['tmap'] = ndpolator.kdtree(self.atm_axes['tmap'][:-1], self.atm_photon_grid['tmap'][...,-1,:])
-
-                #         # Rebuild blending map:
-                #         self.blending_region['tmap'] = ((10000, 10000), (0.5, 0.5), (0.25, 0.25))
-                #         self.mapper['tmap'] = lambda v: ndpolator.map_to_cube(v, self.atm_axes['tmap'][:-1], self.blending_region['tmap'])
-
-                #         # Rebuild the table of inferior corners for extrapolation:
-                #         raxes = self.atm_axes['tmap'][:-1]
-                #         subgrid = self.atm_photon_grid['tmap'][...,-1,:]
-                #         self.ics['tmap'] = np.array([(i, j, k) for i in range(0,len(raxes[0])-1) for j in range(0,len(raxes[1])-1) for k in range(0,len(raxes[2])-1) if ~np.any(np.isnan(subgrid[i:i+2,j:j+2,k:k+2]))])
-
-                # if 'tmap:ld' in self.content:
-                #     self.ld_energy_grid['tmap'] = hdul['tmlegrid'].data
-                #     self.ld_photon_grid['tmap'] = hdul['tmlpgrid'].data
-
-                #     self.ndp['ld@photon@tmap'] = ndpolator.Ndpolator(self.atm_axes['tmap'], self.ld_photon_grid['tmap'])
-                #     self.ndp['ld@energy@tmap'] = ndpolator.Ndpolator(self.atm_axes['tmap'], self.ld_energy_grid['tmap'])
-
-                # if 'tmap:ldint' in self.content:
-                #     self.ldint_energy_grid['tmap'] = hdul['tmiegrid'].data
-                #     self.ldint_photon_grid['tmap'] = hdul['tmipgrid'].data
-
-                # if 'tmap:ext' in self.content:
-                #     self._tmap_extinct_axes = (np.array(list(hdul['tm_teffs'].data['teff'])), np.array(list(hdul['tm_loggs'].data['logg'])), np.array(list(hdul['tm_abuns'].data['abun'])), np.array(list(hdul['tm_ebvs'].data['ebv'])), np.array(list(hdul['tm_rvs'].data['rv'])))
-                #     self._tmap_extinct_energy_grid = hdul['tmxegrid'].data
-                #     self._tmap_extinct_photon_grid = hdul['tmxpgrid'].data
+                        # TODO: add ndp entries; should we do ndp.get('key', ndpolator.Ndpolator(...))? Do we need to store the actual grids at all?
 
         return self
 
-    def _planck(self, lam, Teff):
+    def _planck(self, lam, teff):
         """
         Computes monochromatic blackbody intensity in W/m^3 using the
         Planck function.
@@ -787,7 +798,7 @@ class Passband:
         * monochromatic blackbody intensity
         """
 
-        return 2*self.h*self.c*self.c/lam**5 * 1./(np.exp(self.h*self.c/lam/self.k/Teff)-1)
+        return 2*h.value*c.value*c.value/lam**5 * 1./(np.exp(h.value*c.value/lam/k_B.value/teff)-1)
 
     def _planck_deriv(self, lam, Teff):
         """
@@ -804,8 +815,8 @@ class Passband:
         * the derivative of monochromatic blackbody intensity
         """
 
-        expterm = np.exp(self.h*self.c/lam/self.k/Teff)
-        return 2*self.h*self.c*self.c/self.k/Teff/lam**7 * (expterm-1)**-2 * (self.h*self.c*expterm-5*lam*self.k*Teff*(expterm-1))
+        expterm = np.exp(h.value*c.value/lam/k_B.value/Teff)
+        return 2*h.value*c.value*c.value/k_B.value/Teff/lam**7 * (expterm-1)**-2 * (h.value*c.value*expterm-5*lam*k_B.value*Teff*(expterm-1))
 
     def _planck_spi(self, lam, Teff):
         """
@@ -826,7 +837,7 @@ class Passband:
         * the spectral index of monochromatic blackbody intensity
         """
 
-        hclkt = self.h*self.c/lam/self.k/Teff
+        hclkt = h.value*c.value/lam/k_B.value/Teff
         expterm = np.exp(hclkt)
         return hclkt * expterm/(expterm-1)
 
@@ -887,7 +898,7 @@ class Passband:
         wls = self.wl.reshape(-1, 1)
 
         # Planck functions:
-        pfs = 2*self.h*self.c*self.c/wls**5*1./(np.exp(self.h*self.c/(self.k*wls@teffs.reshape(1, -1)))-1)  # (47, 97)
+        pfs = 2*h.value*c.value*c.value/wls**5*1./(np.exp(h.value*c.value/(k_B.value*wls@teffs.reshape(1, -1)))-1)  # (47, 97)
 
         self.atm_axes['blackbody'] = (np.unique(teffs),)
 
@@ -911,7 +922,7 @@ class Passband:
             if ebvs is None:
                 ebvs = np.linspace(0., 3., 30)
 
-            self.ext_axes['blackbody'] = (np.unique(teffs), np.unique(rvs), np.unique(ebvs))
+            axes = (np.unique(teffs), np.unique(rvs), np.unique(ebvs))
 
             ebv_column = np.tile(ebvs, len(rvs))
             rvebv_column = ebv_column*np.repeat(rvs, len(ebvs))
@@ -929,8 +940,12 @@ class Passband:
             non_extincted_intensities_energy = np.trapz(pbpfs_energy, self.wl, axis=0)[:,None]  # (97, 1)
             non_extincted_intensities_photon = np.trapz(pbpfs_photon, self.wl, axis=0)[:,None]  # (97, 1)
 
-            self.ext_energy_grid['blackbody'] = (extincted_intensities_energy/non_extincted_intensities_energy).reshape(len(teffs), len(rvs), len(ebvs), 1)  # (97, 16, 30, 1)
-            self.ext_photon_grid['blackbody'] = (extincted_intensities_photon/non_extincted_intensities_photon).reshape(len(teffs), len(rvs), len(ebvs), 1)  # (97, 16, 30, 1)
+            egrid = (extincted_intensities_energy/non_extincted_intensities_energy).reshape(len(teffs), len(rvs), len(ebvs), 1)  # (97, 16, 30, 1)
+            pgrid = (extincted_intensities_photon/non_extincted_intensities_photon).reshape(len(teffs), len(rvs), len(ebvs), 1)  # (97, 16, 30, 1)
+
+            self.ndp['blackbody'] = ndpolator.Ndpolator(basic_axes=(axes[0],))
+            self.ndp['blackbody'].register('ext@photon', associated_axes=(axes[1], axes[2]), grid=pgrid)
+            self.ndp['blackbody'].register('ext@energy', associated_axes=(axes[1], axes[2]), grid=egrid)
 
             if 'blackbody:ext' not in self.content:
                 self.content.append('blackbody:ext')
@@ -955,10 +970,6 @@ class Passband:
         * `abuns` (array): axis of all unique abundances
         * `mus` (array): axis of all unique specific angles
         * `wls` (array): spectral energy distribution wavelengths
-        * `brs` (array of tuples): blending regions for the lower and upper
-          axis boundaries; for example, (500, 5000) would correspond to the
-          blending region of 500 on the lower boundary and 5000 on the upper
-          boundary.
         * `units` (float): conversion units from model atmosphere intensity
           units to W/m^3.
         """
@@ -968,41 +979,38 @@ class Passband:
         teffs, loggs, abuns = np.empty(nmodels), np.empty(nmodels), np.empty(nmodels)
 
         if atm == 'ck2004':
-            mus = np.array([0., 0.001, 0.002, 0.003, 0.005, 0.01 , 0.015, 0.02 , 0.025, 0.03, 0.035, 0.04, 0.045, 0.05, 0.06, 0.07, 0.08, 0.09, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.])
+            mus = np.array([0., 0.001, 0.002, 0.003, 0.005, 0.01, 0.015, 0.02, 0.025, 0.03, 0.035, 0.04, 0.045, 0.05, 0.06, 0.07, 0.08, 0.09, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.])
             wls = np.arange(900., 39999.501, 0.5)/1e10  # AA -> m
             for i, model in enumerate(models):
                 relative_filename = model[model.rfind('/')+1:] # get relative pathname
                 teffs[i] = float(relative_filename[1:6])
                 loggs[i] = float(relative_filename[7:9])/10
                 abuns[i] = float(relative_filename[10:12])/10 * (-1 if relative_filename[9] == 'M' else 1)
-            brs = ((750, 10000), (0.5, 0.5), (0.5, 0.5))
             units = 1e7  # erg/s/cm^2/A -> W/m^3
         elif atm == 'phoenix':
-            mus = np.array([0., 0.001, 0.002, 0.003, 0.005, 0.01 , 0.015, 0.02 , 0.025, 0.03, 0.035, 0.04, 0.045, 0.05, 0.06, 0.07, 0.08, 0.09, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.])
+            mus = np.array([0., 0.001, 0.002, 0.003, 0.005, 0.01, 0.015, 0.02, 0.025, 0.03, 0.035, 0.04, 0.045, 0.05, 0.06, 0.07, 0.08, 0.09, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.])
             wls = np.arange(500., 26000.)/1e10  # AA -> m
             for i, model in enumerate(models):
                 relative_filename = model[model.rfind('/')+1:] # get relative pathname
                 teffs[i] = float(relative_filename[1:6])
                 loggs[i] = float(relative_filename[7:11])
                 abuns[i] = float(relative_filename[12:16])
-            brs = ((500, 1000), (0.5, 0.5), (0.5, 0.5))
             units = 1  # W/m^3
-        elif atm == 'tmap':
+        elif atm in ['tmap_sdO', 'tmap_DA', 'tmap_DAO', 'tmap_DO']:
             mus = np.array([0., 0.00136799, 0.00719419, 0.01761889, 0.03254691, 0.05183939, 0.07531619, 0.10275816, 0.13390887, 0.16847785, 0.20614219, 0.24655013, 0.28932435, 0.33406564, 0.38035639, 0.42776398, 0.47584619, 0.52415388, 0.57223605, 0.6196437, 0.66593427, 0.71067559, 0.75344991, 0.79385786, 0.83152216, 0.86609102, 0.89724188, 0.92468378, 0.9481606,  0.96745302, 0.98238112, 0.99280576, 0.99863193, 1.])
-            wls = np.load(path+'/wavelengths.npy') # in meters
+            wls = np.load(path+'/wavelengths.npy')  # in meters
             for i, model in enumerate(models):
                 pars = re.split('[TGA.]+', model[model.rfind('/')+1:])
                 teffs[i] = float(pars[1])
                 loggs[i] = float(pars[2])/100
                 abuns[i] = float(pars[3])/100
-            brs = ((10000, 10000), (0.5, 0.5), (0.25, 0.25))
             units = 1  # W/m^3
         else:
             raise ValueError(f'atm={atm} is not supported.')
 
-        return models, teffs, loggs, abuns, mus, wls, brs, units
+        return models, teffs, loggs, abuns, mus, wls, units
 
-    def compute_intensities(self, atm, path, impute=False, include_extinction=False, rvs=None, ebvs=None, verbose=True):
+    def compute_intensities(self, atm, path, include_extinction=False, rvs=None, ebvs=None, verbose=True):
         """
         Computes direction-dependent passband intensities using the passed `atm`
         model atmospheres.
@@ -1011,8 +1019,6 @@ class Passband:
         ----------
         * `atm` (string): name of the model atmosphere
         * `path` (string): path to the directory with SEDs in FITS format.
-        * `impute` (boolean, optional, default=False): should NaN values within
-            the grid be imputed.
         * `include_extinction` (boolean, optional, default=False): should the
             extinction tables be computed as well. The mean effect of reddening
             (a weighted average) on a passband uses the Gordon et al. (2009,
@@ -1030,7 +1036,7 @@ class Passband:
         if verbose:
             print(f"Computing {atm} specific passband intensities for {self.pbset}:{self.pbname} {'with' if include_extinction else 'without'} extinction.")
 
-        models, teffs, loggs, abuns, mus, wls, brs, units = self.parse_atm_datafiles(atm, path)
+        models, teffs, loggs, abuns, mus, wls, units = self.parse_atm_datafiles(atm, path)
         nmodels = len(models)
 
         ints_energy, ints_photon = np.empty(nmodels*len(mus)), np.empty(nmodels*len(mus))
@@ -1052,7 +1058,7 @@ class Passband:
         keep = (wls >= self.ptf_table['wl'][0]) & (wls <= self.ptf_table['wl'][-1])
         wls = wls[keep]
 
-        for i, model in enumerate(models):
+        for i, model in tqdm(enumerate(models), desc=atm, total=len(models), disable=not verbose, unit=' models'):
             with fits.open(model) as hdu:
                 seds = hdu[0].data*units  # must be in in W/m^3
 
@@ -1076,13 +1082,6 @@ class Passband:
                     flux_frac = np.exp(-0.9210340371976184*ext_lambda)  #10**(-0.4*ext_lambda)
                     # print(f'{pbints_energy.shape}, {fluxes_energy.shape}, {ext_energy.shape}, {flux_frac.shape}')
                     ext_energy[i], ext_photon[i] = np.dot([pbints_energy[-1]/fluxes_energy[-1], pbints_photon[-1]/fluxes_photon[-1]], flux_frac)
-
-                if verbose:
-                    sys.stdout.write('\r' + '%0.0f%% done.' % (100*float(i+1)/len(models)))
-                    sys.stdout.flush()
-
-            if verbose:
-                print('')
 
         # for cmi, cmu in enumerate(mus):
         #     fl = intensities[cmi,:]
@@ -1142,6 +1141,7 @@ class Passband:
         # self._ck2004_boosting_photon_grid = np.nan*np.ones((len(self.atm_axes['ck2004'][0]), len(self.atm_axes['ck2004'][1]), len(self.atm_axes['ck2004'][2]), len(self.atm_axes['ck2004'][3]), 1))
 
         if include_extinction:
+            # ? Should this not include mus as well?
             self.ext_axes[atm] = (np.unique(teffs), np.unique(loggs), np.unique(abuns), np.unique(ebvs), np.unique(rvs))
 
             teffs = np.repeat(teffs, len(ebvs)*len(rvs))
@@ -1164,8 +1164,8 @@ class Passband:
 
         # Set the limb (mu=0) to 0; in log this formally means flux density=1W/m3, but compared to ~10 that is
         # the typical table[:,:,:,1,:] value, for all practical purposes that is still 0.
-        self.atm_energy_grid[atm][:,:,:,0,:][~np.isnan(self.atm_energy_grid[atm][:,:,:,1,:])] = 0.0
-        self.atm_photon_grid[atm][:,:,:,0,:][~np.isnan(self.atm_photon_grid[atm][:,:,:,1,:])] = 0.0
+        # self.atm_energy_grid[atm][:,:,:,0,:][~np.isnan(self.atm_energy_grid[atm][:,:,:,1,:])] = 0.0
+        # self.atm_photon_grid[atm][:,:,:,0,:][~np.isnan(self.atm_photon_grid[atm][:,:,:,1,:])] = 0.0
 
         for i, int_energy in enumerate(ints_energy):
             self.atm_energy_grid[atm][teffs[int(i/len(mus))] == self.atm_axes[atm][0], loggs[int(i/len(mus))] == self.atm_axes[atm][1], abuns[int(i/len(mus))] == self.atm_axes[atm][2], mus[i%len(mus)] == self.atm_axes[atm][3], 0] = int_energy
@@ -1176,30 +1176,18 @@ class Passband:
         # for i, Bavg in enumerate(boostingP):
         #     self._ck2004_boosting_photon_grid[Teff[i] == self.atm_axes['ck2004'][0], logg[i] == self.atm_axes['ck2004'][1], abun[i] == self.atm_axes['ck2004'][2], mu[i] == self.atm_axes['ck2004'][3], 0] = Bavg
 
-        # Impute if requested:
-        if impute:
-            if verbose:
-                print('Imputing the grids...')
-            for grid in (self.atm_energy_grid[atm], self.atm_photon_grid[atm]):
-                for i in range(len(self.atm_axes[atm][-1])):
-                    ndpolator.impute_grid(self.atm_axes[atm][:-1], grid[...,i,:])
+        basic_axes = self.atm_axes[atm][:-1]
+        mus = self.atm_axes[atm][-1]
 
-        # Build the table of non-null indices for the nearest neighbor lookup:
-        # self.indices[atm] = np.argwhere(~np.isnan(self.atm_photon_grid[atm][...,-1,:]))
-        # non_nan_vertices = np.array([ [self.atm_axes[atm][i][self.indices[atm][k][i]] for i in range(len(self.atm_axes[atm])-1)] for k in range(len(self.indices[atm]))])
-        # self.nntree[atm] = cKDTree(non_nan_vertices, copy_data=True)
+        self.ndp[atm] = ndpolator.Ndpolator(basic_axes=basic_axes)
+        self.ndp[atm].register('inorm@photon', None, self.atm_photon_grid[atm][...,-1,:])
+        self.ndp[atm].register('inorm@energy', None, self.atm_energy_grid[atm][...,-1,:])
+        self.ndp[atm].register('imu@photon', (mus,), self.atm_photon_grid[atm])
+        self.ndp[atm].register('imu@energy', (mus,), self.atm_energy_grid[atm])
 
-        # Set up the blending region:
-        self.blending_region[atm] = brs
-        self.mapper[atm] = lambda v: ndpolator.map_to_cube(v, self.atm_axes[atm][:-1], self.blending_region[atm])
-
-        # Store all inferior corners for quick nearest neighbor lookup:
-        # raxes = self.atm_axes[atm][:-1]
-        # subgrid = self.atm_photon_grid[atm][...,-1,:]
-        # self.ics[atm] = np.array([(i, j, k) for i in range(0,len(raxes[0])-1) for j in range(0,len(raxes[1])-1) for k in range(0,len(raxes[2])-1) if ~np.any(np.isnan(subgrid[i:i+2,j:j+2,k:k+2]))])
-
-        self.ndp[f'imu@photon@{atm}'] = ndpolator.Cndpolator(self.atm_axes[atm], self.atm_photon_grid[atm])
-        self.ndp[f'imu@energy@{atm}'] = ndpolator.Cndpolator(self.atm_axes[atm], self.atm_energy_grid[atm])
+        if include_extinction:
+            self.ndp[atm].register('ext@photon', self.ext_axes[3:], self.ext_photon_grid[atm])
+            self.ndp[atm].register('ext@energy', self.ext_axes[3:], self.ext_energy_grid[atm])
 
         if f'{atm}:Imu' not in self.content:
             self.content.append(f'{atm}:Imu')
@@ -1257,7 +1245,10 @@ class Passband:
 
         self.ld_energy_grid[ldatm] = np.nan*np.ones((len(self.atm_axes[ldatm][0]), len(self.atm_axes[ldatm][1]), len(self.atm_axes[ldatm][2]), 11))
         self.ld_photon_grid[ldatm] = np.nan*np.ones((len(self.atm_axes[ldatm][0]), len(self.atm_axes[ldatm][1]), len(self.atm_axes[ldatm][2]), 11))
-        mus = self.atm_axes[ldatm][3] # starts with 0
+        if ldatm[:4] == 'tmap':
+            mus = self.atm_axes[ldatm][3][1:-1] #removes extrapolated points in mu
+        else:
+            mus = self.atm_axes[ldatm][3] # starts with 0
         if weighting == 'uniform':
             sigma = np.ones(len(mus))
         elif weighting == 'interval':
@@ -1269,7 +1260,10 @@ class Passband:
         for Tindex in range(len(self.atm_axes[ldatm][0])):
             for lindex in range(len(self.atm_axes[ldatm][1])):
                 for mindex in range(len(self.atm_axes[ldatm][2])):
-                    IsE = 10**self.atm_energy_grid[ldatm][Tindex,lindex,mindex,:].flatten()
+                    if ldatm[:4] == 'tmap':
+                        IsE = 10**self.atm_energy_grid[ldatm][Tindex,lindex,mindex,1:-1].flatten()
+                    else:
+                        IsE = 10**self.atm_energy_grid[ldatm][Tindex,lindex,mindex,:].flatten()
                     fEmask = np.isfinite(IsE)
                     if len(IsE[fEmask]) <= 1:
                         continue
@@ -1282,7 +1276,10 @@ class Passband:
                     cEnlin, pcov = cfit(f=self._ldlaw_nonlin, xdata=mus[fEmask], ydata=IsE[fEmask], sigma=sigma[fEmask], p0=[0.5, 0.5, 0.5, 0.5])
                     self.ld_energy_grid[ldatm][Tindex, lindex, mindex] = np.hstack((cElin, cElog, cEsqrt, cEquad, cEnlin))
 
-                    IsP = 10**self.atm_photon_grid[ldatm][Tindex,lindex,mindex,:].flatten()
+                    if ldatm[:4] == 'tmap':
+                        IsP = 10**self.atm_photon_grid[ldatm][Tindex,lindex,mindex,1:-1].flatten()
+                    else:
+                        IsP = 10**self.atm_photon_grid[ldatm][Tindex,lindex,mindex,:].flatten()
                     fPmask = np.isfinite(IsP)
                     IsP /= IsP[fPmask][-1]
 
@@ -1466,22 +1463,21 @@ class Passband:
         if f'{ldatm}:ld' not in self.content:
             raise ValueError(f'Limb darkening coefficients for ldatm={ldatm} are not available; please compute them first.')
 
-        ld_coeffs = self.ndp[f'ld@{intens_weighting}@{ldatm}'].interp(query_pts, extrapolation_method=ld_extrapolation_method)
+        ld_coeffs = self.ndp[ldatm].ndpolate(f'ld@{intens_weighting}', query_pts, extrapolation_method=ld_extrapolation_method)
         return ld_coeffs[s[ld_func]]
 
-    def interpolate_extinct(self, teffs=5772., loggs=4.43, abuns=0.0, atm='blackbody',  ebvs=0.0, rvs=3.1, intens_weighting='photon', extrapolation_method='none'):
+    def interpolate_extinct(self, query_pts, atm='blackbody', intens_weighting='photon', extrapolation_method='none'):
         """
         Interpolates the passband-stored tables of extinction corrections
 
         Arguments
         ----------
-        * `teffs` (float, optional, default=5772): effective temperature.
-        * `loggs` (float, optional, default=4.43): log surface gravity
-        * `abuns` (float, optional, default=0.0): abundance
+        * `query_pts` (ndarray): an NxD-dimensional ndarray, where N is the number of query points and D their dimension
         * `atm` (string, optional, default='blackbody'): atmosphere model.
         * `ebvs` (float, optional, default=0.0)
         * `rvs` (float, optional, default=3.1)
         * `intens_weighting`
+        * `extrapolation_method`
 
         Returns
         ---------
@@ -1493,22 +1489,10 @@ class Passband:
         """
 
         if f'{atm}:ext' not in self.content:
-            raise  ValueError(f"extinction factors for atm={atm} not found for the {self.pbset}:{self.pbname} passband.")
+            raise ValueError(f"extinction factors for atm={atm} not found for the {self.pbset}:{self.pbname} passband.")
 
-        axes = self.ext_axes[atm]
-        if intens_weighting == 'photon':
-            table = self.ext_photon_grid[atm]
-        else:
-            table = self.ext_energy_grid[atm]
-
-        ndp = ndpolator.Cndpolator(axes, table)
-
-        if atm == 'blackbody':
-            req = ndp.tabulate((teffs, rvs, ebvs))
-        else:
-            req = ndp.tabulate((teffs, loggs, abuns, ebvs, rvs))
-
-        extinct_factor = ndp.interp(req, extrapolation_method=extrapolation_method)
+        ndp = self.ndp[atm]
+        extinct_factor = ndp.ndpolate(f'ext@{intens_weighting}', query_pts, extrapolation_method=extrapolation_method)
         return extinct_factor
 
     def import_wd_atmcof(self, plfile, atmfile, wdidx, Nabun=19, Nlogg=11, Npb=25, Nints=4):
@@ -1606,7 +1590,7 @@ class Passband:
         ----------
         * `query_pts` (ndarray, required): a C-contiguous DxN array of queried points
         atm : string
-            model atmosphere ('ck2004', 'phoenix', 'tmap')
+            model atmosphere ('ck2004', 'phoenix', 'tmap_sdO', 'tmap_DA', 'tmap_DAO', 'tmap_DO')
         intens_weighting : str, optional
             intensity weighting scheme, by default 'photon'
         atm_extrapolation_method : str, optional
@@ -1635,8 +1619,7 @@ class Passband:
             _description_
         """
 
-        ndp = self.ndp[f'inorm@{intens_weighting}@{atm}']
-        log10_Inorm = ndp.interp(query_pts, raise_on_nans=raise_on_nans, return_nanmask=True, extrapolation_method=atm_extrapolation_method)
+        log10_Inorm = self.ndp[atm].ndpolate(f'inorm@{intens_weighting}', query_pts, extrapolation_method=atm_extrapolation_method)
         # log10_Inorm, nanmask = ndp.interp(req, raise_on_nans=raise_on_nans, return_nanmask=True, extrapolation_method=atm_extrapolation_method)
         nanmask = np.zeros_like(log10_Inorm)
         # nanmask is a mask of elements that were nans before extrapolation.
@@ -1758,34 +1741,28 @@ class Passband:
           table.
         * NotImplementedError: if `ld_func` is not supported.
         """
-        # import inspect
-        # print(f'{teffs=}\n{loggs=}\n{abuns=}\n{atm=}\n{ldatm=}\n{ldint=}\n{ld_func=}\n{ld_coeffs=}\n{intens_weighting=}\n{atm_extrapolation_method=}\n{ld_extrapolation_method=}\n{blending_method=}\n{return_nanmask=}')
-        # for fi in inspect.stack():
-        #     print(fi)
+        # if atm not in ['blackbody', 'extern_planckint', 'extern_atmx', 'ck2004', 'phoenix', 'tmap_sdO', 'tmap_DA', 'tmap_DAO', 'tmap_DO']:
+        #     raise ValueError(f'atm={atm} is not supported.')
 
-        # print(f'{query_pts.shape=} {atm=} {ldatm=} {ldint.shape=} {ld_func=} {ld_coeffs=} {intens_weighting=} {atm_extrapolation_method=} {ld_extrapolation_method=} {blending_method=} {return_nanmask=}')
-        if atm not in ['blackbody', 'extern_planckint', 'extern_atmx', 'ck2004', 'phoenix', 'tmap']:
-            raise RuntimeError(f'atm={atm} is not supported.')
+        # if ldatm not in ['none', 'ck2004', 'phoenix', 'tmap_sdO', 'tmap_DA', 'tmap_DAO', 'tmap_DO']:
+        #     raise ValueError(f'ldatm={ldatm} is not supported.')
 
-        if ldatm not in ['none', 'ck2004', 'phoenix', 'tmap']:
-            raise ValueError(f'ldatm={ldatm} is not supported.')
+        # if intens_weighting not in ['energy', 'photon']:
+        #     raise ValueError(f'intens_weighting={intens_weighting} is not supported.')
 
-        if intens_weighting not in ['energy', 'photon']:
-            raise ValueError(f'intens_weighting={intens_weighting} is not supported.')
-
-        if blending_method not in ['none', 'blackbody']:
-            raise ValueError(f'blending_method={blending_method} is not supported.')
+        # if blending_method not in ['none', 'blackbody']:
+        #     raise ValueError(f'blending_method={blending_method} is not supported.')
 
         raise_on_nans = True if atm_extrapolation_method == 'none' else False
 
         if atm == 'blackbody' and 'blackbody:Inorm' in self.content:
             # check if the required tables for the chosen ldatm are available:
-            if ldatm == 'none' and ld_coeffs is None:
-                raise ValueError("ld_coeffs must be passed when ldatm='none'.")
-            if ld_func == 'interp' and f'{ldatm}:Imu' not in self.content:
-                raise RuntimeError(f'passband {self.pbset}:{self.pbname} does not contain specific intensities for ldatm={ldatm}.')
-            if ld_func != 'interp' and ld_coeffs is None and f'{ldatm}:ld' not in self.content:
-                raise RuntimeError(f'passband {self.pbset}:{self.pbname} does not contain limb darkening coefficients for ldatm={ldatm}.')
+            # if ldatm == 'none' and ld_coeffs is None:
+            #     raise ValueError("ld_coeffs must be passed when ldatm='none'.")
+            # if ld_func == 'interp' and f'{ldatm}:Imu' not in self.content:
+            #     raise RuntimeError(f'passband {self.pbset}:{self.pbname} does not contain specific intensities for ldatm={ldatm}.')
+            # if ld_func != 'interp' and ld_coeffs is None and f'{ldatm}:ld' not in self.content:
+            #     raise RuntimeError(f'passband {self.pbset}:{self.pbname} does not contain limb darkening coefficients for ldatm={ldatm}.')
             # if blending_method == 'blackbody':
             #     raise ValueError(f'the combination of atm={atm} and blending_method={blending_method} is not valid.')
 
@@ -1839,7 +1816,7 @@ class Passband:
         Parameters
         ----------
         atm : string
-            model atmosphere ('ck2004', 'phoenix', 'tmap')
+            model atmosphere ('ck2004', 'phoenix', 'tmap_sdO', 'tmap_DA', 'tmap_DAO', 'tmap_DO')
         * `query_pts` (ndarray, required): a C-contiguous DxN array of queried points
         intens_weighting : str, optional
             intensity weighting scheme, by default 'photon'
@@ -1869,9 +1846,7 @@ class Passband:
             _description_
         """
 
-        ndp = self.ndp[f'imu@{intens_weighting}@{atm}']
-        log10_Imu = ndp.interp(query_pts, raise_on_nans=raise_on_nans, return_nanmask=True, extrapolation_method=atm_extrapolation_method)
-        # log10_Imu, nanmask = ndp.interp(req, raise_on_nans=raise_on_nans, return_nanmask=True, extrapolation_method=atm_extrapolation_method)
+        log10_Imu = self.ndp[atm].ndpolate(f'imu@{intens_weighting}', query_pts, extrapolation_method=atm_extrapolation_method)
         nanmask = np.zeros_like(log10_Imu)
 
         if ~np.any(nanmask):
@@ -1977,17 +1952,17 @@ class Passband:
         * NotImplementedError: if `ld_func` is not supported.
         """
 
-        if atm not in ['blackbody', 'extern_planckint', 'extern_atmx', 'ck2004', 'phoenix', 'tmap']:
+        if atm not in ['blackbody', 'extern_planckint', 'extern_atmx', 'ck2004', 'phoenix', 'tmap_sdO', 'tmap_DA', 'tmap_DAO', 'tmap_DO']:
             raise RuntimeError(f'atm={atm} is not supported.')
 
-        if ldatm not in ['none', 'ck2004', 'phoenix', 'tmap']:
+        if ldatm not in ['none', 'ck2004', 'phoenix', 'tmap_sdO', 'tmap_DA', 'tmap_DAO', 'tmap_DO']:
             raise ValueError(f'ldatm={ldatm} is not supported.')
 
         raise_on_nans = True if atm_extrapolation_method == 'none' else False
 
         if ld_func == 'interp':
             # 'interp' works only for model atmospheres:
-            if atm not in ['ck2004', 'phoenix', 'tmap']:
+            if atm not in ['ck2004', 'phoenix', 'tmap_sdO', 'tmap_DA', 'tmap_DAO', 'tmap_DO']:
                 raise ValueError(f"atm={atm} cannot be used with ld_func={ld_func}.")
 
             if atm not in self.content and f'{atm}:Imu' not in self.content:
@@ -2048,8 +2023,7 @@ class Passband:
         """
 
         if ld_func == 'interp':
-            ndp = self.ndp[f'ldint@{intens_weighting}@{ldatm}']
-            ldints = ndp.interp(query_pts, extrapolation_method=ld_extrapolation_method, return_nanmask=False, raise_on_nans=raise_on_nans)
+            ldints = self.ndp[ldatm].ndpolate(f'ldint@{intens_weighting}', query_pts, extrapolation_method=ld_extrapolation_method)
             return ldints
 
         if ld_coeffs is not None:
@@ -2072,7 +2046,7 @@ class Passband:
         elif ld_func == 'power':
             ldints[:,0] *= 1-ld_coeffs[:,0]/5-ld_coeffs[:,1]/3-3.*ld_coeffs[:,2]/7-ld_coeffs[:,3]/2
         else:
-            raise NotImplementedError(f'ld_func={ld_func} is not supported')
+            raise ValueError(f'ld_func={ld_func} is not recognized.')
 
         return ldints
 
@@ -3037,69 +3011,63 @@ def Inorm_bol_bb(Teff=5772., logg=4.43, abun=0.0, atm='blackbody', intens_weight
 
     return factor * sigma_sb.value * Teff**4 / np.pi
 
+
 if __name__ == '__main__':
     # This will generate bolometric and Johnson V passband files. Note that
     # extinction for the bolometric band cannot be computed because it falls
     # off the extinction formula validity range in wavelength, and shouldn't
     # be computed anyway because it is only used for reflection purposes.
 
-    pb = Passband(
-        ptf='tables/ptf/bolometric.ptf',
-        pbset='Bolometric',
-        pbname='900-40000',
-        effwl=1.955e-6,
-        wlunits=u.m,
-        calibrated=True,
-        reference='Flat response to simulate bolometric throughput',
-        version=2.0,
-        comments=''
-    )
+    try:
+        pb = Passband.load('tables/passbands/bolometric.fits')
+    except FileNotFoundError:
+        pb = Passband(
+            ptf='tables/ptf/bolometric.ptf',
+            pbset='Bolometric',
+            pbname='900-40000',
+            wlunits=u.m,
+            calibrated=True,
+            reference='Flat response to simulate bolometric throughput',
+            version=2.5
+        )
+
+    pb.version = 2.5
+    pb.add_to_history('TMAP model atmospheres added.')
+    pb.content = []
 
     pb.compute_blackbody_intensities(include_extinction=False)
 
-    pb.compute_intensities(atm='ck2004', path='tables/ck2004', impute=True, verbose=True)
-    pb.compute_ldcoeffs(ldatm='ck2004')
-    pb.compute_ldints(ldatm='ck2004')
-
-    pb.compute_intensities(atm='phoenix', path='tables/phoenix', impute=True, verbose=True)
-    pb.compute_ldcoeffs(ldatm='phoenix')
-    pb.compute_ldints(ldatm='phoenix')
-
-    pb.compute_intensities(atm='tmap', path='tables/tmap', impute=True, verbose=True)
-    pb.compute_ldcoeffs(ldatm='tmap')
-    pb.compute_ldints(ldatm='tmap')
+    for atm in ['ck2004', 'phoenix', 'tmap_sdO', 'tmap_DA', 'tmap_DAO', 'tmap_DO']:
+        pb.compute_intensities(atm=atm, path=f'tables/{atm}', verbose=True)
+        pb.compute_ldcoeffs(ldatm=atm)
+        pb.compute_ldints(ldatm=atm)
 
     pb.save('bolometric.fits')
 
-    pb = Passband(
-        ptf='tables/ptf/johnson_v.ptf',
-        pbset='Johnson',
-        pbname='V',
-        effwl=5500.,
-        wlunits=u.AA,
-        calibrated=True,
-        reference='Maiz Apellaniz (2006), AJ 131, 1184',
-        version=2.0,
-        comments=''
-    )
+    try:
+        pb = Passband.load('tables/passbands/johnson_v.fits')
+    except FileNotFoundError:
+        pb = Passband(
+            ptf='tables/ptf/johnson_v.ptf',
+            pbset='Johnson',
+            pbname='V',
+            wlunits=u.AA,
+            calibrated=True,
+            reference='Maiz Apellaniz (2006), AJ 131, 1184',
+            version=2.5,
+            comments=''
+        )
+
+    pb.version = 2.5
+    pb.add_to_history('TMAP model atmospheres added.')
+    pb.content = []
 
     pb.compute_blackbody_intensities(include_extinction=True)
-#    pb.compute_bb_reddening(verbose=True)
 
-    pb.compute_intensities(atm='ck2004', path='tables/ck2004', impute=True, include_extinction=True, verbose=True)
-    pb.compute_ldcoeffs(ldatm='ck2004')
-    pb.compute_ldints(ldatm='ck2004')
-#    pb.compute_ck2004_reddening(path='tables/ck2004', verbose=True)
-
-    pb.compute_intensities(atm='phoenix', path='tables/phoenix', impute=True, include_extinction=True, verbose=True)
-    pb.compute_ldcoeffs(ldatm='phoenix')
-    pb.compute_ldints(ldatm='phoenix')
-#    pb.compute_phoenix_reddening(path='tables/phoenix', verbose=True)
-
-    pb.compute_intensities(atm='tmap', path='tables/tmap', include_extinction=True, impute=True, verbose=True)
-    pb.compute_ldcoeffs(ldatm='tmap')
-    pb.compute_ldints(ldatm='tmap')
-#    pb.compute_tmap_reddening(path='tables/tmap', verbose=True)
+    for atm in ['ck2004', 'phoenix', 'tmap_sdO', 'tmap_DA', 'tmap_DAO', 'tmap_DO']:
+        pb.compute_intensities(atm=atm, path=f'tables/{atm}', verbose=True)
+        pb.compute_ldcoeffs(ldatm=atm)
+        pb.compute_ldints(ldatm=atm)
 
     pb.import_wd_atmcof('tables/wd/atmcofplanck.dat', 'tables/wd/atmcof.dat', 7)
 
