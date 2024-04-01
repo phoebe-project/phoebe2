@@ -1,4 +1,4 @@
-import phoebe as phb2
+import phoebe
 import numpy as np
 
 
@@ -10,7 +10,7 @@ def test_reimport(filename=None):
         b.add_compute(kind='legacy')
 
     b.export_legacy('test.legacy')
-    b2 = phb2.from_legacy('test.legacy')
+    b2 = phoebe.from_legacy('test.legacy')
 
     # check to see if datasets are attached and the right number
     Nlcs = len(b.get_dataset(kind='lc').datasets)
