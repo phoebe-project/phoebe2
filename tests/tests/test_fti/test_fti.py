@@ -7,7 +7,7 @@ import os
 try:
     import matplotlib.pyplot as plt
     PLOTTING_ENABLED = True
-except:
+except ImportError:
     PLOTTING_ENABLED = False
 
 
@@ -33,14 +33,9 @@ def test_binary(plot=False):
     if PLOTTING_ENABLED and plot:
         print("fti off")
         print(abs(fluxes_legacy-fluxes).max())
-        for i in range(len(fluxes)):
-            print(f'{i} {fluxes_legacy[i]} {fluxes[i]} {fluxes_legacy[i]/fluxes[i]}')
-        plt.plot(times, fluxes_legacy, 'r-', label='legacy')
-        plt.plot(times, fluxes, 'b-', label='phoebe')
-        plt.legend()
-        # b.plot(show=True)
-        plt.show()
-    assert(np.allclose(fluxes, fluxes_legacy, rtol=0, atol=1e-3))
+        plt.plot(times, fluxes_legacy, 'k-')
+        b.plot(show=True)
+    assert np.allclose(fluxes, fluxes_legacy, rtol=0, atol=1e-3)
 
     b.run_compute(kind='phoebe', fti_method='oversample', fti_oversample=10)
     fluxes_legacy = np.loadtxt(os.path.join(dir, 'kic12004834.fti.data'), unpack=True, usecols=(1,))
@@ -52,10 +47,7 @@ def test_binary(plot=False):
         b.plot(show=True)
     assert np.allclose(fluxes, fluxes_legacy, rtol=0, atol=1e-3)
 
-    return b
-
 
 if __name__ == '__main__':
     logger = phoebe.logger(clevel='INFO')
-
-    b = test_binary(plot=True)
+    test_binary(plot=True)

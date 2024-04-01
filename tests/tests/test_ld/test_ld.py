@@ -6,6 +6,7 @@ import numpy as np
 import os
 
 
+
 def _get_ld_coeffs(ld_coeff, ld_func, ld_mode='manual'):
     # length of ld_coeffs depends on ld_func
     if ld_coeff is None:
@@ -22,6 +23,7 @@ def _get_ld_coeffs(ld_coeff, ld_func, ld_mode='manual'):
         raise NotImplementedError
 
     return ld_coeffs
+
 
 def test_binary(plot=False, gen_comp=False):
     b = phoebe.Bundle.default_binary()
@@ -52,7 +54,6 @@ def test_binary(plot=False, gen_comp=False):
         ld_coeff_loop = [None] if ld_func == 'interp' else [0.2, 'ck2004']
 
         for ld_coeff in ld_coeff_loop:
-
             if isinstance(ld_coeff, str):
                 ld_coeffs = None
                 ld_coeffs_source = ld_coeff
@@ -85,7 +86,6 @@ def test_binary(plot=False, gen_comp=False):
 
             if plot:
                 print("running phoebe2 model atm={}, ld_func={}, ld_coeffs={} ld_coeffs_source={}...".format(atm, ld_func, ld_coeffs, ld_coeffs_source))
-
 
             b.set_value_all('atm@phoebe2', atm)
             if ld_func == 'interp':
@@ -136,10 +136,11 @@ def test_binary(plot=False, gen_comp=False):
 
 
     b.set_value_all('ld_mode', 'manual')
+
     for atm in ['ck2004', 'blackbody']:
         # don't need much time-resolution at all since we're just using median
         # to compare
-        b.set_value('times@dataset', np.linspace(0,3,11))
+        b.set_value('times@dataset', np.linspace(0, 3, 11))
         b.set_value_all('atm@phoebe2', atm)
 
         for ld_func in b.get_parameter('ld_func', component='primary').choices:
@@ -149,7 +150,6 @@ def test_binary(plot=False, gen_comp=False):
             # This is especially important for those we couldn't check above
             # vs legacy (quadratic, power), but also important to run all
             # with blackbody.
-
 
             b.set_value_all('ld_func', ld_func, check_visible=False)
 
@@ -162,7 +162,6 @@ def test_binary(plot=False, gen_comp=False):
                 ld_coeff_loop = [0.0, 0.3, 'ck2004']
 
             for ld_coeff in ld_coeff_loop:
-
                 if isinstance(ld_coeff, str):
                     ld_coeffs = None
                     ld_coeffs_source = ld_coeff
@@ -191,14 +190,9 @@ def test_binary(plot=False, gen_comp=False):
             if plot:
                 b.show()
 
-            assert(diff_med_fluxes < 0.035)
+            assert diff_med_fluxes < 0.035
 
-
-
-    return b
 
 if __name__ == '__main__':
-    # logger = phoebe.logger(clevel='INFO')
-
-    b = test_binary(plot=True, gen_comp=True)
-
+    logger = phoebe.logger(clevel='INFO')
+    test_binary(plot=False, gen_comp=True)

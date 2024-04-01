@@ -72,13 +72,16 @@ def sun_earth_result():
     sb_flux = np.pi*integrate.quad(sedptf, mypb.ptf_table['wl'][0], mypb.ptf_table['wl'][-1])[0] # Stefan-Boltzmann flux
 
     # fixed point observer
-    #~ xi = ((1*u.solRad).si.value/c.au.si.value)**2
-    #~ iflux0 = sb_flux*xi*2/(1 + np.sqrt(1 - xi))
+    # xi = ((1*u.solRad).si.value/c.au.si.value)**2
+    # iflux0 = sb_flux*xi*2/(1 + np.sqrt(1 - xi))
 
     # fixed direction of observation
-    #~ xi = (1*u.solRad).si.value/c.au.si.value
-    #~ iflux0 = sb_flux*(xi**2)*(1 + 4*xi/3 + xi**2)
+    # xi = (1*u.solRad).si.value/c.au.si.value
+    # iflux0 = sb_flux*(xi**2)*(1 + 4*xi/3 + xi**2)
 
+    # naive fixed direction of observation
+    xi = (1*u.solRad).si.value/c.au.si.value
+    iflux0 = sb_flux*(xi**2)
     # naive fixed direction of observation
     xi = (1*u.solRad).si.value/c.au.si.value
     iflux0 = sb_flux*(xi**2)
@@ -92,9 +95,9 @@ def sun_earth_result():
         b['ntriangles@secondary'] = Nt
 
         # we're not actually computing light curves so don't care about
-        # the failing check that the Earth is smaller than triangles on
-        # the Sun
-        b.run_compute(skip_checks=True, eclipse_method='only_horizon', blending_method='none', ld_blending_method='none')
+        # the failing check that the earth is smaller than triangles on
+        # the sun
+        b.run_compute(skip_checks=True, eclipse_method='only_horizon')
 
         q = b['value@q@orbit']
         F = b['value@syncpar@primary']
@@ -124,11 +127,11 @@ def test_sun_earth(print_results=False, save_results=False):
     if save_results:
         np.savetxt("res.txt", res)
 
-    assert(np.abs(res[:,1]).max() < 1e-14)
-    assert(np.abs(res[:,2]).max() < 1e-3)
+    assert np.abs(res[:,1]).max() < 1e-14
+    assert np.abs(res[:,2]).max() < 1e-3
+
 
 
 if __name__ == '__main__':
     logger = phoebe.logger(clevel='INFO')
-
-    res = test_sun_earth(print_results=True, save_results=True)
+    test_sun_earth(print_results=True, save_results=True)
