@@ -1894,16 +1894,16 @@ class Star(Body):
                 # bindex = kwargs.get('boosting_index', self.boosting_index)
                 # bindex = kwargs.get('boosting_index', self.boosting_index.get(dataset, None))
                 boost_factors = 1.0 + bindex * self.mesh.velocities.for_computations[:, 2] / 37241.94167601236
-            elif boosting_method == 'linear':
-                logger.debug("calling pb.bindex for boosting_method='linear'")
-                bindex = pb.bindex(Teff=self.mesh.teffs.for_computations,
-                                   logg=self.mesh.loggs.for_computations,
-                                   abun=self.mesh.abuns.for_computations,
-                                   mu=abs(self.mesh.mus_for_computations),
-                                   atm=atm,
-                                   photon_weighted=intens_weighting=='photon')
-
-                boost_factors = 1.0 + bindex * self.mesh.velocities.for_computations[:,2]/37241.94167601236
+            # elif boosting_method == 'linear':
+            #     logger.debug("calling pb.bindex for boosting_method='linear'")
+            #     bindex = pb.bindex(Teff=self.mesh.teffs.for_computations,
+            #                        logg=self.mesh.loggs.for_computations,
+            #                        abun=self.mesh.abuns.for_computations,
+            #                        mu=abs(self.mesh.mus_for_computations),
+            #                        atm=atm,
+            #                        photon_weighted=intens_weighting=='photon')
+            #
+            #     boost_factors = 1.0 + bindex * self.mesh.velocities.for_computations[:,2]/37241.94167601236
             else:
                 raise NotImplementedError("boosting_method='{}' not supported".format(self.boosting_method))
 
