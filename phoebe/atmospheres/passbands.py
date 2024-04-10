@@ -1620,7 +1620,7 @@ class Passband:
         """
 
         log10_Inorm = self.ndp[atm].ndpolate(f'inorm@{intens_weighting}', query_pts, extrapolation_method=atm_extrapolation_method)
-        if raise_on_nans:
+        if raise_on_nans and np.any(np.isnan(log10_Inorm)):
             raise ValueError(f'normal intensity interpolation failed: queried atmosphere values are out of bounds and atm_extrapolation_method={atm_extrapolation_method}.')
 
         nanmask = np.zeros_like(log10_Inorm)
@@ -1849,7 +1849,7 @@ class Passband:
         """
 
         log10_Imu = self.ndp[atm].ndpolate(f'imu@{intens_weighting}', query_pts, extrapolation_method=atm_extrapolation_method)
-        if raise_on_nans:
+        if raise_on_nans and np.any(np.isnan(log10_Imu)):
             raise ValueError(f'specific intensity interpolation failed: queried atmosphere values are out of bounds and atm_extrapolation_method={atm_extrapolation_method}.')
         
         nanmask = np.zeros_like(log10_Imu)
