@@ -11939,14 +11939,11 @@ class ConstraintParameter(Parameter):
             return False
 
         def get_values(vars, safe_label=True, string_safe_arrays=False, use_distribution=None, needs_builtin=False):
-            # use np.float64 so that dividing by zero will result in a
-            # np.inf
             def _single_value(quantity, string_safe_arrays=False):
                 if isinstance(quantity, u.Quantity):
-                    if self.in_solar_units:
-                        v = np.float64(u.to_solar(quantity).value)
-                    else:
-                        v = np.float64(quantity.si.value)
+                    v = u.to_solar(quantity).value if self.in_solar_units else quantity.si.value
+                    # cast to np.float64 so that dividing by zero will result in a np.inf
+                    v = v.astype(np.float64) if isinstance(v, np.ndarray) else np.float64(v)
 
                     if isinstance(v, np.ndarray) and string_safe_arrays:
                         v = v.tolist()
