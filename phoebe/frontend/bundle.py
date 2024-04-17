@@ -6948,7 +6948,7 @@ class Bundle(ParameterSet):
                     components_ = None
                 elif k in ['compute_phases']:
                     components_ = self.hierarchy.get_top()
-                elif k in ['pblum']:
+                elif k in ['pblum', 'boosting_method', 'boosting_index']:
                     check_visible = True
 
                     components_ = self.hierarchy.get_stars()+['_default']
