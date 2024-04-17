@@ -11,7 +11,7 @@ PHOEBE 2.4
   <a href="https://pypi.org/project/phoebe/"><img src="https://img.shields.io/badge/pip-phoebe-blue.svg"/></a>
   <a href="http://phoebe-project.org/install"><img src="https://img.shields.io/badge/python-3.6+-blue.svg"/></a>
   <a href="https://github.com/phoebe-project/phoebe2/blob/master/LICENSE"><img src="https://img.shields.io/badge/license-GPL3-blue.svg"/></a>
-  <a href="https://github.com/phoebe-project/phoebe2/actions/workflows/ci-nosetests.yml?query=branch%3Amaster"><img src="https://github.com/phoebe-project/phoebe2/actions/workflows/ci-nosetests.yml/badge.svg?branch=master"/></a>
+  <a href="https://github.com/phoebe-project/phoebe2/actions/workflows/on_pr.yml?query=branch%3Amaster"><img src="https://github.com/phoebe-project/phoebe2/actions/workflows/on_pr.yml/badge.svg?branch=master"/></a>
   <a href="http://phoebe-project.org/docs/2.3"><img src="https://github.com/phoebe-project/phoebe2-docs/actions/workflows/build-docs.yml/badge.svg?branch=2.3"/></a>
 <br/>
   <a href="https://ui.adsabs.harvard.edu/abs/2016ApJS..227...29P"><img src="https://img.shields.io/badge/ApJS-Prsa+2016-lightgrey.svg"/></a>
@@ -84,6 +84,27 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 
 CHANGELOG
 ----------
+
+### 2.4.13
+
+* optimization: dynamical RVs avoid unnecessary meshing
+* run_checks no longer requires ck2004 atmosphere tables if no datasets use ck2004
+* fix treatment of distance for alternate backends (ellc, jktebop)
+
+### 2.4.12 - build system update
+
+* upgrade the build system to pyproject.toml with setuptools as backend and pip as frontend.
+* drop the dependency on the obsolete distutils module.
+* swap nosetests for pytest.
+* small build-related bugfixes throughout the code.
+
+### 2.4.11
+
+* fix jktebop backend handling of mass-ratio and eccentricity for RVs.
+* bumps version requirements in pip for numpy, scipy, astropy.
+* allows sma@star and asini@star to flip to solve for q
+* fixes handling of spots on rotating single stars.
+* fixes constraint migration for 2.3 -> 2.4 
 
 ### 2.4.10
 

@@ -13,7 +13,7 @@ import json
 import atexit
 import time
 from datetime import datetime
-from distutils.version import StrictVersion
+from packaging.version import parse
 from copy import deepcopy as _deepcopy
 import pickle as _pickle
 from inspect import getsource as _getsource
@@ -133,9 +133,9 @@ def _get_add_func(mod, func, return_none_if_not_found=False):
 
 def _is_equiv_array_or_float(value1, value2):
     if hasattr(value1, '__iter__'):
-        return np.all(value1==value2)
+        return len(value1) == len(value2) and np.all(value1 == value2)
     else:
-        return value1==value2
+        return value1 == value2
 
 
 class RunChecksItem(object):
@@ -615,8 +615,8 @@ class Bundle(ParameterSet):
         b = cls(data)
 
         version = b.get_value(qualifier='phoebe_version', check_default=False, check_visible=False)
-        phoebe_version_import = StrictVersion(version.split('.dev')[0])
-        phoebe_version_this = StrictVersion(__version__.split('.dev')[0])
+        phoebe_version_import = parse(version.split('.dev')[0])
+        phoebe_version_this = parse(__version__.split('.dev')[0])
 
         logger.debug("importing from PHOEBE v {} into v {}".format(phoebe_version_import, phoebe_version_this))
 
@@ -641,7 +641,7 @@ class Bundle(ParameterSet):
             logger.debug("temporarily disabling interactive_checks")
             conf._interactive_checks = False
 
-        if phoebe_version_import < StrictVersion("2.1.0"):
+        if phoebe_version_import < parse("2.1.0"):
             logger.warning("importing from an older version ({}) of PHOEBE into version {}".format(phoebe_version_import, phoebe_version_this))
 
             # rpole -> requiv: https://github.com/phoebe-project/phoebe2/pull/300
@@ -727,13 +727,13 @@ class Bundle(ParameterSet):
             # make sure constraints are updated according to conf.interactive_constraints
             b.run_delayed_constraints()
 
-        if phoebe_version_import < StrictVersion("2.1.2"):
+        if phoebe_version_import < parse("2.1.2"):
             b._import_before_v211 = True
             warning = "importing from an older version ({}) of PHOEBE which did not support constraints in solar units.  All constraints will remain in SI, but calling set_hierarchy will likely fail.".format(phoebe_version_import)
             print("WARNING: {}".format(warning))
             logger.warning(warning)
 
-        if phoebe_version_import < StrictVersion("2.2.0"):
+        if phoebe_version_import < parse("2.2.0"):
             warning = "importing from an older version ({}) of PHOEBE to PHOEBE 2.2.  Previous versions did not support compute_times, ld_mode/ld_coeffs_source, pblum_mode, l3_mode, etc... all datasets will be migrated to include all new options.  This may take some time.  Please check all values.".format(phoebe_version_import)
             # print("WARNING: {}".format(warning))
             logger.warning(warning)
@@ -838,7 +838,7 @@ class Bundle(ParameterSet):
             logger.debug("restoring previous models")
             b._attach_params(ps_model, context='model')
 
-        if phoebe_version_import < StrictVersion("2.3.0"):
+        if phoebe_version_import < parse("2.3.0"):
             warning = "importing from an older version ({}) of PHOEBE to PHOEBE 2.3.  The previous versions did not support sample_from, etc... all compute options will be migrated to include all new options.  Additionally, extinction parameters will be moved from the dataset to system context.  This may take some time.  Please check all values.".format(phoebe_version_import)
             logger.warning(warning)
 
@@ -910,13 +910,13 @@ class Bundle(ParameterSet):
             # call set_hierarchy to force asini@component constraints (comp_asini) to be built
             b.set_hierarchy()
 
-        elif phoebe_version_import < StrictVersion("2.3.25"):
+        elif phoebe_version_import < parse("2.3.25"):
             # elif here since the if above already call set_hierarchy and we want to avoid doing that twice since its expensive
 
             # call set_hierarchy to force mass constraints to be rebuilt
             b.set_hierarchy()
 
-        if phoebe_version_import < StrictVersion("2.4.0"):
+        if phoebe_version_import < parse("2.4.0"):
             warning = "importing from an older version ({}) of PHOEBE to PHOEBE 2.4.  This may take some time.  Please check all values.".format(phoebe_version_import)
             logger.warning(warning)
 
@@ -983,17 +983,17 @@ class Bundle(ParameterSet):
                     p = IntParameter(qualifier='nlags', value=int(nlags_default), limit=(1,1e6), description='number of lags to use when computing/plotting the autocorrelation function')
                     b._attach_params([p], context='solution', solution=solution, compute=solution_ps.compute, kind='emcee')
 
-        if phoebe_version_import < StrictVersion("2.4.4"):
+        if phoebe_version_import < parse("2.4.4"):
             # update mass constraints
             for constraint in b.filter(constraint_func=['mass', 'requivsumfrac', 'requivratio'], context='constraint', **_skip_filter_checks).to_list():
                 logger.warning("re-creating {} constraint".format(constraint.twig))
                 solved_for = constraint.get_constrained_parameter()
                 b.remove_constraint(uniqueid=constraint.uniqueid)
-                new_constraint = b.add_constraint(constraint.constraint_func, component=constraint.component)
+                new_constraint_ps = b.add_constraint(constraint.constraint_func, component=constraint.component)
                 if solved_for.qualifier != constraint.constraint_func:
-                    new_constraint.flip_for(solved_for.twig)
+                    new_constraint_ps.get_parameter().flip_for(solved_for.twig)
 
-        if phoebe_version_import < StrictVersion("2.5.0") or ".dev" in version:
+        if phoebe_version_import < parse("2.5.0") or ".dev" in version:
             # update all datasets to get boosting_method/index parameters
             for dataset in b.filter(qualifier='passband', context='dataset', **_skip_filter_checks).datasets:
                 logger.info("attempting to update dataset='{}' to new version requirements".format(dataset))
@@ -3774,7 +3774,7 @@ class Bundle(ParameterSet):
 
             pb_needs_Inorm = True
             pb_needs_Imu = True
-            pb_needs_ld = True #np.any([p.get_value()!='interp' for p in self.filter(qualifier='ld_mode', dataset=pbparam.dataset, context='dataset', **_skip_filter_checks).to_list()])
+            pb_needs_ld = True
             pb_needs_ldint = True
 
             missing_pb_content = []
@@ -3789,8 +3789,10 @@ class Bundle(ParameterSet):
                                     True, 'run_compute')
 
             # NOTE: atms are not attached to datasets, but per-compute and per-component
-            for atmparam in self.filter(qualifier='atm', kind='phoebe', compute=computes, **_skip_filter_checks).to_list() + self.filter(qualifier='ld_coeffs_source').to_list():
-
+            # NOTE: atmparam includes a '_default' compute pset, which depends on the
+            # ck2004 atmospheres; the checks should not include it. This is achieved
+            # by filtering check_visible=False and check_default=True in the line below:
+            for atmparam in self.filter(qualifier='atm', kind='phoebe', compute=computes, check_visible=False, check_default=True).to_list() + self.filter(qualifier='ld_coeffs_source').to_list():
                 # check to make sure passband supports the selected atm
                 atm = atmparam.get_value(**_skip_filter_checks)
                 if atmparam.qualifier == 'ld_coeffs_source' and atm == 'auto':
@@ -10208,7 +10210,6 @@ class Bundle(ParameterSet):
 
         return self._launch_ui(web_client, 'figures', blocking=blocking)
 
-
     def compute_ld_coeffs(self, compute=None, set_value=False, **kwargs):
         """
         Compute the interpolated limb darkening coefficients.
@@ -10255,19 +10256,25 @@ class Bundle(ParameterSet):
             appropriate length given the respective value of `ld_func`).
         """
 
+        # check to make sure value of passed compute is valid
         if compute is None:
-            if len(self.computes)==1:
+            if len(self.computes) == 1:
                 compute = self.computes[0]
             else:
                 raise ValueError("must provide compute")
         if not isinstance(compute, str):
             raise TypeError("compute must be a single value (string)")
 
-        compute_ps = self.get_compute(compute, **_skip_filter_checks)
-        # we'll add 'bol' to the list of default datasets... but only if bolometric is needed for irradiation
-        needs_bol = compute_ps.get_value(qualifier='irrad_method', irrad_method=kwargs.get('irrad_method', None), default='none', **_skip_filter_checks) != 'none'
+        datasets = kwargs.pop('dataset') if 'dataset' in kwargs else self._datasets_where(compute=compute, mesh_needed=True)
 
-        datasets = kwargs.pop('dataset', self.datasets + ['bol'] if needs_bol else self.datasets)
+        # we'll add 'bol' to the list of default datasets... but only if bolometric is needed for irradiation
+        compute_ps = self.get_compute(compute, **_skip_filter_checks)
+        needs_bol = compute_ps.get_value(qualifier='irrad_method', irrad_method=kwargs.get('irrad_method', None), default='none', **_skip_filter_checks) != 'none'
+        if needs_bol:
+            datasets += ['bol']
+
+        if len(datasets) == 0:
+            return {}
         components = kwargs.pop('component', self.components)
 
         # don't allow things like model='mymodel', etc
@@ -10392,6 +10399,27 @@ class Bundle(ParameterSet):
 
         return system
 
+    def _datasets_where(self, compute, mesh_needed=False, l3_needed=False):
+        datasets = self.filter(compute=compute, context='compute', qualifier='enabled', value=True, **_skip_filter_checks).datasets
+        ds_kinds = [self.filter(dataset=ds, context='dataset', **_skip_filter_checks).kind for ds in datasets]
+        backend = self.filter(compute=compute, context='compute', **_skip_filter_checks).kind
+
+        subset = []
+
+        if l3_needed:
+            subset += [ds for ds in datasets if len(self.filter(qualifier='l3_mode', dataset=ds, context='dataset', check_visible=True)) > 0]
+
+        if mesh_needed:
+            subset += [ds for ds, kind in zip(datasets, ds_kinds) 
+                if kind == 'lc'
+                or kind == 'lp'
+                or (kind == 'rv' and backend != 'phoebe')
+                or (kind == 'rv' and len(self.filter(qualifier='rv_method', dataset=ds, compute=compute, value='flux-weighted', **_skip_filter_checks)) > 0)
+            ]
+
+        # subset can have repeated entries; return unique occurrences:     
+        return list(set(subset))
+
     def compute_l3s(self, compute=None, use_pbfluxes={},
                    set_value=False, **kwargs):
         """
@@ -10435,12 +10463,6 @@ class Bundle(ParameterSet):
         """
         logger.debug("b.compute_l3s")
 
-        datasets = kwargs.pop('dataset', self.filter('l3_mode', check_visible=True).datasets)
-        if isinstance(datasets, str):
-            datasets = [datasets]
-
-
-
         if compute is None:
             if len(self.computes)==1:
                 compute = self.computes[0]
@@ -10449,6 +10471,12 @@ class Bundle(ParameterSet):
         if not isinstance(compute, str):
             raise TypeError("compute must be a single value (string)")
 
+        # either take user-passed datasets or datasets that have an l3_mode:
+        datasets = kwargs.pop('dataset') if 'dataset' in kwargs else self._datasets_where(compute=compute, l3_needed=True)
+        if isinstance(datasets, str):
+            datasets = [datasets]
+
+        # make sure all parameters are up to date:
         self.run_delayed_constraints()
 
         datasets_need_pbflux = [d for d in datasets if d not in use_pbfluxes.keys()]
@@ -10466,10 +10494,9 @@ class Bundle(ParameterSet):
                                              **kwargs)
 
             # don't allow things like model='mymodel', etc
-            if not kwargs.get('skip_checks', False):
-                forbidden_keys = parameters._meta_fields_filter
-                compute_ps = self.get_compute(compute, **_skip_filter_checks)
-                self._kwargs_checks(kwargs, additional_allowed_keys=['system', 'skip_checks', 'ret_structured_dicts', 'pblum_method']+compute_ps.qualifiers, additional_forbidden_keys=forbidden_keys)
+            forbidden_keys = parameters._meta_fields_filter
+            compute_ps = self.get_compute(compute, **_skip_filter_checks)
+            self._kwargs_checks(kwargs, additional_allowed_keys=['system', 'skip_checks', 'ret_structured_dicts', 'pblum_method']+compute_ps.qualifiers, additional_forbidden_keys=forbidden_keys)
 
         ret_structured_dicts = kwargs.get('ret_structured_dicts', False)
         l3s = {}
@@ -10629,7 +10656,26 @@ class Bundle(ParameterSet):
         """
         logger.debug("b.compute_pblums")
 
-        datasets = kwargs.pop('dataset', self.filter(qualifier='passband').datasets)
+        # check to make sure value of passed compute is valid
+        if compute is None:
+            if len(self.computes) == 1:
+                compute = self.computes[0]
+            else:
+                raise ValueError("must provide compute")
+        if not isinstance(compute, str):
+            raise TypeError("compute must be a single value (string)")
+
+        compute_ps = self.get_compute(compute=compute, **_skip_filter_checks)
+        ret_structured_dicts = kwargs.get('ret_structured_dicts', False)
+
+        # either take user-passed datasets or datasets that require a mesh:
+        datasets = kwargs.pop('dataset') if 'dataset' in kwargs else self._datasets_where(compute=compute, mesh_needed=True)
+
+        if len(datasets) == 0:
+            if ret_structured_dicts:
+                return None, {}, {}, {}, {}
+            return {}
+
         if isinstance(datasets, str):
             datasets = [datasets]
 
@@ -10647,16 +10693,6 @@ class Bundle(ParameterSet):
         else:
             components = valid_components
 
-        # check to make sure value of passed compute is valid
-        if compute is None:
-            if len(self.computes)==1:
-                compute = self.computes[0]
-            else:
-                raise ValueError("must provide compute")
-        if not isinstance(compute, str):
-            raise TypeError("compute must be a single value (string)")
-
-        compute_ps = self.get_compute(compute=compute, **_skip_filter_checks)
         # NOTE: this is flipped so that stefan-boltzmann can manually be used even if the compute-options have kind='phoebe' and don't have that choice
         pblum_method = kwargs.pop('pblum_method', compute_ps.get_value(qualifier='pblum_method', default='phoebe', **_skip_filter_checks))
         t0 = self.get_value(qualifier='t0', context='system', unit=u.d, t0=kwargs.pop('t0', None), **_skip_filter_checks)
@@ -10725,7 +10761,6 @@ class Bundle(ParameterSet):
         else:
             raise ValueError("pblum_method='{}' not supported".format(pblum_method))
 
-        ret_structured_dicts = kwargs.get('ret_structured_dicts', False)
         ret = {}
 
         # pblum_*: {dataset: {component: value}}
@@ -11675,6 +11710,7 @@ class Bundle(ParameterSet):
         * ValueError: if any given dataset is enabled in more than one set of
             compute options sent to run_compute.
         """
+
         # NOTE: if we're already in client mode, we'll never get here in the client
         # there detach is handled slightly differently (see parameters._send_if_client)
         if isinstance(detach, str):
@@ -11722,6 +11758,7 @@ class Bundle(ParameterSet):
         # NOTE: _prepare_compute calls run_checks_compute and will handle raising
         # any necessary errors
         model, computes, datasets, do_create_fig_params, changed_params, overwrite_ps, kwargs = self._prepare_compute(compute, model, dataset, from_export=False, **kwargs)
+
         _ = kwargs.pop('do_create_fig_params', None)
 
         if use_server is None:
@@ -11921,8 +11958,7 @@ class Bundle(ParameterSet):
                 # TODO: have this return a dictionary like pblums/l3s that we can pass on to the backend?
 
                 # we need to check both for enabled but also passed via dataset kwarg
-                ds_kinds_enabled = self.filter(dataset=dataset_this_compute, context='dataset', **_skip_filter_checks).kinds
-                if 'lc' in ds_kinds_enabled or 'rv' in ds_kinds_enabled or 'lp' in ds_kinds_enabled:
+                if len(self._datasets_where(compute=compute, mesh_needed=True)) > 0:
                     logger.info("run_compute: computing necessary ld_coeffs, pblums, l3s")
                     self.compute_ld_coeffs(compute=compute, skip_checks=True, set_value=True, **{k:v for k,v in kwargs.items() if k in computeparams.qualifiers})
                     # NOTE that if pblum_method != 'phoebe', then system will be None
@@ -12099,20 +12135,22 @@ class Bundle(ParameterSet):
                                 logger.debug("applying scale_factor={} to {} parameter in mesh".format(scale_factor, mesh_param.qualifier))
                                 mesh_param.set_value(mesh_param.get_value()*scale_factor, ignore_readonly=True)
 
-                # handle flux scaling based on distance and l3
-                # NOTE: this must happen AFTER dataset scaling
-                distance = self.get_value(qualifier='distance', context='system', unit=u.m, **_skip_filter_checks)
-                for flux_param in ml_params.filter(qualifier='fluxes', kind='lc', **_skip_filter_checks).to_list():
-                    dataset = flux_param.dataset
-                    if dataset in datasets_dsscaled:
-                        # then we already handle the scaling (including l3)
-                        # above in dataset-scaling
-                        continue
+                # alternate backends other than legacy already account for distance via pbflux
+                if computeparams.kind in ['phoebe', 'legacy']:
+                    # handle flux scaling based on distance and l3
+                    # NOTE: this must happen AFTER dataset scaling
+                    distance = self.get_value(qualifier='distance', context='system', unit=u.m, **_skip_filter_checks)
+                    for flux_param in ml_params.filter(qualifier='fluxes', kind='lc', **_skip_filter_checks).to_list():
+                        dataset = flux_param.dataset
+                        if dataset in datasets_dsscaled:
+                            # then we already handle the scaling (including l3)
+                            # above in dataset-scaling
+                            continue
 
-                    fluxes = flux_param.get_value(unit=u.W/u.m**2)
-                    fluxes = fluxes/distance**2 + l3s.get(dataset)
+                        fluxes = flux_param.get_value(unit=u.W/u.m**2)
+                        fluxes = fluxes/distance**2 + l3s.get(dataset)
 
-                    flux_param.set_value(fluxes, ignore_readonly=True)
+                        flux_param.set_value(fluxes, ignore_readonly=True)
 
                 # handle vgamma and rv_offset
                 vgamma = self.get_value(qualifier='vgamma', context='system', unit=u.km/u.s, **_skip_filter_checks)
@@ -12268,7 +12306,7 @@ class Bundle(ParameterSet):
                         # store just the GP component in the model PS as well
                         gp_param = FloatArrayParameter(qualifier='gps', value=gp_y, default_unit=model_y.unit, readonly=True, description='GP contribution to the model {}'.format(yqualifier))
                         y_nogp_param = FloatArrayParameter(qualifier='{}_nogps'.format(yqualifier), value=model_y_dstimes, default_unit=model_y.unit, readonly=True, description='{} before adding gps'.format(yqualifier))
-                        if not np.all(ds_x == model_x):
+                        if len(ds_x) != len(model_x) or not np.all(ds_x == model_x):
                             logger.warning("model for dataset='{}' resampled at dataset times when adding GPs".format(ds))
                             model_ps.set_value(qualifier=xqualifier, dataset=ds, component=ds_comp, value=ds_x, ignore_readonly=True, **_skip_filter_checks)
 

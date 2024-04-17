@@ -10,7 +10,7 @@ import importlib as _importlib
 import random as _random
 import string as _string
 from collections import OrderedDict
-from distutils.version import StrictVersion
+from packaging.version import parse
 
 from . import stats_custom as _stats_custom
 
@@ -5689,7 +5689,7 @@ class Samples(BaseUnivariateDistribution):
                 weights = weights[~nans]
 
         super(Samples, self).__init__(unit, label, label_latex, wrap_at,
-                                      _stats.gaussian_kde, ('samples', 'bw_method') if StrictVersion(_scipy_version) < StrictVersion("1.2.0") else ('samples', 'bw_method', 'weights'),
+                                      _stats.gaussian_kde, ('samples', 'bw_method') if parse(_scipy_version) < parse("1.2.0") else ('samples', 'bw_method', 'weights'),
                                       samples=samples, weights=weights,
                                       bw_method=bw_method,
                                       uniqueid=uniqueid)
@@ -5738,7 +5738,7 @@ class Samples(BaseUnivariateDistribution):
         if value is None:
             self._weights = None
         else:
-            if StrictVersion(_scipy_version) < StrictVersion("1.2.0"):
+            if parse(_scipy_version) < parse("1.2.0"):
                 raise ImportError("weights for Samples requires scipy 1.2+")
             self._weights = is_1d_array(value)
         self._dist_constructor_object_clear_cache()
@@ -7549,7 +7549,7 @@ class MVSamples(BaseMultivariateDistribution):
         # NOTE: the passed samples need to be transposed, so see the override
         # in dist_constructor_args
         super(MVSamples, self).__init__(units, labels, labels_latex, wrap_ats,
-                                        _stats.gaussian_kde, ('samples', 'bw_method') if StrictVersion(_scipy_version) < StrictVersion("1.2.0") else ('samples', 'bw_method', 'weights'),
+                                        _stats.gaussian_kde, ('samples', 'bw_method') if parse(_scipy_version) < parse("1.2.0") else ('samples', 'bw_method', 'weights'),
                                         samples=samples, weights=weights, bw_method=bw_method,
                                         uniqueid=uniqueid)
 
@@ -7577,7 +7577,7 @@ class MVSamples(BaseMultivariateDistribution):
         if value is None:
             self._weights = None
         else:
-            if StrictVersion(_scipy_version) < StrictVersion("1.2.0"):
+            if parse(_scipy_version) < parse("1.2.0"):
                 raise ImportError("weights for Samples requires scipy 1.2+")
             self._weights = is_1d_array(value)
         self._dist_constructor_object_clear_cache()
@@ -8001,7 +8001,7 @@ class MVSamplesSlice(BaseMultivariateSliceDistribution):
 
     @property
     def dist_constructor_argnames(self):
-        return ('samples', 'bw_method') if StrictVersion(_scipy_version) < StrictVersion("1.2.0") else ('samples', 'bw_method', 'weights')
+        return ('samples', 'bw_method') if parse(_scipy_version) < parse("1.2.0") else ('samples', 'bw_method', 'weights')
 
     @property
     def samples(self):
