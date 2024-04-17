@@ -6964,6 +6964,7 @@ class Bundle(ParameterSet):
                     self.set_value_all(qualifier=k,
                                        dataset=kwargs['dataset'],
                                        component=components_,
+                                       context='dataset',
                                        value=v,
                                        check_visible=check_visible,
                                        ignore_none=True)
