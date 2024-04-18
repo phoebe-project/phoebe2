@@ -642,7 +642,7 @@ class Bundle(ParameterSet):
             conf._interactive_checks = False
 
         if phoebe_version_import < parse("2.1.0"):
-            logger.warning("importing from an older version ({}) of PHOEBE into version {}".format(phoebe_version_import, phoebe_version_this))
+            logger.warning("importing from an older version ({}) of PHOEBE to PHOEBE 2.1+".format(phoebe_version_import))
 
             # rpole -> requiv: https://github.com/phoebe-project/phoebe2/pull/300
             dict_stars = {}
@@ -734,7 +734,7 @@ class Bundle(ParameterSet):
             logger.warning(warning)
 
         if phoebe_version_import < parse("2.2.0"):
-            warning = "importing from an older version ({}) of PHOEBE to PHOEBE 2.2.  Previous versions did not support compute_times, ld_mode/ld_coeffs_source, pblum_mode, l3_mode, etc... all datasets will be migrated to include all new options.  This may take some time.  Please check all values.".format(phoebe_version_import)
+            warning = "importing from an older version ({}) of PHOEBE to PHOEBE 2.2+.  Previous versions did not support compute_times, ld_mode/ld_coeffs_source, pblum_mode, l3_mode, etc... all datasets will be migrated to include all new options.  This may take some time.  Please check all values.".format(phoebe_version_import)
             # print("WARNING: {}".format(warning))
             logger.warning(warning)
 
@@ -839,7 +839,7 @@ class Bundle(ParameterSet):
             b._attach_params(ps_model, context='model')
 
         if phoebe_version_import < parse("2.3.0"):
-            warning = "importing from an older version ({}) of PHOEBE to PHOEBE 2.3.  The previous versions did not support sample_from, etc... all compute options will be migrated to include all new options.  Additionally, extinction parameters will be moved from the dataset to system context.  This may take some time.  Please check all values.".format(phoebe_version_import)
+            warning = "importing from an older version ({}) of PHOEBE to PHOEBE 2.3+.  The previous versions did not support sample_from, etc... all compute options will be migrated to include all new options.  Additionally, extinction parameters will be moved from the dataset to system context.  This may take some time.  Please check all values.".format(phoebe_version_import)
             logger.warning(warning)
 
             b.remove_parameters_all(qualifier='log_history', **_skip_filter_checks)
@@ -917,7 +917,7 @@ class Bundle(ParameterSet):
             b.set_hierarchy()
 
         if phoebe_version_import < parse("2.4.0"):
-            warning = "importing from an older version ({}) of PHOEBE to PHOEBE 2.4.  This may take some time.  Please check all values.".format(phoebe_version_import)
+            warning = "importing from an older version ({}) of PHOEBE to PHOEBE 2.4+.  This may take some time.  Please check all values.".format(phoebe_version_import)
             logger.warning(warning)
 
             existing_values_settings = {p.qualifier: p.get_value() for p in b.filter(context='setting').to_list()}
@@ -994,6 +994,8 @@ class Bundle(ParameterSet):
                     new_constraint_ps.get_parameter().flip_for(solved_for.twig)
 
         if phoebe_version_import < parse("2.5.0") or ".dev" in version:
+            warning = "importing from an older version ({}) of PHOEBE to PHOEBE 2.5+.  This may take some time.  Please check all values.".format(phoebe_version_import)
+            logger.warning(warning)
             # update all datasets to get boosting_method/index parameters
             for dataset in b.filter(qualifier='passband', context='dataset', **_skip_filter_checks).datasets:
                 logger.info("attempting to update dataset='{}' to new version requirements".format(dataset))
