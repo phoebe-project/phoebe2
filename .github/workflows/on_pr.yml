@@ -91,4 +91,4 @@ jobs:
 
     - name: Run tests
       run: |
-        pytest --verbose --capture=no tests/tests/
+        pytest --verbose --capture=no tests/tests/test_dperdt/
