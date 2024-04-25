@@ -55,4 +55,4 @@ def test_binary(plot=False, gen_comp=False):
 
 if __name__ == '__main__':
     logger = phoebe.logger(clevel='INFO')
-    test_binary(plot=True, gen_comp=True)
+    test_binary(plot=False, gen_comp=False)
