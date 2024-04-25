@@ -6,7 +6,6 @@ import numpy as np
 import os
 
 
-
 def _get_ld_coeffs(ld_coeff, ld_func, ld_mode='manual'):
     # length of ld_coeffs depends on ld_func
     if ld_coeff is None:
@@ -133,7 +132,6 @@ def test_binary(plot=False, gen_comp=False):
                 plt.show()
 
             assert np.allclose(phoebe2_val, phoebe1_val, rtol=5e-3 if exact_comparison else 0.3, atol=0.)
-
 
     b.set_value_all('ld_mode', 'manual')
 

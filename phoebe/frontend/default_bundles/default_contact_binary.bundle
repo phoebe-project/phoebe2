@@ -2175,20 +2175,6 @@ null,
 "Class": "ChoiceParameter"
 },
 {
-"qualifier": "boosting_method",
-"compute": "phoebe01",
-"kind": "phoebe",
-"context": "compute",
-"description": "Type of boosting method",
-"choices": [
-"none"
-],
-"value": "none",
-"copy_for": false,
-"advanced": true,
-"Class": "ChoiceParameter"
-},
-{
 "qualifier": "mesh_method",
 "component": "_default",
 "compute": "phoebe01",
@@ -2295,9 +2281,10 @@ null
 "ck2004",
 "extern_planckint",
 "extern_atmx",
-"phoenix",
+"extern_planckint",
 "blackbody",
-"tmap_sdO"
+"phoenix",
+"ck2004"
 ],
 "value": "ck2004",
 "copy_for": {
@@ -2576,9 +2563,10 @@ null
 "ck2004",
 "extern_planckint",
 "extern_atmx",
-"phoenix",
+"extern_planckint",
 "blackbody",
-"tmap_sdO"
+"phoenix",
+"ck2004"
 ],
 "value": "ck2004",
 "copy_for": false,
@@ -2595,9 +2583,10 @@ null
 "ck2004",
 "extern_planckint",
 "extern_atmx",
-"phoenix",
+"extern_planckint",
 "blackbody",
-"tmap_sdO"
+"phoenix",
+"ck2004"
 ],
 "value": "ck2004",
 "copy_for": false,
@@ -2871,7 +2860,7 @@ null
 "qualifier": "phoebe_version",
 "context": "setting",
 "description": "Version of PHOEBE",
-"value": "2.4.12.dev+feature-blending",
+"value": "2.4.13.dev+feature-blending",
 "copy_for": false,
 "readonly": true,
 "advanced": true,

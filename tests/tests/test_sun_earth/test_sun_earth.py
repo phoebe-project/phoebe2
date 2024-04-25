@@ -82,9 +82,6 @@ def sun_earth_result():
     # naive fixed direction of observation
     xi = (1*u.solRad).si.value/c.au.si.value
     iflux0 = sb_flux*(xi**2)
-    # naive fixed direction of observation
-    xi = (1*u.solRad).si.value/c.au.si.value
-    iflux0 = sb_flux*(xi**2)
 
     # phoebe result for different mesh sizes
     b = initiate_sun_earth_system(pb_str)
