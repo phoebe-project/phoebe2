@@ -355,6 +355,15 @@ class Passband:
             (and only if) overwriting an existing file with `overwrite=True`.
         """
 
+        atms = {
+            'ck2004': 'CK',
+            'phoenix': 'PH',
+            'tmap_sdO': 'TS',
+            'tmap_DA': 'TA',
+            'tmap_DAO': 'TM',
+            'tmap_DO': 'TO'
+        }
+
         # Timestamp is used for passband versioning.
         timestamp = time.ctime() if update_timestamp else self.timestamp
 
@@ -389,12 +398,9 @@ class Passband:
 
         data = []
 
-        # Header:
         primary_hdu = fits.PrimaryHDU(header=header)
         data.append(primary_hdu)
 
-        # Tables:
-        atms = np.unique([content.split(':')[0] for content in self.content])
         data.append(fits.table_to_hdu(Table(self.ptf_table, meta={'extname': 'PTFTABLE'})))
 
         if 'blackbody:Inorm' in self.content:
@@ -402,8 +408,8 @@ class Passband:
                 'teff': self._bb_func_energy[0],
                 'logi_e': self._bb_func_energy[1],
                 'logi_p': self._bb_func_photon[1]},
-                meta={'extname': 'BB_FUNC'
-            })
+                meta={'extname': 'BB_FUNC'}
+            )
             data.append(fits.table_to_hdu(bb_func))
 
         if 'blackbody:ext' in self.content:
@@ -413,125 +419,45 @@ class Passband:
             data.append(fits.table_to_hdu(Table({'ebv': axes[1]}, meta={'extname': 'BB_EBVS'})))
             data.append(fits.table_to_hdu(Table({'rv': axes[2]}, meta={'extname': 'BB_RVS'})))
 
-        if 'ck2004' in atms:
-            ck_teffs, ck_loggs, ck_abuns, ck_mus = self.atm_axes['ck2004']
-            data.append(fits.table_to_hdu(Table({'teff': ck_teffs}, meta={'extname': 'CK_TEFFS'})))
-            data.append(fits.table_to_hdu(Table({'logg': ck_loggs}, meta={'extname': 'CK_LOGGS'})))
-            data.append(fits.table_to_hdu(Table({'abun': ck_abuns}, meta={'extname': 'CK_ABUNS'})))
-            data.append(fits.table_to_hdu(Table({'mu': ck_mus}, meta={'extname': 'CK_MUS'})))
+        # axes:
+        for atm, prefix in atms.items():
+            if f'{atm}:Imu' in self.content:
+                teffs, loggs, abuns, mus = self.ndp[atm].axes + self.ndp[atm].table['imu@photon'][0]
+                data.append(fits.table_to_hdu(Table({'teff': teffs}, meta={'extname': f'{prefix}_TEFFS'})))
+                data.append(fits.table_to_hdu(Table({'logg': loggs}, meta={'extname': f'{prefix}_LOGGS'})))
+                data.append(fits.table_to_hdu(Table({'abun': abuns}, meta={'extname': f'{prefix}_ABUNS'})))
+                data.append(fits.table_to_hdu(Table({'mu': mus}, meta={'extname': f'{prefix}_MUS'})))
+                
+                if f'{atm}:ext' in self.content:
+                    ebvs, rvs = self.ndp[atm].table['ext@photon'][0]
+                    data.append(fits.table_to_hdu(Table({'ebv': ebvs}, meta={'extname': f'{prefix}_EBVS'})))
+                    data.append(fits.table_to_hdu(Table({'rv': rvs}, meta={'extname': f'{prefix}_RVS'})))
 
-        if 'ck2004:ext' in self.content:
-            ck_teffs, ck_loggs, ck_abuns, ck_ebvs, ck_rvs = self.ext_axes['ck2004']
-            data.append(fits.table_to_hdu(Table({'ebv': ck_ebvs}, meta={'extname': 'CK_EBVS'})))
-            data.append(fits.table_to_hdu(Table({'rv': ck_rvs}, meta={'extname': 'CK_RVS'})))
-
-        if 'phoenix' in atms:
-            ph_teffs, ph_loggs, ph_abuns, ph_mus = self.atm_axes['phoenix']
-            data.append(fits.table_to_hdu(Table({'teff': ph_teffs}, meta={'extname': 'PH_TEFFS'})))
-            data.append(fits.table_to_hdu(Table({'logg': ph_loggs}, meta={'extname': 'PH_LOGGS'})))
-            data.append(fits.table_to_hdu(Table({'abun': ph_abuns}, meta={'extname': 'PH_ABUNS'})))
-            data.append(fits.table_to_hdu(Table({'mu': ph_mus}, meta={'extname': 'PH_MUS'})))
-
-        if 'phoenix:ext' in self.content:
-            ph_teffs, ph_loggs, ph_abuns, ph_ebvs, ph_rvs = self.ext_axes['phoenix']
-            data.append(fits.table_to_hdu(Table({'ebv': ph_ebvs}, meta={'extname': 'PH_EBVS'})))
-            data.append(fits.table_to_hdu(Table({'rv': ph_rvs}, meta={'extname': 'PH_RVS'})))
-
-        if 'tmap_sdO:Imu' in self.content:
-            ts_teffs, ts_loggs, ts_abuns, ts_mus = self.atm_axes['tmap_sdO']
-            data.append(fits.table_to_hdu(Table({'teff': ts_teffs}, meta={'extname': 'TS_TEFFS'})))
-            data.append(fits.table_to_hdu(Table({'logg': ts_loggs}, meta={'extname': 'TS_LOGGS'})))
-            data.append(fits.table_to_hdu(Table({'abun': ts_abuns}, meta={'extname': 'TS_ABUNS'})))
-            data.append(fits.table_to_hdu(Table({'mu': ts_mus}, meta={'extname': 'TS_MUS'})))
-
-        if 'tmap_sdO:ext' in self.content:
-            ts_teffs, ts_loggs, ts_abuns, tso_ebvs, tso_rvs = self.ext_axes['tmap_sdO']
-            data.append(fits.table_to_hdu(Table({'ebv': ts_ebvs}, meta={'extname': 'TS_EBVS'})))
-            data.append(fits.table_to_hdu(Table({'rv': ts_rvs}, meta={'extname': 'TS_RVS'})))
-
-        if 'tmap_DO:Imu' in self.content:
-            to_teffs, to_loggs, to_abuns, to_mus = self.atm_axes['tmap_DO']
-            data.append(fits.table_to_hdu(Table({'teff': to_teffs}, meta={'extname': 'TO_TEFFS'})))
-            data.append(fits.table_to_hdu(Table({'logg': to_loggs}, meta={'extname': 'TO_LOGGS'})))
-            data.append(fits.table_to_hdu(Table({'abun': to_abuns}, meta={'extname': 'TO_ABUNS'})))
-            data.append(fits.table_to_hdu(Table({'mu': to_mus}, meta={'extname': 'TO_MUS'})))
-
-        if 'tmap_DO:ext' in self.content:
-            to_teffs, to_loggs, to_abuns, to_ebvs, to_rvs = self.ext_axes['tmap_DO']
-            data.append(fits.table_to_hdu(Table({'ebv': to_ebvs}, meta={'extname': 'TO_EBVS'})))
-            data.append(fits.table_to_hdu(Table({'rv': to_rvs}, meta={'extname': 'TO_RVS'})))
-
-        if 'tmap_DA:Imu' in self.content:
-            ta_teffs, ta_loggs, ta_abuns, ta_mus = self.atm_axes['tmap_DA']
-            data.append(fits.table_to_hdu(Table({'teff': ta_teffs}, meta={'extname': 'TA_TEFFS'})))
-            data.append(fits.table_to_hdu(Table({'logg': ta_loggs}, meta={'extname': 'TA_LOGGS'})))
-            data.append(fits.table_to_hdu(Table({'abun': ta_abuns}, meta={'extname': 'TA_ABUNS'})))
-            data.append(fits.table_to_hdu(Table({'mu': ta_mus}, meta={'extname': 'TA_MUS'})))
-
-        if 'tmap_DA:ext' in self.content:
-            ta_teffs, ta_loggs, ta_abuns, ta_ebvs, ta_rvs = self.ext_axes['tmap_DA']
-            data.append(fits.table_to_hdu(Table({'ebv': ta_ebvs}, meta={'extname': 'TA_EBVS'})))
-            data.append(fits.table_to_hdu(Table({'rv': ta_rvs}, meta={'extname': 'TA_RVS'})))
-
-        if 'tmap_DAO:Imu' in self.content:
-            tm_teffs, tm_loggs, tm_abuns, tm_mus = self.atm_axes['tmap_DAO']
-            data.append(fits.table_to_hdu(Table({'teff': tm_teffs}, meta={'extname': 'TM_TEFFS'})))
-            data.append(fits.table_to_hdu(Table({'logg': tm_loggs}, meta={'extname': 'TM_LOGGS'})))
-            data.append(fits.table_to_hdu(Table({'abun': tm_abuns}, meta={'extname': 'TM_ABUNS'})))
-            data.append(fits.table_to_hdu(Table({'mu': tm_mus}, meta={'extname': 'TM_MUS'})))
-
-        if 'tmap_DAO:ext' in self.content:
-            tm_teffs, tm_loggs, tm_abuns, tm_ebvs, tm_rvs = self.ext_axes['tmap_DAO']
-            data.append(fits.table_to_hdu(Table({'ebv': tm_ebvs}, meta={'extname': 'TM_EBVS'})))
-            data.append(fits.table_to_hdu(Table({'rv': tm_rvs}, meta={'extname': 'TM_RVS'})))
-
-        # Data:
+        # grids:
         if 'blackbody:ext' in self.content:
             data.append(fits.ImageHDU(self.ndp['blackbody'].table['ext@energy'][1], name='BBEGRID'))
             data.append(fits.ImageHDU(self.ndp['blackbody'].table['ext@photon'][1], name='BBPGRID'))
 
-        prefix = {
-            'ck2004': 'CK',
-            'phoenix': 'PH',
-            'tmap_sdO': 'TS',
-            'tmap_DA': 'TA',
-            'tmap_DAO': 'TM',
-            'tmap_DO': 'TO'
-        }
-
-        labels = {
-            'inorm@energy': 'NEGRID',
-            'inorm@photon': 'NPGRID',
-            'imu@energy': 'FEGRID',
-            'imu@photon': 'FPGRID',
-            'ld@energy': 'LEGRID',
-            'ld@photon': 'LPGRID',
-            'ldint@energy': 'IEGRID',
-            'ldint@photon': 'IPGRID',
-            'ext@energy': 'XEGRID',
-            'ext@photon': 'XPGRID'
-        }
-
-        for atm in prefix.keys():
+        for atm, prefix in atms.items():
             if f'{atm}:Imu' in self.content:
-                data.append(fits.ImageHDU(self.ndp[atm].table['imu@energy'][1], name=f'{prefix[atm]}FEGRID'))
-                data.append(fits.ImageHDU(self.ndp[atm].table['imu@photon'][1], name=f'{prefix[atm]}FPGRID'))
+                data.append(fits.ImageHDU(self.ndp[atm].table['imu@energy'][1], name=f'{prefix}FEGRID'))
+                data.append(fits.ImageHDU(self.ndp[atm].table['imu@photon'][1], name=f'{prefix}FPGRID'))
 
                 if export_inorm_tables:
-                    data.append(fits.ImageHDU(self.ndp[atm].table['imu@energy'][1][..., -1, :], name=f'{prefix[atm]}NEGRID'))
-                    data.append(fits.ImageHDU(self.ndp[atm].table['imu@photon'][1][..., -1, :], name=f'{prefix[atm]}NPGRID'))
+                    data.append(fits.ImageHDU(self.ndp[atm].table['imu@energy'][1][..., -1, :], name=f'{prefix}NEGRID'))
+                    data.append(fits.ImageHDU(self.ndp[atm].table['imu@photon'][1][..., -1, :], name=f'{prefix}NPGRID'))
 
             if f'{atm}:ld' in self.content:
-                data.append(fits.ImageHDU(self.ndp[atm].table['ld@energy'][1], name=f'{prefix[atm]}LEGRID'))
-                data.append(fits.ImageHDU(self.ndp[atm].table['ld@photon'][1], name=f'{prefix[atm]}LPGRID'))
+                data.append(fits.ImageHDU(self.ndp[atm].table['ld@energy'][1], name=f'{prefix}LEGRID'))
+                data.append(fits.ImageHDU(self.ndp[atm].table['ld@photon'][1], name=f'{prefix}LPGRID'))
 
             if f'{atm}:ldint' in self.content:
-                data.append(fits.ImageHDU(self.ndp[atm].table['ldint@energy'][1], name=f'{prefix[atm]}IEGRID'))
-                data.append(fits.ImageHDU(self.ndp[atm].table['ldint@photon'][1], name=f'{prefix[atm]}IPGRID'))
+                data.append(fits.ImageHDU(self.ndp[atm].table['ldint@energy'][1], name=f'{prefix}IEGRID'))
+                data.append(fits.ImageHDU(self.ndp[atm].table['ldint@photon'][1], name=f'{prefix}IPGRID'))
 
             if '{atm}:ext' in self.content:
-                data.append(fits.ImageHDU(self.ndp[atm].table['ext@energy'][1], name=f'{prefix[atm]}XEGRID'))
-                data.append(fits.ImageHDU(self.ndp[atm].table['ext@photon'][1], name=f'{prefix[atm]}XPGRID'))
+                data.append(fits.ImageHDU(self.ndp[atm].table['ext@energy'][1], name=f'{prefix}XEGRID'))
+                data.append(fits.ImageHDU(self.ndp[atm].table['ext@photon'][1], name=f'{prefix}XPGRID'))
 
         pb = fits.HDUList(data)
         pb.writeto(archive, overwrite=overwrite)
