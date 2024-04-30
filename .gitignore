@@ -7,7 +7,7 @@
 /phoebe/atmospheres/tables/phoenix*
 /phoebe/atmospheres/tables/tmap*
 /phoebe/atmospheres/tables/tlusty
-/phoebe/atmospheres/tables/phoenix.orig
+/tests/tests/test_passbands/tables
 MANIFEST
 *checkme*
 *_tmp*

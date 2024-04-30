@@ -43,7 +43,16 @@ _url_tables_server = 'http://tables.phoebe-project.org'
 
 # Future atmosphere tables could exist in the passband files, but the current
 # release won't be able to handle those.
-_supported_atms = ['blackbody', 'ck2004', 'phoenix', 'tmap_sdO', 'tmap_DA', 'tmap_DAO', 'tmap_DO', 'extern_atmx', 'extern_planckint']
+atm_tables = {
+    'ck2004': 'CK',
+    'phoenix': 'PH',
+    'tmap_sdO': 'TS',
+    'tmap_DA': 'TA',
+    'tmap_DAO': 'TM',
+    'tmap_DO': 'TO'
+}
+
+supported_atms = list(atm_tables.keys()) + ['blackbody', 'extern_atmx', 'extern_planckint']
 
 # Global passband table. This dict should never be tinkered with outside
 # of the functions in this module; it might be nice to make it read-only
@@ -273,19 +282,6 @@ class Passband:
         if comments != '':
             self.add_to_history(comments)
 
-        # Initialize passband tables:
-
-        self.atm_axes = dict()            # model atmosphere axes
-        self.ext_axes = dict()            # interstellar extinction axes
-        self.atm_energy_grid = dict()     # energy-weighted intensities
-        self.atm_photon_grid = dict()     # photon-weighted intensities
-        self.ld_energy_grid = dict()      # energy-weighted limb darkening coefficients
-        self.ld_photon_grid = dict()      # photon-weighted limb darkening coefficients
-        self.ldint_energy_grid = dict()   # energy-weighted integrated limb darkening functions
-        self.ldint_photon_grid = dict()   # photon-weighted integrated limb darkening functions
-        self.ext_energy_grid = dict()     # energy-weighted interstellar extinction coefficients
-        self.ext_photon_grid = dict()     # photon-weighted interstellar extinction coefficients
-
         # Initialize n-dimensional interpolators:
         self.ndp = dict()                 # n-dimensional interpolators
 
@@ -397,12 +393,9 @@ class Passband:
 
         data = []
 
-        # Header:
         primary_hdu = fits.PrimaryHDU(header=header)
         data.append(primary_hdu)
 
-        # Tables:
-        atms = np.unique([content.split(':')[0] for content in self.content])
         data.append(fits.table_to_hdu(Table(self.ptf_table, meta={'extname': 'PTFTABLE'})))
 
         if 'blackbody:Inorm' in self.content:
@@ -410,8 +403,8 @@ class Passband:
                 'teff': self._bb_func_energy[0],
                 'logi_e': self._bb_func_energy[1],
                 'logi_p': self._bb_func_photon[1]},
-                meta={'extname': 'BB_FUNC'
-            })
+                meta={'extname': 'BB_FUNC'}
+            )
             data.append(fits.table_to_hdu(bb_func))
 
         if 'blackbody:ext' in self.content:
@@ -421,202 +414,45 @@ class Passband:
             data.append(fits.table_to_hdu(Table({'ebv': axes[1]}, meta={'extname': 'BB_EBVS'})))
             data.append(fits.table_to_hdu(Table({'rv': axes[2]}, meta={'extname': 'BB_RVS'})))
 
-        if 'ck2004' in atms:
-            ck_teffs, ck_loggs, ck_abuns, ck_mus = self.atm_axes['ck2004']
-            data.append(fits.table_to_hdu(Table({'teff': ck_teffs}, meta={'extname': 'CK_TEFFS'})))
-            data.append(fits.table_to_hdu(Table({'logg': ck_loggs}, meta={'extname': 'CK_LOGGS'})))
-            data.append(fits.table_to_hdu(Table({'abun': ck_abuns}, meta={'extname': 'CK_ABUNS'})))
-            data.append(fits.table_to_hdu(Table({'mu': ck_mus}, meta={'extname': 'CK_MUS'})))
+        # axes:
+        for atm, prefix in atm_tables.items():
+            if f'{atm}:Imu' in self.content:
+                teffs, loggs, abuns, mus = self.ndp[atm].axes + self.ndp[atm].table['imu@photon'][0]
+                data.append(fits.table_to_hdu(Table({'teff': teffs}, meta={'extname': f'{prefix}_TEFFS'})))
+                data.append(fits.table_to_hdu(Table({'logg': loggs}, meta={'extname': f'{prefix}_LOGGS'})))
+                data.append(fits.table_to_hdu(Table({'abun': abuns}, meta={'extname': f'{prefix}_ABUNS'})))
+                data.append(fits.table_to_hdu(Table({'mu': mus}, meta={'extname': f'{prefix}_MUS'})))
 
-        if 'ck2004:ext' in self.content:
-            ck_teffs, ck_loggs, ck_abuns, ck_ebvs, ck_rvs = self.ext_axes['ck2004']
-            data.append(fits.table_to_hdu(Table({'ebv': ck_ebvs}, meta={'extname': 'CK_EBVS'})))
-            data.append(fits.table_to_hdu(Table({'rv': ck_rvs}, meta={'extname': 'CK_RVS'})))
+                if f'{atm}:ext' in self.content:
+                    ebvs, rvs = self.ndp[atm].table['ext@photon'][0]
+                    data.append(fits.table_to_hdu(Table({'ebv': ebvs}, meta={'extname': f'{prefix}_EBVS'})))
+                    data.append(fits.table_to_hdu(Table({'rv': rvs}, meta={'extname': f'{prefix}_RVS'})))
 
-        if 'phoenix' in atms:
-            ph_teffs, ph_loggs, ph_abuns, ph_mus = self.atm_axes['phoenix']
-            data.append(fits.table_to_hdu(Table({'teff': ph_teffs}, meta={'extname': 'PH_TEFFS'})))
-            data.append(fits.table_to_hdu(Table({'logg': ph_loggs}, meta={'extname': 'PH_LOGGS'})))
-            data.append(fits.table_to_hdu(Table({'abun': ph_abuns}, meta={'extname': 'PH_ABUNS'})))
-            data.append(fits.table_to_hdu(Table({'mu': ph_mus}, meta={'extname': 'PH_MUS'})))
-
-        if 'phoenix:ext' in self.content:
-            ph_teffs, ph_loggs, ph_abuns, ph_ebvs, ph_rvs = self.ext_axes['phoenix']
-            data.append(fits.table_to_hdu(Table({'ebv': ph_ebvs}, meta={'extname': 'PH_EBVS'})))
-            data.append(fits.table_to_hdu(Table({'rv': ph_rvs}, meta={'extname': 'PH_RVS'})))
-
-        if 'tmap_sdO:Imu' in self.content:
-            ts_teffs, ts_loggs, ts_abuns, ts_mus = self.atm_axes['tmap_sdO']
-            data.append(fits.table_to_hdu(Table({'teff': ts_teffs}, meta={'extname': 'TS_TEFFS'})))
-            data.append(fits.table_to_hdu(Table({'logg': ts_loggs}, meta={'extname': 'TS_LOGGS'})))
-            data.append(fits.table_to_hdu(Table({'abun': ts_abuns}, meta={'extname': 'TS_ABUNS'})))
-            data.append(fits.table_to_hdu(Table({'mu': ts_mus}, meta={'extname': 'TS_MUS'})))
-
-        if 'tmap_sdO:ext' in self.content:
-            ts_teffs, ts_loggs, ts_abuns, tso_ebvs, tso_rvs = self.ext_axes['tmap_sdO']
-            data.append(fits.table_to_hdu(Table({'ebv': ts_ebvs}, meta={'extname': 'TS_EBVS'})))
-            data.append(fits.table_to_hdu(Table({'rv': ts_rvs}, meta={'extname': 'TS_RVS'})))
-
-        if 'tmap_DO:Imu' in self.content:
-            to_teffs, to_loggs, to_abuns, to_mus = self.atm_axes['tmap_DO']
-            data.append(fits.table_to_hdu(Table({'teff': to_teffs}, meta={'extname': 'TO_TEFFS'})))
-            data.append(fits.table_to_hdu(Table({'logg': to_loggs}, meta={'extname': 'TO_LOGGS'})))
-            data.append(fits.table_to_hdu(Table({'abun': to_abuns}, meta={'extname': 'TO_ABUNS'})))
-            data.append(fits.table_to_hdu(Table({'mu': to_mus}, meta={'extname': 'TO_MUS'})))
-
-        if 'tmap_DO:ext' in self.content:
-            to_teffs, to_loggs, to_abuns, to_ebvs, to_rvs = self.ext_axes['tmap_DO']
-            data.append(fits.table_to_hdu(Table({'ebv': to_ebvs}, meta={'extname': 'TO_EBVS'})))
-            data.append(fits.table_to_hdu(Table({'rv': to_rvs}, meta={'extname': 'TO_RVS'})))
-
-        if 'tmap_DA:Imu' in self.content:
-            ta_teffs, ta_loggs, ta_abuns, ta_mus = self.atm_axes['tmap_DA']
-            data.append(fits.table_to_hdu(Table({'teff': ta_teffs}, meta={'extname': 'TA_TEFFS'})))
-            data.append(fits.table_to_hdu(Table({'logg': ta_loggs}, meta={'extname': 'TA_LOGGS'})))
-            data.append(fits.table_to_hdu(Table({'abun': ta_abuns}, meta={'extname': 'TA_ABUNS'})))
-            data.append(fits.table_to_hdu(Table({'mu': ta_mus}, meta={'extname': 'TA_MUS'})))
-
-        if 'tmap_DA:ext' in self.content:
-            ta_teffs, ta_loggs, ta_abuns, ta_ebvs, ta_rvs = self.ext_axes['tmap_DA']
-            data.append(fits.table_to_hdu(Table({'ebv': ta_ebvs}, meta={'extname': 'TA_EBVS'})))
-            data.append(fits.table_to_hdu(Table({'rv': ta_rvs}, meta={'extname': 'TA_RVS'})))
-
-        if 'tmap_DAO:Imu' in self.content:
-            tm_teffs, tm_loggs, tm_abuns, tm_mus = self.atm_axes['tmap_DAO']
-            data.append(fits.table_to_hdu(Table({'teff': tm_teffs}, meta={'extname': 'TM_TEFFS'})))
-            data.append(fits.table_to_hdu(Table({'logg': tm_loggs}, meta={'extname': 'TM_LOGGS'})))
-            data.append(fits.table_to_hdu(Table({'abun': tm_abuns}, meta={'extname': 'TM_ABUNS'})))
-            data.append(fits.table_to_hdu(Table({'mu': tm_mus}, meta={'extname': 'TM_MUS'})))
-
-        if 'tmap_DAO:ext' in self.content:
-            tm_teffs, tm_loggs, tm_abuns, tm_ebvs, tm_rvs = self.ext_axes['tmap_DAO']
-            data.append(fits.table_to_hdu(Table({'ebv': tm_ebvs}, meta={'extname': 'TM_EBVS'})))
-            data.append(fits.table_to_hdu(Table({'rv': tm_rvs}, meta={'extname': 'TM_RVS'})))
-
-        # Data:
+        # grids:
         if 'blackbody:ext' in self.content:
             data.append(fits.ImageHDU(self.ndp['blackbody'].table['ext@energy'][1], name='BBEGRID'))
             data.append(fits.ImageHDU(self.ndp['blackbody'].table['ext@photon'][1], name='BBPGRID'))
 
-        if 'ck2004:Imu' in self.content:
-            data.append(fits.ImageHDU(self.atm_energy_grid['ck2004'], name='CKFEGRID'))
-            data.append(fits.ImageHDU(self.atm_photon_grid['ck2004'], name='CKFPGRID'))
+        for atm, prefix in atm_tables.items():
+            if f'{atm}:Imu' in self.content:
+                data.append(fits.ImageHDU(self.ndp[atm].table['imu@energy'][1], name=f'{prefix}FEGRID'))
+                data.append(fits.ImageHDU(self.ndp[atm].table['imu@photon'][1], name=f'{prefix}FPGRID'))
 
-            if export_inorm_tables:
-                data.append(fits.ImageHDU(self.atm_energy_grid['ck2004'][..., -1, :], name='CKNEGRID'))
-                data.append(fits.ImageHDU(self.atm_photon_grid['ck2004'][..., -1, :], name='CKNPGRID'))
+                if export_inorm_tables:
+                    data.append(fits.ImageHDU(self.ndp[atm].table['imu@energy'][1][..., -1, :], name=f'{prefix}NEGRID'))
+                    data.append(fits.ImageHDU(self.ndp[atm].table['imu@photon'][1][..., -1, :], name=f'{prefix}NPGRID'))
 
-        if 'ck2004:ld' in self.content:
-            data.append(fits.ImageHDU(self.ld_energy_grid['ck2004'], name='CKLEGRID'))
-            data.append(fits.ImageHDU(self.ld_photon_grid['ck2004'], name='CKLPGRID'))
+            if f'{atm}:ld' in self.content:
+                data.append(fits.ImageHDU(self.ndp[atm].table['ld@energy'][1], name=f'{prefix}LEGRID'))
+                data.append(fits.ImageHDU(self.ndp[atm].table['ld@photon'][1], name=f'{prefix}LPGRID'))
 
-        if 'ck2004:ldint' in self.content:
-            data.append(fits.ImageHDU(self.ldint_energy_grid['ck2004'], name='CKIEGRID'))
-            data.append(fits.ImageHDU(self.ldint_photon_grid['ck2004'], name='CKIPGRID'))
+            if f'{atm}:ldint' in self.content:
+                data.append(fits.ImageHDU(self.ndp[atm].table['ldint@energy'][1], name=f'{prefix}IEGRID'))
+                data.append(fits.ImageHDU(self.ndp[atm].table['ldint@photon'][1], name=f'{prefix}IPGRID'))
 
-        if 'ck2004:ext' in self.content:
-            data.append(fits.ImageHDU(self.ext_energy_grid['ck2004'], name='CKXEGRID'))
-            data.append(fits.ImageHDU(self.ext_photon_grid['ck2004'], name='CKXPGRID'))
-
-        if 'phoenix:Imu' in self.content:
-            data.append(fits.ImageHDU(self.atm_energy_grid['phoenix'], name='PHFEGRID'))
-            data.append(fits.ImageHDU(self.atm_photon_grid['phoenix'], name='PHFPGRID'))
-
-            if export_inorm_tables:
-                data.append(fits.ImageHDU(self.atm_energy_grid['phoenix'][..., -1, :], name='PHNEGRID'))
-                data.append(fits.ImageHDU(self.atm_photon_grid['phoenix'][..., -1, :], name='PHNPGRID'))
-
-        if 'phoenix:ld' in self.content:
-            data.append(fits.ImageHDU(self.ld_energy_grid['phoenix'], name='PHLEGRID'))
-            data.append(fits.ImageHDU(self.ld_photon_grid['phoenix'], name='PHLPGRID'))
-
-        if 'phoenix:ldint' in self.content:
-            data.append(fits.ImageHDU(self.ldint_energy_grid['phoenix'], name='PHIEGRID'))
-            data.append(fits.ImageHDU(self.ldint_photon_grid['phoenix'], name='PHIPGRID'))
-
-        if 'phoenix:ext' in self.content:
-            data.append(fits.ImageHDU(self.ext_energy_grid['phoenix'], name='PHXEGRID'))
-            data.append(fits.ImageHDU(self.ext_photon_grid['phoenix'], name='PHXPGRID'))
-
-        if 'tmap_sdO:Imu' in self.content:
-            data.append(fits.ImageHDU(self.atm_energy_grid['tmap_sdO'], name='TSFEGRID'))
-            data.append(fits.ImageHDU(self.atm_photon_grid['tmap_sdO'], name='TSFPGRID'))
-
-            if export_inorm_tables:
-                data.append(fits.ImageHDU(self.atm_energy_grid['tmap_sdO'][..., -1, :], name='TSNEGRID'))
-                data.append(fits.ImageHDU(self.atm_photon_grid['tmap_sdO'][..., -1, :], name='TSNPGRID'))
-
-        if 'tmap_sdO:ld' in self.content:
-            data.append(fits.ImageHDU(self.ld_energy_grid['tmap_sdO'], name='TSLEGRID'))
-            data.append(fits.ImageHDU(self.ld_photon_grid['tmap_sdO'], name='TSLPGRID'))
-
-        if 'tmap_sdO:ldint' in self.content:
-            data.append(fits.ImageHDU(self.ldint_energy_grid['tmap_sdO'], name='TSIEGRID'))
-            data.append(fits.ImageHDU(self.ldint_photon_grid['tmap_sdO'], name='TSIPGRID'))
-
-        if 'tmap_sdO:ext' in self.content:
-            data.append(fits.ImageHDU(self.ext_energy_grid['tmap_sdO'], name='TSXEGRID'))
-            data.append(fits.ImageHDU(self.ext_photon_grid['tmap_sdO'], name='TSXPGRID'))
-
-        if 'tmap_DA:Imu' in self.content:
-            data.append(fits.ImageHDU(self.atm_energy_grid['tmap_DA'], name='TAFEGRID'))
-            data.append(fits.ImageHDU(self.atm_photon_grid['tmap_DA'], name='TAFPGRID'))
-
-            if export_inorm_tables:
-                data.append(fits.ImageHDU(self.atm_energy_grid['tmap_DA'][..., -1, :], name='TANEGRID'))
-                data.append(fits.ImageHDU(self.atm_photon_grid['tmap_DA'][..., -1, :], name='TANPGRID'))
-
-        if 'tmap_DA:ld' in self.content:
-            data.append(fits.ImageHDU(self.ld_energy_grid['tmap_DA'], name='TALEGRID'))
-            data.append(fits.ImageHDU(self.ld_photon_grid['tmap_DA'], name='TALPGRID'))
-
-        if 'tmap_DA:ldint' in self.content:
-            data.append(fits.ImageHDU(self.ldint_energy_grid['tmap_DA'], name='TAIEGRID'))
-            data.append(fits.ImageHDU(self.ldint_photon_grid['tmap_DA'], name='TAIPGRID'))
-
-        if 'tmap_DA:ext' in self.content:
-            data.append(fits.ImageHDU(self.ext_energy_grid['tmap_DA'], name='TAXEGRID'))
-            data.append(fits.ImageHDU(self.ext_photon_grid['tmap_DA'], name='TAXPGRID'))
-
-        if 'tmap_DAO:Imu' in self.content:
-            data.append(fits.ImageHDU(self.atm_energy_grid['tmap_DAO'], name='TMFEGRID'))
-            data.append(fits.ImageHDU(self.atm_photon_grid['tmap_DAO'], name='TMFPGRID'))
-
-            if export_inorm_tables:
-                data.append(fits.ImageHDU(self.atm_energy_grid['tmap_DAO'][..., -1, :], name='TMNEGRID'))
-                data.append(fits.ImageHDU(self.atm_photon_grid['tmap_DAO'][..., -1, :], name='TMNPGRID'))
-
-        if 'tmap_DAO:ld' in self.content:
-            data.append(fits.ImageHDU(self.ld_energy_grid['tmap_DAO'], name='TMLEGRID'))
-            data.append(fits.ImageHDU(self.ld_photon_grid['tmap_DAO'], name='TMLPGRID'))
-
-        if 'tmap_DAO:ldint' in self.content:
-            data.append(fits.ImageHDU(self.ldint_energy_grid['tmap_DAO'], name='TMIEGRID'))
-            data.append(fits.ImageHDU(self.ldint_photon_grid['tmap_DAO'], name='TMIPGRID'))
-
-        if 'tmap_DAO:ext' in self.content:
-            data.append(fits.ImageHDU(self.ext_energy_grid['tmap_DAO'], name='TMXEGRID'))
-            data.append(fits.ImageHDU(self.ext_photon_grid['tmap_DAO'], name='TMXPGRID'))
-
-        if 'tmap_DO:Imu' in self.content:
-            data.append(fits.ImageHDU(self.atm_energy_grid['tmap_DAO'], name='TOFEGRID'))
-            data.append(fits.ImageHDU(self.atm_photon_grid['tmap_DAO'], name='TOFPGRID'))
-
-            if export_inorm_tables:
-                data.append(fits.ImageHDU(self.atm_energy_grid['tmap_DO'][..., -1, :], name='TONEGRID'))
-                data.append(fits.ImageHDU(self.atm_photon_grid['tmap_DO'][..., -1, :], name='TONPGRID'))
-
-        if 'tmap_DO:ld' in self.content:
-            data.append(fits.ImageHDU(self.ld_energy_grid['tmap_DO'], name='TOLEGRID'))
-            data.append(fits.ImageHDU(self.ld_photon_grid['tmap_DO'], name='TOLPGRID'))
-
-        if 'tmap_DO:ldint' in self.content:
-            data.append(fits.ImageHDU(self.ldint_energy_grid['tmap_DO'], name='TOIEGRID'))
-            data.append(fits.ImageHDU(self.ldint_photon_grid['tmap_DO'], name='TOIPGRID'))
-
-        if 'tmap_DO:ext' in self.content:
-            data.append(fits.ImageHDU(self.ext_energy_grid['tmap_DO'], name='TOXEGRID'))
-            data.append(fits.ImageHDU(self.ext_photon_grid['tmap_DO'], name='TOXPGRID'))
+            if '{atm}:ext' in self.content:
+                data.append(fits.ImageHDU(self.ndp[atm].table['ext@energy'][1], name=f'{prefix}XEGRID'))
+                data.append(fits.ImageHDU(self.ndp[atm].table['ext@photon'][1], name=f'{prefix}XPGRID'))
 
         pb = fits.HDUList(data)
         pb.writeto(archive, overwrite=overwrite)
@@ -665,17 +501,6 @@ class Passband:
             self.content = eval(header['content'], {'__builtins__':None}, {})
             self.history = list(header.get('history', ''))
 
-            self.atm_axes = dict()
-            self.ext_axes = dict()
-            self.atm_energy_grid = dict()
-            self.atm_photon_grid = dict()
-            self.ld_energy_grid = dict()
-            self.ld_photon_grid = dict()
-            self.ldint_energy_grid = dict()
-            self.ldint_photon_grid = dict()
-            self.ext_energy_grid = dict()
-            self.ext_photon_grid = dict()
-
             self.ndp = dict()
 
             self.ptf_table = hdul['ptftable'].data
@@ -713,73 +538,43 @@ class Passband:
                     self.ndp['blackbody'].register('ext@photon', (axes[1], axes[2]), hdul['bbegrid'].data)
                     self.ndp['blackbody'].register('ext@energy', (axes[1], axes[2]), hdul['bbpgrid'].data)
 
-                for atm in ['ck2004', 'phoenix', 'tmap_sdO', 'tmap_DA', 'tmap_DAO', 'tmap_DO']:
+                for atm, prefix in atm_tables.items():
                     if f'{atm}:Imu' in self.content:
-                        if atm in ['phoenix','ck2004']:
-                            prefix = atm[:2]
-                        elif atm == 'tmap_sdO':
-                            prefix ='ts'
-                        elif atm == 'tmap_DA':
-                            prefix = 'ta'
-                        elif atm =='tmap_DAO':
-                            prefix = 'tm'
-                        elif atm == 'tmap_DO':
-                            prefix = 'to'
-                        axes = (
+                        basic_axes = (
                             np.array(list(hdul[f'{prefix}_teffs'].data['teff'])),
                             np.array(list(hdul[f'{prefix}_loggs'].data['logg'])),
                             np.array(list(hdul[f'{prefix}_abuns'].data['abun'])),
                         )
+                        mus = np.array(list(hdul[f'{prefix}_mus'].data['mu']))
 
-                        self.atm_axes[atm] = (
-                            np.array(list(hdul[f'{prefix}_teffs'].data['teff'])),
-                            np.array(list(hdul[f'{prefix}_loggs'].data['logg'])),
-                            np.array(list(hdul[f'{prefix}_abuns'].data['abun'])),
-                            np.array(list(hdul[f'{prefix}_mus'].data['mu']))
-                            ,
-                        )                        
-                        
-                        self.atm_energy_grid[atm] = hdul[f'{prefix}fegrid'].data
-                        self.atm_photon_grid[atm] = hdul[f'{prefix}fpgrid'].data
+                        atm_energy_grid = hdul[f'{prefix}fegrid'].data
+                        atm_photon_grid = hdul[f'{prefix}fpgrid'].data
 
                         # ndpolator instance for interpolating and extrapolating:
-                        self.ndp[atm] = ndpolator.Ndpolator(basic_axes=axes)
+                        self.ndp[atm] = ndpolator.Ndpolator(basic_axes=basic_axes)
 
                         # normal passband intensities:
-                        self.ndp[atm].register('inorm@photon', None, self.atm_photon_grid[atm][...,-1,:])
-                        self.ndp[atm].register('inorm@energy', None, self.atm_energy_grid[atm][...,-1,:])
+                        self.ndp[atm].register('inorm@photon', None, atm_photon_grid[...,-1,:])
+                        self.ndp[atm].register('inorm@energy', None, atm_energy_grid[...,-1,:])
 
                         # specific passband intensities:
-                        mus = np.array(list(hdul[f'{prefix}_mus'].data['mu']))
-                        self.ndp[atm].register('imu@photon', (mus,), self.atm_photon_grid[atm])
-                        self.ndp[atm].register('imu@energy', (mus,), self.atm_energy_grid[atm])
+                        self.ndp[atm].register('imu@photon', (mus,), atm_photon_grid)
+                        self.ndp[atm].register('imu@energy', (mus,), atm_energy_grid)
 
                     if f'{atm}:ld' in self.content:
-                        self.ld_energy_grid[atm] = hdul[f'{prefix}legrid'].data
-                        self.ld_photon_grid[atm] = hdul[f'{prefix}lpgrid'].data
-
-                        self.ndp[atm].register('ld@photon', None, self.ld_photon_grid[atm])
-                        self.ndp[atm].register('ld@energy', None, self.ld_energy_grid[atm])
+                        self.ndp[atm].register('ld@photon', None, hdul[f'{prefix}legrid'].data)
+                        self.ndp[atm].register('ld@energy', None, hdul[f'{prefix}lpgrid'].data)
 
                     if f'{atm}:ldint' in self.content:
-                        self.ldint_energy_grid[atm] = hdul[f'{prefix}iegrid'].data
-                        self.ldint_photon_grid[atm] = hdul[f'{prefix}ipgrid'].data
-
-                        self.ndp[atm].register('ldint@photon', None, self.ldint_photon_grid[atm])
-                        self.ndp[atm].register('ldint@energy', None, self.ldint_energy_grid[atm])
+                        self.ndp[atm].register('ldint@photon', None, hdul[f'{prefix}iegrid'].data)
+                        self.ndp[atm].register('ldint@energy', None, hdul[f'{prefix}ipgrid'].data)
 
                     if f'{atm}:ext' in self.content:
-                        self.ext_axes[atm] = (
-                            np.array(list(hdul[f'{prefix}_teffs'].data['teff'])),
-                            np.array(list(hdul[f'{prefix}_loggs'].data['logg'])),
-                            np.array(list(hdul[f'{prefix}_abuns'].data['abun'])),
-                            np.array(list(hdul[f'{prefix}_ebvs'].data['ebv'])),
-                            np.array(list(hdul[f'{prefix}_rvs'].data['rv']))
-                        )
-                        self.ext_energy_grid[atm] = hdul[f'{prefix}xegrid'].data
-                        self.ext_photon_grid[atm] = hdul[f'{prefix}xpgrid'].data
+                        ebvs = np.array(list(hdul[f'{prefix}_ebvs'].data['ebv']))
+                        rvs = np.array(list(hdul[f'{prefix}_rvs'].data['rv']))
 
-                        # TODO: add ndp entries; should we do ndp.get('key', ndpolator.Ndpolator(...))? Do we need to store the actual grids at all?
+                        self.ndp[atm].register('ext@photon', (ebvs, rvs), hdul[f'{prefix}xegrid'].data)
+                        self.ndp[atm].register('ext@energy', (ebvs, rvs), hdul[f'{prefix}xpgrid'].data)
 
         return self
 
@@ -899,8 +694,6 @@ class Passband:
 
         # Planck functions:
         pfs = 2*h.value*c.value*c.value/wls**5*1./(np.exp(h.value*c.value/(k_B.value*wls@teffs.reshape(1, -1)))-1)  # (47, 97)
-
-        self.atm_axes['blackbody'] = (np.unique(teffs),)
 
         # Passband-weighted Planck functions:
         pbpfs_energy = self.ptf(wls).reshape(-1, 1)*pfs  # (47, 97)
@@ -1080,117 +873,54 @@ class Passband:
                 if include_extinction:
                     ext_lambda = np.matmul(libphoebe.gordon_extinction(wls), ext_matrix[i])
                     flux_frac = np.exp(-0.9210340371976184*ext_lambda)  #10**(-0.4*ext_lambda)
-                    # print(f'{pbints_energy.shape}, {fluxes_energy.shape}, {ext_energy.shape}, {flux_frac.shape}')
                     ext_energy[i], ext_photon[i] = np.dot([pbints_energy[-1]/fluxes_energy[-1], pbints_photon[-1]/fluxes_photon[-1]], flux_frac)
 
-        # for cmi, cmu in enumerate(mus):
-        #     fl = intensities[cmi,:]
+        basic_axes = (np.unique(teffs), np.unique(loggs), np.unique(abuns))
+        self.ndp[atm] = ndpolator.Ndpolator(basic_axes=basic_axes)
 
-        #     # make a log-scale copy for boosting and fit a Legendre
-        #     # polynomial to the Imu envelope by way of sigma clipping;
-        #     # then compute a Legendre series derivative to get the
-        #     # boosting index; we only take positive fluxes to keep the
-        #     # log well defined.
+        associated_axes = (np.unique(mus),)
+        axes = basic_axes + associated_axes
 
-        #     lnwl = np.log(wl[fl > 0])
-        #     lnfl = np.log(fl[fl > 0]) + 5*lnwl
+        atm_energy_grid = np.full(shape=[len(axis) for axis in axes]+[1], fill_value=np.nan)
+        atm_photon_grid = np.copy(atm_energy_grid)
 
-        #     # First Legendre fit to the data:
-        #     envelope = np.polynomial.legendre.legfit(lnwl, lnfl, 5)
-        #     continuum = np.polynomial.legendre.legval(lnwl, envelope)
-        #     diff = lnfl-continuum
-        #     sigma = np.std(diff)
-        #     clipped = (diff > -sigma)
+        for i, int_energy in enumerate(ints_energy):
+            atm_energy_grid[teffs[int(i/len(mus))] == axes[0], loggs[int(i/len(mus))] == axes[1], abuns[int(i/len(mus))] == axes[2], mus[i%len(mus)] == axes[3], 0] = int_energy
+        for i, int_photon in enumerate(ints_photon):
+            atm_photon_grid[teffs[int(i/len(mus))] == axes[0], loggs[int(i/len(mus))] == axes[1], abuns[int(i/len(mus))] == axes[2], mus[i%len(mus)] == axes[3], 0] = int_photon
 
-        #     # Sigma clip to get the continuum:
-        #     while True:
-        #         Npts = clipped.sum()
-        #         envelope = np.polynomial.legendre.legfit(lnwl[clipped], lnfl[clipped], 5)
-        #         continuum = np.polynomial.legendre.legval(lnwl, envelope)
-        #         diff = lnfl-continuum
+        self.ndp[atm].register('inorm@photon', None, atm_photon_grid[...,-1,:])
+        self.ndp[atm].register('inorm@energy', None, atm_energy_grid[...,-1,:])
+        self.ndp[atm].register('imu@photon', associated_axes, atm_photon_grid)
+        self.ndp[atm].register('imu@energy', associated_axes, atm_energy_grid)
 
-        #         # clipping will sometimes unclip already clipped points
-        #         # because the fit is slightly different, which can lead
-        #         # to infinite loops. To prevent that, we never allow
-        #         # clipped points to be resurrected, which is achieved
-        #         # by the following bitwise condition (array comparison):
-        #         clipped = clipped & (diff > -sigma)
-
-        #         if clipped.sum() == Npts:
-        #             break
-
-        #     derivative = np.polynomial.legendre.legder(envelope, 1)
-        #     boosting_index = np.polynomial.legendre.legval(lnwl, derivative)
-
-        #     # calculate energy (E) and photon (P) weighted fluxes and
-        #     # their integrals.
-
-        #     # calculate mean boosting coefficient and use it to get
-        #     # boosting factors for energy (E) and photon (P) weighted
-        #     # fluxes.
-
-        #     boostE = (flE[fl > 0]*boosting_index).sum()/flEint
-        #     boostP = (flP[fl > 0]*boosting_index).sum()/flPint
-        #     boostingE[i] = boostE
-        #     boostingP[i] = boostP
-
-        self.atm_axes[atm] = (np.unique(teffs), np.unique(loggs), np.unique(abuns), np.unique(mus))
-        self.atm_energy_grid[atm] = np.full(shape=[len(axis) for axis in self.atm_axes[atm]]+[1], fill_value=np.nan)
-        self.atm_photon_grid[atm] = np.full(shape=[len(axis) for axis in self.atm_axes[atm]]+[1], fill_value=np.nan)
-        # self._ck2004_boosting_energy_grid = np.nan*np.ones((len(self.atm_axes['ck2004'][0]), len(self.atm_axes['ck2004'][1]), len(self.atm_axes['ck2004'][2]), len(self.atm_axes['ck2004'][3]), 1))
-        # self._ck2004_boosting_photon_grid = np.nan*np.ones((len(self.atm_axes['ck2004'][0]), len(self.atm_axes['ck2004'][1]), len(self.atm_axes['ck2004'][2]), len(self.atm_axes['ck2004'][3]), 1))
+        if f'{atm}:Imu' not in self.content:
+            self.content.append(f'{atm}:Imu')
 
         if include_extinction:
-            # ? Should this not include mus as well?
-            self.ext_axes[atm] = (np.unique(teffs), np.unique(loggs), np.unique(abuns), np.unique(ebvs), np.unique(rvs))
+            associated_axes = (np.unique(ebvs), np.unique(rvs))
+            axes = basic_axes + associated_axes
 
             teffs = np.repeat(teffs, len(ebvs)*len(rvs))
             loggs = np.repeat(loggs, len(ebvs)*len(rvs))
             abuns = np.repeat(abuns, len(ebvs)*len(rvs))
 
-            self.ext_energy_grid[atm] = np.nan*np.ones((len(self.ext_axes[atm][0]), len(self.ext_axes[atm][1]), len(self.ext_axes[atm][2]), len(self.ext_axes[atm][3]), len(self.ext_axes[atm][4]), 1))
-            self.ext_photon_grid[atm] = np.copy(self.ext_energy_grid[atm])
+            ext_energy_grid = np.full(shape=[len(axis) for axis in axes]+[1], fill_value=np.nan)
+            ext_photon_grid = np.copy(ext_energy_grid)
 
             flat_energy = ext_energy.flat
             flat_photon = ext_photon.flat
 
             for i in range(nmodels*len(ebvs)*len(rvs)):
-                t = (teffs[i] == self.ext_axes[atm][0], loggs[i] == self.ext_axes[atm][1], abuns[i] == self.ext_axes[atm][2], ebv_list[i] == self.ext_axes[atm][3], rv_list[i] == self.ext_axes[atm][4], 0)
-                self.ext_energy_grid[atm][t] = flat_energy[i]
-                self.ext_photon_grid[atm][t] = flat_photon[i]
+                t = (teffs[i] == axes[0], loggs[i] == axes[1], abuns[i] == axes[2], ebv_list[i] == axes[3], rv_list[i] == axes[4], 0)
+                ext_energy_grid[t] = flat_energy[i]
+                ext_photon_grid[t] = flat_photon[i]
+
+            self.ndp[atm].register('ext@photon', associated_axes, ext_photon_grid)
+            self.ndp[atm].register('ext@energy', associated_axes, ext_energy_grid)
 
             if f'{atm}:ext' not in self.content:
                 self.content.append(f'{atm}:ext')
-
-        # Set the limb (mu=0) to 0; in log this formally means flux density=1W/m3, but compared to ~10 that is
-        # the typical table[:,:,:,1,:] value, for all practical purposes that is still 0.
-        # self.atm_energy_grid[atm][:,:,:,0,:][~np.isnan(self.atm_energy_grid[atm][:,:,:,1,:])] = 0.0
-        # self.atm_photon_grid[atm][:,:,:,0,:][~np.isnan(self.atm_photon_grid[atm][:,:,:,1,:])] = 0.0
-
-        for i, int_energy in enumerate(ints_energy):
-            self.atm_energy_grid[atm][teffs[int(i/len(mus))] == self.atm_axes[atm][0], loggs[int(i/len(mus))] == self.atm_axes[atm][1], abuns[int(i/len(mus))] == self.atm_axes[atm][2], mus[i%len(mus)] == self.atm_axes[atm][3], 0] = int_energy
-        for i, int_photon in enumerate(ints_photon):
-            self.atm_photon_grid[atm][teffs[int(i/len(mus))] == self.atm_axes[atm][0], loggs[int(i/len(mus))] == self.atm_axes[atm][1], abuns[int(i/len(mus))] == self.atm_axes[atm][2], mus[i%len(mus)] == self.atm_axes[atm][3], 0] = int_photon
-        # for i, Bavg in enumerate(boostingE):
-        #     self._ck2004_boosting_energy_grid[Teff[i] == self.atm_axes['ck2004'][0], logg[i] == self.atm_axes['ck2004'][1], abun[i] == self.atm_axes['ck2004'][2], mu[i] == self.atm_axes['ck2004'][3], 0] = Bavg
-        # for i, Bavg in enumerate(boostingP):
-        #     self._ck2004_boosting_photon_grid[Teff[i] == self.atm_axes['ck2004'][0], logg[i] == self.atm_axes['ck2004'][1], abun[i] == self.atm_axes['ck2004'][2], mu[i] == self.atm_axes['ck2004'][3], 0] = Bavg
-
-        basic_axes = self.atm_axes[atm][:-1]
-        mus = self.atm_axes[atm][-1]
-
-        self.ndp[atm] = ndpolator.Ndpolator(basic_axes=basic_axes)
-        self.ndp[atm].register('inorm@photon', None, self.atm_photon_grid[atm][...,-1,:])
-        self.ndp[atm].register('inorm@energy', None, self.atm_energy_grid[atm][...,-1,:])
-        self.ndp[atm].register('imu@photon', (mus,), self.atm_photon_grid[atm])
-        self.ndp[atm].register('imu@energy', (mus,), self.atm_energy_grid[atm])
-
-        if include_extinction:
-            self.ndp[atm].register('ext@photon', self.ext_axes[3:], self.ext_photon_grid[atm])
-            self.ndp[atm].register('ext@energy', self.ext_axes[3:], self.ext_energy_grid[atm])
-
-        if f'{atm}:Imu' not in self.content:
-            self.content.append(f'{atm}:Imu')
 
     def _ld(self, mu=1.0, ld_coeffs=np.array([[0.5]]), ld_func='linear'):
         ld_coeffs = np.atleast_2d(ld_coeffs)
@@ -1223,7 +953,7 @@ class Passband:
     def _ldlaw_nonlin(self, mu, c1, c2, c3, c4):
         return 1.0-c1*(1.0-np.sqrt(mu))-c2*(1.0-mu)-c3*(1.0-mu*np.sqrt(mu))-c4*(1.0-mu*mu)
 
-    def compute_ldcoeffs(self, ldatm, weighting='uniform', plot_diagnostics=False):
+    def compute_ldcoeffs(self, ldatm, weighting='uniform'):
         """
         Computes limb darkening coefficients for linear, log, square root,
         quadratic and power laws.
@@ -1236,19 +966,20 @@ class Passband:
             data points should be weighted.
             * 'uniform':  do not apply any per-point weighting
             * 'interval': apply weighting based on the interval widths
-        * `plot_diagnostics` (bool, optional, default=False): should
-          diagnostic graphs be plotted at compute time
         """
 
         if f'{ldatm}:Imu' not in self.content:
             raise RuntimeError(f'atm={ldatm} intensities are not found in the {self.pbset}:{self.pbname} passband.')
 
-        self.ld_energy_grid[ldatm] = np.nan*np.ones((len(self.atm_axes[ldatm][0]), len(self.atm_axes[ldatm][1]), len(self.atm_axes[ldatm][2]), 11))
-        self.ld_photon_grid[ldatm] = np.nan*np.ones((len(self.atm_axes[ldatm][0]), len(self.atm_axes[ldatm][1]), len(self.atm_axes[ldatm][2]), 11))
+        basic_axes = self.ndp[ldatm].axes
+        mus = self.ndp[ldatm].table['imu@photon'][0][0]
         if ldatm[:4] == 'tmap':
-            mus = self.atm_axes[ldatm][3][1:-1] #removes extrapolated points in mu
-        else:
-            mus = self.atm_axes[ldatm][3] # starts with 0
+            # remove extrapolated points in mu for TMAP family of model atmospheres:
+            mus = mus[1:-1]
+
+        ld_energy_grid = np.full(shape=[len(axis) for axis in basic_axes]+[11], fill_value=np.nan)
+        ld_photon_grid = np.copy(ld_energy_grid)
+
         if weighting == 'uniform':
             sigma = np.ones(len(mus))
         elif weighting == 'interval':
@@ -1257,13 +988,16 @@ class Passband:
         else:
             raise ValueError(f'weighting={weighting} is not supported.')
 
-        for Tindex in range(len(self.atm_axes[ldatm][0])):
-            for lindex in range(len(self.atm_axes[ldatm][1])):
-                for mindex in range(len(self.atm_axes[ldatm][2])):
+        atm_energy_grid = self.ndp[ldatm].table['imu@energy'][1]
+        atm_photon_grid = self.ndp[ldatm].table['imu@photon'][1]
+
+        for Tindex in range(len(basic_axes[0])):
+            for lindex in range(len(basic_axes[1])):
+                for mindex in range(len(basic_axes[2])):
                     if ldatm[:4] == 'tmap':
-                        IsE = 10**self.atm_energy_grid[ldatm][Tindex,lindex,mindex,1:-1].flatten()
+                        IsE = 10**atm_energy_grid[Tindex,lindex,mindex,1:-1].flatten()
                     else:
-                        IsE = 10**self.atm_energy_grid[ldatm][Tindex,lindex,mindex,:].flatten()
+                        IsE = 10**atm_energy_grid[Tindex,lindex,mindex,:].flatten()
                     fEmask = np.isfinite(IsE)
                     if len(IsE[fEmask]) <= 1:
                         continue
@@ -1274,12 +1008,12 @@ class Passband:
                     cEsqrt, pcov = cfit(f=self._ldlaw_sqrt,   xdata=mus[fEmask], ydata=IsE[fEmask], sigma=sigma[fEmask], p0=[0.5, 0.5])
                     cEquad, pcov = cfit(f=self._ldlaw_quad,   xdata=mus[fEmask], ydata=IsE[fEmask], sigma=sigma[fEmask], p0=[0.5, 0.5])
                     cEnlin, pcov = cfit(f=self._ldlaw_nonlin, xdata=mus[fEmask], ydata=IsE[fEmask], sigma=sigma[fEmask], p0=[0.5, 0.5, 0.5, 0.5])
-                    self.ld_energy_grid[ldatm][Tindex, lindex, mindex] = np.hstack((cElin, cElog, cEsqrt, cEquad, cEnlin))
+                    ld_energy_grid[Tindex, lindex, mindex] = np.hstack((cElin, cElog, cEsqrt, cEquad, cEnlin))
 
                     if ldatm[:4] == 'tmap':
-                        IsP = 10**self.atm_photon_grid[ldatm][Tindex,lindex,mindex,1:-1].flatten()
+                        IsP = 10**atm_photon_grid[Tindex,lindex,mindex,1:-1].flatten()
                     else:
-                        IsP = 10**self.atm_photon_grid[ldatm][Tindex,lindex,mindex,:].flatten()
+                        IsP = 10**atm_photon_grid[Tindex,lindex,mindex,:].flatten()
                     fPmask = np.isfinite(IsP)
                     IsP /= IsP[fPmask][-1]
 
@@ -1288,22 +1022,10 @@ class Passband:
                     cPsqrt, pcov = cfit(f=self._ldlaw_sqrt,   xdata=mus[fPmask], ydata=IsP[fPmask], sigma=sigma[fEmask], p0=[0.5, 0.5])
                     cPquad, pcov = cfit(f=self._ldlaw_quad,   xdata=mus[fPmask], ydata=IsP[fPmask], sigma=sigma[fEmask], p0=[0.5, 0.5])
                     cPnlin, pcov = cfit(f=self._ldlaw_nonlin, xdata=mus[fPmask], ydata=IsP[fPmask], sigma=sigma[fEmask], p0=[0.5, 0.5, 0.5, 0.5])
-                    self.ld_photon_grid[ldatm][Tindex, lindex, mindex] = np.hstack((cPlin, cPlog, cPsqrt, cPquad, cPnlin))
+                    ld_photon_grid[Tindex, lindex, mindex] = np.hstack((cPlin, cPlog, cPsqrt, cPquad, cPnlin))
 
-                    if plot_diagnostics:
-                        # TODO: needs revision
-                        if Tindex == 10 and lindex == 9 and mindex == 5:
-                            print(self.atm_axes[ldatm][0][Tindex], self.atm_axes[ldatm][1][lindex], self.atm_axes[ldatm][2][mindex])
-                            print(mus, IsE)
-                            print(cElin, cElog, cEsqrt)
-                            import matplotlib.pyplot as plt
-                            plt.plot(mus[fEmask], IsE[fEmask], 'bo')
-                            plt.plot(mus[fEmask], self._ldlaw_lin(mus[fEmask], *cElin), 'r-')
-                            plt.plot(mus[fEmask], self._ldlaw_log(mus[fEmask], *cElog), 'g-')
-                            plt.plot(mus[fEmask], self._ldlaw_sqrt(mus[fEmask], *cEsqrt), 'y-')
-                            plt.plot(mus[fEmask], self._ldlaw_quad(mus[fEmask], *cEquad), 'm-')
-                            plt.plot(mus[fEmask], self._ldlaw_nonlin(mus[fEmask], *cEnlin), 'k-')
-                            plt.show()
+        self.ndp[ldatm].register('ld@photon', None, ld_photon_grid)
+        self.ndp[ldatm].register('ld@energy', None, ld_energy_grid)
 
         if f'{ldatm}:ld' not in self.content:
             self.content.append(f'{ldatm}:ld')
@@ -1313,13 +1035,13 @@ class Passband:
         Exports PHOENIX intensity table to a PHOEBE legacy compatible format.
         """
 
-        teffs = self.atm_axes['phoenix'][0]
+        teffs = self.ndp['phoenix'].axes[0]
         tlow, tup = teffs[0], teffs[-1]
         trel = (teffs-tlow)/(tup-tlow)
 
-        for abun in range(len(self.atm_axes['phoenix'][2])):
-            for logg in range(len(self.atm_axes['phoenix'][1])):
-                logI = self.atm_energy_grid['phoenix'][:,logg,abun,-1,0]+1 # +1 to take care of WD units
+        for abun in range(len(self.ndp['phoenix'].axes[2])):
+            for logg in range(len(self.ndp['phoenix'].axes[1])):
+                logI = self.ndp['phoenix'].table['imu@energy'][1][:,logg,abun,-1,0]+1 # +1 to take care of WD units
 
                 # find the last non-nan value:
                 if np.isnan(logI).sum() > 0:
@@ -1337,8 +1059,7 @@ class Passband:
 
     def export_legacy_ldcoeffs(self, models, atm='ck2004', filename=None, intens_weighting='photon'):
         """
-        Exports CK2004 limb darkening coefficients to a PHOEBE legacy
-        compatible format.
+        Exports  limb darkening coefficients to a PHOEBE legacy compatible format.
 
         Arguments
         -----------
@@ -1350,8 +1071,8 @@ class Passband:
         * `intens_weighting`
         """
 
-        axes = self.atm_axes[atm]
-        grid = self.ld_photon_grid[atm] if intens_weighting == 'photon' else self.ld_energy_grid[atm]
+        axes = self.ndp[atm].axes
+        grid = self.ndp[atm].table['ld@photon'][1] if intens_weighting == 'photon' else self.ndp[atm].table['ld@energy'][1]
 
         if filename is not None:
             import time
@@ -1392,14 +1113,14 @@ class Passband:
         if f'{ldatm}:Imu' not in self.content:
             raise RuntimeError(f'atm={ldatm} intensities are not found in the {self.pbset}:{self.pbname} passband.')
 
-        ldaxes = self.atm_axes[ldatm]
-        ldtable = self.atm_energy_grid[ldatm]
-        pldtable = self.atm_photon_grid[ldatm]
+        ldaxes = self.ndp[ldatm].axes
+        ldtable = self.ndp[ldatm].table['imu@energy'][1]
+        pldtable = self.ndp[ldatm].table['imu@photon'][1]
 
-        self.ldint_energy_grid[ldatm] = np.nan*np.ones((len(ldaxes[0]), len(ldaxes[1]), len(ldaxes[2]), 1))
-        self.ldint_photon_grid[ldatm] = np.nan*np.ones((len(ldaxes[0]), len(ldaxes[1]), len(ldaxes[2]), 1))
+        ldint_energy_grid = np.nan*np.ones((len(ldaxes[0]), len(ldaxes[1]), len(ldaxes[2]), 1))
+        ldint_photon_grid = np.nan*np.ones((len(ldaxes[0]), len(ldaxes[1]), len(ldaxes[2]), 1))
 
-        mu = ldaxes[3]
+        mu = self.ndp[ldatm].table['imu@photon'][0][0]
         Imu = 10**ldtable[:,:,:,:]/10**ldtable[:,:,:,-1:]
         pImu = 10**pldtable[:,:,:,:]/10**pldtable[:,:,:,-1:]
 
@@ -1408,7 +1129,6 @@ class Passband:
         for a in range(len(ldaxes[0])):
             for b in range(len(ldaxes[1])):
                 for c in range(len(ldaxes[2])):
-
                     ldint = 0.0
                     pldint = 0.0
                     for i in range(len(mu)-1):
@@ -1420,8 +1140,11 @@ class Passband:
                         pni = pImu[a,b,c,i]-pki*mu[i]
                         pldint += pki/3*(mu[i+1]**3-mu[i]**3) + pni/2*(mu[i+1]**2-mu[i]**2)
 
-                    self.ldint_energy_grid[ldatm][a,b,c] = 2*ldint
-                    self.ldint_photon_grid[ldatm][a,b,c] = 2*pldint
+                    ldint_energy_grid[a,b,c] = 2*ldint
+                    ldint_photon_grid[a,b,c] = 2*pldint
+
+        self.ndp[ldatm].register('ldint@photon', None, ldint_photon_grid)
+        self.ndp[ldatm].register('ldint@energy', None, ldint_energy_grid)
 
         if f'{ldatm}:ldint' not in self.content:
             self.content.append(f'{ldatm}:ldint')
@@ -1631,46 +1354,46 @@ class Passband:
 
         if blending_method == 'blackbody':
             raise NotImplementedError('under review.')
-            log10_Inorm_bb = np.log10(self.Inorm(atm='blackbody', query_pts=query_pts[nanmask], ldatm=atm, ld_extrapolation_method=ld_extrapolation_method, intens_weighting=intens_weighting))
-            nv, naxes = ndpolator.map_to_cube(req[nanmask], self.atm_axes[atm][:-1], self.blending_region[atm], return_naxes=True)
+            # log10_Inorm_bb = np.log10(self.Inorm(atm='blackbody', query_pts=query_pts[nanmask], ldatm=atm, ld_extrapolation_method=ld_extrapolation_method, intens_weighting=intens_weighting))
+            # nv, naxes = ndpolator.map_to_cube(req[nanmask], self.atm_axes[atm][:-1], self.blending_region[atm], return_naxes=True)
 
-            log10_Inorm_bl = np.empty_like(teffs[nanmask])
-            for si, selem in enumerate(nv):
-                ic = [np.searchsorted(naxes[k], selem[k])-1 for k in range(len(naxes))]
-                seps = (np.abs(ndp.ics[atm]-np.array(ic))).sum(axis=1)
-                corners = np.argwhere(seps == seps.min()).flatten()
+            # log10_Inorm_bl = np.empty_like(teffs[nanmask])
+            # for si, selem in enumerate(nv):
+            #     ic = [np.searchsorted(naxes[k], selem[k])-1 for k in range(len(naxes))]
+            #     seps = (np.abs(ndp.ics[atm]-np.array(ic))).sum(axis=1)
+            #     corners = np.argwhere(seps == seps.min()).flatten()
 
-                blints_per_corner = []
-                for corner in corners:
-                    slc = tuple([slice(ndp.ics[atm][corner][i], ndp.ics[atm][corner][i]+2) for i in range(len(ndp.ics[atm][corner]))])
-                    coords = [naxes[i][slc[i]] for i in range(len(naxes))]
-                    verts = np.array(np.meshgrid(*coords)).T.reshape(-1, len(naxes))  # faster than itertools.product(*coords)
-                    distance_vectors = selem-verts
-                    distances = np.linalg.norm(distance_vectors, axis=1)
-                    distance_vector = distance_vectors[distances.argmin()]
+            #     blints_per_corner = []
+            #     for corner in corners:
+            #         slc = tuple([slice(ndp.ics[atm][corner][i], ndp.ics[atm][corner][i]+2) for i in range(len(ndp.ics[atm][corner]))])
+            #         coords = [naxes[i][slc[i]] for i in range(len(naxes))]
+            #         verts = np.array(np.meshgrid(*coords)).T.reshape(-1, len(naxes))  # faster than itertools.product(*coords)
+            #         distance_vectors = selem-verts
+            #         distances = np.linalg.norm(distance_vectors, axis=1)
+            #         distance_vector = distance_vectors[distances.argmin()]
 
-                    shift = ic-ndp.ics[atm][corner]
-                    shift = shift != 0
+            #         shift = ic-ndp.ics[atm][corner]
+            #         shift = shift != 0
 
-                    if shift.sum() == 0:
-                        raise ValueError('how did we get here?')
+            #         if shift.sum() == 0:
+            #             raise ValueError('how did we get here?')
 
-                    # project the vertex distance to the nearest hyperface/hyperedge:
-                    distance_vector *= shift
-                    distance = np.linalg.norm(distance_vector)
+            #         # project the vertex distance to the nearest hyperface/hyperedge:
+            #         distance_vector *= shift
+            #         distance = np.linalg.norm(distance_vector)
 
-                    if distance > 1:
-                        blints_per_corner.append(log10_Inorm_bb[si])
-                        continue
+            #         if distance > 1:
+            #             blints_per_corner.append(log10_Inorm_bb[si])
+            #             continue
 
-                    alpha = blending_factor(distance)
+            #         alpha = blending_factor(distance)
 
-                    blints_per_corner.append((1-alpha)*log10_Inorm_bb[si] + alpha*log10_Inorm[nanmask][si])
-                    # print(f'distance={distance}, alpha={alpha}, bb={ints_bb[si]}, ck={ints_ck[nanmask][si]}, bl={blints_per_corner[-1]}')
+            #         blints_per_corner.append((1-alpha)*log10_Inorm_bb[si] + alpha*log10_Inorm[nanmask][si])
+            #         # print(f'distance={distance}, alpha={alpha}, bb={ints_bb[si]}, ck={ints_ck[nanmask][si]}, bl={blints_per_corner[-1]}')
 
-                log10_Inorm_bl[si] = np.mean(blints_per_corner)
+            #     log10_Inorm_bl[si] = np.mean(blints_per_corner)
 
-            log10_Inorm[nanmask] = log10_Inorm_bl[:,None]
+            # log10_Inorm[nanmask] = log10_Inorm_bl[:,None]
 
         return (log10_Inorm, nanmask) if return_nanmask else log10_Inorm
 
@@ -2085,7 +1808,7 @@ class Passband:
 
     def _bindex_ck2004(self, req, atm, intens_weighting='photon'):
         grid = self._ck2004_boosting_photon_grid if intens_weighting == 'photon' else self._ck2004_boosting_energy_grid
-        bindex = libphoebe.interp(req, self.atm_axes['ck2004'], grid).T[0]
+        bindex = libphoebe.interp(req, self.ndp['ck2004'].axes, grid).T[0]
         return bindex
 
     def bindex(self, teffs=5772., loggs=4.43, abuns=0.0, mus=1.0, atm='ck2004', intens_weighting='photon'):
