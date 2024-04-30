@@ -43,7 +43,7 @@ _url_tables_server = 'http://tables.phoebe-project.org'
 
 # Future atmosphere tables could exist in the passband files, but the current
 # release won't be able to handle those.
-supported_atms = {
+atm_tables = {
     'ck2004': 'CK',
     'phoenix': 'PH',
     'tmap_sdO': 'TS',
@@ -52,7 +52,7 @@ supported_atms = {
     'tmap_DO': 'TO'
 }
 
-_supported_atms = list(supported_atms.keys()) + ['blackbody', 'extern_atmx', 'extern_planckint']
+supported_atms = list(atm_tables.keys()) + ['blackbody', 'extern_atmx', 'extern_planckint']
 
 # Global passband table. This dict should never be tinkered with outside
 # of the functions in this module; it might be nice to make it read-only
@@ -415,7 +415,7 @@ class Passband:
             data.append(fits.table_to_hdu(Table({'rv': axes[2]}, meta={'extname': 'BB_RVS'})))
 
         # axes:
-        for atm, prefix in supported_atms.items():
+        for atm, prefix in atm_tables.items():
             if f'{atm}:Imu' in self.content:
                 teffs, loggs, abuns, mus = self.ndp[atm].axes + self.ndp[atm].table['imu@photon'][0]
                 data.append(fits.table_to_hdu(Table({'teff': teffs}, meta={'extname': f'{prefix}_TEFFS'})))
@@ -433,7 +433,7 @@ class Passband:
             data.append(fits.ImageHDU(self.ndp['blackbody'].table['ext@energy'][1], name='BBEGRID'))
             data.append(fits.ImageHDU(self.ndp['blackbody'].table['ext@photon'][1], name='BBPGRID'))
 
-        for atm, prefix in supported_atms.items():
+        for atm, prefix in atm_tables.items():
             if f'{atm}:Imu' in self.content:
                 data.append(fits.ImageHDU(self.ndp[atm].table['imu@energy'][1], name=f'{prefix}FEGRID'))
                 data.append(fits.ImageHDU(self.ndp[atm].table['imu@photon'][1], name=f'{prefix}FPGRID'))
@@ -538,7 +538,7 @@ class Passband:
                     self.ndp['blackbody'].register('ext@photon', (axes[1], axes[2]), hdul['bbegrid'].data)
                     self.ndp['blackbody'].register('ext@energy', (axes[1], axes[2]), hdul['bbpgrid'].data)
 
-                for atm, prefix in supported_atms.items():
+                for atm, prefix in atm_tables.items():
                     if f'{atm}:Imu' in self.content:
                         basic_axes = (
                             np.array(list(hdul[f'{prefix}_teffs'].data['teff'])),
