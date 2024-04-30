@@ -42,11 +42,11 @@ jobs:
       run: |
         pip install .
 
-    - name: Setup GNU Fortran
-      id: setup-fortran
-      uses: fortran-lang/setup-fortran@v1
-
     - name: Enable ssh access
       uses: mxschmitt/action-tmate@v3
       with:
         wait-timeout-minutes: 5
+
+    - name: Setup GNU Fortran
+      id: setup-fortran
+      uses: fortran-lang/setup-fortran@v1
