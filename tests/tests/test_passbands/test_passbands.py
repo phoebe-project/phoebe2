@@ -1,12 +1,13 @@
 import phoebe
 from phoebe import u
+from phoebe.atmospheres.passbands import supported_atms
 import os
 
 
 path = os.path.dirname(__file__)
 
 
-def test_compute(atm_grids_available=False, atm_path=None, atms=['ck2004', 'phoenix', 'tmap_sdO', 'tmap_DA', 'tmap_DAO', 'tmap_DO']):
+def test_compute(atm_grids_available=False, atm_path=None, atms=supported_atms.keys()):
     pb = phoebe.atmospheres.passbands.Passband(
         ptf=os.path.join(path, 'test.ptf'),
         pbset='test',
@@ -30,7 +31,7 @@ def test_compute(atm_grids_available=False, atm_path=None, atms=['ck2004', 'phoe
 
 def test_load():
     pb = phoebe.atmospheres.passbands.Passband.load(os.path.join(path, 'test.fits'))
-    print(pb.content)
+    assert 'blackbody:Inorm' in pb.content
 
     # cleanup
     os.remove(os.path.join(path, 'test.fits'))
