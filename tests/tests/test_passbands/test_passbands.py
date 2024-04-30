@@ -39,5 +39,6 @@ def test_load():
 
 if __name__ == '__main__':
     atm_path = os.path.join(path, 'tables')
-    test_compute(atm_grids_available=True, atm_path=atm_path)
+    atm_grids_available = os.path.exists(atm_path)
+    test_compute(atm_grids_available=atm_grids_available, atm_path=atm_path)
     test_load()
