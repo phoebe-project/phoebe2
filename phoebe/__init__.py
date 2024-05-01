@@ -162,7 +162,7 @@ class MPI(object):
             self.nprocs = nprocs
 
     def off(self):
-        if self.within_mpirun and self.myrank == 0:
+        if self.within_mpirun and self.enabled and self.myrank == 0:
             self.comm.bcast({'worker_command': 'release'}, root=0)
 
         self._enabled = False
