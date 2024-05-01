@@ -1005,6 +1005,15 @@ class Bundle(ParameterSet):
                 dict_ds = _ps_dict(ps_ds, include_constrained=False)
                 b.remove_dataset(dataset, context=['dataset', 'constraint'])
                 b.add_dataset(ds_kind, dataset=dataset, check_label=False, **dict_ds)
+            for compute in b.filter(context='compute', **_skip_filter_checks).computes:
+                logger.info("attempting to update compute='{}' to new version requirements".format(compute))
+                ps_compute = b.filter(context='compute', compute=compute, **_skip_filter_checks)
+                compute_kind = ps_compute.kind
+                dict_compute = _ps_dict(ps_compute)
+                # NOTE: we will not remove (or update) the dataset from any existing models
+                b.remove_compute(compute, context=['compute'])
+                b.add_compute(compute_kind, compute=compute, check_label=False, overwrite=True, **dict_compute)
+
 
         if conf_interactive_checks:
             logger.debug("re-enabling interactive_checks")
