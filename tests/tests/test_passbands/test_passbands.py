@@ -1,13 +1,13 @@
 import phoebe
 from phoebe import u
-from phoebe.atmospheres.passbands import supported_atms
+from phoebe.atmospheres.passbands import atm_tables
 import os
 
 
 path = os.path.dirname(__file__)
 
 
-def test_compute(atm_grids_available=False, atm_path=None, atms=supported_atms.keys()):
+def test_compute(atm_grids_available=False, atm_path=None, atms=atm_tables.keys()):
     pb = phoebe.atmospheres.passbands.Passband(
         ptf=os.path.join(path, 'test.ptf'),
         pbset='test',
