@@ -2209,7 +2209,8 @@ static PyObject *roche_misaligned_area_volume([[maybe_unused]] PyObject *self, P
 
     bool adjust = true;
 
-    double p[2][2], xrange[2], pole, e;
+    double p[2][2], xrange[2], e,
+           pole = -1;  // set just for control
 
     //
     // Choosing boundaries on x-axis or calculating the pole
@@ -2235,7 +2236,7 @@ static PyObject *roche_misaligned_area_volume([[maybe_unused]] PyObject *self, P
     do {
 
       for (int i = 0, m = m0; i < 2; ++i, m <<= 1)
-        if (theta == 0)
+        if (aligned)
           gen_roche::area_volume_integration
             (p[i], res_choice, xrange, Omega0, q, F, d, m);
         else {
