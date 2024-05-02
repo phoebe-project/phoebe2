@@ -1442,7 +1442,7 @@ static PyObject *roche_area_volume([[maybe_unused]] PyObject *self, PyObject *ar
   double
     b = (1 + q)*F*F*delta*delta*delta,
     w0 = 5*(q + std::cbrt(b*b)/4) - 29.554 - 5.26235*std::log(std::min(eps[0], eps[1])),
-    av[2];                          // for results
+    av[3];                          // for results, av[2] not used here
 
   if (choice == 0 && delta*Omega0 >= std::max(10., w0)) {
 
@@ -1482,7 +1482,7 @@ static PyObject *roche_area_volume([[maybe_unused]] PyObject *self, PyObject *ar
       polish = false,
       adjust = true;
 
-    double p[2][2], e, t;
+    double p[2][3], e, t;  // p[*][2]  not used here
 
     //
     // one step adjustment of precison for area and volume
