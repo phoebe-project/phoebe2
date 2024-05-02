@@ -576,10 +576,6 @@ namespace gen_roche {
 
     const char *fname = "left_lobe_left_xborder";
 
-    const int max_iter = 100;
-    const T eps = 2*std::numeric_limits<T>::epsilon();
-    const T min = 10*std::numeric_limits<T>::min();
-
     //
     // Is solution is near to Lagrange point?
     //
@@ -589,16 +585,15 @@ namespace gen_roche {
     if (q*(1/(1 - l) - l) - 1/l + b*l*l/2 == w) return l;
 
     //
-    // Cases away from Lagrange point
+    // Two cases away from Lagrange point
     //
-
-    T t;
 
     if (w > 100) {
 
-      if (2*q < w){  // w->infty
+      if (2*q < w){ // assume: w->infty, 2q < w
 
-        T q2 = q*q,
+        T t,
+          q2 = q*q,
           s = 1/w,
           a[8] = {1, q, q2, b/2 + q*(1 + q2),
             q*(-1 + 2*b + q*(4 + q2)),
@@ -608,11 +603,14 @@ namespace gen_roche {
           };
 
         t = s*(a[0] + s*(a[1] + s*(a[2] + s*(a[3] + s*(a[4] + s*(a[5] + s*(a[6] + s*a[7])))))));
-
         t = -t;
-      } else if (q < w) { // w->infty, q ~ w
+        return polish_xborder<T,long double>(w, q, b, t);
+      }
 
-        T a = b/(1 + q),
+      if (q < w) { // assume: w->infty, q ~ w, q < w
+
+        T t,
+          a = b/(1 + q),
           s = 1/w,
           f = q*s,
           f1 = 1 - f, f12 = f1*f1, f13 = f12*f1,
@@ -631,12 +629,14 @@ namespace gen_roche {
         for (int i = 0; i < 8; ++i) C[i] = N[i]/D[i];
 
         t = s/f1*(C[0] + s1*(C[1] + s1*(C[2] + s1*(C[3] + s1*(C[4] + s1*(C[5] + s1*(C[6] + s1*C[7])))))));
-
         t = -t;
+        return polish_xborder<T,long double>(w, q, b, t);
       }
-
-      return polish_xborder<T,long double>(w, q, b, t);
     }
+
+    const int max_iter = 100;
+    const T eps = 2*std::numeric_limits<T>::epsilon();
+    const T min = 10*std::numeric_limits<T>::min();
 
     const int method = 0;
 
@@ -644,7 +644,7 @@ namespace gen_roche {
 
       int it = 0;
 
-      long double f, x[2] = {l, 0};
+      long double t, f, x[2] = {l, 0};
 
       do {
         t = (x[0] + x[1])/2;
@@ -676,7 +676,6 @@ namespace gen_roche {
 
       // grab smallest root positive
       for (auto && v : roots) if (v > 0) return  -v;
-
     }
 
     return std::numeric_limits<T>::quiet_NaN();
@@ -705,25 +704,21 @@ namespace gen_roche {
 
     const char *fname = "left_lobe_right_xborder";
 
-    const int max_iter = 100;
-    const T eps = 2*std::numeric_limits<T>::epsilon();
-    const T min = 10*std::numeric_limits<T>::min();
-
     //
     // Is solution is near to Lagrange point?
     //
 
-    T l = lagrange_point_L1(q, std::sqrt(b/(1 + q)), 1.), t = l;
+    T l = lagrange_point_L1(q, std::sqrt(b/(1 + q)), 1.);
 
-    if (q*(1/(1 - t) - t) + 1/t + b*t*t/2 == w) return t;
+    if (q*(1/(1 - l) - l) + 1/l + b*l*l/2 == w) return l;
 
     //
-    // Cases away from Lagrange point
+    // Two cases away from Lagrange point
     //
 
     if (w > 100) {  // w->infty
 
-      if (2*q < w){
+      if (2*q < w){ // assume: w->infty, 2q < w
 
         T q2 = q*q,
           s = 1/w,
@@ -734,9 +729,11 @@ namespace gen_roche {
             q*(1 + b*(3.5 + 21*b/4) + q*(14 + 21*b + q*(42 + q*(35 + 35*b/2 + q*(35 + q2)))))
           };
 
-        t = s*(a[0] + s*(a[1] + s*(a[2] + s*(a[3] + s*(a[4] + s*(a[5] + s*(a[6] + s*a[7])))))));
+        T t = s*(a[0] + s*(a[1] + s*(a[2] + s*(a[3] + s*(a[4] + s*(a[5] + s*(a[6] + s*a[7])))))));
+        return polish_xborder<T,long double>(w, q, b, t);
+      }
 
-      } else if (q < w) {
+      if (q < w) { // assume: w->infty, q ~ w, q < w
 
         T a = b/(1 + q),
           s = 1/w,
@@ -756,11 +753,14 @@ namespace gen_roche {
 
         for (int i = 0; i < 8; ++i) C[i] = N[i]/D[i];
 
-        t = s/f1*(C[0] + s1*(C[1] + s1*(C[2] + s1*(C[3] + s1*(C[4] + s1*(C[5] + s1*(C[6] + s1*C[7])))))));
+        T t = s/f1*(C[0] + s1*(C[1] + s1*(C[2] + s1*(C[3] + s1*(C[4] + s1*(C[5] + s1*(C[6] + s1*C[7])))))));
+        return polish_xborder<T,long double>(w, q, b, t);
       }
-
-      return polish_xborder<T,long double>(w, q, b, t);
     }
+
+    const int max_iter = 100;
+    const T eps = 2*std::numeric_limits<T>::epsilon();
+    const T min = 10*std::numeric_limits<T>::min();
 
     const int method  = 0;
 
@@ -768,7 +768,7 @@ namespace gen_roche {
 
       int it = 0;
 
-      long double f, x[2] = {0, l};
+      long double t, f, x[2] = {0, l};
 
       do {
         t = (x[0] + x[1])/2;
