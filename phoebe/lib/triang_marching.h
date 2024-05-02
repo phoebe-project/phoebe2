@@ -1837,7 +1837,7 @@ struct Tmarching: public Tbody {
     Output:
       C - central points
       NatC - normals at central points
-      GatC - norm of gradient at cetral points
+      GatC - norm of gradient at central points
     
     Return:
      true if ok, false if not ok

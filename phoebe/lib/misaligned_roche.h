@@ -1,13 +1,13 @@
 #pragma once
 
 /*
-  Library dealing with the generalizd Roche potential with misaligned
+  Library dealing with the generalized Roche potential with misaligned
   binary system.
 
   THERE IS NO SUPPORT FOR (OVER-)CONTACT CASE, AS IT IS NOT PHYSICAL.
   STILL NOTATION OF TWO LOBES REMAINS.
 
-  The surface is defined implicitely with potential
+  The surface is defined implicitly with potential
 
     Omega(x,y,z,params) =
       1/r1 + q(1/r2 - x/delta^2) +
@@ -636,7 +636,7 @@ template<class T>
       choice :
         0 - left
         1 - right
-        2 - overcontact
+        2 - over-contact
       Omega0 - reference value of the potential
       q - mass ratio M2/M1
       F - synchronicity parameter
@@ -671,7 +671,7 @@ template<class T>
       return false;
     }
 
-    // for cases which are not strongy deformed the pole is also
+    // for cases which are not strongly deformed the pole is also
     // good point to starts
 
     if (!poleL(r, Omega0, q, F, delta, theta)) return false;
@@ -899,7 +899,7 @@ template<class T>
 
 
 
-    Using: Integrating surface in spherical coordiantes
+    Using: Integrating surface in spherical coordinates
       a. Gauss-Lagrange integration in phi direction
       b. RK4 in direction of theta
 
@@ -1202,7 +1202,7 @@ template<class T>
               spin in plane (x, z)
       m - number of steps in x - direction
 
-    Using: Integrating surface in spherical coordiantes
+    Using: Integrating surface in spherical coordinates
 
       a. Gauss-Lagrange integration in phi direction
       b. RK4 in direction of theta
