@@ -2239,6 +2239,9 @@ namespace gen_roche {
       dnu = utils::m_pi/m;
 
 
+    // Initialize k to remove warnings  "uninitialized in this function"
+    for (int i = 0; i < 4; ++i) for (int j = 0; j < dim; ++j) k[i][j] = 0;
+
     //
     // Setup init point
     //
