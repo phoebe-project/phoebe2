@@ -576,7 +576,7 @@ static PyObject *rotstar_critical_potential(PyObject *self, PyObject *args) {
 /*
   C++ wrapper for Python code:
 
-  Calculate critical potential of the rotating star with misaignment
+  Calculate critical potential of the rotating star with misalignment
   having potential function
 
     Omega(x,y,z; omega, s) = 1/|r| + 1/2 omega^2 |r - s (r.s)|^2
@@ -594,7 +594,7 @@ static PyObject *rotstar_critical_potential(PyObject *self, PyObject *args) {
 
   Python:
 
-    Omega_crit = rotstar_misaligned_critical_potential(omega, misalignemnt)
+    Omega_crit = rotstar_misaligned_critical_potential(omega, misalignment)
 
   where parameters are
 
@@ -809,7 +809,7 @@ static PyObject *roche_misaligned_pole(
   compact primary Roche lobe:
 
       Omega_{min} (x,y,z; q, F, d, misalignment) =
-        min {Omega(L1(misaligment)), Omega(L2(misalignment)) }
+        min {Omega(L1(misalignment)), Omega(L2(misalignment)) }
 
   Python:
 
@@ -868,7 +868,7 @@ static PyObject *roche_Omega_min(PyObject *self, PyObject *args, PyObject *keywd
   compact primary Roche lobe:
 
       Omega_{min} (q, F, d, misalignment) =
-        min {Omega(L1(q,F,d,misaligment)), Omega(L2(q,F,d,misalignment)) }
+        min {Omega(L1(q,F,d,misalignment)), Omega(L2(q,F,d,misalignment)) }
 
   Python:
 
@@ -2017,7 +2017,7 @@ static PyObject *roche_misaligned_critical_volume(PyObject *self, PyObject *args
 /*
   C++ wrapper for Python code:
 
-  Calculate area and volume of the generalied Roche lobes with
+  Calculate area and volume of the generalized Roche lobes with
   misaligned spin and orbit velocity vectors.
 
   Omega_0 = Omega(x,y,z)
@@ -2505,7 +2505,7 @@ static PyObject *roche_Omega_at_vol(PyObject *self, PyObject *args, PyObject *ke
     return NULL;
   }
   // We use the condition on the argument (= Omega) ~ constraining backward error,
-  // but we could also use condition on the value (= Volume) ~ constraing forward error
+  // but we could also use condition on the value (= Volume) ~ constraining forward error
 
   return PyFloat_FromDouble(Omega);
 }
@@ -3124,7 +3124,7 @@ static PyObject *roche_gradOmega(PyObject *self, PyObject *args) {
 /*
   C++ wrapper for Python code:
 
-  Calculate the gradient and the value of the rotenting star potential
+  Calculate the gradient and the value of the rotating star potential
   at a given point
 
       -grad Omega (x,y,z)

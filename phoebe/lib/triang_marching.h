@@ -1,7 +1,7 @@
 #pragma once
 
 /*
-  Library for triangulation using maching algorithm specialized for
+  Library for triangulation using marching algorithm specialized for
   closed surfaces and connected surfaces. Supports only genus 0 smooth
   surfaces.
 
@@ -24,7 +24,7 @@
 #include "triang_mesh.h"
 
 /*
-  Triangulation of closed surfaces using maching algorithm.
+  Triangulation of closed surfaces using marching algorithm.
 */
 template <class T, class Tbody>
 struct Tmarching: public Tbody {
@@ -475,7 +475,7 @@ struct Tmarching: public Tbody {
     this->grad_only(r, g, precision);
 
     // creating simplified vertex,
-    // note: std::hypot(,,) is comming in C++17
+    // note: std::hypot(,,) is coming in C++17
 
     if (gnorm)
       fac = 1/(*gnorm = utils::hypot3(g[0], g[1], g[2]));
@@ -501,7 +501,7 @@ struct Tmarching: public Tbody {
   */
 
   T dist(T *a, T *b){
-    // std::hypot(,,) is comming in C++17
+    // std::hypot(,,) is coming in C++17
     return utils::hypot3(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
   }
 
@@ -849,7 +849,7 @@ struct Tmarching: public Tbody {
   /*
     Triangulization using marching method of genus 0 closed and surfaces
     Has
-    -- additionals checks
+    -- additional checks
     -- support multifronts
 
     Input:
@@ -865,7 +865,7 @@ struct Tmarching: public Tbody {
       GatV - norm of the gradient at vertices
     Return:
      0 - no error
-     1 - too triangles
+     1 - too many triangles
      2 - problem with converges
   */ 
   int triangulize_full(
@@ -1448,7 +1448,7 @@ struct Tmarching: public Tbody {
     Triangulization using marching method of genus 0 closed and surfaces.
 
     Has:
-      -- additionals checks
+      -- additional checks
       -- supports multifronts
       -- clever detection of bad pairs/points
 
@@ -1467,7 +1467,7 @@ struct Tmarching: public Tbody {
   
     Return:
      0 - no error
-     1 - too triangles
+     1 - too many triangles
      2 - problem with converges
   */
   
