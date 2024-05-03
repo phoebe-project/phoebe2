@@ -395,6 +395,9 @@ class Passband:
         header['PTFEAREA'] = self.ptf_area
         header['PTFPAREA'] = self.ptf_photon_area
 
+        if export_inorm_tables:
+            self.content += [f'{atm}:Inorm' for atm in atm_tables.keys() if f'{atm}:Imu' in self.content]
+
         header['CONTENT'] = str(self.content)
 
         if export_legacy_comments:
