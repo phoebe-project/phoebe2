@@ -138,7 +138,7 @@ def raise_out_of_bounds(nanvals, atm=None, ldatm=None, intens_weighting=None):
 class Passband:
     def __init__(self, ptf=None, pbset='Johnson', pbname='V',
                  wlunits=u.AA, calibrated=False, reference='', version=1.0,
-                 comments='', oversampling=1, ptf_order=3, from_file=False):
+                 comment=None, oversampling=1, ptf_order=3, from_file=False):
         """
         <phoebe.atmospheres.passbands.Passband> class holds data and tools for
         passband-related computations, such as blackbody intensity, model
@@ -147,8 +147,7 @@ class Passband:
         Step #1: initialize passband object
 
         ```py pb = Passband(ptf='JOHNSON.V', pbset='Johnson', pbname='V',
-        wlunits=u.AA, calibrated=True, reference='ADPS', version=1.0,
-        comments='') ```
+        wlunits=u.AA, calibrated=True, reference='ADPS', version=1.0) ```
 
         Step #2: compute intensities for blackbody radiation:
 
@@ -207,7 +206,7 @@ class Passband:
           data
             reference (i.e. ADPS).
         * `version` (float, optional, default=1.0): file version.
-        * `comments` (string, optional, default=''): any additional comments
+        * `comment` (string or None, optional, default=None): any additional comment
             about the passband.
         * `oversampling` (int, optional, default=1): the multiplicative factor
             of PTF dispersion to attain higher integration accuracy.
@@ -242,7 +241,10 @@ class Passband:
         self.calibrated = calibrated
         self.reference = reference
         self.version = version
-        self.comments = comments
+
+        # Passband comments and history entries:
+        self.history = []
+        self.comments = []
 
         # Initialize an empty timestamp. This will get set by calling the save() method.
         self.timestamp = None
@@ -275,20 +277,14 @@ class Passband:
         # Effective wavelength in wlunits:
         self.effwl = (self.ptf_photon_area/self.ptf_area*u.m).to(wlunits)
 
-        # Initialize (empty) history:
-        self.history = []
-
         # If any comments are passed, add them to history:
-        if comments != '':
-            self.add_to_history(comments)
+        if comment:
+            self.add_comment(comment)
+
+        self.add_to_history(f'{self.pbset}:{self.pbname} passband initialized.')
 
         # Initialize n-dimensional interpolators:
-        self.ndp = dict()                 # n-dimensional interpolators
-
-        # Initialize blending- and extrapolation-related tables:
-        # self.nntree = dict()              # nearest neighbor tree for blending and extrapolation
-        # self.indices = dict()             # nearest neighbor indices for blending and extrapolation
-        # self.ics = dict()                 # inferior corners for blending and extrapolation
+        self.ndp = dict()
 
     def __repr__(self):
         return f'<Passband: {self.pbset}:{self.pbname}>'
@@ -299,7 +295,30 @@ class Passband:
             self.version = 1.0
         return f'Passband: {self.pbset}:{self.pbname}\nVersion:  {self.version:1.1f}\nProvides: {self.content}\nHistory:  {self.history}'
 
-    def add_to_history(self, comment):
+    @property
+    def log(self):
+        h = f'{self.pbset}:{self.pbname} {self.version}\n'
+        for entry in self.history:
+            h += f'  {entry}\n'
+        return h
+
+    def add_to_history(self, history, max_length=46):
+        """
+        Adds a history entry to the passband file header.
+
+        Parameters
+        ----------
+        * `comment` (string, required): comment to be added to the passband header.
+        """
+
+        if not isinstance(history, str):
+            raise ValueError('passband header history entries must be strings.')
+        if len(history) > max_length:
+            raise ValueError(f'comment length should not exceed {max_length} characters.')
+
+        self.history.append(f'{time.ctime()}: {history}')
+
+    def add_comment(self, comment):
         """
         Adds a comment to the passband file header.
 
@@ -310,8 +329,8 @@ class Passband:
 
         if not isinstance(comment, str):
             raise ValueError('passband header comments must be strings.')
-        
-        self.history.append(f'{time.ctime()}: {comment}')
+
+        self.comments.append(comment)
 
     def on_updated_ptf(self, ptf, wlunits=u.AA, oversampling=1, ptf_order=3):
         """
@@ -337,9 +356,9 @@ class Passband:
         self.ptf_photon = lambda wl: interpolate.splev(wl, self.ptf_photon_func)
         self.ptf_photon_area = interpolate.splint(self.wl[0], self.wl[-1], self.ptf_photon_func, 0)
 
-        return
+        self.add_to_history(f'passband transmission function updated.')
 
-    def save(self, archive, overwrite=True, update_timestamp=True, export_inorm_tables=False, history_entry=''):
+    def save(self, archive, overwrite=True, update_timestamp=True, export_inorm_tables=False):
         """
         Saves the passband file in the fits format.
 
@@ -354,9 +373,6 @@ class Passband:
             have been deprecated since phoebe 2.4; for backwards compatibility
             we still may need to export them to fits files so that pre-2.4
             versions can use the same passband files.
-        * `history_entry` (string, optional): history entry to append to the
-            fits file.  Note that previous entries will be maintained if
-            (and only if) overwriting an existing file with `overwrite=True`.
         """
 
         # Timestamp is used for passband versioning.
@@ -371,7 +387,6 @@ class Passband:
         header['CALIBRTD'] = self.calibrated
         header['WLOVSMPL'] = self.wl_oversampling
         header['VERSION'] = self.version
-        header['COMMENTS'] = self.comments
         header['REFERENC'] = self.reference
         header['PTFORDER'] = self.ptf_order
         header['PTFEAREA'] = self.ptf_area
@@ -379,14 +394,13 @@ class Passband:
 
         header['CONTENT'] = str(self.content)
 
-        # Add all existing history entries:
+        # Add history entries:
         for entry in self.history:
             header['history'] = entry
 
-        # Append any new history entry:
-        if history_entry:
-            self.history.append(f'{timestamp}: {history_entry}')
-            header['history'] = self.history[-1]
+        # Add comments:
+        for comment in self.comments:
+            header['comment'] = comment
 
         if 'extern_planckint:Inorm' in self.content or 'extern_atmx:Inorm' in self.content:
             header['WD_IDX'] = self.extern_wd_idx
@@ -450,7 +464,7 @@ class Passband:
                 data.append(fits.ImageHDU(self.ndp[atm].table['ldint@energy'][1], name=f'{prefix}IEGRID'))
                 data.append(fits.ImageHDU(self.ndp[atm].table['ldint@photon'][1], name=f'{prefix}IPGRID'))
 
-            if '{atm}:ext' in self.content:
+            if f'{atm}:ext' in self.content:
                 data.append(fits.ImageHDU(self.ndp[atm].table['ext@energy'][1], name=f'{prefix}XEGRID'))
                 data.append(fits.ImageHDU(self.ndp[atm].table['ext@photon'][1], name=f'{prefix}XPGRID'))
 
@@ -492,15 +506,17 @@ class Passband:
             self.effwl = header['effwl'] * u.m
             self.calibrated = header['calibrtd']
             self.wl_oversampling = header.get('wlovsmpl', 1)
-            self.comments = header['comments']
             self.reference = header['referenc']
             self.ptf_order = header['ptforder']
             self.ptf_area = header['ptfearea']
             self.ptf_photon_area = header['ptfparea']
 
-            self.content = eval(header['content'], {'__builtins__':None}, {})
-            self.history = list(header.get('history', ''))
+            self.content = eval(header['content'], {'__builtins__': None}, {})
 
+            self.history = list(header.get('history', ''))
+            self.comments = list(header.get('comment', ''))
+
+            # Initialize an ndpolator instance to hold all data:
             self.ndp = dict()
 
             self.ptf_table = hdul['ptftable'].data
@@ -573,8 +589,8 @@ class Passband:
                         ebvs = np.array(list(hdul[f'{prefix}_ebvs'].data['ebv']))
                         rvs = np.array(list(hdul[f'{prefix}_rvs'].data['rv']))
 
-                        self.ndp[atm].register('ext@photon', (ebvs, rvs), hdul[f'{prefix}xegrid'].data)
-                        self.ndp[atm].register('ext@energy', (ebvs, rvs), hdul[f'{prefix}xpgrid'].data)
+                        self.ndp[atm].register('ext@photon', (ebvs, rvs), hdul[f'{prefix}XEGRID'].data)
+                        self.ndp[atm].register('ext@energy', (ebvs, rvs), hdul[f'{prefix}XPGRID'].data)
 
         return self
 
@@ -745,6 +761,8 @@ class Passband:
 
             if verbose:
                 print('')
+
+        self.add_to_history(f"blackbody intensities {'with' if include_extinction else 'without'} extinction added.")
 
     def parse_atm_datafiles(self, atm, path):
         """
@@ -922,6 +940,8 @@ class Passband:
             if f'{atm}:ext' not in self.content:
                 self.content.append(f'{atm}:ext')
 
+        self.add_to_history(f"{atm} intensities {'with' if include_extinction else 'without'} extinction added.")
+
     def _ld(self, mu=1.0, ld_coeffs=np.array([[0.5]]), ld_func='linear'):
         ld_coeffs = np.atleast_2d(ld_coeffs)
 
@@ -1029,6 +1049,8 @@ class Passband:
 
         if f'{ldatm}:ld' not in self.content:
             self.content.append(f'{ldatm}:ld')
+
+        self.add_to_history(f'LD coefficients for {ldatm} added.')
 
     def export_phoenix_atmtab(self):
         """
@@ -1149,6 +1171,8 @@ class Passband:
         if f'{ldatm}:ldint' not in self.content:
             self.content.append(f'{ldatm}:ldint')
 
+        self.add_to_history(f'LD integrals for {ldatm} added.')
+
     def interpolate_ldcoeffs(self, query_pts, ldatm='ck2004', ld_func='power', intens_weighting='photon', ld_extrapolation_method='none'):
         """
         Interpolate the passband-stored table of LD model coefficients.
@@ -1264,6 +1288,8 @@ class Passband:
         # reverse order in atmcof:
         # self.extern_wd_atmx = atmtab[::-1,:,:,:]
         self.content += ['extern_planckint:Inorm', 'extern_atmx:Inorm']
+
+        self.add_to_history(f'Wilson-Devinney atmosphere tables imported.')
 
     def _log10_Inorm_extern_planckint(self, teffs):
         """
@@ -2783,7 +2809,7 @@ if __name__ == '__main__':
             calibrated=True,
             reference='Maiz Apellaniz (2006), AJ 131, 1184',
             version=2.5,
-            comments=''
+            comment=''
         )
 
     pb.version = 2.5
