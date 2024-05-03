@@ -358,7 +358,7 @@ class Passband:
 
         self.add_to_history(f'passband transmission function updated.')
 
-    def save(self, archive, overwrite=True, update_timestamp=True, export_inorm_tables=False):
+    def save(self, archive, overwrite=True, update_timestamp=True, export_inorm_tables=False, export_legacy_comments=True):
         """
         Saves the passband file in the fits format.
 
@@ -373,6 +373,9 @@ class Passband:
             have been deprecated since phoebe 2.4; for backwards compatibility
             we still may need to export them to fits files so that pre-2.4
             versions can use the same passband files.
+        * `export_legacy_comments` (bool, optional, default=True): whether to
+            export the dummy COMMENTS card (used in old passbands) in addition
+            to the new COMMENT card.
         """
 
         # Timestamp is used for passband versioning.
@@ -393,6 +396,9 @@ class Passband:
         header['PTFPAREA'] = self.ptf_photon_area
 
         header['CONTENT'] = str(self.content)
+
+        if export_legacy_comments:
+            header['COMMENTS'] = ''
 
         # Add history entries:
         for entry in self.history:
@@ -762,7 +768,7 @@ class Passband:
             if verbose:
                 print('')
 
-        self.add_to_history(f"blackbody intensities {'with' if include_extinction else 'without'} extinction added.")
+        self.add_to_history(f"blackbody intensities {'with' if include_extinction else 'w/o'} extinction added.")
 
     def parse_atm_datafiles(self, atm, path):
         """
@@ -940,7 +946,7 @@ class Passband:
             if f'{atm}:ext' not in self.content:
                 self.content.append(f'{atm}:ext')
 
-        self.add_to_history(f"{atm} intensities {'with' if include_extinction else 'without'} extinction added.")
+        self.add_to_history(f"{atm} intensities {'with' if include_extinction else 'w/o'} extinction added.")
 
     def _ld(self, mu=1.0, ld_coeffs=np.array([[0.5]]), ld_func='linear'):
         ld_coeffs = np.atleast_2d(ld_coeffs)
