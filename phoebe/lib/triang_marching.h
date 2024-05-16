@@ -1352,6 +1352,8 @@ struct Tmarching: public Tbody {
     typename Tfront_polygon::iterator & end,
     const T &delta2 ){
 
+    if (P.size() <= 3) return Tbad_pair(0, 0); // safeguard
+
     int s;
 
     T a[3];
