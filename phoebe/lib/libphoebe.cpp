@@ -5808,7 +5808,9 @@ static PyObject *roche_misaligned_marching_mesh([[maybe_unused]] PyObject *self,
   //
   // Choosing the meshing initial point
   //
-  bool rotated, ok, aligned = false;
+  bool 
+    rotated, ok, aligned = false, 
+    eps = 2*std::numeric_limits<double>::epsilon;
 
   double r[3], g[3], theta, *s = 0;
 
@@ -5822,9 +5824,9 @@ static PyObject *roche_misaligned_marching_mesh([[maybe_unused]] PyObject *self,
 
   } else if (PyArray_Check(o_misalignment) &&
     PyArray_TYPE((PyArrayObject *) o_misalignment) == NPY_DOUBLE) {
-
+      
     s = (double*) PyArray_DATA((PyArrayObject*)o_misalignment);
-    aligned  = (s[0] == 0 && s[1] == 0);
+    aligned  = (std::abs(s[0]) < eps == 0 && std::abs(s[1]) < eps) || (std::abs(1 - s[2]) < eps);
 
     // we could work with s[0]==0, calculate aligned case make simple
     // rotation around x-axis
