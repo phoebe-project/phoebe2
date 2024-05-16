@@ -5858,6 +5858,10 @@ static PyObject *roche_misaligned_marching_mesh([[maybe_unused]] PyObject *self,
     return NULL;
   }
 
+  if (verbosity_level>=4) 
+    report_stream << fname 
+                  << "::aligned=" << aligned 
+                  << " rotated =" << rotated << '\n';
   //
   //  Marching triangulation of the Roche lobe and calculate central points
   //

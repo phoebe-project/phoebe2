@@ -1263,6 +1263,9 @@ struct Tmarching: public Tbody {
 
   Tbad_pair check_bad_pairs(Tfront_polygon &P, const T &delta2){
 
+
+    if (P.size() <= 3) return Tbad_pair(0, 0); // safeguard
+
     int s;
 
     T a[3];
