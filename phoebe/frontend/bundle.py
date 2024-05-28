@@ -4787,7 +4787,7 @@ class Bundle(ParameterSet):
                     report.add_item(self,
                                     "sampling with dataset-scaled can cause unintended issues.  Consider using component-coupled and marginalizing over pblum",
                                     offending_parameters.to_list()+
-                                    [solver_ps.get_parameter(qualifier='priors' if solver in ['dynesty'] else 'init_from', **_skip_filter_checks)]+
+                                    [solver_ps.get_parameter(qualifier='priors' if solver_kind in ['dynesty'] else 'init_from', **_skip_filter_checks)]+
                                     addl_parameters,
                                     False, 'run_solver')
 
