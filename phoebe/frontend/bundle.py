@@ -10257,6 +10257,8 @@ class Bundle(ParameterSet):
             raise TypeError("compute must be a single value (string)")
 
         datasets = kwargs.pop('dataset') if 'dataset' in kwargs else self._datasets_where(compute=compute, mesh_needed=True)
+        if isinstance(datasets, str):
+            datasets = [datasets]
 
         # we'll add 'bol' to the list of default datasets... but only if bolometric is needed for irradiation
         compute_ps = self.get_compute(compute, **_skip_filter_checks)
