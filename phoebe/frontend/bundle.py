@@ -12141,7 +12141,7 @@ class Bundle(ParameterSet):
                             continue
 
                         fluxes = flux_param.get_value(unit=u.W/u.m**2)
-                        fluxes = fluxes/distance**2 + l3s.get(dataset)
+                        fluxes = fluxes/distance**2 + l3s.get(dataset, 0.0)
 
                         flux_param.set_value(fluxes, ignore_readonly=True)
 
