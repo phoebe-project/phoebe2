@@ -5808,11 +5808,11 @@ static PyObject *roche_misaligned_marching_mesh([[maybe_unused]] PyObject *self,
   //
   // Choosing the meshing initial point
   //
-  bool 
-    rotated, ok, aligned = false, 
-    eps = 2*std::numeric_limits<double>::epsilon();
+  bool
+    rotated, ok, aligned = false;
 
-  double r[3], g[3], theta, *s = 0;
+  double r[3], g[3], theta, *s = 0,
+        eps = 2*std::numeric_limits<double>::epsilon();
 
   if (PyFloat_Check(o_misalignment)) {
 
@@ -5824,7 +5824,7 @@ static PyObject *roche_misaligned_marching_mesh([[maybe_unused]] PyObject *self,
 
   } else if (PyArray_Check(o_misalignment) &&
     PyArray_TYPE((PyArrayObject *) o_misalignment) == NPY_DOUBLE) {
-      
+
     s = (double*) PyArray_DATA((PyArrayObject*)o_misalignment);
     aligned  = (std::abs(s[0]) < eps && std::abs(s[1]) < eps) || (std::abs(1 - s[2]) < eps);
 
@@ -5860,9 +5860,9 @@ static PyObject *roche_misaligned_marching_mesh([[maybe_unused]] PyObject *self,
     return NULL;
   }
 
-  if (verbosity_level>=4) 
-    report_stream << fname 
-                  << "::aligned=" << aligned 
+  if (verbosity_level>=4)
+    report_stream << fname
+                  << "::aligned=" << aligned
                   << " rotated =" << rotated << '\n';
   //
   //  Marching triangulation of the Roche lobe and calculate central points
