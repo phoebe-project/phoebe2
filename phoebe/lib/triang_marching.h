@@ -1450,6 +1450,8 @@ struct Tmarching: public Tbody {
   #undef DEBUG
   #endif
 
+
+
   /*
     Triangulization using marching method of genus 0 closed and surfaces.
 
@@ -1477,7 +1479,7 @@ struct Tmarching: public Tbody {
      2 - problem with converges
   */
 
-  int triangulize_full_clever(
+  int triangulize_full_clever_new(
     T init_r[3],
     T init_g[3],
     const T & delta,
@@ -1488,6 +1490,8 @@ struct Tmarching: public Tbody {
     std::vector<T> * GatV = 0,
     const T & init_phi = 0)
   {
+
+    std::cerr << "triangulize_full_clever::new\n";
 
     // start with normal precision defined by T
     precision = false;
@@ -1597,14 +1601,14 @@ struct Tmarching: public Tbody {
         auto it_begin = P.begin(), it_end = P.end(), it_last = it_end - 1;
 
         //
-        // If a non-neighboring vertices are to close form new fronts
+        // If a non-neighboring vertices are too close form new fronts
         // Step 2
         //
         {
           // if bad pair is set do the cut of the front
           if (B.first != B.second) {
 
-            // separate fronts P -> P, P1
+            // separate fronts P -> P1, P2
             auto
               it0 = it_begin + B.first,
               it1 = it_begin + B.second;
@@ -1612,13 +1616,17 @@ struct Tmarching: public Tbody {
             it0->omega_changed = true;
             it1->omega_changed = true;
 
-            auto pair = csplit<Tfront_polygon>(it0, it1, it_begin, it_last);
-
-            P = pair.second;
+            // split front into two parts with common two points it0 and it1 
+            auto P1 = ccopy<Tfront_polygon>(it0, it1, it_begin, it_last);
+            auto P2 = ccopy<Tfront_polygon>(it1, it0, it_begin, it_last);
+            
+            // updating referenced P and B
+            P = P1;
             B = check_bad_pairs(P, delta2);
 
-            lP.push_back(pair.first);
-            lB.push_back(check_bad_pairs(pair.first, delta2));
+            // add polygonal front and bad_pair to the list
+            lP.push_back(P2);
+            lB.push_back(check_bad_pairs(P2, delta2));
 
             break;
           }
@@ -1681,7 +1689,12 @@ struct Tmarching: public Tbody {
             it = it_next;
 
             if (it_next == it_begin) break;
-            it_next = cnext(it_next, it_begin, it_last);
+
+            //it_next = cnext(it_next, it_begin, it_last);
+            if (it_next == it_last)
+              it_next = it_begin;
+            else
+              ++it_next;
           }
         }
 
@@ -1692,8 +1705,15 @@ struct Tmarching: public Tbody {
 
         {
           // prepare pointers to vertices in P
-          auto it_prev = cprev(it_min, it_begin, it_last);
-          auto it_next = cnext(it_min, it_begin, it_last);
+          // auto it_prev = cprev(it_min, it_begin, it_last);
+          // auto it_next = cnext(it_min, it_begin, it_last);
+
+          auto
+            it_prev = it_min,
+            it_next = it_min;
+
+          if (it_min != it_begin) --it_prev; else it_prev = it_last;
+          if (it_min != it_last) ++it_next; else it_next = it_begin;
 
           // number of triangles to be generated
           int nt = int(omega_min/utils::m_pi3) + 1;
@@ -1706,8 +1726,9 @@ struct Tmarching: public Tbody {
           } else if (nt == 1 && domega > 0.8 &&
                      d2(it_next, it_prev) > 1.4*delta2) {
             domega = omega_min/(++nt);
-          } else if (omega_min < 3 && (d2(it_min, it_prev) < 0.25*delta2 ||
-                                       d2(it_min, it_next) < 0.25*delta2) )  {
+          } else if (omega_min < 3 && 
+                      (d2(it_min, it_prev) < 0.25*delta2 ||
+                       d2(it_min, it_next) < 0.25*delta2) )  {
             nt = 1;
           }
 
@@ -1827,7 +1848,7 @@ struct Tmarching: public Tbody {
 
 
 
-int triangulize_full_clever_backup(
+int triangulize_full_clever_old(
     T init_r[3],
     T init_g[3],
     const T & delta,
@@ -1838,6 +1859,8 @@ int triangulize_full_clever_backup(
     std::vector<T> * GatV = 0,
     const T & init_phi = 0)
   {
+    
+    std::cerr << "triangulize_full_clever::old\n";
 
     // start with normal precision defined by T
     precision = false;
@@ -1958,7 +1981,7 @@ int triangulize_full_clever_backup(
 
             it0->omega_changed = true;
             it1->omega_changed = true;
-
+            
             Tfront_polygon P1(it0, it1 + 1);
             P.erase(it0 + 1, it1);
 
@@ -2065,6 +2088,7 @@ int triangulize_full_clever_backup(
                   )  {
             nt = 1;
           }
+          
           it_prev->omega_changed = true;
           it_next->omega_changed = true;
 
@@ -2154,11 +2178,10 @@ int triangulize_full_clever_backup(
             // add vertices to front and replace minimal
             *(it_min++) = *Pi;
 
-            auto
-              it0 = P.insert(it_min, Pi + 1, Pi + nt - 1),
+            auto it0 = P.insert(it_min, Pi + 1, Pi + nt - 1),
 
             // check if there are any bad pairs
-              it1 = (--it0) + nt - 1;
+            it1 = (--it0) + nt - 1;
 
             B = check_bad_pairs(P, it0, it1, delta2);
 
@@ -2180,6 +2203,7 @@ int triangulize_full_clever_backup(
     return error;
   }
 
+  ALIAS_TEMPLATE_FUNCTION(triangulize_full_clever, triangulize_full_clever_new)
 
   /*
     Calculate the central_points of triangles i.e. barycenters

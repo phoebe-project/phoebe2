@@ -14,6 +14,15 @@
 
 #include "sincos.h"
 
+// macro to make aliases of functions
+// usage: ALIAS_TEMPLATE_FUNCTION(fun_alias, fun)
+#define ALIAS_TEMPLATE_FUNCTION(highLevelF, lowLevelF) \
+template<typename... Args> \
+inline auto highLevelF(Args&&... args) -> decltype(lowLevelF(std::forward<Args>(args)...)) \
+{ \
+    return lowLevelF(std::forward<Args>(args)...); \
+}
+
 namespace utils {
 
   const double m_pi = 3.14159265358979323846264338327950419984;  // pi

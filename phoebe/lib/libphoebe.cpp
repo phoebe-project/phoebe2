@@ -209,7 +209,7 @@ static PyObject *setup_verbosity([[maybe_unused]] PyObject *self, PyObject *args
 
 
 /*
-  Insert into dictionary and deferences the inserted object
+  Insert into dictionary and dereferences the inserted object
   Ref:
   https://robinelvin.wordpress.com/2011/03/24/python-c-extension-memory-leak/
 */
