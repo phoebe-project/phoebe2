@@ -1365,17 +1365,17 @@ struct Tmarching: public Tbody {
       it_last = P.end() - 1,
 
       it0 = start,
-      it0_next = (it0 == it_last  ? it_begin : it0 + 1),
-      it0_prev = (it0 == it_begin ? it_last  : it0 - 1),
+      it0_next = (it0 == it_last  ? it_begin : it0 + 1),  // next from it0
+      it0_prev = (it0 == it_begin ? it_last  : it0 - 1),  // prev from it0
       it0_prev_start = it0_prev,
       it0_last = end - 1;
 
     while (1) {
 
       auto
-        it1 = (it0_next == it_last ? it_begin : it0_next + 1),
-        it1_next = (it1 == it_last  ? it_begin : it1 + 1),
-        it1_prev = (it1 == it_begin ? it_last  : it1 - 1),
+        it1 = (it0_next == it_last ? it_begin : it0_next + 1), // next from it0_next
+        it1_next = (it1 == it_last  ? it_begin : it1 + 1),  // next from it1
+        it1_prev = (it1 == it_begin ? it_last  : it1 - 1),  // prev from it1
 
         // avoid running twice over the [start,end)
         it1_last = (
@@ -1491,7 +1491,7 @@ struct Tmarching: public Tbody {
     const T & init_phi = 0)
   {
 
-    std::cerr << "triangulize_full_clever::new\n";
+    //std::cerr << "triangulize_full_clever::new\n";
 
     // start with normal precision defined by T
     precision = false;
@@ -1623,10 +1623,12 @@ struct Tmarching: public Tbody {
             // updating referenced P and B
             P = P1;
             B = check_bad_pairs(P, delta2);
-
+            
             // add polygonal front and bad_pair to the list
             lP.push_back(P2);
             lB.push_back(check_bad_pairs(P2, delta2));
+            
+            std::cerr << "sizes:" <<  P1.size() << '\t' << P2.size() << '\n';
 
             break;
           }
@@ -1860,7 +1862,7 @@ int triangulize_full_clever_old(
     const T & init_phi = 0)
   {
     
-    std::cerr << "triangulize_full_clever::old\n";
+    //std::cerr << "triangulize_full_clever::old\n";
 
     // start with normal precision defined by T
     precision = false;
