@@ -1396,8 +1396,8 @@ struct Tmarching: public Tbody {
                 << std::endl;
               #endif
               
-              std::cerr << "bad_pair1:" 
-                        << p[0] - it_first << ':' << q[0] - it_first << '\n'; 
+             // std::cerr << "bad_pair1:" 
+             //           << p[0] - it_first << ':' << q[0] - it_first << '\n'; 
 
               return Tbad_pair(p[0] - it_first,  q[0] - it_first);
             }
@@ -1599,7 +1599,7 @@ struct Tmarching: public Tbody {
                 << std::endl;
               #endif
 
-              std::cerr << "bad_pair2:" << ind[0] << ':' << ind[0] << '\n'; 
+              //std::cerr << "bad_pair2:" << ind[0] << ':' << ind[0] << '\n'; 
 
               if (ind[0] < ind[1]) return Tbad_pair(ind[0], ind[1]);
               return Tbad_pair(ind[1], ind[0]);
@@ -2168,7 +2168,7 @@ struct Tmarching: public Tbody {
             lP.push_back(P2);
             lB.push_back(check_bad_pairs(P2, delta2));
             
-            std::cerr << "sizes:" <<  P1.size() << '\t' << P2.size() << '\n';
+            //std::cerr << "sizes:" <<  P1.size() << '\t' << P2.size() << '\n';
 
             break;
           }
