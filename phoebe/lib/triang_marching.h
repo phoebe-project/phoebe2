@@ -1349,43 +1349,42 @@ struct Tmarching: public Tbody {
     int s;
 
     T a[3];
+    
+    using Tit = typename Tfront_polygon::iterator;
 
-    auto
-      it_begin = P.begin(),
-      it_last = P.end() - 1,
+    Tit it_first = P.begin(), it_last = P.end() - 1, buf[6], 
+         *p = buf + 1, *q = buf + 4, p_stop, q_stop;
 
-      it0  = it_begin,
-      it0_next = it0 + 1,
-      it0_prev = it_last,
-      it0_last = it_last - 2;
+    p[-1] = it_last;  
+    p[0] = it_first;
+    p[1] = it_first + 1; 
+    p_stop = it_last - 2;
 
     while (1) {
 
       // checking only those it1 - it0 > 1
-      auto
-        it1 = (it0_next == it_last ? it0_next + 1 : it_begin),
-        it1_next = (it1 == it_last ? it_begin : it1 + 1),
-        it1_prev = (it1 == it_begin ? it_last : it1 - 1),
-
-        // avoiding that the last element of it1 is the neighbour of it0
-        it1_last = (it0 == it_begin ? it_last - 1 : it_last);
+      q[-1] = p[1];
+      q[0] = cnext(p[1], it_first, it_last);
+      q[1] = cnext(q[0], it_first, it_last);
+      
+      q_stop = (p[0] == it_first ? it_last - 1 : it_last); 
 
       while (1) {
 
         // are on the side the object
-        if (utils::dot3D(it0->b[2], it1->b[2]) > 0) {
-
-          utils::sub3D(it1->r, it0->r, a);
+        if (utils::dot3D(p[0]->b[2], q[0]->b[2]) > 0) {
+          
+          // a = q[0] - p[0]  
+          utils::sub3D(q[0]->r, p[0]->r, a);
 
           // if near enough and looking inside from it and from it1
           if (utils::norm2(a) < delta2) {
 
             // check if same side of both edges and determine the side
             // depending of it_prev -> it -> it_next circle
-            s = split_angle(*it0_prev, *it0, *it0_next, a);
+            s = split_angle(*p[-1], *p[0], *p[1], a);
 
-            if (s != 0 &&
-                s*split_angle(*it1_prev, *it1, *it1_next, a) < 0) {
+            if (s != 0 && s*split_angle(*q[-1], *q[0], *q[1], a) < 0) {
 
               // create new last front
               #if defined(DEBUG)
@@ -1398,26 +1397,21 @@ struct Tmarching: public Tbody {
               #endif
               
               std::cerr << "bad_pair1:" 
-                        << it0 - it_begin << ':' << it1 - it_begin << '\n'; 
+                        << p[0] - it_first << ':' << q[0] - it_first << '\n'; 
 
-              return Tbad_pair(it0 - it_begin, it1 - it_begin);
+              return Tbad_pair(p[0] - it_first,  q[0] - it_first);
             }
           }
         }
 
-        if (it1 == it1_last) break;
-        it1_prev = it1;
-        it1 = it1_next;
-
-        if (it1_next == it_last)
-          it1_next = it_begin;
-        else
-          ++it1_next;
+        if (q[0] == q_stop) break;
+        for (int i = 0; i <= 1; ++i) q[i-1] = q[i];
+        q[1] = cnext(q[0], it_first, it_last);
       }
 
-      if (it0 == it0_last) break;
-      it0_prev = it0;
-      it0 = it0_next++;
+      if (p[0] == p_stop) break;
+      for (int i = 0; i <= 1; ++i) p[i-1] = p[i];
+      p[1] = cnext(p[0], it_first, it_last);
     }
 
     return Tbad_pair(0, 0);
