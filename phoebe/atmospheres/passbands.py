@@ -1219,7 +1219,7 @@ class Passband:
         if f'{ldatm}:ld' not in self.content:
             raise ValueError(f'Limb darkening coefficients for ldatm={ldatm} are not available; please compute them first.')
 
-        ld_coeffs = self.ndp[ldatm].ndpolate(f'ld@{intens_weighting}', query_pts, extrapolation_method=ld_extrapolation_method)
+        ld_coeffs = self.ndp[ldatm].ndpolate(f'ld@{intens_weighting}', query_pts, extrapolation_method=ld_extrapolation_method)['interps']
         return ld_coeffs[s[ld_func]]
 
     def interpolate_extinct(self, query_pts, atm='blackbody', intens_weighting='photon', extrapolation_method='none'):
@@ -1248,7 +1248,7 @@ class Passband:
             raise ValueError(f"extinction factors for atm={atm} not found for the {self.pbset}:{self.pbname} passband.")
 
         ndp = self.ndp[atm]
-        extinct_factor = ndp.ndpolate(f'ext@{intens_weighting}', query_pts, extrapolation_method=extrapolation_method)
+        extinct_factor = ndp.ndpolate(f'ext@{intens_weighting}', query_pts, extrapolation_method=extrapolation_method)['interps']
         return extinct_factor
 
     def import_wd_atmcof(self, plfile, atmfile, wdidx, Nabun=19, Nlogg=11, Npb=25, Nints=4):
@@ -1377,7 +1377,7 @@ class Passband:
             _description_
         """
 
-        log10_Inorm = self.ndp[atm].ndpolate(f'inorm@{intens_weighting}', query_pts, extrapolation_method=atm_extrapolation_method)
+        log10_Inorm = self.ndp[atm].ndpolate(f'inorm@{intens_weighting}', query_pts, extrapolation_method=atm_extrapolation_method)['interps']
         if raise_on_nans and np.any(np.isnan(log10_Inorm)):
             raise ValueError(f'normal intensity interpolation failed: queried atmosphere values are out of bounds and atm_extrapolation_method={atm_extrapolation_method}.')
 
@@ -1606,7 +1606,7 @@ class Passband:
             _description_
         """
 
-        log10_Imu = self.ndp[atm].ndpolate(f'imu@{intens_weighting}', query_pts, extrapolation_method=atm_extrapolation_method)
+        log10_Imu = self.ndp[atm].ndpolate(f'imu@{intens_weighting}', query_pts, extrapolation_method=atm_extrapolation_method)['interps']
         if raise_on_nans and np.any(np.isnan(log10_Imu)):
             raise ValueError(f'specific intensity interpolation failed: queried atmosphere values are out of bounds and atm_extrapolation_method={atm_extrapolation_method}.')
         
@@ -1786,7 +1786,7 @@ class Passband:
         """
 
         if ld_func == 'interp':
-            ldints = self.ndp[ldatm].ndpolate(f'ldint@{intens_weighting}', query_pts, extrapolation_method=ld_extrapolation_method)
+            ldints = self.ndp[ldatm].ndpolate(f'ldint@{intens_weighting}', query_pts, extrapolation_method=ld_extrapolation_method)['interps']
             return ldints
 
         if ld_coeffs is not None:
