@@ -85,6 +85,15 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.4.14
+
+* Fix MPI off to not broadcast if never enabled
+* Fix warning message in dynesty solver
+* Fix multi-compute with enabled/disabled datasets
+* Fix error message in compute_ld_coeffs
+* Fix segfaults in macos-14
+* Now requires C++14-compatible compiler
+
 ### 2.4.13
 
 * optimization: dynamical RVs avoid unnecessary meshing

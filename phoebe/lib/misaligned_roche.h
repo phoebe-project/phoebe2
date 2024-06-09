@@ -1,13 +1,13 @@
 #pragma once
 
 /*
-  Library dealing with the generalizd Roche potential with misaligned
+  Library dealing with the generalized Roche potential with misaligned
   binary system.
 
   THERE IS NO SUPPORT FOR (OVER-)CONTACT CASE, AS IT IS NOT PHYSICAL.
   STILL NOTATION OF TWO LOBES REMAINS.
 
-  The surface is defined implicitely with potential
+  The surface is defined implicitly with potential
 
     Omega(x,y,z,params) =
       1/r1 + q(1/r2 - x/delta^2) +
@@ -636,7 +636,7 @@ template<class T>
       choice :
         0 - left
         1 - right
-        2 - overcontact
+        2 - over-contact
       Omega0 - reference value of the potential
       q - mass ratio M2/M1
       F - synchronicity parameter
@@ -671,7 +671,7 @@ template<class T>
       return false;
     }
 
-    // for cases which are not strongy deformed the pole is also
+    // for cases which are not strongly deformed the pole is also
     // good point to starts
 
     if (!poleL(r, Omega0, q, F, delta, theta)) return false;
@@ -899,7 +899,7 @@ template<class T>
 
 
 
-    Using: Integrating surface in spherical coordiantes
+    Using: Integrating surface in spherical coordinates
       a. Gauss-Lagrange integration in phi direction
       b. RK4 in direction of theta
 
@@ -921,7 +921,7 @@ template<class T>
     T v[3],
     const unsigned & choice,
     const T & pole,
-    const T & Omega0,
+    [[maybe_unused]] const T & Omega0,
     const T & q,
     const T & F = 1,
     const T & d = 1,
@@ -942,15 +942,15 @@ template<class T>
 
     unsigned mask = 3;        // = 011b
     if (b_area) mask |= 4U;   // += 100b
-  
+
     using real = long double;
-    
+
     using G = glq<real, 15>;
-    
+
     const int dim = G::n + 3;
- 
-    real 
-      W[3], w[G::n], y[dim], k[4][dim], sc_nu[2], sc_th[2], 
+
+    real
+      W[3], w[G::n], y[dim], k[4][dim], sc_nu[2], sc_th[2],
       q_ = q, d2 = d*d, d3 = d*d2,
       b = (1 + q)*F*F*d3,
       dnu = utils::pi<real>()/m,
@@ -1170,7 +1170,7 @@ template<class T>
       Wnn = r[0]*(q*(A[0]*(1 - t3) + 3*r[0]*t5*A[1]*A[1]) + b*r[0]*(B00 - B[1]*B[1])),  // d^2Omega/dnu^2
       Wnr = q*A[1]*(-1 + t5*(1 + r[0]*(A[0] - 2*r[0]))) - 2*b*r[0]*B[0]*B[1];           // d^2Omega/drdnu
 
-     
+
     if ((mask & 1U) == 1U) {
       T det = Wnr*Wnr-Wrr*Wnn;
       if (det < 0) {
@@ -1179,7 +1179,7 @@ template<class T>
       }
       v[0] = (-Wnr-std::sqrt(det))/Wrr;    // dr/dnu
     }
-    
+
     if ((mask & 2U) == 2U) v[1] = 1/(Wrr*v[0] + Wnr);                       // d^2(dV/dOmega)/(dnu dphi)
     return false;
   }
@@ -1202,7 +1202,7 @@ template<class T>
               spin in plane (x, z)
       m - number of steps in x - direction
 
-    Using: Integrating surface in spherical coordiantes
+    Using: Integrating surface in spherical coordinates
 
       a. Gauss-Lagrange integration in phi direction
       b. RK4 in direction of theta
@@ -1235,16 +1235,16 @@ template<class T>
     const T & th = 0,
     const int & m = 1 << 14)
   {
-    
+
     #if defined(DEBUG)
     std::cerr.precision(16);
     const char *fname = "critical_area_volume_integration";
     #endif
-    
+
     //
     // What is calculated
     //
-    
+
     bool
       b_area = (choice & 1U) == 1U,
       b_vol  = (choice & 2U) == 2U,
@@ -1258,14 +1258,14 @@ template<class T>
 
     if (b_area) mask |= 4;     // + 100b
     if (b_dvol) mask2 |= 2;    // + 010b
-      
+
     using real = long double;
     using G = glq<real, 15>;
-    
+
     const int dim = G::n + 3;
-    
-    real 
-      w[G::n], y[dim], k[4][dim], sc_nu[2], p[4], W[3], sum[3], 
+
+    real
+      w[G::n], y[dim], k[4][dim], sc_nu[2], p[4], W[3], sum[3],
       r[2], nu, rt, rp,
       q_ = q, d2 = d*d, d3 = d2*d,
       b = (1 + q)*F*F*d3,
@@ -1273,45 +1273,45 @@ template<class T>
 
     #if defined(DEBUG)
     //
-    // Checking if the x is a good critical point 
+    // Checking if the x is a good critical point
     //
-  
+
     real params[] =  {q, F, d, th, 0};
-    
+
     Tmisaligned_rotated_roche<real> body(params);
-    
+
     real B[3][3], g[3], Omega0;
-    
+
     B[2][0]= x[0];
     B[2][1] = 0;
     B[2][2] = x[1];
-    
+
     Omega0 = -body.constrain(B[2]);
-  
+
     body.grad_only(B[2], g);
-    
+
     std::cerr.precision(16);
-    std::cerr 
-      << fname << "::Omega0=" << Omega0 << " grad=" 
+    std::cerr
+      << fname << "::Omega0=" << Omega0 << " grad="
       << g[0] << '\t' << g[1] << '\t' <<  g[2] << '\n';
-    
+
     //
     // Basis
     //
     real t = std::hypot(real(x[0]), real(x[1]));
-    
+
     B[2][0] /= t;
     B[2][2] /= t;
-    
+
     B[0][0] = B[2][2];
     B[0][1] = 0;
     B[0][2] = -B[2][0];
-    
-    B[1][0] = 0; 
+
+    B[1][0] = 0;
     B[1][1] = 1;
-    B[1][2] = 0; 
+    B[1][2] = 0;
     #endif
-    
+
     //
     // Setting initial values
     //
@@ -1332,9 +1332,9 @@ template<class T>
         w[i] = dnu*G::weights[i];
       }
       y[G::n] = y[G::n + 1] = y[G::n + 2] = real(0);
-      
+
       #if defined(DEBUG)
-      for (int i = 0; i < 4; ++i) 
+      for (int i = 0; i < 4; ++i)
         k[i][G::n] = k[i][G::n + 1] = k[i][G::n + 2] = real(0);
       #endif
     }
@@ -1349,7 +1349,7 @@ template<class T>
       // 1. step
       #if defined(DEBUG)
       W[0]= W[1] = W[2] = 0;
-      #endif        
+      #endif
       sum[0] = sum[1] = sum[2] = 0;
       if (i == 0) {   // discussing pole = L1 separately, sin(nu) = 0
 
@@ -1357,11 +1357,11 @@ template<class T>
           r[0] = y[j], r[1] = r[0]*r[0];
           calc_dOmega2_pole(W, mask2, r, G::sc_phi + 2*j, q_, b, p);
           k[0][j] = dnu*W[0];
-          
+
           #if defined(DEBUG)
           std::cerr << fname << "::k00[" << j << "]=" << k[0][j] << " W=" << W[0] << ':' << W[1] << "\n";
           #endif
-        
+
           if (b_dvol) sum[2] += w[j]*r[1]*W[1];
         }
 
@@ -1382,7 +1382,7 @@ template<class T>
           #if defined(DEBUG)
           std::cerr << fname << "::k0[" << j << "]=" << k[0][j] <<" W=" << W[0] << ':' << W[1] << ':' << W[2] << "\n";
           #endif
-        
+
           if (b_area) {
             rp = -W[2]/W[0];      // partial_phi r
             sum[0] += w[j]*r[0]*std::sqrt(rp*rp + sc_nu[0]*sc_nu[0]*(r[1] + rt*rt));
@@ -1412,7 +1412,7 @@ template<class T>
         #if defined(DEBUG)
         std::cerr << fname << "::k1[" << j << "]=" << k[1][j] << " W=" << W[0] << ':' << W[1] << ':' << W[2] << "\n";
         #endif
-        
+
         if (b_area) {
           rp = -W[2]/W[0];      // partial_phi r
           sum[0] += w[j]*r[0]*std::sqrt(rp*rp + sc_nu[0]*sc_nu[0]*(r[1] + rt*rt));
@@ -1427,7 +1427,7 @@ template<class T>
       // 3. step
       #if defined(DEBUG)
       W[0]= W[1] = W[2] = 0;
-      #endif        
+      #endif
       sum[0] = sum[1] = sum[2] = 0;
       for (int j = 0; j < G::n; ++j){
         r[0] = y[j] + 0.5*k[1][j], r[1] = r[0]*r[0];
@@ -1435,11 +1435,11 @@ template<class T>
         calc_dOmega2(W, mask, r, sc_nu, G::sc_phi + 2*j, q_, b, p);
         rt = -W[1]/W[0];        // partial_nu r
         k[2][j] = dnu*rt;
-        
+
         #if defined(DEBUG)
         std::cerr << fname << "::k2[" << j << "]=" << k[2][j] << " W=" << W[0] << ':' << W[1] << ':' << W[2] << "\n";
         #endif
-        
+
         if (b_area) {
           rp = -W[2]/W[0];      // partial_phi r
           sum[0] += w[j]*r[0]*std::sqrt(rp*rp + sc_nu[0]*sc_nu[0]*(r[1] + rt*rt));
@@ -1454,7 +1454,7 @@ template<class T>
       // 4. step
       #if defined(DEBUG)
       W[0]= W[1] = W[2] = 0;
-      #endif        
+      #endif
       sum[0] = sum[1] = sum[2] = 0;
       utils::sincos(nu + dnu, sc_nu, sc_nu+1);
       for (int j = 0; j < G::n; ++j){
@@ -1483,45 +1483,45 @@ template<class T>
       // final step
       for (int j = 0; j < dim; ++j)
         y[j] += (k[0][j] + 2*(k[1][j] + k[2][j]) + k[3][j])/6;
-      
+
       #if defined(DEBUG)
       for (int j = 0; j < G::n; ++j) {
-        
+
         real f, a[3] = {G::sc_phi[2*j+1]*sc_nu[0], G::sc_phi[2*j]*sc_nu[0], sc_nu[1]}, u[3];
-        
+
         f = y[j]*d;
         for (int k = 0; k < 3; ++k) {
           u[k] = 0;
           for (int l = 0; l < 3; ++l) u[k]+= f*a[l]*B[l][k];
         }
-        
+
         std::cerr << fname
-          << "::y[" << j << "]=" << y[j] 
-          << " dOmega=" << 
+          << "::y[" << j << "]=" << y[j]
+          << " dOmega=" <<
           Omega0 + body.constrain(u)
           << "\n";
       }
-      
-      
+
+
       for (int j = G::n; j < dim; ++j)
         std::cerr << << fname << "::y[" << j << "]=" << y[j] << "\n";
       #endif
-      
+
       nu += dnu;
     }
 
     if (b_area) v[0] = 2*d2*y[G::n];
     if (b_vol)  v[1] = 2*d3*y[G::n + 1]/3;
     if (b_dvol) v[2] = 2*d3*d*y[G::n + 2];
-    
+
     #if defined(DEBUG)
     if (b_dvol && y[G::n + 2] > 0) {
-      
+
       std::ofstream f("params.txt",std::ofstream::binary);
-      
+
       int len = 9;
       T *buf = new T [len];
-      
+
       buf[0]=v[0];
       buf[1]=v[1];
       buf[2]=v[2];
@@ -1530,14 +1530,14 @@ template<class T>
       buf[5]=q;
       buf[6]=F;
       buf[7]=d;
-      buf[8]=th; 
-      
+      buf[8]=th;
+
       std::cerr << fname << "::choice=" << choice << " m=" << m << '\n';
-      
+
       f.write((char *)buf, sizeof(T)*len);
-      
+
       f.close();
-      
+
       delete [] buf;
     }
     #endif
@@ -1546,7 +1546,7 @@ template<class T>
   #if defined(DEBUG)
   #undef DEBUG
   #endif
-  
+
 /*
     Computing volume of the primary generalized Roche lobes with
     misaligned spin and orbital velocity vector and derivatives of
@@ -1777,7 +1777,7 @@ template<class T>
   Return:
     true - if calculation succeeded, false - otherwise
   */
-  //#define DEBUG 
+  //#define DEBUG
   template<class T>
   bool lagrange_point(
     int choice,
@@ -1798,11 +1798,11 @@ template<class T>
       case 3: L0 = gen_roche::lagrange_point_L3(q, F, d); break;
       default: return false;
     }
-    
+
     #if defined(DEBUG)
     std::cerr << "L0=" << L0 << " theta=" << theta << '\n';
     #endif
-    
+
     //
     // Approximating fixed point using RK4 integration from
     // position at aligned case
@@ -1873,7 +1873,7 @@ template<class T>
   #if defined(DEBUG)
   #undef DEBUG
   #endif
-  
+
   /*
     Calculate the minimal value of the Kopal potential for which the
     primary Roche lobe exists.
@@ -1884,7 +1884,7 @@ template<class T>
       d - separation between the two objects
       th - angle between z axis in spin of the object
       L[2] - Lagrange point limiting the lobe
-  
+
     Return:
       minimal permitted Omega, if NaN is returned we have some error
   */
@@ -1897,12 +1897,12 @@ template<class T>
     const T & th = 0,
     T *L = 0,
     T *pth = 0){
-    
+
     T W[2], r[2][3],
       th1 = utils::m_pi*std::abs(std::fmod(th/utils::m_pi + 0.5, 1) - 0.5);
-    
+
     //std::cerr << "calc_Omega_min::th1=" << th1 << '\n';
-    
+
     for (int i = 0; i < 2; ++i) {
 
       if (!lagrange_point(i + 1, q, F, d, th1, r[i])) return std::numeric_limits<T>::quiet_NaN();
@@ -1913,16 +1913,16 @@ template<class T>
       W[i] = calc_Omega(r[i], q, F, d, th1);
       //std::cerr << "calc_Omega_min::W[" << i << "]=" << W[i] << " x=" << r[i][0] << ":" << r[i][2] << '\n';
     }
-   
+
     int ind = (W[0] > W[1] ? 0 : 1);
-    
+
     if (L) {
       L[0] = r[ind][0];
       L[1] = r[ind][2];
     }
-    
+
     if (pth) *pth = th1;
-  
+
     return W[ind];
   }
 
@@ -1958,43 +1958,43 @@ template<class T>
     const T & th,
     T & OmegaC,             // outputs
     T av[3]) {
-    
+
     const char *fname =  "critical_area_volume";
-     
+
     #if defined(DEBUG)
     std::cerr.precision(16);
-    std::cerr 
+    std::cerr
       << fname << "::START\n"
-      << fname << "::q=" << q << " F=" << F << " d=" << d << " th=" << th << '\n';       
+      << fname << "::q=" << q << " F=" << F << " d=" << d << " th=" << th << '\n';
     #endif
-   
+
     if (th == 0)
       return gen_roche::critical_area_volume(choice, q, F, d, OmegaC, av);
-    
+
     T x[2], th1;
-    
+
     OmegaC = calc_Omega_min(q, F, d, th, x, &th1);
-    
+
     if (std::isnan(OmegaC)) {
       std::cerr << fname << "::Calculation of Omega_min failed\n";
       return false;
     }
- 
+
     #if defined(DEBUG)
     std::cerr << fname << "::x=" << x[0] << ' ' << x[1] << " OmegaC=" << OmegaC << '\n';
     #endif
-    
+
     critical_area_volume_integration(av, choice, x, q, F, d, th1, 1<<10);
-    
+
     #if defined(DEBUG)
-    std::cerr 
+    std::cerr
       << fname << "::av=" << av[0] << ' ' << av[1] << ' ' << av[2] << '\n'
       << fname << "::critical_volume::END\n";
     #endif
 
     return true;
   }
-  
+
   #if defined(DEBUG)
   #undef DEBUG
   #endif

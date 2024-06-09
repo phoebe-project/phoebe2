@@ -181,7 +181,7 @@ void raise_exception(const std::string & str){
   Input:
     level
 */
-static PyObject *setup_verbosity(PyObject *self, PyObject *args, PyObject *keywds) {
+static PyObject *setup_verbosity([[maybe_unused]] PyObject *self, PyObject *args, PyObject *keywds) {
 
   auto fname = "setup_verbosity"_s;
 
@@ -209,7 +209,7 @@ static PyObject *setup_verbosity(PyObject *self, PyObject *args, PyObject *keywd
 
 
 /*
-  Insert into dictionary and deferences the inserted object
+  Insert into dictionary and dereferences the inserted object
   Ref:
   https://robinelvin.wordpress.com/2011/03/24/python-c-extension-memory-leak/
 */
@@ -359,7 +359,7 @@ void PyArray_To3DPointVector(
 
 */
 
-static PyObject *roche_critical_potential(PyObject *self, PyObject *args, PyObject *keywds) {
+static PyObject *roche_critical_potential([[maybe_unused]] PyObject *self, PyObject *args, PyObject *keywds) {
 
   //
   // Reading arguments
@@ -488,7 +488,7 @@ static PyObject *roche_critical_potential(PyObject *self, PyObject *args, PyObje
       theta' - new angle between S and new z-axis ^k'
 */
 
-static PyObject *roche_misaligned_transf(PyObject *self, PyObject *args) {
+static PyObject *roche_misaligned_transf([[maybe_unused]] PyObject *self, PyObject *args) {
 
   auto fname = "roche_misaligned_trans"_s;
 
@@ -558,7 +558,7 @@ static PyObject *roche_misaligned_transf(PyObject *self, PyObject *args) {
     Omega_critical:  float
 */
 
-static PyObject *rotstar_critical_potential(PyObject *self, PyObject *args) {
+static PyObject *rotstar_critical_potential([[maybe_unused]] PyObject *self, PyObject *args) {
 
   // parse input arguments
   double omega;
@@ -576,7 +576,7 @@ static PyObject *rotstar_critical_potential(PyObject *self, PyObject *args) {
 /*
   C++ wrapper for Python code:
 
-  Calculate critical potential of the rotating star with misaignment
+  Calculate critical potential of the rotating star with misalignment
   having potential function
 
     Omega(x,y,z; omega, s) = 1/|r| + 1/2 omega^2 |r - s (r.s)|^2
@@ -594,7 +594,7 @@ static PyObject *rotstar_critical_potential(PyObject *self, PyObject *args) {
 
   Python:
 
-    Omega_crit = rotstar_misaligned_critical_potential(omega, misalignemnt)
+    Omega_crit = rotstar_misaligned_critical_potential(omega, misalignment)
 
   where parameters are
 
@@ -614,7 +614,7 @@ static PyObject *rotstar_critical_potential(PyObject *self, PyObject *args) {
     Omega_critical:  float
 */
 
-static PyObject *rotstar_misaligned_critical_potential(PyObject *self, PyObject *args) {
+static PyObject *rotstar_misaligned_critical_potential([[maybe_unused]] PyObject *self, PyObject *args) {
 
   auto fname = "rotstar_misaligned_critical_potential"_s;
 
@@ -673,7 +673,7 @@ static PyObject *rotstar_misaligned_critical_potential(PyObject *self, PyObject 
     h : height of the lobe's pole
 */
 
-static PyObject *roche_pole(PyObject *self, PyObject *args, PyObject *keywds) {
+static PyObject *roche_pole([[maybe_unused]] PyObject *self, PyObject *args, PyObject *keywds) {
 
   //
   // Reading arguments
@@ -741,7 +741,7 @@ static PyObject *roche_pole(PyObject *self, PyObject *args, PyObject *keywds) {
 
 
 static PyObject *roche_misaligned_pole(
-  PyObject *self, PyObject *args, PyObject *keywds) {
+  [[maybe_unused]] PyObject *self, PyObject *args, PyObject *keywds) {
 
   auto fname = "roche_misaligned_pole"_s;
 
@@ -809,7 +809,7 @@ static PyObject *roche_misaligned_pole(
   compact primary Roche lobe:
 
       Omega_{min} (x,y,z; q, F, d, misalignment) =
-        min {Omega(L1(misaligment)), Omega(L2(misalignment)) }
+        min {Omega(L1(misalignment)), Omega(L2(misalignment)) }
 
   Python:
 
@@ -829,7 +829,7 @@ static PyObject *roche_misaligned_pole(
     Omega0 - value of the Omega at (x,y,z)
 */
 
-static PyObject *roche_Omega_min(PyObject *self, PyObject *args, PyObject *keywds) {
+static PyObject *roche_Omega_min([[maybe_unused]] PyObject *self, PyObject *args, PyObject *keywds) {
 
   auto fname = "roche_Omega_min"_s;
 
@@ -868,7 +868,7 @@ static PyObject *roche_Omega_min(PyObject *self, PyObject *args, PyObject *keywd
   compact primary Roche lobe:
 
       Omega_{min} (q, F, d, misalignment) =
-        min {Omega(L1(q,F,d,misaligment)), Omega(L2(q,F,d,misalignment)) }
+        min {Omega(L1(q,F,d,misalignment)), Omega(L2(q,F,d,misalignment)) }
 
   Python:
 
@@ -888,7 +888,7 @@ static PyObject *roche_Omega_min(PyObject *self, PyObject *args, PyObject *keywd
     Omega0 - value of the Omega at (x,y,z)
 */
 
-static PyObject *roche_misaligned_Omega_min(PyObject *self, PyObject *args, PyObject *keywds) {
+static PyObject *roche_misaligned_Omega_min([[maybe_unused]] PyObject *self, PyObject *args, PyObject *keywds) {
 
   auto fname = "roche_misaligned_Omega_min"_s;
 
@@ -972,7 +972,7 @@ static PyObject *roche_misaligned_Omega_min(PyObject *self, PyObject *args, PyOb
     h : height of the lobe's pole
 */
 
-static PyObject *rotstar_pole(PyObject *self, PyObject *args, PyObject *keywds) {
+static PyObject *rotstar_pole([[maybe_unused]] PyObject *self, PyObject *args, PyObject *keywds) {
 
   //
   // Reading arguments
@@ -1039,7 +1039,7 @@ static PyObject *rotstar_pole(PyObject *self, PyObject *args, PyObject *keywds) 
     h : height of the lobe's pole
 */
 
-static PyObject *rotstar_misaligned_pole(PyObject *self, PyObject *args, PyObject *keywds) {
+static PyObject *rotstar_misaligned_pole([[maybe_unused]] PyObject *self, PyObject *args, PyObject *keywds) {
 
   auto fname = "rotstar_misaligned_pole"_s;
 
@@ -1094,7 +1094,7 @@ static PyObject *rotstar_misaligned_pole(PyObject *self, PyObject *args, PyObjec
     h : height of the lobe's pole = R
 */
 
-static PyObject *sphere_pole(PyObject *self, PyObject *args, PyObject *keywds) {
+static PyObject *sphere_pole([[maybe_unused]] PyObject *self, PyObject *args, PyObject *keywds) {
 
   auto fname = "sphere_pole"_s;
 
@@ -1149,7 +1149,7 @@ static PyObject *sphere_pole(PyObject *self, PyObject *args, PyObject *keywds) {
     param_rotstar : 1-rank numpy array = (omega_rotstar, Omega0_rotstar)
 */
 
-static PyObject *rotstar_from_roche(PyObject *self, PyObject *args, PyObject *keywds) {
+static PyObject *rotstar_from_roche([[maybe_unused]] PyObject *self, PyObject *args, PyObject *keywds) {
 
   auto fname = "rotstar_from_roche"_s;
   //
@@ -1242,7 +1242,7 @@ static PyObject *rotstar_from_roche(PyObject *self, PyObject *args, PyObject *ke
 */
 
 static PyObject *rotstar_misaligned_from_roche_misaligned(
-  PyObject *self, PyObject *args, PyObject *keywds) {
+  [[maybe_unused]] PyObject *self, PyObject *args, PyObject *keywds) {
 
   auto fname = "rotstar_misaligned_from_roche_misaligned"_s;
 
@@ -1371,7 +1371,7 @@ static PyObject *rotstar_misaligned_from_roche_misaligned(
 */
 
 
-static PyObject *roche_area_volume(PyObject *self, PyObject *args, PyObject *keywds) {
+static PyObject *roche_area_volume([[maybe_unused]] PyObject *self, PyObject *args, PyObject *keywds) {
 
   auto fname = "roche_area_volume"_s;
 
@@ -1442,7 +1442,7 @@ static PyObject *roche_area_volume(PyObject *self, PyObject *args, PyObject *key
   double
     b = (1 + q)*F*F*delta*delta*delta,
     w0 = 5*(q + std::cbrt(b*b)/4) - 29.554 - 5.26235*std::log(std::min(eps[0], eps[1])),
-    av[2];                          // for results
+    av[3];                          // for results, av[2] not used here
 
   if (choice == 0 && delta*Omega0 >= std::max(10., w0)) {
 
@@ -1482,7 +1482,7 @@ static PyObject *roche_area_volume(PyObject *self, PyObject *args, PyObject *key
       polish = false,
       adjust = true;
 
-    double p[2][2], e, t;
+    double p[2][3], e, t;  // p[*][2]  not used here
 
     //
     // one step adjustment of precison for area and volume
@@ -1601,7 +1601,7 @@ static PyObject *roche_area_volume(PyObject *self, PyObject *args, PyObject *key
       float:
 */
 
-static PyObject *rotstar_area_volume(PyObject *self, PyObject *args, PyObject *keywds) {
+static PyObject *rotstar_area_volume([[maybe_unused]] PyObject *self, PyObject *args, PyObject *keywds) {
 
   auto fname = "rotstar_area_volume"_s;
 
@@ -1729,7 +1729,7 @@ static PyObject *rotstar_area_volume(PyObject *self, PyObject *args, PyObject *k
       float:
 */
 
-static PyObject *rotstar_misaligned_area_volume(PyObject *self, PyObject *args, PyObject *keywds) {
+static PyObject *rotstar_misaligned_area_volume([[maybe_unused]] PyObject *self, PyObject *args, PyObject *keywds) {
 
   auto fname = "rotstar_misaligned_area_volume"_s;
 
@@ -1848,7 +1848,7 @@ static PyObject *rotstar_misaligned_area_volume(PyObject *self, PyObject *args, 
       float:
 */
 
-static PyObject *sphere_area_volume(PyObject *self, PyObject *args, PyObject *keywds) {
+static PyObject *sphere_area_volume([[maybe_unused]] PyObject *self, PyObject *args, PyObject *keywds) {
 
   auto fname = "sphere_area_volume"_s;
 
@@ -1941,7 +1941,7 @@ static PyObject *sphere_area_volume(PyObject *self, PyObject *args, PyObject *ke
 */
 
 
-static PyObject *roche_misaligned_critical_volume(PyObject *self, PyObject *args, PyObject *keywds) {
+static PyObject *roche_misaligned_critical_volume([[maybe_unused]] PyObject *self, PyObject *args, PyObject *keywds) {
 
   auto fname = "roche_misaligned_critical_volume"_s;
 
@@ -2017,7 +2017,7 @@ static PyObject *roche_misaligned_critical_volume(PyObject *self, PyObject *args
 /*
   C++ wrapper for Python code:
 
-  Calculate area and volume of the generalied Roche lobes with
+  Calculate area and volume of the generalized Roche lobes with
   misaligned spin and orbit velocity vectors.
 
   Omega_0 = Omega(x,y,z)
@@ -2067,7 +2067,7 @@ static PyObject *roche_misaligned_critical_volume(PyObject *self, PyObject *args
 */
 
 
-static PyObject *roche_misaligned_area_volume(PyObject *self, PyObject *args, PyObject *keywds) {
+static PyObject *roche_misaligned_area_volume([[maybe_unused]] PyObject *self, PyObject *args, PyObject *keywds) {
 
   auto fname = "roche_misaligned_area_volume"_s;
 
@@ -2209,7 +2209,8 @@ static PyObject *roche_misaligned_area_volume(PyObject *self, PyObject *args, Py
 
     bool adjust = true;
 
-    double p[2][2], xrange[2], pole, e;
+    double p[2][2], xrange[2], e,
+           pole = -1;  // set just for control
 
     //
     // Choosing boundaries on x-axis or calculating the pole
@@ -2235,7 +2236,7 @@ static PyObject *roche_misaligned_area_volume(PyObject *self, PyObject *args, Py
     do {
 
       for (int i = 0, m = m0; i < 2; ++i, m <<= 1)
-        if (theta == 0)
+        if (aligned)
           gen_roche::area_volume_integration
             (p[i], res_choice, xrange, Omega0, q, F, d, m);
         else {
@@ -2345,7 +2346,7 @@ static PyObject *roche_misaligned_area_volume(PyObject *self, PyObject *args, Py
 */
 
 
-static PyObject *roche_Omega_at_vol(PyObject *self, PyObject *args, PyObject *keywds) {
+static PyObject *roche_Omega_at_vol([[maybe_unused]] PyObject *self, PyObject *args, PyObject *keywds) {
 
   auto fname = "roche_Omega_at_vol"_s;
 
@@ -2505,7 +2506,7 @@ static PyObject *roche_Omega_at_vol(PyObject *self, PyObject *args, PyObject *ke
     return NULL;
   }
   // We use the condition on the argument (= Omega) ~ constraining backward error,
-  // but we could also use condition on the value (= Volume) ~ constraing forward error
+  // but we could also use condition on the value (= Volume) ~ constraining forward error
 
   return PyFloat_FromDouble(Omega);
 }
@@ -2539,7 +2540,7 @@ static PyObject *roche_Omega_at_vol(PyObject *self, PyObject *args, PyObject *ke
 */
 
 
-static PyObject *rotstar_Omega_at_vol(PyObject *self, PyObject *args, PyObject *keywds) {
+static PyObject *rotstar_Omega_at_vol([[maybe_unused]] PyObject *self, PyObject *args, PyObject *keywds) {
 
   auto fname = "rotstar_Omega_at_vol"_s;
 
@@ -2620,7 +2621,7 @@ static PyObject *rotstar_Omega_at_vol(PyObject *self, PyObject *args, PyObject *
 */
 
 
-static PyObject *rotstar_misaligned_Omega_at_vol(PyObject *self, PyObject *args, PyObject *keywds) {
+static PyObject *rotstar_misaligned_Omega_at_vol([[maybe_unused]] PyObject *self, PyObject *args, PyObject *keywds) {
 
   auto fname = "rotstar_misaligned_Omega_at_vol"_s;
 
@@ -2708,7 +2709,7 @@ static PyObject *rotstar_misaligned_Omega_at_vol(PyObject *self, PyObject *args,
 */
 
 
-static PyObject *roche_misaligned_Omega_at_vol(PyObject *self, PyObject *args, PyObject *keywds) {
+static PyObject *roche_misaligned_Omega_at_vol([[maybe_unused]] PyObject *self, PyObject *args, PyObject *keywds) {
 
   auto fname = "roche_misaligned_Omega_at_vol"_s;
 
@@ -3034,7 +3035,7 @@ static PyObject *roche_misaligned_Omega_at_vol(PyObject *self, PyObject *args, P
 */
 
 
-static PyObject *sphere_Omega_at_vol(PyObject *self, PyObject *args, PyObject *keywds) {
+static PyObject *sphere_Omega_at_vol([[maybe_unused]] PyObject *self, PyObject *args, PyObject *keywds) {
 
   auto fname = "sphere_Omega_at_vol"_s;
 
@@ -3093,7 +3094,7 @@ static PyObject *sphere_Omega_at_vol(PyObject *self, PyObject *args, PyObject *k
 */
 
 
-static PyObject *roche_gradOmega(PyObject *self, PyObject *args) {
+static PyObject *roche_gradOmega([[maybe_unused]] PyObject *self, PyObject *args) {
 
   double p[4];
 
@@ -3124,7 +3125,7 @@ static PyObject *roche_gradOmega(PyObject *self, PyObject *args) {
 /*
   C++ wrapper for Python code:
 
-  Calculate the gradient and the value of the rotenting star potential
+  Calculate the gradient and the value of the rotating star potential
   at a given point
 
       -grad Omega (x,y,z)
@@ -3148,7 +3149,7 @@ static PyObject *roche_gradOmega(PyObject *self, PyObject *args) {
 */
 
 
-static PyObject *rotstar_gradOmega(PyObject *self, PyObject *args) {
+static PyObject *rotstar_gradOmega([[maybe_unused]] PyObject *self, PyObject *args) {
 
   auto fname = "rotstar_gradOmega"_s;
 
@@ -3225,7 +3226,7 @@ static PyObject *rotstar_gradOmega(PyObject *self, PyObject *args) {
 */
 
 
-static PyObject *rotstar_misaligned_gradOmega(PyObject *self, PyObject *args) {
+static PyObject *rotstar_misaligned_gradOmega([[maybe_unused]] PyObject *self, PyObject *args) {
 
   auto fname = "rotstar_misaligned_gradOmega"_s;
 
@@ -3295,7 +3296,7 @@ static PyObject *rotstar_misaligned_gradOmega(PyObject *self, PyObject *args) {
 */
 
 
-static PyObject *sphere_gradOmega(PyObject *self, PyObject *args) {
+static PyObject *sphere_gradOmega([[maybe_unused]] PyObject *self, PyObject *args) {
 
   auto fname = "sphere_gradOmega"_s;
 
@@ -3361,7 +3362,7 @@ static PyObject *sphere_gradOmega(PyObject *self, PyObject *args) {
 */
 
 
-static PyObject *roche_misaligned_gradOmega(PyObject *self, PyObject *args) {
+static PyObject *roche_misaligned_gradOmega([[maybe_unused]] PyObject *self, PyObject *args) {
 
   auto fname = "roche_misaligned_gradOmega"_s;
 
@@ -3443,7 +3444,7 @@ static PyObject *roche_misaligned_gradOmega(PyObject *self, PyObject *args) {
     g : 1-rank numpy array = -grad Omega (x,y,z)
 */
 
-static PyObject *roche_gradOmega_only(PyObject *self, PyObject *args) {
+static PyObject *roche_gradOmega_only([[maybe_unused]] PyObject *self, PyObject *args) {
 
   auto fname = "roche_gradOmega_only"_s;
 
@@ -3494,7 +3495,7 @@ static PyObject *roche_gradOmega_only(PyObject *self, PyObject *args) {
     g : 1-rank numpy array = -grad Omega (x,y,z)
 */
 
-static PyObject *rotstar_gradOmega_only(PyObject *self, PyObject *args) {
+static PyObject *rotstar_gradOmega_only([[maybe_unused]] PyObject *self, PyObject *args) {
 
   auto fname = "rotstar_gradOmega_only"_s;
 
@@ -3569,7 +3570,7 @@ static PyObject *rotstar_gradOmega_only(PyObject *self, PyObject *args) {
     g : 1-rank numpy array = -grad Omega (x,y,z)
 */
 
-static PyObject *rotstar_misaligned_gradOmega_only(PyObject *self, PyObject *args) {
+static PyObject *rotstar_misaligned_gradOmega_only([[maybe_unused]] PyObject *self, PyObject *args) {
 
   auto fname = "rotstar_misaligned_gradOmega_only"_s;
 
@@ -3639,7 +3640,7 @@ static PyObject *rotstar_misaligned_gradOmega_only(PyObject *self, PyObject *arg
     g : 1-rank numpy array = -grad Omega (x,y,z)
 */
 
-static PyObject *sphere_gradOmega_only(PyObject *self, PyObject *args) {
+static PyObject *sphere_gradOmega_only([[maybe_unused]] PyObject *self, PyObject *args) {
 
   auto fname = "sphere_gradOmega_only"_s;
 
@@ -3699,7 +3700,7 @@ static PyObject *sphere_gradOmega_only(PyObject *self, PyObject *args) {
     g : 1-rank numpy array = -grad Omega (x,y,z)
 */
 
-static PyObject *roche_misaligned_gradOmega_only(PyObject *self, PyObject *args) {
+static PyObject *roche_misaligned_gradOmega_only([[maybe_unused]] PyObject *self, PyObject *args) {
 
   auto fname = "roche_misaligned_gradOmega_only"_s;
 
@@ -3781,7 +3782,7 @@ static PyObject *roche_misaligned_gradOmega_only(PyObject *self, PyObject *args)
     Omega0 - value of the Omega at (x,y,z)
 */
 
-static PyObject *roche_Omega(PyObject *self, PyObject *args) {
+static PyObject *roche_Omega([[maybe_unused]] PyObject *self, PyObject *args) {
 
   double p[4];
 
@@ -3822,7 +3823,7 @@ static PyObject *roche_Omega(PyObject *self, PyObject *args) {
     Omega0 - value of the Omega at (x,y,z)
 */
 
-static PyObject *rotstar_Omega(PyObject *self, PyObject *args) {
+static PyObject *rotstar_Omega([[maybe_unused]] PyObject *self, PyObject *args) {
 
   double p[2];
 
@@ -3876,7 +3877,7 @@ static PyObject *rotstar_Omega(PyObject *self, PyObject *args) {
     Omega0 - value of the Omega at (x,y,z)
 */
 
-static PyObject *rotstar_misaligned_Omega(PyObject *self, PyObject *args) {
+static PyObject *rotstar_misaligned_Omega([[maybe_unused]] PyObject *self, PyObject *args) {
 
   auto fname = "rotstar_misaligned_Omega"_s;
 
@@ -3941,7 +3942,7 @@ static PyObject *rotstar_misaligned_Omega(PyObject *self, PyObject *args) {
     Omega0 - value of the Omega at (x,y,z)
 */
 
-static PyObject *sphere_Omega(PyObject *self, PyObject *args) {
+static PyObject *sphere_Omega([[maybe_unused]] PyObject *self, PyObject *args) {
 
   auto fname = "sphere_Omega"_s;
 
@@ -3987,7 +3988,7 @@ static PyObject *sphere_Omega(PyObject *self, PyObject *args) {
 */
 
 
-static PyObject *roche_misaligned_Omega(PyObject *self, PyObject *args) {
+static PyObject *roche_misaligned_Omega([[maybe_unused]] PyObject *self, PyObject *args) {
 
   auto fname = "roche_misaligned_Omega"_s;
 
@@ -4157,7 +4158,7 @@ static PyObject *roche_misaligned_Omega(PyObject *self, PyObject *args) {
 */
 
 
-static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *keywds) {
+static PyObject *roche_marching_mesh([[maybe_unused]] PyObject *self, PyObject *args, PyObject *keywds) {
 
   auto fname = "roche_marching_mesh"_s;
 
@@ -4519,7 +4520,7 @@ static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *k
   * https://docs.python.org/2/c-api/arg.html#c.PyArg_ParseTupleAndKeywords
 */
 
-static PyObject *rotstar_marching_mesh(PyObject *self, PyObject *args, PyObject *keywds) {
+static PyObject *rotstar_marching_mesh([[maybe_unused]] PyObject *self, PyObject *args, PyObject *keywds) {
 
   auto fname = "rotstar_marching_mesh"_s;
 
@@ -4913,7 +4914,7 @@ static PyObject *rotstar_marching_mesh(PyObject *self, PyObject *args, PyObject 
   * https://docs.python.org/2/c-api/arg.html#c.PyArg_ParseTupleAndKeywords
 */
 
-static PyObject *rotstar_misaligned_marching_mesh(PyObject *self, PyObject *args, PyObject *keywds) {
+static PyObject *rotstar_misaligned_marching_mesh([[maybe_unused]] PyObject *self, PyObject *args, PyObject *keywds) {
 
   auto fname = "rotstar_misaligned_marching_mesh"_s;
 
@@ -5300,7 +5301,7 @@ static PyObject *rotstar_misaligned_marching_mesh(PyObject *self, PyObject *args
   * https://docs.python.org/2/c-api/arg.html#c.PyArg_ParseTupleAndKeywords
 */
 
-static PyObject *sphere_marching_mesh(PyObject *self, PyObject *args, PyObject *keywds) {
+static PyObject *sphere_marching_mesh([[maybe_unused]] PyObject *self, PyObject *args, PyObject *keywds) {
 
  auto fname = "sphere_marching_mesh"_s;
 
@@ -5683,7 +5684,7 @@ static PyObject *sphere_marching_mesh(PyObject *self, PyObject *args, PyObject *
 */
 
 
-static PyObject *roche_misaligned_marching_mesh(PyObject *self, PyObject *args, PyObject *keywds) {
+static PyObject *roche_misaligned_marching_mesh([[maybe_unused]] PyObject *self, PyObject *args, PyObject *keywds) {
 
   auto fname = "roche_misaligned_marching_mesh"_s;
 
@@ -5807,9 +5808,11 @@ static PyObject *roche_misaligned_marching_mesh(PyObject *self, PyObject *args, 
   //
   // Choosing the meshing initial point
   //
-  bool rotated, ok, aligned = false;
+  bool
+    rotated, ok, aligned = false;
 
-  double r[3], g[3], theta, *s = 0;
+  double r[3], g[3], theta, *s = 0,
+        eps = 2*std::numeric_limits<double>::epsilon();
 
   if (PyFloat_Check(o_misalignment)) {
 
@@ -5823,7 +5826,7 @@ static PyObject *roche_misaligned_marching_mesh(PyObject *self, PyObject *args, 
     PyArray_TYPE((PyArrayObject *) o_misalignment) == NPY_DOUBLE) {
 
     s = (double*) PyArray_DATA((PyArrayObject*)o_misalignment);
-    aligned  = (s[0] == 0 && s[1] == 0);
+    aligned  = (std::abs(s[0]) < eps && std::abs(s[1]) < eps) || (std::abs(1 - s[2]) < eps);
 
     // we could work with s[0]==0, calculate aligned case make simple
     // rotation around x-axis
@@ -5857,6 +5860,10 @@ static PyObject *roche_misaligned_marching_mesh(PyObject *self, PyObject *args, 
     return NULL;
   }
 
+  if (verbosity_level>=4)
+    report_stream << fname
+                  << "::aligned=" << aligned
+                  << " rotated =" << rotated << '\n';
   //
   //  Marching triangulation of the Roche lobe and calculate central points
   //
@@ -6061,7 +6068,7 @@ static PyObject *roche_misaligned_marching_mesh(PyObject *self, PyObject *args, 
   * http://folk.uio.no/hpl/scripting/doc/python/NumPy/Numeric/numpy-13.html
 */
 
-static PyObject *mesh_visibility(PyObject *self, PyObject *args, PyObject *keywds){
+static PyObject *mesh_visibility([[maybe_unused]] PyObject *self, PyObject *args, PyObject *keywds){
 
   auto fname = "mesh_visibility"_s;
 
@@ -6222,7 +6229,7 @@ static PyObject *mesh_visibility(PyObject *self, PyObject *args, PyObject *keywd
   * http://folk.uio.no/hpl/scripting/doc/python/NumPy/Numeric/numpy-13.html
 */
 
-static PyObject *mesh_rough_visibility(PyObject *self, PyObject *args){
+static PyObject *mesh_rough_visibility([[maybe_unused]] PyObject *self, PyObject *args){
 
   //
   // Storing/Reading arguments
@@ -6329,7 +6336,7 @@ static PyObject *mesh_rough_visibility(PyObject *self, PyObject *args){
       area: float - area of triangles of mesh
 */
 
-static PyObject *mesh_offseting(PyObject *self, PyObject *args,  PyObject *keywds){
+static PyObject *mesh_offseting([[maybe_unused]] PyObject *self, PyObject *args,  PyObject *keywds){
 
   auto fname = "mesh_offseting"_s;
 
@@ -6508,7 +6515,7 @@ static PyObject *mesh_offseting(PyObject *self, PyObject *args,  PyObject *keywd
       volume    - volume of body enclosed by triangular mesh
 */
 
-static PyObject *mesh_properties(PyObject *self, PyObject *args, PyObject *keywds) {
+static PyObject *mesh_properties([[maybe_unused]] PyObject *self, PyObject *args, PyObject *keywds) {
 
   //
   // Reading arguments
@@ -6659,7 +6666,7 @@ static PyObject *mesh_properties(PyObject *self, PyObject *args, PyObject *keywd
 
 */
 
-static PyObject *mesh_export_povray(PyObject *self, PyObject *args, PyObject *keywds) {
+static PyObject *mesh_export_povray([[maybe_unused]] PyObject *self, PyObject *args, PyObject *keywds) {
 
   //
   // Reading arguments
@@ -6938,7 +6945,7 @@ bool LDmodelFromListOfTuples(
 */
 
 static PyObject *mesh_radiosity_problem(
-  PyObject *self, PyObject *args, PyObject *keywds) {
+  [[maybe_unused]] PyObject *self, PyObject *args, PyObject *keywds) {
 
   auto fname = "mesh_radiosity_problem"_s;
 
@@ -7162,7 +7169,7 @@ static PyObject *mesh_radiosity_problem(
 */
 
 static PyObject *mesh_radiosity_problem_nbody_convex(
-  PyObject *self, PyObject *args, PyObject *keywds) {
+  [[maybe_unused]] PyObject *self, PyObject *args, PyObject *keywds) {
 
   auto fname = "mesh_radiosity_problem_nbody_convex"_s;
 
@@ -7454,7 +7461,7 @@ struct Tmesh_radiosity_redistrib_problem_nbody {
 } __redistrib_problem_nbody;
 
 static PyObject *mesh_radiosity_redistrib_problem_nbody_convex_setup(
-  PyObject *self, PyObject *args, PyObject *keywds){
+  [[maybe_unused]] PyObject *self, PyObject *args, PyObject *keywds){
 
   auto fname = "mesh_radiosity_redistrib_problem_nbody_convex_setup"_s;
 
@@ -7491,7 +7498,7 @@ static PyObject *mesh_radiosity_redistrib_problem_nbody_convex_setup(
 
 
 static PyObject *mesh_radiosity_redistrib_problem_nbody_convex(
-  PyObject *self, PyObject *args, PyObject *keywds) {
+  [[maybe_unused]] PyObject *self, PyObject *args, PyObject *keywds) {
 
   auto fname = "mesh_radiosity_redistrib_problem_nbody_convex"_s;
 
@@ -7825,7 +7832,7 @@ Example:
  {'update-emittanceB': 2.0410763114593298, 'update-emittanceA': 1.0206982972948087, 'radiosityB': 2.012322893437799, 'radiosityA': 1.014488808106366}
 
 */
-static PyObject *radiosity_redistrib_1dmodel(PyObject *self, PyObject *args, PyObject *keywds) {
+static PyObject *radiosity_redistrib_1dmodel([[maybe_unused]] PyObject *self, PyObject *args, PyObject *keywds) {
 
   auto fname = "radiosity_redistrib_1dmodel"_s;
 
@@ -7958,7 +7965,7 @@ static PyObject *radiosity_redistrib_1dmodel(PyObject *self, PyObject *args, PyO
   cnormgrads: default false
     GatC: 1-rank numpy array of norms of gradients at centers
 */
-static PyObject *roche_central_points(PyObject *self, PyObject *args,  PyObject *keywds){
+static PyObject *roche_central_points([[maybe_unused]] PyObject *self, PyObject *args,  PyObject *keywds){
 
   auto fname = "roche_central_points"_s;
 
@@ -8118,7 +8125,7 @@ static PyObject *roche_central_points(PyObject *self, PyObject *args,  PyObject 
   * http://folk.uio.no/hpl/scripting/doc/python/NumPy/Numeric/numpy-13.html
 */
 
-static PyObject *roche_reprojecting_vertices(PyObject *self, PyObject *args, PyObject *keywds) {
+static PyObject *roche_reprojecting_vertices([[maybe_unused]] PyObject *self, PyObject *args, PyObject *keywds) {
 
   //
   // Reading arguments
@@ -8251,7 +8258,7 @@ static PyObject *roche_reprojecting_vertices(PyObject *self, PyObject *args, PyO
     H: 2-rank numpy array of 3D point on a horizon
 */
 
-static PyObject *roche_horizon(PyObject *self, PyObject *args, PyObject *keywds) {
+static PyObject *roche_horizon([[maybe_unused]] PyObject *self, PyObject *args, PyObject *keywds) {
 
   auto fname = "roche_horizon"_s;
 
@@ -8354,7 +8361,7 @@ static PyObject *roche_horizon(PyObject *self, PyObject *args, PyObject *keywds)
     H: 2-rank numpy array of floats -- 3D points on a horizon
 */
 
-static PyObject *rotstar_horizon(PyObject *self, PyObject *args, PyObject *keywds) {
+static PyObject *rotstar_horizon([[maybe_unused]] PyObject *self, PyObject *args, PyObject *keywds) {
 
   auto fname = "rotstar_horizon"_s;
 
@@ -8466,7 +8473,7 @@ static PyObject *rotstar_horizon(PyObject *self, PyObject *args, PyObject *keywd
     H: 2-rank numpy array of floats -- 3D points on a horizon
 */
 
-static PyObject *rotstar_misaligned_horizon(PyObject *self, PyObject *args, PyObject *keywds) {
+static PyObject *rotstar_misaligned_horizon([[maybe_unused]] PyObject *self, PyObject *args, PyObject *keywds) {
 
   auto fname = "rotstar_misaligned_horizon"_s;
 
@@ -8588,7 +8595,7 @@ static PyObject *rotstar_misaligned_horizon(PyObject *self, PyObject *args, PyOb
     H: 2-rank numpy array of 3D point on a horizon
 */
 
-static PyObject *roche_misaligned_horizon(PyObject *self, PyObject *args, PyObject *keywds) {
+static PyObject *roche_misaligned_horizon([[maybe_unused]] PyObject *self, PyObject *args, PyObject *keywds) {
 
   auto fname = "roche_misaligned_horizon"_s;
 
@@ -8731,7 +8738,7 @@ static PyObject *roche_misaligned_horizon(PyObject *self, PyObject *args, PyObje
     xrange: 1-rank numpy array of two numbers p
 */
 
-static PyObject *roche_xrange(PyObject *self, PyObject *args, PyObject *keywds) {
+static PyObject *roche_xrange([[maybe_unused]] PyObject *self, PyObject *args, PyObject *keywds) {
 
   auto fname = "roche_xrange"_s;
 
@@ -8840,7 +8847,7 @@ static PyObject *roche_xrange(PyObject *self, PyObject *args, PyObject *keywds) 
 */
 
 
-static PyObject *roche_square_grid(PyObject *self, PyObject *args, PyObject *keywds) {
+static PyObject *roche_square_grid([[maybe_unused]] PyObject *self, PyObject *args, PyObject *keywds) {
 
   auto fname = "roche_square_grid"_s;
 
@@ -9229,7 +9236,7 @@ static PyObject *roche_square_grid(PyObject *self, PyObject *args, PyObject *key
     value of D(mu) for a given LD model
 */
 
-static PyObject *ld_D(PyObject *self, PyObject *args, PyObject *keywds) {
+static PyObject *ld_D([[maybe_unused]] PyObject *self, PyObject *args, PyObject *keywds) {
 
   auto fname = "ld_D"_s;
 
@@ -9299,7 +9306,7 @@ static PyObject *ld_D(PyObject *self, PyObject *args, PyObject *keywds) {
     value of integrated D(mu) for a given LD model
 */
 
-static PyObject *ld_D0(PyObject *self, PyObject *args, PyObject *keywds) {
+static PyObject *ld_D0([[maybe_unused]] PyObject *self, PyObject *args, PyObject *keywds) {
 
   auto fname = "ld_D0"_s;
 
@@ -9368,7 +9375,7 @@ static PyObject *ld_D0(PyObject *self, PyObject *args, PyObject *keywds) {
     1-rank numpy array of floats: gradient of the function D(mu) w.r.t. parameters
 */
 
-static PyObject *ld_gradparD(PyObject *self, PyObject *args, PyObject *keywds) {
+static PyObject *ld_gradparD([[maybe_unused]] PyObject *self, PyObject *args, PyObject *keywds) {
 
   auto fname = "ld_gradparD"_s;
 
@@ -9449,7 +9456,7 @@ static PyObject *ld_gradparD(PyObject *self, PyObject *args, PyObject *keywds) {
     int: number of parameters
 */
 
-static PyObject *ld_nrpar(PyObject *self, PyObject *args, PyObject *keywds) {
+static PyObject *ld_nrpar([[maybe_unused]] PyObject *self, PyObject *args, PyObject *keywds) {
 
   auto fname = "ld_nrpar"_s;
 
@@ -9532,7 +9539,7 @@ static PyObject *ld_nrpar(PyObject *self, PyObject *args, PyObject *keywds) {
 
 */
 
-static PyObject *ld_check(PyObject *self, PyObject *args, PyObject *keywds) {
+static PyObject *ld_check([[maybe_unused]] PyObject *self, PyObject *args, PyObject *keywds) {
 
   auto fname = "ld_check"_s;
 
@@ -9601,7 +9608,7 @@ static PyObject *ld_check(PyObject *self, PyObject *args, PyObject *keywds) {
       1-rank numpy array of floats
 */
 
-static PyObject *wd_readdata(PyObject *self, PyObject *args, PyObject *keywds) {
+static PyObject *wd_readdata([[maybe_unused]] PyObject *self, PyObject *args, PyObject *keywds) {
   auto fname ="wd_readdata"_s;
   //
   // Reading arguments
@@ -9651,28 +9658,28 @@ static PyObject *wd_readdata(PyObject *self, PyObject *args, PyObject *keywds) {
   //
   // Reading
   //
-	
+
   int len[2] = {
 		wd_atm::read_data<double, wd_atm::N_planck>(PyString_AsString(ofilename_planck), planck_table),
 		wd_atm::read_data<double, wd_atm::N_atm>(PyString_AsString(ofilename_atm), atm_table)
 	};
-	
+
   //
   // Checks
   //
   std::string err_msg;
-  
+
   if (len[0] < 0)
     err_msg = "\nProblem opening the planck file:"_s + PyString_AsString(ofilename_planck);
   else if (len[0] != wd_atm::N_planck)
     err_msg = "\nWrong size read, len= "_s + std::to_string(len[0]) + " len_expected="_s + std::to_string(wd_atm::N_planck);
-  
+
   if (len[1] < 0)
     err_msg += "\nProblem opening the atm file:"_s + PyString_AsString(ofilename_atm);
   else if (len[1] != wd_atm::N_atm)
     err_msg += "\nWrong size read, len= "_s + std::to_string(len[1]) + " len_expected="_s + std::to_string(wd_atm::N_atm);
- 
- 
+
+
   if (err_msg.size() != 0) {
     raise_exception(fname + "::Problem reading data." + err_msg);
     delete [] planck_table;
@@ -9716,7 +9723,7 @@ static PyObject *wd_readdata(PyObject *self, PyObject *args, PyObject *keywds) {
     y: float - Planck central intensity
 
 */
-static PyObject *wd_planckint(PyObject *self, PyObject *args, PyObject *keywds) {
+static PyObject *wd_planckint([[maybe_unused]] PyObject *self, PyObject *args, PyObject *keywds) {
 
   //
   // Reading arguments
@@ -9803,7 +9810,7 @@ static PyObject *wd_planckint(PyObject *self, PyObject *args, PyObject *keywds) 
     Note:
       In the case of errors in calculations ylog/entry in numpy array is NaN.
 */
-static PyObject *wd_planckint(PyObject *self, PyObject *args, PyObject *keywds) {
+static PyObject *wd_planckint([[maybe_unused]] PyObject *self, PyObject *args, PyObject *keywds) {
 
   auto fname = "wd_planckint"_s;
 
@@ -9935,7 +9942,7 @@ static PyObject *wd_planckint(PyObject *self, PyObject *args, PyObject *keywds) 
     xint - intensity
     abunin -  the allowed value nearest to the input value.
 */
-static PyObject *wd_atmint(PyObject *self, PyObject *args, PyObject *keywds) {
+static PyObject *wd_atmint([[maybe_unused]] PyObject *self, PyObject *args, PyObject *keywds) {
 
   //
   // Reading arguments
@@ -10034,7 +10041,7 @@ static PyObject *wd_atmint(PyObject *self, PyObject *args, PyObject *keywds) {
     xintlog - log of intensity
     abunin -  allowed value nearest to the input value.
 */
-static PyObject *wd_atmint(PyObject *self, PyObject *args, PyObject *keywds) {
+static PyObject *wd_atmint([[maybe_unused]] PyObject *self, PyObject *args, PyObject *keywds) {
 
   auto fname = "wd_atmint"_s;
 
@@ -10274,7 +10281,7 @@ static PyObject *wd_atmint(PyObject *self, PyObject *args, PyObject *keywds) {
     2-rank numpy array = MxNv array of interpolated values
 */
 
-static PyObject *interp(PyObject *self, PyObject *args, PyObject *keywds) {
+static PyObject *interp([[maybe_unused]] PyObject *self, PyObject *args, PyObject *keywds) {
     char *kwlist[] = {
         (char*)"req",
         (char*)"axes",
@@ -10414,7 +10421,7 @@ static PyObject *interp(PyObject *self, PyObject *args, PyObject *keywds) {
   Return:
     r: 1- rank numpy array
 */
-static PyObject *scalproj_cosangle(PyObject *self, PyObject *args) {
+static PyObject *scalproj_cosangle([[maybe_unused]] PyObject *self, PyObject *args) {
 
   auto fname = "vec_proj"_s;
 
@@ -10534,7 +10541,7 @@ static PyObject *scalproj_cosangle(PyObject *self, PyObject *args) {
 */
 
 
-static PyObject *roche_contact_partial_area_volume(PyObject *self, PyObject *args, PyObject *keywds) {
+static PyObject *roche_contact_partial_area_volume([[maybe_unused]] PyObject *self, PyObject *args, PyObject *keywds) {
 
   auto fname = "roche_contact_partial_area_volume"_s;
 
@@ -10775,7 +10782,7 @@ static PyObject *roche_contact_partial_area_volume(PyObject *self, PyObject *arg
 */
 
 
-static PyObject *roche_contact_neck_min(PyObject *self, PyObject *args, PyObject *keywds) {
+static PyObject *roche_contact_neck_min([[maybe_unused]] PyObject *self, PyObject *args, PyObject *keywds) {
 
   auto fname = "roche_contact_neck_min"_s;
 
@@ -10856,7 +10863,7 @@ static PyObject *roche_contact_neck_min(PyObject *self, PyObject *args, PyObject
       value of the Kopal potential for (q,F,d) at which the lobe has the given volume
 */
 
-static PyObject *roche_contact_Omega_at_partial_vol(PyObject *self, PyObject *args, PyObject *keywds) {
+static PyObject *roche_contact_Omega_at_partial_vol([[maybe_unused]] PyObject *self, PyObject *args, PyObject *keywds) {
 
   auto fname = "roche_contact_Omega_at_partial_vol"_s;
 
@@ -11162,7 +11169,7 @@ static PyObject *roche_contact_Omega_at_partial_vol(PyObject *self, PyObject *ar
     or
       2-rank numpy array : if lam and Teff are 1-rank numpy arrays
 */
-static PyObject *planck_function(PyObject *self, PyObject *args) {
+static PyObject *planck_function([[maybe_unused]] PyObject *self, PyObject *args) {
 
   const double A = 1.1910429526245747e-16; // = 2 h c^2 [m4 kg / s3];
   const double B = 0.014387773538277205;   // = hc/k [mK];
@@ -11275,7 +11282,7 @@ static PyObject *planck_function(PyObject *self, PyObject *args) {
     or
       2-rank numpy array: array of two values
 */
-static PyObject *CCM89_extinction(PyObject *self, PyObject *args) {
+static PyObject *CCM89_extinction([[maybe_unused]] PyObject *self, PyObject *args) {
 
   const char *fname = "CCM89_extinction";
 
@@ -11384,7 +11391,7 @@ static PyObject *CCM89_extinction(PyObject *self, PyObject *args) {
     or
       2-rank numpy array: array of two values
 */
-static PyObject *gordon_extinction(PyObject *self, PyObject *args) {
+static PyObject *gordon_extinction([[maybe_unused]] PyObject *self, PyObject *args) {
 
   const char *fname = "gordon_extinction";
 
@@ -11479,10 +11486,13 @@ static PyObject *gordon_extinction(PyObject *self, PyObject *args) {
   Ref:
   * https://docs.python.org/2.0/ext/parseTupleAndKeywords.html
 */
+
+#define O2F (PyCFunction)(void(*)(void))
+
 static PyMethodDef Methods[] = {
 
  { "roche_misaligned_transf",
-    roche_misaligned_transf,
+    O2F roche_misaligned_transf,
     METH_VARARGS,
     "Determine angle parameters of the misaligned Roche lobes from "
     "the spin angular velocity in the rotating binary system "},
@@ -11491,19 +11501,19 @@ static PyMethodDef Methods[] = {
 
 
   { "roche_critical_potential",
-    (PyCFunction)roche_critical_potential,
+    O2F roche_critical_potential,
     METH_VARARGS|METH_KEYWORDS,
     "Determine the critical potentials of Kopal potential for given "
     "values of q, F, and d."},
 
   { "rotstar_critical_potential",
-    rotstar_critical_potential,
+    O2F rotstar_critical_potential,
     METH_VARARGS,
     "Determine the critical potentials of the rotating star potental "
     "for given values of omega."},
 
   { "rotstar_misaligned_critical_potential",
-    rotstar_misaligned_critical_potential,
+    O2F rotstar_misaligned_critical_potential,
     METH_VARARGS,
     "Determine the critical potentials of the rotating star potental "
     "with misalignment for given values of omega and spin"},
@@ -11511,29 +11521,29 @@ static PyMethodDef Methods[] = {
 // --------------------------------------------------------------------
 
   { "roche_pole",
-    (PyCFunction)roche_pole,
+    O2F roche_pole,
     METH_VARARGS|METH_KEYWORDS,
     "Determine the height of the pole of generalized Roche lobes for given "
     "values of q, F, d and Omega0"},
 
   { "rotstar_pole",
-    (PyCFunction)rotstar_pole,
+    O2F rotstar_pole,
     METH_VARARGS|METH_KEYWORDS,
     "Determine the height of the pole of rotating star for given a omega."},
 
   { "rotstar_misaligned_pole",
-    (PyCFunction)rotstar_misaligned_pole,
+    O2F rotstar_misaligned_pole,
     METH_VARARGS|METH_KEYWORDS,
     "Determine the height of the pole of rotating star with misalignment "
     "for given a omega and spin."},
 
   { "sphere_pole",
-    (PyCFunction)sphere_pole,
+    O2F sphere_pole,
     METH_VARARGS|METH_KEYWORDS,
     "Determine the height of the pole of sphere for given a R."},
 
   { "roche_misaligned_pole",
-    (PyCFunction)roche_misaligned_pole,
+    O2F roche_misaligned_pole,
     METH_VARARGS|METH_KEYWORDS,
     "Determine the postion of the pole of generalized Roche lobes with "
     "misaligned angular spin-orbital angular velocity vectors for given "
@@ -11542,14 +11552,14 @@ static PyMethodDef Methods[] = {
 // --------------------------------------------------------------------
 
   {"roche_Omega_min",
-    (PyCFunction)roche_Omega_min,
+    O2F roche_Omega_min,
     METH_VARARGS|METH_KEYWORDS,
     "Determine the minimal posible value of the Kopal potential that"
     "permits existance of the compact Roche lobe for given "
     "values of q, F and d."},
 
   { "roche_misaligned_Omega_min",
-    (PyCFunction)roche_misaligned_Omega_min,
+    O2F roche_misaligned_Omega_min,
     METH_VARARGS|METH_KEYWORDS,
     "Determine the minimal posible value of the Kopal potential that"
     "permits existance of the compact Roche lobe for given "
@@ -11557,7 +11567,7 @@ static PyMethodDef Methods[] = {
 
 // --------------------------------------------------------------------
   { "roche_misaligned_critical_volume",
-    (PyCFunction)roche_misaligned_critical_volume,
+    O2F roche_misaligned_critical_volume,
     METH_VARARGS|METH_KEYWORDS,
     "Determine the volume of the semi-detached case of the misaligned "
     "Roche lobe for given values of q, F, F and misalignment (theta or "
@@ -11565,14 +11575,14 @@ static PyMethodDef Methods[] = {
 // --------------------------------------------------------------------
 
   { "rotstar_from_roche",
-    (PyCFunction)rotstar_from_roche,
+    O2F rotstar_from_roche,
     METH_VARARGS|METH_KEYWORDS,
     "Determine parameters of the rotating stars from parameters Roche "
     " by matching the poles"},
 
 
   { "rotstar_misaligned_from_roche_misaligned",
-    (PyCFunction)rotstar_misaligned_from_roche_misaligned,
+    O2F rotstar_misaligned_from_roche_misaligned,
     METH_VARARGS|METH_KEYWORDS,
     "Determine parameters of the rotating stars with misalignment from "
     "parameters Roche with misalignment by matching the poles."},
@@ -11580,30 +11590,30 @@ static PyMethodDef Methods[] = {
 // --------------------------------------------------------------------
 
   { "roche_area_volume",
-    (PyCFunction)roche_area_volume,
+    O2F roche_area_volume,
     METH_VARARGS|METH_KEYWORDS,
     "Determine the area and volume of the generalized Roche lobes for given "
     "values of q, F, d and Omega0."},
 
   { "rotstar_area_volume",
-    (PyCFunction)rotstar_area_volume,
+    O2F rotstar_area_volume,
     METH_VARARGS|METH_KEYWORDS,
     "Determine the area and volume of the rotating star for given a omega "
     "and Omega0"},
 
   { "rotstar_misaligned_area_volume",
-    (PyCFunction)rotstar_misaligned_area_volume,
+    O2F rotstar_misaligned_area_volume,
     METH_VARARGS|METH_KEYWORDS,
     "Determine the area and volume of the rotating star with misalignment "
     "for given a omega and Omega0"},
 
   { "sphere_area_volume",
-    (PyCFunction)sphere_area_volume,
+    O2F sphere_area_volume,
     METH_VARARGS|METH_KEYWORDS,
     "Determine the area and volume of the sphere for given a R."},
 
   { "roche_misaligned_area_volume",
-    (PyCFunction)roche_misaligned_area_volume,
+    O2F roche_misaligned_area_volume,
     METH_VARARGS|METH_KEYWORDS,
     "Determine the area and volume of the generalized Roche lobes with "
     "misaligned spin and orbtal angular velocity vectors for given "
@@ -11612,25 +11622,25 @@ static PyMethodDef Methods[] = {
 // --------------------------------------------------------------------
 
   { "roche_Omega_at_vol",
-    (PyCFunction)roche_Omega_at_vol,
+    O2F roche_Omega_at_vol,
     METH_VARARGS|METH_KEYWORDS,
     "Determine the value of the generalized Kopal potential at "
     "values of q, F, d and volume."},
 
   { "rotstar_Omega_at_vol",
-    (PyCFunction)rotstar_Omega_at_vol,
+    O2F rotstar_Omega_at_vol,
     METH_VARARGS|METH_KEYWORDS,
     "Determine the value of the rotating star potential at "
     "values of omega and volume."},
 
    { "rotstar_misaligned_Omega_at_vol",
-    (PyCFunction)rotstar_misaligned_Omega_at_vol,
+    O2F rotstar_misaligned_Omega_at_vol,
     METH_VARARGS|METH_KEYWORDS,
     "Determine the value of the rotating star potential with misalignment at "
     "values of omega and volume."},
 
    { "roche_misaligned_Omega_at_vol",
-    (PyCFunction)roche_misaligned_Omega_at_vol,
+    O2F roche_misaligned_Omega_at_vol,
     METH_VARARGS|METH_KEYWORDS,
     "Determine the value of the generalized Kopal potential of "
     "Roche lobes with with misaligned spin and orbtal angular "
@@ -11638,39 +11648,39 @@ static PyMethodDef Methods[] = {
     "and volume."},
 
   { "sphere_Omega_at_vol",
-    (PyCFunction)sphere_Omega_at_vol,
+    O2F sphere_Omega_at_vol,
     METH_VARARGS|METH_KEYWORDS,
     "Determine the value of the spherical star potential at given volume."},
 
 // --------------------------------------------------------------------
 
   { "roche_gradOmega",
-    roche_gradOmega,
+    O2F roche_gradOmega,
     METH_VARARGS,
     "Calculate the gradient and the value of the generalized Kopal potentil"
     " at given point [x,y,z] for given values of q, F and d."},
 
   { "rotstar_gradOmega",
-    rotstar_gradOmega,
+    O2F rotstar_gradOmega,
     METH_VARARGS,
     "Calculate the gradient and the value of the rotating star potential"
     " at given point [x,y,z] for given values of omega."},
 
   { "rotstar_misaligned_gradOmega",
-    rotstar_misaligned_gradOmega,
+    O2F rotstar_misaligned_gradOmega,
     METH_VARARGS,
     "Calculate the gradient and the value of the rotating star potential "
     "with misalignment at given point [x,y,z] for given values of omega "
     "and spin."},
 
   { "sphere_gradOmega",
-    sphere_gradOmega,
+    O2F sphere_gradOmega,
     METH_VARARGS,
     "Calculate the gradient of the potential of the sphere"
     " at given point [x,y,z]."},
 
   { "roche_misaligned_gradOmega",
-    roche_misaligned_gradOmega,
+    O2F roche_misaligned_gradOmega,
     METH_VARARGS,
     "Calculate the gradient of the generalized Kopal potential with "
     " misaligned angular momenta at given point [x,y,z] for given "
@@ -11747,34 +11757,34 @@ static PyMethodDef Methods[] = {
 // --------------------------------------------------------------------
 
   { "roche_marching_mesh",
-    (PyCFunction)roche_marching_mesh,
+    O2F roche_marching_mesh,
     METH_VARARGS|METH_KEYWORDS,
     "Determine the triangular meshing of generalized Roche lobes for "
     "given values of q, F, d and value of the generalized Kopal potential "
     "Omega0. The edge of triangles used in the mesh are approximately delta."},
 
   { "rotstar_marching_mesh",
-    (PyCFunction)rotstar_marching_mesh,
+    O2F rotstar_marching_mesh,
     METH_VARARGS|METH_KEYWORDS,
     "Determine the triangular meshing of a rotating star for given "
     "values of omega and value of the star potential Omega. The edge "
     "of triangles used in the mesh are approximately delta."},
 
   { "rotstar_misaligned_marching_mesh",
-    (PyCFunction)rotstar_misaligned_marching_mesh,
+    O2F rotstar_misaligned_marching_mesh,
     METH_VARARGS|METH_KEYWORDS,
     "Determine the triangular meshing of a rotating star with misalignment "
     "for given values of omega, spin and value of the star potential Omega."
     "The edge of triangles used in the mesh are approximately delta."},
 
   { "sphere_marching_mesh",
-    (PyCFunction)sphere_marching_mesh,
+    O2F sphere_marching_mesh,
     METH_VARARGS|METH_KEYWORDS,
     "Determine the triangular meshing of a sphere for given radius R."
     "The edge of triangles used in the mesh are approximately delta."},
 
   { "roche_misaligned_marching_mesh",
-    (PyCFunction)roche_misaligned_marching_mesh,
+    O2F roche_misaligned_marching_mesh,
     METH_VARARGS|METH_KEYWORDS,
     "Determine the triangular meshing of generalized Roche lobes with "
     "misaligned spin and orbital angular velocity vectors for "
@@ -11785,7 +11795,7 @@ static PyMethodDef Methods[] = {
 // --------------------------------------------------------------------
 
   { "mesh_visibility",
-    (PyCFunction)mesh_visibility,
+    O2F mesh_visibility,
     METH_VARARGS|METH_KEYWORDS,
     "Determine the ratio of triangle surfaces that are visible "
     "in a triangular mesh."},
@@ -11797,54 +11807,54 @@ static PyMethodDef Methods[] = {
     "partially hidden and visible"},
 
   { "mesh_offseting",
-    (PyCFunction)mesh_offseting,
+    O2F mesh_offseting,
     METH_VARARGS|METH_KEYWORDS,
     "Offset the mesh along the normals in vertices to match the "
     "area with reference area."},
 
   { "mesh_properties",
-    (PyCFunction)mesh_properties,
+    O2F mesh_properties,
     METH_VARARGS|METH_KEYWORDS,
     "Calculate the properties of the triangular mesh."},
 
   { "mesh_export_povray",
-    (PyCFunction)mesh_export_povray,
+    O2F mesh_export_povray,
     METH_VARARGS|METH_KEYWORDS,
     "Exporting triangular mesh into a Pov-Ray file."},
 
   { "mesh_radiosity_problem",
-    (PyCFunction)mesh_radiosity_problem,
+    O2F mesh_radiosity_problem,
     METH_VARARGS|METH_KEYWORDS,
     "Solving the radiosity problem with limb darkening using "
     "a chosen reflection model."},
 
   { "mesh_radiosity_problem_nbody_convex",
-    (PyCFunction)mesh_radiosity_problem_nbody_convex,
+    O2F mesh_radiosity_problem_nbody_convex,
     METH_VARARGS|METH_KEYWORDS,
     "Solving the radiosity problem with limb darkening for n separate "
     "convex bodies using chosen reflection model."},
 
    { "mesh_radiosity_redistrib_problem_nbody_convex",
-    (PyCFunction)mesh_radiosity_redistrib_problem_nbody_convex,
+    O2F mesh_radiosity_redistrib_problem_nbody_convex,
     METH_VARARGS|METH_KEYWORDS,
     "Solving the radiosity redistribution problem with limb darkening "
     "for n separate convex bodies using chosen reflection model."},
 
    { "mesh_radiosity_redistrib_problem_nbody_convex_setup",
-    (PyCFunction)mesh_radiosity_redistrib_problem_nbody_convex_setup,
+    O2F mesh_radiosity_redistrib_problem_nbody_convex_setup,
     METH_VARARGS|METH_KEYWORDS,
     "Background setup of radiosity redistribution problem with limb "
     "darkening for n separate convex bodies using chosen reflection model."},
 
 { "radiosity_redistrib_1dmodel",
-    (PyCFunction)radiosity_redistrib_1dmodel,
+    O2F radiosity_redistrib_1dmodel,
     METH_VARARGS|METH_KEYWORDS,
     "Calculating a rough approximate of the surface average updated-exitance "
     "and radiosity for both bodies of a binary system composed of two spheres."},
 // --------------------------------------------------------------------
 
   { "roche_reprojecting_vertices",
-    (PyCFunction)roche_reprojecting_vertices,
+    O2F roche_reprojecting_vertices,
     METH_VARARGS|METH_KEYWORDS,
     "Reprojecting vertices onto the Roche lobe defined by q,F,d, and the value of"
     " generalized Kopal potential Omega."},
@@ -11852,33 +11862,33 @@ static PyMethodDef Methods[] = {
 // --------------------------------------------------------------------
 
   { "roche_central_points",
-    (PyCFunction)roche_central_points,
+    O2F roche_central_points,
     METH_VARARGS|METH_KEYWORDS,
     "Determining the central points of triangular mesh on the Roche lobe"
     " defined by q,F,d, and the value of generalized Kopal potential Omega."},
 
 // --------------------------------------------------------------------
   { "roche_horizon",
-    (PyCFunction)roche_horizon,
+    O2F roche_horizon,
     METH_VARARGS|METH_KEYWORDS,
     "Calculating the horizon on the Roche lobe defined by view direction,"
     "q,F,d, and the value of generalized Kopal potential Omega."},
 
 
   { "rotstar_horizon",
-    (PyCFunction)rotstar_horizon,
+    O2F rotstar_horizon,
     METH_VARARGS|METH_KEYWORDS,
     "Calculating the horizon on the rotating star defined by view direction,"
     "omega, and the value of the potential"},
 
     { "rotstar_misaligned_horizon",
-    (PyCFunction)rotstar_misaligned_horizon,
+    O2F rotstar_misaligned_horizon,
     METH_VARARGS|METH_KEYWORDS,
     "Calculating the horizon on the rotating star with misalignment "
     "defined by view direction, omega, spin and the value of the potential"},
 
   { "roche_misaligned_horizon",
-    (PyCFunction)roche_misaligned_horizon,
+    O2F roche_misaligned_horizon,
     METH_VARARGS|METH_KEYWORDS,
     "Calculating the horizon on the Roche lobe with misaligned spin and orbital "
     "angular velocity vectors defined by the view direction,"
@@ -11886,61 +11896,61 @@ static PyMethodDef Methods[] = {
 
 // --------------------------------------------------------------------
   { "roche_xrange",
-    (PyCFunction)roche_xrange,
+    O2F roche_xrange,
     METH_VARARGS|METH_KEYWORDS,
     "Calculating the range of the Roche lobes on x-axis at given"
     "q, F, d, and the value of generalized Kopal potential Omega."},
 
 // --------------------------------------------------------------------
   { "roche_square_grid",
-    (PyCFunction)roche_square_grid,
+    O2F roche_square_grid,
     METH_VARARGS|METH_KEYWORDS,
     "Calculating the square grid of the interior of the Roche lobes at given"
     "q, F, d, and the value of generalized Kopal potential Omega."},
 // --------------------------------------------------------------------
 
   { "ld_D",
-    (PyCFunction)ld_D,
+    O2F ld_D,
     METH_VARARGS|METH_KEYWORDS,
     "Calculating the value of the limb darkening function."},
 
   { "ld_D0",
-    (PyCFunction)ld_D0,
+    O2F ld_D0,
     METH_VARARGS|METH_KEYWORDS,
     "Calculating the integrated limb darkening function."},
 
   { "ld_gradparD",
-    (PyCFunction)ld_gradparD,
+    O2F ld_gradparD,
     METH_VARARGS|METH_KEYWORDS,
     "Calculating the gradient of the limb darkening function w.r.t. "
     "parameters."},
 
   { "ld_nrpar",
-    (PyCFunction)ld_nrpar,
+    O2F ld_nrpar,
     METH_VARARGS|METH_KEYWORDS,
     "Returns the number of required parameters."},
 
   { "ld_check",
-    (PyCFunction)ld_check,
+    O2F ld_check,
     METH_VARARGS|METH_KEYWORDS,
     "Checking parameters if resulting D(mu) is in the range [0,1] for all mu."},
 
 // --------------------------------------------------------------------
 
     { "wd_readdata",
-    (PyCFunction)wd_readdata,
+    O2F wd_readdata,
     METH_VARARGS|METH_KEYWORDS,
     "Reading the file with WD coefficients."},
 
 
   { "wd_planckint",
-    (PyCFunction)wd_planckint,
+    O2F wd_planckint,
     METH_VARARGS|METH_KEYWORDS,
     "Calculating Planck central intensity at given temperatures,"
     "filter index and array of coefficients"},
 
   { "wd_atmint",
-    (PyCFunction)wd_atmint,
+    O2F wd_atmint,
     METH_VARARGS|METH_KEYWORDS,
     "Calculating intensity for a given atmospheres at given temperatures,"
     "filter index and array of coefficients"},
@@ -11948,33 +11958,33 @@ static PyMethodDef Methods[] = {
 // --------------------------------------------------------------------
 
   {"interp",
-    (PyCFunction)interp,
+    O2F interp,
     METH_VARARGS|METH_KEYWORDS,
     "Multi-dimensional linear interpolation of arrays with gridded data."},
 
 // --------------------------------------------------------------------
 
   {"scalproj_cosangle",
-    scalproj_cosangle,
+    O2F scalproj_cosangle,
     METH_VARARGS,
     "Calculate normalized projections of vectors."},
 
 // --------------------------------------------------------------------
 
   {"roche_contact_partial_area_volume",
-    (PyCFunction)roche_contact_partial_area_volume,
+    O2F roche_contact_partial_area_volume,
     METH_VARARGS|METH_KEYWORDS,
     "Determine the area, volume and dvolume/dOmega of the Roche contact lobe"
     "at given mass ratio q, separation d and and Omega0"},
 
   {"roche_contact_neck_min",
-    (PyCFunction)roche_contact_neck_min,
+    O2F roche_contact_neck_min,
     METH_VARARGS|METH_KEYWORDS,
     "Determine the minimal distance and position from x axis of the neck "
     "of the Roche contact lobe at given mass ratio q, separation d and Omega0"},
 
    {"roche_contact_Omega_at_partial_vol",
-    (PyCFunction)roche_contact_Omega_at_partial_vol,
+    O2F roche_contact_Omega_at_partial_vol,
     METH_VARARGS|METH_KEYWORDS,
     "Determine the value of the potential at a partial volume for the contact "
     "Roche lobe at given mass ratio q and separation d."},
@@ -11983,18 +11993,18 @@ static PyMethodDef Methods[] = {
 
 
  {"planck_function",
-  planck_function,
+  O2F planck_function,
   METH_VARARGS,
   "Calculate monochromatic blackbody intensity at a given wavelength and "
   "temperature."},
 
    {"CCM89_extinction",
-  CCM89_extinction,
+  O2F CCM89_extinction,
   METH_VARARGS,
   "Calculate CCM89 extinction coefficients for a given wavelength"},
 
   {"gordon_extinction",
-  gordon_extinction,
+  O2F gordon_extinction,
   METH_VARARGS,
   "Calculate Gordon et al. (2009, UV) and CCM89 (OPT-IR) extinction coefficients for a given wavelength"},
 
@@ -12002,7 +12012,7 @@ static PyMethodDef Methods[] = {
 // --------------------------------------------------------------------
 
   {"setup_verbosity",
-    (PyCFunction)setup_verbosity,
+    O2F setup_verbosity,
     METH_VARARGS|METH_KEYWORDS,
     "Setting the verbosity of libphoebe"},
 
