@@ -15,8 +15,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.7", "3.8", "3.9", "3.10", "3.11"]
-        os: [ubuntu-latest, macos-latest]  # https://docs.github.com/en/actions/using-github-hosted-runners/about-github-hosted-runners
+        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
+        os: [ubuntu-22.04, macos-13, macos-14]  # https://docs.github.com/en/actions/using-github-hosted-runners/about-github-hosted-runners
         toolchain:
             - {compiler: gcc, version: 13}  # https://github.com/fortran-lang/setup-fortran
 
@@ -51,24 +51,6 @@ jobs:
       run: |
         python -m pip install pipdeptree
         pipdeptree
-
-    - name: Checkout photodynam
-      uses: actions/checkout@v4
-      with:
-        repository: phoebe-project/photodynam
-        path: photodynam
-
-    - name: Install photodynam
-      run: |
-        cd photodynam
-        make
-        sudo cp photodynam /usr/local/bin/
-        python setup.py build && python3 setup.py install --user
-        cd ..
-
-    - name: Test photodynam install
-      run: |
-        python -c "import photodynam"
 
     - name: Setup GNU Fortran
       id: setup-fortran

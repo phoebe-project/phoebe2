@@ -1,14 +1,14 @@
 #CXX=icpc
 CXX=g++
 #CXX=clang++
-CXXFLAGS=-O3 -Wall -std=c++11
+CXXFLAGS=-O3 -Wall -Wextra
 
 ifdef PYTHON
 CXXFLAGS+=$(shell $(PYTHON)-config --includes)
 LDFLAGS+=$(shell $(PYTHON)-config --ldflags)
 else
-CXXFLAGS+=$(shell python-config --includes)
-LDFLAGS+=$(shell python-config --ldflags)
+CXXFLAGS+=$(shell python3-config --includes)
+LDFLAGS+=$(shell python3-config --ldflags)
 endif
 
 LIBP=libphoebe
