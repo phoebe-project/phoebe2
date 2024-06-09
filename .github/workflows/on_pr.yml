@@ -61,14 +61,7 @@ jobs:
     - name: Install photodynam
       run: |
         cd photodynam
-        make
-        sudo cp photodynam /usr/local/bin/
-        python setup.py build && python3 setup.py install --user
-        cd ..
-
-    - name: Test photodynam install
-      run: |
-        python -c "import photodynam"
+        pip install .
 
     - name: Setup GNU Fortran
       id: setup-fortran
