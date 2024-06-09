@@ -2173,20 +2173,6 @@ null,
 "Class": "ChoiceParameter"
 },
 {
-"qualifier": "boosting_method",
-"compute": "phoebe01",
-"kind": "phoebe",
-"context": "compute",
-"description": "Type of boosting method",
-"choices": [
-"none"
-],
-"value": "none",
-"copy_for": false,
-"advanced": true,
-"Class": "ChoiceParameter"
-},
-{
 "qualifier": "mesh_method",
 "component": "_default",
 "compute": "phoebe01",
@@ -2291,8 +2277,8 @@ null
 "description": "Atmosphere table",
 "choices": [
 "extern_atmx",
-"blackbody",
 "extern_planckint",
+"blackbody",
 "phoenix",
 "ck2004"
 ],
@@ -2527,8 +2513,8 @@ null
 "description": "Atmosphere table",
 "choices": [
 "extern_atmx",
-"blackbody",
 "extern_planckint",
+"blackbody",
 "phoenix",
 "ck2004"
 ],
@@ -2545,8 +2531,8 @@ null
 "description": "Atmosphere table",
 "choices": [
 "extern_atmx",
-"blackbody",
 "extern_planckint",
+"blackbody",
 "phoenix",
 "ck2004"
 ],
@@ -2754,7 +2740,7 @@ null
 "qualifier": "phoebe_version",
 "context": "setting",
 "description": "Version of PHOEBE",
-"value": "2.4.6",
+"value": "2.4.10",
 "copy_for": false,
 "readonly": true,
 "advanced": true,

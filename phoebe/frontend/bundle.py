@@ -642,7 +642,7 @@ class Bundle(ParameterSet):
             conf._interactive_checks = False
 
         if phoebe_version_import < parse("2.1.0"):
-            logger.warning("importing from an older version ({}) of PHOEBE into version {}".format(phoebe_version_import, phoebe_version_this))
+            logger.warning("importing from an older version ({}) of PHOEBE to PHOEBE 2.1+".format(phoebe_version_import))
 
             # rpole -> requiv: https://github.com/phoebe-project/phoebe2/pull/300
             dict_stars = {}
@@ -734,7 +734,7 @@ class Bundle(ParameterSet):
             logger.warning(warning)
 
         if phoebe_version_import < parse("2.2.0"):
-            warning = "importing from an older version ({}) of PHOEBE to PHOEBE 2.2.  Previous versions did not support compute_times, ld_mode/ld_coeffs_source, pblum_mode, l3_mode, etc... all datasets will be migrated to include all new options.  This may take some time.  Please check all values.".format(phoebe_version_import)
+            warning = "importing from an older version ({}) of PHOEBE to PHOEBE 2.2+.  Previous versions did not support compute_times, ld_mode/ld_coeffs_source, pblum_mode, l3_mode, etc... all datasets will be migrated to include all new options.  This may take some time.  Please check all values.".format(phoebe_version_import)
             # print("WARNING: {}".format(warning))
             logger.warning(warning)
 
@@ -839,7 +839,7 @@ class Bundle(ParameterSet):
             b._attach_params(ps_model, context='model')
 
         if phoebe_version_import < parse("2.3.0"):
-            warning = "importing from an older version ({}) of PHOEBE to PHOEBE 2.3.  The previous versions did not support sample_from, etc... all compute options will be migrated to include all new options.  Additionally, extinction parameters will be moved from the dataset to system context.  This may take some time.  Please check all values.".format(phoebe_version_import)
+            warning = "importing from an older version ({}) of PHOEBE to PHOEBE 2.3+.  The previous versions did not support sample_from, etc... all compute options will be migrated to include all new options.  Additionally, extinction parameters will be moved from the dataset to system context.  This may take some time.  Please check all values.".format(phoebe_version_import)
             logger.warning(warning)
 
             b.remove_parameters_all(qualifier='log_history', **_skip_filter_checks)
@@ -916,8 +916,8 @@ class Bundle(ParameterSet):
             # call set_hierarchy to force mass constraints to be rebuilt
             b.set_hierarchy()
 
-        if phoebe_version_import < parse("2.4.0") or ".dev" in version:
-            warning = "importing from an older version ({}) of PHOEBE to PHOEBE 2.4.  This may take some time.  Please check all values.".format(phoebe_version_import)
+        if phoebe_version_import < parse("2.4.0"):
+            warning = "importing from an older version ({}) of PHOEBE to PHOEBE 2.4+.  This may take some time.  Please check all values.".format(phoebe_version_import)
             logger.warning(warning)
 
             existing_values_settings = {p.qualifier: p.get_value() for p in b.filter(context='setting').to_list()}
@@ -993,6 +993,17 @@ class Bundle(ParameterSet):
                 if solved_for.qualifier != constraint.constraint_func:
                     new_constraint_ps.get_parameter().flip_for(solved_for.twig)
 
+        if phoebe_version_import < parse("2.5.0") or ".dev" in version:
+            warning = "importing from an older version ({}) of PHOEBE to PHOEBE 2.5+.  This may take some time.  Please check all values.".format(phoebe_version_import)
+            logger.warning(warning)
+            # update all datasets to get boosting_method/index parameters
+            for dataset in b.filter(qualifier='passband', context='dataset', **_skip_filter_checks).datasets:
+                logger.info("attempting to update dataset='{}' to new version requirements".format(dataset))
+                ps_ds = b.filter(context='dataset', dataset=dataset, **_skip_filter_checks)
+                ds_kind = ps_ds.kind
+                dict_ds = _ps_dict(ps_ds, include_constrained=False)
+                b.remove_dataset(dataset, context=['dataset', 'constraint'])
+                b.add_dataset(ds_kind, dataset=dataset, check_label=False, **dict_ds)
 
         if conf_interactive_checks:
             logger.debug("re-enabling interactive_checks")
@@ -4248,9 +4259,9 @@ class Bundle(ParameterSet):
 
             # 2.2 disables support for boosting.  The boosting parameter in 2.2 only has 'none' as an option, but
             # importing a bundle from old releases may still have 'linear' as an option, so we'll check here
-            if compute_kind in ['phoebe'] and self.get_value(qualifier='boosting_method', compute=compute, boosting_method=kwargs.get('boosting_method', None), **_skip_filter_checks) != 'none':
+            if compute_kind in ['phoebe'] and self.get_value(qualifier='boosting_method', compute=compute, boosting_method=kwargs.get('boosting_method', None), default='none', **_skip_filter_checks) != 'none':
                 report.add_item(self,
-                                "support for beaming/boosting has been removed from PHOEBE 2.2.  Set boosting_method to 'none'.",
+                                "support for interpolated ('linear') beaming/boosting in compute options has been removed since PHOEBE 2.2.  'manual' boosting is now supported in the dataset options instead.",
                                 [self.get_parameter(qualifier='boosting_method', compute=compute, boosting_method=kwargs.get('boosting_method', None), **_skip_filter_checks)
                                 ]+addl_parameters,
                                 True, 'run_compute')
@@ -4787,7 +4798,7 @@ class Bundle(ParameterSet):
                     report.add_item(self,
                                     "sampling with dataset-scaled can cause unintended issues.  Consider using component-coupled and marginalizing over pblum",
                                     offending_parameters.to_list()+
-                                    [solver_ps.get_parameter(qualifier='priors' if solver in ['dynesty'] else 'init_from', **_skip_filter_checks)]+
+                                    [solver_ps.get_parameter(qualifier='priors' if solver_kind in ['dynesty'] else 'init_from', **_skip_filter_checks)]+
                                     addl_parameters,
                                     False, 'run_solver')
 
@@ -6975,7 +6986,7 @@ class Bundle(ParameterSet):
                     components_ = None
                 elif k in ['compute_phases']:
                     components_ = self.hierarchy.get_top()
-                elif k in ['pblum']:
+                elif k in ['pblum', 'boosting_method', 'boosting_index']:
                     check_visible = True
 
                     components_ = self.hierarchy.get_stars()+['_default']
@@ -6991,6 +7002,7 @@ class Bundle(ParameterSet):
                     self.set_value_all(qualifier=k,
                                        dataset=kwargs['dataset'],
                                        component=components_,
+                                       context='dataset',
                                        value=v,
                                        check_visible=check_visible,
                                        ignore_none=True)
@@ -10293,6 +10305,8 @@ class Bundle(ParameterSet):
             raise TypeError("compute must be a single value (string)")
 
         datasets = kwargs.pop('dataset') if 'dataset' in kwargs else self._datasets_where(compute=compute, mesh_needed=True)
+        if isinstance(datasets, str):
+            datasets = [datasets]
 
         # we'll add 'bol' to the list of default datasets... but only if bolometric is needed for irradiation
         compute_ps = self.get_compute(compute, **_skip_filter_checks)
@@ -12175,7 +12189,7 @@ class Bundle(ParameterSet):
                             continue
 
                         fluxes = flux_param.get_value(unit=u.W/u.m**2)
-                        fluxes = fluxes/distance**2 + l3s.get(dataset)
+                        fluxes = fluxes/distance**2 + l3s.get(dataset, 0.0)
 
                         flux_param.set_value(fluxes, ignore_readonly=True)
 
