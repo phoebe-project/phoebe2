@@ -14,6 +14,15 @@
 
 #include "sincos.h"
 
+// macro to make aliases of functions
+// usage: ALIAS_TEMPLATE_FUNCTION(fun_alias, fun)
+#define ALIAS_TEMPLATE_FUNCTION(highLevelF, lowLevelF) \
+template<typename... Args> \
+inline auto highLevelF(Args&&... args) -> decltype(lowLevelF(std::forward<Args>(args)...)) \
+{ \
+    return lowLevelF(std::forward<Args>(args)...); \
+}
+
 namespace utils {
 
   const double m_pi = 3.14159265358979323846264338327950419984;  // pi
@@ -27,31 +36,31 @@ namespace utils {
 
   template<class T>
   constexpr T pi() {return T(3.14159265358979323846264338327950419984L);};
-  
+
   /*
     Approximation formula for ArcCos
-    
+
     Input:
       x in [-1,1]
     Return:
       arccos(x) in [0,pi]
-      
-    Ref: 
-      p.81 Handbook of Mathematical Functions, by M. Abramowitz and I. Stegun 
-  */ 
+
+    Ref:
+      p.81 Handbook of Mathematical Functions, by M. Abramowitz and I. Stegun
+  */
   float __acosf(const float & x) {
-    
+
     if (x ==  0) return 1.57079632679489;
     if (x >=  1) return 0;
     if (x <= -1) return 3.14159265358979;
-    
-    float 
+
+    float
       t = std::abs(x),
       s = std::sqrt(1-t)*(1.5707288 + t*(-0.2121144 + (0.074261 - 0.0187293*t)*t));
-    
+
     return (x > 0 ? s : 3.14159265358979 - s);
   }
-  
+
   /*
     Return square of the value.
 
@@ -310,7 +319,6 @@ namespace utils {
     // do Kahan's compensation
     return x[0]*x[0] + x[1]*x[1] + x[2]*x[2];
   }
-
 
   /*
     Calculate L2 norm of 3D vector

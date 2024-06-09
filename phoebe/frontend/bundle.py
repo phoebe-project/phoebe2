@@ -4787,7 +4787,7 @@ class Bundle(ParameterSet):
                     report.add_item(self,
                                     "sampling with dataset-scaled can cause unintended issues.  Consider using component-coupled and marginalizing over pblum",
                                     offending_parameters.to_list()+
-                                    [solver_ps.get_parameter(qualifier='priors' if solver in ['dynesty'] else 'init_from', **_skip_filter_checks)]+
+                                    [solver_ps.get_parameter(qualifier='priors' if solver_kind in ['dynesty'] else 'init_from', **_skip_filter_checks)]+
                                     addl_parameters,
                                     False, 'run_solver')
 
@@ -10257,6 +10257,8 @@ class Bundle(ParameterSet):
             raise TypeError("compute must be a single value (string)")
 
         datasets = kwargs.pop('dataset') if 'dataset' in kwargs else self._datasets_where(compute=compute, mesh_needed=True)
+        if isinstance(datasets, str):
+            datasets = [datasets]
 
         # we'll add 'bol' to the list of default datasets... but only if bolometric is needed for irradiation
         compute_ps = self.get_compute(compute, **_skip_filter_checks)
@@ -12139,7 +12141,7 @@ class Bundle(ParameterSet):
                             continue
 
                         fluxes = flux_param.get_value(unit=u.W/u.m**2)
-                        fluxes = fluxes/distance**2 + l3s.get(dataset)
+                        fluxes = fluxes/distance**2 + l3s.get(dataset, 0.0)
 
                         flux_param.set_value(fluxes, ignore_readonly=True)
 

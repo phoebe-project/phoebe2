@@ -130,7 +130,7 @@ struct Tsphere {
         ret[3] = potential-value
 
   */
-  void grad(T r[3], T ret[4], const bool & precision = false){
+  void grad(T r[3], T ret[4], [[maybe_unused]] const bool & precision = false){
 
     for (int i = 0; i < 3; ++i) ret[i] = 2*r[i];
 
@@ -138,7 +138,7 @@ struct Tsphere {
   }
 
 
-  void grad_only(T r[3], T ret[3], const bool & precision = false){
+  void grad_only(T r[3], T ret[3], [[maybe_unused]] const bool & precision = false){
 
     for (int i = 0; i < 3; ++i) ret[i] = 2*r[i];
 
@@ -1020,7 +1020,7 @@ struct Tmisaligned_roche {
   */
 
   Tmisaligned_roche(T *params) {
-   
+
     q = params[0];
     F = params[1];
     delta = params[2];

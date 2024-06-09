@@ -17,7 +17,7 @@ Available environment variables:
 
 """
 
-__version__ = '2.4.13'
+__version__ = '2.4.14'
 
 import os as _os
 import sys as _sys
@@ -162,7 +162,7 @@ class MPI(object):
             self.nprocs = nprocs
 
     def off(self):
-        if self.within_mpirun and self.myrank == 0:
+        if self.within_mpirun and self.enabled and self.myrank == 0:
             self.comm.bcast({'worker_command': 'release'}, root=0)
 
         self._enabled = False
