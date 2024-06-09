@@ -243,14 +243,14 @@ class Tredistribution{
 
   /*
     Calculating weighted redistribution matrix for local redistribution
-    
+
     Input:
-      thresh - threshold value                                   
+      thresh - threshold value
       weight - weight of the redistribution matrix
       P - points
       A - areas
       TS - redistribution matrix
-  
+
     Output:
       TS - redistribution matrix
   */
@@ -264,52 +264,52 @@ class Tredistribution{
   ){
 
     int i, j, N = P.size();
-    
+
     std::vector<std::vector<std::pair<int,T>>> D(N);
 
     if (thresh == 0) {
-      
+
       for (i = 0; i < N; ++i) D[i].emplace_back(i, weight);
-      
+
     } else {
-        
+
       std::vector<T> S(N, 0);
-     
+
       T t, t0 = F()(0.0, thresh), *v, a;
-      
+
       // make an estimate how much space we need
       j = (N*utils::sqr(thresh))/4;
       for (i = 0; i < N; ++i) D[i].reserve(j);
-      
+
       // generate weighted connection matrix and sums of rows
       for (i = 0; i < N; ++i) {
         a = A[i];
         v = P[i].data;
 
         for (j = 0; j < i; ++j) {
-          
+
           t = F()(utils::__acosf(utils::dot3D(v, P[j].data)), thresh);
 
           if (t) {
             S[i] += t*A[j];
             D[i].emplace_back(j, t);
-            S[j] += t*a; 
+            S[j] += t*a;
             D[j].emplace_back(i, t);
           }
         }
-        
-        S[i] += t0*a;   
+
+        S[i] += t0*a;
         D[i].emplace_back(i, t0);
       }
-      
+
       //
       // Calculating redistribution matrix
       //
       for (i = 0; i < N; ++i) S[i] = weight*A[i]/S[i];
       for (auto && row : D)
-        for (auto && e : row) e.second *= S[e.first]; 
+        for (auto && e : row) e.second *= S[e.first];
     }
-    
+
     //
     // Adding matrix D to  matrix TS
     //
@@ -317,16 +317,16 @@ class Tredistribution{
       TS = D;
     } else {
       auto out = TS.begin();
-      for (auto && c : D) add_identical(*(out++), c); 
+      for (auto && c : D) add_identical(*(out++), c);
     }
   }
 
 
   /*
     Calculating redistribution matrix for horizontal redistribution
-    
+
     Input:
-      thresh - threshold value  
+      thresh - threshold value
       weight - weight of the redistribution matrix
       o - direction (unit vector)
       P - points
@@ -335,7 +335,7 @@ class Tredistribution{
     Output:
       TS - redistribution matrix
   */
-  
+
   template <class F>
   void calc_horiz_redistr_matrix(
     const T & thresh,                                     // input
@@ -351,61 +351,61 @@ class Tredistribution{
     std::vector<std::vector<std::pair<int,T>>> D(N);
 
     if (thresh == 0) {
-      
+
       for (i = 0; i < N; ++i) D[i].emplace_back(i, weight);
-      
+
     } else {
-      
-      T t, t0 = F()(0.0, thresh), 
+
+      T t, t0 = F()(0.0, thresh),
         c1, s1, c2, s2, a,
         *p = new T [2*N], *p1, *p2;
-      
+
       for (i = 0, p1 = p; i < N; ++i){
         *(p1++) = t = utils::dot3D(P[i].data, o);
         *(p1++) = std::sqrt(1 - t*t);
       }
-      
+
       std::vector<T> S(N, 0);
-      
+
       // make an estimate how much space we need
       j = (2*N*thresh)/utils::pi<T>();
       for (i = 0; i < N; ++i) D[i].reserve(j);
-      
+
       // generate weighted connection matrix and sums of rows
       for (i = 0, p1 = p; i < N; ++i) {
-        a = A[i];  
+        a = A[i];
         c1 = *(p1++);
         s1 = *(p1++);
-          
+
         for (j = 0, p2 = p; j < i; ++j) {
 
           c2 = *(p2++);
           s2 = *(p2++);
-          
+
           t = F()(utils::__acosf(s1*s2 + c1*c2), thresh);
 
           if (t) {
             S[i] += t*A[j];
             D[i].emplace_back(j, t);
-            S[j] += t*a; 
+            S[j] += t*a;
             D[j].emplace_back(i, t);
           }
         }
-        
-        S[i] += t0*a;   
+
+        S[i] += t0*a;
         D[i].emplace_back(i, t0);
       }
-      
+
       delete [] p;
-      
+
       //
       // Calculating redistribution matrix
       //
       for (i = 0; i < N; ++i) S[i] = weight*A[i]/S[i];
       for (auto && row : D)
-        for (auto && e : row) e.second *= S[e.first]; 
+        for (auto && e : row) e.second *= S[e.first];
     }
-    
+
     //
     // Adding matrix D to  matrix TS
     //
@@ -413,7 +413,7 @@ class Tredistribution{
       TS = D;
     } else {
       auto out = TS.begin();
-      for (auto && c : D) add_identical(*(out++), c); 
+      for (auto && c : D) add_identical(*(out++), c);
     }
   }
 
@@ -489,12 +489,12 @@ class Tredistribution{
     // add value at duplicated indices
     std::vector<std::pair<int, T>> out;
     out.reserve(a.size() + b.size());
-    
+
     auto it = a.begin(), ite = a.end();
-    
+
     int ind = it -> first;
     T sum = it ->second;
-    
+
     while (++it != ite) {
       if (ind == it->first)
         sum += it-> second;
@@ -505,7 +505,7 @@ class Tredistribution{
       }
     }
     out.emplace_back(ind, sum);
-    
+
     a = out;
   }
 
@@ -529,7 +529,7 @@ class Tredistribution{
     type - type of surface support
     V - vectors of vertices
     Tr - vectors of triangles
-    N - vectors of normals at triangles/ at vertices
+    N - vectors of normals at triangles/ at vertices (not used currently)
     A - vector of areas of triangles
     Dpars - map of redistribution model parameters
             which are used to calculate distribution matrices
@@ -556,7 +556,7 @@ class Tredistribution{
     const Tsupport_type & type,
     std::vector<T3Dpoint<T>>   & V,
     std::vector<T3Dpoint<int>> & Tr,
-    std::vector<T3Dpoint<T>>   & N, // vertices: NatV, triangle: NatT
+    [[maybe_unused]] std::vector<T3Dpoint<T>>   & N, // vertices: NatV, triangle: NatT
     std::vector<T> & A,
     std::map<fnv1a_32::hash_t, std::vector<T>> & Dpars,
     std::map<fnv1a_32::hash_t, T> & W
@@ -578,7 +578,7 @@ class Tredistribution{
     std::vector<T>
       AatV,                       // areas per vertices (computed if needed)
       *pAatE = 0;                 // pointer
-        
+
     //
     // number of elements
     //
@@ -657,14 +657,14 @@ class Tredistribution{
             std::cerr << fname << "::Projections to sphere failed\n";
             return false;
           }
-          
+
           calc_horiz_redistr_matrix<F>(h, w.second, o, P, *pAatE, S);
-        
+
           break;
         }
       }
     }
-  
+
     trivial_redistr =  p.size() == 0 && S.size() == 0;
 
     return true;
@@ -674,7 +674,7 @@ class Tredistribution{
   void mul_add (std::vector<T> & a, std::vector<T> & b){
 
     T sum;
-    
+
     if (p.size()) {
       sum = 0;
       auto ib = b.begin(), eb = b.end(), ip = p.begin();

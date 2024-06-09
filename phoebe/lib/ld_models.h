@@ -115,7 +115,7 @@ struct TLDuniform: TLDmodel<T> {
     this->nr_par = 0;
   }
 
-  T D(const T & mu) const { return 1; }
+  T D([[maybe_unused]] const T & mu) const { return 1; }
 
   bool check() const { return true; }
   bool check_strict() const { return true; }

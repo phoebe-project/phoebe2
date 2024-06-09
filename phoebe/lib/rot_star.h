@@ -214,7 +214,7 @@ namespace rot_star {
         2 bit  - volume
 
     Output:
-      res[3] = {area, volume}
+      res[2] = {area, volume}
 
     Return:
       -1 if no results are computed
@@ -227,7 +227,7 @@ namespace rot_star {
 
   template<class T>
   int area_volume(
-    double *res,
+    double res[2],
     const unsigned &choice,
     const T & Omega0,
     const T & omega) {

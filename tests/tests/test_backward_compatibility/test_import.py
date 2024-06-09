@@ -92,6 +92,31 @@ def _export_23(filename, plot=False):
     b.save(os.path.join(dir, filename))
 
 
+def _export_24(filename, plot=False):
+    """
+    this isn't run during testing, but should be edited to run on certain versions
+    of phoebe to then store the .phoebe file in this directory and ensure it can
+    be imported later
+    """
+
+    if parse(phoebe.__version__) >= parse("2.5"):
+        raise ImportError("script runs on PHOEBE 2.4.x")
+
+    b = phoebe.default_binary()
+    b.add_dataset('lc', times=np.linspace(0, 1, 11), passband='Johnson:V', Av=0.1)
+    b.add_dataset('lc', times=np.linspace(0, 1, 11), passband='Johnson:R', Av=0.2)
+    b.add_dataset('rv', times=phoebe.linspace(0, 1, 4))
+    b.add_dataset('lp', times=phoebe.linspace(0, 1, 4), wavelengths=np.linspace(500, 510, 51))
+    b.add_dataset('mesh', times=[0])
+
+    b.run_compute()
+
+    if plot:
+        b.plot(show=True, time=0)
+
+    b.save(os.path.join(dir, filename))
+
+
 def test_21(verbose=False, plot=False):
     b = phoebe.load(os.path.join(dir, '21_export.phoebe'))
     b.run_compute()
@@ -120,6 +145,14 @@ def test_23(verbose=False, plot=False):
         b.plot(show=True, time=0)
 
 
+def test_24(verbose=False, plot=False):
+    b = phoebe.load(os.path.join(dir, '24_export.phoebe'))
+    b.run_compute()
+
+    if plot:
+        b.plot(show=True, time=0)
+
+
 if __name__ == '__main__':
     logger = phoebe.logger(clevel='WARNING')
 
@@ -133,7 +166,11 @@ if __name__ == '__main__':
         if parse(phoebe.__version__) >= parse("2.3.0") and parse(phoebe.__version__) < parse("2.4.0"):
             _export_23('23_export.phoebe')
             exit()
+        if parse(phoebe.__version__) >= parse("2.4.0") and parse(phoebe.__version__) < parse("2.5.0"):
+            _export_24('24_export.phoebe')
+            exit()
 
     b = test_21(verbose=True, plot=True)
     b = test_22(verbose=True, plot=True)
     b = test_23(verbose=True, plot=True)
+    b = test_24(verbose=True, plot=True)
