@@ -6,7 +6,7 @@ ext_modules = [
         'libphoebe',
         sources=['phoebe/lib/libphoebe.cpp'],
         language='c++',
-        extra_compile_args=["-std=c++11"],
+        extra_compile_args=["-std=c++14"],
         include_dirs=[numpy.get_include()]
     ),
     Extension(
