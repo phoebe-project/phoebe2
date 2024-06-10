@@ -467,3 +467,45 @@ def get_unit_in_system(original_unit, system):
         return u._physical_types_to_solar.get(u._get_physical_type(original_unit))
     else:
         raise NotImplementedError("system must be 'si' or 'solar'")
+
+
+def integrate_flux_from_mesh(b, model, mesh_dataset, lc_dataset):
+    """
+    Integrate the flux from a mesh at each time in a model.  The following columns must have been exposed in the mesh,
+    otherwise an error will be raised:
+
+    * `visibilities`
+    * `intensities`
+    * `areas`
+    * `mus`
+    * `ptfarea`
+
+        Arguments
+    -----------------
+    * `b` (<phoebe.frontend.bundle.Bundle>): the Bundle
+    * `model` (string): model containing the mesh
+    * `mesh_dataset` (string): label of the mesh dataset in the model
+    * `lc_dataset` (string): label of the lc dataset in the model
+
+    Returns
+    -----------------
+    * unit
+    """
+    model_ps = b.get_model(model=model, context='model', dataset=(mesh_dataset, lc_dataset), **_skip_filter_checks)
+    for qualifier in ('visibilities', 'intensities', 'areas', 'mus', 'ptfarea'):
+        if qualifier not in model_ps.qualifiers:
+            raise ValueError("model must have {} to integrate flux".format(qualifier))
+    times = np.asarray(model_ps.times, float)
+    fluxes = np.zeros_like(times)
+    for i, time in enumerate(times):
+        flux = 0
+        for component in model_ps.components:
+            model_ps_tc = model_ps.filter(time=time, component=component, **_skip_filter_checks)
+            intensities = model_ps_tc.get_value(qualifier='intensities', **_skip_filter_checks)
+            areas = model_ps_tc.get_value(qualifier='areas', unit='m^2', **_skip_filter_checks)
+            mus = model_ps_tc.get_value(qualifier='mus', **_skip_filter_checks)
+            visibilities = model_ps_tc.get_value(qualifier='visibilities', **_skip_filter_checks)
+            ptfarea = model_ps_tc.get_value(qualifier='ptfarea', **_skip_filter_checks)
+            flux += np.nansum(intensities*areas*mus*visibilities)*ptfarea
+        fluxes[i] = float(flux)
+    return times, fluxes
