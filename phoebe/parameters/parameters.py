@@ -2744,7 +2744,7 @@ class ParameterSet(object):
             for k, v in kwargs.items():
                 if k in _meta_fields_filter:
                     ps._filter[k] = v
-            if twig is not None and not isinstance(twig, list):
+            if twig is not None and not isinstance(twig, (list, tuple)):
                 # try to guess necessary additions to filter
                 twigsplit = twig.split('@')
                 for attr in _meta_fields_twig:
@@ -2759,7 +2759,7 @@ class ParameterSet(object):
             # of the Parameters hidden by this switch
             check_default = False
 
-        if isinstance(twig, list):
+        if isinstance(twig, (list, tuple)):
             params = []
             for t in twig:
                 params += self.filter(twig=t, check_visible=check_visible, check_default=check_default, check_advanced=check_advanced, check_single=check_single, **kwargs).to_list()
@@ -2816,10 +2816,10 @@ class ParameterSet(object):
                     key in _meta_fields_filter and \
                     kwargs[key] is not None:
 
-                params = [pi for pi in params if (hasattr(pi,key) and getattr(pi,key) is not None or isinstance(kwargs[key], list) and None in kwargs[key]) and
+                params = [pi for pi in params if (hasattr(pi,key) and getattr(pi,key) is not None or isinstance(kwargs[key], (list, tuple)) and None in kwargs[key]) and
                     (getattr(pi,key) is kwargs[key] or
-                    (isinstance(kwargs[key],list) and getattr(pi,key) in kwargs[key]) or
-                    (isinstance(kwargs[key],list) and np.any([_fnmatch(getattr(pi,key),keyi) for keyi in kwargs[key]])) or
+                    (isinstance(kwargs[key], (list, tuple)) and getattr(pi,key) in kwargs[key]) or
+                    (isinstance(kwargs[key], (list, tuple)) and np.any([_fnmatch(getattr(pi,key),keyi) for keyi in kwargs[key]])) or
                     (isinstance(kwargs[key],str) and isinstance(getattr(pi,key),str) and _fnmatch(getattr(pi,key),kwargs[key])) or
                     (key=='kind' and isinstance(kwargs[key],str) and getattr(pi,key).lower()==kwargs[key].lower()) or
                     (key=='kind' and hasattr(kwargs[key],'__iter__') and getattr(pi,key).lower() in [k.lower() for k in kwargs[key]]) or
@@ -6051,7 +6051,7 @@ class ParameterSet(object):
                 time = self._bundle.get_value(time, context=['component', 'system'], check_visible=False)
 
             # plotting doesn't currently support highlighting at multiple times
-            # if isinstance(time, list) or isinstance(time, tuple):
+            # if isinstance(time, (list, tuple)):
             #     user_time = time
             #     time = []
             #     for t in user_time:
@@ -6583,7 +6583,7 @@ class Parameter(object):
                 return v
             elif isinstance(v, dict):
                 return v
-            elif isinstance(v, float) or isinstance(v, int) or isinstance(v, list):
+            elif isinstance(v, float) or isinstance(v, int) or isinstance(v, (list, tuple)):
                 return v
             elif _is_unit(v):
                 return str(v.to_string())
