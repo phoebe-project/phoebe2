@@ -19,7 +19,7 @@ def _component_allowed_for_feature(feature_kind, component_kind):
     _allowed['gp_sklearn'] = [None]
     _allowed['gp_celerite2'] = [None]
     _allowed['gaussian_process'] = [None]  # deprecated: remove in 2.5
-    _allowed['sinusoidal_third_light'] = [None]
+    _allowed['sinusoidal_third_light'] = SinusoidalThirdLight.allowed_component_kinds
 
     return component_kind in _allowed[feature_kind]
 
@@ -30,7 +30,7 @@ def _dataset_allowed_for_feature(feature_kind, dataset_kind):
     _allowed['gp_sklearn'] = ['lc', 'rv', 'lp']
     _allowed['gp_celerite2'] = ['lc', 'rv', 'lp']
     _allowed['gaussian_process'] = ['lc', 'rv', 'lp']  # deprecated: remove in 2.5
-    _allowed['sinusoidal_third_light'] = ['lc']
+    _allowed['sinusoidal_third_light'] = SinusoidalThirdLight.allowed_dataset_kinds
 
     return dataset_kind in _allowed[feature_kind]
 
