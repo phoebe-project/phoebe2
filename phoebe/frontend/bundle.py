@@ -13923,11 +13923,11 @@ class Bundle(ParameterSet):
                     t0_supconj_ind = adopt_qualifiers.index('t0_supconj')
 
                     t0_supconj_old = self.get_value(uniqueid=adopt_uniqueids[t0_supconj_ind], unit=u.d, **_skip_filter_checks)
-                    t0_supconj_new = fitted_values[t0_supconj_ind]
+                    t0_supconj_new = fitted_values[adopt_inds[t0_supconj_ind]]
 
                     phase_shift = self.to_phase(t0_supconj_new) - self.to_phase(t0_supconj_old)
 
-                    fitted_values[mask_phases_ind] = [ph-phase_shift for ph in [ecl_ph for ecl_ph in fitted_values[mask_phases_ind]]]
+                    fitted_values[adopt_inds[mask_phases_ind]] = [ph-phase_shift for ph in [ecl_ph for ecl_ph in fitted_values[adopt_inds[mask_phases_ind]]]]
 
             for uniqueid, value, unit in zip(adopt_uniqueids, fitted_values[adopt_inds], fitted_units[adopt_inds]):
                 uniqueid, index = _extract_index_from_string(uniqueid)
