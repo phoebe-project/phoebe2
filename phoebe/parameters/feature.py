@@ -18,6 +18,7 @@ def _component_allowed_for_feature(feature_kind, component_kind):
     _allowed['gp_sklearn'] = [None]
     _allowed['gp_celerite2'] = [None]
     _allowed['gaussian_process'] = [None]  # deprecated: remove in 2.5
+    _allowed['sinusoidal_intensities'] = ['star', 'envelope']
 
     return component_kind in _allowed[feature_kind]
 
@@ -28,6 +29,7 @@ def _dataset_allowed_for_feature(feature_kind, dataset_kind):
     _allowed['gp_sklearn'] = ['lc', 'rv', 'lp']
     _allowed['gp_celerite2'] = ['lc', 'rv', 'lp']
     _allowed['gaussian_process'] = ['lc', 'rv', 'lp']  # deprecated: remove in 2.5
+    _allowed['sinusoidal_intensities'] = [None]
 
     return dataset_kind in _allowed[feature_kind]
 
@@ -253,3 +255,19 @@ def gaussian_process(feature, **kwargs):
     """
     logger.warning("gaussian_process is deprecated.  Use gp_celerite2 instead.")
     return gp_celerite2(feature, **kwargs)
+
+def sinusoidal_intensities(feature, **kwargs):
+    """
+    Modify the per-element intensities of a mesh with a sinusoidal factor.
+    """
+    params = []
+
+    params += [FloatParameter(qualifier='amplitude', value=kwargs.get('amplitude', 0.01), default_unit=u.dimensionless_unscaled, description='Amplitude of the sinusoidal intensity variation')]
+    params += [FloatParameter(qualifier='period', value=kwargs.get('period', 1.0), default_unit=u.d, description='Period of the sinusoidal intensity variation')]
+    params += [FloatParameter(qualifier='phase0', value=kwargs.get('phase0', 0.0), default_unit=u.cycle, description='Phase of the sinusoidal intensity variation at time t0@system')]
+
+    # TODO: add frequency (and constraints) and t0 (constrained to t0@system by default)
+
+    constraints = []
+
+    return ParameterSet(params), constraints
