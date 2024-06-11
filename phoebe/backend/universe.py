@@ -1935,7 +1935,7 @@ class Star(Body):
                         # then this is the secondary half of a contact envelope
                         roche_coords_for_computations = np.array([1.0, 0.0, 0.0]) - mesh.roche_coords_for_computations
                     else:
-                        roche_coords_for_computations = mesh.roche_coords_for_computations
+                        roche_coords_for_computations = self.mesh.roche_coords_for_computations
                     abs_normal_intensities, normal_intensities, abs_intensities, intensities = feature.process_intensities(abs_normal_intensities, normal_intensities, abs_intensities, intensities, roche_coords_for_computations, s=self.polar_direction_xyz, t=self.time)
                 else:
                     abs_normal_intensities, normal_intensities, abs_intensities, intensities = feature.process_intensities(abs_normal_intensities, normal_intensities, abs_intensities, intensities, self.mesh.coords_for_computations, s=self.polar_direction_xyz, t=self.time)
