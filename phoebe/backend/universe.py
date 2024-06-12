@@ -3386,5 +3386,5 @@ class Sinusoidal_Intensities(Feature):
             # then assume at t0
             t = self._t0
 
-        factor = 1 + self._amplitude * np.sin(self._frequency * (t - self._t0) + self._phase0)
+        factor = 1 + self._amplitude * np.sin(self._frequency * (t - self._t0) + 2 * np.pi * self._phase0)
         return abs_normal_intensities * factor, normal_intensities * factor, abs_intensities * factor, intensities * factor
