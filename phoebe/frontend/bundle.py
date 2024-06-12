@@ -4537,7 +4537,7 @@ class Bundle(ParameterSet):
                                                      **{k:v for k,v in kwargs.items() if k not in ['server', 'use_server']})
 
                 # test to make sure solver_times will cover the full dataset for time-dependent systems
-                if self.hierarchy.is_time_dependent(consider_gaussian_process=True):
+                if self.hierarchy.is_time_dependent(consider_gaussian_process=False):
                     for dataset in self.filter(qualifier='enabled', compute=compute, context='compute', value=True, **_skip_filter_checks).datasets:
                         solver_times = self.get_value(qualifier='solver_times', dataset=dataset, context='dataset', **_skip_filter_checks)
                         if solver_times == 'times':
