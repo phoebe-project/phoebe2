@@ -41,7 +41,7 @@ from phoebe.backend import universe as _universe
 from phoebe.solverbackends import solverbackends as _solverbackends
 from phoebe.distortions import roche
 from phoebe.frontend import io
-from phoebe.features import dataset_features
+from phoebe.features import dataset_features, component_features, get_code_for_cls, get_class_from_code
 from phoebe.features.gaussian_processes import handle_gaussian_processes, _use_celerite2, _use_sklearn
 from phoebe.atmospheres.passbands import list_installed_passbands, list_online_passbands, get_passband, update_passband, _timestamp_to_dt
 from phoebe import pool as _pool
@@ -5660,16 +5660,24 @@ class Bundle(ParameterSet):
         * ValueError: if `dataset` is required but it not provided or is of the
             wrong kind.
         """
-        func = _get_add_func(_feature, kind)
+        if getattr(kind, '_phoebe_custom_feature', False):
+            func = kind.get_parameters
+            kind_name = kind.__name__
+            custom_constraint = True
+        else:
+            func = _get_add_func(_feature, kind, return_none_if_not_found=True)
+            kind_name = func.__name__
+            custom_constraint = False
+
 
         if kwargs.get('feature', False) is None:
             # then we want to apply the default below, so let's pop for now
             _ = kwargs.pop('feature')
 
         kwargs.setdefault('feature',
-                          self._default_label(func.__name__,
+                          self._default_label(kind_name,
                                               **{'context': 'feature',
-                                                 'kind': func.__name__}))
+                                                 'kind': kind_name}))
 
         self._check_label(kwargs['feature'], allow_overwrite=kwargs.get('overwrite', False))
 
@@ -5681,8 +5689,8 @@ class Bundle(ParameterSet):
         else:
             component_kind = None
 
-        if not _feature._component_allowed_for_feature(func.__name__, component_kind):
-            raise ValueError("{} does not support component with kind {}".format(func.__name__, component_kind))
+        if not _feature._component_allowed_for_feature(kind, component_kind):
+            raise ValueError("{} does not support component with kind {}".format(kind_name, component_kind))
 
         if dataset is not None:
             if dataset not in self.datasets:
@@ -5692,16 +5700,21 @@ class Bundle(ParameterSet):
         else:
             dataset_kind = None
 
-        if not _feature._dataset_allowed_for_feature(func.__name__, dataset_kind):
-            raise ValueError("{} does not support dataset with kind {}".format(func.__name__, dataset_kind))
+        if not _feature._dataset_allowed_for_feature(kind, dataset_kind):
+            raise ValueError("{} does not support dataset with kind {}".format(kind_name, dataset_kind))
 
         params, constraints = func(**kwargs)
+
+        if custom_constraint:
+            # then add another parameter that stores the class to run the constraint itself
+            code = get_code_for_cls(kind, ignore=['get_parameters'])
+            params += [StringParameter(qualifier='feature_code', visible_if='False', value=code, readonly=True)]
 
         metawargs = {'context': 'feature',
                      'component': component,
                      'dataset': dataset,
                      'feature': kwargs['feature'],
-                     'kind': func.__name__}
+                     'kind': kind_name}
 
         if kwargs.get('overwrite', False):
             overwrite_ps = self.remove_feature(feature=kwargs['feature'], during_overwrite=True)
@@ -12056,8 +12069,11 @@ class Bundle(ParameterSet):
                 enabled_features = self.filter(qualifier='enabled', compute=compute, context='compute', value=True, **_skip_filter_checks).features
                 for feature in enabled_features:
                     feature_ps = self.get_feature(feature=feature, **_skip_filter_checks)
-                    # check first in globals()?
-                    feature_cls = getattr(dataset_features, feature_ps.kind.title(), None)
+                    if 'feature_code' in feature_ps.qualifiers:
+                        # TODO: need to differentiate between dataset and component feature here as well
+                        feature_cls = get_class_from_code(feature_ps.get_value(qualifier='feature_code', **_skip_filter_checks))
+                    else:
+                        feature_cls = getattr(dataset_features, feature_ps.kind.title(), None)
                     if feature_cls is None:
                         # does not exist.  Assume a component feature and skip.
                         # In the future if we add support for user-defined features
