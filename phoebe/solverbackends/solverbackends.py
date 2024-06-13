@@ -1628,8 +1628,32 @@ class EmceeBackend(BaseSolverBackend):
             esargs['ndim'] = len(params_uniqueids)
             esargs['log_prob_fn'] = _lnprobability
             # esargs['a'] = kwargs.pop('a', None),
-            # esargs['moves'] = kwargs.pop('moves', None)
             # esargs['args'] = None
+
+            enabled_solver_features = b.filter(qualifier='enabled', value=True, solver=solver, **_skip_filter_checks).features
+            enabled_moves = b.filter(feature=enabled_solver_features, kind='emcee_move', **_skip_filter_checks).features
+            if len(enabled_moves):
+                logger.info("enabled moves: {}".format(enabled_moves))
+                moves = []
+                weights_sum = np.sum([b.get_value(qualifier='weight', feature=move, **_skip_filter_checks) for move in enabled_moves])
+                for move_feature in enabled_moves:
+                    move_feature_ps = b.get_feature(feature=move_feature, check_visible=True)
+                    move_class = move_feature_ps.get_value(qualifier='move', **_skip_filter_checks)
+                    move_weight = move_feature_ps.get_value(qualifier='weight') / weights_sum
+                    move_kwargs = {p.qualifier: p.get_value() for p in move_feature_ps.to_list() if p.qualifier not in ['move', 'weight']}
+                    if move_kwargs.pop('smode', None) == 'auto':
+                        move_kwargs['s'] = None
+                    if move_kwargs.get('bw_method', None) == 'constant':
+                        move_kwargs['bw_method'] = move_kwargs.pop('bw_constant', 1.0)
+                    if move_kwargs.pop('gamma0_mode', None) == 'auto':
+                        move_kwargs['gamma0'] = None
+
+                    this_move_obj = getattr(emcee.moves, '{}Move'.format(move_class))(**move_kwargs)
+
+                    logger.info("creating {}Move(**{}) with weight={}".format(move_class, move_kwargs, move_weight))
+                    moves.append((this_move_obj, move_weight))
+
+                esargs['moves'] = moves
 
             esargs['kwargs'] = {'b': _bsolver(b, solver, compute, init_from+priors, wrap_central_values),
                                 'params_uniqueids': params_uniqueids,

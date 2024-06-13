@@ -130,6 +130,8 @@ def emcee(**kwargs):
     params = _comments_params(**kwargs)
     params += _server_params(**kwargs)
 
+    params += [BoolParameter(qualifier='enabled', copy_for={'context': 'feature', 'kind': ['emcee_move'], 'feature': '*'}, feature='_default', value=kwargs.get('enabled', True), description='Whether to enable the feature in compute/solver run')]
+
     params += [ChoiceParameter(qualifier='compute', value=kwargs.get('compute', 'None'), choices=['None'], description='compute options to use for forward model')]
 
     params += [ChoiceParameter(qualifier='continue_from', value=kwargs.get('continue_from', 'None'), choices=['None'], description='continue the MCMC run from an existing emcee solution.  Chains will be appended to existing chains (so it is safe to overwrite the existing solution).  If None, will start a new run using init_from.')]
