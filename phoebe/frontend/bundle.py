@@ -13649,7 +13649,7 @@ class Bundle(ParameterSet):
 
         b_uniqueids = self.uniqueids
 
-        adoptable_ps = self.get_adjustable_parameters(exclude_constrained=False) + self.filter(qualifier='mask_phases', context='dataset', **_skip_filter_checks)
+        adoptable_ps = self.get_adjustable_parameters(exclude_constrained=False) + self.filter(qualifier='mask_phases', context='dataset', **_skip_filter_checks) + self.filter(qualifier='compute_phases', context='dataset', **_skip_filter_checks)
         if np.all([uniqueid.split('[')[0] in b_uniqueids for uniqueid in fitted_uniqueids]):
             fitted_ps = adoptable_ps.filter(uniqueid=[uniqueid.split('[')[0] for uniqueid in fitted_uniqueids], **_skip_filter_checks)
         else:
@@ -13840,8 +13840,9 @@ class Bundle(ParameterSet):
                 fitted_values = fitted_values * solution_ps.get_value(qualifier='period_factor', period_factor=kwargs.get('period_factor', None), **_skip_filter_checks)
 
             if solver_kind in ['lc_geometry']:
-
+                print("*** adopt_uniqueids", adopt_uniqueids)
                 adopt_qualifiers = [self.get_parameter(uniqueid=uniqueid, **_skip_filter_checks).qualifier for uniqueid in adopt_uniqueids]
+                print("*** adopt_qualifiers", adopt_qualifiers)
                 if 'mask_phases' in adopt_qualifiers and 't0_supconj' in adopt_qualifiers:
                     # then we need to shift mask phases by the phase-shift introduced by the change in t0_supconj
                     logger.info("shifting mask_phases by phase-shift caused by change in t0_supconj")
