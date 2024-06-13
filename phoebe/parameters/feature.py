@@ -21,7 +21,7 @@ def _component_allowed_for_feature(feature_kind, component_kind):
     _allowed['gaussian_process'] = [None]  # deprecated: remove in 2.5
     _allowed['sinusoidal_third_light'] = SinusoidalThirdLight.allowed_component_kinds
 
-    return component_kind in _allowed[feature_kind]
+    return component_kind in getattr(feature_kind, 'allowed_component_kinds', _allowed.get(feature_kind, []))
 
 def _dataset_allowed_for_feature(feature_kind, dataset_kind):
     _allowed = {}
@@ -32,7 +32,7 @@ def _dataset_allowed_for_feature(feature_kind, dataset_kind):
     _allowed['gaussian_process'] = ['lc', 'rv', 'lp']  # deprecated: remove in 2.5
     _allowed['sinusoidal_third_light'] = SinusoidalThirdLight.allowed_dataset_kinds
 
-    return dataset_kind in _allowed[feature_kind]
+    return dataset_kind in getattr(feature_kind, 'allowed_dataset_kinds', _allowed.get(feature_kind, []))
 
 def spot(feature, **kwargs):
     """
@@ -273,4 +273,4 @@ def sinusoidal_third_light(feature, **kwargs):
         <phoebe.parameters.Parameter> objects and a list of all necessary
         constraints.
     """
-    return SinusoidalThirdLight.add_feature(feature, **kwargs)
+    return SinusoidalThirdLight.get_parameters(feature, **kwargs)
