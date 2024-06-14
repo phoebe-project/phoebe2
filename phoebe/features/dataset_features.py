@@ -19,8 +19,9 @@ class DatasetFeature(object):
     _phoebe_custom_feature = 'dataset'
     allowed_component_kinds = [None]
     allowed_dataset_kinds = ['lc', 'rv', 'lp']
-    def __init__(self, *args, **kwargs):
-        pass
+
+    def __init__(self, **kwargs):
+        self.kwargs = kwargs
 
     @classmethod
     def from_bundle(cls, b, feature_ps):

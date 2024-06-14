@@ -24,33 +24,33 @@ class ComponentFeature(object):
     kind of change it exacts to the mesh. For example, pulsations will require
     recomputing a mesh while spots will not. By default, the mesh will be
     recomputed (set in this superclass' `__init__()` method) but inherited
-    classes should overload `self._remeshing_required`.
-    """
-    def __init__(self, *args, **kwargs):
-        pass
+    classes should overload `self.remeshing_required`.
 
-    @classmethod
-    def from_bundle(cls, b, feature):
-        raise NotImplementedError("from_bundle must be implemented in the feature subclass")
+    remeshing_required:
 
-    @property
-    def _remeshing_required(self):
-        return True
-
-    @property
-    def proto_coords(self):
-        """
-        Override this to True if all methods (except modify_coords*... those
+    proto_coords: Override this to True if all methods (except modify_coords*... those
         ALWAYS expect protomesh coordinates) are expecting coordinates
         in the protomesh (star) frame-of-reference rather than the
         current in-orbit system frame-of-reference.
-        """
-        return False
+    """
+    _phoebe_custom_feature = 'dataset'
+    allowed_component_kinds = ['star', 'envelope', 'orbit']
+    allowed_dataset_kinds = [None]
+    remeshing_required = True
+    proto_coords = True
+
+    def __init__(self, **kwargs):
+        self.kwargs = kwargs
+
+
+    @classmethod
+    def from_bundle(cls, b, feature):
+        return cls()
 
     def modify_coords_for_computations(self, coords_for_computations, s, t):
         """
-        Method for a feature to process the coordinates.  Coordinates are
-        processed AFTER scaling but BEFORE being placed in orbit.
+        Method for a feature to modify the coordinates.  Coordinates are
+        modified AFTER scaling but BEFORE being placed in orbit.
 
         NOTE: coords_for_computations affect physical properties only and
         not geometric properties (areas, eclipse detection, etc).  If you
@@ -64,8 +64,8 @@ class ComponentFeature(object):
 
     def modify_coords_for_observations(self, coords_for_computations, coords_for_observations, s, t):
         """
-        Method for a feature to process the coordinates.  Coordinates are
-        processed AFTER scaling but BEFORE being placed in orbit.
+        Method for a feature to modify the coordinates.  Coordinates are
+        modified AFTER scaling but BEFORE being placed in orbit.
 
         NOTE: coords_for_observations affect the geometry only (areas of each
         element and eclipse detection) but WILL NOT affect any physical
@@ -77,23 +77,34 @@ class ComponentFeature(object):
         """
         return coords_for_observations
 
-    def modify_loggs(self, loggs, coords, s=np.array([0., 0., 1.]), t=None):
+    def modify_loggs(self, loggs, coords, s=[0., 0., 1.], t=None):
         """
-        Method for a feature to process the loggs.
+        Method for a feature to modify the loggs.
 
         Features that affect loggs should override this method
         """
         return loggs
 
-    def modify_teffs(self, teffs, coords, s=np.array([0., 0., 1.]), t=None):
+    def modify_teffs(self, teffs, coords, s=[0., 0., 1.], t=None):
         """
-        Method for a feature to process the teffs.
+        Method for a feature to modify the teffs.
 
         Features that affect teffs should override this method
         """
         return teffs
 
+    def modify_intensities(self, abs_normal_intensities, normal_intensities, abs_intensities, intensities,
+                            coords, s=[0., 0., 1.], t=None):
+        """
+        Method for a feature to modify the intensities.
+        Features that affect intensities should override this method
+        """
+        return abs_normal_intensities, normal_intensities, abs_intensities, intensities
+
 class Spot(ComponentFeature):
+    remeshing_required = False
+    proto_coords = True
+
     def __init__(self, colat, longitude, dlongdt, radius, relteff, t0, **kwargs):
         """
         Initialize a Spot feature
@@ -139,16 +150,6 @@ class Spot(ComponentFeature):
         t0 = b.get_value(qualifier='t0', context='system', unit=u.d, **_skip_filter_checks)
 
         return cls(colat, longitude, dlongdt, radius, relteff, t0)
-
-    @property
-    def _remeshing_required(self):
-        return False
-
-    @property
-    def proto_coords(self):
-        """
-        """
-        return True
 
     def pointing_vector(self, s, time):
         """
@@ -198,6 +199,8 @@ class Spot(ComponentFeature):
         return teffs
 
 class Pulsation(ComponentFeature):
+    proto_coords = True
+
     def __init__(self, radamp, freq, l=0, m=0, tanamp=0.0, teffext=False, **kwargs):
         self._freq = freq
         self._radamp = radamp
@@ -226,12 +229,6 @@ class Pulsation(ComponentFeature):
         tanamp = GM/R**3/freq**2
 
         return cls(radamp, freq, l, m, tanamp, teffext)
-
-    @property
-    def proto_coords(self):
-        """
-        """
-        return True
 
     def dYdtheta(self, m, l, theta, phi):
         if abs(m) > l:
