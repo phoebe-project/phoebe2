@@ -12,25 +12,28 @@ logger.addHandler(logging.NullHandler())
 
 ### NOTE: if creating new parameters, add to the _forbidden_labels list in parameters.py
 
-def _component_allowed_for_feature(feature_kind, component_kind):
-    _allowed = {}
-    _allowed['spot'] = ['star', 'envelope']
-    _allowed['pulsation'] = ['star', 'envelope']
-    _allowed['gp_sklearn'] = [None]
-    _allowed['gp_celerite2'] = [None]
-    _allowed['gaussian_process'] = [None]  # deprecated: remove in 2.5
+_allowed_components = {'spot': ['star', 'envelope'],
+                       'pulsation': ['star', 'envelope'],
+                       'gp_sklearn': [None],
+                       'gp_celerite2': [None],
+                       'gaussian_process': [None]}
 
-    return component_kind in getattr(feature_kind, 'allowed_component_kinds', _allowed.get(feature_kind, []))
+_allowed_datasets = {'spot': [None],
+                     'pulsation': [None],
+                     'gp_sklearn': ['lc', 'rv', 'lp'],
+                     'gp_celerite2': ['lc', 'rv', 'lp'],
+                     'gaussian_process': ['lc', 'rv', 'lp']} 
+
+def _component_allowed_for_feature(feature_kind, component_kind):
+    return component_kind in getattr(feature_kind, 'allowed_component_kinds', _allowed_components.get(feature_kind, []))
 
 def _dataset_allowed_for_feature(feature_kind, dataset_kind):
-    _allowed = {}
-    _allowed['spot'] = [None]
-    _allowed['pulsation'] = [None]
-    _allowed['gp_sklearn'] = ['lc', 'rv', 'lp']
-    _allowed['gp_celerite2'] = ['lc', 'rv', 'lp']
-    _allowed['gaussian_process'] = ['lc', 'rv', 'lp']  # deprecated: remove in 2.5
+    return dataset_kind in getattr(feature_kind, 'allowed_dataset_kinds', _allowed_datasets.get(feature_kind, []))
 
-    return dataset_kind in getattr(feature_kind, 'allowed_dataset_kinds', _allowed.get(feature_kind, []))
+def _register(feature_cls, name):
+    globals()[name] = feature_cls.get_parameters
+    _allowed_components[name] = getattr(feature_cls, 'allowed_component_kinds', [])
+    _allowed_datasets[name] = getattr(feature_cls, 'allowed_dataset_kinds', [])
 
 def spot(feature, **kwargs):
     """
