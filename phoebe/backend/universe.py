@@ -1805,9 +1805,6 @@ class Star(Body):
         else:
             raise NotImplementedError
 
-
-
-
         logger.debug("ld_func={}, ld_coeffs={}, atm={}, ldatm={}".format(ld_func, ld_coeffs, atm, ldatm))
 
         pblum = kwargs.get('pblum', 4*np.pi)
@@ -1931,6 +1928,18 @@ class Star(Body):
 
         else:
             raise NotImplementedError("lc_method '{}' not recognized".format(lc_method))
+
+        if not ignore_effects:
+            for feature in self.features:
+                if feature.proto_coords:
+                    if self.__class__.__name__ == 'Star_roche_envelope_half' and self.ind_self != self.ind_self_vel:
+                        # then this is the secondary half of a contact envelope
+                        roche_coords_for_computations = np.array([1.0, 0.0, 0.0]) - mesh.roche_coords_for_computations
+                    else:
+                        roche_coords_for_computations = self.mesh.roche_coords_for_computations
+                    abs_normal_intensities, normal_intensities, abs_intensities, intensities = feature.process_intensities(abs_normal_intensities, normal_intensities, abs_intensities, intensities, roche_coords_for_computations, s=self.polar_direction_xyz, t=self.time)
+                else:
+                    abs_normal_intensities, normal_intensities, abs_intensities, intensities = feature.process_intensities(abs_normal_intensities, normal_intensities, abs_intensities, intensities, self.mesh.coords_for_computations, s=self.polar_direction_xyz, t=self.time)
 
         # TODO: do we really need to store all of these if store_mesh==False?
         # Can we optimize by only returning the essentials if we know we don't need them?
