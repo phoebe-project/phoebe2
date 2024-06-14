@@ -34,7 +34,11 @@ class DatasetFeature(object):
 
     @classmethod
     def from_bundle(cls, b, feature_ps):
-        return cls()
+        return cls(**cls.parse_bundle(b, feature_ps))
+
+    @classmethod
+    def parse_bundle(cls, b, feature_ps):
+        return dict()
 
     @classmethod
     def get_parameters(self, feature, **kwargs):
