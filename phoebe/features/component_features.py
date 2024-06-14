@@ -52,10 +52,17 @@ class ComponentFeature(object):
     def __init__(self, **kwargs):
         self.kwargs = kwargs
 
-
     @classmethod
     def from_bundle(cls, b, feature):
-        return cls()
+        return cls(**cls.parse_bundle(b, feature))
+
+    @classmethod
+    def parse_bundle(cls, b, feature):
+        return {}
+
+    @classmethod
+    def get_parameters(self, feature, **kwargs):
+        raise NotImplementedError("get_parameters must be implemented in the feature subclass")
 
     def modify_coords_for_computations(self, coords_for_computations, s, t):
         """
@@ -115,20 +122,8 @@ class Spot(ComponentFeature):
     remeshing_required = False
     proto_coords = True
 
-    def __init__(self, colat, longitude, dlongdt, radius, relteff, t0, **kwargs):
-        """
-        Initialize a Spot feature
-        """
-        super(Spot, self).__init__(**kwargs)
-        self._colat = colat
-        self._longitude = longitude
-        self._radius = radius
-        self._relteff = relteff
-        self._dlongdt = dlongdt
-        self._t0 = t0
-
     @classmethod
-    def from_bundle(cls, b, feature):
+    def parse_bundle(cls, b, feature):
         """
         Initialize a Spot feature from the bundle.
         """
@@ -159,15 +154,16 @@ class Spot(ComponentFeature):
 
         t0 = b.get_value(qualifier='t0', context='system', unit=u.d, **_skip_filter_checks)
 
-        return cls(colat, longitude, dlongdt, radius, relteff, t0)
+        return dict(colat=colat, longitude=longitude, dlongdt=dlongdt, radius=radius, relteff=relteff, t0=t0)
 
     def pointing_vector(self, s, time):
         """
         s is the spin vector in roche coordinates
         time is the current time
         """
-        t = time - self._t0
-        longitude = self._longitude + self._dlongdt * t
+        t = time - self.kwargs['t0']
+        longitude = self.kwargs['longitude'] + self.kwargs['dlongdt'] * t
+        colat = self.kwargs['colat']
 
         # define the basis vectors in the spin (primed) coordinates in terms of
         # the Roche coordinates.
@@ -179,9 +175,9 @@ class Spot(ComponentFeature):
         exp = (ex - s*np.dot(s,ex))
         eyp = np.cross(s, exp)
 
-        return np.sin(self._colat)*np.cos(longitude)*exp +\
-                  np.sin(self._colat)*np.sin(longitude)*eyp +\
-                  np.cos(self._colat)*ezp
+        return np.sin(colat)*np.cos(longitude)*exp +\
+                  np.sin(colat)*np.sin(longitude)*eyp +\
+                  np.cos(colat)*ezp
 
     def modify_teffs(self, teffs, coords, s=np.array([0., 0., 1.]), t=None):
         """
@@ -198,30 +194,21 @@ class Spot(ComponentFeature):
             t = self._t0
 
         pointing_vector = self.pointing_vector(s,t)
-        logger.debug("spot.modify_teffs at t={} with pointing_vector={} and radius={}".format(t, pointing_vector, self._radius))
+        logger.debug("spot.modify_teffs at t={} with pointing_vector={} and radius={}".format(t, pointing_vector, self.kwargs['radius']))
 
         cos_alpha_coords = np.dot(coords, pointing_vector) / np.linalg.norm(coords, axis=1)
-        cos_alpha_spot = np.cos(self._radius)
+        cos_alpha_spot = np.cos(self.kwargs['radius'])
 
         filter_ = cos_alpha_coords > cos_alpha_spot
-        teffs[filter_] = teffs[filter_] * self._relteff
+        teffs[filter_] = teffs[filter_] * self.kwargs['relteff']
 
         return teffs
 
 class Pulsation(ComponentFeature):
     proto_coords = True
 
-    def __init__(self, radamp, freq, l=0, m=0, tanamp=0.0, teffext=False, **kwargs):
-        self._freq = freq
-        self._radamp = radamp
-        self._l = l
-        self._m = m
-        self._tanamp = tanamp
-
-        self._teffext = teffext
-
     @classmethod
-    def from_bundle(cls, b, feature):
+    def parse_bundle(cls, b, feature):
         """
         Initialize a Pulsation feature from the bundle.
         """
@@ -238,7 +225,7 @@ class Pulsation(ComponentFeature):
 
         tanamp = GM/R**3/freq**2
 
-        return cls(radamp, freq, l, m, tanamp, teffext)
+        return dict(radamp=radamp, freq=freq, l=l, m=m, tanamp=tanamp, teffext=teffext)
 
     def dYdtheta(self, m, l, theta, phi):
         if abs(m) > l:
@@ -258,16 +245,16 @@ class Pulsation(ComponentFeature):
     def modify_coords_for_computations(self, coords_for_computations, s, t):
         """
         """
-        if self._teffext:
+        if self.kwargs['teffext']:
             return coords_for_computations
 
         x, y, z, r = coords_for_computations[:,0], coords_for_computations[:,1], coords_for_computations[:,2], np.sqrt((coords_for_computations**2).sum(axis=1))
         theta = np.arccos(z/r)
         phi = np.arctan2(y, x)
 
-        xi_r = self._radamp * Y(self._m, self._l, theta, phi) * np.exp(-1j*2*np.pi*self._freq*t)
-        xi_t = self._tanamp * self.dYdtheta(self._m, self._l, theta, phi) * np.exp(-1j*2*np.pi*self._freq*t)
-        xi_p = self._tanamp/np.sin(theta) * self.dYdphi(self._m, self._l, theta, phi) * np.exp(-1j*2*np.pi*self._freq*t)
+        xi_r = self.kwargs['radamp'] * Y(self.kwargs['m'], self.kwargs['l'], theta, phi) * np.exp(-1j*2*np.pi*self.kwargs['freq']*t)
+        xi_t = self.kwargs['tanamp'] * self.dYdtheta(self.kwargs['m'], self.kwargs['l'], theta, phi) * np.exp(-1j*2*np.pi*self.kwargs['freq']*t)
+        xi_p = self.kwargs['tanamp']/np.sin(theta) * self.dYdphi(self.kwargs['m'], self.kwargs['l'], theta, phi) * np.exp(-1j*2*np.pi*self.kwargs['freq']*t)
 
         new_coords = np.zeros(coords_for_computations.shape)
         new_coords[:,0] = coords_for_computations[:,0] + xi_r * np.sin(theta) * np.cos(phi)
@@ -289,16 +276,16 @@ class Pulsation(ComponentFeature):
           b(r) = a(r) GM/(R^3*f^2)
         """
         # TODO: we do want to displace the coords_for_observations, but the x,y,z,r below are from the ALSO displaced coords_for_computations
-        # if not self._teffext:
+        # if not self.kwargs['teffext']:
             # return coords_for_observations
 
         x, y, z, r = coords_for_computations[:,0], coords_for_computations[:,1], coords_for_computations[:,2], np.sqrt((coords_for_computations**2).sum(axis=1))
         theta = np.arccos(z/r)
         phi = np.arctan2(y, x)
 
-        xi_r = self._radamp * Y(self._m, self._l, theta, phi) * np.exp(-1j*2*np.pi*self._freq*t)
-        xi_t = self._tanamp * self.dYdtheta(self._m, self._l, theta, phi) * np.exp(-1j*2*np.pi*self._freq*t)
-        xi_p = self._tanamp/np.sin(theta) * self.dYdphi(self._m, self._l, theta, phi) * np.exp(-1j*2*np.pi*self._freq*t)
+        xi_r = self.kwargs['radamp'] * Y(self.kwargs['m'], self.kwargs['l'], theta, phi) * np.exp(-1j*2*np.pi*self.kwargs['freq']*t)
+        xi_t = self.kwargs['tanamp'] * self.dYdtheta(self.kwargs['m'], self.kwargs['l'], theta, phi) * np.exp(-1j*2*np.pi*self.kwargs['freq']*t)
+        xi_p = self.kwargs['tanamp']/np.sin(theta) * self.dYdphi(self.kwargs['m'], self.kwargs['l'], theta, phi) * np.exp(-1j*2*np.pi*self.kwargs['freq']*t)
 
         new_coords = np.zeros(coords_for_observations.shape)
         new_coords[:,0] = coords_for_observations[:,0] + xi_r * np.sin(theta) * np.cos(phi)
@@ -310,7 +297,7 @@ class Pulsation(ComponentFeature):
     def modify_teffs(self, teffs, coords, s=np.array([0., 0., 1.]), t=None):
         """
         """
-        if not self._teffext:
+        if not self.kwargs['teffext']:
             return teffs
 
         raise NotImplementedError("teffext=True not yet supported for pulsations")
