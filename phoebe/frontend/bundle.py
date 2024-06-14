@@ -5666,7 +5666,10 @@ class Bundle(ParameterSet):
             custom_constraint = True
         else:
             func = _get_add_func(_feature, kind, return_none_if_not_found=True)
-            kind_name = func.__name__
+            if isinstance(kind, str):
+                kind_name = kind
+            else:
+                kind_name = func.__name__
             custom_constraint = False
 
 

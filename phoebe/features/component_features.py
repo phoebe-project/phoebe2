@@ -1,14 +1,24 @@
 import numpy as np
 import astropy.units as u
 
+import phoebe.parameters.feature as _parameters_feature
+
 import logging
 logger = logging.getLogger("COMPONENT_FEATURES")
 logger.addHandler(logging.NullHandler())
 
 
-__all__ = ['ComponentFeature', 'Spot', 'Pulsation']
+__all__ = ['register_feature', 'ComponentFeature', 'Spot', 'Pulsation']
 
 _skip_filter_checks = {'check_default': False, 'check_visible': False}
+
+def register_feature(feature_cls, kind=None):
+    if kind is None:
+        kind = feature_cls.__name__.lower()
+
+    _parameters_feature._register(feature_cls, kind)
+    globals()[kind.title()] = feature_cls
+    __all__.append(kind.title())
 
 class ComponentFeature(object):
     """
