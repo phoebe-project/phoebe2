@@ -40,14 +40,14 @@ class ComponentFeature(object):
     @property
     def proto_coords(self):
         """
-        Override this to True if all methods (except process_coords*... those
+        Override this to True if all methods (except modify_coords*... those
         ALWAYS expect protomesh coordinates) are expecting coordinates
         in the protomesh (star) frame-of-reference rather than the
         current in-orbit system frame-of-reference.
         """
         return False
 
-    def process_coords_for_computations(self, coords_for_computations, s, t):
+    def modify_coords_for_computations(self, coords_for_computations, s, t):
         """
         Method for a feature to process the coordinates.  Coordinates are
         processed AFTER scaling but BEFORE being placed in orbit.
@@ -55,14 +55,14 @@ class ComponentFeature(object):
         NOTE: coords_for_computations affect physical properties only and
         not geometric properties (areas, eclipse detection, etc).  If you
         want to override geometric properties, use the hook for
-        process_coords_for_observations as well.
+        modify_coords_for_observations as well.
 
         Features that affect coordinates_for_computations should override
         this method
         """
         return coords_for_computations
 
-    def process_coords_for_observations(self, coords_for_computations, coords_for_observations, s, t):
+    def modify_coords_for_observations(self, coords_for_computations, coords_for_observations, s, t):
         """
         Method for a feature to process the coordinates.  Coordinates are
         processed AFTER scaling but BEFORE being placed in orbit.
@@ -70,14 +70,14 @@ class ComponentFeature(object):
         NOTE: coords_for_observations affect the geometry only (areas of each
         element and eclipse detection) but WILL NOT affect any physical
         parameters (loggs, teffs, intensities).  If you want to override
-        physical parameters, use the hook for process_coords_for_computations
+        physical parameters, use the hook for modify_coords_for_computations
         as well.
 
         Features that affect coordinates_for_observations should override this method.
         """
         return coords_for_observations
 
-    def process_loggs(self, loggs, coords, s=np.array([0., 0., 1.]), t=None):
+    def modify_loggs(self, loggs, coords, s=np.array([0., 0., 1.]), t=None):
         """
         Method for a feature to process the loggs.
 
@@ -85,7 +85,7 @@ class ComponentFeature(object):
         """
         return loggs
 
-    def process_teffs(self, teffs, coords, s=np.array([0., 0., 1.]), t=None):
+    def modify_teffs(self, teffs, coords, s=np.array([0., 0., 1.]), t=None):
         """
         Method for a feature to process the teffs.
 
@@ -172,7 +172,7 @@ class Spot(ComponentFeature):
                   np.sin(self._colat)*np.sin(longitude)*eyp +\
                   np.cos(self._colat)*ezp
 
-    def process_teffs(self, teffs, coords, s=np.array([0., 0., 1.]), t=None):
+    def modify_teffs(self, teffs, coords, s=np.array([0., 0., 1.]), t=None):
         """
         Change the local effective temperatures for any values within the
         "cone" defined by the spot.  Any teff within the spot will have its
@@ -187,7 +187,7 @@ class Spot(ComponentFeature):
             t = self._t0
 
         pointing_vector = self.pointing_vector(s,t)
-        logger.debug("spot.process_teffs at t={} with pointing_vector={} and radius={}".format(t, pointing_vector, self._radius))
+        logger.debug("spot.modify_teffs at t={} with pointing_vector={} and radius={}".format(t, pointing_vector, self._radius))
 
         cos_alpha_coords = np.dot(coords, pointing_vector) / np.linalg.norm(coords, axis=1)
         cos_alpha_spot = np.cos(self._radius)
@@ -248,7 +248,7 @@ class Pulsation(ComponentFeature):
     def dYdphi(self, m, l, theta, phi):
         return 1j*m*Y(m, l, theta, phi)
 
-    def process_coords_for_computations(self, coords_for_computations, s, t):
+    def modify_coords_for_computations(self, coords_for_computations, s, t):
         """
         """
         if self._teffext:
@@ -269,7 +269,7 @@ class Pulsation(ComponentFeature):
 
         return new_coords
 
-    def process_coords_for_observations(self, coords_for_computations, coords_for_observations, s, t):
+    def modify_coords_for_observations(self, coords_for_computations, coords_for_observations, s, t):
         """
         Displacement equations:
 
@@ -300,7 +300,7 @@ class Pulsation(ComponentFeature):
 
         return new_coords
 
-    def process_teffs(self, teffs, coords, s=np.array([0., 0., 1.]), t=None):
+    def modify_teffs(self, teffs, coords, s=np.array([0., 0., 1.]), t=None):
         """
         """
         if not self._teffext:

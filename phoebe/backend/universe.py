@@ -1000,7 +1000,7 @@ class Body(object):
             # perturbed as well, unless there is a good reason not to.
             for feature in self.features:
                 # NOTE: these are ALWAYS done on the protomesh
-                coords_for_observations = feature.process_coords_for_computations(scaledprotomesh.coords_for_computations, s=self.polar_direction_xyz, t=self.time)
+                coords_for_observations = feature.modify_coords_for_computations(scaledprotomesh.coords_for_computations, s=self.polar_direction_xyz, t=self.time)
                 if scaledprotomesh._compute_at_vertices:
                     scaledprotomesh.update_columns(pvertices=coords_for_observations)
 
@@ -1010,7 +1010,7 @@ class Body(object):
 
 
             for feature in self.features:
-                coords_for_observations = feature.process_coords_for_observations(scaledprotomesh.coords_for_computations, scaledprotomesh.coords_for_observations, s=self.polar_direction_xyz, t=self.time)
+                coords_for_observations = feature.modify_coords_for_observations(scaledprotomesh.coords_for_computations, scaledprotomesh.coords_for_observations, s=self.polar_direction_xyz, t=self.time)
                 if scaledprotomesh._compute_at_vertices:
                     scaledprotomesh.update_columns(vertices=coords_for_observations)
 
@@ -1537,9 +1537,9 @@ class Star(Body):
         if not ignore_effects:
             for feature in self.features:
                 if feature.proto_coords:
-                    loggs = feature.process_loggs(loggs, mesh.roche_coords_for_computations, s=self.polar_direction_xyz, t=self.time)
+                    loggs = feature.modify_loggs(loggs, mesh.roche_coords_for_computations, s=self.polar_direction_xyz, t=self.time)
                 else:
-                    loggs = feature.process_loggs(loggs, mesh.coords_for_computations, s=self.polar_direction_xyz, t=self.time)
+                    loggs = feature.modify_loggs(loggs, mesh.coords_for_computations, s=self.polar_direction_xyz, t=self.time)
 
         mesh.update_columns(loggs=loggs)
 
@@ -1596,9 +1596,9 @@ class Star(Body):
                         roche_coords_for_computations = np.array([1.0, 0.0, 0.0]) - mesh.roche_coords_for_computations
                     else:
                         roche_coords_for_computations = mesh.roche_coords_for_computations
-                    teffs = feature.process_teffs(teffs, roche_coords_for_computations, s=self.polar_direction_xyz, t=self.time)
+                    teffs = feature.modify_teffs(teffs, roche_coords_for_computations, s=self.polar_direction_xyz, t=self.time)
                 else:
-                    teffs = feature.process_teffs(teffs, mesh.coords_for_computations, s=self.polar_direction_xyz, t=self.time)
+                    teffs = feature.modify_teffs(teffs, mesh.coords_for_computations, s=self.polar_direction_xyz, t=self.time)
 
         mesh.update_columns(teffs=teffs)
 
@@ -1937,9 +1937,9 @@ class Star(Body):
                         roche_coords_for_computations = np.array([1.0, 0.0, 0.0]) - mesh.roche_coords_for_computations
                     else:
                         roche_coords_for_computations = self.mesh.roche_coords_for_computations
-                    abs_normal_intensities, normal_intensities, abs_intensities, intensities = feature.process_intensities(abs_normal_intensities, normal_intensities, abs_intensities, intensities, roche_coords_for_computations, s=self.polar_direction_xyz, t=self.time)
+                    abs_normal_intensities, normal_intensities, abs_intensities, intensities = feature.modify_intensities(abs_normal_intensities, normal_intensities, abs_intensities, intensities, roche_coords_for_computations, s=self.polar_direction_xyz, t=self.time)
                 else:
-                    abs_normal_intensities, normal_intensities, abs_intensities, intensities = feature.process_intensities(abs_normal_intensities, normal_intensities, abs_intensities, intensities, self.mesh.coords_for_computations, s=self.polar_direction_xyz, t=self.time)
+                    abs_normal_intensities, normal_intensities, abs_intensities, intensities = feature.modify_intensities(abs_normal_intensities, normal_intensities, abs_intensities, intensities, self.mesh.coords_for_computations, s=self.polar_direction_xyz, t=self.time)
 
         # TODO: do we really need to store all of these if store_mesh==False?
         # Can we optimize by only returning the essentials if we know we don't need them?
