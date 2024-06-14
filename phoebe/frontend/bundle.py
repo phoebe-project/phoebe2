@@ -5709,6 +5709,9 @@ class Bundle(ParameterSet):
             # then add another parameter that stores the class to run the constraint itself
             code = get_code_for_cls(kind, ignore=['get_parameters'])
             params += [StringParameter(qualifier='feature_code', visible_if='False', value=code, readonly=True)]
+        # TODO: this may need to be more flexible in the future for features on solvers, etc
+        feature_type = 'component' if component_kind is not None else 'dataset'
+        params += [StringParameter(qualifier='feature_type', visible_if='False', value=feature_type, readonly=True)]
 
         metawargs = {'context': 'feature',
                      'component': component,
@@ -12069,17 +12072,12 @@ class Bundle(ParameterSet):
                 enabled_features = self.filter(qualifier='enabled', compute=compute, context='compute', value=True, **_skip_filter_checks).features
                 for feature in enabled_features:
                     feature_ps = self.get_feature(feature=feature, **_skip_filter_checks)
+                    if feature_ps.get_value(qualifier='feature_type', **_skip_filter_checks) != 'dataset':
+                        continue
                     if 'feature_code' in feature_ps.qualifiers:
-                        # TODO: need to differentiate between dataset and component feature here as well
                         feature_cls = get_class_from_code(feature_ps.get_value(qualifier='feature_code', **_skip_filter_checks))
                     else:
                         feature_cls = getattr(dataset_features, feature_ps.kind.title(), None)
-                    if feature_cls is None:
-                        # does not exist.  Assume a component feature and skip.
-                        # In the future if we add support for user-defined features
-                        # in the namespace, we'll need to check for that as well and perhaps
-                        # raise an error
-                        continue
                     feature_cls.from_bundle(self, feature_ps).modify_model(self, feature_ps, ml_params)
 
                 # handle flux scaling for any pblum_mode == 'dataset-scaled'
