@@ -8,11 +8,11 @@ logger = logging.getLogger("COMPONENT_FEATURES")
 logger.addHandler(logging.NullHandler())
 
 
-__all__ = ['register_feature', 'ComponentFeature', 'Spot', 'Pulsation']
+__all__ = ['ComponentFeature', 'Spot', 'Pulsation']
 
 _skip_filter_checks = {'check_default': False, 'check_visible': False}
 
-def register_feature(feature_cls, kind=None):
+def _register_feature(feature_cls, kind=None):
     if kind is None:
         kind = feature_cls.__name__.lower()
 
