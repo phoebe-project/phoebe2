@@ -9,11 +9,11 @@ from phoebe.parameters import FloatParameter, ParameterSet
 from phoebe.parameters import constraint
 import phoebe.parameters.feature as _parameters_feature
 
-__all__ = ['register_feature', 'DatasetFeature']
+__all__ = ['DatasetFeature']
 
 _skip_filter_checks = {'check_default': False, 'check_visible': False}
 
-def register_feature(feature_cls, kind=None):
+def _register_feature(feature_cls, kind=None):
     if kind is None:
         kind = feature_cls.__name__.lower()
 
