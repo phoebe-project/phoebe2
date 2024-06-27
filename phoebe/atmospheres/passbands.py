@@ -433,6 +433,7 @@ class Passband:
             self.pbname = header['pbname']
             self.effwl = header['effwl']
             self.calibrated = header['calibrtd']
+            self.wl_oversampling = header.get('wlovsmpl', 1)
             self.comments = header['comments']
             self.reference = header['referenc']
             self.ptf_order = header['ptforder']
@@ -449,6 +450,7 @@ class Passband:
             self.history = {h.split(': ')[0]: ': '.join(h.split(': ')[1:]) for h in history if len(h.split(': ')) > 1}
 
             self.ptf_table = hdul['ptftable'].data
+            self.wl = np.linspace(self.ptf_table['wl'][0], self.ptf_table['wl'][-1], int(self.wl_oversampling*len(self.ptf_table['wl'])))
 
             # Rebuild ptf() and photon_ptf() functions:
             self.ptf_func = interpolate.splrep(self.ptf_table['wl'], self.ptf_table['fl'], s=0, k=self.ptf_order)
