@@ -4615,6 +4615,13 @@ class Bundle(ParameterSet):
                                             +addl_parameters,
                                             True, 'run_solver')
 
+                # this check can/should be removed in PHOEBE 2.5
+                for param in self.filter(qualifier='sigmas_lnf', dataset=rv_datasets, context='dataset', **_skip_filter_checks).to_list():
+                    if np.isfinite(param.get_value()):
+                        report.add_item(self,
+                                        "behavior of sigmas_lnf for RVs was changed (fixed) in PHOEBE 2.4.15 to be independent of the RV value.  See https://github.com/phoebe-project/phoebe2/pull/901",
+                                        [param]+addl_parameters,
+                                        False, 'run_solver')
 
 
             if 'lc_datasets' in solver_ps.qualifiers:
