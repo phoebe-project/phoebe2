@@ -114,3 +114,7 @@ packages = [
     "phoebe.dependencies.ligeor.models",
     "phoebe.dependencies.ligeor.utils",
 ]
+script-files = [
+    "client-server/phoebe-server",
+    "client-server/phoebe-autofig",
+]
