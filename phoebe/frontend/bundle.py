@@ -13057,7 +13057,7 @@ class Bundle(ParameterSet):
         exclude_solvers = [s for s in self.solvers if s!=solver]
         solver_ps = self.get_solver(solver=solver, **_skip_filter_checks)
         if 'compute' in solver_ps.qualifiers:
-            compute = solver_ps.get_value(qualifier='compute', compute=kwargs.get('compute', None), default=[], **_skip_filter_checks)
+            compute = kwargs.get('compute', solver_ps.get_value(qualifier='compute', **_skip_filter_checks))
             exclude_features = [feature for feature in self.features if not self.get_value(qualifier='enabled', feature=feature, compute=compute, **_skip_filter_checks)]
         else:
             exclude_features = []
