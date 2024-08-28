@@ -3854,11 +3854,16 @@ class ParameterSet(object):
                         sigmas = sigmas[inds]
 
                 sigmas_lnf = ds_ps.get_value(qualifier='sigmas_lnf', component=ds_comp, default=-np.inf, **_skip_filter_checks)
+                dataset_kind = ds_ps.kind
 
                 if len(sigmas):
                     sigmas2 = sigmas**2
+                    
                     if cf == 'lnf' and sigmas_lnf != -np.inf:
-                        sigmas2 += model_interp.value**2 * np.exp(2 * sigmas_lnf)
+                        if dataset_kind == 'rv':
+                            sigmas2 += np.exp(2 * sigmas_lnf)
+                        else:
+                            sigmas2 += model_interp.value**2 * np.exp(2 * sigmas_lnf)
 
                     if cf == 'lnf':
                         ret += np.sum((residuals.value**2 / sigmas2) + np.log(2*np.pi*sigmas2))
