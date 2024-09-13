@@ -3804,7 +3804,7 @@ class ParameterSet(object):
             raise ValueError("model and dataset do not have the same default_unit, cannot interpolate")
 
         # no interpolation for interferometry
-        if qualifier in ['vises', 'clos', 't3s']:
+        if dataset_kind in ['vis', 'clo', 't3']:
             model_interp = model_param.value
             residuals = dataset_param.value - model_param.value
         else:
