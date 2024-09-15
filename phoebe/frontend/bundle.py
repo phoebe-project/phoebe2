@@ -2777,25 +2777,26 @@ class Bundle(ParameterSet):
                 self.add_constraint(constraint.potential_contact_max, component,
                                     constraint=self._default_label('pot_max', context='constraint'))
 
-        for component in self.hierarchy.get_orbits():
-            for constraint_func in ['teffratio', 'requivratio', 'requivsumfrac']:
-                logger.debug('re-creating {} constraint for {}'.format(constraint_func, component))
-                if len(self.filter(context='constraint',
-                                   constraint_func=constraint_func,
-                                   component=component,
-                                   **_skip_filter_checks)):
-                    constraint_param = self.get_constraint(constraint_func=constraint_func,
-                                                           component=component,
-                                                           **_skip_filter_checks)
-                    self.remove_constraint(constraint_func=constraint_func,
-                                           component=component,
-                                           **_skip_filter_checks)
-                    self.add_constraint(getattr(constraint, constraint_func), component,
-                                        solve_for=constraint_param.constrained_parameter.uniquetwig,
-                                        constraint=constraint_param.constraint)
-                else:
-                    self.add_constraint(getattr(constraint, constraint_func), component,
-                                        constraint=self._default_label(constraint_func, context='constraint'))
+# NOTE: COMMENTED DUE TO DEFAULT_TRIPLE()
+#        for component in self.hierarchy.get_orbits():
+#            for constraint_func in ['teffratio', 'requivratio', 'requivsumfrac']:
+#                logger.debug('re-creating {} constraint for {}'.format(constraint_func, component))
+#                if len(self.filter(context='constraint',
+#                                   constraint_func=constraint_func,
+#                                   component=component,
+#                                   **_skip_filter_checks)):
+#                    constraint_param = self.get_constraint(constraint_func=constraint_func,
+#                                                           component=component,
+#                                                           **_skip_filter_checks)
+#                    self.remove_constraint(constraint_func=constraint_func,
+#                                           component=component,
+#                                           **_skip_filter_checks)
+#                    self.add_constraint(getattr(constraint, constraint_func), component,
+#                                        solve_for=constraint_param.constrained_parameter.uniquetwig,
+#                                        constraint=constraint_param.constraint)
+#                else:
+#                    self.add_constraint(getattr(constraint, constraint_func), component,
+#                                        constraint=self._default_label(constraint_func, context='constraint'))
 
 
         for component in self.hierarchy.get_stars():
@@ -2834,8 +2835,10 @@ class Bundle(ParameterSet):
                                         solve_for=constraint_param.constrained_parameter.uniquetwig,
                                         constraint=constraint_param.constraint)
                 else:
-                    self.add_constraint(constraint.mass, component,
-                                        constraint=self._default_label('mass', context='constraint'))
+# NOTE: COMMENTED DUE TO DEFAULT_TRIPLE()
+#                    self.add_constraint(constraint.mass, component,
+#                                        constraint=self._default_label('mass', context='constraint'))
+                    pass
 
 
                 logger.debug('re-creating comp_sma constraint for {}'.format(component))
@@ -4133,13 +4136,14 @@ class Bundle(ParameterSet):
                                     [self.hierarchy
                                      ]+addl_parameters,
                                      True, 'run_compute')
-            elif len(self.hierarchy.get_stars()) > 2:
-                if compute_kind not in []:
-                    report.add_item(self,
-                                    "{} (compute='{}') does not support multiple systems".format(compute_kind, compute),
-                                    [self.hierarchy
-                                     ]+addl_parameters,
-                                     True, 'run_compute')
+# NOTE: COMMENTED DUE TO DEFAULT_TRIPLE()
+#            elif len(self.hierarchy.get_stars()) > 2:
+#                if compute_kind not in []:
+#                    report.add_item(self,
+#                                    "{} (compute='{}') does not support multiple systems".format(compute_kind, compute),
+#                                    [self.hierarchy
+#                                     ]+addl_parameters,
+#                                     True, 'run_compute')
 
             # sample_from and solution checks
             # check if any parameter is in sample_from but is constrained
