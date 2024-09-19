@@ -302,8 +302,11 @@ def dynamics(times, masses, smas, eccs, incls, per0s, long_ans, mean_anoms,
                 # on the INSTANTANEOUS orbital PERIOD.
                 Fs[j][i] = orbit.P / rotperiods[j]
 
-                # TODO: need to add np.pi for secondary component
                 ethetas[j][i] = orbit.f + orbit.omega # true anomaly + periastron
+
+                # need to add np.pi for secondary component
+                if j==1:
+                    ethetas[j][i] += np.pi
 
                 elongans[j][i] = orbit.Omega
 
