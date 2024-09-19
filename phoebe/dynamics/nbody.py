@@ -292,7 +292,7 @@ def dynamics(times, masses, smas, eccs, incls, per0s, long_ans, mean_anoms,
 
                 # get the orbit based on the primary component defined already
                 # in the simulation.
-                orbit = particle.calculate_orbit()
+                orbit = particle.orbit()
 
                 # for instantaneous separation, we need the current separation
                 # from the sibling component in units of its instantaneous (?) sma

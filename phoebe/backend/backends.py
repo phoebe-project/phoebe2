@@ -1094,10 +1094,13 @@ class PhoebeBackend(BaseBackendByTime):
         if True in [info['needs_mesh'] for info in infolist]:
 
             if dynamics_method in ['nbody', 'rebound']:
-                di = dynamics.at_i(inst_ds, i)
-                Fi = dynamics.at_i(inst_Fs, i)
+#                di = dynamics.at_i(inst_ds, i)
+#                Fi = dynamics.at_i(inst_Fs, i)
                 # by passing these along to update_positions, volume conservation will
                 # handle remeshing the stars
+                # NOTE: IN ORDER TO DYNAMICS_METHOD='REBOUND' WORKS
+                di = None
+                Fi = None
             else:
                 # then allow d to be determined from orbit and original sma
                 # and F to remain fixed
