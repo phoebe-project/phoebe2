@@ -7691,7 +7691,7 @@ class Parameter(object):
                 else:
                     # assume dimensionless
                     other = float(other)*u.dimensionless_unscaled
-                return ConstraintParameter(self._bundle, "%f %s {%s}" % (_value_for_constraint(other), symbol, self.uniquetwig), default_unit=(getattr(self.quantity, mathfunc)(other).unit))
+                return ConstraintParameter(self._bundle, "%0.30f %s {%s}" % (_value_for_constraint(other), symbol, self.uniquetwig), default_unit=(getattr(self.quantity, mathfunc)(other).unit))
             elif isinstance(other, u.Unit) and mathfunc=='__mul__':
                 return self.quantity*other
             else:
@@ -11821,7 +11821,7 @@ class ConstraintParameter(Parameter):
             else:
                 # assume dimensionless
                 other = float(other)*u.dimensionless_unscaled
-            return ConstraintParameter(self._bundle, "(%s) %s %f" % (self.expr, symbol, _value_for_constraint(other, self)), default_unit=(getattr(self.result, mathfunc)(other).unit))
+            return ConstraintParameter(self._bundle, "(%s) %s %0.30f" % (self.expr, symbol, _value_for_constraint(other, self)), default_unit=(getattr(self.result, mathfunc)(other).unit))
         elif isinstance(other, str):
             return ConstraintParameter(self._bundle, "(%s) %s %s" % (self.expr, symbol, other), default_unit=(getattr(self.result, mathfunc)(eval(other)).unit))
         elif _is_unit(other) and mathfunc=='__mul__':
@@ -11847,7 +11847,7 @@ class ConstraintParameter(Parameter):
             else:
                 # assume dimensionless
                 other = float(other)*u.dimensionless_unscaled
-            return ConstraintParameter(self._bundle, "%f %s (%s)" % (_value_for_constraint(other, self), symbol, self.expr), default_unit=(getattr(self.result, mathfunc)(other).unit))
+            return ConstraintParameter(self._bundle, "%0.30f %s (%s)" % (_value_for_constraint(other, self), symbol, self.expr), default_unit=(getattr(self.result, mathfunc)(other).unit))
         elif isinstance(other, str):
             return ConstraintParameter(self._bundle, "%s %s (%s)" % (other, symbol, self.expr), default_unit=(getattr(self.result, mathfunc)(eval(other)).unit))
         elif _is_unit(other) and mathfunc=='__mul__':
