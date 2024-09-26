@@ -6,6 +6,7 @@ from scipy.optimize import newton
 
 
 from phoebe import u, c
+from phoebe import conf
 
 try:
     import photodynam
@@ -94,6 +95,7 @@ def dynamics_from_bundle(b, times, compute=None, return_roche_euler=False, use_k
     ltte = computeps.get_value(qualifier='ltte', ltte=kwargs.get('ltte', None), **_skip_filter_checks)
     gr = computeps.get_value(qualifier='gr', gr=kwargs.get('gr', None), **_skip_filter_checks)
     integrator = computeps.get_value(qualifier='integrator', integrator=kwargs.get('integrator', None), **_skip_filter_checks)
+    epsilon = computeps.get_value(qualifier='epsilon', epsilon=kwargs.get('epsilon', None), **_skip_filter_checks)
 
     starrefs = hier.get_stars()
     orbitrefs = hier.get_orbits() if use_kepcart else [hier.get_parent_of(star) for star in starrefs]
@@ -127,12 +129,14 @@ def dynamics_from_bundle(b, times, compute=None, return_roche_euler=False, use_k
 
     return dynamics(times, masses, smas, eccs, incls, per0s, long_ans, \
                     mean_anoms, rotperiods, t0, vgamma, stepsize, ltte, gr,
-                    integrator, use_kepcart=use_kepcart, return_roche_euler=return_roche_euler)
+                    integrator, use_kepcart=use_kepcart, return_roche_euler=return_roche_euler,
+                    epsilon=epsilon)
 
 
 def dynamics(times, masses, smas, eccs, incls, per0s, long_ans, mean_anoms,
         rotperiods=None, t0=0.0, vgamma=0.0, stepsize=0.01, ltte=False, gr=False,
-        integrator='ias15', return_roche_euler=False, use_kepcart=False):
+        integrator='ias15', return_roche_euler=False, use_kepcart=False,
+        epsilon=1.0e-9):
 
     if not _can_rebound:
         raise ImportError("rebound is not installed")
@@ -175,6 +179,12 @@ def dynamics(times, masses, smas, eccs, incls, per0s, long_ans, mean_anoms,
     sim.integrator = integrator
     # NOTE: according to rebound docs: "stepsize will change for adaptive integrators such as IAS15"
     sim.dt = stepsize
+    sim.ri_ias15.epsilon = epsilon
+    sim.ri_whfast.corrector = 17
+    sim.ri_whfast.safe_mode = 0;
+    sim.G = 1.0
+    if conf.devel:
+        sim.status()
 
     if use_kepcart:
         # print "*** bs.kep2cartesian", masses, smas, eccs, incls, per0s, long_ans, mean_anoms, t0
