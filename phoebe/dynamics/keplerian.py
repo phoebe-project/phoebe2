@@ -1,11 +1,14 @@
-
+#!/usr/bin/env python3
 
 import numpy as np
 from numpy import pi,sqrt,cos,sin,tan,arctan
 from scipy.optimize import newton
 
 from phoebe import u, c
-from phoebe import conf
+
+from phoebe.dynamics import coord_j2b
+from phoebe.dynamics import orbel_el2xv
+from phoebe.dynamics import orbel_ehie
 
 import logging
 logger = logging.getLogger("DYNAMICS.KEPLERIAN")
@@ -47,7 +50,6 @@ def dynamics_from_bundle(b, times, compute=None, return_euler=False, **kwargs):
     else:
         ltte = False
 
-    # make sure times is an array and not a list
     times = np.array(times)
 
     vgamma = b.get_value(qualifier='vgamma', context='system', unit=u.solRad/u.d, **_skip_filter_checks)
@@ -56,402 +58,135 @@ def dynamics_from_bundle(b, times, compute=None, return_euler=False, **kwargs):
     hier = b.hierarchy
     starrefs = hier.get_stars()
     orbitrefs = hier.get_orbits()
-    s = b.filter(context='component', **_skip_filter_checks)
 
-    periods, eccs, smas, t0_perpasses, per0s, long_ans, incls, dpdts, \
-    deccdts, dperdts, components = [],[],[],[],[],[],[],[],[],[],[]
-
-
-    for component in starrefs:
-
-        # we need to build a list of all orbitlabels underwhich this component
-        # belongs.  For a simple binary this is just the parent, but for hierarchical
-        # systems we need to get the labels of the outer-orbits as well
-        ancestororbits = []
-        comp = component
-        while hier.get_parent_of(comp) in orbitrefs:
-            comp = hier.get_parent_of(comp)
-            ancestororbits.append(comp)
-
-        #print "***", component, ancestororbits
-
-        periods.append([s.get_value(qualifier='period_anom', unit=u.d, component=orbit, **_skip_filter_checks) for orbit in ancestororbits])
-        eccs.append([s.get_value(qualifier='ecc', component=orbit, **_skip_filter_checks) for orbit in ancestororbits])
-        t0_perpasses.append([s.get_value(qualifier='t0_perpass', unit=u.d, component=orbit, **_skip_filter_checks) for orbit in ancestororbits])
-        per0s.append([s.get_value(qualifier='per0', unit=u.rad, component=orbit, **_skip_filter_checks) for orbit in ancestororbits])
-        long_ans.append([s.get_value(qualifier='long_an', unit=u.rad, component=orbit, **_skip_filter_checks) for orbit in ancestororbits])
-        incls.append([s.get_value(qualifier='incl', unit=u.rad, component=orbit, **_skip_filter_checks) for orbit in ancestororbits])
-        # TODO: do we need to convert from anomalistic to sidereal?
-        dpdts.append([s.get_value(qualifier='dpdt', unit=u.d/u.d, component=orbit, **_skip_filter_checks) for orbit in ancestororbits])
-        if conf.devel:
-            try:
-                deccdts.append([s.get_value('deccdt', u.dimensionless_unscaled/u.d, component=orbit, **_skip_filter_checks) for orbit in ancestororbits])
-            except ValueError:
-                deccdts.append([0.0 for orbit in ancestororbits])
-        else:
-            deccdts.append([0.0 for orbit in ancestororbits])
-        dperdts.append([s.get_value(qualifier='dperdt', unit=u.rad/u.d, component=orbit, **_skip_filter_checks) for orbit in ancestororbits])
-
-        # sma needs to be the COMPONENT sma.  This is stored in the bundle for stars, but is NOT
-        # for orbits in orbits, so we'll need to recompute those from the mass-ratio and sma of
-        # the parent orbit.
-
-        smas_this = []
-        for comp in [component]+ancestororbits[:-1]:
-            if comp in starrefs:
-                smas_this.append(s.get_value(qualifier='sma', unit=u.solRad, component=comp, **_skip_filter_checks))
-            else:
-                q = s.get_value(qualifier='q', component=hier.get_parent_of(comp), **_skip_filter_checks)
-                comp_comp = hier.get_primary_or_secondary(comp)
-
-                # NOTE: similar logic is also in constraints.comp_sma
-                # If changing any of the logic here, it should be changed there as well.
-                if comp_comp == 'primary':
-                    qthing = (1. + 1./q)
-                else:
-                    qthing = (1. + q)
-
-                smas_this.append(s.get_value(qualifier='sma', unit=u.solRad, component=hier.get_parent_of(comp), **_skip_filter_checks) / qthing)
-
-        smas.append(smas_this)
-
-        # components is whether an entry is the primary or secondary in its parent orbit, so here we want
-        # to start with component and end one level short of the top-level orbit
-        components.append([hier.get_primary_or_secondary(component=comp) for comp in [component]+ancestororbits[:-1]])
-
-
-    return  dynamics(times, periods, eccs, smas, t0_perpasses, per0s, \
-                    long_ans, incls, dpdts, deccdts, dperdts, \
-                    components, t0, vgamma, \
-                    mass_conservation=True, ltte=ltte, return_euler=return_euler)
-
-
-
-
-def dynamics(times, periods, eccs, smas, t0_perpasses, per0s, long_ans, incls,
-            dpdts, deccdts, dperdts, components, t0=0.0, vgamma=0.0,
-            mass_conservation=True, ltte=False, return_euler=False):
-    """
-    Compute the positions and velocites of each star in their nested
-    Keplerian orbits at a given list of times.
-
-    See :func:`dynamics_from_bundle` for a wrapper around this function
-    which automatically handles passing everything in the correct order
-    and in the correct units.
-
-    Args:
-        times: (iterable) times at which to compute positions and
-            velocities for each star
-        periods: (iterable) anomalistic period of the parent orbit for each star
-            [days]
-        eccs: (iterable) eccentricity of the parent orbit for each star
-        smas: (iterable) semi-major axis of the parent orbit for each
-            star [solRad]
-        t0_perpasses: (iterable) t0_perpass of the parent orbit for each
-            star [days]
-        per0s: (iterable) longitudes of periastron of the parent orbit
-            for each star [rad]
-        long_ans: (iterable) longitudes of the ascending node of the
-            parent orbit for each star [rad]
-        incls: (iterable) inclination of the parent orbit for each
-            star [rad]
-        dpdts: (iterable) change in period with respect to time of the
-            parent orbit for each star [days/day]
-        deccdts: (iterable) change in eccentricity with respect to time
-            of the parent orbit for each star [1/day]
-        dperdts: (iterable) change in periastron with respect to time
-            of the parent orbit for each star [rad/d]
-        components: (iterable) component ('primary' or 'secondary') of
-            each star within its parent orbit [string]
-        t0: (float, default=0) time at which all initial values (ie period, per0)
-            are given [days]
-        mass_conservation: (bool, optional) whether to require mass
-            conservation if any of the derivatives (dpdt, dperdt, etc)
-            are non-zero [default: True]
-        return_euler: (bool, default=False) whether to include euler angles
-            in the return
-
-    Returns:
-        t, xs, ys, zs, vxs, vys, vzs [, theta, longan, incl].
-        t is a numpy array of all times,
-        the remaining are a list of numpy arrays (a numpy array per
-        star - in order given by b.hierarchy.get_stars()) for the cartesian
-        positions and velocities of each star at those same times.
-        Euler angles (theta, longan, incl) are only returned if return_euler is
-        set to True.
-    """
-    # TODO: NOTE: smas must be per-component, not per-orbit
-    # TODO: steal some documentation from 2.0a:keplerorbit.py:get_orbit
-    # TODO: deal with component number more smartly
-
-    def binary_dynamics(times, period, ecc, sma, t0_perpass, per0, long_an,
-                        incl, dpdt, deccdt, dperdt, component='primary',
-                        t0=0.0, vgamma=0.0, mass_conservation=True,
-                        com_pos=(0.,0.,0.), com_vel=(0.,0.,0.), com_euler=(0.,0.,0.)):
-        """
-        """
-        # TODO: steal some documentation from 2.0a:keplerorbit.py:get_orbit
-
-
-        #-- if dpdt is non-zero, the period is actually an array, and the semi-
-        #   major axis changes to match Kepler's third law (unless
-        #   `mass_conservation` is set to False)
-        # p0 = period
-        # sma0 = sma
-
-        if dpdt!=0:
-            p0 = period
-            period = dpdt*(times-t0) + p0
-            if mass_conservation:
-                # Pieter used to have a if not np.isscale(period) to use period[0] instead of p0,
-                # effectively starting mass conservation at the first dataset time instead of t0
-                sma = sma/p0**2*period**2
-
-        #-- if dperdt is non-zero, the argument of periastron is actually an
-        #   array
-        if dperdt!=0.:
-            per0 = dperdt*(times-t0) + per0
-        #-- if deccdt is non-zero, the eccentricity is actually an array
-        if deccdt!=0:
-            ecc = deccdt*(times-t0) + ecc
-
-
-        #-- compute orbit
-        n = 2*pi/period
-        ma = n*(times-t0_perpass)
-        E,theta = _true_anomaly(ma,ecc)
-        r = sma*(1-ecc*cos(E))
-        PR = r*sin(theta)
-        #-- compute rdot and thetadot
-        l = r*(1+ecc*cos(theta))#-omega))
-        L = 2*pi*sma**2/period*sqrt(1-ecc**2)
-        rdot = L/l*ecc*sin(theta)#-omega)
-        thetadot = L/r**2
-        #-- the secondary is half an orbit further than the primary
-        if 'sec' in component.lower():
-            theta += pi
-        #-- take care of Euler angles
-        theta_ = theta+per0
-        #-- convert to the right coordinate frame
-        #-- create some shortcuts
-        sin_theta_ = sin(theta_)
-        cos_theta_ = cos(theta_)
-        sin_longan = sin(long_an)
-        cos_longan = cos(long_an)
-        #-- spherical coordinates to cartesian coordinates. Note that we actually
-        #   set incl=-incl (but of course it doesn't show up in the cosine). We
-        #   do this to match the convention that superior conjunction (primary
-        #   eclipsed) happens at periastron passage when per0=90 deg.
-        x = r*(cos_longan*cos_theta_ - sin_longan*sin_theta_*cos(incl))
-        y = r*(sin_longan*cos_theta_ + cos_longan*sin_theta_*cos(incl))
-        z = r*(sin_theta_*sin(-incl))
-        #-- spherical vectors to cartesian vectors, and then rotated for
-        #   the Euler angles Omega and i.
-        vx_ = cos_theta_*rdot - sin_theta_*r*thetadot
-        vy_ = sin_theta_*rdot + cos_theta_*r*thetadot
-        vx = cos_longan*vx_ - sin_longan*vy_*cos(incl)
-        vy = sin_longan*vx_ + cos_longan*vy_*cos(incl)
-        vz = sin(-incl)*vy_
-        #-- that's it!
-
-        # correct by vgamma (only z-direction)
-        # NOTE: vgamma is in the direction of positive RV or negative vz
-        vz -= vgamma
-        z -= vgamma * (times-t0)
-
-        return (x+com_pos[0],y+com_pos[1],z+com_pos[2]),\
-                (vx+com_vel[0],vy+com_vel[1],vz+com_vel[2]),\
-                (theta_,long_an,incl)
-                # (theta_+com_euler[0],long_an+com_euler[1],incl+com_euler[2])
-
-    def binary_dynamics_nested(times, periods, eccs, smas, \
-                            t0_perpasses, per0s, long_ans, incls, dpdts, deccdts, \
-                            dperdts, components, t0, vgamma, \
-                            mass_conservation):
-
-        """
-        compute the (possibly nested) positions of a single component (ltte should be
-        handle externally)
-        """
-
-
-        if not hasattr(periods, '__iter__'):
-            # then we don't have to worry about nesting, and each item should
-            # be a single value ready to pass to binary_dynamics
-            pos, vel, euler = binary_dynamics(times, periods, eccs, smas, t0_perpasses, \
-                                per0s, long_ans, incls, dpdts, deccdts, dperdts, components, \
-                                t0, vgamma, mass_conservation)
-
-        else:
-            # Handle nesting - if this star is not in the top-level orbit, then
-            # all values should actually be lists.  We want to sort by period to handle
-            # the outer orbits first and then apply those offsets to the inner-orbit(s)
-
-            # let's convert to arrays so we can use argsort easily
-            periods = np.array(periods)
-            eccs = np.array(eccs)
-            smas = np.array(smas)
-            t0_perpasses = np.array(t0_perpasses)
-            per0s = np.array(per0s)
-            long_ans = np.array(long_ans)
-            incls = np.array(incls)
-            dpdts = np.array(dpdts)
-            deccdts = np.array(deccdts)
-            dperdts = np.array(dperdts)
-            components = np.array(components)
-
-            si = periods.argsort()[::-1]
-
-            #print "***", periods, si
-
-            pos = (0.0, 0.0, 0.0)
-            vel = (0.0, 0.0, 0.0)
-            euler = (0.0, 0.0, 0.0)
-
-            for period, ecc, sma, t0_perpass, per0, long_an, incl, dpdt, \
-                deccdt, dperdt, component in zip(periods[si], eccs[si], \
-                smas[si], t0_perpasses[si], per0s[si], long_ans[si], \
-                incls[si], dpdts[si], deccdts[si], dperdts[si], components[si]):
-
-                pos, vel, euler = binary_dynamics(times, period, ecc, sma, t0_perpass, \
-                                    per0, long_an, incl, dpdt, deccdt, dperdt, component, \
-                                    t0, vgamma, mass_conservation,
-                                    com_pos=pos, com_vel=vel, com_euler=euler)
-
-
-
-        return pos, vel, euler
-
-
-
-
-    xs, ys, zs = [], [], []
-    vxs, vys, vzs = [], [], []
+    G = c.G.to('AU3 / (Msun d2)').value
+    masses = [b.get_value(qualifier='mass', unit=u.solMass, component=component, context='component', **_skip_filter_checks) * G for component in starrefs]
+    smas = [b.get_value(qualifier='sma', unit=u.au, component=component, context='component', **_skip_filter_checks) for component in orbitrefs]
+    eccs = [b.get_value(qualifier='ecc', component=component, context='component', **_skip_filter_checks) for component in orbitrefs]
+    incls = [b.get_value(qualifier='incl', unit=u.rad, component=component, context='component', **_skip_filter_checks) for component in orbitrefs]
+    per0s = [b.get_value(qualifier='per0', unit=u.rad, component=component, context='component', **_skip_filter_checks) for component in orbitrefs]
+    long_ans = [b.get_value(qualifier='long_an', unit=u.rad, component=component, context='component', **_skip_filter_checks) for component in orbitrefs]
+    t0_perpasses = [b.get_value(qualifier='t0_perpass', unit=u.d, component=component, context='component', **_skip_filter_checks) for component in orbitrefs]
+    periods = [b.get_value(qualifier='period', unit=u.d, component=component, context='component', **_skip_filter_checks) for component in orbitrefs]
+    mean_anoms = [b.get_value(qualifier='mean_anom', unit=u.rad, component=component, context='component', **_skip_filter_checks) for component in orbitrefs]
 
     if return_euler:
-        ethetas, elongans, eincls = [], [], []
-
-    for period, ecc, sma, t0_perpass, per0, long_an, incl, dpdt, deccdt, \
-            dperdt, component in zip(periods, eccs, smas, t0_perpasses, per0s, long_ans, \
-            incls, dpdts, deccdts, dperdts, components):
-
-        # We now have the orbital parameters for a single star/component.
-
-        if ltte:
-            #scale_factor = 1.0/c.c.value * c.R_sun.value/(24*3600.)
-            scale_factor = (c.R_sun/c.c).to(u.d).value
-
-            def propertime_barytime_residual(t, time):
-                pos, vel, euler = binary_dynamics_nested(t, period, ecc, sma, \
-                                t0_perpass, per0, long_an, incl, dpdt, deccdt, \
-                                dperdt, components=component, t0=t0, vgamma=vgamma, \
-                                mass_conservation=mass_conservation)
-                z = pos[2]
-                return t - z*scale_factor - time
-
-            # Finding that right time is easy with a Newton optimizer:
-            propertimes = [newton(propertime_barytime_residual, time, args=(time,)) for \
-               time in times]
-            propertimes = np.array(propertimes).ravel()
-
-            pos, vel, euler = binary_dynamics_nested(propertimes, period, ecc, sma, \
-                            t0_perpass, per0, long_an, incl, dpdt, deccdt, \
-                            dperdt, components=component, t0=t0, vgamma=vgamma, \
-                            mass_conservation=mass_conservation)
-
-
-        else:
-            pos, vel, euler = binary_dynamics_nested(times, period, ecc, sma, \
-                    t0_perpass, per0, long_an, incl, dpdt, deccdt, \
-                    dperdt, components=component, t0=t0, vgamma=vgamma, \
-                    mass_conservation=mass_conservation)
-
-
-        xs.append(pos[0])
-        ys.append(pos[1])
-        zs.append(pos[2])
-        vxs.append(vel[0])
-        vys.append(vel[1])
-        vzs.append(vel[2])
-        if return_euler:
-            ethetas.append(euler[0])
-            elongans.append([euler[1]]*len(euler[0]))
-            eincls.append([euler[2]]*len(euler[0]))
-
-
-    # if return_euler:
-    #     return times, \
-    #         xs*u.solRad, ys*u.solRad, zs*u.solRad, \
-    #         vxs*u.solRad/u.d, vys*u.solRad/u.d, vzs*u.solRad/u.d, \
-    #         ethetas*u.rad, elongans*u.rad, eincls*u.rad
-    # else:
-    #     return times, \
-    #         xs*u.solRad, ys*u.solRad, zs*u.solRad, \
-    #         vxs*u.solRad/u.d, vys*u.solRad/u.d, vzs*u.solRad/u.d    if return_euler:
-
-    # d, solRad, solRad/d, rad
-    if return_euler:
-        return times, \
-            xs, ys, zs, \
-            vxs, vys, vzs, \
-            ethetas, elongans, eincls
+        rotperiods = [b.get_value(qualifier='period', unit=u.d, component=component, context='component', **_skip_filter_checks) for component in starrefs]
     else:
-        return times, \
-            xs, ys, zs, \
-            vxs, vys, vzs
+        rotperiods = None
+
+    vgamma = b.get_value(qualifier='vgamma', context='system', unit=u.AU/u.d, **_skip_filter_checks)
+    t0 = b.get_value(qualifier='t0', context='system', unit=u.d, **_skip_filter_checks)
+
+    return dynamics(times, masses, smas, eccs, incls, per0s, long_ans, mean_anoms, \
+        rotperiods, t0, vgamma, ltte, \
+        return_euler=return_euler)
 
 
+def dynamics(times, masses, smas, eccs, incls, per0s, long_ans, mean_anoms, \
+    rotperiods=None, t0=0.0, vgamma=0.0, ltte=False, \
+    return_euler=False):
+
+    nbod = len(masses)
+    rj = np.array(nbod*[[0.0, 0.0, 0.0]])
+    vj = np.array(nbod*[[0.0, 0.0, 0.0]])
+
+    xs = np.zeros((nbod, len(times)))
+    ys = np.zeros((nbod, len(times)))
+    zs = np.zeros((nbod, len(times)))
+    vxs = np.zeros((nbod, len(times)))
+    vys = np.zeros((nbod, len(times)))
+    vzs = np.zeros((nbod, len(times)))
+
+    if return_euler:
+        ethetas  = np.zeros((nbod, len(times)))
+        elongans = np.zeros((nbod, len(times)))
+        eincls   = np.zeros((nbod, len(times)))
+
+    fac = u.au.to('m')/u.solRad.to('m')
+
+    for i, t in enumerate(times):
+
+        # compute Jacobi coordinates
+        msum = masses[0]
+        for j in range(1,nbod):
+            msum += masses[j]
+            ialpha = -1
+            a = smas[j-1]
+            n = sqrt(msum/a**3)
+            P = 2.0*np.pi/n
+            M = mean_anoms[j-1] + n*(t-t0)
+            elmts = [a, eccs[j-1], incls[j-1], long_ans[j-1], per0s[j-1], M]
+ 
+            rj[j], vj[j] = orbel_el2xv.orbel_el2xv(msum, ialpha, elmts)
+
+        # convert to barycentric frame
+        rb, vb = coord_j2b.coord_j2b(masses, rj, vj)
+
+        rb *= fac
+        vb *= fac
+
+        xs[:,i] = -rb[:,0]
+        ys[:,i] = -rb[:,1]
+        zs[:,i] = rb[:,2]
+        vxs[:,i] = -vb[:,0]
+        vys[:,i] = -vb[:,1]
+        vzs[:,i] = vb[:,2]
+
+        if return_euler:
+            ethetas[:,i] = nbod*[0.0]
+            elongans[:,i] = nbod*[0.0]
+            eincls[:,i]  = nbod*[0.0]
+
+    if return_euler:
+        return times, xs, ys, zs, vxs, vys, vzs, ethetas, elongans, eincls
+    else:
+        return times, xs, ys, zs, vxs, vys, vzs
+
+if __name__ == "__main__":
+
+    # Sun-Earth
+    times = np.array([0.0])
+    masses = np.array([1.0, 0.0])
+    smas = np.array([1.0])
+    eccs = np.array([0.0])
+    incls = np.array([0.0])
+    per0s = np.array([0.0])
+    long_ans = np.array([0.0])
+    mean_anoms = np.array([0.0])
+
+    G = c.G.to('AU3 / (Msun d2)').value
+    masses *= G
+
+    times, xs, ys, zs, vxs, vys, vzs = dynamics(times, masses, smas, eccs, incls, per0s, long_ans, mean_anoms)
+
+    print("xs = ", xs)
+    print("ys = ", ys)
+    print("zs = ", zs)
+    print("vxs = ", vxs)
+    print("vys = ", vys)
+    print("vzs = ", vzs)
+
+    print("v_of_Earth = ", vys[1][0]*(u.au/u.d).to('m s^-1'), " m/s")
+
+    # 3-body problem
+    times = np.array([0.0])
+    masses = np.array([1.0, 1.0, 1.0])
+    smas = np.array([1.0, 10.0])
+    eccs = np.array([0.0, 0.0])
+    incls = np.array([0.0, 0.0])
+    per0s = np.array([0.0, 0.0])
+    long_ans = np.array([0.0, 0.0])
+    mean_anoms = np.array([0.0, 0.0])
+
+    times, xs, ys, zs, vxs, vys, vzs = dynamics(times, masses, smas, eccs, incls, per0s, long_ans, mean_anoms)
+
+    print("")
+    print("xs = ", xs)
+    print("ys = ", ys)
+    print("zs = ", zs)
+    print("vxs = ", vxs)
+    print("vys = ", vys)
+    print("vzs = ", vzs)
 
 
-def _true_anomaly(M,ecc,itermax=8):
-    r"""
-    Calculation of true and eccentric anomaly in Kepler orbits.
-
-    ``M`` is the phase of the star, ``ecc`` is the eccentricity
-
-    See p.39 of Hilditch, 'An Introduction To Close Binary Stars':
-
-    Kepler's equation:
-
-    .. math::
-
-        E - e\sin E = \frac{2\pi}{P}(t-T)
-
-    with :math:`E` the eccentric anomaly. The right hand size denotes the
-    observed phase :math:`M`. This function returns the true anomaly, which is
-    the position angle of the star in the orbit (:math:`\theta` in Hilditch'
-    book). The relationship between the eccentric and true anomaly is as
-    follows:
-
-    .. math::
-
-        \tan(\theta/2) = \sqrt{\frac{1+e}{1-e}} \tan(E/2)
-
-    @parameter M: phase
-    @type M: float
-    @parameter ecc: eccentricity
-    @type ecc: float
-    @keyword itermax: maximum number of iterations
-    @type itermax: integer
-    @return: eccentric anomaly (E), true anomaly (theta)
-    @rtype: float,float
-    """
-    # Initial value
-    Fn = M + ecc*sin(M) + ecc**2/2.*sin(2*M)
-
-    # Iterative solving of the transcendent Kepler's equation
-    for i in range(itermax):
-        F = Fn
-        Mn = F-ecc*sin(F)
-        Fn = F+(M-Mn)/(1.-ecc*cos(F))
-        keep = F!=0 # take care of zerodivision
-        if hasattr(F,'__iter__'):
-            if np.all(abs((Fn-F)[keep]/F[keep])<0.00001):
-                break
-        elif (abs((Fn-F)/F)<0.00001):
-            break
-
-    # relationship between true anomaly (theta) and eccentric anomaly (Fn)
-    true_an = 2.*arctan(sqrt((1.+ecc)/(1.-ecc))*tan(Fn/2.))
-
-    return Fn,true_an
