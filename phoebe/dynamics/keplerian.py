@@ -52,9 +52,6 @@ def dynamics_from_bundle(b, times, compute=None, return_euler=False, **kwargs):
 
     times = np.array(times)
 
-    vgamma = b.get_value(qualifier='vgamma', context='system', unit=u.solRad/u.d, **_skip_filter_checks)
-    t0 = b.get_value(qualifier='t0', context='system', unit=u.d, **_skip_filter_checks)
-
     hier = b.hierarchy
     starrefs = hier.get_stars()
     orbitrefs = hier.get_orbits()
@@ -70,21 +67,16 @@ def dynamics_from_bundle(b, times, compute=None, return_euler=False, **kwargs):
     periods = [b.get_value(qualifier='period', unit=u.d, component=component, context='component', **_skip_filter_checks) for component in orbitrefs]
     mean_anoms = [b.get_value(qualifier='mean_anom', unit=u.rad, component=component, context='component', **_skip_filter_checks) for component in orbitrefs]
 
-    if return_euler:
-        rotperiods = [b.get_value(qualifier='period', unit=u.d, component=component, context='component', **_skip_filter_checks) for component in starrefs]
-    else:
-        rotperiods = None
-
-    vgamma = b.get_value(qualifier='vgamma', context='system', unit=u.AU/u.d, **_skip_filter_checks)
+    vgamma = b.get_value(qualifier='vgamma', context='system', unit=u.solRad/u.d, **_skip_filter_checks)
     t0 = b.get_value(qualifier='t0', context='system', unit=u.d, **_skip_filter_checks)
 
     return dynamics(times, masses, smas, eccs, incls, per0s, long_ans, mean_anoms, \
-        rotperiods, t0, vgamma, ltte, \
+        t0, vgamma, ltte, \
         return_euler=return_euler)
 
 
 def dynamics(times, masses, smas, eccs, incls, per0s, long_ans, mean_anoms, \
-    rotperiods=None, t0=0.0, vgamma=0.0, ltte=False, \
+    t0=0.0, vgamma=0.0, ltte=False, \
     return_euler=False):
 
     nbod = len(masses)
