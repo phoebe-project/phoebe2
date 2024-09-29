@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import numpy as np
-from numpy import pi,sqrt,cos,sin,tan,arctan
+from numpy import pi, sqrt, cos, sin, tan, arctan
 from scipy.optimize import newton
 
 from phoebe import u, c
@@ -83,6 +83,38 @@ def dynamics(times, masses, smas, eccs, incls, per0s, long_ans, mean_anoms, \
     dpdts, dperdts, \
     t0=0.0, vgamma=0.0, ltte=False, \
     return_euler=False):
+    """
+    Computes Keplerian dynamics, including binaries, triples, quadruples...
+
+    See :func:`dynamics_from_bundle` for a wrapper around this function
+    which automatically handles passing everything in the correct order
+    and in the correct units.
+
+    Note: orbits = stars - 1
+
+    Args:
+        times: (iterable) times when to compute positions and velocities [days]
+        masses: (iterable) mass for each star [solMass]
+        smas: (iterable) semi-major axis for each orbit [solRad]
+        eccs: (iterable) eccentricity for each orbit [1]
+        incls: (iterable) inclination for each orbit [rad]
+        per0s: (iterable) longitudes of periastron for each orbit [rad]
+        long_ans: (iterable) longitude of the ascending node for each orbit [rad]
+        mean_anoms: (iterable) mean anomaly for each orbit [rad]
+        dpdts: (iterable) change in period with respect to time [days/day]
+        dperdts: (iterable) change in periastron with respect to time [deg/day]
+        t0: (float, default=0) epoch at which elements were given [days]
+        return_euler: (bool, default=False) whether to return euler angles
+
+    Returns:
+        t: is a numpy array of all times,
+        xs, ys, zs: Cartesian positions [solRad]
+        vxs, vys, vzs: Cartesian velocities [solRad/day]
+        theta, longan, incl: Euler angles [rad]
+
+    Note: Euler angles are only returned if return_euler is True.
+
+    """
 
     nbod = len(masses)
     rj = np.array(nbod*[[0.0, 0.0, 0.0]])
@@ -126,6 +158,7 @@ def dynamics(times, masses, smas, eccs, incls, per0s, long_ans, mean_anoms, \
  
             rj[j], vj[j] = orbel_el2xv.orbel_el2xv(msum, ialpha, elmts)
 
+            # compute Euler angles
             if return_euler:
                 euler = orbel_el2xv.get_euler(elmts) 
 
@@ -133,8 +166,8 @@ def dynamics(times, masses, smas, eccs, incls, per0s, long_ans, mean_anoms, \
                 elongans[j][i] = euler[1]
                 eincls[j][i] = euler[2]
 
-                # need to copy the primary component
-                # need to add np.pi for the secondary component
+                # need to copy the primary
+                # need to add np.pi for the secondary
                 if j==1:
                     ethetas[0][i] = euler[0]
                     elongans[0][i] = euler[1]
@@ -145,6 +178,7 @@ def dynamics(times, masses, smas, eccs, incls, per0s, long_ans, mean_anoms, \
         # convert to barycentric frame
         rb, vb = coord_j2b.coord_j2b(masses, rj, vj)
 
+        # gamma velocity
         rb[:,2] -= vgamma*(t-t0)
         vb[:,2] -= vgamma
 
