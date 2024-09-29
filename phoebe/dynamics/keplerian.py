@@ -70,12 +70,17 @@ def dynamics_from_bundle(b, times, compute=None, return_euler=False, **kwargs):
     vgamma = b.get_value(qualifier='vgamma', context='system', unit=u.solRad/u.d, **_skip_filter_checks)
     t0 = b.get_value(qualifier='t0', context='system', unit=u.d, **_skip_filter_checks)
 
+    dpdts = [b.get_value(qualifier='dpdt', unit=u.d/u.d, component=component, context='component', **_skip_filter_checks) for component in orbitrefs]
+    dperdts = [b.get_value(qualifier='dperdt', unit=u.rad/u.d, component=component, context='component', **_skip_filter_checks) for component in orbitrefs]
+
     return dynamics(times, masses, smas, eccs, incls, per0s, long_ans, mean_anoms, \
+        dpdts, dperdts, \
         t0, vgamma, ltte, \
         return_euler=return_euler)
 
 
 def dynamics(times, masses, smas, eccs, incls, per0s, long_ans, mean_anoms, \
+    dpdts, dperdts, \
     t0=0.0, vgamma=0.0, ltte=False, \
     return_euler=False):
 
@@ -104,9 +109,20 @@ def dynamics(times, masses, smas, eccs, incls, per0s, long_ans, mean_anoms, \
             ialpha = -1
             a = smas[j-1]
             n = sqrt(msum/a**3)
-            P = 2.0*np.pi/n
             M = mean_anoms[j-1] + n*(t-t0)
-            elmts = [a, eccs[j-1], incls[j-1], long_ans[j-1], per0s[j-1], M]
+            P = 2.0*np.pi/n
+            dpdt = dpdts[j-1]
+            omega = per0s[j-1]
+            dperdt = dperdts[j-1]
+
+            if dpdt != 0.0:
+                P_ = P + dpdt*(t-t0)
+                a *= (P_/P)**2
+
+            if dperdt != 0.0:
+                omega += dperdt*(t-t0)
+
+            elmts = [a, eccs[j-1], incls[j-1], long_ans[j-1], omega, M]
  
             rj[j], vj[j] = orbel_el2xv.orbel_el2xv(msum, ialpha, elmts)
 
