@@ -126,7 +126,7 @@ def dynamics(times, masses, smas, eccs, incls, per0s, long_ans, mean_anoms, \
                 eincls[j][i] = euler[2]
 
                 # need to copy the primary component
-                # need to add np.pi for secondary component
+                # need to add np.pi for the secondary component
                 if j==1:
                     ethetas[0][i] = euler[0]
                     elongans[0][i] = euler[1]
@@ -136,6 +136,9 @@ def dynamics(times, masses, smas, eccs, incls, per0s, long_ans, mean_anoms, \
 
         # convert to barycentric frame
         rb, vb = coord_j2b.coord_j2b(masses, rj, vj)
+
+        rb[:,2] -= vgamma*(t-t0)
+        vb[:,2] -= vgamma
 
         xs[:,i] = -rb[:,0]
         ys[:,i] = -rb[:,1]
