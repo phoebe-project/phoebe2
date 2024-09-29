@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 
-from numpy import sin, cos, sqrt, array
+from numpy import sin, cos, sqrt, tan, arctan, array
 
 from phoebe.dynamics import orbel_ehie
 
 TINY = 4.0e-15
+
+cape = None
 
 def orbel_el2xv(gm, ialpha, elmts):
     """
@@ -15,6 +17,7 @@ def orbel_el2xv(gm, ialpha, elmts):
     Reference: Levison, H.F., Duncan, M.J., The long-term dynamical behavior of short-period comets. Icarus 108, 18-36, 1994.
 
     """
+    global cape
 
     a, e, inc, capom, omega, capm = elmts
 
@@ -60,6 +63,26 @@ def orbel_el2xv(gm, ialpha, elmts):
     v = d1*vfac1 + d2*vfac2
 
     return r, v
+
+def get_euler(elmts):
+    """
+    Get corresponding Euler angles.
+
+    Note: Module variable (cape) is used from previous computation in orbel_el2xv().
+
+    """
+    global cape
+
+    a, e, inc, capom, omega, capm = elmts
+
+    theta = 2.0*arctan(sqrt((1.0+e)/(1.0-e))*tan(cape/2.0))
+    
+    euler = array([0.0, 0.0, 0.0])
+    euler[0] = theta + omega
+    euler[1] = capom
+    euler[2] = inc
+
+    return euler
 
 if __name__ == "__main__":
 

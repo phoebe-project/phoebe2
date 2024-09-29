@@ -118,6 +118,22 @@ def dynamics(times, masses, smas, eccs, incls, per0s, long_ans, mean_anoms, \
  
             rj[j], vj[j] = orbel_el2xv.orbel_el2xv(msum, ialpha, elmts)
 
+            if return_euler:
+                euler = orbel_el2xv.get_euler(elmts) 
+
+                ethetas[j][i] = euler[0]
+                elongans[j][i] = euler[1]
+                eincls[j][i] = euler[2]
+
+                # need to copy the primary component
+                # need to add np.pi for secondary component
+                if j==1:
+                    ethetas[0][i] = euler[0]
+                    elongans[0][i] = euler[1]
+                    eincls[0][i] = euler[2]
+
+                    ethetas[j][i] += np.pi
+
         # convert to barycentric frame
         rb, vb = coord_j2b.coord_j2b(masses, rj, vj)
 
@@ -127,11 +143,6 @@ def dynamics(times, masses, smas, eccs, incls, per0s, long_ans, mean_anoms, \
         vxs[:,i] = -vb[:,0]
         vys[:,i] = -vb[:,1]
         vzs[:,i] = vb[:,2]
-
-        if return_euler:
-            ethetas[:,i] = nbod*[0.0]
-            elongans[:,i] = nbod*[0.0]
-            eincls[:,i]  = nbod*[0.0]
 
     if return_euler:
         return times, xs, ys, zs, vxs, vys, vzs, ethetas, elongans, eincls
