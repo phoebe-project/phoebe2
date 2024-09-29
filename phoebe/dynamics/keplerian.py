@@ -59,9 +59,9 @@ def dynamics_from_bundle(b, times, compute=None, return_euler=False, **kwargs):
     starrefs = hier.get_stars()
     orbitrefs = hier.get_orbits()
 
-    G = c.G.to('AU3 / (Msun d2)').value
+    G = c.G.to('solRad3 / (Msun d2)').value
     masses = [b.get_value(qualifier='mass', unit=u.solMass, component=component, context='component', **_skip_filter_checks) * G for component in starrefs]
-    smas = [b.get_value(qualifier='sma', unit=u.au, component=component, context='component', **_skip_filter_checks) for component in orbitrefs]
+    smas = [b.get_value(qualifier='sma', unit=u.solRad, component=component, context='component', **_skip_filter_checks) for component in orbitrefs]
     eccs = [b.get_value(qualifier='ecc', component=component, context='component', **_skip_filter_checks) for component in orbitrefs]
     incls = [b.get_value(qualifier='incl', unit=u.rad, component=component, context='component', **_skip_filter_checks) for component in orbitrefs]
     per0s = [b.get_value(qualifier='per0', unit=u.rad, component=component, context='component', **_skip_filter_checks) for component in orbitrefs]
@@ -103,8 +103,6 @@ def dynamics(times, masses, smas, eccs, incls, per0s, long_ans, mean_anoms, \
         elongans = np.zeros((nbod, len(times)))
         eincls   = np.zeros((nbod, len(times)))
 
-    fac = u.au.to('m')/u.solRad.to('m')
-
     for i, t in enumerate(times):
 
         # compute Jacobi coordinates
@@ -122,9 +120,6 @@ def dynamics(times, masses, smas, eccs, incls, per0s, long_ans, mean_anoms, \
 
         # convert to barycentric frame
         rb, vb = coord_j2b.coord_j2b(masses, rj, vj)
-
-        rb *= fac
-        vb *= fac
 
         xs[:,i] = -rb[:,0]
         ys[:,i] = -rb[:,1]
