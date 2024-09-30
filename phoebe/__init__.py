@@ -500,6 +500,11 @@ def default_contact_binary(*args, **kwargs):
 
 default_contact_binary.__doc__ = Bundle.default_contact_binary.__doc__
 
+def default_triple(*args, **kwargs):
+    return Bundle.default_triple(*args, **kwargs)
+
+default_triple.__doc__ = Bundle.default_triple.__doc__
+
 # Shortcuts to settings
 def reset_settings():
     """
@@ -893,6 +898,7 @@ def _get_phoebe_funcs(module, devel=False):
 
     if not devel:
         ignore += ['pulsation']
+        ignore += ['photodynam']
 
     mod_split = module.__name__.split('.')
     if mod_split[-1] in ['figure'] or (mod_split[-1] in ['solver'] and 'figure' not in mod_split):

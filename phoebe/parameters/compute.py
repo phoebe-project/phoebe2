@@ -124,6 +124,12 @@ def phoebe(**kwargs):
     params += [ChoiceParameter(qualifier='dynamics_method', value=kwargs.get('dynamics_method', 'keplerian'), choices=['keplerian'], description='Which method to use to determine the dynamics of components')]
     params += [BoolParameter(qualifier='ltte', value=kwargs.get('ltte', False), description='Correct for light travel time effects')]
 
+    if conf.devel:
+        # note: even though bs isn't an option, its manually added as an option in test_dynamics and test_dynamics_grid
+        params += [BoolParameter(visible_if='dynamics_method:bs', qualifier='gr', value=kwargs.get('gr', False), description='Whether to account for general relativity effects')]
+        params += [FloatParameter(visible_if='dynamics_method:bs', qualifier='stepsize', value=kwargs.get('stepsize', 0.01), default_unit=None, description='stepsize for the N-body integrator')]         # TODO: improve description (and units??)
+        params += [ChoiceParameter(visible_if='dynamics_method:bs', qualifier='integrator', value=kwargs.get('integrator', 'ias15'), choices=['ias15', 'whfast', 'sei', 'leapfrog', 'hermes'], description='Which integrator to use within rebound')]
+
 
     # PHYSICS
     # TODO: should either of these be per-dataset... if so: copy_for={'kind': ['rv', 'lc'], 'dataset': '*'}, dataset='_default' and then edit universe.py to pull for the correct dataset (will need to become dataset-dependent dictionary a la ld_func)
@@ -178,6 +184,11 @@ def phoebe(**kwargs):
 
     params += [ChoiceParameter(qualifier='rv_method', copy_for={'component': {'kind': 'star'}, 'dataset': {'kind': 'rv'}}, component='_default', dataset='_default', value=kwargs.get('rv_method', 'flux-weighted'), choices=['flux-weighted', 'dynamical'], description='Method to use for computing RVs (must be flux-weighted for Rossiter-McLaughlin effects)')]
     params += [BoolParameter(visible_if='rv_method:flux-weighted', qualifier='rv_grav', copy_for={'component': {'kind': 'star'}, 'dataset': {'kind': 'rv'}}, component='_default', dataset='_default', value=kwargs.get('rv_grav', False), description='Whether gravitational redshift effects are enabled for RVs')]
+
+    if conf.devel:
+        params += [ChoiceParameter(qualifier='etv_method', copy_for = {'kind': ['etv'], 'component': '*', 'dataset': '*'}, component='_default', dataset='_default', value=kwargs.get('etv_method', 'crossing'), choices=['crossing'], description='Method to use for computing ETVs')]
+        params += [FloatParameter(visible_if='etv_method:crossing', qualifier='etv_tol', copy_for = {'kind': ['etv'], 'component': '*', 'dataset': '*'}, component='_default', dataset='_default', value=kwargs.get('etv_tol', 1e-4), default_unit=u.d, description='Precision with which to determine eclipse timings')]
+
 
     return ParameterSet(params)
 
@@ -284,6 +295,129 @@ def legacy(**kwargs):
 
     return ParameterSet(params)
 
+def photodynam(**kwargs):
+    """
+    **This backend is EXPERIMENTAL and requires developer mode to be enabled**
+
+    **DO NOT USE FOR SCIENCE**
+
+    Create a <phoebe.parameters.ParameterSet> for compute options for Josh
+    Carter's [photodynam](http://github.com/phoebe-project/photodynam) code.
+
+    Use photodynam to compute radial velocities and light curves.
+    photodynam must be installed and available on the system in order to use
+    this plugin.  The code is available here:
+
+    http://github.com/phoebe-project/photodynam
+
+    When using this backend, please cite
+    * Science 4 February 2011: Vol. 331 no. 6017 pp. 562-565 DOI:10.1126/science.1201274
+    * MNRAS (2012) 420 (2): 1630-1635. doi: 10.1111/j.1365-2966.2011.20151.x
+
+    See also:
+    * <phoebe.frontend.bundle.Bundle.references>
+
+    The following parameters are "exported/translated" when using the photodynam
+    backend:
+
+    System:
+    * t0
+
+    Star:
+    * mass
+    * requiv
+
+    Orbit:
+    * sma
+    * ecc
+    * incl
+    * per0
+    * long_an
+    * mean_anom
+
+    Dataset:
+    * ld_func (only supports quadratic)
+    * ld_coeffs (will use <phoebe.frontend.bundle.Bundle.compute_ld_coeffs> if necessary)
+    * pblum (will use <phoebe.frontend.bundle.Bundle.compute_pblums> if necessary)
+
+
+    The following parameters are populated in the resulting model when using the
+    photodynam backend:
+
+    LCs:
+    * times
+    * fluxes
+
+    RVs (dynamical only):
+    * times
+    * rvs
+
+    ORBs:
+    * times
+    * us
+    * vs
+    * ws
+    * vus
+    * vvs
+    * vws
+
+    Generally, this will be used as an input to the kind argument in
+    <phoebe.frontend.bundle.Bundle.add_compute>.  If attaching through
+    <phoebe.frontend.bundle.Bundle.add_compute>, all `**kwargs` will be
+    passed on to set the values as described in the arguments below.  Alternatively,
+    see <phoebe.parameters.ParameterSet.set_value> to set/change the values
+    after creating the Parameters.
+
+    For example:
+
+    ```py
+    b.add_compute('photodynam')
+    b.run_compute(kind='photodynam')
+    ```
+
+    Arguments
+    ----------
+    * `enabled` (bool, optional, default=True): whether to create synthetics in
+        compute/solver runs.
+    * `stepsize` (float, optional, default=0.01): stepsize to use for dynamics
+        integration.
+    * `orbiterror` (float, optional, default=1e-20): error to use for dynamics
+        integration.
+    * `distortion_method` (string, optional, default='sphere'): method to use
+        for distorting stars (photodynam only supports spherical stars).
+    * `irrad_method` (string, optional, default='none'): method to use for
+        irradiation (photodynam does not support irradiation).
+
+    Returns
+    --------
+    * (<phoebe.parameters.ParameterSet>): ParameterSet of all newly created
+        <phoebe.parameters.Parameter> objects.
+    """
+    if not conf.devel:
+        raise NotImplementedError("'photodynam' backend not officially supported for this release.  Enable developer mode to test.")
+
+    params = _sampling_params(**kwargs)
+    params += _comments_params(**kwargs)
+    params += _server_params(**kwargs)
+
+    params += [BoolParameter(qualifier='enabled', copy_for={'context': 'dataset', 'kind': ['lc', 'rv', 'orb'], 'dataset': '*'}, dataset='_default', value=kwargs.get('enabled', True), description='Whether to create synthetics in compute/solver run')]
+    params += [BoolParameter(qualifier='enabled', copy_for={'context': 'feature', 'kind': ['gp_sklearn', 'gp_celerite2'], 'feature': '*'}, feature='_default', value=kwargs.get('enabled', True), description='Whether to enable the feature in compute/solver run')]
+
+    params += [ChoiceParameter(copy_for = {'kind': ['star'], 'component': '*'}, component='_default', qualifier='atm', value=kwargs.get('atm', 'ck2004'), advanced=True, choices=_atm_choices, description='Atmosphere table to use when estimating passband luminosities and flux scaling (see pblum_method).  Note photodynam itself does not support atmospheres.')]
+    params += [ChoiceParameter(qualifier='pblum_method', value=kwargs.get('pblum_method', 'stefan-boltzmann'), choices=['stefan-boltzmann', 'phoebe'], description='Method to estimate passband luminosities and handle scaling of returned fluxes from photodynam.  stefan-boltzmann: approximate the star as a uniform sphere and estimate the luminosities from teff, requiv, logg, and abun from the internal passband and atmosphere tables.  phoebe: build the mesh using roche distortion at time t0 and compute luminosities use the internal atmosphere tables (considerable overhead, but more accurate for distorted stars).')]
+
+    params += [FloatParameter(qualifier='stepsize', value=kwargs.get('stepsize', 0.01), default_unit=None, description='Stepsize to use for dynamics integration')]
+    params += [FloatParameter(qualifier='orbiterror', value=kwargs.get('orbiterror', 1e-20), default_unit=None, description='Error to use for dynamics integraton')]
+
+    params += [ChoiceParameter(copy_for={'kind': ['star'], 'component': '*'}, component='_default', qualifier='distortion_method', value=kwargs.get('distortion_method', 'sphere'), choices=["sphere"], description='Method to use for distorting stars (photodynam only supports spherical stars)')]
+
+    params += [ChoiceParameter(qualifier='irrad_method', value=kwargs.get('irrad_method', 'none'), choices=['none'], description='Which method to use to handle all irradiation effects (ellc does not support irradiation)')]
+
+    params += [ChoiceParameter(qualifier='fti_method', copy_for = {'kind': ['lc'], 'dataset': '*'}, dataset='_default', value=kwargs.get('fti_method', 'none'), choices=['none', 'oversample'], description='How to handle finite-time integration (when non-zero exptime)')]
+    params += [IntParameter(visible_if='fti_method:oversample', qualifier='fti_oversample', copy_for={'kind': ['lc'], 'dataset': '*'}, dataset='_default', value=kwargs.get('fti_oversample', 5), limits=(1,None), default_unit=u.dimensionless_unscaled, description='Number of times to sample per-datapoint for finite-time integration')]
+
+
+    return ParameterSet(params)
 
 def jktebop(**kwargs):
     """

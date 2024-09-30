@@ -222,6 +222,9 @@ def graham(meshes, xs, ys, zs, expose_horizon=False):
     # Those indices are in the same order as the meshes['comp_no']
     # (needing to add 1 because comp_no starts at 1 not 0)
 
+    # TODO: I don't think this whole comp_no thing is going to work with nested
+    # triples.. may need to rethink the whole meshes.component_by_no thing
+
     front_to_back_comp_nos = np.argsort(zs)[::-1]+1
     nbodies = len(front_to_back_comp_nos)
 

@@ -13,6 +13,8 @@ def test_all():
     b = phoebe.default_binary()
     print("phoebe.default_binary(contact_binary=True) ...")
     b = phoebe.default_binary(contact_binary=True)
+    # b = phoebe.default_triple(inner_as_primary=True)
+    # b = phoebe.default_triple(inner_as_primary=False)
 
 
 if __name__ == '__main__':

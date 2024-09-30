@@ -1283,6 +1283,77 @@ class Bundle(ParameterSet):
         """
         return cls.default_binary(contact_binary=True, *args, **kwargs)
 
+    @classmethod
+    def default_triple(cls, inner_as_primary=True, inner_as_overcontact=False,
+                       starA='starA', starB='starB', starC='starC',
+                       inner='inner', outer='outer',
+                       contact_envelope='contact_envelope'):
+        """
+        For convenience, this function is available at the top-level as
+        <phoebe.default_triple> as well as
+        <phoebe.frontend.bundle.Bundle.default_triple>.
+
+        Load a bundle with a default triple system.
+
+        Set inner_as_primary based on what hierarchical configuration you want.
+
+        `inner_as_primary = True`:
+
+        starA - starB -- starC
+
+        `inner_as_primary = False`:
+
+        starC -- starA - starB
+
+        This is a constructor, so should be called as:
+
+        ```py
+        b = Bundle.default_triple_primary()
+        ```
+
+        Arguments
+        -----------
+
+
+        Returns
+        -------------
+        * an instantiated <phoebe.frontend.bundle.Bundle> object.
+        """
+        if not conf.devel:
+            raise NotImplementedError("'default_triple' not officially supported for this release.  Enable developer mode to test.")
+
+        b = cls()
+        b.add_star(component=starA, color='blue')
+        b.add_star(component=starB, color='orange')
+        b.add_star(component=starC, color='green')
+        b.add_orbit(component=inner, period=1)
+        b.add_orbit(component=outer, period=10)
+
+        if inner_as_overcontact:
+            b.add_envelope(component=contact_envelope)
+            inner_hier = _hierarchy.binaryorbit(b[inner],
+                                           b[starA],
+                                           b[starB],
+                                           b[contact_envelope])
+        else:
+            inner_hier = _hierarchy.binaryorbit(b[inner], b[starA], b[starB])
+
+        if inner_as_primary:
+            hierstring = _hierarchy.binaryorbit(b[outer], inner_hier, b[starC])
+        else:
+            hierstring = _hierarchy.binaryorbit(b[outer], b[starC], inner_hier)
+        b.set_hierarchy(hierstring)
+
+        b.add_constraint(constraint.keplers_third_law_hierarchical,
+                         outer, inner)
+
+        # TODO: does this constraint need to be rebuilt when things change?
+        # (ie in set_hierarchy)
+
+        b.add_compute()
+
+        return b
+
     def save(self, filename, compact=False, incl_uniqueid=True):
         """
         Save the bundle to a JSON-formatted ASCII file.  This will run failed
@@ -3576,6 +3647,10 @@ class Bundle(ParameterSet):
                                     [param, self.get_parameter(qualifier='t0', context='system', **_skip_filter_checks)],
                                     False, ['system', 'run_compute'])
 
+        # TODO: add other checks
+        # - make sure all ETV components are legal
+        # - check for conflict between dynamics_method and mesh_method (?)
+
         self._run_checks_warning_error(report, raise_logger_warning, raise_error)
 
         return report
@@ -5339,6 +5414,9 @@ class Bundle(ParameterSet):
                 # TODO: include Wilson & Devinney?
             elif self.get_compute(compute).kind == 'jktebop':
                 recs = _add_reason(recs, 'jktebop', 'jktebop compute backend')
+            elif self.get_compute(compute).kind == 'photodynam':
+                recs = _add_reason(recs, 'Carter et al. (2011)', 'photodynam compute backend')
+                recs = _add_reason(recs, 'Andras (2012)', 'photodynam compute backend')
             elif self.get_compute(compute).kind == 'ellc':
                 recs = _add_reason(recs, 'Maxted (2016)', 'ellc compute backend')
 
@@ -5501,6 +5579,8 @@ class Bundle(ParameterSet):
                 deps_other.append('phoebe1')
             elif self.get_compute(compute).kind == 'jktebop' and 'jktebop' not in deps_other:
                 deps_other.append('jktebop')
+            elif self.get_compute(compute).kind == 'photodynam' and 'photodynam' not in deps_other:
+                deps_other.append('photodynam')
             elif self.get_compute(compute).kind == 'ellc' and 'ellc' not in deps_pip:
                 deps_pip.append('ellc')
 
@@ -6642,6 +6722,14 @@ class Bundle(ParameterSet):
             # allowed_components = self.hierarchy.get_stars()
             # TODO: how will this work when changing hierarchy to add/remove the common envelope?
             default_components = allowed_components
+        elif kind in ['etv']:
+            hier = self.hierarchy
+            stars = hier.get_stars()
+            # only include components in which the sibling is also a star that
+            # means that the companion in a triple cannot be timed, because how
+            # do we know who it's eclipsing?
+            allowed_components = [s for s in stars if hier.get_sibling_of(s) in stars]
+            default_components = allowed_components
         elif kind in ['lp']:
             # TODO: need to think about what this should be for contacts...
             allowed_components = self.hierarchy.get_stars() + self.hierarchy.get_orbits()
@@ -6764,7 +6852,8 @@ class Bundle(ParameterSet):
                 raise ValueError("cannot provide both 'compute_phases' and 'compute_times' for a {} dataset. Dataset has not been added.".format(kind))
             else:
                 # then we must flip the constraint
-                # assume the component is top-level binary
+                # TODO: this will probably break with triple support - we'll need to handle the multiple orbit components by accepting the dictionary.
+                # For now we'll assume the component is top-level binary
                 self.flip_constraint('compute_phases', component=self.hierarchy.get_top(), dataset=kwargs['dataset'], solve_for='compute_times')
 
         if kind in ['mesh','orb'] and 'times' in kwargs.keys():
@@ -11870,7 +11959,7 @@ class Bundle(ParameterSet):
                     continue
 
                 # we now need to handle any computations of ld_coeffs, pblums, l3s, etc
-                # TODO: skip lookups for phoebe
+                # TODO: skip lookups for phoebe, skip non-supported ld_func for photodynam, etc
                 # TODO: have this return a dictionary like pblums/l3s that we can pass on to the backend?
 
                 # we need to check both for enabled but also passed via dataset kwarg
