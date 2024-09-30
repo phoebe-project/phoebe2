@@ -1179,7 +1179,6 @@ class Star(Body):
         starrefs  = hier.get_stars()
 
         ind_self = starrefs.index(label_self)
-        # for the sibling, we may need to handle a list of stars (ie in the case of a hierarchical triple)
         ind_sibling = starrefs.index(label_sibling) if isinstance(label_sibling, str) else [starrefs.index(l) for l in label_sibling]
         comp_no = ['primary', 'secondary'].index(hier.get_primary_or_secondary(component))+1
 
@@ -2470,7 +2469,6 @@ class Star_rotstar(Star):
         """
         whether the star needs to be re-meshed (for any reason)
         """
-        # TODO: or self.distortion_method != 'keplerian'?? If Nbody orbits can change freq_rot in time, then we need to remesh
         return self.is_misaligned
 
     @property
