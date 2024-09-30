@@ -418,14 +418,6 @@ def new_bundle(type):
         return _new_bundle('default_binary', semidetached='secondary')
     elif type == 'binary:contact':
         return _new_bundle('default_binary', contact_binary=True)
-    # elif type == 'triple:12:detached':
-    #     return _new_bundle('default_triple', inner_as_primary=False, inner_as_contact=False)
-    # elif type == 'triple:12:contact':
-    #     return _new_bundle('default_triple', inner_as_primary=False, inner_as_contact=True)
-    # elif type == 'triple:21:detached':
-    #     return _new_bundle('default_triple', inner_as_primary=True, inner_as_contact=False)
-    # elif type == 'triple:21:contact':
-    #     return _new_bundle('default_triple', inner_as_primary=True, inner_as_contact=True)
     else:
         return _get_response({'success': False, 'error': 'bundle with type "{}" not implemented'.format(type)}, api=True)
 

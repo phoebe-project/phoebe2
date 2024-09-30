@@ -182,7 +182,7 @@ _forbidden_labels += ['bol']
 _forbidden_labels += ['lc', 'rv', 'lp', 'sp', 'orb', 'mesh', 'vis', 'clo', 't3']
 _forbidden_labels += ['star', 'orbit', 'envelope']
 _forbidden_labels += ['spot', 'pulsation']
-_forbidden_labels += ['phoebe', 'legacy', 'jktebop', 'photodynam', 'ellc']
+_forbidden_labels += ['phoebe', 'legacy', 'jktebop', 'ellc']
 
 
 
@@ -225,7 +225,6 @@ _forbidden_labels += ['times', 'fluxes', 'sigmas', 'sigmas_lnf',
                      'l3_mode', 'l3', 'l3_frac',
                      'exptime', 'rvs', 'wavelengths', 'rv_offset',
                      'flux_densities', 'profile_func', 'profile_rest', 'profile_sv',
-                     'Ns', 'time_ecls', 'time_ephems', 'etvs',
                      'us', 'vs', 'ws', 'vus', 'vvs', 'vws',
                      'include_times', 'columns', 'coordinates',
                      'uvw_elements', 'xyz_elements',
@@ -251,7 +250,6 @@ _forbidden_labels += ['enabled', 'dynamics_method', 'ltte', 'comments',
                       'mesh_offset', 'mesh_init_phi', 'horizon_method', 'eclipse_method',
                       'atm', 'lc_method', 'rv_method', 'fti_method', 'fti_oversample',
                       'pblum_method', 'requiv_max_limit',
-                      'etv_method', 'etv_tol',
                       'gridsize', 'refl_num', 'ie',
                       'stepsize', 'orbiterror', 'ringsize',
                       'exact_grav', 'grid', 'hf',
@@ -3380,8 +3378,7 @@ class ParameterSet(object):
                 if not isinstance(param, FloatArrayParameter):
                     raise TypeError
 
-                # TODO: do we need to be more clever about time qualifier for
-                # ETV datasets? TODO: is this robust enough... this won't search
+                #  TODO: is this robust enough... this won't search
                 # for times outside the existing ParameterSet.  We could also
                 # try param.get_parent_ps().get_parameter('time'), but this
                 # won't work when outside the bundle (which is used within
@@ -4448,9 +4445,6 @@ class ParameterSet(object):
                         ds_ps = ps._bundle.get_dataset(dataset=ps.dataset, **_skip_filter_checks)
                         times = ds_ps.get_value(qualifier='times', component=ps.component, **_skip_filter_checks)
                         times = _handle_mask(ds_ps, times, **kwargs)
-                    elif ps.kind == 'etvs':
-                        times = ps.get_value(qualifier='time_ecls', unit=u.d, **_skip_filter_checks)
-                        times = _handle_mask(ps, times, **kwargs)
                     else:
                         times = ps.get_value(qualifier='times', unit=u.d, **_skip_filter_checks)
                         times = _handle_mask(ps, times, **kwargs)
@@ -4749,13 +4743,6 @@ class ParameterSet(object):
             kwargs.setdefault('highlight_size', kwargs.get('size', 0.02))  # this matches the default in autofig for call._sizes
             kwargs.setdefault('uncover', True)
             kwargs.setdefault('trail', 0)
-
-        elif ps.kind == 'etv':
-            defaults = {'x': 'time_ecls',
-                        'y': 'etvs',
-                        'z': 0}
-            sigmas_avail = ['etvs']
-
         elif ps.kind in ['emcee', 'dynesty', 'lc_periodogram', 'rv_periodogram', 'lc_geometry', 'rv_geometry', 'ebai']:
             pass
             # handled below
@@ -5392,17 +5379,6 @@ class ParameterSet(object):
                     component = iqualifier.split(':')[1] if len(iqualifier.split(':')) > 1 else None
                     # TODO: take t0 and period strings
                     kwargs['i'] = self._bundle.to_phase(float(ps.time), component=component)
-                    kwargs['iqualifier'] = iqualifier
-                else:
-                    raise NotImplementedError
-            elif ps.kind == 'etv':
-                if iqualfier=='times':
-                    kwargs['i'] = ps.get_quantity(qualifier='time_ecls', **_skip_filter_checks)
-                    kwargs['iqualifier'] = 'time_ecls'
-                elif iqualifier.split(':')[0] == 'phases':
-                    # TODO: need to test this
-                    icomponent = iqualifier.split(':')[1] if len(iqualifier.split(':')) > 1 else None
-                    kwargs['i'] = self._bundle.to_phase(ps.get_quantity(qualifier='time_ecls'), component=icomponent, **_skip_filter_checks)
                     kwargs['iqualifier'] = iqualifier
                 else:
                     raise NotImplementedError

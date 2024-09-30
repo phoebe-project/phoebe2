@@ -15,7 +15,7 @@ from phoebe.parameters import dataset as _dataset
 from phoebe.parameters import StringParameter, DictParameter, ArrayParameter, ParameterSet
 from phoebe.parameters.parameters import _extract_index_from_string
 from phoebe import dynamics
-from phoebe.backend import universe, etvs, horizon_analytic
+from phoebe.backend import universe, horizon_analytic
 from phoebe.backend import interferometry
 from phoebe.atmospheres import passbands
 from phoebe.distortions  import roche
@@ -118,10 +118,7 @@ def _needs_mesh(b, dataset, kind, component, compute):
 
 
 def _timequalifier_by_kind(kind):
-    if kind=='etv':
-        return 'time_ephems'
-    else:
-        return 'times'
+    return 'times'
 
 def _expand_mesh_times(b, dataset_ps, component):
     def get_times(b, include_times_entry):
@@ -965,22 +962,8 @@ class PhoebeBackend(BaseBackendByTime):
 
         if len(meshablerefs) > 1 or hier.get_kind_of(meshablerefs[0])=='envelope':
             logger.debug("rank:{}/{} PhoebeBackend._create_system_and_compute_pblums: computing dynamics at t0".format(mpi.myrank, mpi.nprocs))
-            if dynamics_method in ['nbody', 'rebound']:
-                t0, xs0, ys0, zs0, vxs0, vys0, vzs0, inst_ds0, inst_Fs0, ethetas0, elongans0, eincls0 = dynamics.nbody.dynamics_from_bundle(b, [t0], compute, return_roche_euler=True, **kwargs)
-
-            elif dynamics_method == 'bs':
-                # TODO: pass stepsize
-                # TODO: pass orbiterror
-                # TODO: make sure that this takes systemic velocity and corrects positions and velocities (including ltte effects if enabled)
-                t0, xs0, ys0, zs0, vxs0, vys0, vzs0, inst_ds0, inst_Fs0, ethetas0, elongans0, eincls0 = dynamics.nbody.dynamics_from_bundle_bs(b, [t0], compute, return_roche_euler=True, **kwargs)
-
-            elif dynamics_method=='keplerian':
-                # TODO: make sure that this takes systemic velocity and corrects positions and velocities (including ltte effects if enabled)
-                t0, xs0, ys0, zs0, vxs0, vys0, vzs0, ethetas0, elongans0, eincls0 = dynamics.keplerian.dynamics_from_bundle(b, [t0], compute, return_euler=True, **kwargs)
-
-            else:
-                raise NotImplementedError
-
+            # TODO: make sure that this takes systemic velocity and corrects positions and velocities (including ltte effects if enabled)
+            t0, xs0, ys0, zs0, vxs0, vys0, vzs0, ethetas0, elongans0, eincls0 = dynamics.keplerian.dynamics_from_bundle(b, [t0], compute, return_euler=True, **kwargs)
             x0, y0, z0, vx0, vy0, vz0, etheta0, elongan0, eincl0 = dynamics.dynamics_at_i(xs0, ys0, zs0, vxs0, vys0, vzs0, ethetas0, elongans0, eincls0, i=0)
 
         else:
@@ -1031,25 +1014,8 @@ class PhoebeBackend(BaseBackendByTime):
 
         if len(meshablerefs) > 1 or hier.get_kind_of(meshablerefs[0])=='envelope':
             logger.debug("rank:{}/{} PhoebeBackend._worker_setup: computing dynamics at all times".format(mpi.myrank, mpi.nprocs))
-            if dynamics_method in ['nbody', 'rebound']:
-                ts, xs, ys, zs, vxs, vys, vzs, inst_ds, inst_Fs, ethetas, elongans, eincls = dynamics.nbody.dynamics_from_bundle(b, times, compute, return_roche_euler=True, **kwargs)
-
-            elif dynamics_method == 'bs':
-                # if distortion_method == 'roche':
-                    # raise ValueError("distortion_method '{}' not compatible with dynamics_method '{}'".format(distortion_method, dynamics_method))
-
-                # TODO: pass stepsize
-                # TODO: pass orbiterror
-                # TODO: make sure that this takes systemic velocity and corrects positions and velocities (including ltte effects if enabled)
-                ts, xs, ys, zs, vxs, vys, vzs, inst_ds, inst_Fs, ethetas, elongans, eincls = dynamics.nbody.dynamics_from_bundle_bs(b, times, compute, return_roche_euler=True, **kwargs)
-
-            elif dynamics_method=='keplerian':
-                # TODO: make sure that this takes systemic velocity and corrects positions and velocities (including ltte effects if enabled)
-                ts, xs, ys, zs, vxs, vys, vzs, ethetas, elongans, eincls = dynamics.keplerian.dynamics_from_bundle(b, times, compute, return_euler=True, **kwargs)
-
-            else:
-                raise NotImplementedError
-
+            # TODO: make sure that this takes systemic velocity and corrects positions and velocities (including ltte effects if enabled)
+            ts, xs, ys, zs, vxs, vys, vzs, ethetas, elongans, eincls = dynamics.keplerian.dynamics_from_bundle(b, times, compute, return_euler=True, **kwargs)
         else:
             # singlestar case
             incl = b.get_value(qualifier='incl', component=meshablerefs[0], unit=u.rad)
@@ -1101,18 +1067,10 @@ class PhoebeBackend(BaseBackendByTime):
         xi, yi, zi, vxi, vyi, vzi, ethetai, elongani, eincli = dynamics.dynamics_at_i(xs, ys, zs, vxs, vys, vzs, ethetas, elongans, eincls, i=i)
 
         if True in [info['needs_mesh'] for info in infolist]:
-
-            if dynamics_method in ['nbody', 'rebound']:
-                di = dynamics.at_i(inst_ds, i)
-                Fi = dynamics.at_i(inst_Fs, i)
-                # by passing these along to update_positions, volume conservation will
-                # handle remeshing the stars
-            else:
-                # then allow d to be determined from orbit and original sma
-                # and F to remain fixed
-                di = None
-                Fi = None
-
+            # then allow d to be determined from orbit and original sma
+            # and F to remain fixed
+            di = None
+            Fi = None
 
             # TODO: eventually we can pass instantaneous masses and sma as kwargs if they're time dependent
             # masses = [b.get_value(qualifier='mass', component=star, context='component', time=time, unit=u.solMass) for star in starrefs]
@@ -1276,68 +1234,6 @@ class PhoebeBackend(BaseBackendByTime):
                 packetlist.append(_make_packet('fluxes',
                                               obs['flux']*u.W/u.m**2,
                                               time, info))
-
-            elif kind=='etv':
-
-                # TODO: add support for other etv kinds (barycentric, robust, others?)
-                time_ecl = etvs.crossing(b, info['component'], time, dynamics_method, ltte, tol=computeparams.get_value(qualifier='etv_tol', unit=u.d, dataset=info['dataset'], component=info['component']))
-
-                this_obs = b.filter(dataset=info['dataset'], component=info['component'], context='dataset')
-
-                # TODO: there must be a better/cleaner way to get to Ns
-                packetlist.append(_make_packet('Ns',
-                                              this_obs.get_parameter(qualifier='Ns').interp_value(time_ephems=time),
-                                              time, info))
-
-                # NOTE: no longer under constraint control
-                packetlist.append(_make_packet('time_ephems',
-                                              time,
-                                              time, info))
-
-                packetlist.append(_make_packet('time_ecls',
-                                              time_ecl,
-                                              time, info))
-
-                # NOTE: no longer under constraint control
-                packetlist.append(_make_packet('etvs',
-                                              time_ecl-time,
-                                              time, info))
-
-            elif kind=='vis':
-
-#                print("time = ", time)  # dbg
-#                print("info = ", info)  # dbg
-#                val = 0.0; obs = {'vis': val}  # dbg
-
-                obs = interferometry.vis(b, system, ucoord=ucoord, vcoord=vcoord, wavelengths=wavelengths, info=info)
-
-                # Note: interferometry.vis_integrate() is used instead of system.observe()
-
-                packetlist.append(_make_packet('vises',
-                                 obs['vis']*u.dimensionless_unscaled,
-                                 time,
-                                 info,
-                                 index=info['original_index']))
-
-            elif kind=='clo':
-
-                obs = interferometry.clo(b, system, ucoord1=ucoord1, vcoord1=vcoord1, ucoord2=ucoord2, vcoord2=vcoord2, wavelengths=wavelengths, info=info)
-
-                packetlist.append(_make_packet('clos',
-                                 obs['clo']*u.dimensionless_unscaled,
-                                 time,
-                                 info,
-                                 index=info['original_index']))
-
-            elif kind=='t3':
-
-                obs = interferometry.t3(b, system, ucoord1=ucoord1, vcoord1=vcoord1, ucoord2=ucoord2, vcoord2=vcoord2, wavelengths=wavelengths, info=info)
-
-                packetlist.append(_make_packet('t3s',
-                                 obs['t3']*u.dimensionless_unscaled,
-                                 time,
-                                 info,
-                                 index=info['original_index']))
 
             elif kind=='orb':
                 # ts[i], xs[cind][i], ys[cind][i], zs[cind][i], vxs[cind][i], vys[cind][i], vzs[cind][i]
@@ -1935,225 +1831,6 @@ class LegacyBackend(BaseBackendByDataset):
 
         return packetlist
 
-
-class PhotodynamBackend(BaseBackendByDataset):
-    """
-    See <phoebe.parameters.compute.photodynam>.
-
-    The run method in this class will almost always be called through the bundle, using
-    * <phoebe.frontend.bundle.Bundle.add_compute>
-    * <phoebe.frontend.bundle.Bundle.run_compute>
-    """
-    def run_checks(self, b, compute, times=[], **kwargs):
-        # check whether photodynam is installed
-        out = commands.getoutput('photodynam')
-        if 'not found' in out:
-            raise ImportError('photodynam executable not found.  Install manually and try again.')
-
-
-    def _worker_setup(self, b, compute, infolist, **kwargs):
-        """
-        """
-        logger.debug("rank:{}/{} PhotodynamBackend._worker_setup".format(mpi.myrank, mpi.nprocs))
-
-        computeparams = b.get_compute(compute, force_ps=True)
-
-        hier = b.get_hierarchy()
-
-        starrefs  = hier.get_stars()
-        orbitrefs = hier.get_orbits()
-
-        step_size = computeparams.get_value(qualifier='stepsize', **kwargs)
-        orbit_error = computeparams.get_value(qualifier='orbiterror', **kwargs)
-        time0 = b.get_value(qualifier='t0', context='system', unit=u.d, **kwargs)
-
-
-        return dict(compute=compute,
-                    starrefs=starrefs,
-                    orbitrefs=orbitrefs,
-                    step_size=step_size,
-                    orbit_error=orbit_error,
-                    time0=time0)
-
-    def _run_single_dataset(self, b, info, **kwargs):
-        """
-        """
-        logger.debug("rank:{}/{} PhotodynamBackend._run_single_dataset(info['dataset']={} info['component']={} info.keys={}, **kwargs.keys={})".format(mpi.myrank, mpi.nprocs, info['dataset'], info['component'], info.keys(), kwargs.keys()))
-
-
-        compute = kwargs.get('compute')
-        starrefs = kwargs.get('starrefs')
-        orbitrefs = kwargs.get('orbitrefs')
-        step_size = kwargs.get('step_size')
-        orbit_error = kwargs.get('orbit_error')
-        time0 = kwargs.get('time0')
-
-        # write the input file
-        # TODO: need to use TemporaryFiles to be MPI safe
-        fi = open('_tmp_pd_inp', 'w')
-        fi.write('{} {}\n'.format(len(starrefs), time0))
-        fi.write('{} {}\n'.format(step_size, orbit_error))
-        fi.write('\n')
-        fi.write(' '.join([str(b.get_value(qualifier='mass', component=star,
-                context='component', unit=u.solMass) * c.G.to('AU3 / (Msun d2)').value)
-                for star in starrefs])+'\n') # GM
-
-        fi.write(' '.join([str(b.get_value(qualifier='requiv', component=star,
-                context='component', unit=u.AU))
-                for star in starrefs])+'\n')
-
-        if info['kind'] == 'lc':
-            # TODO: this will make two meshing calls, let's create and extract from the dictionary instead, or use set_value=True
-            pblums = [b.get_value(qualifier='pblum', dataset=info['dataset'], component=starref, unit=u.W, check_visible=False) for starref in starrefs]
-
-            u1s, u2s = [], []
-            for star in starrefs:
-                if b.get_value(qualifier='ld_func', component=star, dataset=info['dataset'], context='dataset') == 'quadratic':
-                    ld_coeffs = b.get_value(qualifier='ld_coeffs', component=star, dataset=info['dataset'], context='dataset', check_visible=False)
-                else:
-                    # TODO: can we still interpolate for quadratic manually using b.compute_ld_coeffs?
-                    ld_coeffs = (0,0)
-                    logger.warning("ld_func for {} {} must be 'quadratic' for the photodynam backend, but is not: defaulting to quadratic with coeffs of {}".format(star, info['dataset'], ld_coeffs))
-
-                u1s.append(str(ld_coeffs[0]))
-                u2s.append(str(ld_coeffs[1]))
-
-        else:
-            # we only care about the dynamics, so let's just pass dummy values
-            pblums = [1 for star in starrefs]
-            u1s = ['0' for star in starrefs]
-            u2s = ['0' for star in starrefs]
-
-        if -1 in pblums:
-            raise ValueError('pblums must be set in order to run photodynam')
-
-        fi.write(' '.join([str(pbl / (4*np.pi)) for pbl in pblums])+'\n')
-
-        fi.write(' '.join(u1s)+'\n')
-        fi.write(' '.join(u2s)+'\n')
-
-        fi.write('\n')
-
-        for orbitref in orbitrefs:
-            a = b.get_value(qualifier='sma', component=orbitref,
-                context='component', unit=u.AU)
-            e = b.get_value(qualifier='ecc', component=orbitref,
-                context='component')
-            i = b.get_value(qualifier='incl', component=orbitref,
-                context='component', unit=u.rad)
-            o = b.get_value(qualifier='per0', component=orbitref,
-                context='component', unit=u.rad)
-            l = b.get_value(qualifier='long_an', component=orbitref,
-                context='component', unit=u.rad)
-
-            # t0 = b.get_value(qualifier='t0_perpass', component=orbitref,
-                # context='component', unit=u.d)
-            # period = b.get_value(qualifier='period', component=orbitref,
-                # context='component', unit=u.d)
-
-            # om = 2 * np.pi * (time0 - t0) / period
-            om = b.get_value(qualifier='mean_anom', component=orbitref,
-                             context='component', unit=u.rad)
-
-            fi.write('{} {} {} {} {} {}\n'.format(a, e, i, o, l, om))
-        fi.close()
-
-        # write the report file
-        fr = open('_tmp_pd_rep', 'w')
-        # t times
-        # F fluxes
-        # x light-time corrected positions
-        # v light-time corrected velocities
-        fr.write('t F x v \n')   # TODO: don't always get all?
-
-        ds = b.get_dataset(dataset=info['dataset'])
-        times = ds.get_value(qualifier='compute_times', unit=u.d)
-        if not len(times) and 'times' in ds.qualifiers:
-            times = b.get_value(qualifier='times', component=info['component'], unit=u.d)
-
-        for t in times:
-            fr.write('{}\n'.format(t))
-        fr.close()
-
-        # run photodynam
-        cmd = 'photodynam _tmp_pd_inp _tmp_pd_rep > _tmp_pd_out'
-        logger.info("running photodynam backend: '{}'".format(cmd))
-        out = commands.getoutput(cmd)
-        stuff = np.loadtxt('_tmp_pd_out', unpack=True)
-
-        # parse output to fill packets
-        packetlist = []
-
-        nbodies = len(starrefs)
-        if info['kind']=='lc':
-            packetlist.append(_make_packet('times',
-                                           stuff[0]*u.d,
-                                           None,
-                                           info))
-
-            packetlist.append(_make_packet('fluxes',
-                                           stuff[1] +b.get_value(qualifier='pbflux', dataset=info['dataset'], unit=u.W/u.m**2, check_visible=False) - 1,
-                                           None,
-                                           info))
-
-        elif info['kind']=='orb':
-            cind = starrefs.index(info['component'])
-
-            packetlist.append(_make_packet('times',
-                                           stuff[0]*u.d,
-                                           None,
-                                           info))
-
-            packetlist.append(_make_packet('us',
-                                           -1*stuff[2+(cind*3)] * u.AU,
-                                           None,
-                                           info))
-
-            packetlist.append(_make_packet('vs',
-                                           -1*stuff[3+(cind*3)] * u.AU,
-                                           None,
-                                           info))
-
-            packetlist.append(_make_packet('ws',
-                                           stuff[4+(cind*3)] * u.AU,
-                                           None,
-                                           info))
-
-            packetlist.append(_make_packet('vus',
-                                           -1*stuff[3*nbodies+2+(cind*3)] * u.AU/u.d,
-                                           None,
-                                           info))
-
-            packetlist.append(_make_packet('vvs',
-                                           -1*stuff[3*nbodies+3+(cind*3)] * u.AU/u.d,
-                                           None,
-                                           info))
-
-            packetlist.append(_make_packet('vws',
-                                           stuff[3*nbodies+4+(cind*3)] * u.AU/u.d,
-                                           None,
-                                           info))
-
-
-        elif info['kind']=='rv':
-            cind = starrefs.index(info['component'])
-
-            rvs = -stuff[3*nbodies+4+(cind*3)]
-
-            packetlist.append(_make_packet('times',
-                                           stuff[0]*u.d,
-                                           None,
-                                           info))
-
-            packetlist.append(_make_packet('rvs',
-                                           rvs * u.AU/u.d,
-                                           None,
-                                           info))
-
-        else:
-            raise NotImplementedError("kind {} not yet supported by this backend".format(info['kind']))
-
-        return packetlist
 
 # According to jktebop's readme.txt:
 # The possible entries for the type of limb darkening law are 'lin' (for linear)
