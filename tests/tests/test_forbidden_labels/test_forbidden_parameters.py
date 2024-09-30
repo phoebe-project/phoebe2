@@ -14,7 +14,6 @@ def test_forbidden(verbose=False):
     b.add_dataset('lp')
 
     b.add_compute('legacy')
-    b.add_compute('photodynam')
     b.add_compute('jktebop')
     b.add_compute('ellc')
 
