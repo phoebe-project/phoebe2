@@ -116,9 +116,81 @@ def dynamics(times, masses, smas, eccs, incls, per0s, long_ans, mean_anoms, \
 
     """
 
+    # a part called repeatedly (cf. ltte)
+    def _keplerian(times, component=None):
+
+        for i, t in enumerate(times):
+
+            # compute Jacobi coordinates
+            msum = masses[0]
+            for j in range(1, nbod):
+                msum += masses[j]
+                ialpha = -1
+                a = smas[j-1]
+                n = sqrt(msum/a**3)
+                M = mean_anoms[j-1] + n*(t-t0)
+                P = 2.0*np.pi/n
+                dpdt = dpdts[j-1]
+                omega = per0s[j-1]
+                dperdt = dperdts[j-1]
+
+                if dpdt != 0.0:
+                    P_ = P + dpdt*(t-t0)
+                    a *= (P_/P)**2
+
+                if dperdt != 0.0:
+                    omega += dperdt*(t-t0)
+
+                elmts = [a, eccs[j-1], incls[j-1], long_ans[j-1], omega, M]
+
+                rj[j], vj[j] = orbel_el2xv.orbel_el2xv(msum, ialpha, elmts)
+
+                # compute Euler angles
+                # need to copy the primary
+                # need to add np.pi for the secondary
+                if return_euler:
+                    euler[j] = orbel_el2xv.get_euler(elmts)
+
+                    if j==1:
+                        euler[0,:] = euler[1,:]
+                        euler[1,0] += np.pi
+
+            # convert to barycentric frame
+            rb, vb = coord_j2b.coord_j2b(masses, rj, vj)
+
+            # gamma velocity
+            rb[:,2] -= vgamma*(t-t0)
+            vb[:,2] -= vgamma
+
+            # orientation
+            rb[:,0] *= -1.0
+            rb[:,1] *= -1.0
+            vb[:,0] *= -1.0
+            vb[:,1] *= -1.0
+
+            # update only selected components
+            k = range(0, nbod)
+            if component != None:
+                k = component
+
+            xs[k,i] = rb[k,0]
+            ys[k,i] = rb[k,1]
+            zs[k,i] = rb[k,2]
+            vxs[k,i] = vb[k,0]
+            vys[k,i] = vb[k,1]
+            vzs[k,i] = vb[k,2]
+            ethetas[k,i] = euler[k,0]
+            elongans[k,i] = euler[k,1]
+            eincls[k,i] = euler[k,2]
+
+        return
+
+
+    # ...
     nbod = len(masses)
     rj = np.array(nbod*[[0.0, 0.0, 0.0]])
     vj = np.array(nbod*[[0.0, 0.0, 0.0]])
+    euler = np.array(nbod*[[0.0, 0.0, 0.0]])
 
     xs = np.zeros((nbod, len(times)))
     ys = np.zeros((nbod, len(times)))
@@ -132,62 +204,24 @@ def dynamics(times, masses, smas, eccs, incls, per0s, long_ans, mean_anoms, \
         elongans = np.zeros((nbod, len(times)))
         eincls   = np.zeros((nbod, len(times)))
 
-    for i, t in enumerate(times):
+    # unfortunately, ltte must be computed for each * (separately)!
+    if ltte:
+        scale_factor = (u.solRad/c.c).to(u.d).value
 
-        # compute Jacobi coordinates
-        msum = masses[0]
-        for j in range(1,nbod):
-            msum += masses[j]
-            ialpha = -1
-            a = smas[j-1]
-            n = sqrt(msum/a**3)
-            M = mean_anoms[j-1] + n*(t-t0)
-            P = 2.0*np.pi/n
-            dpdt = dpdts[j-1]
-            omega = per0s[j-1]
-            dperdt = dperdts[j-1]
+        for j in range(0,nbod):
 
-            if dpdt != 0.0:
-                P_ = P + dpdt*(t-t0)
-                a *= (P_/P)**2
+            def propertime_residual(t, time):
+                _keplerian([t], component=j)
+                z = zs[j][0]
+                return t - z*scale_factor - time
 
-            if dperdt != 0.0:
-                omega += dperdt*(t-t0)
+            propertimes = [newton(propertime_residual, time, args=(time,)) for time in times]
+            propertimes = np.array(propertimes).ravel()
 
-            elmts = [a, eccs[j-1], incls[j-1], long_ans[j-1], omega, M]
- 
-            rj[j], vj[j] = orbel_el2xv.orbel_el2xv(msum, ialpha, elmts)
+            _keplerian(propertimes, component=j)
 
-            # compute Euler angles
-            if return_euler:
-                euler = orbel_el2xv.get_euler(elmts) 
-
-                ethetas[j][i] = euler[0]
-                elongans[j][i] = euler[1]
-                eincls[j][i] = euler[2]
-
-                # need to copy the primary
-                # need to add np.pi for the secondary
-                if j==1:
-                    ethetas[0][i] = euler[0]
-                    elongans[0][i] = euler[1]
-                    eincls[0][i] = euler[2]
-
-                    ethetas[j][i] += np.pi
-
-        # convert to barycentric frame
-        rb, vb = coord_j2b.coord_j2b(masses, rj, vj)
-
-        # gamma velocity
-        rb[:,2] -= vgamma*(t-t0)
-        vb[:,2] -= vgamma
-
-        xs[:,i] = -rb[:,0]
-        ys[:,i] = -rb[:,1]
-        zs[:,i] = rb[:,2]
-        vxs[:,i] = -vb[:,0]
-        vys[:,i] = -vb[:,1]
-        vzs[:,i] = vb[:,2]
+    else:
+        _keplerian(times)
 
     if return_euler:
         return times, xs, ys, zs, vxs, vys, vzs, ethetas, elongans, eincls
