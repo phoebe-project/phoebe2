@@ -144,7 +144,7 @@ null
 "kind": "star",
 "context": "component",
 "description": "Critical (maximum) value of the equivalent radius for the given morphology",
-"value": 3.4292622920441116,
+"value": 3.429265859647371,
 "default_unit": "solRad",
 "limits": [
 0.0,
@@ -209,7 +209,7 @@ null
 "kind": "star",
 "context": "component",
 "description": "logg at requiv",
-"value": 4.438067632266453,
+"value": 4.438067627303133,
 "default_unit": "",
 "limits": [
 null,
@@ -259,7 +259,7 @@ null
 "kind": "star",
 "context": "component",
 "description": "Rotation frequency (wrt the sky)",
-"value": 6.283185,
+"value": 6.283185307179586,
 "default_unit": "rad / d",
 "limits": [
 0.0,
@@ -489,7 +489,7 @@ null
 "kind": "star",
 "context": "constraint",
 "description": "expression that determines the constraint",
-"value": "6.283185 / {period@starA@component}",
+"value": "6.28318530717958623e+00 / {period@starA@component}",
 "default_unit": "rad / d",
 "constraint_func": "freq",
 "constraint_kwargs": {
@@ -505,7 +505,7 @@ null
 "kind": "star",
 "context": "constraint",
 "description": "expression that determines the constraint",
-"value": "log10((({mass@starA@component} / ({requiv@starA@component} ** 2.000000)) * 2942.206218) * 9.319541)",
+"value": "log10((({mass@starA@component} / ({requiv@starA@component} ** 2.000000)) * 2.94220621750441933e+03) * 9.31954089506172778e+00)",
 "default_unit": "",
 "constraint_func": "logg",
 "constraint_kwargs": {
@@ -521,7 +521,7 @@ null
 "kind": "star",
 "context": "constraint",
 "description": "expression that determines the constraint",
-"value": "1.000000 - {irrad_frac_refl_bol@starA@component}",
+"value": "1.00000000000000000e+00 - {irrad_frac_refl_bol@starA@component}",
 "default_unit": "",
 "constraint_func": "irrad_frac",
 "constraint_kwargs": {
@@ -537,7 +537,7 @@ null
 "kind": "star",
 "context": "constraint",
 "description": "expression that determines the constraint",
-"value": "0.814886 * (((2942.206218 * {mass@starA@component}) * (({period@starA@component} / 6.283185) ** 2.000000)) ** 0.333333)",
+"value": "8.14885676770049971e-01 * (((2.94220621750441933e+03 * {mass@starA@component}) * (({period@starA@component} / 6.283185) ** 2.00000000000000000e+00)) ** 3.33333333333333315e-01)",
 "default_unit": "solRad",
 "constraint_func": "requiv_single_max",
 "constraint_kwargs": {
@@ -760,6 +760,20 @@ null,
 "Class": "ChoiceParameter"
 },
 {
+"qualifier": "boosting_method",
+"compute": "phoebe01",
+"kind": "phoebe",
+"context": "compute",
+"description": "Type of boosting method",
+"choices": [
+"none"
+],
+"value": "none",
+"copy_for": false,
+"advanced": true,
+"Class": "ChoiceParameter"
+},
+{
 "qualifier": "mesh_method",
 "component": "_default",
 "compute": "phoebe01",
@@ -863,11 +877,11 @@ null
 "context": "compute",
 "description": "Atmosphere table",
 "choices": [
-"extern_atmx",
-"extern_planckint",
 "blackbody",
+"extern_atmx",
 "phoenix",
-"ck2004"
+"ck2004",
+"extern_planckint"
 ],
 "value": "ck2004",
 "copy_for": {
@@ -1019,11 +1033,11 @@ null
 "context": "compute",
 "description": "Atmosphere table",
 "choices": [
-"extern_atmx",
-"extern_planckint",
 "blackbody",
+"extern_atmx",
 "phoenix",
-"ck2004"
+"ck2004",
+"extern_planckint"
 ],
 "value": "ck2004",
 "copy_for": false,
@@ -1134,7 +1148,7 @@ null
 "qualifier": "phoebe_version",
 "context": "setting",
 "description": "Version of PHOEBE",
-"value": "2.4.10",
+"value": "2.4.11.dev+feature-interferometry",
 "copy_for": false,
 "readonly": true,
 "advanced": true,
