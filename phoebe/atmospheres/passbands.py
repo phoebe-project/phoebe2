@@ -583,7 +583,7 @@ class Passband:
         return hclkt * expterm/(expterm-1)
 
     def _bb_intensity(self, Teff, photon_weighted=False):
-        """
+        r"""
         Computes mean passband intensity using blackbody atmosphere:
 
         I_pb^E = \int_\lambda I(\lambda) P(\lambda) d\lambda / \int_\lambda P(\lambda) d\lambda
@@ -609,7 +609,7 @@ class Passband:
             return integrate.quad(pb, self.wl[0], self.wl[-1])[0]/self.ptf_area
 
     def _bindex_blackbody(self, Teff, photon_weighted=False):
-        """
+        r"""
         Computes the mean boosting index using blackbody atmosphere:
 
         B_pb^E = \int_\lambda I(\lambda) P(\lambda) B(\lambda) d\lambda / \int_\lambda I(\lambda) P(\lambda) d\lambda
@@ -1689,7 +1689,7 @@ class Passband:
             f.close()
 
     def compute_ck2004_ldints(self):
-        """
+        r"""
         Computes integrated limb darkening profiles for ck2004 atmospheres.
         These are used for intensity-to-flux transformations. The evaluated
         integral is:
@@ -1736,7 +1736,7 @@ class Passband:
             self.content.append('ck2004:ldint')
 
     def compute_phoenix_ldints(self):
-        """
+        r"""
         Computes integrated limb darkening profiles for PHOENIX atmospheres.
         These are used for intensity-to-flux transformations. The evaluated
         integral is:
@@ -2091,7 +2091,7 @@ class Passband:
         return 10**Imu
 
     def Inorm(self, Teff=5772., logg=4.43, abun=0.0, atm='ck2004', ldatm='ck2004', ldint=None, ld_func='interp', ld_coeffs=None, photon_weighted=False):
-        """
+        r"""
 
         Arguments
         ----------
@@ -2171,7 +2171,7 @@ class Passband:
         return retval
 
     def Imu(self, Teff=5772., logg=4.43, abun=0.0, mu=1.0, atm='ck2004', ldatm='ck2004', ldint=None, ld_func='interp', ld_coeffs=None, photon_weighted=False):
-        """
+        r"""
         Arguments
         ----------
         * `Teff`
@@ -3242,7 +3242,7 @@ def get_passband(passband, content=None, reload=False, update_if_necessary=False
     return _pbtable[passband]['pb']
 
 def Inorm_bol_bb(Teff=5772., logg=4.43, abun=0.0, atm='blackbody', photon_weighted=False):
-    """
+    r"""
     Computes normal bolometric intensity using the Stefan-Boltzmann law,
     Inorm_bol_bb = 1/\pi \sigma T^4. If photon-weighted intensity is
     requested, Inorm_bol_bb is multiplied by a conversion factor that
