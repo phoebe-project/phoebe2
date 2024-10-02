@@ -86,6 +86,12 @@ def dynamics(times, masses, smas, eccs, incls, per0s, long_ans, mean_anoms, \
     """
     Computes Keplerian dynamics, including binaries, triples, quadruples...
 
+     _          \                |
+    / \          |               |
+    1 2          3               4
+    \_/          |               |
+                /                |
+
     See :func:`dynamics_from_bundle` for a wrapper around this function
     which automatically handles passing everything in the correct order
     and in the correct units.
