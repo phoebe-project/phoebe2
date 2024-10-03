@@ -1,0 +1,52 @@
+name: Release
+
+on:
+  # NOTE: PR trigger is to ensure changes do not break packaging.
+  pull_request:
+  release:
+    types: [released]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-n-publish:
+    name: Build and publish Python distributions to PyPI
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write  # IMPORTANT: this permission is mandatory for trusted publishing
+    if: github.repository == 'phoebe-project/phoebe2'
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+
+    - name: Install python-build and twine
+      run: python -m pip install build "twine>=3.3"
+
+    - name: Build package
+      run: python -m build --sdist --wheel .
+
+    - name: List result
+      run: ls -l dist
+
+    - name: Check dist
+      run: python -m twine check --strict dist/*
+
+    - name: Test package
+      run: |
+        cd ..
+        python -m venv testenv
+        testenv/bin/pip install pytest phoebe2/dist/*.whl
+        testenv/bin/python -c "import phoebe"
+
+    # NOTE: Do not run this part for PR testing.
+    - name: Publish distribution to PyPI
+      uses: pypa/gh-action-pypi-publish@release/v1
+      if: github.event_name != 'pull_request'
