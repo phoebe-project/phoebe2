@@ -1037,6 +1037,8 @@ class PhoebeBackend(BaseBackendByTime):
             elif dynamics_method=='keplerian':
                 # TODO: make sure that this takes systemic velocity and corrects positions and velocities (including ltte effects if enabled)
                 ts, xs, ys, zs, vxs, vys, vzs, ethetas, elongans, eincls = dynamics.keplerian.dynamics_from_bundle(b, times, compute, return_euler=True, **kwargs)
+                inst_ds = None
+                inst_Fs = None
 
             else:
                 raise NotImplementedError
@@ -1063,7 +1065,8 @@ class PhoebeBackend(BaseBackendByTime):
                     dynamics_method=dynamics_method,
                     ts=ts, xs=xs, ys=ys, zs=zs,
                     vxs=vxs, vys=vys, vzs=vzs,
-                    ethetas=ethetas, elongans=elongans, eincls=eincls)
+                    ethetas=ethetas, elongans=elongans, eincls=eincls,
+                    inst_ds=inst_ds, inst_Fs=inst_Fs)
 
     def _run_single_time(self, b, i, time, infolist, **kwargs):
         logger.debug("rank:{}/{} PhoebeBackend._run_single_time(i={}, time={}, infolist={}, **kwargs.keys={})".format(mpi.myrank, mpi.nprocs, i, time, infolist, kwargs.keys()))
@@ -1094,13 +1097,12 @@ class PhoebeBackend(BaseBackendByTime):
         if True in [info['needs_mesh'] for info in infolist]:
 
             if dynamics_method in ['nbody', 'rebound']:
-#                di = dynamics.at_i(inst_ds, i)
-#                Fi = dynamics.at_i(inst_Fs, i)
                 # by passing these along to update_positions, volume conservation will
                 # handle remeshing the stars
-                # NOTE: IN ORDER TO DYNAMICS_METHOD='REBOUND' WORKS
-                di = None
-                Fi = None
+                inst_ds = kwargs.get('inst_ds')
+                inst_Fs = kwargs.get('inst_Fs')
+                di = dynamics.at_i(inst_ds, i)
+                Fi = dynamics.at_i(inst_Fs, i)
             else:
                 # then allow d to be determined from orbit and original sma
                 # and F to remain fixed
