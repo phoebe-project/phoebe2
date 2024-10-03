@@ -144,7 +144,7 @@ null
 "kind": "star",
 "context": "component",
 "description": "Critical (maximum) value of the equivalent radius for the given morphology",
-"value": 1.6724563972838384,
+"value": 1.6724563972838287,
 "default_unit": "solRad",
 "limits": [
 0.0,
@@ -160,7 +160,7 @@ null
 "kind": "star",
 "context": "component",
 "description": "Critical (minimum) value of the equivalent radius for the given morphology",
-"value": 1.2725418568681297,
+"value": 1.27254185686813,
 "default_unit": "solRad",
 "limits": [
 0.0,
@@ -209,7 +209,7 @@ null
 "kind": "star",
 "context": "component",
 "description": "logg at requiv",
-"value": 4.089736163094955,
+"value": 4.089736153779247,
 "default_unit": "",
 "limits": [
 null,
@@ -259,7 +259,7 @@ null
 "kind": "star",
 "context": "component",
 "description": "Rotation frequency (wrt the sky)",
-"value": 12.56637,
+"value": 12.566370614359172,
 "default_unit": "rad / d",
 "limits": [
 0.0,
@@ -460,7 +460,7 @@ null
 "kind": "star",
 "context": "component",
 "description": "Mass",
-"value": 1.0089067994531355,
+"value": 1.0089067893421308,
 "default_unit": "solMass",
 "limits": [
 1e-12,
@@ -476,7 +476,7 @@ null
 "kind": "star",
 "context": "component",
 "description": "Equivalent radius",
-"value": 1.4999999999999996,
+"value": 1.5000000000000122,
 "default_unit": "solRad",
 "limits": [
 1e-06,
@@ -492,7 +492,7 @@ null
 "kind": "star",
 "context": "component",
 "description": "Critical (maximum) value of the equivalent radius for the given morphology",
-"value": 1.6724563972838378,
+"value": 1.672456397283698,
 "default_unit": "solRad",
 "limits": [
 0.0,
@@ -508,7 +508,7 @@ null
 "kind": "star",
 "context": "component",
 "description": "Critical (minimum) value of the equivalent radius for the given morphology",
-"value": 1.2725418568681297,
+"value": 1.27254185686813,
 "default_unit": "solRad",
 "limits": [
 0.0,
@@ -557,7 +557,7 @@ null
 "kind": "star",
 "context": "component",
 "description": "logg at requiv",
-"value": 4.089736163094955,
+"value": 4.08973615377924,
 "default_unit": "",
 "limits": [
 null,
@@ -607,7 +607,7 @@ null
 "kind": "star",
 "context": "component",
 "description": "Rotation frequency (wrt the sky)",
-"value": 12.56637,
+"value": 12.566370614359172,
 "default_unit": "rad / d",
 "limits": [
 0.0,
@@ -808,7 +808,7 @@ null
 "kind": "star",
 "context": "component",
 "description": "Mass",
-"value": 1.0089067994531355,
+"value": 1.0089067893421308,
 "default_unit": "solMass",
 "limits": [
 1e-12,
@@ -857,7 +857,7 @@ null
 "kind": "orbit",
 "context": "component",
 "description": "Orbital frequency (sidereal)",
-"value": 12.56637,
+"value": 12.566370614359172,
 "default_unit": "rad / d",
 "limits": [
 null,
@@ -988,7 +988,7 @@ null
 "kind": "orbit",
 "context": "component",
 "description": "Mean anomaly at t0@system",
-"value": 89.99999559997653,
+"value": 90.0,
 "default_unit": "deg",
 "limits": [
 null,
@@ -1131,7 +1131,7 @@ null
 "kind": "envelope",
 "context": "component",
 "description": "Fillout-factor of the envelope",
-"value": 0.6417897080770951,
+"value": 0.6417897080770861,
 "default_unit": "",
 "limits": [
 0.0,
@@ -1147,7 +1147,7 @@ null
 "kind": "envelope",
 "context": "component",
 "description": "Potential of the envelope (from the primary component's reference)",
-"value": 3.4013774072298766,
+"value": 3.4013774072298815,
 "default_unit": "",
 "limits": [
 0.0,
@@ -1211,7 +1211,7 @@ null
 "kind": "orbit",
 "context": "component",
 "description": "ratio between equivalent radii of children stars",
-"value": 0.9999999999999997,
+"value": 1.0000000000000082,
 "default_unit": "",
 "limits": [
 0.0,
@@ -1227,7 +1227,7 @@ null
 "kind": "orbit",
 "context": "component",
 "description": "sum of fractional equivalent radii of children stars",
-"value": 0.8955223880597013,
+"value": 0.8955223880597052,
 "default_unit": "",
 "limits": [
 0.0,
@@ -1324,7 +1324,7 @@ null
 "kind": "star",
 "context": "constraint",
 "description": "expression that determines the constraint",
-"value": "6.283185 / {period@primary@component}",
+"value": "6.28318530717958623e+00 / {period@primary@component}",
 "default_unit": "rad / d",
 "constraint_func": "freq",
 "constraint_kwargs": {
@@ -1340,7 +1340,7 @@ null
 "kind": "star",
 "context": "constraint",
 "description": "expression that determines the constraint",
-"value": "log10((({mass@primary@component} / ({requiv@primary@component} ** 2.000000)) * 2942.206218) * 9.319541)",
+"value": "log10((({mass@primary@component} / ({requiv@primary@component} ** 2.000000)) * 2.94220621750441933e+03) * 9.31954089506172778e+00)",
 "default_unit": "",
 "constraint_func": "logg",
 "constraint_kwargs": {
@@ -1356,7 +1356,7 @@ null
 "kind": "star",
 "context": "constraint",
 "description": "expression that determines the constraint",
-"value": "1.000000 - {irrad_frac_refl_bol@primary@component}",
+"value": "1.00000000000000000e+00 - {irrad_frac_refl_bol@primary@component}",
 "default_unit": "",
 "constraint_func": "irrad_frac",
 "constraint_kwargs": {
@@ -1372,7 +1372,7 @@ null
 "kind": "star",
 "context": "constraint",
 "description": "expression that determines the constraint",
-"value": "6.283185 / {period@secondary@component}",
+"value": "6.28318530717958623e+00 / {period@secondary@component}",
 "default_unit": "rad / d",
 "constraint_func": "freq",
 "constraint_kwargs": {
@@ -1388,7 +1388,7 @@ null
 "kind": "star",
 "context": "constraint",
 "description": "expression that determines the constraint",
-"value": "log10((({mass@secondary@component} / ({requiv@secondary@component} ** 2.000000)) * 2942.206218) * 9.319541)",
+"value": "log10((({mass@secondary@component} / ({requiv@secondary@component} ** 2.000000)) * 2.94220621750441933e+03) * 9.31954089506172778e+00)",
 "default_unit": "",
 "constraint_func": "logg",
 "constraint_kwargs": {
@@ -1404,7 +1404,7 @@ null
 "kind": "star",
 "context": "constraint",
 "description": "expression that determines the constraint",
-"value": "1.000000 - {irrad_frac_refl_bol@secondary@component}",
+"value": "1.00000000000000000e+00 - {irrad_frac_refl_bol@secondary@component}",
 "default_unit": "",
 "constraint_func": "irrad_frac",
 "constraint_kwargs": {
@@ -1468,7 +1468,7 @@ null
 "kind": "orbit",
 "context": "constraint",
 "description": "expression that determines the constraint",
-"value": "{period@binary@component} / ((((-1.000000 * {period@binary@component}) * {dperdt@binary@component}) / 6.283185307179586231995926937088) + 1.000000000000000000000000000000)",
+"value": "{period@binary@component} / ((((-1.00000000000000000e+00 * {period@binary@component}) * {dperdt@binary@component}) / 6.28318530717958623e+00) + 1.00000000000000000e+00)",
 "default_unit": "d",
 "constraint_func": "period_anom",
 "constraint_kwargs": {
@@ -1484,7 +1484,7 @@ null
 "kind": "orbit",
 "context": "constraint",
 "description": "expression that determines the constraint",
-"value": "(6.283185 * ({t0@system} - {t0_perpass@binary@component})) / {period@binary@component}",
+"value": "(6.28318530717958623e+00 * ({t0@system} - {t0_perpass@binary@component})) / {period@binary@component}",
 "default_unit": "deg",
 "constraint_func": "mean_anom",
 "constraint_kwargs": {
@@ -1542,7 +1542,7 @@ null
 "kind": "orbit",
 "context": "constraint",
 "description": "expression that determines the constraint",
-"value": "6.283185 / {period@binary@component}",
+"value": "6.28318530717958623e+00 / {period@binary@component}",
 "default_unit": "rad / d",
 "constraint_func": "freq",
 "constraint_kwargs": {
@@ -1698,7 +1698,7 @@ null
 "kind": "star",
 "context": "constraint",
 "description": "expression that determines the constraint",
-"value": "(39.478418 * ({sma@binary@component} ** 3.000000)) / ((({period@binary@component} ** 2.000000) * ({q@binary@component} + 1.000000)) * 2942.206217504419328179210424423218)",
+"value": "(3.94784176043574320e+01 * ({sma@binary@component} ** 3.000000)) / ((({period@binary@component} ** 2.000000) * ({q@binary@component} + 1.000000)) * 2.94220621750441933e+03)",
 "default_unit": "solMass",
 "constraint_func": "mass",
 "constraint_kwargs": {
@@ -1720,7 +1720,7 @@ null
 "kind": "star",
 "context": "constraint",
 "description": "expression that determines the constraint",
-"value": "{sma@binary@component} / ((1.000000 / {q@binary@component}) + 1.000000)",
+"value": "{sma@binary@component} / ((1.00000000000000000e+00 / {q@binary@component}) + 1.00000000000000000e+00)",
 "default_unit": "solRad",
 "constraint_func": "comp_sma",
 "constraint_kwargs": {
@@ -1736,7 +1736,7 @@ null
 "kind": "star",
 "context": "constraint",
 "description": "expression that determines the constraint",
-"value": "({sma@binary@component} * (sin({incl@binary@component}))) / ((1.000000 / {q@binary@component}) + 1.000000)",
+"value": "({sma@binary@component} * (sin({incl@binary@component}))) / ((1.00000000000000000e+00 / {q@binary@component}) + 1.00000000000000000e+00)",
 "default_unit": "solRad",
 "constraint_func": "comp_asini",
 "constraint_kwargs": {
@@ -1832,7 +1832,7 @@ null
 "kind": "star",
 "context": "constraint",
 "description": "expression that determines the constraint",
-"value": "(39.478418 * ({sma@binary@component} ** 3.000000)) / ((({period@binary@component} ** 2.000000) * ((1.000000 / {q@binary@component}) + 1.000000)) * 2942.206217504419328179210424423218)",
+"value": "(3.94784176043574320e+01 * ({sma@binary@component} ** 3.000000)) / ((({period@binary@component} ** 2.000000) * ((1.00000000000000000e+00 / {q@binary@component}) + 1.00000000000000000e+00)) * 2.94220621750441933e+03)",
 "default_unit": "solMass",
 "constraint_func": "mass",
 "constraint_kwargs": {
@@ -2290,11 +2290,11 @@ null
 "context": "compute",
 "description": "Atmosphere table",
 "choices": [
-"extern_atmx",
-"blackbody",
-"extern_planckint",
 "phoenix",
-"ck2004"
+"extern_atmx",
+"ck2004",
+"blackbody",
+"extern_planckint"
 ],
 "value": "ck2004",
 "copy_for": {
@@ -2526,11 +2526,11 @@ null
 "context": "compute",
 "description": "Atmosphere table",
 "choices": [
-"extern_atmx",
-"blackbody",
-"extern_planckint",
 "phoenix",
-"ck2004"
+"extern_atmx",
+"ck2004",
+"blackbody",
+"extern_planckint"
 ],
 "value": "ck2004",
 "copy_for": false,
@@ -2544,11 +2544,11 @@ null
 "context": "compute",
 "description": "Atmosphere table",
 "choices": [
-"extern_atmx",
-"blackbody",
-"extern_planckint",
 "phoenix",
-"ck2004"
+"extern_atmx",
+"ck2004",
+"blackbody",
+"extern_planckint"
 ],
 "value": "ck2004",
 "copy_for": false,
@@ -2754,7 +2754,7 @@ null
 "qualifier": "phoebe_version",
 "context": "setting",
 "description": "Version of PHOEBE",
-"value": "2.4.6",
+"value": "2.4.15",
 "copy_for": false,
 "readonly": true,
 "advanced": true,

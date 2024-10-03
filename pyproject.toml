@@ -11,7 +11,7 @@
 
 [project]
 name = "phoebe"
-version = "2.4.14"
+version = "2.4.15"
 description = "PHOEBE: modeling and analysis of eclipsing binary stars"
 readme = "README.md"
 requires-python = ">=3.7"
@@ -58,7 +58,7 @@ classifiers = [
     "Topic :: Software Development :: User Interfaces"
 ]
 dependencies = [
-    "numpy",
+    "numpy < 2.0.0",
     "scipy",
     "astropy",
     "pytest",
@@ -79,7 +79,7 @@ repository = "https://github.com/phoebe-project/phoebe2"
 documentation = "http://phoebe-project.org/docs"
 
 [build-system]
-requires = ["setuptools", "numpy", "wheel"]
+requires = ["setuptools", "numpy < 2.0.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
@@ -113,4 +113,8 @@ packages = [
     "phoebe.dependencies.ligeor.eclipse",
     "phoebe.dependencies.ligeor.models",
     "phoebe.dependencies.ligeor.utils",
+]
+script-files = [
+    "client-server/phoebe-server",
+    "client-server/phoebe-autofig",
 ]
