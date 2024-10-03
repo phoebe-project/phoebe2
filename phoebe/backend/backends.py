@@ -959,6 +959,9 @@ class PhoebeBackend(BaseBackendByTime):
             if dynamics_method in ['nbody', 'rebound']:
                 t0, xs0, ys0, zs0, vxs0, vys0, vzs0, inst_ds0, inst_Fs0, ethetas0, elongans0, eincls0 = dynamics.nbody.dynamics_from_bundle(b, [t0], compute, return_roche_euler=True, **kwargs)
 
+            elif dynamics_method in ['xyz']:
+                t0, xs0, ys0, zs0, vxs0, vys0, vzs0, inst_ds0, inst_Fs0, ethetas0, elongans0, eincls0 = dynamics.xyz.dynamics_from_bundle(b, [t0], compute, return_roche_euler=True, **kwargs)
+
             elif dynamics_method == 'bs':
                 # TODO: pass stepsize
                 # TODO: pass orbiterror
@@ -1024,6 +1027,9 @@ class PhoebeBackend(BaseBackendByTime):
             logger.debug("rank:{}/{} PhoebeBackend._worker_setup: computing dynamics at all times".format(mpi.myrank, mpi.nprocs))
             if dynamics_method in ['nbody', 'rebound']:
                 ts, xs, ys, zs, vxs, vys, vzs, inst_ds, inst_Fs, ethetas, elongans, eincls = dynamics.nbody.dynamics_from_bundle(b, times, compute, return_roche_euler=True, **kwargs)
+
+            elif dynamics_method in ['xyz']:
+                ts, xs, ys, zs, vxs, vys, vzs, inst_ds, inst_Fs, ethetas, elongans, eincls = dynamics.xyz.dynamics_from_bundle(b, times, compute, return_roche_euler=True, **kwargs)
 
             elif dynamics_method == 'bs':
                 # if distortion_method == 'roche':

@@ -4,7 +4,7 @@ import numpy as np
 
 def coord_j2b(mass, rj, vj):
     """
-    Converts from Jacobi to barycentric coordinateas.
+    Converts from Jacobi to barycentric coordinates.
 
     Rewritten from swift/coord/coord_j2b.f.
 
