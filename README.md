@@ -98,6 +98,7 @@ CHANGELOG
 * sigmas_lnf: change handling of noise-nuissance parameter for RVs to no longer depend on the RV amplitude. [#901]
 * Remove duplicated phoebe-server code. [#940]
 * Fix python 3.12+ support by updating invalid escape sequences. [#948]
+* Improved precision in calculation of constraints. [#945]
 
 ### 2.4.14
 
