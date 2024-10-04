@@ -82,6 +82,8 @@ def get_euler(elmts):
     euler[1] = capom
     euler[2] = inc
 
+    cape = None
+
     return euler
 
 if __name__ == "__main__":
