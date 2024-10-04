@@ -140,9 +140,7 @@ def _compute_twoD_Gaussian(coords, sigma_x, sigma_y, amplitude, cutoff=0, offset
     return offset + amplitude * np.exp(- (a * ((coords[:, 0] - x0) ** 2))) * np.exp(- (b * ((coords[:, 1] - y0) ** 2)))
 
 
-
-def smooth_teffs(xyz1, teffs1, xyz2, teffs2, w=0.5, cutoff=0., offset=0.):
-
+def gaussian_smoothing(xyz1, teffs1, xyz2, teffs2, w=0.5, cutoff=0., offset=0.):
     coords_neck_1, teffs_neck_1, cond1 = _isolate_neck(xyz1, teffs1, cutoff = cutoff, component=1, plot=False)
     coords_neck_2, teffs_neck_2, cond2 = _isolate_neck(xyz2, teffs2, cutoff = cutoff, component=2, plot=False)
 
@@ -170,5 +168,52 @@ def smooth_teffs(xyz1, teffs1, xyz2, teffs2, w=0.5, cutoff=0., offset=0.):
     # print(cond2, len(cond2), len(new_teffs2))
     teffs1[cond1] = new_teffs1
     teffs2[cond2] = new_teffs2
+
+    return teffs1, teffs2
+
+
+def lateral_transfer(t2s, teffs2, lat=0.22, power=0.25):
+    z2s = t2s[:,2]
+    lat = 0.15
+    power = 0.75
+    filt = (z2s>-lat) & (z2s<lat)
+    c = (lat-np.abs(z2s[filt]))**power
+    teffs2[filt] *= 1+0.3*c/c.max()  
+
+    return teffs2
+
+def isotropic_transfer(t2s, teffs2):
+    d2s = np.sqrt(t2s[:,0]*t2s[:,0] + t2s[:,1]*t2s[:,1] + t2s[:,2]*t2s[:,2])
+    teffs2 *= 1+0.4*(1-((d2s-d2s.min())/(d2s.max()-d2s.min()))**0.5)
+
+    return teffs2
+
+
+def spotty_transfer(t2s, teffs2):
+    d2s = np.sqrt(t2s[:,0]*t2s[:,0] + t2s[:,1]*t2s[:,1] + t2s[:,2]*t2s[:,2])
+    for s in range(10):
+        idx = int(len(d2s)*np.random.rand())
+        size = 0.3*np.random.rand()
+        factor = 1.1-0.025*np.random.rand()
+
+        ds = np.sqrt((t2s[:,0]-t2s[idx,0])**2 + (t2s[:,1]-t2s[idx,1])**2 + (t2s[:,2]-t2s[idx,2])**2)
+        teffs2[ds<size] *= factor
+
+    return teffs2
+
+
+def smooth_teffs(xyz1, teffs1, xyz2, teffs2, smoothing_method='lateral'):
+
+    if smoothing_method == 'lateral':
+        teffs2 = lateral_transfer(xyz2, teffs2)
+
+    elif smoothing_method == 'isotropic':
+        teffs2 = isotropic_transfer(xyz2, teffs2)
+
+    elif smoothing_method == 'spotty':
+        teffs2 = spotty_transfer(xyz2, teffs2)
+    
+    else:
+        teffs1, teffs2 = gaussian_smoothing(xyz1, teffs1, xyz2, teffs2)
 
     return teffs1, teffs2

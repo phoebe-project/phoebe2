@@ -975,26 +975,29 @@ class PhoebeBackend(BaseBackendByTime):
 
         system.update_positions(t0, x0, y0, z0, vx0, vy0, vz0, etheta0, elongan0, eincl0, ignore_effects=True)
 
-        # TEMPERATURE SMOOTHING FOR CONTACTS
-        # smoothing_enabled = b.get_value(qualifier='smoothing_enabled', context='component', **_skip_filter_checks)
-        # if smoothing_enabled:
-        #     smoothing_factor = b.get_value(qualifier='smoothing_factor', context='component', **_skip_filter_checks)
-        #     primary_mesh, secondary_mesh = system.bodies[0].meshes.values()
-        #     coords1 = primary_mesh.roche_coords_for_computations
-        #     teffs1 = primary_mesh.teffs
-        #     coords2 = secondary_mesh.roche_coords_for_computations
-        #     teffs2 = secondary_mesh.teffs
+        #TEMPERATURE SMOOTHING FOR CONTACTS
+        smoothing_enabled = b.get_value(qualifier='smoothing_enabled', context='component', **_skip_filter_checks)
         
-        #     new_teffs1, new_teffs2 = contacts_smoothing.smooth_teffs(np.array(coords1), np.array(teffs1),
-        #                                                             np.array(coords2), np.array(teffs2),
-        #                                                             w=smoothing_factor, cutoff=0.0)
+        if smoothing_enabled:
+            smoothing_method = b.get_value(qualifier='smoothing_method', context='component', **_skip_filter_checks)
+            smoothing_factor = b.get_value(qualifier='smoothing_factor', context='component', **_skip_filter_checks)
+            primary_mesh, secondary_mesh = system.bodies[0].meshes.values()
+            coords1 = primary_mesh.roche_coords_for_computations
+            teffs1 = primary_mesh.teffs
+            coords2 = secondary_mesh.roche_coords_for_computations
+            teffs2 = secondary_mesh.teffs
+
+            new_teffs1, new_teffs2 = contacts_smoothing.smooth_teffs(np.array(coords1), np.array(teffs1),
+                                                                    np.array(coords2), np.array(teffs2),
+                                                                    smoothing_method=smoothing_method)
+                                                                    # w=smoothing_factor, cutoff=0.)
             # primary_mesh.update_columns(teffs=new_teffs1)
             # secondary_mesh.update_columns(teffs=new_teffs2)
-        
-            # system.bodies[0]._halves[0].save_as_standard_mesh(primary_mesh)
-            # system.bodies[0]._halves[1].save_as_standard_mesh(secondary_mesh)
-            # system.bodies[0]._halves[0].smoothed_teffs = new_teffs1
-            # system.bodies[0]._halves[1].smoothed_teffs = new_teffs2
+
+            # print("new_teffs1.median", np.median(new_teffs1))
+            # print("new_teffs2.median", np.median(new_teffs2))
+            system.bodies[0]._halves[0].smoothed_teffs = new_teffs1
+            system.bodies[0]._halves[1].smoothed_teffs = new_teffs2
 
         system.populate_observables(t0, ['lc' for dataset in datasets], datasets, ignore_effects=True)
 
@@ -1094,7 +1097,9 @@ class PhoebeBackend(BaseBackendByTime):
 
             #TEMPERATURE SMOOTHING FOR CONTACTS
             smoothing_enabled = b.get_value(qualifier='smoothing_enabled', context='component', **_skip_filter_checks)
+            
             if smoothing_enabled and i==0:
+                smoothing_method = b.get_value(qualifier='smoothing_method', context='component', **_skip_filter_checks)
                 smoothing_factor = b.get_value(qualifier='smoothing_factor', context='component', **_skip_filter_checks)
                 primary_mesh, secondary_mesh = system.bodies[0].meshes.values()
                 coords1 = primary_mesh.roche_coords_for_computations
@@ -1104,7 +1109,8 @@ class PhoebeBackend(BaseBackendByTime):
 
                 new_teffs1, new_teffs2 = contacts_smoothing.smooth_teffs(np.array(coords1), np.array(teffs1),
                                                                         np.array(coords2), np.array(teffs2),
-                                                                        w=smoothing_factor, cutoff=0.)
+                                                                        smoothing_method=smoothing_method)
+                                                                        # w=smoothing_factor, cutoff=0.)
                 # primary_mesh.update_columns(teffs=new_teffs1)
                 # secondary_mesh.update_columns(teffs=new_teffs2)
 
