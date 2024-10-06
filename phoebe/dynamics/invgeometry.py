@@ -21,6 +21,10 @@ def invgeometry(m, rb, vb, geometry='hierarchical'):
     else:
         raise NotImplementedError
 
+    # cf. mutable numpy arrays
+    rb = np.copy(rb)
+    vb = np.copy(vb)
+
     # orientation
     rb[:,0] *= -1.0
     rb[:,1] *= -1.0
@@ -59,10 +63,10 @@ def hierarchical(m, rb, vb):
         if j==1:
             euler[0,:] = euler[1,:]
             roche[0,:] = roche[1,:]
-            euler[0,0] += np.pi
+        if j>=1:
+            euler[j,0] += np.pi
 
     return elmts, euler, roche
-
 
 def twopairs(m, rb, vb):
     """
@@ -89,7 +93,7 @@ def twopairs(m, rb, vb):
 
     euler[1,:] = euler[0,:]
     roche[1,:] = roche[0,:]
-    euler[0,0] += np.pi
+    euler[1,0] += np.pi
 
     # barycenter
     r12 = (m[0]*rb[0] + m[1]*rb[1])/msum
@@ -106,7 +110,7 @@ def twopairs(m, rb, vb):
     
     euler[3,:] = euler[2,:]
     roche[3,:] = roche[2,:]
-    euler[2,0] += np.pi
+    euler[3,0] += np.pi
 
     # barycenter
     r34 = (m[2]*rb[2] + m[3]*rb[3])/msum
@@ -118,9 +122,10 @@ def twopairs(m, rb, vb):
     v34_12 = v34 - v12
     elmts[2,:] = orbel_xv2el.orbel_xv2el(msum, r34_12, v34_12)
 
+    # everything to Jacobian
     rj, vj = coord_b2j.coord_b2j(m, rb, vb)
     
-    # compute osculating elements
+    # other bodies (also Jacobian)
     for j in range(4, nbod):
         msum += m[j]
 
@@ -128,6 +133,7 @@ def twopairs(m, rb, vb):
         euler[j,:] = orbel_xv2el.get_euler(msum, elmts[j-1])
         roche[j,:] = orbel_xv2el.get_roche(msum, elmts[j-1])
 
+        euler[j,0] += np.pi
 
     return elmts, euler, roche
 
