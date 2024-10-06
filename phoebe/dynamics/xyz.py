@@ -6,10 +6,22 @@ from scipy.optimize import newton
 
 from phoebe import u, c
 from phoebe import conf
-
-import rebound
 from phoebe.dynamics import geometry
 from phoebe.dynamics import invgeometry
+
+try:
+    import rebound
+except ImportError:
+    _is_rebound = False
+else:
+    _is_rebound = True
+
+try:
+    import reboundx
+except ImportError:
+    _is_reboundx = False
+else:
+    _is_reboundx = True
 
 import logging
 logger = logging.getLogger("DYNAMICS.NBODY")
@@ -75,6 +87,12 @@ def dynamics(times, masses, xi, yi, zi, vxi, vyi, vzi,
 
     global _geometry
 
+    if not _is_rebound:
+        raise ImportError("rebound is not installed")
+
+    if gr and not _is_reboundx:
+        raise ImportError("reboundx is not installed (required for gr effects)")
+
     def particle_ltte(sim, j, time):
 
         scale_factor = (u.AU/c.c).to(u.d).value
@@ -117,6 +135,14 @@ def dynamics(times, masses, xi, yi, zi, vxi, vyi, vzi,
     sim.ri_whfast.corrector = 17
     sim.ri_whfast.safe_mode = 0;
     sim.G = 1.0
+
+    if gr:
+        logger.info("enabling 'gr' in reboundx")
+        rebx = reboundx.Extras(sim)
+        gr = rebx.load_force("gr")
+        gr.params["c"] = c.c.to("AU/d").value
+        rebx.add_force(gr)
+
     if conf.devel:
         sim.status()
 
