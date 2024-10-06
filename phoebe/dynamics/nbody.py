@@ -169,12 +169,14 @@ def dynamics(times, masses, smas, eccs, incls, per0s, long_ans, mean_anoms,
 
     sim = rebound.Simulation()
 
+    # TODO: switch between different GR setups based on masses/hierarchy
+    # http://reboundx.readthedocs.io/en/latest/effects.html#general-relativity
     if gr:
-        logger.info("enabling 'gr_full' in reboundx")
+        logger.info("enabling 'gr' in reboundx")
         rebx = reboundx.Extras(sim)
-        # TODO: switch between different GR setups based on masses/hierarchy
-        # http://reboundx.readthedocs.io/en/latest/effects.html#general-relativity
-        params = rebx.add_gr_full()
+        gr = rebx.load_force("gr")
+        gr.params["c"] = c.c.to("AU/d").value
+        rebx.add_force(gr)
 
     sim.integrator = integrator
     # NOTE: according to rebound docs: "stepsize will change for adaptive integrators such as IAS15"
