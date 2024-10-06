@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import numpy as np
-from numpy import pi, sqrt, cos, sin, tan, arctan
 from scipy.optimize import newton
 
 from phoebe import u, c
@@ -133,7 +132,7 @@ def dynamics(times, masses, smas, eccs, incls, per0s, long_ans, mean_anoms, \
                 msum += masses[j]
                 ialpha = -1
                 a = smas[j-1]
-                n = sqrt(msum/a**3)
+                n = np.sqrt(msum/a**3)
                 M = mean_anoms[j-1] + n*(t-t0)
                 P = 2.0*np.pi/n
                 dpdt = dpdts[j-1]
@@ -195,9 +194,9 @@ def dynamics(times, masses, smas, eccs, incls, per0s, long_ans, mean_anoms, \
 
     # ...
     nbod = len(masses)
-    rj = np.array(nbod*[[0.0, 0.0, 0.0]])
-    vj = np.array(nbod*[[0.0, 0.0, 0.0]])
-    euler = np.array(nbod*[[0.0, 0.0, 0.0]])
+    rj = np.zeros((nbod, 3))
+    vj = np.zeros((nbod, 3))
+    euler = np.zeros((nbod, 3))
 
     xs = np.zeros((nbod, len(times)))
     ys = np.zeros((nbod, len(times)))

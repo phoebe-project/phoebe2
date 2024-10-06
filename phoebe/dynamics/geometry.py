@@ -13,11 +13,11 @@ def geometry(m, elmts, geometry='hierarchical'):
 
     if geometry == 'hierarchical':
 
-        _geometry = geometry_hierarchical
+        _geometry = hierarchical
 
     elif geometry == 'twopairs':
 
-        _geometry = geometry_twopairs
+        _geometry = twopairs
 
     else:
         raise NotImplementedError
@@ -47,8 +47,7 @@ def geometry(m, elmts, geometry='hierarchical'):
 
     return xs, ys, zs, vxs, vys, vzs
 
-def geometry_hierarchical(m, elmts):
-
+def hierarchical(m, elmts):
     """
      _          \                |
     / \          |               |
@@ -58,8 +57,8 @@ def geometry_hierarchical(m, elmts):
     """
 
     nbod = len(m)
-    rj = np.array((nbod*[[0.0, 0.0, 0.0]]))
-    vj = np.array((nbod*[[0.0, 0.0, 0.0]]))
+    rj = np.zeros((nbod, 3))
+    vj = np.zeros((nbod, 3))
 
     # compute Jacobi coordinates
     msum = m[0]
@@ -74,8 +73,7 @@ def geometry_hierarchical(m, elmts):
 
     return rb, vb
 
-def geometry_twopairs(m, elmts):
-
+def twopairs(m, elmts):
     """
      _          _               \ 
     / \        / \               |
@@ -85,10 +83,10 @@ def geometry_twopairs(m, elmts):
     """
 
     nbod = len(m)
-    rh = np.array((nbod*[[0.0, 0.0, 0.0]]))
-    vh = np.array((nbod*[[0.0, 0.0, 0.0]]))
-    rj = np.array((nbod*[[0.0, 0.0, 0.0]]))
-    vj = np.array((nbod*[[0.0, 0.0, 0.0]]))
+    rh = np.zeros((nbod, 3))
+    vh = np.zeros((nbod, 3))
+    rj = np.zeros((nbod, 3))
+    vj = np.zeros((nbod, 3))
 
     # (1+2) pair, 1-centric coordinates
     msum = m[0]+m[1]
@@ -137,26 +135,40 @@ def geometry_twopairs(m, elmts):
 
 if __name__ == "__main__":
 
-    m = [1.0, 0.0]
+    day = 86400.
+    au = 1.496e11
+    M_S = 2.e30
+    G = 6.67e-11
+    gms = G*M_S / (au**3 * day**-2)
+
+    m = gms*np.array([1.0, 0.0])
     elmts = [[1.0, 0.0, 0.0, 0.0, 0.0, 0.0]]
 
-    rb, vb = geometry_hierarchical(m, elmts)
+    rb, vb = hierarchical(m, elmts)
 
     print("m = ", m)
     print("rb[0] = ", rb[0])
     print("rb[1] = ", rb[1])
+    print("vb[0] = ", vb[0])
+    print("vb[1] = ", vb[1])
 
-    m = [1.0, 1.0, 0.5, 0.5]
+    m = gms*np.array([1.0, 1.0, 0.5, 0.5])
     elmts = []
     elmts.append([0.1, 0.0, 0.0, 0.0, 0.0, 0.0])
     elmts.append([0.2, 0.0, 0.0, 0.0, 0.0, 0.0])
     elmts.append([1.0, 0.0, 0.0, 0.0, 0.0, 0.0])
 
-    rb, vb = geometry_twopairs(m, elmts)
+    rb, vb = twopairs(m, elmts)
 
+    print("")
+    print("m = ", m)
     print("rb[0] = ", rb[0])
     print("rb[1] = ", rb[1])
     print("rb[2] = ", rb[2])
     print("rb[3] = ", rb[3])
+    print("vb[0] = ", vb[0])
+    print("vb[1] = ", vb[1])
+    print("vb[2] = ", vb[2])
+    print("vb[3] = ", vb[3])
 
 

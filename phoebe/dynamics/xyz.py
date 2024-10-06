@@ -9,6 +9,7 @@ from phoebe import conf
 
 import rebound
 from phoebe.dynamics import geometry
+from phoebe.dynamics import invgeometry
 
 import logging
 logger = logging.getLogger("DYNAMICS.NBODY")
@@ -16,9 +17,12 @@ logger.addHandler(logging.NullHandler())
 
 _skip_filter_checks = {'check_default': False, 'check_visible': False}
 
+_geometry = None
+
 def dynamics_from_bundle(b, times, compute=None, return_roche_euler=False, **kwargs):
     """
     """
+    global _geometry
 
     b.run_delayed_constraints()
 
@@ -30,7 +34,7 @@ def dynamics_from_bundle(b, times, compute=None, return_roche_euler=False, **kwa
     gr = computeps.get_value(qualifier='gr', gr=kwargs.get('gr', None), **_skip_filter_checks)
     integrator = computeps.get_value(qualifier='integrator', integrator=kwargs.get('integrator', None), **_skip_filter_checks)
     epsilon = computeps.get_value(qualifier='epsilon', epsilon=kwargs.get('epsilon', None), **_skip_filter_checks)
-    geometry_ = computeps.get_value(qualifier='geometry', geometry=kwargs.get('geometry', None), **_skip_filter_checks)
+    _geometry = computeps.get_value(qualifier='geometry', geometry=kwargs.get('geometry', None), **_skip_filter_checks)
 
     starrefs = hier.get_stars()
     orbitrefs = hier.get_orbits()
@@ -56,7 +60,7 @@ def dynamics_from_bundle(b, times, compute=None, return_roche_euler=False, **kwa
     for j in range(0, nbod-1):
         elmts.append([smas[j], eccs[j], incls[j], long_ans[j], per0s[j], mean_anoms[j]])
 
-    xi, yi, zi, vxi, vyi, vzi = geometry.geometry(masses, elmts, geometry=geometry_)
+    xi, yi, zi, vxi, vyi, vzi = geometry.geometry(masses, elmts, geometry=_geometry)
 
     return dynamics(times, masses, xi, yi, zi, vxi, vyi, vzi, \
                     rotperiods, t0, vgamma, stepsize, ltte, gr, \
@@ -69,7 +73,10 @@ def dynamics(times, masses, xi, yi, zi, vxi, vyi, vzi,
         integrator='ias15', return_roche_euler=False,
         epsilon=1.0e-9):
 
+    global _geometry
+
     def particle_ltte(sim, j, time):
+
         scale_factor = (u.AU/c.c).to(u.d).value
 
         def residual(t):
@@ -87,6 +94,21 @@ def dynamics(times, masses, xi, yi, zi, vxi, vyi, vzi,
 
     times = np.asarray(times)
 
+    nbod = len(masses)
+    xs = np.zeros((nbod, len(times)))
+    ys = np.zeros((nbod, len(times)))
+    zs = np.zeros((nbod, len(times)))
+    vxs = np.zeros((nbod, len(times)))
+    vys = np.zeros((nbod, len(times)))
+    vzs = np.zeros((nbod, len(times)))
+
+    if return_roche_euler:
+        ds = np.zeros((nbod, len(times)))
+        Fs = np.zeros((nbod, len(times)))
+        ethetas = np.zeros((nbod, len(times)))
+        elongans = np.zeros((nbod, len(times)))
+        eincls = np.zeros((nbod, len(times)))
+
     sim = rebound.Simulation()
 
     sim.integrator = integrator
@@ -98,7 +120,6 @@ def dynamics(times, masses, xi, yi, zi, vxi, vyi, vzi,
     if conf.devel:
         sim.status()
 
-    nbod = len(masses)
     for j in range(0, nbod):
         sim.add(primary=None, m=masses[j], x=xi[j], y=yi[j], z=zi[j], vx=vxi[j], vy=vyi[j], vz=vzi[j])
 
@@ -107,19 +128,8 @@ def dynamics(times, masses, xi, yi, zi, vxi, vyi, vzi,
     for particle in sim.particles:
         particle.vz -= vgamma
 
-    xs = np.zeros((nbod, len(times)))
-    ys = np.zeros((nbod, len(times)))
-    zs = np.zeros((nbod, len(times)))
-    vxs = np.zeros((nbod, len(times)))
-    vys = np.zeros((nbod, len(times)))
-    vzs = np.zeros((nbod, len(times)))
-
-    if return_roche_euler:
-        ds = np.zeros((nbod, len(times)))
-        Fs = np.zeros((nbod, len(times)))
-        ethetas  = np.zeros((nbod, len(times)))
-        elongans = np.zeros((nbod, len(times)))
-        eincls   = np.zeros((nbod, len(times)))
+    rb = np.zeros((nbod, 3))
+    vb = np.zeros((nbod, 3))
 
     for i,time in enumerate(times):
 
@@ -132,39 +142,32 @@ def dynamics(times, masses, xi, yi, zi, vxi, vyi, vzi,
             else:
                 particle = sim.particles[j]
 
-            xs[j][i] = particle.x
-            ys[j][i] = particle.y
-            zs[j][i] = particle.z
-            vxs[j][i] = particle.vx
-            vys[j][i] = particle.vy
-            vzs[j][i] = particle.vz
+            rb[j][0] = particle.x
+            rb[j][1] = particle.y
+            rb[j][2] = particle.z
+            vb[j][0] = particle.vx
+            vb[j][1] = particle.vy
+            vb[j][2] = particle.vz
 
-            if return_roche_euler:
-                if j==0:
-                    particle = sim.particles[j+1]
-                else:
-                    particle = sim.particles[j]
+        if return_roche_euler:
 
-                orbit = particle.orbit()
+            elmts, euler, roche = invgeometry.invgeometry(masses, rb, vb, geometry=_geometry)
 
-                ds[j][i] = orbit.d / orbit.a
-                Fs[j][i] = orbit.P / rotperiods[j]
+        fac = (1*u.AU).to(u.solRad).value
 
-                ethetas[j][i] = orbit.f + orbit.omega
-                elongans[j][i] = orbit.Omega
-                eincls[j][i] = orbit.inc
+        xs[:,i] = fac * rb[:,0]
+        ys[:,i] = fac * rb[:,1]
+        zs[:,i] = fac * rb[:,2]
+        vxs[:,i] = fac * vb[:,0]
+        vys[:,i] = fac * vb[:,1]
+        vzs[:,i] = fac * vb[:,2]
 
-                if j==1:
-                    ethetas[j][i] += np.pi
-
-    au_to_solrad = (1*u.AU).to(u.solRad).value
-
-    xs *= au_to_solrad
-    ys *= au_to_solrad
-    zs *= au_to_solrad
-    vxs *= au_to_solrad
-    vys *= au_to_solrad
-    vzs *= au_to_solrad
+        if return_roche_euler:
+            ds[:,i] = roche[:,0]
+            Fs[:,i] = roche[:,1]/rotperiods[:]
+            ethetas[:,i] = euler[:,0]
+            elongans[:,i] = euler[:,1]
+            eincls[:,i] = euler[:,2]
 
     if return_roche_euler:
         return times, xs, ys, zs, vxs, vys, vzs, ds, Fs, ethetas, elongans, eincls

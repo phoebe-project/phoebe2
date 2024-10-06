@@ -13,9 +13,9 @@ def coord_j2b(mass, rj, vj):
     """
 
     nbod = len(mass)
-    eta = np.array(nbod*[0.0])
-    rb = np.array((nbod*[[0.0, 0.0, 0.0]]))
-    vb = np.array((nbod*[[0.0, 0.0, 0.0]]))
+    eta = np.zeros((nbod))
+    rb = np.zeros((nbod, 3))
+    vb = np.zeros((nbod, 3))
 
     # First compute auxiliary variables, then the barycentric positions
     eta[0] = mass[0]

@@ -13,9 +13,9 @@ def coord_h2j(mass, rh, vh):
     """
 
     nbod = len(mass)
-    eta = np.array(nbod*[0.0])
-    rj = np.array((nbod*[[0.0, 0.0, 0.0]]))
-    vj = np.array((nbod*[[0.0, 0.0, 0.0]]))
+    eta = np.zeros((nbod))
+    rj = np.zeros((nbod, 3))
+    vj = np.zeros((nbod, 3))
 
     eta[0] = mass[0]
     for i in range(1,nbod):

@@ -12,7 +12,7 @@ def orbel_el2xv(gm, ialpha, elmts):
     """
     Computes cartesian positions and velocities given orbital elements.
 
-    Rewritten from swift/coord/coord_j2b.f.
+    Rewritten from swift/orbel/orbel_el2xv.f.
 
     Reference: Levison, H.F., Duncan, M.J., The long-term dynamical behavior of short-period comets. Icarus 108, 18-36, 1994.
 
@@ -92,16 +92,17 @@ if __name__ == "__main__":
     au = 1.496e11
     M_S = 2.e30
     G = 6.67e-11
-    gm = G*M_S / (au**3 * day**-2)
+    gms = G*M_S / (au**3 * day**-2)
 
     elmts = [1.0, 0.1, 0.0, 0.0, 0.0, 0.0]
 
-    print("gm = ", gm)
+    print("gms = ", gms)
     print("elmts = ", elmts)
 
-    r, v = orbel_el2xv(gm, -1, elmts)
+    r, v = orbel_el2xv(gms, -1, elmts)
 
     print("r = ", r)
     print("v = ", v)
+    print("v[1] = %.22e" % v[1])
 
 
