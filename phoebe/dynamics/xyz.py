@@ -33,6 +33,26 @@ _geometry = None
 
 def dynamics_from_bundle(b, times, compute=None, return_roche_euler=False, **kwargs):
     """
+    Parse parameters in the bundle and call :func:`dynamics`.
+
+    See :func:`dynamics` for more detailed information.
+
+    NOTE: you must either provide compute (a label) OR all relevant options
+    as kwargs (integrator, stepsize, epsilon, ltte, gr, geometry).
+
+    Args:
+        b: (Bundle) the bundle with a set hierarchy
+        times: (list or array) times at which to run the dynamics
+        return_roche_euler: (bool) whether to return Roche parameters and Euler angles
+        geometry: (string) which geometry to use ('hierarchical', 'twopairs')
+
+    Returns:
+        t: (numpy array) all computed times
+        xs, ys, zs: (numpy arrays) time-dependent Cartesian positions [solRad]
+        vxs, vys, vzs: (numpy arrays) time-dependent Cartesian velocities [solRad/day]
+        ds, Fs: (numpy arrays) Roche parameters [1]
+        theta, longan, incl: (numpy arrays) Euler angles [rad]
+
     """
     global _geometry
 
@@ -84,6 +104,39 @@ def dynamics(times, masses, xi, yi, zi, vxi, vyi, vzi,
         rotperiods=None, t0=0.0, vgamma=0.0, stepsize=0.01, ltte=False, gr=False,
         integrator='ias15', return_roche_euler=False,
         epsilon=1.0e-9):
+
+    """
+    Computes N-body dynamics for initial conditions in Cartesian coordinates ("xyz").
+
+    See :func:`dynamics_from_bundle` for a wrapper around this function
+    which automatically handles passing everything in the correct order
+    and in the correct units.
+
+    Note: orbits = stars - 1
+
+    Args:
+        times: (iterable) times when to compute positions and velocities [days]
+        masses: (iterable) mass for each star [solMass]
+        xi, yi, zi: (iterable) initial Cartesian positions for each star [AU]
+        vxi, vyi, vzi: (iterable) initial Cartesian velocities for each star [AU/day]
+        t0: (float) epoch at which elements were given [days]
+        rotperiods: (iterable) rotation periods for each star [day]
+        vgamma: (float) gamma velocity [AU/day]
+        integrator: (string) which integrator from the Rebound package
+        stepsize: (float) step size [day]
+        epsilon: (float) relative error controlling the step size [1]
+        ltte: (bool) whether to account for light travel time effects
+        gr: (bool) whether to account for general relativity effects
+        return_roche_euler: (bool) whether to return Roche parameters and Euler angles
+
+    Returns:
+        t: (numpy array) all computed times
+        xs, ys, zs: (numpy arrays) time-dependent Cartesian positions [solRad]
+        vxs, vys, vzs: (numpy arrays) time-dependent Cartesian velocities [solRad/day]
+        ds, Fs: (numpy arrays) Roche parameters [1]
+        theta, longan, incl: (numpy arrays) Euler angles [rad]
+
+    """
 
     global _geometry
 
