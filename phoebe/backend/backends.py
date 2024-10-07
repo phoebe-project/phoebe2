@@ -1060,6 +1060,8 @@ class PhoebeBackend(BaseBackendByTime):
             vxs, vys, vzs = [np.zeros(len(times))], [np.zeros(len(times))], [np.zeros(len(times))]
             xs, ys, zs = [np.zeros(len(times))], [np.zeros(len(times))], [np.full(len(times), vgamma)]
             ethetas, elongans, eincls = [np.zeros(len(times))], [np.full(len(times), long_an)], [np.full(len(times), incl)]
+            inst_ds = None
+            inst_Fs = None
 
             for i,t in enumerate(times):
                 zs[0][i] = vgamma*(t-t0)
