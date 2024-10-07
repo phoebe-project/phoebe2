@@ -159,7 +159,8 @@ def dynamics(times, masses, smas, eccs, incls, per0s, long_ans, mean_anoms, \
 
                     if j==1:
                         euler[0,:] = euler[1,:]
-                        euler[1,0] += np.pi
+                    if j>=1:
+                        euler[j,0] += np.pi
 
             # convert to barycentric frame
             rb, vb = coord_j2b.coord_j2b(masses, rj, vj)
