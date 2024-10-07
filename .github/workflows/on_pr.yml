@@ -41,7 +41,7 @@ jobs:
 
     - name: Install phoebe optional modules
       run: |
-        python -m pip install rebound
+        python -m pip install rebound celerite2 emcee
 
     - name: Install PHOEBE from source
       run: |
