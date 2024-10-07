@@ -340,6 +340,22 @@ null
 "Class": "FloatParameter"
 },
 {
+"qualifier": "j2",
+"component": "starA",
+"kind": "star",
+"context": "component",
+"description": "J2 = -C20, oblateness, gravitational quadrupole moment",
+"value": 0.0,
+"default_unit": "",
+"limits": [
+null,
+null
+],
+"copy_for": false,
+"advanced": true,
+"Class": "FloatParameter"
+},
+{
 "qualifier": "gravb_bol",
 "component": "starA",
 "kind": "star",
@@ -426,8 +442,8 @@ null
 "description": "Source for bolometric limb darkening coefficients (used only for irradiation; 'auto' to interpolate from the applicable table according to the 'atm' parameter, or the name of a specific atmosphere table)",
 "choices": [
 "auto",
-"phoenix",
-"ck2004"
+"ck2004",
+"phoenix"
 ],
 "value": "auto",
 "visible_if": "ld_mode_bol:lookup",
@@ -877,11 +893,11 @@ null
 "context": "compute",
 "description": "Atmosphere table",
 "choices": [
-"blackbody",
 "extern_atmx",
-"phoenix",
 "ck2004",
-"extern_planckint"
+"extern_planckint",
+"phoenix",
+"blackbody"
 ],
 "value": "ck2004",
 "copy_for": {
@@ -1033,11 +1049,11 @@ null
 "context": "compute",
 "description": "Atmosphere table",
 "choices": [
-"blackbody",
 "extern_atmx",
-"phoenix",
 "ck2004",
-"extern_planckint"
+"extern_planckint",
+"phoenix",
+"blackbody"
 ],
 "value": "ck2004",
 "copy_for": false,
