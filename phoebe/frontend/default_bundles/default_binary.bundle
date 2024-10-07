@@ -144,7 +144,7 @@ null
 "kind": "star",
 "context": "component",
 "description": "Critical (maximum) value of the equivalent radius for the given morphology",
-"value": 2.013275176537638,
+"value": 2.0132751765376384,
 "default_unit": "solRad",
 "limits": [
 0.0,
@@ -508,7 +508,7 @@ null
 "kind": "star",
 "context": "component",
 "description": "Critical (maximum) value of the equivalent radius for the given morphology",
-"value": 2.013275176537638,
+"value": 2.0132751765376384,
 "default_unit": "solRad",
 "limits": [
 0.0,
@@ -2131,6 +2131,7 @@ null
 "context": "compute",
 "description": "Atmosphere table",
 "choices": [
+"phoenix",
 "extern_atmx",
 "ck2004",
 "extern_planckint",
@@ -2336,6 +2337,7 @@ null
 "context": "compute",
 "description": "Atmosphere table",
 "choices": [
+"phoenix",
 "extern_atmx",
 "ck2004",
 "extern_planckint",
@@ -2354,6 +2356,7 @@ null
 "context": "compute",
 "description": "Atmosphere table",
 "choices": [
+"phoenix",
 "extern_atmx",
 "ck2004",
 "extern_planckint",
@@ -2554,7 +2557,7 @@ null
 "qualifier": "phoebe_version",
 "context": "setting",
 "description": "Version of PHOEBE",
-"value": "2.4.11.dev+feature-interferometry",
+"value": "2.4.15",
 "copy_for": false,
 "readonly": true,
 "advanced": true,
