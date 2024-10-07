@@ -87,6 +87,10 @@ def dynamics_from_bundle(b, times, compute=None, return_roche_euler=False, **kwa
     vgamma = b.get_value(qualifier='vgamma', context='system', unit=u.AU/u.d, **_skip_filter_checks)
     t0 = b.get_value(qualifier='t0', context='system', unit=u.d, **_skip_filter_checks)
 
+    j2 = computeps.get_value(qualifier='j2', j2=kwargs.get('j2', None), **_skip_filter_checks)
+    j2s = [b.get_value(qualifier='j2', unit=u.dimensionless_unscaled, component=component, context='component', **_skip_filter_checks) for component in starrefs]
+    requivs = [b.get_value(qualifier='requiv', unit=u.AU, component=component, context='component', **_skip_filter_checks) for component in starrefs]
+
     nbod = len(masses)
     elmts = []
     for j in range(0, nbod-1):
@@ -95,15 +99,35 @@ def dynamics_from_bundle(b, times, compute=None, return_roche_euler=False, **kwa
     xi, yi, zi, vxi, vyi, vzi = geometry.geometry(masses, elmts, geometry=_geometry)
 
     return dynamics(times, masses, xi, yi, zi, vxi, vyi, vzi, \
-                    rotperiods, t0, vgamma, stepsize, ltte, gr, \
-                    integrator, return_roche_euler=return_roche_euler, \
-                    epsilon=epsilon)
+               rotperiods=rotperiods, \
+               t0=t0, \
+               vgamma=vgamma, \
+               integrator=integrator, \
+               stepsize=stepsize, \
+               epsilon=epsilon, \
+               ltte=ltte, \
+               gr=gr, \
+               j2=j2, \
+               j2s=j2s, \
+               requivs=j2s, \
+               return_roche_euler=return_roche_euler \
+               )
 
 
-def dynamics(times, masses, xi, yi, zi, vxi, vyi, vzi,
-        rotperiods=None, t0=0.0, vgamma=0.0, stepsize=0.01, ltte=False, gr=False,
-        integrator='ias15', return_roche_euler=False,
-        epsilon=1.0e-9):
+def dynamics(times, masses, xi, yi, zi, vxi, vyi, vzi, \
+        rotperiods=None, \
+        t0=0.0, \
+        vgamma=0.0, \
+        integrator='ias15', \
+        epsilon=1.0e-9, \
+        stepsize=0.01, \
+        ltte=False, \
+        gr=False, \
+        j2=False, \
+        j2s=None, \
+        requivs=None, \
+        return_roche_euler=False \
+        ):
 
     """
     Computes N-body dynamics for initial conditions in Cartesian coordinates ("xyz").
@@ -119,14 +143,17 @@ def dynamics(times, masses, xi, yi, zi, vxi, vyi, vzi,
         masses: (iterable) mass for each star [solMass]
         xi, yi, zi: (iterable) initial Cartesian positions for each star [AU]
         vxi, vyi, vzi: (iterable) initial Cartesian velocities for each star [AU/day]
-        t0: (float) epoch at which elements were given [days]
         rotperiods: (iterable) rotation periods for each star [day]
+        t0: (float) epoch at which elements were given [days]
         vgamma: (float) gamma velocity [AU/day]
         integrator: (string) which integrator from the Rebound package
         stepsize: (float) step size [day]
         epsilon: (float) relative error controlling the step size [1]
         ltte: (bool) whether to account for light travel time effects
         gr: (bool) whether to account for general relativity effects
+        j2: (bool) whether to account for J2 = -C20 or oblateness
+        j2s: (iterable) J2 = -C20 or oblateness for each star [1]
+        requivs: (iterable) equatorial radius for each star [AU]
         return_roche_euler: (bool) whether to return Roche parameters and Euler angles
 
     Returns:
@@ -146,22 +173,8 @@ def dynamics(times, masses, xi, yi, zi, vxi, vyi, vzi,
     if gr and not _is_reboundx:
         raise ImportError("reboundx is not installed (required for gr effects)")
 
-    def particle_ltte(sim, j, time):
-
-        scale_factor = (u.AU/c.c).to(u.d).value
-
-        def residual(t):
-            if sim.t != t:
-                sim.integrate(t, exact_finish_time=True)
-            z = sim.particles[j].z
-            return t - z*scale_factor - time
-
-        propertime = newton(residual, time)
-
-        if sim.t != propertime:
-            sim.integrate(propertime)
-
-        return sim.particles[j]
+    if j2 and not _is_reboundx:
+        raise ImportError("reboundx is not installed (required for j2 effects)")
 
     times = np.asarray(times)
 
@@ -189,13 +202,6 @@ def dynamics(times, masses, xi, yi, zi, vxi, vyi, vzi,
     sim.ri_whfast.safe_mode = 0;
     sim.G = 1.0
 
-    if gr:
-        logger.info("enabling 'gr' in reboundx")
-        rebx = reboundx.Extras(sim)
-        gr = rebx.load_force("gr")
-        gr.params["c"] = c.c.to("AU/d").value
-        rebx.add_force(gr)
-
     if conf.devel:
         sim.status()
 
@@ -207,6 +213,25 @@ def dynamics(times, masses, xi, yi, zi, vxi, vyi, vzi,
     for particle in sim.particles:
         particle.vz -= vgamma
 
+    if _is_reboundx:
+        rebx = reboundx.Extras(sim)
+
+    if gr:
+        logger.info("enabling 'gr' in reboundx")
+        gr = rebx.load_force("gr")
+        gr.params["c"] = c.c.to("AU/d").value
+        rebx.add_force(gr)
+
+    if j2:
+        logger.info("enabling 'j2' in reboundx")
+        rebx = reboundx.Extras(sim)
+        gh = rebx.load_force("gravitational_harmonics")
+        rebx.add_force(gh)
+
+        for j in range(0, nbod):
+            sim.particles[j].params["J2"] = j2s[j]
+            sim.particles[j].params["R_eq"] = requivs[j]
+
     rb = np.zeros((nbod, 3))
     vb = np.zeros((nbod, 3))
 
@@ -214,10 +239,10 @@ def dynamics(times, masses, xi, yi, zi, vxi, vyi, vzi,
 
         sim.integrate(time, exact_finish_time=True)
 
-        for j in range(len(masses)):
+        for j in range(0, nbod):
 
             if ltte:
-                particle = particle_ltte(sim, j, time)
+                particle = _ltte(sim, j, time)
             else:
                 particle = sim.particles[j]
 
@@ -250,8 +275,28 @@ def dynamics(times, masses, xi, yi, zi, vxi, vyi, vzi,
 
     if return_roche_euler:
         return times, xs, ys, zs, vxs, vys, vzs, ds, Fs, ethetas, elongans, eincls
-
     else:
         return times, xs, ys, zs, vxs, vys, vzs
+
+
+def _ltte(sim, j, time):
+    """
+    Light-time effect.
+
+    """
+    scale_factor = (u.AU/c.c).to(u.d).value
+
+    def residual(t):
+        if sim.t != t:
+            sim.integrate(t, exact_finish_time=True)
+        z = sim.particles[j].z
+        return t - z*scale_factor - time
+
+    propertime = newton(residual, time)
+
+    if sim.t != propertime:
+        sim.integrate(propertime)
+
+    return sim.particles[j]
 
 

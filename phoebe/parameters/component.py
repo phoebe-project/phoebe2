@@ -202,6 +202,7 @@ def star(component, **kwargs):
 
     params += [FloatParameter(qualifier='incl', latexfmt=r'i_\mathrm{{ {component} }}', visible_if='hierarchy.is_contact_binary:False', value=kwargs.get('incl', 90), default_unit=u.deg, advanced=True, description='Inclination of the stellar rotation axis')]
     params += [FloatParameter(qualifier='long_an', visible_if='hierarchy.is_contact_binary:False', value=kwargs.get('long_an', 0.0), default_unit=u.deg, advanced=True, description='Longitude of the ascending node (ie. equator) of the star')]
+    params += [FloatParameter(qualifier='j2', value=kwargs.get('j2', 0.0), default_unit=u.dimensionless_unscaled, advanced=True, description='J2 = -C20, oblateness, gravitational quadrupole moment')]
 
     # params += [ChoiceParameter(qualifier='gravblaw_bol', value=kwargs.get('gravblaw_bol', 'zeipel'), choices=['zeipel', 'espinosa', 'claret'], description='Gravity brightening law')]
 

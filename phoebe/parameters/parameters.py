@@ -208,7 +208,8 @@ _forbidden_labels += ['requiv', 'requiv_max', 'requiv_min', 'teff', 'abun', 'log
                       'mass', 'dpdt', 'per0',
                       'dperdt', 'ecc', 'deccdt', 't0_perpass', 't0_supconj',
                       't0_ref', 'mean_anom', 'q', 'sma', 'asini', 'ecosw', 'esinw',
-                      'teffratio', 'requivratio', 'requivsumfrac'
+                      'teffratio', 'requivratio', 'requivsumfrac',
+                      'j2'
                       ]
 
 # from dataset:
