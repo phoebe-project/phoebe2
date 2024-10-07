@@ -4473,7 +4473,7 @@ class Bundle(ParameterSet):
                                                      **{k:v for k,v in kwargs.items() if k not in ['server', 'use_server']})
 
                 # test to make sure solver_times will cover the full dataset for time-dependent systems
-                if self.hierarchy.is_time_dependent(consider_gaussian_process=True):
+                if self.hierarchy.is_time_dependent(consider_gaussian_process=False):
                     for dataset in self.filter(qualifier='enabled', compute=compute, context='compute', value=True, **_skip_filter_checks).datasets:
                         solver_times = self.get_value(qualifier='solver_times', dataset=dataset, context='dataset', **_skip_filter_checks)
                         if solver_times == 'times':
@@ -4551,6 +4551,13 @@ class Bundle(ParameterSet):
                                             +addl_parameters,
                                             True, 'run_solver')
 
+                # this check can/should be removed in PHOEBE 2.5
+                for param in self.filter(qualifier='sigmas_lnf', dataset=rv_datasets, context='dataset', **_skip_filter_checks).to_list():
+                    if np.isfinite(param.get_value()):
+                        report.add_item(self,
+                                        "behavior of sigmas_lnf for RVs was changed (fixed) in PHOEBE 2.4.15 to be independent of the RV value.  See https://github.com/phoebe-project/phoebe2/pull/901",
+                                        [param]+addl_parameters,
+                                        False, 'run_solver')
 
 
             if 'lc_datasets' in solver_ps.qualifiers:
@@ -12980,7 +12987,7 @@ class Bundle(ParameterSet):
         exclude_solvers = [s for s in self.solvers if s!=solver]
         solver_ps = self.get_solver(solver=solver, **_skip_filter_checks)
         if 'compute' in solver_ps.qualifiers:
-            compute = solver_ps.get_value(qualifier='compute', compute=kwargs.get('compute', None), default=[], **_skip_filter_checks)
+            compute = kwargs.get('compute', solver_ps.get_value(qualifier='compute', **_skip_filter_checks))
             exclude_features = [feature for feature in self.features if not self.get_value(qualifier='enabled', feature=feature, compute=compute, **_skip_filter_checks)]
         else:
             exclude_features = []
@@ -13846,11 +13853,11 @@ class Bundle(ParameterSet):
                     t0_supconj_ind = adopt_qualifiers.index('t0_supconj')
 
                     t0_supconj_old = self.get_value(uniqueid=adopt_uniqueids[t0_supconj_ind], unit=u.d, **_skip_filter_checks)
-                    t0_supconj_new = fitted_values[t0_supconj_ind]
+                    t0_supconj_new = fitted_values[adopt_inds[t0_supconj_ind]]
 
                     phase_shift = self.to_phase(t0_supconj_new) - self.to_phase(t0_supconj_old)
 
-                    fitted_values[mask_phases_ind] = [ph-phase_shift for ph in [ecl_ph for ecl_ph in fitted_values[mask_phases_ind]]]
+                    fitted_values[adopt_inds[mask_phases_ind]] = [ph-phase_shift for ph in [ecl_ph for ecl_ph in fitted_values[adopt_inds[mask_phases_ind]]]]
 
             for uniqueid, value, unit in zip(adopt_uniqueids, fitted_values[adopt_inds], fitted_units[adopt_inds]):
                 uniqueid, index = _extract_index_from_string(uniqueid)
