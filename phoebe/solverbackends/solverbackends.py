@@ -607,6 +607,57 @@ class Lc_GeometryBackend(BaseSolverBackend):
 
         return kwargs, _parameters.ParameterSet(solution_params)
 
+    @staticmethod
+    def propose_compute_phases(phases, fluxes, n_points, n_deriv):
+        from scipy.interpolate import interp1d
+
+        # derivative and the interpolation between points
+        dydx = np.gradient(fluxes,phases)
+        dydx_int = interp1d(phases, dydx, kind='linear', bounds_error=False, fill_value='extrapolate', assume_sorted=False)
+
+        #count the total length of the phased light curve and the unit dL
+        L  = 0.0
+        for i in range(len(phases)-1):
+            L += np.sqrt( ( phases[i+1]-phases[i] )**2 + ( fluxes[i+1]-fluxes[i] )**2 )
+
+        dL = L/n_points
+        dL
+
+        #create a mesh of target bin boundaries with iterative correction of bin position
+        bin_edges = [0.0]
+
+        while True:
+            dx = dL/np.sqrt(1.0+dydx_int(bin_edges[-1])**2)
+            for j in range(10):
+                dx = dL/np.sqrt(1.0+dydx_int(bin_edges[-1]+dx/2.0)**2)
+            new_edge = bin_edges[-1]+dx
+            if new_edge < 1.0:
+                bin_edges.append(new_edge)
+            else:
+                break
+
+        bin_edges.append(1.0)
+
+        # final bin with the evaluation of total number of bins 
+        pbin = []
+        fbin = []
+
+        for i in range(len(bin_edges)-1):
+            low = bin_edges[i]
+            hi  = bin_edges[i+1]
+            try:
+                y = np.median(fluxes[((phases>low)&(phases<=hi))])
+                x = np.median(phases[((phases>low)&(phases<=hi))])
+                pbin.append(x)
+                fbin.append(y)
+            except:
+                continue
+
+        # len(pbin) 
+
+        return bin_edges
+
+
     def run_worker(self, b, solver, compute=None, **kwargs):
         if mpi.within_mpirun:
             raise NotImplementedError("mpi support for lc_geometry not yet implemented")
@@ -657,9 +708,15 @@ class Lc_GeometryBackend(BaseSolverBackend):
         t0_supconj_new = eb_params._t0_from_geometry(times, period=period, t0_supconj = t0_supconj_old, t0_near_times = t0_near_times)
         #compute_eclipse_params(phases, fluxes, sigmas, fit_result=fit_result, diagnose=diagnose)
 
+        if analytical_model == 'two-gaussian':
+            analytic_fluxes = model.models
+        else:
+            analytic_fluxes = {'polyfit': model.model}
+
         edges = eclipse_dict.get('eclipse_edges')
         mask_phases = [(edges[0]-eclipse_dict.get('primary_width')*0.3, edges[1]+eclipse_dict.get('primary_width')*0.3), (edges[2]-eclipse_dict.get('secondary_width')*0.3, edges[3]+eclipse_dict.get('secondary_width')*0.3)]
-        fitted_params += b.filter(qualifier='mask_phases', dataset=lc_datasets, **_skip_filter_checks).to_list()
+        fitted_params += b.filter(qualifier='mask_phases', context='dataset', dataset=lc_datasets, **_skip_filter_checks).to_list()
+        fitted_params += b.filter(qualifier='compute_phases', context='dataset', dataset=lc_datasets, **_skip_filter_checks).to_list()
 
         fitted_uniqueids = [p.uniqueid for p in fitted_params]
         fitted_twigs = [p.twig for p in fitted_params]
@@ -668,6 +725,10 @@ class Lc_GeometryBackend(BaseSolverBackend):
         if fit_eclipses:
             fitted_values += [eb_params.rratio, eb_params.incl]
         fitted_values += [mask_phases for ds in lc_datasets]
+        proposed_compute_phases = self.propose_compute_phases(model.phases, analytic_fluxes[model.best_fit['func']],
+                                                              n_points=100,
+                                                              n_deriv=10/eclipse_dict.get('primary_width')/2.)
+        fitted_values += [proposed_compute_phases for ds in lc_datasets]
 
         fitted_units = [u.d.to_string(),
                         u.dimensionless_unscaled.to_string(),
@@ -676,7 +737,8 @@ class Lc_GeometryBackend(BaseSolverBackend):
                         u.dimensionless_unscaled.to_string()]
         if fit_eclipses:
             fitted_units += [u.dimensionless_unscaled.to_string(), u.deg.to_string()]
-        fitted_units += [u.dimensionless_unscaled.to_string() for ds in lc_datasets]
+        fitted_units += [u.dimensionless_unscaled.to_string() for ds in lc_datasets]  # mask_phases
+        fitted_units += [u.dimensionless_unscaled.to_string() for ds in lc_datasets]  # compute_phases
 
         return_ = [{'qualifier': 'primary_width', 'value': eclipse_dict.get('primary_width')},
                    {'qualifier': 'secondary_width', 'value': eclipse_dict.get('secondary_width')},
@@ -697,10 +759,7 @@ class Lc_GeometryBackend(BaseSolverBackend):
                    ]
 
         if kwargs.get('expose_model', True):
-            if analytical_model == 'two-gaussian':
-                analytic_fluxes = model.models
-            else:
-                analytic_fluxes = {'polyfit': model.model}
+
             return_ += [{'qualifier': 'analytic_phases', 'value': model.phases},
                         {'qualifier': 'analytic_fluxes', 'value': analytic_fluxes},
                         {'qualifier': 'analytic_best_model', 'value': model.best_fit['func']}
