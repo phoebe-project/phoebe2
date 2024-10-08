@@ -1685,9 +1685,11 @@ class Passband:
             raise ValueError(f'ldatm={ldatm} is not supported.')
 
         if ld_func == 'interp':
-            if 'atm' == 'blackbody' and 'blackbody:Inorm' in self.content and ldatm in ['ck2004', 'phoenix', 'tmap_sdO', 'tmap_DA', 'tmap_DAO', 'tmap_DO']:
+            if atm == 'blackbody' and 'blackbody:Inorm' in self.content and ldatm in ['ck2004', 'phoenix', 'tmap_sdO', 'tmap_DA', 'tmap_DAO', 'tmap_DO']:
                 # we need to apply ldatm's limb darkening to blackbody intensities:
                 #   Imu^bb = Lmu Inorm^bb = Imu^atm / Inorm^atm * Inorm^bb
+
+                # print(f'{atm=} {ld_func=} {ldatm=} {intens_weighting=} {query_pts=} {atm_extrapolation_method=}')
 
                 ndpolants = self.ndp[ldatm].ndpolate(f'imu@{intens_weighting}', query_pts, extrapolation_method=atm_extrapolation_method)
                 log10imus_atm = ndpolants['interps']
@@ -1752,7 +1754,7 @@ class Passband:
                         atm_extrapolation_method=atm_extrapolation_method,
                         ld_extrapolation_method=ld_extrapolation_method
                     )
-                    log10imus_bb = np.log10(ints_bb['inorms'])
+                    log10imus_bb = np.log10(ints_bb)
 
                     log10imus_blended = log10imus_atm.copy()
                     log10imus_blended[off_grid] = (np.minimum(dists[off_grid], blending_margin) * log10imus_bb + np.maximum(blending_margin-dists[off_grid], 0) * log10imus_atm[off_grid])/blending_margin
