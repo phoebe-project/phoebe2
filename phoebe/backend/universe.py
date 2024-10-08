@@ -1890,9 +1890,6 @@ class Star(Body):
                 blending_method=blending_method
             )
 
-            # if abs_intensities is None or not np.all(np.isfinite(abs_intensities)):
-            #     print(f'{query_pts.shape=} {atm=} {ldatm=} {ldint.shape=} {ld_func=} {ld_coeffs=} {intens_weighting=}')
-
             # Beaming/boosting
             if boosting_method == 'none' or ignore_effects:
                 boost_factors = 1.0

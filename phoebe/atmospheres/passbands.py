@@ -1498,8 +1498,10 @@ class Passband:
 
             if intens_weighting == 'photon':
                 intensities = 10**self._log10_Inorm_bb_photon(query_pts[:,0])
-            else:  # if intens_weighting == 'energy':
+            elif intens_weighting == 'energy':
                 intensities = 10**self._log10_Inorm_bb_energy(query_pts[:,0])
+            else:
+                raise ValueError(f'{intens_weighting=} not recognized, must be "photon" or "energy".')
 
             if ldint is None:
                 if ld_func != 'interp' and ld_coeffs is None:
