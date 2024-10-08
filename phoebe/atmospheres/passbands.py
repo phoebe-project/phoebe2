@@ -1484,6 +1484,7 @@ class Passband:
         #     raise ValueError(f'blending_method={blending_method} is not supported.')
 
         raise_on_nans = True if atm_extrapolation_method == 'none' else False
+        blending_factors = None
 
         if atm == 'blackbody' and 'blackbody:Inorm' in self.content:
             # check if the required tables for the chosen ldatm are available:
@@ -1556,14 +1557,16 @@ class Passband:
 
                 log10ints_blended = log10ints.copy()
                 log10ints_blended[off_grid] = (np.minimum(dists[off_grid], blending_margin) * log10ints_bb[off_grid] + np.maximum(blending_margin-dists[off_grid], 0) * log10ints[off_grid])/blending_margin
+                blending_factors = np.minimum(dists, blending_margin)/blending_margin
 
                 intensities = 10**log10ints_blended
             else:
                 intensities = 10**log10ints
 
         ints = {
-            'inorms': intensities
-            # TODO: add other dict keys!
+            'inorms': intensities,
+            'bfs': blending_factors,
+            # TODO: add any other dict keys?
         }
 
         return ints
