@@ -662,7 +662,7 @@ class Passband:
         return hclkt * expterm/(expterm-1)
 
     def compute_blackbody_intensities(self, teffs=None, include_extinction=False, rvs=None, ebvs=None, verbose=False):
-        """
+        r"""
         Computes blackbody intensity interpolation functions/tables.
 
         Intensities are computed across the passed range of effective
@@ -1128,7 +1128,7 @@ class Passband:
             f.close()
 
     def compute_ldints(self, ldatm):
-        """
+        r"""
         Computes integrated limb darkening profiles for the passed `ldatm`.
 
         These are used for intensity-to-flux transformations. The evaluated
@@ -1433,7 +1433,7 @@ class Passband:
         return (log10_Inorm, nanmask) if return_nanmask else log10_Inorm
 
     def Inorm(self, query_pts, atm='ck2004', ldatm='ck2004', ldint=None, ld_func='interp', ld_coeffs=None, intens_weighting='photon', atm_extrapolation_method='none', ld_extrapolation_method='none', blending_method='none', return_nanmask=False):
-        """
+        r"""
         Computes normal emergent passband intensity.
 
         Possible atm/ldatm/ld_func/ld_coeffs combinations:
@@ -2729,7 +2729,7 @@ def get_passband(passband, content=None, reload=False, update_if_necessary=False
     return _pbtable[passband]['pb']
 
 def Inorm_bol_bb(Teff=5772., logg=4.43, abun=0.0, atm='blackbody', intens_weighting='photon'):
-    """
+    r"""
     Computes normal bolometric intensity using the Stefan-Boltzmann law,
     Inorm_bol_bb = 1/\pi \sigma T^4. If photon-weighted intensity is
     requested, Inorm_bol_bb is multiplied by a conversion factor that
