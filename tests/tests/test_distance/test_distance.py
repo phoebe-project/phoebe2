@@ -28,7 +28,8 @@ def test_distance_scaling_alt_backend(verbose=False, plot=False):
         b.plot(legend=True, show=True)
 
     for model in b.models:
-        diff = abs(0.5-b.get_value(qualifier='fluxes', model=model)[0])
+        flux = b.get_value(qualifier='fluxes', model=model)[0]
+        diff = abs(0.5-flux)
         if verbose:
             print(f"model={model} diff={diff}")
         assert diff < 0.01

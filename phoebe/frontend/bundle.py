@@ -10742,7 +10742,6 @@ class Bundle(ParameterSet):
                         continue
 
                     pblums_abs[dataset][component] = float(star.compute_luminosity(dataset, scaled=False))
-                    # print(f'{pblums_abs[dataset][component]=}')
 
             elif pblum_method == 'stefan-boltzmann':
                 for component in valid_components:
@@ -10785,10 +10784,8 @@ class Bundle(ParameterSet):
                         intens_weighting=intens_weighting,
                         atm_extrapolation_method=atm_extrapolation_method,
                         ld_extrapolation_method=ld_extrapolation_method,
-                        blending_method=blending_method,
-                        return_nanmask=False
-                    ).flatten()
-                    # print(f'compute_pblums: {abs_normal_intensities=}')
+                        blending_method=blending_method
+                    )['inorms']
 
                     ldint = pb.ldint(
                         query_pts=query_pts,
@@ -10798,8 +10795,7 @@ class Bundle(ParameterSet):
                         intens_weighting=intens_weighting,
                         ld_extrapolation_method=ld_extrapolation_method,
                         raise_on_nans=True
-                    ).flatten()
-                    # print(f'compute_pblums: {ldint=}')
+                    )
 
                     if intens_weighting=='photon':
                         ptfarea = pb.ptf_photon_area/pb.h/pb.c
@@ -10808,7 +10804,8 @@ class Bundle(ParameterSet):
 
                     logger.info("estimating pblum for {}@{} using atm='{}' and stefan-boltzmann approximation".format(dataset, component, atm))
                     # requiv in m, Inorm in W/m**3, ldint unitless, ptfarea in m -> pblum_abs in W
-                    pblums_abs[dataset][component] = float(4 * np.pi * requivs[component]**2 * abs_normal_intensities * ldint * ptfarea)
+                    pblum = 4 * np.pi * requivs[component]**2 * abs_normal_intensities * ldint * ptfarea
+                    pblums_abs[dataset][component] = pblum[0,0]
 
             else:
                 raise ValueError("pblum_method='{}' not supported".format(pblum_method))
