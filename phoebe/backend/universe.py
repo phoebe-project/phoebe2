@@ -1852,7 +1852,7 @@ class Star(Body):
                 intens_weighting=intens_weighting,
                 ld_extrapolation_method=ld_extrapolation_method,
                 raise_on_nans=True
-            ).flatten()
+            )
 
             abs_normal_intensities = pb.Inorm(
                 query_pts=query_pts,
@@ -1865,7 +1865,7 @@ class Star(Body):
                 atm_extrapolation_method=atm_extrapolation_method,
                 ld_extrapolation_method=ld_extrapolation_method,
                 blending_method=blending_method
-            ).flatten()
+            )['inorms']
 
             if atm == 'blackbody' and extinct > 0:
                 query_pts = np.stack((
@@ -1897,8 +1897,10 @@ class Star(Body):
                 atm_extrapolation_method=atm_extrapolation_method,
                 ld_extrapolation_method=ld_extrapolation_method,
                 blending_method=blending_method
-            ).flatten()
+            )
 
+            # if abs_intensities is None or not np.all(np.isfinite(abs_intensities)):
+            #     print(f'{query_pts.shape=} {atm=} {ldatm=} {ldint.shape=} {ld_func=} {ld_coeffs=} {intens_weighting=}')
 
             # Beaming/boosting
             if boosting_method == 'none' or ignore_effects:
@@ -1923,7 +1925,7 @@ class Star(Body):
                     atm=atm,
                     intens_weighting=intens_weighting,
                     extrapolation_method=atm_extrapolation_method
-                ).flatten()
+                )
 
                 # extinction is NOT aspect dependent, so we'll correct both
                 # normal and directional intensities
@@ -1947,11 +1949,11 @@ class Star(Body):
 
         # TODO: do we really need to store all of these if store_mesh==False?
         # Can we optimize by only returning the essentials if we know we don't need them?
-        return {'abs_normal_intensities': abs_normal_intensities,
-                'normal_intensities': normal_intensities,
-                'abs_intensities': abs_intensities,
-                'intensities': intensities,
-                'ldint': ldint,
+        return {'abs_normal_intensities': abs_normal_intensities.flatten(),
+                'normal_intensities': normal_intensities.flatten(),
+                'abs_intensities': abs_intensities.flatten(),
+                'intensities': intensities.flatten(),
+                'ldint': ldint.flatten(),
                 'boost_factors': boost_factors}
 
 

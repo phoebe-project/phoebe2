@@ -68,3 +68,9 @@ def test_frontend():
 
     phoebe.uninstall_passband('box:test')
     os.remove('box_test.fits')
+
+
+if __name__ == '__main__':
+    test_bb_extinction_computation()
+    test_bb_extinction()
+    test_frontend()
