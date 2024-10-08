@@ -880,18 +880,22 @@ class Passband:
         ints_energy, ints_photon = np.empty(nmodels*len(mus)), np.empty(nmodels*len(mus))
 
         if include_extinction:
-            if rvs is None:
-                rvs = np.linspace(2., 6., 16)
             if ebvs is None:
                 ebvs = np.linspace(0., 3., 30)
+            if rvs is None:
+                rvs = np.linspace(2., 6., 16)
 
-            ebv_list = np.tile(np.repeat(ebvs, len(rvs)), nmodels)
-            rv_list = np.tile(rvs, nmodels*len(ebvs))
+            ext_axes = (np.unique(teffs), np.unique(loggs), np.unique(abuns), ebvs, rvs)
+            ext_photon_grid = np.empty(shape=(len(np.unique(teffs)), len(np.unique(loggs)), len(np.unique(abuns)), len(ebvs), len(rvs), 1))
+            ext_energy_grid = np.empty(shape=(len(np.unique(teffs)), len(np.unique(loggs)), len(np.unique(abuns)), len(ebvs), len(rvs), 1))
 
-            ext_matrix = np.rollaxis(np.array([np.split(rv_list*ebv_list, nmodels), np.split(ebv_list, nmodels)]), 1)
-            ext_matrix = np.ascontiguousarray(ext_matrix)
+            # ebv_list = np.tile(np.repeat(ebvs, len(rvs)), nmodels)
+            # rv_list = np.tile(rvs, nmodels*len(ebvs))
 
-            ext_energy, ext_photon = np.empty((nmodels, len(rvs)*len(ebvs))), np.empty((nmodels, len(rvs)*len(ebvs)))
+            # ext_matrix = np.rollaxis(np.array([np.split(rv_list*ebv_list, nmodels), np.split(ebv_list, nmodels)]), 1)
+            # ext_matrix = np.ascontiguousarray(ext_matrix)
+
+            # ext_energy, ext_photon = np.empty((nmodels, len(rvs)*len(ebvs))), np.empty((nmodels, len(rvs)*len(ebvs)))
 
         keep = (wls >= self.ptf_table['wl'][0]) & (wls <= self.ptf_table['wl'][-1])
         wls = wls[keep]
@@ -916,9 +920,19 @@ class Passband:
                 ints_photon[i*len(mus):(i+1)*len(mus)] = np.log10(fluxes_photon/self.ptf_photon_area)  # photon-weighted intensity
 
                 if include_extinction:
-                    ext_lambda = np.matmul(libphoebe.gordon_extinction(wls), ext_matrix[i])
-                    flux_frac = np.exp(-0.9210340371976184*ext_lambda)  #10**(-0.4*ext_lambda)
-                    ext_energy[i], ext_photon[i] = np.dot([pbints_energy[-1]/fluxes_energy[-1], pbints_photon[-1]/fluxes_photon[-1]], flux_frac)
+                    axbx = libphoebe.gordon_extinction(wls)
+                    ax, bx = axbx[:,0], axbx[:,1]
+                    for ei, ebv in enumerate(ebvs):
+                        for ri, rv in enumerate(rvs):
+                            Alam=10**(-0.4 * ebv * (rv * ax + bx))
+                            t = (teffs[i] == ext_axes[0], loggs[i] == ext_axes[1], abuns[i] == ext_axes[2], ebvs[ei] == ext_axes[3], rvs[ri] == ext_axes[4],0)
+                            ext_energy_grid[t] = np.trapz(self.ptf(wls) * seds * Alam, wls)[-1] / np.trapz(self.ptf(wls) * seds, wls)[-1]
+                            ext_photon_grid[t] = np.trapz(wls * self.ptf(wls) * seds * Alam, wls)[-1] / np.trapz(wls * self.ptf(wls) * seds, wls)[-1]
+
+
+                    # ext_lambda = np.matmul(libphoebe.gordon_extinction(wls), ext_matrix[i])
+                    # flux_frac = np.exp(-0.9210340371976184*ext_lambda)  #10**(-0.4*ext_lambda)
+                    # ext_energy[i], ext_photon[i] = np.dot([pbints_energy[-1]/fluxes_energy[-1], pbints_photon[-1]/fluxes_photon[-1]], flux_frac)
 
         basic_axes = (np.unique(teffs), np.unique(loggs), np.unique(abuns))
         self.ndp[atm] = ndpolator.Ndpolator(basic_axes=basic_axes)
@@ -946,23 +960,26 @@ class Passband:
             associated_axes = (np.unique(ebvs), np.unique(rvs))
             axes = basic_axes + associated_axes
 
-            teffs = np.repeat(teffs, len(ebvs)*len(rvs))
-            loggs = np.repeat(loggs, len(ebvs)*len(rvs))
-            abuns = np.repeat(abuns, len(ebvs)*len(rvs))
-
-            ext_energy_grid = np.full(shape=[len(axis) for axis in axes]+[1], fill_value=np.nan)
-            ext_photon_grid = np.copy(ext_energy_grid)
-
-            flat_energy = ext_energy.flat
-            flat_photon = ext_photon.flat
-
-            for i in range(nmodels*len(ebvs)*len(rvs)):
-                t = (teffs[i] == axes[0], loggs[i] == axes[1], abuns[i] == axes[2], ebv_list[i] == axes[3], rv_list[i] == axes[4], 0)
-                ext_energy_grid[t] = flat_energy[i]
-                ext_photon_grid[t] = flat_photon[i]
-
             self.ndp[atm].register('ext@photon', associated_axes, ext_photon_grid)
             self.ndp[atm].register('ext@energy', associated_axes, ext_energy_grid)
+
+            # teffs = np.repeat(teffs, len(ebvs)*len(rvs))
+            # loggs = np.repeat(loggs, len(ebvs)*len(rvs))
+            # abuns = np.repeat(abuns, len(ebvs)*len(rvs))
+
+            # ext_energy_grid = np.full(shape=[len(axis) for axis in axes]+[1], fill_value=np.nan)
+            # ext_photon_grid = np.copy(ext_energy_grid)
+
+            # flat_energy = ext_energy.flat
+            # flat_photon = ext_photon.flat
+
+            # for i in range(nmodels*len(ebvs)*len(rvs)):
+            #     t = (teffs[i] == axes[0], loggs[i] == axes[1], abuns[i] == axes[2], ebv_list[i] == axes[3], rv_list[i] == axes[4])
+            #     ext_energy_grid[t] = flat_energy[i]
+            #     ext_photon_grid[t] = flat_photon[i]
+
+            # self.ndp[atm].register('ext@photon', associated_axes, ext_photon_grid)
+            # self.ndp[atm].register('ext@energy', associated_axes, ext_energy_grid)
 
             if f'{atm}:ext' not in self.content:
                 self.content.append(f'{atm}:ext')
