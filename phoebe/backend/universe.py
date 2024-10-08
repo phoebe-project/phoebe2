@@ -1838,11 +1838,13 @@ class Star(Body):
 
             self.set_ptfarea(dataset, ptfarea)
 
-            query_pts = np.ascontiguousarray(np.stack((
+            # Inorm/Imu are smart enough to extract teffs for atm='blackbody'
+            # so we don't need to worry about that here.
+            query_pts = np.stack((
                 self.mesh.teffs.for_computations,
                 self.mesh.loggs.for_computations,
                 self.mesh.abuns.for_computations
-            )).T)
+            )).T
 
             ldint = pb.ldint(
                 query_pts=query_pts,
@@ -1867,19 +1869,8 @@ class Star(Body):
                 blending_method=blending_method
             )['inorms']
 
-            if atm == 'blackbody' and extinct > 0:
-                query_pts = np.stack((
-                    self.mesh.teffs.for_computations,
-                    Rv * np.ones_like(self.mesh.teffs.for_computations),
-                    extinct * np.ones_like(self.mesh.teffs.for_computations)
-                )).T
-            else:
-                query_pts = np.stack((
-                    self.mesh.teffs.for_computations,
-                    self.mesh.loggs.for_computations,
-                    self.mesh.abuns.for_computations,
-                    np.abs(self.mesh.mus_for_computations),
-                )).T
+            # add mus to query points:
+            query_pts = np.c_[query_pts, np.abs(self.mesh.mus_for_computations)]
 
             # abs_intensities are the projected (limb-darkened) passband intensities
             # TODO: why do we need to use abs(mus) here?
@@ -1917,9 +1908,10 @@ class Star(Body):
             abs_intensities *= boost_factors
 
             # interstellar extinction (reddening):
-            if extinct == 0.0:
+            if extinct == 0.0 or ignore_effects:
                 extinct_factors = 1.0
             else:
+                query_pts = np.c_[query_pts[:,:-1], np.full_like(query_pts[:,0], fill_value=extinct), np.full_like(query_pts[:,0], fill_value=Rv)]
                 extinct_factors = pb.interpolate_extinct(
                     query_pts=query_pts,
                     atm=atm,
@@ -1927,10 +1919,10 @@ class Star(Body):
                     extrapolation_method=atm_extrapolation_method
                 )
 
-                # extinction is NOT aspect dependent, so we'll correct both
-                # normal and directional intensities
-                abs_intensities *= extinct_factors
-                abs_normal_intensities *= extinct_factors
+            # extinction is NOT aspect dependent, so we'll correct both
+            # normal and directional intensities
+            abs_intensities *= extinct_factors
+            abs_normal_intensities *= extinct_factors
 
             # Handle pblum - distance and l3 scaling happens when integrating (in observe)
             # we need to scale each triangle so that the summed normal_intensities over the

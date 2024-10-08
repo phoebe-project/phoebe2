@@ -2,6 +2,7 @@ from phoebe import __version__ as phoebe_version
 from phoebe import conf, mpi
 from phoebe.utils import _bytes
 from tqdm import tqdm
+from itertools import product
 
 import ndpolator
 
@@ -735,35 +736,52 @@ class Passband:
             self.content.append('blackbody:Inorm')
 
         if include_extinction:
-            if rvs is None:
-                rvs = np.linspace(2., 6., 16)
             if ebvs is None:
                 ebvs = np.linspace(0., 3., 30)
+            if rvs is None:
+                rvs = np.linspace(2., 6., 16)
 
-            axes = (np.unique(teffs), np.unique(rvs), np.unique(ebvs))
+            axes = (np.unique(teffs), np.unique(ebvs), np.unique(rvs))
 
-            ebv_column = np.tile(ebvs, len(rvs))
-            rvebv_column = ebv_column*np.repeat(rvs, len(ebvs))
-            ext_pars = np.vstack((rvebv_column, ebv_column))
-            ext_func = libphoebe.gordon_extinction(wls)  # (47, 2)
-            ext = ext_func @ ext_pars  # (47, 480)
-            flux_fracs = 10**(-0.4*ext)  # (47, 480)
-            integrand_energy = (pbpfs_energy[:, None, :]*flux_fracs[:, :, None]).T  # ~25ms  (97, 480, 47)
-            integrand_photon = (pbpfs_photon[:, None, :]*flux_fracs[:, :, None]).T  # ~25ms  (97, 480, 47)
-            # integrand = np.einsum('ji,jk->ikj', pbpfs, flux_fracs)  # ~30ms
+            axbx = libphoebe.gordon_extinction(self.wl)
+            ax, bx = axbx[:,0], axbx[:,1]
 
-            extincted_intensities_energy = np.trapz(integrand_energy, self.wl, axis=2)  # (97, 480)
-            extincted_intensities_photon = np.trapz(integrand_photon, self.wl, axis=2)  # (97, 480)
+            pgrid = np.empty(shape=(len(teffs), len(ebvs), len(rvs), 1))
+            egrid = np.empty(shape=(len(teffs), len(ebvs), len(rvs), 1))
 
-            non_extincted_intensities_energy = np.trapz(pbpfs_energy, self.wl, axis=0)[:,None]  # (97, 1)
-            non_extincted_intensities_photon = np.trapz(pbpfs_photon, self.wl, axis=0)[:,None]  # (97, 1)
-
-            egrid = (extincted_intensities_energy/non_extincted_intensities_energy).reshape(len(teffs), len(rvs), len(ebvs), 1)  # (97, 16, 30, 1)
-            pgrid = (extincted_intensities_photon/non_extincted_intensities_photon).reshape(len(teffs), len(rvs), len(ebvs), 1)  # (97, 16, 30, 1)
+            for ti, teff in enumerate(teffs):
+                bb_sed = self._planck(self.wl, teff)
+                for ei, ebv in enumerate(ebvs):
+                    for ri, rv in enumerate(rvs):
+                        Alam = 10**(-0.4 * ebv * (rv * ax + bx))
+                        egrid[ti, ei, ri, 0] = np.trapz(self.ptf(self.wl) * bb_sed * Alam, axis=0) / np.trapz(self.ptf(self.wl) * bb_sed, axis=0)
+                        pgrid[ti, ei, ri, 0] = np.trapz(self.wl * self.ptf(self.wl) * bb_sed * Alam, axis=0) / np.trapz(self.wl * self.ptf(self.wl) * bb_sed, axis=0)
 
             self.ndp['blackbody'] = ndpolator.Ndpolator(basic_axes=(axes[0],))
             self.ndp['blackbody'].register('ext@photon', associated_axes=(axes[1], axes[2]), grid=pgrid)
             self.ndp['blackbody'].register('ext@energy', associated_axes=(axes[1], axes[2]), grid=egrid)
+
+            # ebv_column = np.tile(ebvs, len(rvs))
+            # rvebv_column = ebv_column*np.repeat(rvs, len(ebvs))
+            # ext_pars = np.vstack((rvebv_column, ebv_column))
+            # ext_func = libphoebe.gordon_extinction(wls)  # (47, 2)
+            # ext = ext_func @ ext_pars  # (47, 480)
+            # flux_fracs = 10**(-0.4*ext)  # (47, 480)
+            # integrand_energy = (pbpfs_energy[:, None, :]*flux_fracs[:, :, None]).T  # ~25ms  (97, 480, 47)
+            # integrand_photon = (pbpfs_photon[:, None, :]*flux_fracs[:, :, None]).T  # ~25ms  (97, 480, 47)
+
+            # extincted_intensities_energy = np.trapz(integrand_energy, self.wl, axis=2)  # (97, 480)
+            # extincted_intensities_photon = np.trapz(integrand_photon, self.wl, axis=2)  # (97, 480)
+
+            # non_extincted_intensities_energy = np.trapz(pbpfs_energy, self.wl, axis=0)[:,None]  # (97, 1)
+            # non_extincted_intensities_photon = np.trapz(pbpfs_photon, self.wl, axis=0)[:,None]  # (97, 1)
+
+            # egrid = (extincted_intensities_energy/non_extincted_intensities_energy).reshape(len(teffs), len(ebvs), len(rvs), 1)  # (97, 16, 30, 1)
+            # pgrid = (extincted_intensities_photon/non_extincted_intensities_photon).reshape(len(teffs), len(ebvs), len(rvs), 1)  # (97, 16, 30, 1)
+
+            # self.ndp['blackbody'] = ndpolator.Ndpolator(basic_axes=(axes[0],))
+            # self.ndp['blackbody'].register('ext@photon', associated_axes=(axes[1], axes[2]), grid=pgrid)
+            # self.ndp['blackbody'].register('ext@energy', associated_axes=(axes[1], axes[2]), grid=egrid)
 
             if 'blackbody:ext' not in self.content:
                 self.content.append('blackbody:ext')
@@ -1230,8 +1248,6 @@ class Passband:
         ----------
         * `query_pts` (ndarray): an NxD-dimensional ndarray, where N is the number of query points and D their dimension
         * `atm` (string, optional, default='blackbody'): atmosphere model.
-        * `ebvs` (float, optional, default=0.0)
-        * `rvs` (float, optional, default=3.1)
         * `intens_weighting`
         * `extrapolation_method`
 
@@ -1248,7 +1264,15 @@ class Passband:
             raise ValueError(f"extinction factors for atm={atm} not found for the {self.pbset}:{self.pbname} passband.")
 
         ndp = self.ndp[atm]
-        extinct_factor = ndp.ndpolate(f'ext@{intens_weighting}', query_pts, extrapolation_method=extrapolation_method)['interps']
+        if atm == 'blackbody':
+            # if atm == 'blackbody', we need to remove any excess columns from
+            # query points.
+            reduced_query_pts = np.ascontiguousarray(query_pts[:, [0, -2, -1]])
+            extinct_factor = ndp.ndpolate(f'ext@{intens_weighting}', reduced_query_pts, extrapolation_method=extrapolation_method)['interps']
+        else:
+            extinct_factor = ndp.ndpolate(f'ext@{intens_weighting}', query_pts, extrapolation_method=extrapolation_method)['interps']
+
+        # print(f'{reduced_query_pts=} {extinct_factor=}')
         return extinct_factor
 
     def import_wd_atmcof(self, plfile, atmfile, wdidx, Nabun=19, Nlogg=11, Npb=25, Nints=4):
@@ -1759,7 +1783,8 @@ class Passband:
 
         else:  # if ld_func != 'interp':
             mus = query_pts[:,-1]
-            reduced_query_pts = np.ascontiguousarray(query_pts[:,:-1])
+            reduced_query_pts = query_pts[:,:-1]
+            
             # print(f'{query_pts=}, {mus=}, {atm=}, {ldatm=}, {ldint=}, {ld_func=}, {ld_coeffs=}, {intens_weighting=}, {atm_extrapolation_method=}, {ld_extrapolation_method=}, {blending_method=}, {return_nanmask=}')
 
             if ld_coeffs is None:

@@ -10742,7 +10742,6 @@ class Bundle(ParameterSet):
                         continue
 
                     pblums_abs[dataset][component] = float(star.compute_luminosity(dataset, scaled=False))
-                    # print(f'{pblums_abs[dataset][component]=}')
 
             elif pblum_method == 'stefan-boltzmann':
                 for component in valid_components:
@@ -10787,7 +10786,6 @@ class Bundle(ParameterSet):
                         ld_extrapolation_method=ld_extrapolation_method,
                         blending_method=blending_method
                     )['inorms']
-                    # print(f'compute_pblums: {abs_normal_intensities=}')
 
                     ldint = pb.ldint(
                         query_pts=query_pts,
@@ -10798,7 +10796,6 @@ class Bundle(ParameterSet):
                         ld_extrapolation_method=ld_extrapolation_method,
                         raise_on_nans=True
                     )
-                    # print(f'compute_pblums: {ldint=}')
 
                     if intens_weighting=='photon':
                         ptfarea = pb.ptf_photon_area/pb.h/pb.c
