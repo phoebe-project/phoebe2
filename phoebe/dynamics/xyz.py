@@ -109,7 +109,7 @@ def dynamics_from_bundle(b, times, compute=None, return_roche_euler=False, **kwa
                gr=gr, \
                j2=j2, \
                j2s=j2s, \
-               requivs=j2s, \
+               requivs=requivs, \
                return_roche_euler=return_roche_euler \
                )
 
