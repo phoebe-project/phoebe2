@@ -1803,9 +1803,6 @@ class Star(Body):
         else:
             raise NotImplementedError
 
-
-
-
         logger.debug("ld_func={}, ld_coeffs={}, atm={}, ldatm={}".format(ld_func, ld_coeffs, atm, ldatm))
 
         pblum = kwargs.get('pblum', 4*np.pi)
@@ -1929,6 +1926,18 @@ class Star(Body):
 
         else:
             raise NotImplementedError("lc_method '{}' not recognized".format(lc_method))
+
+        if not ignore_effects:
+            for feature in self.features:
+                if feature.proto_coords:
+                    if self.__class__.__name__ == 'Star_roche_envelope_half' and self.ind_self != self.ind_self_vel:
+                        # then this is the secondary half of a contact envelope
+                        roche_coords_for_computations = np.array([1.0, 0.0, 0.0]) - mesh.roche_coords_for_computations
+                    else:
+                        roche_coords_for_computations = self.mesh.roche_coords_for_computations
+                    abs_normal_intensities, normal_intensities, abs_intensities, intensities = feature.process_intensities(abs_normal_intensities, normal_intensities, abs_intensities, intensities, roche_coords_for_computations, s=self.polar_direction_xyz, t=self.time)
+                else:
+                    abs_normal_intensities, normal_intensities, abs_intensities, intensities = feature.process_intensities(abs_normal_intensities, normal_intensities, abs_intensities, intensities, self.mesh.coords_for_computations, s=self.polar_direction_xyz, t=self.time)
 
         # TODO: do we really need to store all of these if store_mesh==False?
         # Can we optimize by only returning the essentials if we know we don't need them?
@@ -3112,6 +3121,16 @@ class Feature(object):
         """
         return teffs
 
+    def process_intensities(self, abs_normal_intensities, normal_intensities, abs_intensities, intensities,
+                            coords, s=np.array([0., 0., 1.]), t=None):
+        """
+        Method for a feature to process/modify the intensities.
+
+        Features that affect intensities should override this method
+        """
+        return abs_normal_intensities, normal_intensities, abs_intensities, intensities
+
+
 class Spot(Feature):
     def __init__(self, colat, longitude, dlongdt, radius, relteff, t0, **kwargs):
         """
@@ -3326,3 +3345,44 @@ class Pulsation(Feature):
             return teffs
 
         raise NotImplementedError("teffext=True not yet supported for pulsations")
+
+class Sinusoidal_Intensities(Feature):
+    def __init__(self, amplitude, frequency, phase0, t0, **kwargs):
+        """
+        Initialize a Spot feature
+        """
+        super(Sinusoidal_Intensities, self).__init__(**kwargs)
+        self._amplitude = amplitude
+        self._frequency = frequency
+        self._phase0 = phase0
+        self._t0 = t0
+
+    @classmethod
+    def from_bundle(cls, b, feature):
+        """
+        Initialize a Spot feature from the bundle.
+        """
+
+        feature_ps = b.get_feature(feature=feature, **_skip_filter_checks)
+        amplitude = feature_ps.get_value(qualifier='amplitude', unit=u.dimensionless_unscaled, **_skip_filter_checks)
+        period = feature_ps.get_value(qualifier='period', unit=u.d, **_skip_filter_checks)
+        frequency = 2 * np.pi / period
+        phase0 = feature_ps.get_value(qualifier='phase0', unit=u.cycle, **_skip_filter_checks)
+        t0 = b.get_value(qualifier='t0', context='system', unit=u.d, **_skip_filter_checks)
+
+        return cls(amplitude, frequency, phase0, t0)
+
+    @property
+    def _remeshing_required(self):
+        return False
+
+    def process_intensities(self, abs_normal_intensities, normal_intensities, abs_intensities, intensities,
+                            coords, s=np.array([0., 0., 1.]), t=None):
+        """
+        """
+        if t is None:
+            # then assume at t0
+            t = self._t0
+
+        factor = 1 + self._amplitude * np.sin(self._frequency * (t - self._t0) + 2 * np.pi * self._phase0)
+        return abs_normal_intensities * factor, normal_intensities * factor, abs_intensities * factor, intensities * factor
