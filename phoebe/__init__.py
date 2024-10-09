@@ -384,6 +384,7 @@ from . import utils as _utils
 from . import dynamics as dynamics
 from . import distortions as distortions
 from . import algorithms as algorithms
+from . import features as features
 import libphoebe
 
 # Shortcut to building logger
@@ -882,6 +883,27 @@ add_distl_docstring(mvhistogram_from_data)
 add_distl_docstring(uniform_around)
 add_distl_docstring(gaussian_around)
 
+# expose registering pluggable features`
+def register_feature(feature_cls, kind=None) -> None:
+    """
+    Register a feature class to be available in the Bundle.
+
+    Arguments
+    -----------
+    * `feature_cls` (class): the class to register
+    * `kind` (string, optional): the kind to register the class under.  If None,
+        the class will be registered under its default kind.
+    """
+
+    from phoebe.features.dataset_features import  _register_feature as ds_register_feature
+    from phoebe.features.component_features import _register_feature as comp_register_feature
+    feature_type = getattr(feature_cls, '_phoebe_custom_feature', None)
+    if feature_type == 'dataset':
+        ds_register_feature(feature_cls, kind=kind)
+    elif feature_type == 'component':
+        comp_register_feature(feature_cls, kind=kind)
+    else:
+        raise TypeError("could not find matching feature type for {}".format(feature_cls))
 
 # expose available "kinds" per-context
 def _get_phoebe_funcs(module, devel=False):

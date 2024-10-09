@@ -103,6 +103,7 @@ packages = [
     "phoebe.solverbackends",
     "phoebe.solverbackends.ebai",
     "phoebe.solverbackends.knn",
+    "phoebe.features",
     "phoebe.utils",
     "phoebe.helpers",
     "phoebe.pool",
