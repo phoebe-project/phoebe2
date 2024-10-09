@@ -1397,7 +1397,7 @@ class Passband:
 
         return log10_Inorm
 
-    def Inorm(self, query_pts, atm='ck2004', ldatm='ck2004', ldint=None, ld_func='interp', ld_coeffs=None, intens_weighting='photon', atm_extrapolation_method='none', ld_extrapolation_method='none', blending_method='none', dist_threshold=1e-5):
+    def Inorm(self, query_pts, atm='ck2004', ldatm='ck2004', ldint=None, ld_func='interp', ld_coeffs=None, intens_weighting='photon', atm_extrapolation_method='none', ld_extrapolation_method='none', blending_method='none', blending_margin=3, dist_threshold=1e-5):
         r"""
         Computes normal emergent passband intensity.
 
@@ -1626,7 +1626,7 @@ class Passband:
         return ndpolants
 
     def Imu(self, query_pts, atm='ck2004', ldatm='ck2004', ldint=None, ld_func='interp', ld_coeffs=None, intens_weighting='photon', atm_extrapolation_method='none', ld_extrapolation_method='none', blending_method='none', dist_threshold=1e-5, blending_margin=3):
-        """
+        r"""
         Computes specific emergent passband intensities.
 
         Arguments
@@ -1849,7 +1849,7 @@ class Passband:
         return ldints
 
     def _bindex_blackbody(self, Teff, intens_weighting='photon'):
-        """
+        r"""
         Computes the mean boosting index using blackbody atmosphere:
 
         B_pb^E = \int_\lambda I(\lambda) P(\lambda) B(\lambda) d\lambda / \int_\lambda I(\lambda) P(\lambda) d\lambda
