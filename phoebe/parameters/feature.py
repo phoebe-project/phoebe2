@@ -2,6 +2,7 @@
 
 from phoebe.parameters import *
 from phoebe.parameters import constraint
+from phoebe.features.dataset_features import *
 from phoebe import u
 from phoebe import conf
 
@@ -18,6 +19,7 @@ def _component_allowed_for_feature(feature_kind, component_kind):
     _allowed['gp_sklearn'] = [None]
     _allowed['gp_celerite2'] = [None]
     _allowed['gaussian_process'] = [None]  # deprecated: remove in 2.5
+    _allowed['sinusoidal_third_light'] = SinusoidalThirdLight.allowed_component_kinds
 
     return component_kind in _allowed[feature_kind]
 
@@ -28,6 +30,7 @@ def _dataset_allowed_for_feature(feature_kind, dataset_kind):
     _allowed['gp_sklearn'] = ['lc', 'rv', 'lp']
     _allowed['gp_celerite2'] = ['lc', 'rv', 'lp']
     _allowed['gaussian_process'] = ['lc', 'rv', 'lp']  # deprecated: remove in 2.5
+    _allowed['sinusoidal_third_light'] = SinusoidalThirdLight.allowed_dataset_kinds
 
     return dataset_kind in _allowed[feature_kind]
 
@@ -253,3 +256,21 @@ def gaussian_process(feature, **kwargs):
     """
     logger.warning("gaussian_process is deprecated.  Use gp_celerite2 instead.")
     return gp_celerite2(feature, **kwargs)
+
+def sinusoidal_third_light(feature, **kwargs):
+    """
+    Add a sinusoidal third light contribution (additive) to the light curve.
+
+
+    Arguments
+    ----------
+    * `amplitude` (float, optional, default=1.0): Amplitude of the sinusoidal term
+    * `period` (float, optional, default=1.0): Period of the sinusoidal term
+
+    Returns
+    --------
+    * (<phoebe.parameters.ParameterSet>, list): ParameterSet of all newly created
+        <phoebe.parameters.Parameter> objects and a list of all necessary
+        constraints.
+    """
+    return SinusoidalThirdLight.add_feature(feature, **kwargs)

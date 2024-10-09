@@ -384,6 +384,7 @@ from . import utils as _utils
 from . import dynamics as dynamics
 from . import distortions as distortions
 from . import algorithms as algorithms
+from . import features as features
 import libphoebe
 
 # Shortcut to building logger
