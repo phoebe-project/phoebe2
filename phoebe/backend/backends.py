@@ -987,7 +987,6 @@ class PhoebeBackend(BaseBackendByTime):
         system.update_positions(t0, x0, y0, z0, vx0, vy0, vz0, etheta0, elongan0, eincl0, ignore_effects=True)
         system.populate_observables(t0, ['lc' for dataset in datasets], datasets, ignore_effects=True)
 
-
         if reset:
             logger.debug("rank:{}/{} PhoebeBackend._create_system_and_compute_pblums: resetting system".format(mpi.myrank, mpi.nprocs))
             system.reset(force_recompute_instantaneous=True)
@@ -1008,6 +1007,10 @@ class PhoebeBackend(BaseBackendByTime):
         # b.compute_ld_coeffs(set_value=True) # TODO: only need if irradiation is enabled and only for bolometric
 
         system = kwargs.get('system', universe.System.from_bundle(b, compute, datasets=b.datasets, **kwargs))
+
+        # NOTE: for interferometry; 1 call 1.4 ms
+        system.distance = b.get_value(qualifier='distance', context='system', **_skip_filter_checks)
+
         # pblums_scale computed within run_compute and then passed as kwarg to run (so should be in kwargs sent to each worker)
         pblums_scale = kwargs.get('pblums_scale')
         for dataset in list(pblums_scale.keys()):
@@ -1042,6 +1045,7 @@ class PhoebeBackend(BaseBackendByTime):
                     vxs=vxs, vys=vys, vzs=vzs,
                     ethetas=ethetas, elongans=elongans, eincls=eincls)
 
+#    @profile
     def _run_single_time(self, b, i, time, infolist, **kwargs):
         logger.debug("rank:{}/{} PhoebeBackend._run_single_time(i={}, time={}, infolist={}, **kwargs.keys={})".format(mpi.myrank, mpi.nprocs, i, time, infolist, kwargs.keys()))
 
@@ -1124,7 +1128,6 @@ class PhoebeBackend(BaseBackendByTime):
         system.xi = xi
         system.yi = yi
         system.zi = zi
-        system.distance = b.get_value('distance@system')
 
         logger.debug("rank:{}/{} PhoebeBackend._run_single_time: filling packets at time={}".format(mpi.myrank, mpi.nprocs, time))
         # now let's loop through and prepare a packet which will fill the synthetics
