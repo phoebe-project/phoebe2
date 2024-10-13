@@ -217,8 +217,8 @@ def dynamics(times, masses, xi, yi, zi, vxi, vyi, vzi, \
         rebx = reboundx.Extras(sim)
 
     if gr:
-        logger.info("enabling 'gr' in reboundx")
-        gr = rebx.load_force("gr")
+        logger.info("enabling 'gr_full' in reboundx")
+        gr = rebx.load_force("gr_full")
         gr.params["c"] = c.c.to("AU/d").value
         rebx.add_force(gr)
 
