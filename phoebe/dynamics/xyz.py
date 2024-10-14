@@ -225,7 +225,7 @@ def dynamics(times, masses, xi, yi, zi, vxi, vyi, vzi, \
     if j2:
         logger.info("enabling 'j2' in reboundx")
         rebx = reboundx.Extras(sim)
-        gh = rebx.load_force("gravitational_harmonics")
+        gh = rebx.load_force("j2")
         rebx.add_force(gh)
 
         for j in range(0, nbod):
