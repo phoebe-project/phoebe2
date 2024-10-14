@@ -97,7 +97,7 @@ import subprocess
 from time import sleep
 from collections import OrderedDict
 from datetime import datetime
-from distutils.version import StrictVersion
+from packaging.version import parse
 
 from phoebe.parameters.unit_choices import unit_choices as _unit_choices
 
@@ -545,9 +545,9 @@ def info():
 
     client_warning = None
     if client_version is not None:
-        if StrictVersion(client_version) < StrictVersion('1.0.0'):
+        if parse(client_version) < parse('1.0.0'):
             client_warning = 'client still in development'
-        elif StrictVersion(client_version) < StrictVersion('1.1.0'):
+        elif parse(client_version) < parse('1.1.0'):
             client_warning = 'client does not support adding or editing servers'
 
 
