@@ -7,7 +7,6 @@ from scipy.optimize import newton
 from phoebe import u, c
 from phoebe import conf
 from phoebe.dynamics import geometry
-from phoebe.dynamics import invgeometry
 
 try:
     import rebound
@@ -255,7 +254,7 @@ def dynamics(times, masses, xi, yi, zi, vxi, vyi, vzi, \
 
         if return_roche_euler:
 
-            elmts, euler, roche = invgeometry.invgeometry(masses, rb, vb, geometry=_geometry)
+            elmts, euler, roche = geometry.invgeometry(masses, rb, vb, geometry=_geometry)
 
         fac = (1*u.AU).to(u.solRad).value
 
