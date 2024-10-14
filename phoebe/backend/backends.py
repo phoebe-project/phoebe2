@@ -961,6 +961,9 @@ class PhoebeBackend(BaseBackendByTime):
             if dynamics_method in ['nbody', 'rebound']:
                 t0, xs0, ys0, zs0, vxs0, vys0, vzs0, inst_ds0, inst_Fs0, ethetas0, elongans0, eincls0 = dynamics.nbody.dynamics_from_bundle(b, [t0], compute, return_roche_euler=True, **kwargs)
 
+            elif dynamics_method in ['xyz']:
+                t0, xs0, ys0, zs0, vxs0, vys0, vzs0, inst_ds0, inst_Fs0, ethetas0, elongans0, eincls0 = dynamics.xyz.dynamics_from_bundle(b, [t0], compute, return_roche_euler=True, **kwargs)
+
             elif dynamics_method == 'bs':
                 # TODO: pass stepsize
                 # TODO: pass orbiterror
@@ -1027,6 +1030,9 @@ class PhoebeBackend(BaseBackendByTime):
             if dynamics_method in ['nbody', 'rebound']:
                 ts, xs, ys, zs, vxs, vys, vzs, inst_ds, inst_Fs, ethetas, elongans, eincls = dynamics.nbody.dynamics_from_bundle(b, times, compute, return_roche_euler=True, **kwargs)
 
+            elif dynamics_method in ['xyz']:
+                ts, xs, ys, zs, vxs, vys, vzs, inst_ds, inst_Fs, ethetas, elongans, eincls = dynamics.xyz.dynamics_from_bundle(b, times, compute, return_roche_euler=True, **kwargs)
+
             elif dynamics_method == 'bs':
                 # if distortion_method == 'roche':
                     # raise ValueError("distortion_method '{}' not compatible with dynamics_method '{}'".format(distortion_method, dynamics_method))
@@ -1039,6 +1045,8 @@ class PhoebeBackend(BaseBackendByTime):
             elif dynamics_method=='keplerian':
                 # TODO: make sure that this takes systemic velocity and corrects positions and velocities (including ltte effects if enabled)
                 ts, xs, ys, zs, vxs, vys, vzs, ethetas, elongans, eincls = dynamics.keplerian.dynamics_from_bundle(b, times, compute, return_euler=True, **kwargs)
+                inst_ds = None
+                inst_Fs = None
 
             else:
                 raise NotImplementedError
@@ -1054,6 +1062,8 @@ class PhoebeBackend(BaseBackendByTime):
             vxs, vys, vzs = [np.zeros(len(times))], [np.zeros(len(times))], [np.zeros(len(times))]
             xs, ys, zs = [np.zeros(len(times))], [np.zeros(len(times))], [np.full(len(times), vgamma)]
             ethetas, elongans, eincls = [np.zeros(len(times))], [np.full(len(times), long_an)], [np.full(len(times), incl)]
+            inst_ds = None
+            inst_Fs = None
 
             for i,t in enumerate(times):
                 zs[0][i] = vgamma*(t-t0)
@@ -1065,7 +1075,8 @@ class PhoebeBackend(BaseBackendByTime):
                     dynamics_method=dynamics_method,
                     ts=ts, xs=xs, ys=ys, zs=zs,
                     vxs=vxs, vys=vys, vzs=vzs,
-                    ethetas=ethetas, elongans=elongans, eincls=eincls)
+                    ethetas=ethetas, elongans=elongans, eincls=eincls,
+                    inst_ds=inst_ds, inst_Fs=inst_Fs)
 
     def _run_single_time(self, b, i, time, infolist, **kwargs):
         logger.debug("rank:{}/{} PhoebeBackend._run_single_time(i={}, time={}, infolist={}, **kwargs.keys={})".format(mpi.myrank, mpi.nprocs, i, time, infolist, kwargs.keys()))
@@ -1096,10 +1107,12 @@ class PhoebeBackend(BaseBackendByTime):
         if True in [info['needs_mesh'] for info in infolist]:
 
             if dynamics_method in ['nbody', 'rebound']:
-                di = dynamics.at_i(inst_ds, i)
-                Fi = dynamics.at_i(inst_Fs, i)
                 # by passing these along to update_positions, volume conservation will
                 # handle remeshing the stars
+                inst_ds = kwargs.get('inst_ds')
+                inst_Fs = kwargs.get('inst_Fs')
+                di = dynamics.at_i(inst_ds, i)
+                Fi = dynamics.at_i(inst_Fs, i)
             else:
                 # then allow d to be determined from orbit and original sma
                 # and F to remain fixed

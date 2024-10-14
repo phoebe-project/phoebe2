@@ -2778,6 +2778,12 @@ class Bundle(ParameterSet):
                                     constraint=self._default_label('pot_max', context='constraint'))
 
         for component in self.hierarchy.get_orbits():
+            # NOTE: IN ORDER TO DEFAULT_TRIPLE() WORKS
+            children = self.hierarchy.get_stars_of_children_of(component)
+            if len(children) > 2:
+                logger.warning('constraint {} not working for multiple systems'.format(constraint_func))
+                continue
+
             for constraint_func in ['teffratio', 'requivratio', 'requivsumfrac']:
                 logger.debug('re-creating {} constraint for {}'.format(constraint_func, component))
                 if len(self.filter(context='constraint',
@@ -2834,8 +2840,14 @@ class Bundle(ParameterSet):
                                         solve_for=constraint_param.constrained_parameter.uniquetwig,
                                         constraint=constraint_param.constraint)
                 else:
-                    self.add_constraint(constraint.mass, component,
-                                        constraint=self._default_label('mass', context='constraint'))
+                    # NOTE: IN ORDER TO DEFAULT_TRIPLE() WORKS
+                    sibling = self.hierarchy.get_sibling_of(component)
+                    kind = self.hierarchy.get_kind_of(sibling)
+                    if kind != 'star':
+                        logger.warning('constraint mass not working for multiple systems')
+                    else:
+                        self.add_constraint(constraint.mass, component,
+                                            constraint=self._default_label('mass', context='constraint'))
 
 
                 logger.debug('re-creating comp_sma constraint for {}'.format(component))
@@ -4134,12 +4146,8 @@ class Bundle(ParameterSet):
                                      ]+addl_parameters,
                                      True, 'run_compute')
             elif len(self.hierarchy.get_stars()) > 2:
-                if compute_kind not in []:
-                    report.add_item(self,
-                                    "{} (compute='{}') does not support multiple systems".format(compute_kind, compute),
-                                    [self.hierarchy
-                                     ]+addl_parameters,
-                                     True, 'run_compute')
+                if not conf.devel:
+                     raise NotImplementedError("{} (compute='{}') does not support multiple systems.  Enable developer mode to test.".format(compute_kind, compute))
 
             # sample_from and solution checks
             # check if any parameter is in sample_from but is constrained

@@ -1,6 +1,7 @@
 
 from . import nbody as nbody
 from . import keplerian as keplerian
+from . import xyz as xyz
 from phoebe import u
 
 
