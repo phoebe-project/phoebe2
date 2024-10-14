@@ -5,9 +5,8 @@ from scipy.optimize import newton
 
 from phoebe import u, c
 
-from phoebe.dynamics import coord_j2b
-from phoebe.dynamics import orbel_el2xv
-from phoebe.dynamics import orbel_ehie
+from phoebe.dynamics import coord
+from phoebe.dynamics import orbel
 
 import logging
 logger = logging.getLogger("DYNAMICS.KEPLERIAN")
@@ -148,13 +147,13 @@ def dynamics(times, masses, smas, eccs, incls, per0s, long_ans, mean_anoms, \
 
                 elmts = [a, eccs[j-1], incls[j-1], long_ans[j-1], omega, M]
 
-                rj[j], vj[j] = orbel_el2xv.orbel_el2xv(msum, ialpha, elmts)
+                rj[j], vj[j] = orbel.orbel_el2xv(msum, ialpha, elmts)
 
                 # compute Euler angles
                 # need to copy the primary
                 # need to add np.pi for the secondary
                 if return_euler:
-                    euler[j] = orbel_el2xv.get_euler(elmts)
+                    euler[j] = orbel.get_euler(elmts)
 
                     if j==1:
                         euler[0,:] = euler[1,:]
@@ -162,7 +161,7 @@ def dynamics(times, masses, smas, eccs, incls, per0s, long_ans, mean_anoms, \
                         euler[j,0] += np.pi
 
             # convert to barycentric frame
-            rb, vb = coord_j2b.coord_j2b(masses, rj, vj)
+            rb, vb = coord.coord_j2b(masses, rj, vj)
 
             # gamma velocity
             rb[:,2] -= vgamma*(t-t0)
@@ -233,51 +232,5 @@ def dynamics(times, masses, smas, eccs, incls, per0s, long_ans, mean_anoms, \
         return times, xs, ys, zs, vxs, vys, vzs, ethetas, elongans, eincls
     else:
         return times, xs, ys, zs, vxs, vys, vzs
-
-if __name__ == "__main__":
-
-    # Sun-Earth
-    times = np.array([0.0])
-    masses = np.array([1.0, 0.0])
-    smas = np.array([1.0])
-    eccs = np.array([0.0])
-    incls = np.array([0.0])
-    per0s = np.array([0.0])
-    long_ans = np.array([0.0])
-    mean_anoms = np.array([0.0])
-
-    G = c.G.to('AU3 / (Msun d2)').value
-    masses *= G
-
-    times, xs, ys, zs, vxs, vys, vzs = dynamics(times, masses, smas, eccs, incls, per0s, long_ans, mean_anoms)
-
-    print("xs = ", xs)
-    print("ys = ", ys)
-    print("zs = ", zs)
-    print("vxs = ", vxs)
-    print("vys = ", vys)
-    print("vzs = ", vzs)
-
-    print("v_of_Earth = ", vys[1][0]*(u.au/u.d).to('m s^-1'), " m/s")
-
-    # 3-body problem
-    times = np.array([0.0])
-    masses = np.array([1.0, 1.0, 1.0])
-    smas = np.array([1.0, 10.0])
-    eccs = np.array([0.0, 0.0])
-    incls = np.array([0.0, 0.0])
-    per0s = np.array([0.0, 0.0])
-    long_ans = np.array([0.0, 0.0])
-    mean_anoms = np.array([0.0, 0.0])
-
-    times, xs, ys, zs, vxs, vys, vzs = dynamics(times, masses, smas, eccs, incls, per0s, long_ans, mean_anoms)
-
-    print("")
-    print("xs = ", xs)
-    print("ys = ", ys)
-    print("zs = ", zs)
-    print("vxs = ", vxs)
-    print("vys = ", vys)
-    print("vzs = ", vzs)
 
 
