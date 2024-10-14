@@ -509,6 +509,7 @@ def _get_response(data, status_code=200, api=False, **metawargs):
     if api:
         resp = jsonify(d)
         resp.status_code = status_code
+        resp.headers.set('Content-Type', 'application/json') 
         return resp
     else:
         return d
