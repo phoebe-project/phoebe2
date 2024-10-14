@@ -87,6 +87,7 @@ CHANGELOG
 
 ### 2.4.16
 
+* Updates to phoebe-server to be compatible with modern browser requirements. [#959]
 
 ### 2.4.15
 
