@@ -18,7 +18,7 @@
   Python C-api:
   * https://docs.python.org/2/c-api/index.html
 
-  Numpi C-api manual:
+  Numpy C-api manual:
   * http://docs.scipy.org/doc/numpy/reference/c-api.html
   * http://www.scipy-lectures.org/advanced/interfacing_with_c/interfacing_with_c.html
   * http://scipy.github.io/old-wiki/pages/Cookbook/C_Extensions/NumPy_arrays
