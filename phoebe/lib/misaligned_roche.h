@@ -25,7 +25,7 @@
     q - mass ratio M2/M1 > 0
     F - synchronicity parameter in R
     delta - separation between the two objects > 0
-    theta' - angle between z axis in spin of the object in [0, pi]
+    theta' - angle between z axis and spin of the object in [0, pi]
              spin in plane (x, z)
 
   Author: Martin Horvat, December 2016

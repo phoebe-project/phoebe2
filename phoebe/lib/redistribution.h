@@ -63,7 +63,7 @@ void calc_directions(
     V - vector of vertices
 
   Output:
-    R - radious of the sphere
+    R - radius of the sphere
     x - center of the sphere
 
   Return:
@@ -725,12 +725,12 @@ class Tredistribution{
     Dmat - redistribution matrices
 
     R - vector of albedo/reflection of triangles/of vertices
-    F0 - vector of intrisic radiant exitance of triangles/of vertices
+    F0 - vector of intrinsic radiant exitance of triangles/of vertices
     epsF - relative precision of radiosity
     max_iter - maximal number of iterations
 
   Output:
-    F1   - updated vector of intrisic radiant exitance of triangles/of vertices
+    F1   - updated vector of intrinsic radiant exitance of triangles/of vertices
     Fout - vector of radiosity (intrinsic and reflection) of triangles/of vertices
 
   Returns:
@@ -834,12 +834,12 @@ void solve_radiosity_equation_with_redistribution_Wilson(
     Dmat - matrix of redistribution view factor
 
     R - vector of albedo/reflection of triangles/of vertices
-    F0 - vector of intrisic radiant exitance of triangles/of vertices
+    F0 - vector of intrinsic radiant exitance of triangles/of vertices
     epsF - relative precision of radiosity
     max_iter - maximal number of iterations
 
   Output:
-    F1   - updated vector of intrisic radiant exitance of triangles/of vertices
+    F1   - updated vector of intrinsic radiant exitance of triangles/of vertices
     Fout - vector of radiosity (intrinsic and reflection) of triangles/of vertices
 
   Returns:
@@ -960,12 +960,12 @@ void solve_radiosity_equation_with_redistribution_Horvat(
     Dmat - redistribution matrices
 
     R - vector of albedo/reflection of triangles/of vertices
-    F0 - vector of intrisic radiant exitance of triangles/of vertices
+    F0 - vector of intrinsic radiant exitance of triangles/of vertices
     epsF - relative precision of radiosity
     max_iter - maximal number of iterations
 
   Output:
-    F1   - updated vector of intrisic radiant exitance of triangles/of vertices
+    F1   - updated vector of intrinsic radiant exitance of triangles/of vertices
     Fout - vector of radiosity (intrinsic and reflection) of triangles/of vertices
 
   Returns:
@@ -1079,12 +1079,12 @@ bool solve_radiosity_equation_with_redistribution_Wilson_nbody(
     Dmat - matrix of redistribution view factor
 
     R - vector of albedo/reflection of triangles/of vertices
-    F0 - vector of intrisic radiant exitance of triangles/of vertices
+    F0 - vector of intrinsic radiant exitance of triangles/of vertices
     epsF - relative precision of radiosity
     max_iter - maximal number of iterations
 
   Output:
-    F1   - updated vector of intrisic radiant exitance of triangles/of vertices
+    F1   - updated vector of intrinsic radiant exitance of triangles/of vertices
     Fout - vector of radiosity (intrinsic and reflection) of triangles/of vertices
 
   Returns:

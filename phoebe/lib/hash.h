@@ -6,7 +6,7 @@
 /*
   String hashing for fast switching based on string argument.
 
-  Implemenation of FNV (Fowler–Noll–Vo hash)-1a hash based on the references.
+  Implementation of FNV (Fowler–Noll–Vo hash)-1a hash based on the references.
 
   Author: Martin Horvat, August 2016
 
@@ -65,7 +65,7 @@ constexpr unsigned long long operator "" _hash64(char const* p, size_t)
 
 
 /* ====================================================================
-  Hasking into 32bit integer
+  Hashing into 32bit integer
 ======================================================================*/
 namespace fnv1a_32 {
 
