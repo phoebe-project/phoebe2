@@ -18,7 +18,7 @@
 
 /*
   Perform a mid-edge (midpoint)/Loops subdivision of all triangles
-  and reproject onto surface along the normal field of implicitely
+  and reproject onto surface along the normal field of implicitly
   defined body
 
   Input:

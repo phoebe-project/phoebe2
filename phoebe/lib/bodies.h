@@ -1,8 +1,8 @@
 #pragma once
 
 /*
-  Examples of implicitely defined closed and connected surfaces in 3D
-  using standard Euclidian coordinate system (x,y,z).
+  Examples of implicitly defined closed and connected surfaces in 3D
+  using standard Euclidean coordinate system (x,y,z).
 
   The gradient should be outward from the surface, but it is not
   an requirement.
@@ -26,7 +26,7 @@
 
     (x^2 + y^2 + z^2 + R^2 - A^2)^2 - 4 R^2 (x^2 + y^2) = 0
 
-  Explicitely it is defined as
+  Explicitly it is defined as
 
     [x,y,z] = R_z(phi_1) [R + A cos(phi_2), 0, A cos(phi_2) ]
 
@@ -777,7 +777,7 @@ struct Tmisaligned_rot_star {
 
 
 /* ===================================================================
-  Generalizd Roche potential with misaligned binary system in rotated
+  Generalized Roche potential with misaligned binary system in rotated
   coordinate system.
 
   Defined of implicitly by a constrain
@@ -982,7 +982,7 @@ struct Tmisaligned_rotated_roche {
 
 
 /* ===================================================================
-  Generalizd Roche potential with misaligned binary system in canonical
+  Generalized Roche potential with misaligned binary system in canonical
   coordinate system.
 
   Defined of implicitly by a constrain

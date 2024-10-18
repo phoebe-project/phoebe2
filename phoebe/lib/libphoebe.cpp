@@ -18,7 +18,7 @@
   Python C-api:
   * https://docs.python.org/2/c-api/index.html
 
-  Numpi C-api manual:
+  Numpy C-api manual:
   * http://docs.scipy.org/doc/numpy/reference/c-api.html
   * http://www.scipy-lectures.org/advanced/interfacing_with_c/interfacing_with_c.html
   * http://scipy.github.io/old-wiki/pages/Cookbook/C_Extensions/NumPy_arrays
@@ -1974,11 +1974,17 @@ static PyObject *roche_misaligned_critical_volume([[maybe_unused]] PyObject *sel
   if (verbosity_level>=4)
     report_stream << "q:" << q << " F=" << F << " d=" << d << '\n';
 
-  double theta;
+  bool aligned = false;
+
+  double
+    theta,
+    eps = 2*std::numeric_limits<double>::epsilon();
 
   if (PyFloat_Check(o_misalignment)) {
 
     theta = std::abs(PyFloat_AsDouble(o_misalignment)); // in [0, pi/2]
+    aligned = (std::abs(std::sin(theta)) < eps); // theta ~0 => aligned
+    if (aligned) theta = 0;
 
     if (verbosity_level>=4)
       report_stream << fname + "::theta:" << theta << '\n';
@@ -1987,15 +1993,15 @@ static PyObject *roche_misaligned_critical_volume([[maybe_unused]] PyObject *sel
     PyArray_TYPE((PyArrayObject *) o_misalignment) == NPY_DOUBLE) {
 
     double *s = (double*)PyArray_DATA((PyArrayObject *)o_misalignment);
+    aligned = (std::abs(s[0]) < eps && std::abs(s[1]) < eps) || (std::abs(1 - s[2]) < eps);
+    theta = aligned ? 0 : std::asin(s[0]);
+
+    // we could work with s[0]==0, calculate aligned case make simple
+    // rotation around x-axis
 
     if (verbosity_level>=4)
       report_stream << fname + "::spin:" << s[0] << ' ' << s[1] << ' ' << s[2] << '\n';
 
-    if (s[0] == 0) {
-      theta = 0;
-    } else {
-      theta = std::asin(std::abs(s[0])); // in [0, pi/2]
-    }
   } else {
     raise_exception(fname + ":: This type of misalignment if not supported");
     return NULL;
@@ -2125,33 +2131,31 @@ static PyObject *roche_misaligned_area_volume([[maybe_unused]] PyObject *self, P
 
   bool aligned = false;
 
-  double theta;
+  double
+    theta,
+    eps_th = 2*std::numeric_limits<double>::epsilon();
 
   if (PyFloat_Check(o_misalignment)) {
 
     theta = std::abs(PyFloat_AsDouble(o_misalignment)); // in [0, pi/2]
-
-    aligned = (std::sin(theta) == 0); // theta ~0 => aligned
+    aligned = (std::abs(std::sin(theta)) < eps_th); // theta ~0 => aligned
+    if (aligned) theta = 0;
 
     if (verbosity_level>=4)
       report_stream << fname + "::theta:" << theta << '\n';
-
 
   } else if (PyArray_Check(o_misalignment) &&
     PyArray_TYPE((PyArrayObject *) o_misalignment) == NPY_DOUBLE) {
 
     double *s = (double*)PyArray_DATA((PyArrayObject *)o_misalignment);
+    aligned = (std::abs(s[0]) < eps_th && std::abs(s[1]) < eps_th) || (std::abs(1 - s[2]) < eps_th);
+    theta = aligned ? 0 : std::asin(s[0]);
+
+    // we could work with s[0]==0, calculate aligned case make simple
+    // rotation around x-axis
 
     if (verbosity_level>=4)
       report_stream << fname << "::spin:" << s[0] << ' ' << s[1] << ' ' << s[2] << '\n';
-
-    if (s[0] == 0) {
-      aligned = true;
-      theta = 0;
-    } else {
-      aligned = false;
-      theta = std::asin(std::abs(s[0])); // in [0, pi/2]
-    }
 
   } else {
     raise_exception(fname + ":: This type of misalignment if not supported");
@@ -2298,10 +2302,6 @@ static PyObject *roche_misaligned_area_volume([[maybe_unused]] PyObject *self, P
 
   return results;
 }
-
-
-
-
 
 /*
   C++ wrapper for Python code:
@@ -2767,23 +2767,28 @@ static PyObject *roche_misaligned_Omega_at_vol([[maybe_unused]] PyObject *self, 
 
   bool aligned = false;
 
-  double theta = 0;
+  double
+    theta = 0,
+    eps_th = 2*std::numeric_limits<double>::epsilon();
 
   if (PyFloat_Check(o_misalignment)) {
 
     theta = PyFloat_AsDouble(o_misalignment);
-    aligned = (std::sin(theta) == 0); // theta ~0, pi => aligned
+    aligned = (std::abs(std::sin(theta)) < eps_th); // theta ~0, pi => aligned
+    if (aligned) theta = 0;
 
   } else if (PyArray_Check(o_misalignment) &&
     PyArray_TYPE((PyArrayObject *) o_misalignment) == NPY_DOUBLE) {
 
     double *s = (double*)PyArray_DATA((PyArrayObject *)o_misalignment);
+    aligned = (std::abs(s[0]) < eps_th && std::abs(s[1]) < eps_th) || (std::abs(1 - s[2]) < eps_th);
+    theta = aligned ? 0 : std::asin(s[0]);
+
+    // we could work with s[0]==0, calculate aligned case make simple
+    // rotation around x-axis
 
     if (verbosity_level>=4)
       report_stream <<  fname << "::spin:" << s[0] << ' ' << s[1] << ' ' << s[2] << '\n';
-
-    aligned = (s[0] == 0);
-    theta = std::asin(s[0]);
 
   } else {
     raise_exception(fname + ":: This type of misalignment if not supported");
@@ -5811,13 +5816,15 @@ static PyObject *roche_misaligned_marching_mesh([[maybe_unused]] PyObject *self,
   bool
     rotated, ok, aligned = false;
 
-  double r[3], g[3], theta, *s = 0,
-        eps = 2*std::numeric_limits<double>::epsilon();
+  double
+    r[3], g[3], theta, *s = 0,
+    eps = 2*std::numeric_limits<double>::epsilon();
 
   if (PyFloat_Check(o_misalignment)) {
 
     theta = PyFloat_AsDouble(o_misalignment);
-    aligned = (std::sin(theta) == 0);     // theta ~0, pi => aligned
+    aligned = (std::abs(std::sin(theta)) < eps);     // theta ~0, pi => aligned
+    if (aligned) theta = 0;
 
     ok = misaligned_roche::meshing_start_point(r, g, choice, Omega0, q, F, d, theta);
     rotated = true;
@@ -5826,7 +5833,8 @@ static PyObject *roche_misaligned_marching_mesh([[maybe_unused]] PyObject *self,
     PyArray_TYPE((PyArrayObject *) o_misalignment) == NPY_DOUBLE) {
 
     s = (double*) PyArray_DATA((PyArrayObject*)o_misalignment);
-    aligned  = (std::abs(s[0]) < eps && std::abs(s[1]) < eps) || (std::abs(1 - s[2]) < eps);
+    aligned = (std::abs(s[0]) < eps && std::abs(s[1]) < eps) || (std::abs(1 - s[2]) < eps);
+    theta = aligned ? 0 : std::asin(s[0]);
 
     // we could work with s[0]==0, calculate aligned case make simple
     // rotation around x-axis
@@ -8644,12 +8652,15 @@ static PyObject *roche_misaligned_horizon([[maybe_unused]] PyObject *self, PyObj
 
   double
     theta = 0, *s = 0, p[3],
-    *view = (double*)PyArray_DATA(oV);
+    *view = (double*)PyArray_DATA(oV),
+    eps = 2*std::numeric_limits<double>::epsilon();
 
   if (PyFloat_Check(o_misalignment)) {
 
     theta = PyFloat_AsDouble(o_misalignment);
-    aligned = (std::sin(theta) == 0); // theta ~0, pi => aligned
+    aligned = (std::abs(std::sin(theta)) < eps); // theta ~0, pi => aligned
+    if (aligned) theta = 0;
+
     ok = misaligned_roche::point_on_horizon(p, view, choice, Omega0, q, F, d, theta, max_iter);
     rotated = true;
 
@@ -8657,9 +8668,12 @@ static PyObject *roche_misaligned_horizon([[maybe_unused]] PyObject *self, PyObj
     PyArray_TYPE((PyArrayObject *) o_misalignment) == NPY_DOUBLE) {
 
     s = (double*) PyArray_DATA((PyArrayObject*)o_misalignment);
-    aligned = (s[0] == 0 && s[1] == 0);
+    aligned  = (std::abs(s[0]) < eps && std::abs(s[1]) < eps) || (std::abs(1 - s[2]) < eps);
+    theta = aligned ? 0 : std::asin(s[0]);
+
     // we could work with s[0]==0, calculate aligned case make simple
     // rotation around x-axis
+
     ok = misaligned_roche::point_on_horizon(p, view, choice, Omega0, q, F, d, s, max_iter);
     rotated = false;
   } else {

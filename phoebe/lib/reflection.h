@@ -90,7 +90,7 @@ bool triangle_cuts_line(T n[3], T *v[3], T c1[3], T c2[3]){
   if (t3 < 0 || t3 > 1) return false;
 
   //
-  // Check if the point of intesection is in the triangle
+  // Check if the point of intersection is in the triangle
   //
 
   T a[3], b[3], c[3];
@@ -1476,7 +1476,7 @@ void triangle_mesh_radiosity_matrix_vertices_nbody_convex(
   Input:
     Fmat - matrix of view factor
     R - vector of albedo/reflection of triangles/of vertices
-    M0 - vector of intrisic radiant exitance of triangles/of vertices
+    M0 - vector of intrinsic radiant exitance of triangles/of vertices
     epsM - relative precision of radiosity
     max_iter - maximal number of iterations
 
@@ -1569,8 +1569,8 @@ Solving the radiosity model proposed by M. Horvat for Phoebe 2b.
   Input:
     Fmat - matrix of view factor
     R - vector of albedo/reflection of triangles/of vertices
-    F0 - vector of intrisic radiant exitance of triangles/of vertices
-    S0 - vector of LD reflected intrisic radiant exitance of triangles/of vertices
+    F0 - vector of intrinsic radiant exitance of triangles/of vertices
+    S0 - vector of LD reflected intrinsic radiant exitance of triangles/of vertices
     epsF - relative precision of radiosity
     max_iter - maximal number of iterations
 
@@ -1679,7 +1679,7 @@ bool solve_radiosity_equation_Horvat(
   Input:
     Fmat - matrix of view factor
     R - vector of albedo/reflection of triangles/of vertices
-    F0 - vector of intrisic radiant exitance of triangles/of vertices
+    F0 - vector of intrinsic radiant exitance of triangles/of vertices
     epsF - relative precision of radiosity
     max_iter - maximal number of iterations
 
@@ -1734,7 +1734,7 @@ bool solve_radiosity_equation_Horvat(
   Input:
     Fmat - matrix of view factor for n-body formalism
     R - vector of albedo/reflection of triangles/vertices
-    M0 - vector of intrisic radiant exitance of triangles/vertices
+    M0 - vector of intrinsic radiant exitance of triangles/vertices
     epsM - relative precision of radiosity
     max_iter - maximal number of iterations
 
@@ -1828,8 +1828,8 @@ bool solve_radiosity_equation_Wilson_nbody(
   Input:
     Fmat - matrix of view factor for n-body formalism
     R - vector of albedo/reflection of triangles/vertices
-    F0 - vector of intrisic radiant exitance of triangles/vertices
-    S0 - vector o LD diffusion of intrisic radiant exitance of triangles/vertices
+    F0 - vector of intrinsic radiant exitance of triangles/vertices
+    S0 - vector o LD diffusion of intrinsic radiant exitance of triangles/vertices
     epsF - relative precision of radiosity
     max_iter - maximal number of iterations
 
@@ -1934,7 +1934,7 @@ bool solve_radiosity_equation_Horvat_nbody(
   Input:
     Fmat - matrix of view factor for n-body formalism
     R - vector of albedo/reflection of triangles/vertices
-    F0 - vector of intrisic radiant exitance of triangles/vertices
+    F0 - vector of intrinsic radiant exitance of triangles/vertices
     epsF - relative precision of radiosity
     max_iter - maximal number of iterations
 
@@ -1955,7 +1955,7 @@ bool solve_radiosity_equation_Horvat_nbody(
   const T & max_iter = 100) {
 
   //
-  // calculate limb-darkened emission of intrisic radiant exitance
+  // calculate limb-darkened emission of intrinsic radiant exitance
   //  S0 = L_{LD} F0
   //
   int nb = F0.size();
