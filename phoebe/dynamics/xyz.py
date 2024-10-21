@@ -30,6 +30,22 @@ _skip_filter_checks = {'check_default': False, 'check_visible': False}
 
 _geometry = None
 
+# Note: From phoebe.backend.mesh, which can't be imported (circularly)!
+
+def Rx(x):
+    c = np.cos(x)
+    s = np.sin(x)
+    return np.array([[1., 0., 0.], [0., c, -s], [0., s, c]])
+
+def Rz(x):
+    c = np.cos(x)
+    s = np.sin(x)
+    return np.array([[c, -s, 0.], [s, c, 0.], [0., 0., 1.]])
+
+def spin_in_system(incl, long_an):
+    return np.dot(Rz(long_an), np.dot(Rx(-incl), np.array([0.,0.,1.])))
+
+
 def dynamics_from_bundle(b, times, compute=None, return_roche_euler=False, **kwargs):
     """
     Parse parameters in the bundle and call :func:`dynamics`.
@@ -89,8 +105,14 @@ def dynamics_from_bundle(b, times, compute=None, return_roche_euler=False, **kwa
     j2 = computeps.get_value(qualifier='j2', j2=kwargs.get('j2', None), **_skip_filter_checks)
     j2s = [b.get_value(qualifier='j2', unit=u.dimensionless_unscaled, component=component, context='component', **_skip_filter_checks) for component in starrefs]
     requivs = [b.get_value(qualifier='requiv', unit=u.AU, component=component, context='component', **_skip_filter_checks) for component in starrefs]
-
+    incls_ = [b.get_value(qualifier='incl', unit=u.rad, component=component, context='component', **_skip_filter_checks) for component in starrefs]
+    long_ans_ = [b.get_value(qualifier='long_an', unit=u.rad, component=component, context='component', **_skip_filter_checks) for component in starrefs]
+    
     nbod = len(masses)
+    spins = []
+    for j in range(0, nbod):
+        spins.append(spin_in_system(incls_[j], long_ans_[j]))
+
     elmts = []
     for j in range(0, nbod-1):
         elmts.append([smas[j], eccs[j], incls[j], long_ans[j], per0s[j], mean_anoms[j]])
@@ -109,6 +131,7 @@ def dynamics_from_bundle(b, times, compute=None, return_roche_euler=False, **kwa
                j2=j2, \
                j2s=j2s, \
                requivs=requivs, \
+               spins=spins, \
                return_roche_euler=return_roche_euler \
                )
 
@@ -125,6 +148,7 @@ def dynamics(times, masses, xi, yi, zi, vxi, vyi, vzi, \
         j2=False, \
         j2s=None, \
         requivs=None, \
+        spins=None, \
         return_roche_euler=False \
         ):
 
@@ -153,6 +177,7 @@ def dynamics(times, masses, xi, yi, zi, vxi, vyi, vzi, \
         j2: (bool) whether to account for J2 = -C20 or oblateness
         j2s: (iterable) J2 = -C20 or oblateness for each star [1]
         requivs: (iterable) equatorial radius for each star [AU]
+        spins: (iterable) spin axes (x, y, z) for each star [1]
         return_roche_euler: (bool) whether to return Roche parameters and Euler angles
 
     Returns:
@@ -222,14 +247,15 @@ def dynamics(times, masses, xi, yi, zi, vxi, vyi, vzi, \
         rebx.add_force(gr)
 
     if j2:
-        logger.info("enabling 'j2' in reboundx")
+        logger.info("enabling 'gravitational_harmonics' in reboundx")
         rebx = reboundx.Extras(sim)
-        gh = rebx.load_force("j2")
+        gh = rebx.load_force("gravitational_harmonics")
         rebx.add_force(gh)
 
         for j in range(0, nbod):
             sim.particles[j].params["J2"] = j2s[j]
             sim.particles[j].params["R_eq"] = requivs[j]
+            sim.particles[j].params["Omega"] = spins[j]
 
     rb = np.zeros((nbod, 3))
     vb = np.zeros((nbod, 3))
