@@ -127,7 +127,10 @@ def phoebe(**kwargs):
     if conf.devel:
         # note: even though bs isn't an option, its manually added as an option in test_dynamics and test_dynamics_grid
         params += [BoolParameter(visible_if='dynamics_method:bs', qualifier='gr', value=kwargs.get('gr', False), description='Whether to account for general relativity effects')]
+        params += [BoolParameter(visible_if='dynamics_method:bs', qualifier='j2', value=kwargs.get('j2', False), description='Whether to account for J2 = -C20 effects')]
         params += [FloatParameter(visible_if='dynamics_method:bs', qualifier='stepsize', value=kwargs.get('stepsize', 0.01), default_unit=None, description='stepsize for the N-body integrator')]         # TODO: improve description (and units??)
+        params += [FloatParameter(visible_if='dynamics_method:bs', qualifier='epsilon', value=kwargs.get('epsilon', 1.0e-9), default_unit=None, description='epsilon for the N-body integrator')]         # TODO: improve description (and units??)
+        params += [ChoiceParameter(visible_if='dynamics_method:bs', qualifier='geometry', value=kwargs.get('geometry', 'hierarchical'), choices=['hierarchical', 'twopairs'], description='geometry for N-body-xyz integrator')]
         params += [ChoiceParameter(visible_if='dynamics_method:bs', qualifier='integrator', value=kwargs.get('integrator', 'ias15'), choices=['ias15', 'whfast', 'sei', 'leapfrog', 'hermes'], description='Which integrator to use within rebound')]
 
 

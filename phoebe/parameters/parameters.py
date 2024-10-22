@@ -208,7 +208,8 @@ _forbidden_labels += ['requiv', 'requiv_max', 'requiv_min', 'teff', 'abun', 'log
                       'mass', 'dpdt', 'per0',
                       'dperdt', 'ecc', 'deccdt', 't0_perpass', 't0_supconj',
                       't0_ref', 'mean_anom', 'q', 'sma', 'asini', 'ecosw', 'esinw',
-                      'teffratio', 'requivratio', 'requivsumfrac'
+                      'teffratio', 'requivratio', 'requivsumfrac',
+                      'j2'
                       ]
 
 # from dataset:
@@ -242,8 +243,8 @@ _forbidden_labels += ['times', 'fluxes', 'sigmas', 'sigmas_lnf',
 
 # from compute:
 _forbidden_labels += ['enabled', 'dynamics_method', 'ltte', 'comments',
-                      'gr', 'stepsize', 'integrator',
-                      'irrad_method', 'mesh_method', 'distortion_method',
+                      'gr', 'stepsize', 'integrator', 'epsilon', 'geometry',
+                      'irrad_method', 'boosting_method', 'mesh_method', 'distortion_method',
                       'ntriangles', 'rv_grav',
                       'mesh_offset', 'mesh_init_phi', 'horizon_method', 'eclipse_method',
                       'atm', 'lc_method', 'rv_method', 'fti_method', 'fti_oversample',
@@ -10759,14 +10760,23 @@ class HierarchyParameter(StringParameter):
         -------
         * (list of strings)
         """
-        #~ l = re.findall(r"[\w']+", self.get_value())
-        # now search for indices of orbit and take the next entry from this flat list
-        #~ return [l[i+1] for i,s in enumerate(l) if s=='orbit']
+        # old version, listing orbits for 2+1 systems in incorrect order :-(
+        # l = re.findall(r"[\w']+", self.get_value())
+        # return [l[i+1] for i,s in enumerate(l) if s=='orbit']
+
+        # adding parents of stars, in the correct order
         orbits = []
         for star in self.get_stars():
             parent = self.get_parent_of(star)
             if parent not in orbits and parent!='component' and parent is not None:
                 orbits.append(parent)
+
+        # adding also parents of orbits for 2+2 systems!
+        for orbit in orbits:
+            parent = self.get_parent_of(orbit)
+            if parent not in orbits and parent!='component' and parent is not None:
+                orbits.append(parent)
+
         return orbits
 
     def _compute_meshables(self):

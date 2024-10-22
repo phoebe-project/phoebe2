@@ -6,6 +6,7 @@ from scipy.optimize import newton
 
 
 from phoebe import u, c
+from phoebe import conf
 
 try:
     import photodynam
@@ -94,6 +95,7 @@ def dynamics_from_bundle(b, times, compute=None, return_roche_euler=False, use_k
     ltte = computeps.get_value(qualifier='ltte', ltte=kwargs.get('ltte', None), **_skip_filter_checks)
     gr = computeps.get_value(qualifier='gr', gr=kwargs.get('gr', None), **_skip_filter_checks)
     integrator = computeps.get_value(qualifier='integrator', integrator=kwargs.get('integrator', None), **_skip_filter_checks)
+    epsilon = computeps.get_value(qualifier='epsilon', epsilon=kwargs.get('epsilon', None), **_skip_filter_checks)
 
     starrefs = hier.get_stars()
     orbitrefs = hier.get_orbits() if use_kepcart else [hier.get_parent_of(star) for star in starrefs]
@@ -127,12 +129,14 @@ def dynamics_from_bundle(b, times, compute=None, return_roche_euler=False, use_k
 
     return dynamics(times, masses, smas, eccs, incls, per0s, long_ans, \
                     mean_anoms, rotperiods, t0, vgamma, stepsize, ltte, gr,
-                    integrator, use_kepcart=use_kepcart, return_roche_euler=return_roche_euler)
+                    integrator, use_kepcart=use_kepcart, return_roche_euler=return_roche_euler,
+                    epsilon=epsilon)
 
 
 def dynamics(times, masses, smas, eccs, incls, per0s, long_ans, mean_anoms,
         rotperiods=None, t0=0.0, vgamma=0.0, stepsize=0.01, ltte=False, gr=False,
-        integrator='ias15', return_roche_euler=False, use_kepcart=False):
+        integrator='ias15', return_roche_euler=False, use_kepcart=False,
+        epsilon=1.0e-9):
 
     if not _can_rebound:
         raise ImportError("rebound is not installed")
@@ -165,16 +169,24 @@ def dynamics(times, masses, smas, eccs, incls, per0s, long_ans, mean_anoms,
 
     sim = rebound.Simulation()
 
+    # TODO: switch between different GR setups based on masses/hierarchy
+    # http://reboundx.readthedocs.io/en/latest/effects.html#general-relativity
     if gr:
-        logger.info("enabling 'gr_full' in reboundx")
+        logger.info("enabling 'gr' in reboundx")
         rebx = reboundx.Extras(sim)
-        # TODO: switch between different GR setups based on masses/hierarchy
-        # http://reboundx.readthedocs.io/en/latest/effects.html#general-relativity
-        params = rebx.add_gr_full()
+        gr = rebx.load_force("gr")
+        gr.params["c"] = c.c.to("AU/d").value
+        rebx.add_force(gr)
 
     sim.integrator = integrator
     # NOTE: according to rebound docs: "stepsize will change for adaptive integrators such as IAS15"
     sim.dt = stepsize
+    sim.ri_ias15.epsilon = epsilon
+    sim.ri_whfast.corrector = 17
+    sim.ri_whfast.safe_mode = 0;
+    sim.G = 1.0
+    if conf.devel:
+        sim.status()
 
     if use_kepcart:
         # print "*** bs.kep2cartesian", masses, smas, eccs, incls, per0s, long_ans, mean_anoms, t0
@@ -292,7 +304,7 @@ def dynamics(times, masses, smas, eccs, incls, per0s, long_ans, mean_anoms,
 
                 # get the orbit based on the primary component defined already
                 # in the simulation.
-                orbit = particle.calculate_orbit()
+                orbit = particle.orbit()
 
                 # for instantaneous separation, we need the current separation
                 # from the sibling component in units of its instantaneous (?) sma
@@ -302,8 +314,11 @@ def dynamics(times, masses, smas, eccs, incls, per0s, long_ans, mean_anoms,
                 # on the INSTANTANEOUS orbital PERIOD.
                 Fs[j][i] = orbit.P / rotperiods[j]
 
-                # TODO: need to add np.pi for secondary component
                 ethetas[j][i] = orbit.f + orbit.omega # true anomaly + periastron
+
+                # need to add np.pi for secondary component
+                if j==1:
+                    ethetas[j][i] += np.pi
 
                 elongans[j][i] = orbit.Omega
 
