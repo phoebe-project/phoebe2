@@ -106,7 +106,7 @@ def orbel_xv2el(gm, r, v):
 
     fac = sqrt(h[0]*h[0] + h[1]*h[1])/absh
 
-    if fac < TINY:
+    if fac < TINY or inc == 0.0 or inc == pi:
         capom = 0.0
         u = arctan2(r[1], r[0])
         if abs(inc - pi) < 10.0*TINY:
