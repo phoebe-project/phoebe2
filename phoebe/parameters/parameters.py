@@ -12024,7 +12024,8 @@ class ConstraintParameter(Parameter):
                     # to do from builtin import * (and even if I did, python
                     # yells at me for doing that), so instead we'll add them
                     # to the locals dictionary.
-                    locals()[func] = getattr(builtin, func)
+                    # See https://peps.python.org/pep-0667/
+                    sys._getframe().f_locals[func] = getattr(builtin, func)
 
                 # if eq.split('(')[0] in ['times_to_phases', 'phases_to_times']:
                     # these require passing the bundle

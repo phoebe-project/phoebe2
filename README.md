@@ -88,6 +88,7 @@ CHANGELOG
 ### 2.4.16
 
 * Fix handling of floating-point precision near the aligned case that used to result in error from libphoebe. [#965]
+* Fix support for python 3.13, remove official support for python 3.8. [#968]
 
 
 ### 2.4.15
