@@ -50,7 +50,8 @@ atm_tables = {
     'tmap_sdO': 'TS',
     'tmap_DA': 'TA',
     'tmap_DAO': 'TM',
-    'tmap_DO': 'TO'
+    'tmap_DO': 'TO',
+    'tremblay': 'TR'
 }
 
 supported_atms = list(atm_tables.keys()) + ['blackbody', 'extern_atmx', 'extern_planckint']
@@ -818,6 +819,15 @@ class Passband:
                 loggs[i] = float(pars[2])/100
                 abuns[i] = float(pars[3])/100
             units = 1  # W/m^3
+        elif atm == 'tremblay':
+            mus = np.array([0., 0.0034357 , 0.01801404, 0.04388279, 0.08044151, 0.12683405, 0.18197316, 0.2445665 , 0.31314696, 0.38610707, 0.46173674, 0.53826326, 0.61389293, 0.68685304, 0.7554335 , 0.81802684, 0.87316595, 0.91955849, 0.95611721, 0.98198596, 0.9965643 , 1.])
+            wls = np.load(path+'/wavelengths.npy')  # in meters
+            for i, model in enumerate(models):
+                pars = re.split('[TGA.]+', model[model.rfind('/')+1:])
+                teffs[i] = float(pars[1])
+                loggs[i] = float(pars[2])/100
+                abuns[i] = float(pars[3])/100
+            units = 1  # W/m^3
         else:
             raise ValueError(f'atm={atm} is not supported.')
 
@@ -990,8 +1000,8 @@ class Passband:
 
         basic_axes = self.ndp[ldatm].axes
         mus = self.ndp[ldatm].table['imu@photon'][0][0]
-        if ldatm[:4] == 'tmap':
-            # remove extrapolated points in mu for TMAP family of model atmospheres:
+        if ldatm[:4] == 'tmap' or ldatm == 'tremblay':
+            # remove extrapolated points in mu for TMAP and Tremblay model atmospheres:
             mus = mus[1:-1]
 
         ld_energy_grid = np.full(shape=[len(axis) for axis in basic_axes]+[11], fill_value=np.nan)
@@ -1011,7 +1021,7 @@ class Passband:
         for Tindex in range(len(basic_axes[0])):
             for lindex in range(len(basic_axes[1])):
                 for mindex in range(len(basic_axes[2])):
-                    if ldatm[:4] == 'tmap':
+                    if ldatm[:4] == 'tmap' or ldatm == 'tremblay':
                         IsE = 10**atm_energy_grid[Tindex,lindex,mindex,1:-1].flatten()
                     else:
                         IsE = 10**atm_energy_grid[Tindex,lindex,mindex,:].flatten()
@@ -1027,7 +1037,7 @@ class Passband:
                     cEnlin, pcov = cfit(f=self._ldlaw_nonlin, xdata=mus[fEmask], ydata=IsE[fEmask], sigma=sigma[fEmask], p0=[0.5, 0.5, 0.5, 0.5])
                     ld_energy_grid[Tindex, lindex, mindex] = np.hstack((cElin, cElog, cEsqrt, cEquad, cEnlin))
 
-                    if ldatm[:4] == 'tmap':
+                    if ldatm[:4] == 'tmap' or ldatm == 'tremblay':
                         IsP = 10**atm_photon_grid[Tindex,lindex,mindex,1:-1].flatten()
                     else:
                         IsP = 10**atm_photon_grid[Tindex,lindex,mindex,:].flatten()
@@ -1342,7 +1352,7 @@ class Passband:
         ----------
         * `query_pts` (ndarray, required): a C-contiguous DxN array of queried points
         atm : string
-            model atmosphere ('ck2004', 'phoenix', 'tmap_sdO', 'tmap_DA', 'tmap_DAO', 'tmap_DO')
+            model atmosphere ('ck2004', 'phoenix', 'tmap_sdO', 'tmap_DA', 'tmap_DAO', 'tmap_DO', 'tremblay')
         intens_weighting : str, optional
             intensity weighting scheme, by default 'photon'
         atm_extrapolation_method : str, optional
@@ -1400,6 +1410,7 @@ class Passband:
         | ck2004    |               |                         |           |                  |                                                             |
         | phoenix   |               |                         |           |                  |                                                             |
         | tmap      |               |                         |           |                  |                                                             |
+        | tremblay  |               |                         |           |                  |                                                             |
 
         Arguments
         ----------
@@ -1562,7 +1573,7 @@ class Passband:
         Parameters
         ----------
         atm : string
-            model atmosphere ('ck2004', 'phoenix', 'tmap_sdO', 'tmap_DA', 'tmap_DAO', 'tmap_DO')
+            model atmosphere ('ck2004', 'phoenix', 'tmap_sdO', 'tmap_DA', 'tmap_DAO', 'tmap_DO', 'tremblay')
         * `query_pts` (ndarray, required): a C-contiguous DxN array of queried points
         intens_weighting : str, optional
             intensity weighting scheme, by default 'photon'
@@ -1667,14 +1678,14 @@ class Passband:
         * NotImplementedError: if `ld_func` is not supported.
         """
 
-        if atm not in ['blackbody', 'extern_planckint', 'extern_atmx', 'ck2004', 'phoenix', 'tmap_sdO', 'tmap_DA', 'tmap_DAO', 'tmap_DO']:
+        if atm not in ['blackbody', 'extern_planckint', 'extern_atmx', 'ck2004', 'phoenix', 'tmap_sdO', 'tmap_DA', 'tmap_DAO', 'tmap_DO', 'tremblay']:
             raise RuntimeError(f'atm={atm} is not supported.')
 
-        if ldatm not in ['none', 'ck2004', 'phoenix', 'tmap_sdO', 'tmap_DA', 'tmap_DAO', 'tmap_DO']:
+        if ldatm not in ['none', 'ck2004', 'phoenix', 'tmap_sdO', 'tmap_DA', 'tmap_DAO', 'tmap_DO', 'tremblay']:
             raise ValueError(f'ldatm={ldatm} is not supported.')
 
         if ld_func == 'interp':
-            if atm == 'blackbody' and 'blackbody:Inorm' in self.content and ldatm in ['ck2004', 'phoenix', 'tmap_sdO', 'tmap_DA', 'tmap_DAO', 'tmap_DO']:
+            if atm == 'blackbody' and 'blackbody:Inorm' in self.content and ldatm in ['ck2004', 'phoenix', 'tmap_sdO', 'tmap_DA', 'tmap_DAO', 'tmap_DO', 'tremblay']:
                 # we need to apply ldatm's limb darkening to blackbody intensities:
                 #   Imu^bb = Lmu Inorm^bb = Imu^atm / Inorm^atm * Inorm^bb
 
@@ -1717,10 +1728,10 @@ class Passband:
                 
                 return 10**log10imus_bb
             
-            elif atm == 'blackbody' and 'blackbody:Inorm' in self.content and ldatm not in ['ck2004', 'phoenix', 'tmap_sdO', 'tmap_DA', 'tmap_DAO', 'tmap_DO']:
+            elif atm == 'blackbody' and 'blackbody:Inorm' in self.content and ldatm not in ['ck2004', 'phoenix', 'tmap_sdO', 'tmap_DA', 'tmap_DAO', 'tmap_DO', 'tremblay']:
                 raise ValueError(f'{atm=} and {ld_func=} are incompatible with {ldatm=}.')
 
-            elif atm in ['ck2004', 'phoenix', 'tmap_sdO', 'tmap_DA', 'tmap_DAO', 'tmap_DO']:
+            elif atm in ['ck2004', 'phoenix', 'tmap_sdO', 'tmap_DA', 'tmap_DAO', 'tmap_DO', 'tremblay']:
                 if f'{atm}:Imu' not in self.content:
                     raise ValueError(f'{atm=} tables are not available in the {self.pbset}:{self.pbname} passband.')
 
@@ -2819,7 +2830,7 @@ if __name__ == '__main__':
 
     pb.compute_blackbody_intensities(include_extinction=False)
 
-    for atm in ['ck2004', 'phoenix', 'tmap_sdO', 'tmap_DA', 'tmap_DAO', 'tmap_DO']:
+    for atm in ['ck2004', 'phoenix', 'tmap_sdO', 'tmap_DA', 'tmap_DAO', 'tmap_DO', 'tremblay']:
         pb.compute_intensities(atm=atm, path=f'tables/{atm}', verbose=True)
         pb.compute_ldcoeffs(ldatm=atm)
         pb.compute_ldints(ldatm=atm)
@@ -2846,7 +2857,7 @@ if __name__ == '__main__':
 
     pb.compute_blackbody_intensities(include_extinction=True)
 
-    for atm in ['ck2004', 'phoenix', 'tmap_sdO', 'tmap_DA', 'tmap_DAO', 'tmap_DO']:
+    for atm in ['ck2004', 'phoenix', 'tmap_sdO', 'tmap_DA', 'tmap_DAO', 'tmap_DO', 'tremblay']:
         pb.compute_intensities(atm=atm, path=f'tables/{atm}', verbose=True)
         pb.compute_ldcoeffs(ldatm=atm)
         pb.compute_ldints(ldatm=atm)
