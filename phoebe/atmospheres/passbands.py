@@ -746,46 +746,17 @@ class Passband:
             axbx = libphoebe.gordon_extinction(self.wl)
             ax, bx = axbx[:,0], axbx[:,1]
 
-            pgrid = np.empty(shape=(len(teffs), len(ebvs), len(rvs), 1))
-            egrid = np.empty(shape=(len(teffs), len(ebvs), len(rvs), 1))
+            # The following code broadcasts arrays so that integration can be vectorized:
+            bb_sed = self._planck(self.wl[:, None], teffs[None, :])  # (54, 97)
+            ptf = self.ptf(self.wl)[:, None]  # (54, 1)
+            Alam = 10**(-0.4 * ebvs[None, :, None] * (rvs[None, None, :] * ax[:, None, None] + bx[:, None, None]))  # Shape (54, 30, 16)
 
-            for ti, teff in enumerate(teffs):
-                bb_sed = self._planck(self.wl, teff)
-                ptf = self.ptf(self.wl)
-                eweight = np.trapz(ptf * bb_sed, axis=0)
-                pweight = np.trapz(self.wl * ptf * bb_sed, axis=0)
-
-                for ei, ebv in enumerate(ebvs):
-                    for ri, rv in enumerate(rvs):
-                        Alam = 10**(-0.4 * ebv * (rv * ax + bx))
-                        egrid[ti, ei, ri, 0] = np.trapz(self.ptf(self.wl) * bb_sed * Alam, axis=0) / eweight
-                        pgrid[ti, ei, ri, 0] = np.trapz(self.wl * self.ptf(self.wl) * bb_sed * Alam, axis=0) / pweight
+            egrid = np.trapz(ptf[:, :, None, None] * bb_sed[:, :, None, None] * Alam[:, None, :, :], self.wl, axis=0) / np.trapz(ptf[:, :, None, None] * bb_sed[:, :, None, None], self.wl, axis=0)
+            pgrid = np.trapz(self.wl[:, None, None, None] * ptf[:, :, None, None] * bb_sed[:, :, None, None] * Alam[:, None, :, :], self.wl, axis=0) / np.trapz(self.wl[:, None, None, None] * ptf[:, :, None, None] * bb_sed[:, :, None, None], self.wl, axis=0)
 
             self.ndp['blackbody'] = ndpolator.Ndpolator(basic_axes=(axes[0],))
-            self.ndp['blackbody'].register('ext@photon', associated_axes=(axes[1], axes[2]), grid=pgrid)
-            self.ndp['blackbody'].register('ext@energy', associated_axes=(axes[1], axes[2]), grid=egrid)
-
-            # ebv_column = np.tile(ebvs, len(rvs))
-            # rvebv_column = ebv_column*np.repeat(rvs, len(ebvs))
-            # ext_pars = np.vstack((rvebv_column, ebv_column))
-            # ext_func = libphoebe.gordon_extinction(wls)  # (47, 2)
-            # ext = ext_func @ ext_pars  # (47, 480)
-            # flux_fracs = 10**(-0.4*ext)  # (47, 480)
-            # integrand_energy = (pbpfs_energy[:, None, :]*flux_fracs[:, :, None]).T  # ~25ms  (97, 480, 47)
-            # integrand_photon = (pbpfs_photon[:, None, :]*flux_fracs[:, :, None]).T  # ~25ms  (97, 480, 47)
-
-            # extincted_intensities_energy = np.trapz(integrand_energy, self.wl, axis=2)  # (97, 480)
-            # extincted_intensities_photon = np.trapz(integrand_photon, self.wl, axis=2)  # (97, 480)
-
-            # non_extincted_intensities_energy = np.trapz(pbpfs_energy, self.wl, axis=0)[:,None]  # (97, 1)
-            # non_extincted_intensities_photon = np.trapz(pbpfs_photon, self.wl, axis=0)[:,None]  # (97, 1)
-
-            # egrid = (extincted_intensities_energy/non_extincted_intensities_energy).reshape(len(teffs), len(ebvs), len(rvs), 1)  # (97, 16, 30, 1)
-            # pgrid = (extincted_intensities_photon/non_extincted_intensities_photon).reshape(len(teffs), len(ebvs), len(rvs), 1)  # (97, 16, 30, 1)
-
-            # self.ndp['blackbody'] = ndpolator.Ndpolator(basic_axes=(axes[0],))
-            # self.ndp['blackbody'].register('ext@photon', associated_axes=(axes[1], axes[2]), grid=pgrid)
-            # self.ndp['blackbody'].register('ext@energy', associated_axes=(axes[1], axes[2]), grid=egrid)
+            self.ndp['blackbody'].register('ext@photon', associated_axes=(axes[1], axes[2]), grid=pgrid[..., None])
+            self.ndp['blackbody'].register('ext@energy', associated_axes=(axes[1], axes[2]), grid=egrid[..., None])
 
             if 'blackbody:ext' not in self.content:
                 self.content.append('blackbody:ext')
