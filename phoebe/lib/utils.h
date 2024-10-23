@@ -738,7 +738,7 @@ namespace utils {
 
     } else {
       //
-      // Working with a quadatic equation
+      // Working with a quadratic equation
       //  a[2] x^2 + a[1] x + a[0] = 0
       //
       solve_quadratic(a, roots);
@@ -751,7 +751,7 @@ namespace utils {
       a[4] x^4 + a[3] x^3 + a[2] x^2 + a[1] x + a[0] = 0
 
       Input:
-        a[5] -- cofficients of the polynomial
+        a[5] -- coefficients of the polynomial
 
       Output:
         roots -- vector of real roots sorted ascending order
