@@ -10,7 +10,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
+        python-version: ["3.13"]
         os: [ubuntu-22.04, macos-13, macos-14]  # https://docs.github.com/en/actions/using-github-hosted-runners/about-github-hosted-runners
         toolchain:
             - {compiler: gcc, version: 13}  # https://github.com/fortran-lang/setup-fortran
