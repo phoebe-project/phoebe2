@@ -751,11 +751,15 @@ class Passband:
 
             for ti, teff in enumerate(teffs):
                 bb_sed = self._planck(self.wl, teff)
+                ptf = self.ptf(self.wl)
+                eweight = np.trapz(ptf * bb_sed, axis=0)
+                pweight = np.trapz(self.wl * ptf * bb_sed, axis=0)
+
                 for ei, ebv in enumerate(ebvs):
                     for ri, rv in enumerate(rvs):
                         Alam = 10**(-0.4 * ebv * (rv * ax + bx))
-                        egrid[ti, ei, ri, 0] = np.trapz(self.ptf(self.wl) * bb_sed * Alam, axis=0) / np.trapz(self.ptf(self.wl) * bb_sed, axis=0)
-                        pgrid[ti, ei, ri, 0] = np.trapz(self.wl * self.ptf(self.wl) * bb_sed * Alam, axis=0) / np.trapz(self.wl * self.ptf(self.wl) * bb_sed, axis=0)
+                        egrid[ti, ei, ri, 0] = np.trapz(self.ptf(self.wl) * bb_sed * Alam, axis=0) / eweight
+                        pgrid[ti, ei, ri, 0] = np.trapz(self.wl * self.ptf(self.wl) * bb_sed * Alam, axis=0) / pweight
 
             self.ndp['blackbody'] = ndpolator.Ndpolator(basic_axes=(axes[0],))
             self.ndp['blackbody'].register('ext@photon', associated_axes=(axes[1], axes[2]), grid=pgrid)
