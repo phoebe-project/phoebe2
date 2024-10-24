@@ -854,6 +854,10 @@ class Passband:
 
         ints_energy, ints_photon = np.empty(nmodels*len(mus)), np.empty(nmodels*len(mus))
 
+        keep = (wls >= self.ptf_table['wl'][0]) & (wls <= self.ptf_table['wl'][-1])
+        wls = wls[keep]
+        ptf = self.ptf(wls)
+
         if include_extinction:
             if ebvs is None:
                 ebvs = np.linspace(0., 3., 30)
@@ -864,8 +868,11 @@ class Passband:
             ext_photon_grid = np.empty(shape=(len(np.unique(teffs)), len(np.unique(loggs)), len(np.unique(abuns)), len(ebvs), len(rvs), 1))
             ext_energy_grid = np.empty(shape=(len(np.unique(teffs)), len(np.unique(loggs)), len(np.unique(abuns)), len(ebvs), len(rvs), 1))
 
-        keep = (wls >= self.ptf_table['wl'][0]) & (wls <= self.ptf_table['wl'][-1])
-        wls = wls[keep]
+            axbx = libphoebe.gordon_extinction(wls)
+            ax, bx = axbx[:,0], axbx[:,1]
+            
+            # The following code broadcasts arrays so that integration can be vectorized:
+            Alam = 10**(-0.4 * ebvs[None, :, None] * (rvs[None, None, :] * ax[:, None, None] + bx[:, None, None]))
 
         for i, model in tqdm(enumerate(models), desc=atm, total=len(models), disable=not verbose, unit=' models'):
             with fits.open(model) as hdu:
@@ -874,7 +881,7 @@ class Passband:
                 # trim intensities to the passband limits:
                 seds = seds[:,keep]
 
-                pbints_energy = self.ptf(wls)*seds
+                pbints_energy = ptf*seds
                 fluxes_energy = np.trapz(pbints_energy, wls)
 
                 pbints_photon = wls*pbints_energy
@@ -887,14 +894,24 @@ class Passband:
                 ints_photon[i*len(mus):(i+1)*len(mus)] = np.log10(fluxes_photon/self.ptf_photon_area)  # photon-weighted intensity
 
                 if include_extinction:
-                    axbx = libphoebe.gordon_extinction(wls)
-                    ax, bx = axbx[:,0], axbx[:,1]
-                    for ei, ebv in enumerate(ebvs):
-                        for ri, rv in enumerate(rvs):
-                            Alam = 10**(-0.4 * ebv * (rv * ax + bx))
-                            t = (teffs[i] == ext_axes[0], loggs[i] == ext_axes[1], abuns[i] == ext_axes[2], ebvs[ei] == ext_axes[3], rvs[ri] == ext_axes[4],0)
-                            ext_energy_grid[t] = np.trapz(self.ptf(wls) * seds * Alam, wls)[-1] / np.trapz(self.ptf(wls) * seds, wls)[-1]
-                            ext_photon_grid[t] = np.trapz(wls * self.ptf(wls) * seds * Alam, wls)[-1] / np.trapz(wls * self.ptf(wls) * seds, wls)[-1]
+                    # we only use normal emergent intensities here for simplicity:
+                    epbints = pbints_energy[-1].reshape(-1, 1)
+                    egrid = np.trapz(epbints[:, :, None, None] * Alam[:, None, :, :], wls, axis=0) / np.trapz(epbints[:, :, None, None], wls, axis=0)
+
+                    ppbints = pbints_photon[-1].reshape(-1, 1)
+                    pgrid = np.trapz(ppbints[:, :, None, None] * Alam[:, None, :, :], wls, axis=0) / np.trapz(ppbints[:, :, None, None], wls, axis=0)
+
+                    t = (teffs[i] == ext_axes[0], loggs[i] == ext_axes[1], abuns[i] == ext_axes[2])
+                    ext_energy_grid[t] = egrid.reshape(len(ebvs), len(rvs), 1)
+                    ext_photon_grid[t] = pgrid.reshape(len(ebvs), len(rvs), 1)
+
+                    # WORKS:
+                    # for ei, ebv in enumerate(ebvs):
+                    #     for ri, rv in enumerate(rvs):
+                    #         Alam = 10**(-0.4 * ebv * (rv * ax + bx))
+                    #         t = (teffs[i] == ext_axes[0], loggs[i] == ext_axes[1], abuns[i] == ext_axes[2], ebvs[ei] == ext_axes[3], rvs[ri] == ext_axes[4],0)
+                    #         ext_energy_grid[t] = np.trapz(ptf * seds * Alam, wls)[-1] / np.trapz(ptf * seds, wls)[-1]
+                    #         ext_photon_grid[t] = np.trapz(wls * ptf * seds * Alam, wls)[-1] / np.trapz(wls * ptf * seds, wls)[-1]
 
         basic_axes = (np.unique(teffs), np.unique(loggs), np.unique(abuns))
         self.ndp[atm] = ndpolator.Ndpolator(basic_axes=basic_axes)
