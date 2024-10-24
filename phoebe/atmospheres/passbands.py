@@ -905,14 +905,6 @@ class Passband:
                     ext_energy_grid[t] = egrid.reshape(len(ebvs), len(rvs), 1)
                     ext_photon_grid[t] = pgrid.reshape(len(ebvs), len(rvs), 1)
 
-                    # WORKS:
-                    # for ei, ebv in enumerate(ebvs):
-                    #     for ri, rv in enumerate(rvs):
-                    #         Alam = 10**(-0.4 * ebv * (rv * ax + bx))
-                    #         t = (teffs[i] == ext_axes[0], loggs[i] == ext_axes[1], abuns[i] == ext_axes[2], ebvs[ei] == ext_axes[3], rvs[ri] == ext_axes[4],0)
-                    #         ext_energy_grid[t] = np.trapz(ptf * seds * Alam, wls)[-1] / np.trapz(ptf * seds, wls)[-1]
-                    #         ext_photon_grid[t] = np.trapz(wls * ptf * seds * Alam, wls)[-1] / np.trapz(wls * ptf * seds, wls)[-1]
-
         basic_axes = (np.unique(teffs), np.unique(loggs), np.unique(abuns))
         self.ndp[atm] = ndpolator.Ndpolator(basic_axes=basic_axes)
 
