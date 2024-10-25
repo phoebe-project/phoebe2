@@ -11,10 +11,10 @@
 
 [project]
 name = "phoebe"
-version = "2.4.15.dev+feature-interferometry"
+version = "2.4.16.dev+feature-interferometry"
 description = "PHOEBE: modeling and analysis of eclipsing binary stars"
 readme = "README.md"
-requires-python = ">=3.7"
+requires-python = ">=3.8"
 license = { text = "GPL-3.0-or-later" }
 authors = [
     { name = "Andrej Prša", email = "aprsa@villanova.edu" },

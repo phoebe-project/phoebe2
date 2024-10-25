@@ -97,7 +97,7 @@ import subprocess
 from time import sleep
 from collections import OrderedDict
 from datetime import datetime
-from distutils.version import StrictVersion
+from packaging.version import parse
 
 from phoebe.parameters.unit_choices import unit_choices as _unit_choices
 
@@ -502,6 +502,12 @@ def _get_failed_constraints(b):
 
 
 ############################ HTTP ROUTES ######################################
+def _get_request(request):
+    if request.content_type == 'application/json':
+        return request.get_json()
+    else:
+        return request.form
+
 def _get_response(data, status_code=200, api=False, **metawargs):
     d = {}
     d['data'] = data
@@ -509,6 +515,7 @@ def _get_response(data, status_code=200, api=False, **metawargs):
     if api:
         resp = jsonify(d)
         resp.status_code = status_code
+        resp.headers.set('Content-Type', 'application/json') 
         return resp
     else:
         return d
@@ -516,7 +523,7 @@ def _get_response(data, status_code=200, api=False, **metawargs):
 @app.route("/info", methods=['GET', 'POST'])
 @crossdomain(origin='*')
 def info():
-    j = request.get_json()
+    j = _get_request(request)
     clientid = j.get('clientid', None) if j is not None else None
     client_version = j.get('client_version', None) if j is not None else None
 
@@ -538,9 +545,9 @@ def info():
 
     client_warning = None
     if client_version is not None:
-        if StrictVersion(client_version) < StrictVersion('1.0.0'):
+        if parse(client_version) < parse('1.0.0'):
             client_warning = 'client still in development'
-        elif StrictVersion(client_version) < StrictVersion('1.1.0'):
+        elif parse(client_version) < parse('1.1.0'):
             client_warning = 'client does not support adding or editing servers'
 
 
@@ -576,7 +583,7 @@ def new_bundle(type):
 
     type: 'binary:detached'
     """
-    j = request.get_json()
+    j = _get_request(request)
     clientid = j.get('clientid', None) if j is not None else None
     client_version = j.get('client_version', None) if j is not None else None
 
@@ -617,7 +624,7 @@ def new_bundle(type):
 def open_bundle(type):
     """
     """
-    j = request.get_json()
+    j = _get_request(request)
     if j is None:
         j = request.form
     clientid = j.get('clientid', None)
@@ -684,7 +691,7 @@ def open_bundle(type):
 def json_bundle(bundleid):
     """
     """
-    j = request.get_json()
+    j = _get_request(request)
     clientid = j.get('clientid', None) if j is not None else None
     client_version = j.get('client_version', None) if j is not None else None
 
@@ -704,7 +711,7 @@ def json_bundle(bundleid):
 def save_bundle(bundleid):
     """
     """
-    j = request.get_json()
+    j = _get_request(request)
     clientid = j.get('clientid', None) if j is not None else None
     client_version = j.get('client_version', None) if j is not None else None
 
@@ -730,7 +737,7 @@ def save_bundle(bundleid):
 @app.route('/export_script/<string:bundleid>', methods=['GET', 'POST'])
 @crossdomain(origin='*')
 def export_script(bundleid):
-    j = request.get_json()
+    j = _get_request(request)
     clientid = j.get('clientid', None) if j is not None else None
     client_version = j.get('client_version', None) if j is not None else None
 
@@ -768,7 +775,7 @@ def export_script(bundleid):
 def export_compute(bundleid, compute, model=None):
     """
     """
-    j = request.get_json()
+    j = _get_request(request)
     clientid = j.get('clientid', None) if j is not None else None
     client_version = j.get('client_version', None) if j is not None else None
 
@@ -798,7 +805,7 @@ def export_compute(bundleid, compute, model=None):
 def export_solver(bundleid, solver, solution=None):
     """
     """
-    j = request.get_json()
+    j = _get_request(request)
     clientid = j.get('clientid', None) if j is not None else None
     client_version = j.get('client_version', None) if j is not None else None
 
@@ -827,7 +834,7 @@ def export_solver(bundleid, solver, solution=None):
 def export_params(bundleid, params):
     """
     """
-    j = request.get_json()
+    j = _get_request(request)
     clientid = j.get('clientid', None) if j is not None else None
     client_version = j.get('client_version', None) if j is not None else None
 
@@ -854,7 +861,7 @@ def export_params(bundleid, params):
 def bundle(bundleid):
     """
     """
-    j = request.get_json()
+    j = _get_request(request)
     clientid = j.get('clientid', None) if j is not None else None
     client_version = j.get('client_version', None) if j is not None else None
 
@@ -887,7 +894,7 @@ def bundle(bundleid):
 def parameter(bundleid, uniqueid):
     """
     """
-    j = request.get_json()
+    j = _get_request(request)
     clientid = j.get('clientid', None) if j is not None else None
     client_version = j.get('client_version', None) if j is not None else None
 
@@ -915,7 +922,7 @@ def parameter(bundleid, uniqueid):
 def adjustable_parameters(bundleid):
     """
     """
-    j = request.get_json()
+    j = _get_request(request)
     clientid = j.get('clientid', None) if j is not None else None
     client_version = j.get('client_version', None) if j is not None else None
 
@@ -937,7 +944,7 @@ def adjustable_parameters(bundleid):
 def run_checks(bundleid, run_checks_method, label):
     """
     """
-    j = request.get_json()
+    j = _get_request(request)
     clientid = j.get('clientid', None) if j is not None else None
     client_version = j.get('client_version', None) if j is not None else None
 
@@ -959,7 +966,7 @@ def run_checks(bundleid, run_checks_method, label):
 @app.route('/nparray/<string:input>', methods=['GET', 'POST'])
 @crossdomain(origin='*')
 def nparray(input):
-    j = request.get_json()
+    j = _get_request(request)
     clientid = j.get('clientid', None) if j is not None else None
     client_version = j.get('client_version', None) if j is not None else None
 
@@ -1002,7 +1009,7 @@ def nparray(input):
 @app.route('/distl/<string:input>/<float:current_face_value>', methods=['GET', 'POST'])
 @crossdomain(origin='*')
 def distl_convert(input, current_face_value):
-    j = request.get_json()
+    j = _get_request(request)
     clientid = j.get('clientid', None) if j is not None else None
     client_version = j.get('client_version', None) if j is not None else None
 
@@ -1039,7 +1046,7 @@ def distl_convert(input, current_face_value):
 
 @app.route("/<string:bundleid>/figure/<string:figure>", methods=['GET', 'POST'])
 def serve_figure(bundleid, figure):
-    j = request.get_json()
+    j = _get_request(request)
     clientid = j.get('clientid', None) if j is not None else None
     client_version = j.get('client_version', None) if j is not None else None
 
@@ -1050,7 +1057,7 @@ def serve_figure(bundleid, figure):
 
 @app.route("/<string:bundleid>/figure_afig/<string:figure>", methods=['GET', 'POST'])
 def serve_figure_afig(bundleid, figure):
-    j = request.get_json()
+    j = _get_request(request)
     clientid = j.get('clientid', None) if j is not None else None
     client_version = j.get('client_version', None) if j is not None else None
 
@@ -1061,7 +1068,7 @@ def serve_figure_afig(bundleid, figure):
 
 @app.route('/<string:bundleid>/distribution_plot/<string:parameter_uniqueid>/<string:distribution>', methods=['GET', 'POST'])
 def serve_distribution_plot(bundleid, parameter_uniqueid, distribution):
-    j = request.get_json()
+    j = _get_request(request)
     clientid = j.get('clientid', None) if j is not None else None
     client_version = j.get('client_version', None) if j is not None else None
 
