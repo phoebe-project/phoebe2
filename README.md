@@ -85,6 +85,13 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.4.16
+
+* Fix handling of floating-point precision near the aligned case that used to result in error from libphoebe. [#965]
+* Updates to phoebe-server to be compatible with modern browser requirements. [#959]
+* Fix support for python 3.13, remove official support for python 3.7. [#968]
+
+
 ### 2.4.15
 
 * Fix handling of include_times for RVs with compute_times/phases. [#889]
