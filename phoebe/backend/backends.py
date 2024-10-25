@@ -120,28 +120,30 @@ def _timequalifier_by_kind(kind):
 def _expand_mesh_times(b, dataset_ps, component):
     def get_times(b, include_times_entry):
         if include_times_entry in b.datasets:
-            add_ps = b.filter(dataset=include_times_entry, context='dataset')
+            add_ps = b.filter(dataset=include_times_entry, context='dataset', **_skip_filter_checks)
             add_timequalifier = _timequalifier_by_kind(add_ps.kind)
-            add_ps_components = add_ps.filter(qualifier=add_timequalifier).components
-            # print "*** add_ps_components", add_dataset, add_ps_components
+            add_ps_compute_times_components = add_ps.filter(qualifier='compute_times', **_skip_filter_checks).components
             if len(add_ps.times):
                 add_times = np.array([float(t) for t in add_ps.times])
-            elif len(add_ps_components):
+            elif len(add_ps_compute_times_components):
                 # then we need to concatenate over all components_
                 # (times@rv@primary and times@rv@secondary are not necessarily
                 # identical)
-                add_times = np.unique(np.append(*[add_ps.get_value(qualifier='compute_times', component=c) for c in add_ps_components]))
-                if not len(add_times):
-                    add_times = np.unique(np.append(*[add_ps.get_value(qualifier=add_timequalifier, component=c) for c in add_ps_components]))
+                add_times = np.unique(np.append(*[add_ps.get_value(qualifier='compute_times', component=c, **_skip_filter_checks) for c in add_ps_compute_times_components]))
             else:
                 # then we're adding from some dataset at the system-level (like lcs)
                 # that have component=None
-                add_times = add_ps.get_value(qualifier='compute_times', component=None, unit=u.d)
-                if not len(add_times):
-                    add_times = add_ps.get_value(qualifier=add_timequalifier, component=None, unit=u.d)
+                add_times = add_ps.get_value(qualifier='compute_times', component=None, unit=u.d, **_skip_filter_checks)
+
+            if not len(add_times):
+                add_ps_components = add_ps.filter(qualifier=add_timequalifier, **_skip_filter_checks).components
+                if len(add_ps_components):
+                    add_times = np.unique(np.append(*[add_ps.get_value(qualifier=add_timequalifier, component=c, **_skip_filter_checks) for c in add_ps_components]))
+                else:
+                    add_times = add_ps.get_value(qualifier=add_timequalifier, component=None, unit=u.d, **_skip_filter_checks)
         else:
             # then some sort of t0 from context='component' or 'system'
-            add_times = [b.get_value(include_times_entry, context=['component', 'system'])]
+            add_times = [b.get_value(include_times_entry, context=['component', 'system'], **_skip_filter_checks)]
 
         return add_times
 
@@ -152,7 +154,7 @@ def _expand_mesh_times(b, dataset_ps, component):
     # we're first going to access the compute_times@mesh... this should not have a component tag
     this_times = dataset_ps.get_value(qualifier='compute_times', component=None, unit=u.d)
     this_times = np.unique(np.append(this_times,
-                                     [get_times(b, include_times_entry) for include_times_entry in dataset_ps.get_value(qualifier='include_times', expand=True)]
+                                     [get_times(b, include_times_entry) for include_times_entry in dataset_ps.get_value(qualifier='include_times', expand=True, **_skip_filter_checks)]
                                      )
                            )
 
