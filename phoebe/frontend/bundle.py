@@ -5430,7 +5430,7 @@ class Bundle(ParameterSet):
             elif atmname in ['extern_planckint', 'extern_atmx']:
                 recs = _add_reason(recs, 'Prsa & Zwitter (2005)', '{} atmosphere tables'.format(atmname))
             elif atmname == 'tremblay':
-                recs = _add_reason(recs, 'Tremblay et al. (2011)', 'Tremblay atmosphere tables')
+                recs = _add_reason(recs, 'Tremblay et al. (2011, 2013)', 'Tremblay atmosphere tables')
 
         for atm_param in self.filter(qualifier='ld_coeffs_source', component=self.hierarchy.get_stars()).to_list():
             atmname = atm_param.get_value()
@@ -5443,7 +5443,7 @@ class Bundle(ParameterSet):
             elif atmname in ['tmap_DA', 'tmap_DAO', 'tmap_DO']:
                 recs = _add_reason(recs, 'Reindl et al. (2023)', 'TMAP atmosphere tables')
             elif atmname == 'tremblay':
-                recs = _add_reason(recs, 'Tremblay et al. (2011)', 'Tremblay atmosphere tables')
+                recs = _add_reason(recs, 'Tremblay et al. (2011, 2013)', 'Tremblay atmosphere tables')
                 
         # provide any references from features
         if len(self.filter(context='feature', kind='gp_sklearn').features):
