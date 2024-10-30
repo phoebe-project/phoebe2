@@ -144,7 +144,7 @@ null
 "kind": "star",
 "context": "component",
 "description": "Critical (maximum) value of the equivalent radius for the given morphology",
-"value": 1.6724563972838287,
+"value": 1.6724563972838289,
 "default_unit": "solRad",
 "limits": [
 0.0,
@@ -426,9 +426,13 @@ null
 "description": "Source for bolometric limb darkening coefficients (used only for irradiation; 'auto' to interpolate from the applicable table according to the 'atm' parameter, or the name of a specific atmosphere table)",
 "choices": [
 "auto",
+"tmap_DA",
 "phoenix",
 "tmap_sdO",
-"ck2004"
+"tmap_DO",
+"ck2004",
+"tremblay",
+"tmap_DAO"
 ],
 "value": "auto",
 "visible_if": "ld_mode_bol:lookup",
@@ -493,7 +497,7 @@ null
 "kind": "star",
 "context": "component",
 "description": "Critical (maximum) value of the equivalent radius for the given morphology",
-"value": 1.672456397283698,
+"value": 1.6724563972838782,
 "default_unit": "solRad",
 "limits": [
 0.0,
@@ -775,9 +779,13 @@ null
 "description": "Source for bolometric limb darkening coefficients (used only for irradiation; 'auto' to interpolate from the applicable table according to the 'atm' parameter, or the name of a specific atmosphere table)",
 "choices": [
 "auto",
+"tmap_DA",
 "phoenix",
 "tmap_sdO",
-"ck2004"
+"tmap_DO",
+"ck2004",
+"tremblay",
+"tmap_DAO"
 ],
 "value": "auto",
 "visible_if": "ld_mode_bol:lookup",
@@ -1133,7 +1141,7 @@ null
 "kind": "envelope",
 "context": "component",
 "description": "Fillout-factor of the envelope",
-"value": 0.6417897080770861,
+"value": 0.6417897080770848,
 "default_unit": "",
 "limits": [
 0.0,
@@ -1149,7 +1157,7 @@ null
 "kind": "envelope",
 "context": "component",
 "description": "Potential of the envelope (from the primary component's reference)",
-"value": 3.4013774072298815,
+"value": 3.401377407229882,
 "default_unit": "",
 "limits": [
 0.0,
@@ -1165,7 +1173,7 @@ null
 "kind": "envelope",
 "context": "component",
 "description": "Critical (minimum) value of the potential to remain a contact",
-"value": 3.2067962240861534,
+"value": 3.206796224086153,
 "default_unit": "",
 "limits": [
 0.0,
@@ -2278,11 +2286,16 @@ null
 "context": "compute",
 "description": "Atmosphere table",
 "choices": [
-"extern_atmx",
-"extern_planckint",
-"blackbody",
+"tmap_DA",
+"tmap_sdO",
 "phoenix",
-"ck2004"
+"blackbody",
+"ck2004",
+"tmap_DO",
+"extern_atmx",
+"tremblay",
+"tmap_DAO",
+"extern_planckint"
 ],
 "value": "ck2004",
 "copy_for": {
@@ -2558,11 +2571,16 @@ null
 "context": "compute",
 "description": "Atmosphere table",
 "choices": [
-"extern_atmx",
-"extern_planckint",
-"blackbody",
+"tmap_DA",
+"tmap_sdO",
 "phoenix",
-"ck2004"
+"blackbody",
+"ck2004",
+"tmap_DO",
+"extern_atmx",
+"tremblay",
+"tmap_DAO",
+"extern_planckint"
 ],
 "value": "ck2004",
 "copy_for": false,
@@ -2576,11 +2594,16 @@ null
 "context": "compute",
 "description": "Atmosphere table",
 "choices": [
-"extern_atmx",
-"extern_planckint",
-"blackbody",
+"tmap_DA",
+"tmap_sdO",
 "phoenix",
-"ck2004"
+"blackbody",
+"ck2004",
+"tmap_DO",
+"extern_atmx",
+"tremblay",
+"tmap_DAO",
+"extern_planckint"
 ],
 "value": "ck2004",
 "copy_for": false,
@@ -2854,7 +2877,7 @@ null
 "qualifier": "phoebe_version",
 "context": "setting",
 "description": "Version of PHOEBE",
-"value": "2.4.15",
+"value": "2.4.16.dev+feature-blending",
 "copy_for": false,
 "readonly": true,
 "advanced": true,

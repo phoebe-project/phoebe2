@@ -426,9 +426,13 @@ null
 "description": "Source for bolometric limb darkening coefficients (used only for irradiation; 'auto' to interpolate from the applicable table according to the 'atm' parameter, or the name of a specific atmosphere table)",
 "choices": [
 "auto",
+"tmap_DA",
 "phoenix",
 "tmap_sdO",
-"ck2004"
+"tmap_DO",
+"ck2004",
+"tremblay",
+"tmap_DAO"
 ],
 "value": "auto",
 "visible_if": "ld_mode_bol:lookup",
@@ -775,9 +779,13 @@ null
 "description": "Source for bolometric limb darkening coefficients (used only for irradiation; 'auto' to interpolate from the applicable table according to the 'atm' parameter, or the name of a specific atmosphere table)",
 "choices": [
 "auto",
+"tmap_DA",
 "phoenix",
 "tmap_sdO",
-"ck2004"
+"tmap_DO",
+"ck2004",
+"tremblay",
+"tmap_DAO"
 ],
 "value": "auto",
 "visible_if": "ld_mode_bol:lookup",
@@ -2087,11 +2095,16 @@ null
 "context": "compute",
 "description": "Atmosphere table",
 "choices": [
-"extern_atmx",
-"extern_planckint",
-"blackbody",
+"tmap_DA",
+"tmap_sdO",
 "phoenix",
-"ck2004"
+"blackbody",
+"ck2004",
+"tmap_DO",
+"extern_atmx",
+"tremblay",
+"tmap_DAO",
+"extern_planckint"
 ],
 "value": "ck2004",
 "copy_for": {
@@ -2336,11 +2349,16 @@ null
 "context": "compute",
 "description": "Atmosphere table",
 "choices": [
-"extern_atmx",
-"extern_planckint",
-"blackbody",
+"tmap_DA",
+"tmap_sdO",
 "phoenix",
-"ck2004"
+"blackbody",
+"ck2004",
+"tmap_DO",
+"extern_atmx",
+"tremblay",
+"tmap_DAO",
+"extern_planckint"
 ],
 "value": "ck2004",
 "copy_for": false,
@@ -2354,11 +2372,16 @@ null
 "context": "compute",
 "description": "Atmosphere table",
 "choices": [
-"extern_atmx",
-"extern_planckint",
-"blackbody",
+"tmap_DA",
+"tmap_sdO",
 "phoenix",
-"ck2004"
+"blackbody",
+"ck2004",
+"tmap_DO",
+"extern_atmx",
+"tremblay",
+"tmap_DAO",
+"extern_planckint"
 ],
 "value": "ck2004",
 "copy_for": false,
@@ -2622,7 +2645,7 @@ null
 "qualifier": "phoebe_version",
 "context": "setting",
 "description": "Version of PHOEBE",
-"value": "2.4.15",
+"value": "2.4.16.dev+feature-blending",
 "copy_for": false,
 "readonly": true,
 "advanced": true,
