@@ -3941,7 +3941,7 @@ class Bundle(ParameterSet):
                                             True, 'run_compute')
                         else:
                             atm = self.get_value(qualifier='atm', component=component, compute=compute, context='compute', atm=kwargs.get('atm', None), **_skip_filter_checks)
-                            if atm not in ['ck2004', 'phoenix', 'tmap_sdO', 'tmap_DA', 'tmap_DAO', 'tmap_DO']:
+                            if atm not in ['ck2004', 'phoenix', 'tmap_sdO', 'tmap_DA', 'tmap_DAO', 'tmap_DO', 'tremblay']:
                                 if 'ck2004' in self.get_parameter(qualifier='atm', component=component, compute=compute, context='compute', atm=kwargs.get('atm', None), **_skip_filter_checks).choices:
                                     report.add_item(self,
                                                     "ld_mode='interp' not supported by atm='{}'.  Either change atm@{}@{} or ld_mode@{}@{}.".format(atm, component, compute, component, dataset),
@@ -5429,6 +5429,8 @@ class Bundle(ParameterSet):
                 recs = _add_reason(recs, 'Reindl et al. (2023)', 'TMAP atmosphere tables')
             elif atmname in ['extern_planckint', 'extern_atmx']:
                 recs = _add_reason(recs, 'Prsa & Zwitter (2005)', '{} atmosphere tables'.format(atmname))
+            elif atmname == 'tremblay':
+                recs = _add_reason(recs, 'Tremblay et al. (2011)', 'Tremblay atmosphere tables')
 
         for atm_param in self.filter(qualifier='ld_coeffs_source', component=self.hierarchy.get_stars()).to_list():
             atmname = atm_param.get_value()
@@ -5440,6 +5442,8 @@ class Bundle(ParameterSet):
                 recs = _add_reason(recs, 'Reindl et al. (2016)', 'TMAP atmosphere tables')
             elif atmname in ['tmap_DA', 'tmap_DAO', 'tmap_DO']:
                 recs = _add_reason(recs, 'Reindl et al. (2023)', 'TMAP atmosphere tables')
+            elif atmname == 'tremblay':
+                recs = _add_reason(recs, 'Tremblay et al. (2011)', 'Tremblay atmosphere tables')
                 
         # provide any references from features
         if len(self.filter(context='feature', kind='gp_sklearn').features):
