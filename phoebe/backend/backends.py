@@ -1182,21 +1182,22 @@ class PhoebeBackend(BaseBackendByTime):
             kind = info['kind']
             dataset = info['dataset']
 
+            if kind in ['vis', 'clo', 't3'] and dataset != previous:
+                if_method = b.get_value(qualifier='if_method', dataset=dataset, context='dataset')
+                if_method = kwargs.get('if_method', if_method)
+                if if_method == 'integrate':
+                    interferometry.complexvis = interferometry.complexvis_integrate
+                elif if_method == 'simple':
+                    interferometry.complexvis = interferometry.complexvis_simple
+                else:
+                    raise NotImplementedError("if_method='{}' not supported".format(if_method))
+
             # save baselines and wavelengths (for interferometry)
             if kind == 'vis' and dataset != previous:
                 ucoord = b.get_value(qualifier='u', dataset=dataset, context='dataset')
                 vcoord = b.get_value(qualifier='v', dataset=dataset, context='dataset')
                 wavelengths = b.get_value(qualifier='wavelengths', dataset=dataset, context='dataset')
                 previous = dataset
-
-                if_method = b.get_value(qualifier='if_method', dataset=dataset, context='dataset')
-                if_method = kwargs.get('if_method', if_method)
-                if if_method == 'integrate':
-                    interferometry.vis = interferometry.vis_integrate
-                elif if_method == 'simple':
-                    interferometry.vis = interferometry.vis_simple
-                else:
-                    raise NotImplementedError("if_method='{}' not supported".format(if_method))
 
             if (kind == 'clo' or kind == 't3') and dataset != previous:
                 ucoord1 = b.get_value(qualifier='u1', dataset=dataset, context='dataset')
