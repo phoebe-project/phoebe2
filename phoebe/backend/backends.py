@@ -1185,12 +1185,15 @@ class PhoebeBackend(BaseBackendByTime):
             if kind in ['vis', 'clo', 't3'] and dataset != previous:
                 if_method = b.get_value(qualifier='if_method', dataset=dataset, context='dataset')
                 if_method = kwargs.get('if_method', if_method)
+
                 if if_method == 'integrate':
                     interferometry.complexvis = interferometry.complexvis_integrate
                 elif if_method == 'simple':
                     interferometry.complexvis = interferometry.complexvis_simple
                 else:
                     raise NotImplementedError("if_method='{}' not supported".format(if_method))
+
+                info['dataset'] = dataset
 
             # save baselines and wavelengths (for interferometry)
             if kind == 'vis' and dataset != previous:
