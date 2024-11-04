@@ -225,7 +225,7 @@ def clo(b, system, ucoord1=None, vcoord1=None, ucoord2=None, vcoord2=None, wavel
 
     j = info['original_index']
     u = [ucoord1[j], ucoord2[j], -(ucoord2[j]+ucoord1[j])]	# m
-    v = [vcoord1[j], vcoord2[j], -(vcoord2[j]+ucoord1[j])]	# m
+    v = [vcoord1[j], vcoord2[j], -(vcoord2[j]+vcoord1[j])]	# m
 
     info_ = {'dataset': info['dataset'], 'component': info['component'], 'original_index': 0}
 
