@@ -24,9 +24,10 @@ def _isolate_neck(coords_all, teffs_all, cutoff = 0.,component=1, plot=False):
      
     return coords_all[cond], teffs_all[cond], np.argwhere(cond).flatten()
 
+
 def _dist(p1, p2):
     (x1, y1, z1), (x2, y2, z2) = p1, p2
-    return ((x2 - x1)**2 + (y2 - y1)**2 + (z2 - z1)**2)**0.5
+    return np.sqrt(((x2 - x1)**2 + (y2 - y1)**2 + (z2 - z1)**2))
 
 
 def _isolate_sigma_fitting_regions(coords_neck, teffs_neck, direction='x', cutoff=0., component=1, plot=False):
@@ -38,16 +39,12 @@ def _isolate_sigma_fitting_regions(coords_neck, teffs_neck, direction='x', cutof
         cond = (coords_neck[:,1] >= -0.2*min_dist) & (coords_neck[:,1] <= 0.2*min_dist) 
     
     elif direction == 'y':
-
         if component == 1:
             cond = coords_neck[:,0] <= 0+cutoff+0.15*min_dist
-
         elif component == 2:
             cond = coords_neck[:,0] >= 1-cutoff-0.15*min_dist
-            
         else:
             raise ValueError
-            
     else:
         raise ValueError
         
@@ -58,9 +55,9 @@ def _isolate_sigma_fitting_regions(coords_neck, teffs_neck, direction='x', cutof
         elif direction == 'y':
             plt.scatter(coords_neck[cond][:,1], teffs_neck[cond])
             plt.show()
-            
 
     return coords_neck[cond], teffs_neck[cond]
+
 
 def _compute_new_teff_at_neck(coords1, teffs1, coords2, teffs2, w=0.5, offset=0.):
     
@@ -90,10 +87,10 @@ def _compute_sigmax(Tavg, x, x0, offset, amplitude):
     return ((-1)*(x-x0)**2/np.log((Tavg-offset)/amplitude))**0.5
     
 
-def _fit_sigma_amplitude(coords, teffs, offset=0., cutoff=0, direction='y', component=1, plot=False):
+def _fit_sigma_amplitude(coords, teffs, offset=0., cutoff=0., direction='y', component=1, plot=False):
     
-    def gaussian_1d(x, sigma):
-        a = 1./sigma**2
+    def gaussian_1d(x, s):
+        a = 1./s**2
         g = offset + amplitude * np.exp(- (a * ((x - x0) ** 2)))
         return g
 
@@ -118,7 +115,7 @@ def _fit_sigma_amplitude(coords, teffs, offset=0., cutoff=0, direction='y', comp
     result = curve_fit(gaussian_1d, 
               xdata=coords[:,coord_ind], 
               ydata=teffs, 
-              p0=(0.5,), 
+              p0=(sigma_0,),
               bounds=[0.01,1000])
     
     sigma = result[0]
@@ -132,7 +129,7 @@ def _fit_sigma_amplitude(coords, teffs, offset=0., cutoff=0, direction='y', comp
     return sigma, amplitude, model
     
 
-def _compute_twoD_Gaussian(coords, sigma_x, sigma_y, amplitude, cutoff=0, offset=0., component=1):
+def _compute_twoD_Gaussian(coords, sigma_x, sigma_y, amplitude, cutoff=0., offset=0., component=1):
     y0 = 0.
     x0 = 0+cutoff if component == 1 else 1-cutoff
     a = 1. / sigma_x ** 2
@@ -189,6 +186,7 @@ def lateral_transfer(t2s, teffs2, mixing_power=0.5, teff_factor=1.):
     teffs2[filt] *= 1+teff_factor*c/c.max()  
 
     return teffs2
+
 
 def isotropic_transfer(t2s, teffs2, mixing_power=0.5, teff_factor=1.):
     d2s = np.sqrt(t2s[:,0]*t2s[:,0] + t2s[:,1]*t2s[:,1] + t2s[:,2]*t2s[:,2])
