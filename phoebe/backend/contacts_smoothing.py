@@ -27,7 +27,7 @@ def _isolate_neck(coords_all, teffs_all, cutoff = 0.,component=1, plot=False):
 
 def _dist(p1, p2):
     (x1, y1, z1), (x2, y2, z2) = p1, p2
-    return np.sqrt(((x2 - x1)**2 + (y2 - y1)**2 + (z2 - z1)**2))
+    return np.sqrt((x2 - x1)**2 + (y2 - y1)**2 + (z2 - z1)**2)
 
 
 def _isolate_sigma_fitting_regions(coords_neck, teffs_neck, direction='x', cutoff=0., component=1, plot=False):
@@ -169,7 +169,7 @@ def gaussian_smoothing(xyz1, teffs1, xyz2, teffs2, w=0.5, cutoff=0., offset=0.):
     return teffs1, teffs2
 
 
-def lateral_transfer(t2s, teffs2, mixing_power=0.5, teff_factor=1.):
+def lateral_transfer(t2s, teffs2, mixing_power, teff_ratio):
     x2s = t2s[:,0]
     y2s = t2s[:,1]
     z2s = t2s[:,2]
@@ -182,17 +182,22 @@ def lateral_transfer(t2s, teffs2, mixing_power=0.5, teff_factor=1.):
     # lat = 0.15
     # power = 0.75
     filt = (z2s>-lat) & (z2s<lat)
-    c = (lat-np.abs(z2s[filt]))**mixing_power
-    teffs2[filt] *= 1+teff_factor*c/c.max()  
+    c = (lat-np.abs(z2s[filt])) ** mixing_power
+    latitude_dependence = c / c.max()
+    teffs2[filt] *= 1 + (1 - teff_ratio) * latitude_dependence
 
     return teffs2
 
 
-def isotropic_transfer(t2s, teffs2, mixing_power=0.5, teff_factor=1.):
+def isotropic_transfer(t2s, teffs2, mixing_power, teff_ratio):
     d2s = np.sqrt(t2s[:,0]*t2s[:,0] + t2s[:,1]*t2s[:,1] + t2s[:,2]*t2s[:,2])
-    teffs2 *= 1+teff_factor*(1-((d2s-d2s.min())/(d2s.max()-d2s.min()))**mixing_power)
-
+    teffs2 *= 1 + (1-teff_ratio) * (1 - ((d2s - d2s.min()) / (d2s.max() - d2s.min()))) ** mixing_power
     return teffs2
+
+
+def perfect_transfer(t2s, teff2s, teff_ratio):
+    teff2s *= 1/teff_ratio
+    return teff2s
 
 
 def spotty_transfer(t2s, teffs2):
@@ -208,14 +213,15 @@ def spotty_transfer(t2s, teffs2):
     return teffs2
 
 
-def smooth_teffs(xyz1, teffs1, xyz2, teffs2, mixing_method='lateral', mixing_power=0.5, teff_factor=1.):
+def smooth_teffs(xyz1, teffs1, xyz2, teffs2, mixing_method='lateral', mixing_power=0.5, teff_ratio=1.):
     if mixing_method == 'lateral':
-        teffs2 = lateral_transfer(xyz2, teffs2, mixing_power, teff_factor)
+        teffs2 = lateral_transfer(xyz2, teffs2, mixing_power, teff_ratio)
     elif mixing_method == 'isotropic':
-        teffs2 = isotropic_transfer(xyz2, teffs2, mixing_power, teff_factor)
+        teffs2 = isotropic_transfer(xyz2, teffs2, mixing_power, teff_ratio)
     elif mixing_method == 'spotty':
         teffs2 = spotty_transfer(xyz2, teffs2)
+    elif mixing_method == 'perfect':
+        teffs2 = perfect_transfer(xyz2, teffs2, teff_ratio)
     else:
         teffs1, teffs2 = gaussian_smoothing(xyz1, teffs1, xyz2, teffs2)
-
     return teffs1, teffs2
