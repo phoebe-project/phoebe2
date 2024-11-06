@@ -209,16 +209,12 @@ def spotty_transfer(t2s, teffs2):
 
 
 def smooth_teffs(xyz1, teffs1, xyz2, teffs2, mixing_method='lateral', mixing_power=0.5, teff_factor=1.):
-
     if mixing_method == 'lateral':
         teffs2 = lateral_transfer(xyz2, teffs2, mixing_power, teff_factor)
-
     elif mixing_method == 'isotropic':
         teffs2 = isotropic_transfer(xyz2, teffs2, mixing_power, teff_factor)
-
     elif mixing_method == 'spotty':
         teffs2 = spotty_transfer(xyz2, teffs2)
-    
     else:
         teffs1, teffs2 = gaussian_smoothing(xyz1, teffs1, xyz2, teffs2)
 
