@@ -5374,6 +5374,9 @@ class ParameterSet(object):
         else:
             iqualifier_default = 'phases'
 
+        if ps.kind in ['vis', 'clo', 't3']:
+            iqualifier_default = kwargs.get('xqualifier')
+
         iqualifier = kwargs.pop('i', iqualifier_default)
         for af_direction in ['x', 'y', 'z']:
             if ps.kind != 'mesh' and (kwargs.get('{}label'.format(af_direction), None) in ['times', 'time_ecls'] if iqualifier=='times' else [iqualifier]):
