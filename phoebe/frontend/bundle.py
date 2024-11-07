@@ -2840,14 +2840,8 @@ class Bundle(ParameterSet):
                                         solve_for=constraint_param.constrained_parameter.uniquetwig,
                                         constraint=constraint_param.constraint)
                 else:
-                    # NOTE: IN ORDER TO DEFAULT_TRIPLE() WORKS
-                    sibling = self.hierarchy.get_sibling_of(component)
-                    kind = self.hierarchy.get_kind_of(sibling)
-                    if kind != 'star':
-                        logger.warning('constraint mass not working for multiple systems')
-                    else:
-                        self.add_constraint(constraint.mass, component,
-                                            constraint=self._default_label('mass', context='constraint'))
+                    self.add_constraint(constraint.mass, component,
+                                        constraint=self._default_label('mass', context='constraint'))
 
 
                 logger.debug('re-creating comp_sma constraint for {}'.format(component))

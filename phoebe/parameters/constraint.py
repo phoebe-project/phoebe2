@@ -1553,14 +1553,27 @@ def mass(b, component, solve_for=None, **kwargs):
 
     component_ps = _get_system_ps(b, component)
 
-    sibling = hier.get_sibling_of(component)
-    sibling_ps = _get_system_ps(b, sibling)
-
     parentorbit = hier.get_parent_of(component)
     parentorbit_ps = _get_system_ps(b, parentorbit)
 
-    mass = component_ps.get_parameter(qualifier='mass', **_skip_filter_checks)
-    mass_sibling = sibling_ps.get_parameter(qualifier='mass', **_skip_filter_checks)
+    m1 = component_ps.get_parameter(qualifier='mass', **_skip_filter_checks)
+    masses = []
+    masses.append(m1)
+
+    siblings = hier.get_stars_of_sibling_of(component)
+    siblings = siblings if isinstance(siblings, list) else [siblings]
+
+    for i, sibling in enumerate(siblings):
+        sibling_ps = _get_system_ps(b, sibling)
+        m2 = sibling_ps.get_parameter(qualifier='mass', **_skip_filter_checks)
+        if i==0:
+            msum = m2
+        else:
+            msum += m2
+        masses.append(m2)
+
+    mass = m1
+    mass_sibling = msum
 
     # we need to find the constraint attached to the other component... but we
     # don't know who is constrained, or whether it belongs to the sibling or parent
@@ -1619,7 +1632,7 @@ def mass(b, component, solve_for=None, **kwargs):
     else:
         raise NotImplementedError
 
-    return lhs, rhs, [mass, mass_sibling, period, sma, q], {'component': component}
+    return lhs, rhs, [period, sma, q] + masses, {'component': component}
 
 
     # ecosw_def = FloatParameter(qualifier='ecosw', value=0.0, default_unit=u.dimensionless_unscaled, limits=(-1.0,1.0), description='Eccentricity times cos of argument of periastron')
