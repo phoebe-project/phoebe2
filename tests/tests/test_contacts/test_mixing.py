@@ -3,6 +3,8 @@ import numpy as np
 
 
 def test_mixing(verbose=False):
+    if verbose:
+        print('phoebe.default_contact_binary()')
     b = phoebe.default_contact_binary()
     b.add_dataset('mesh', compute_times=[0])
     b.set_value('teff@secondary', 3000)  # so we have different temperatures
