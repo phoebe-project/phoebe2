@@ -170,6 +170,10 @@ def gaussian_smoothing(xyz1, teffs1, xyz2, teffs2, w=0.5, cutoff=0., offset=0.):
 
 
 def lateral_transfer(t2s, teffs2, mixing_power, teff_ratio):
+    """
+    Scales the temperatures of the secondary to that of the primary only in a horizontal band the size of the contact's
+    neck. This implies mixing occurs due to mass transfer across the neck
+    """
     x2s = t2s[:,0]
     y2s = t2s[:,1]
     z2s = t2s[:,2]
@@ -178,10 +182,8 @@ def lateral_transfer(t2s, teffs2, mixing_power, teff_ratio):
     z2s_neck = z2s[x2s<1]
     rs_neck = (y2s_neck**2+z2s_neck**2)**0.5
     lat = np.min(rs_neck)
-    # print('mixing latitude = ', lat)
-    # lat = 0.15
-    # power = 0.75
-    filt = (z2s>-lat) & (z2s<lat)
+    assert lat == np.min(z2s_neck)
+    filt = (z2s>-lat) & (z2s<lat)  # select band extending the (projected) height of the neck
     c = (lat-np.abs(z2s[filt])) ** mixing_power
     latitude_dependence = c / c.max()
     teffs2[filt] *= 1 + (1 - teff_ratio) * latitude_dependence
@@ -190,17 +192,29 @@ def lateral_transfer(t2s, teffs2, mixing_power, teff_ratio):
 
 
 def isotropic_transfer(t2s, teffs2, mixing_power, teff_ratio):
+    """
+    Scales the temperatures of the secondary to that of the primary, parametrized by the radial distance from the
+    origin (which is the center of the primary)
+    """
     d2s = np.sqrt(t2s[:,0]*t2s[:,0] + t2s[:,1]*t2s[:,1] + t2s[:,2]*t2s[:,2])
     teffs2 *= 1 + (1-teff_ratio) * (1 - ((d2s - d2s.min()) / (d2s.max() - d2s.min()))) ** mixing_power
     return teffs2
 
 
 def perfect_transfer(t2s, teff2s, teff_ratio):
+    """
+    Scales the temperatures of the secondary to that of the primary, implying perfect thermal mixing occurred deep in
+    the interior of the stars.
+    """
     teff2s *= 1/teff_ratio
     return teff2s
 
 
 def spotty_transfer(t2s, teffs2):
+    """
+    Scales the temperatures of the secondary by randomly placing 10 spots on its surface which are a little hotter.
+    Implies mixing occurs due to increases magnetism on the secondary.
+    """
     d2s = np.sqrt(t2s[:,0]*t2s[:,0] + t2s[:,1]*t2s[:,1] + t2s[:,2]*t2s[:,2])
     for s in range(10):
         idx = int(len(d2s)*np.random.rand())
