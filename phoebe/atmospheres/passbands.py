@@ -2859,7 +2859,7 @@ if __name__ == '__main__':
 
     for atm in ['ck2004', 'phoenix', 'tmap_sdO', 'tmap_DA', 'tmap_DAO', 'tmap_DO', 'tremblay']:
         pb.compute_intensities(atm=atm, path=f'tables/{atm}', verbose=True)
-        pb.compute_ldcoeffs(ldatm=atm)
+        pb.compute_ldcoeffs(ldatm=atm, weighting='interval')
         pb.compute_ldints(ldatm=atm)
 
     pb.import_wd_atmcof('tables/wd/atmcofplanck.dat', 'tables/wd/atmcof.dat', 7)
