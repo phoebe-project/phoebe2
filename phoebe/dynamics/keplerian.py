@@ -141,6 +141,7 @@ def dynamics(times, masses, smas, eccs, incls, per0s, long_ans, mean_anoms, \
                 if dpdt != 0.0:
                     P_ = P + dpdt*(t-t0)
                     a *= (P_/P)**2
+                    M -= n*dpdt/(2.*P)*(t-t0)**2
 
                 if dperdt != 0.0:
                     omega += dperdt*(t-t0)
