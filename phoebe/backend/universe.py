@@ -2955,8 +2955,8 @@ class Envelope(Body):
             # a bit of array reshaping magic, but it works
             triangind_primsec_f = mesh['triangles'][triangind_primsec].flatten().copy()
             triangind_secprim_f = mesh['triangles'][triangind_secprim].flatten().copy()
-            indices_prim = np.where(np.in1d(triangind_primsec_f, vertind_primsec))[0]
-            indices_sec = np.where(np.in1d(triangind_secprim_f, vertind_secprim))[0]
+            indices_prim = np.where(np.isin(triangind_primsec_f, vertind_primsec))[0]
+            indices_sec = np.where(np.isin(triangind_secprim_f, vertind_secprim))[0]
 
             triangind_primsec_f[indices_prim] = new_triangle_indices_prim
             triangind_secprim_f[indices_sec] = new_triangle_indices_sec
