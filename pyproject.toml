@@ -11,7 +11,7 @@
 
 [project]
 name = "phoebe"
-version = "2.4.16"
+version = "2.4.17"
 description = "PHOEBE: modeling and analysis of eclipsing binary stars"
 readme = "README.md"
 requires-python = ">=3.8"
