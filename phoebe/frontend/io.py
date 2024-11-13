@@ -469,8 +469,6 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True,
         filename,
         dtype='str',
         delimiter='=',
-        converters={0: lambda s: s.strip().decode() if isinstance(s, bytes) else s.strip(),
-                    1: lambda s: s.strip().decode() if isinstance(s, bytes) else s.strip()},
         comments='#',       
         filling_values='',   
         autostrip=True

@@ -24,8 +24,6 @@ def _legacy_test(filename='default.phoebe', verbose=True):
         os.path.join(dir, filename),
         dtype='str',
         delimiter='=',
-        converters={0: lambda s: s.strip().decode() if isinstance(s, bytes) else s.strip(),
-                    1: lambda s: s.strip().decode() if isinstance(s, bytes) else s.strip()},
         comments='#',       
         filling_values='',   
         autostrip=True     
