@@ -80,6 +80,9 @@ CHANGELOG
 
 ### 2.4.17
 
+* Fix support for numpy 2.0. [#982]
+
+
 ### 2.4.16
 
 * Fix handling of floating-point precision near the aligned case that used to result in error from libphoebe. [#965]
