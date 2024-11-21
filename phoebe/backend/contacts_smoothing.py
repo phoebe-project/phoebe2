@@ -178,16 +178,18 @@ def lateral_transfer(t2s, teffs2, mixing_power, teff_ratio):
     y2s = t2s[:,1]
     z2s = t2s[:,2]
 
-    y2s_neck = y2s[x2s<1]
+    # do latitude dependence
     z2s_neck = z2s[x2s<1]
-    rs_neck = (y2s_neck**2+z2s_neck**2)**0.5
-    lat = np.min(rs_neck)
-    assert lat == np.min(z2s_neck)
+    lat = np.min(z2s_neck)
     filt = (z2s>-lat) & (z2s<lat)  # select band extending the (projected) height of the neck
     c = (lat-np.abs(z2s[filt])) ** mixing_power
     latitude_dependence = c / c.max()
-    teffs2[filt] *= 1 + (1 - teff_ratio) * latitude_dependence
 
+    # do longitude dependence
+    phi = np.arctan2(y2s, x2s - 1) + np.pi  # [0, 2pi]
+    longitude_dependence = phi.min() / phi
+
+    teffs2[filt] *= 1 + (1 - teff_ratio) * latitude_dependence * longitude_dependence
     return teffs2
 
 
@@ -201,7 +203,7 @@ def isotropic_transfer(t2s, teffs2, mixing_power, teff_ratio):
     return teffs2
 
 
-def perfect_transfer(t2s, teff2s, teff_ratio):
+def perfect_transfer(teff2s, teff_ratio):
     """
     Scales the temperatures of the secondary to that of the primary, implying perfect thermal mixing occurred deep in
     the interior of the stars.
@@ -235,7 +237,7 @@ def smooth_teffs(xyz1, teffs1, xyz2, teffs2, mixing_method='lateral', mixing_pow
     elif mixing_method == 'spotty':
         teffs2 = spotty_transfer(xyz2, teffs2)
     elif mixing_method == 'perfect':
-        teffs2 = perfect_transfer(xyz2, teffs2, teff_ratio)
+        teffs2 = perfect_transfer(teffs2, teff_ratio)
     else:
         teffs1, teffs2 = gaussian_smoothing(xyz1, teffs1, xyz2, teffs2)
     return teffs1, teffs2
