@@ -183,14 +183,16 @@ def lateral_transfer(t2s, teffs2, mixing_power, teff_ratio):
     y2s_neck = y2s[x2s < 1]
     lat = np.min(np.sqrt(z2s_neck ** 2 + y2s_neck ** 2))
     filt = (z2s>-lat) & (z2s<lat)  # select band extending the (projected) height of the neck
-    print(z2s[filt].size)
     bandfactor = (lat-np.abs(z2s[filt])) ** mixing_power
     latitude_dependence = bandfactor / bandfactor.max()
+
     # do longitude dependence
-    phi = np.arctan2(y2s[filt], x2s[filt] - 1)
-    longitude_dependence = phi.min() / phi
+    phi = np.arctan2(y2s[filt], x2s[filt] - 1) + np.pi  #[0, 2pi]
+    k = 3
+    lambd = 2*np.pi
+    longitude_dependence = np.exp(-(phi/lambd)**k)  # weibull to vary from 1 to 0 over some range phi>0
 
-
+    # adjust teffs
     teffs2[filt] *= 1 + (1 - teff_ratio) * latitude_dependence * longitude_dependence
     return teffs2
 
