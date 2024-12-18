@@ -1,6 +1,11 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from itertools import combinations
+from scipy.optimize import curve_fit
+import logging
+
+logger = logging.getLogger("CONTACT ENVELOPES")
+logger.addHandler(logging.NullHandler())
 
 
 def _isolate_neck(coords_all, teffs_all, cutoff=0., component=1, plot=False):
@@ -25,7 +30,7 @@ def _isolate_neck(coords_all, teffs_all, cutoff=0., component=1, plot=False):
         cond = coords_all[:, 0] <= 1 - cutoff
     else:
         raise ValueError
-        
+
     if plot:
         fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(10, 5))
         axes[0].scatter(coords_all[cond][:, 0], coords_all[cond][:, 1])
@@ -36,7 +41,7 @@ def _isolate_neck(coords_all, teffs_all, cutoff=0., component=1, plot=False):
         axes[1].set_ylabel('teff')
         fig.tight_layout()
         plt.show()
-     
+
     return coords_all[cond], teffs_all[cond], np.argwhere(cond).flatten()
 
 
@@ -75,8 +80,8 @@ def _isolate_sigma_fitting_regions(coords_neck, teffs_neck, direction='x', cutof
     Filtered coordinates, filtered Teffs
     """
     distances = [_dist(p1, p2) for p1, p2 in combinations(coords_neck, 2)]
-    min_dist = np.min(distances[distances != 0])
-    
+    min_dist = np.min(distances[distances != 0])  # smallest dist. between any two vertices (~ resolution of the mesh)
+
     if direction == 'x':
         cond = (coords_neck[:, 1] >= -cutoff - 0.2 * min_dist) & (coords_neck[:, 1] <= cutoff + 0.2 * min_dist)
 
@@ -86,10 +91,10 @@ def _isolate_sigma_fitting_regions(coords_neck, teffs_neck, direction='x', cutof
         elif component == 2:
             cond = coords_neck[:, 0] >= 1 - cutoff - 0.15 * min_dist
         else:
-            raise ValueError
+            raise ValueError('Unknown component, must be 1 or 2')
     else:
-        raise ValueError
-        
+        raise ValueError('Unknown direction, must be either "x" or "y"')
+
     if plot:
         if direction == 'x':
             plt.scatter(coords_neck[cond][:, 0], teffs_neck[cond])
@@ -130,7 +135,7 @@ def _compute_new_teff_at_neck(coords1, teffs1, coords2, teffs2, w=0.5):
     teff2 = np.average(teffs_neck2)
     tavg = w * teff1 + (1 - w) * teff2
     if tavg > teffs2.max():
-        print('Warning: Tavg > Teff2, setting new temperature to 1 percent of Teff2 max. %i > %i' % (
+        logger.warning('Tavg > Teff2, setting new temperature to 1 percent of Teff2 max. %i > %i' % (
             int(tavg), int(teffs2.max())))
         tavg = teffs2.max() - 0.01 * teffs2.max()
 
@@ -169,8 +174,6 @@ def _fit_sigma(coords, teffs, offset=0., cutoff=0., direction='y', component=1, 
         g = offset + amplitude * np.exp(- (a * ((x - x0) ** 2)))
         return g
 
-    from scipy.optimize import curve_fit
-    
     if direction == 'y':
         coord_ind = 1
         x0 = 0.
@@ -181,10 +184,10 @@ def _fit_sigma(coords, teffs, offset=0., cutoff=0., direction='y', component=1, 
         elif component == 2:
             x0 = 1 - cutoff
         else:
-            raise ValueError
+            raise ValueError('Unknown component selected, must be "1" or "2"')
     else:
-        raise ValueError
-    
+        raise ValueError('Unknown direction selected, must be "y" or "x"')
+
     amplitude = teffs.max() - offset
     sigma_0 = 0.5
     result = curve_fit(gaussian_1d, xdata=coords[:, coord_ind], ydata=teffs, p0=(sigma_0,), bounds=[0.01, 1000])
@@ -372,7 +375,9 @@ def mix_teffs(xyz1, teffs1, xyz2, teffs2, mixing_method='lateral', mixing_power=
     elif mixing_method == 'spotty':
         teffs2 = spotty_transfer(xyz2, teffs2)
     elif mixing_method == 'perfect':
-        teffs2 = perfect_transfer(teffs2, teff_ratio)
-    else:
+        teffs2 = perfect_transfer(xyz2, teffs2, teff_ratio)
+    elif mixing_method == 'smoothing':
         teffs1, teffs2 = gaussian_smoothing(xyz1, teffs1, xyz2, teffs2)
+    else:
+        raise ValueError('`mixing_method` must be "lateral", "isotropic", "spotty", "perfect" or "smoothing"')
     return teffs1, teffs2
