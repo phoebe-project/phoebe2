@@ -329,23 +329,6 @@ def perfect_transfer(teff2s, teff_ratio):
     return teff2s
 
 
-def spotty_transfer(t2s, teffs2):
-    """
-    Scales the temperatures of the secondary by randomly placing 10 spots on its surface which are a little hotter.
-    Implies mixing occurs due to increases magnetism on the secondary.
-    """
-    d2s = np.sqrt(t2s[:, 0] * t2s[:, 0] + t2s[:, 1] * t2s[:, 1] + t2s[:, 2] * t2s[:, 2])
-    for s in range(10):
-        idx = int(len(d2s) * np.random.rand())
-        size = 0.3 * np.random.rand()
-        factor = 1.1 - 0.025 * np.random.rand()
-
-        ds = np.sqrt((t2s[:, 0] - t2s[idx, 0]) ** 2 + (t2s[:, 1] - t2s[idx, 1]) ** 2 + (t2s[:, 2] - t2s[idx, 2]) ** 2)
-        teffs2[ds < size] *= factor
-
-    return teffs2
-
-
 def mix_teffs(xyz1, teffs1, xyz2, teffs2, mixing_method='lateral', mixing_power=0.5, teff_ratio=1.):
     """
     Applies a temperature mixing, primarily of component 2, according to some mixing method and other parameters.
@@ -372,12 +355,10 @@ def mix_teffs(xyz1, teffs1, xyz2, teffs2, mixing_method='lateral', mixing_power=
         teffs2 = lateral_transfer(xyz2, teffs2, mixing_power, teff_ratio)
     elif mixing_method == 'isotropic':
         teffs2 = isotropic_transfer(xyz2, teffs2, mixing_power, teff_ratio)
-    elif mixing_method == 'spotty':
-        teffs2 = spotty_transfer(xyz2, teffs2)
     elif mixing_method == 'perfect':
         teffs2 = perfect_transfer(xyz2, teffs2, teff_ratio)
     elif mixing_method == 'smoothing':
         teffs1, teffs2 = gaussian_smoothing(xyz1, teffs1, xyz2, teffs2)
     else:
-        raise ValueError('`mixing_method` must be "lateral", "isotropic", "spotty", "perfect" or "smoothing"')
+        raise ValueError('`mixing_method` must be "lateral", "isotropic", "perfect" or "smoothing"')
     return teffs1, teffs2
