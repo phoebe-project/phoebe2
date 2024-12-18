@@ -9,16 +9,15 @@ PHOEBE 2.4
 
 <p align="center">
   <a href="https://pypi.org/project/phoebe/"><img src="https://img.shields.io/badge/pip-phoebe-blue.svg"/></a>
-  <a href="http://phoebe-project.org/install"><img src="https://img.shields.io/badge/python-3.6+-blue.svg"/></a>
+  <a href="http://phoebe-project.org/install"><img src="https://img.shields.io/badge/python-3.8+-blue.svg"/></a>
   <a href="https://github.com/phoebe-project/phoebe2/blob/master/LICENSE"><img src="https://img.shields.io/badge/license-GPL3-blue.svg"/></a>
   <a href="https://github.com/phoebe-project/phoebe2/actions/workflows/on_pr.yml?query=branch%3Amaster"><img src="https://github.com/phoebe-project/phoebe2/actions/workflows/on_pr.yml/badge.svg?branch=master"/></a>
-  <a href="http://phoebe-project.org/docs/2.3"><img src="https://github.com/phoebe-project/phoebe2-docs/actions/workflows/build-docs.yml/badge.svg?branch=2.3"/></a>
+  <a href="http://phoebe-project.org/docs/2.4"><img src="https://github.com/phoebe-project/phoebe2-docs/actions/workflows/build-docs.yml/badge.svg?branch=2.4"/></a>
 <br/>
   <a href="https://ui.adsabs.harvard.edu/abs/2016ApJS..227...29P"><img src="https://img.shields.io/badge/ApJS-Prsa+2016-lightgrey.svg"/></a>
   <a href="https://ui.adsabs.harvard.edu/abs/2018ApJS..237...26H"><img src="https://img.shields.io/badge/ApJS-Horvat+2018-lightgrey.svg"/></a>
   <a href="https://ui.adsabs.harvard.edu/abs/2020ApJS..247...63J"><img src="https://img.shields.io/badge/ApJS-Jones+2020-lightgrey.svg"/></a>
   <a href="https://ui.adsabs.harvard.edu/abs/2020ApJS..250...34C/"><img src="https://img.shields.io/badge/ApJS-Conroy+2020-lightgrey.svg"/></a>
-  <img src="https://img.shields.io/badge/Kochoska+2022-lightgrey.svg"/>
 </p>
 
 <p align="center">
@@ -57,15 +56,9 @@ To download the PHOEBE 2 source code, use git:
 
 To install PHOEBE 2 from the source locally, go to the `phoebe2/` directory and issue:
 
-    python3 setup.py build
-    python3 setup.py install --user
+    pip install .
 
-To install PHOEBE 2 from the source site-wide, go to the `phoebe2/` directory and issue:
-
-    python3 setup.py build
-    sudo python3 setup.py install
-
-Note that as of the 2.3 release, PHOEBE requires Python 3.6 or later.  For further details on pre-requisites consult the [PHOEBE project webpage](http://phoebe-project.org/install/2.4).
+Note that as of the 2.4.16 release, PHOEBE requires Python 3.8 or later.  For further details on pre-requisites consult the [PHOEBE project webpage](http://phoebe-project.org/install/2.4).
 
 
 GETTING STARTED
@@ -84,6 +77,11 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 
 CHANGELOG
 ----------
+
+### 2.4.17
+
+* Fix support for numpy 2.0. [#982]
+
 
 ### 2.4.16
 
