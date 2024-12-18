@@ -17,7 +17,7 @@ Available environment variables:
 
 """
 
-__version__ = '2.4.16.dev+feature-multis'
+__version__ = '2.4.17.dev+feature-multis'
 
 import os as _os
 import sys as _sys
