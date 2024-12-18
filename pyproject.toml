@@ -11,7 +11,7 @@
 
 [project]
 name = "phoebe"
-version = "2.4.16.dev+release-2.5"
+version = "2.4.17.dev+feature-pulsations"
 description = "PHOEBE: modeling and analysis of eclipsing binary stars"
 readme = "README.md"
 requires-python = ">=3.8"
@@ -58,7 +58,7 @@ classifiers = [
     "Topic :: Software Development :: User Interfaces"
 ]
 dependencies = [
-    "numpy < 2.0.0",
+    "numpy",
     "scipy",
     "astropy",
     "pytest",
@@ -79,7 +79,7 @@ repository = "https://github.com/phoebe-project/phoebe2"
 documentation = "http://phoebe-project.org/docs"
 
 [build-system]
-requires = ["setuptools", "numpy < 2.0.0", "wheel"]
+requires = ["setuptools", "numpy", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
