@@ -465,8 +465,14 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True,
         raise TypeError("filename must be string or file object, got {}".format(type(filename)))
 
     # load the phoebe file
-    params = np.loadtxt(filename, dtype='str', delimiter='=',
-                        converters={0: lambda s: s.strip(), 1: lambda s: s.strip()})
+    params = np.genfromtxt(
+        filename,
+        dtype='str',
+        delimiter='=',
+        comments='#',       
+        filling_values='',   
+        autostrip=True
+    )
 
     morphology = params[:,1][list(params[:,0]).index('phoebe_model')]
 

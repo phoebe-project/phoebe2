@@ -4714,7 +4714,7 @@ class Composite(BaseUnivariateDistribution):
             # TODO: do we need to remove duplicates?
             x.sort()
             if self.math == '__and__':
-                pdf = _np.product([d.pdf(x) for d in self.dists], axis=0)
+                pdf = _np.prod([d.pdf(x) for d in self.dists], axis=0)
                 # unfortunately we'll need to integrate to get the cdf... we'll do that later
                 cdf = None
             elif self.math == '__or__':
