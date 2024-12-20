@@ -3380,7 +3380,6 @@ class BaseMultivariateDistribution(BaseDistribution):
 
 
             plot_uncertainties = kwargs.pop('plot_uncertainties', True)
-            labels = kwargs.pop('labels', [self._xlabel(dim) for dim in range(self.ndimensions)])
             if plot_uncertainties:
                 if plot_uncertainties is True:
                     plot_uncertainties = [1, 2, 3]
@@ -3394,10 +3393,9 @@ class BaseMultivariateDistribution(BaseDistribution):
                 kwargs.setdefault('levels', [1-_np.exp(-s**2 / 2.) for s in (1,2,3)])
 
             fig = corner.corner(self.sample(size=int(size), cache_sample=False),
-                                 labels=labels,
+                                 labels=[self._xlabel(dim) for dim in range(self.ndimensions)],
                                  quantiles=kwargs.pop('quantiles', None),
                                  levels=kwargs.pop('levels', None),
-                                 show_titles=False,
                                  **kwargs)
 
 
@@ -4367,7 +4365,6 @@ class DistributionCollection(BaseDistlObject):
                              range=kwargs.pop('range', [_range(dist) for dist in self.dists]),
                              quantiles=kwargs.pop('quantiles', None),
                              levels=kwargs.pop('levels', None),
-                             show_titles=False
                              **kwargs)
 
         if plot_uncertainties:

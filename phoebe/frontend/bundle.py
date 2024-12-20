@@ -9089,7 +9089,7 @@ class Bundle(ParameterSet):
         """
         plot_kwargs = {}
         for k in list(kwargs.keys()):
-            if k in ['plot_uncertainties', 'label', 'labels', 'xlabel']:
+            if k in ['plot_uncertainties', 'label', 'xlabel']:
                 plot_kwargs[k] = kwargs.pop(k)
             elif k == 'sample_size':
                 plot_kwargs['size'] = kwargs.pop('sample_size')
