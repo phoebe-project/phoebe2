@@ -156,7 +156,7 @@ class TwoGaussianModel(Model):
 
     @staticmethod
     def ellipsoidal(phi, Aell, phi0):
-        '''
+        r'''
         Ellipsoidal model, defined as $y = (1/2) A_{ell} \cos (4 \pi (\phi - \phi_0))$
         
         Parameters
@@ -178,7 +178,7 @@ class TwoGaussianModel(Model):
 
     @staticmethod
     def gaussian(phi, mu, d, sigma):
-        '''
+        r'''
         Gaussian model, defined as $y = d \exp(-(\phi-\mu)^2/(2\sigma^2))$
 
         Parameters
@@ -431,7 +431,7 @@ class TwoGaussianModel(Model):
 
     @staticmethod
     def lnlike(y, yerr, ymodel):
-        '''
+        r'''
         Computes the loglikelihood of a model.
 
         $\log\mathrm{like} = \sum_i \log(\sqrt{2\pi} \sigma_i) + (y_i - model_i)^2/(2\sigma_i^2)
@@ -442,7 +442,7 @@ class TwoGaussianModel(Model):
             return -np.sum((y-ymodel)**2)
 
     def bic(self, ymodel, nparams):
-        '''
+        r'''
         Computes the Bayesian Information Criterion (BIC) value of a model.
 
         BIC = 2 lnlike - n_params \log(n_data)

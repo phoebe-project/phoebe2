@@ -53,7 +53,7 @@
 
   * Claret, A., 2000, A&A, 363, 1081
 
-  * Kallrath, Josef, Milone, Eugene F., Eclipsing Binary Stars: Modeling and Analysis (Spinger Verlag, 2009)
+  * Kallrath, Josef, Milone, Eugene F., Eclipsing Binary Stars: Modeling and Analysis (Springer Verlag, 2009)
 
   * A. Claret, On the irradiated stellar atmospheres in close binary systems: Improvements and uncertainties, A&A 422, 665–673 (2004) DOI: 10.1051/0004-6361:20047056
 */

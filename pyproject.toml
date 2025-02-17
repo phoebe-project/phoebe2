@@ -11,10 +11,10 @@
 
 [project]
 name = "phoebe"
-version = "2.4.14.dev+release-2.5"
+version = "2.4.16.dev+feature-contacts"
 description = "PHOEBE: modeling and analysis of eclipsing binary stars"
 readme = "README.md"
-requires-python = ">=3.7"
+requires-python = ">=3.8"
 license = { text = "GPL-3.0-or-later" }
 authors = [
     { name = "Andrej Prša", email = "aprsa@villanova.edu" },
@@ -58,7 +58,7 @@ classifiers = [
     "Topic :: Software Development :: User Interfaces"
 ]
 dependencies = [
-    "numpy",
+    "numpy < 2.0.0",
     "scipy",
     "astropy",
     "pytest",
@@ -79,7 +79,7 @@ repository = "https://github.com/phoebe-project/phoebe2"
 documentation = "http://phoebe-project.org/docs"
 
 [build-system]
-requires = ["setuptools", "numpy", "wheel"]
+requires = ["setuptools", "numpy < 2.0.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
@@ -89,11 +89,16 @@ packages = [
     "phoebe.parameters.solver",
     "phoebe.parameters.figure",
     "phoebe.frontend",
+    "phoebe.frontend.default_bundles",
     "phoebe.constraints",
     "phoebe.dynamics",
     "phoebe.distortions",
     "phoebe.algorithms",
     "phoebe.atmospheres",
+    "phoebe.atmospheres.tables.extinction",
+    "phoebe.atmospheres.tables.passbands",
+    "phoebe.atmospheres.tables.wd",
+    "phoebe.lib",
     "phoebe.backend",
     "phoebe.solverbackends",
     "phoebe.solverbackends.ebai",
@@ -113,4 +118,8 @@ packages = [
     "phoebe.dependencies.ligeor.eclipse",
     "phoebe.dependencies.ligeor.models",
     "phoebe.dependencies.ligeor.utils",
+]
+script-files = [
+    "client-server/phoebe-server",
+    "client-server/phoebe-autofig",
 ]

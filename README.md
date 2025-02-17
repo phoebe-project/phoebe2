@@ -85,6 +85,28 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.4.16
+
+* Fix handling of floating-point precision near the aligned case that used to result in error from libphoebe. [#965]
+* Updates to phoebe-server to be compatible with modern browser requirements. [#959]
+* Fix support for python 3.13, remove official support for python 3.7. [#968]
+
+
+### 2.4.15
+
+* Fix handling of include_times for RVs with compute_times/phases. [#889]
+* GPs on models computed in phase-space will be properly computed based on residuals in time space. [#899]
+* Fix units of requivfrac. [#894]
+* Fix adopting mask_phases from lc_geometry. [#896]
+* Fix population of wavelength array in load function for passbands. [#914]
+* Temporarily cap numpy dependency < 2.0. [#930]
+* Fix installation of phoebe-server CLI script to launch from UI. [#929]
+* Fix passing compute to export_solver with features attached. [#922]
+* sigmas_lnf: change handling of noise-nuissance parameter for RVs to no longer depend on the RV amplitude. [#901]
+* Remove duplicated phoebe-server code. [#940]
+* Fix python 3.12+ support by updating invalid escape sequences. [#948]
+* Improved precision in calculation of constraints. [#945]
+
 ### 2.4.14
 
 * Fix MPI off to not broadcast if never enabled

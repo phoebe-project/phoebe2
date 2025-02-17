@@ -1851,7 +1851,7 @@ def requivfrac(b, component, solve_for=None, **kwargs):
 
     metawargs = component_ps.meta
     metawargs.pop('qualifier')
-    requivfrac_def = FloatParameter(qualifier='requivfrac', latexfmt=r'R_\mathrm{{ {component} }} / a_\mathrm{{ {parent} }}', value=1.0, default_unit=u.solRad, advanced=True, description='Fractional equivalent radius')
+    requivfrac_def = FloatParameter(qualifier='requivfrac', latexfmt=r'R_\mathrm{{ {component} }} / a_\mathrm{{ {parent} }}', value=1.0, default_unit=u.dimensionless_unscaled, advanced=True, description='Fractional equivalent radius')
     requivfrac, created = b.get_or_create('requivfrac', requivfrac_def, **metawargs)
 
     requiv = component_ps.get_parameter(qualifier='requiv', **_skip_filter_checks)
