@@ -304,7 +304,7 @@ def lateral_transfer(t2s, teffs2, mixing_power, teff_ratio):
     filt = (z2s > -lat) & (z2s < lat)  # select band extending the (projected) height of the neck
     c = (lat - np.abs(z2s[filt])) ** mixing_power
     latitude_dependence = c / c.max()
-    teffs2[filt] *= 1 + (1 - teff_ratio) * latitude_dependence
+    teffs2[filt] *= 1 / teff_ratio * latitude_dependence
 
     # do longitude dependence
     phi = np.arctan2(y2s[filt], x2s[filt] - 1) + np.pi  #[0, 2pi]
@@ -323,7 +323,7 @@ def isotropic_transfer(t2s, teffs2, mixing_power, teff_ratio):
     origin (which is the center of the primary). Implies mixing occurs diffusively from th center of the neck.
     """
     d2s = np.sqrt(t2s[:, 0] * t2s[:, 0] + t2s[:, 1] * t2s[:, 1] + t2s[:, 2] * t2s[:, 2])
-    teffs2 *= 1 + (1 - teff_ratio) * (1 - ((d2s - d2s.min()) / (d2s.max() - d2s.min()))) ** mixing_power
+    teffs2 *= 1 / teff_ratio * (1 - ((d2s - d2s.min()) / (d2s.max() - d2s.min()))) ** mixing_power
     return teffs2
 
 
