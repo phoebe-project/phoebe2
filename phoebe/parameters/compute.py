@@ -2,16 +2,15 @@
 import numpy as np
 
 from phoebe.parameters import *
-from phoebe.parameters import dataset as _dataset
-import phoebe.dynamics as dynamics
-from phoebe.atmospheres import passbands # needed to get choices for 'atm' parameter
+from phoebe.atmospheres import passbands, models  # needed to get choices for 'atm' parameter
 from phoebe import u
 from phoebe import conf
 
-### NOTE: if creating new parameters, add to the _forbidden_labels list in parameters.py
+# NOTE: if creating new parameters, add to the _forbidden_labels list in parameters.py
 
 passbands._init_passbands()  # TODO: move to module import
-_atm_choices = list(set([atm for pb in passbands._pbtable.values() for atm in pb['atms'] if atm in passbands.supported_atms]))
+_supported_atms = [atm.name for atm in models.ModelAtmosphere.__subclasses__()]
+_atm_choices = list(set([atm for pb in passbands._pbtable.values() for atm in pb['atms'] if atm in _supported_atms]))
 
 def _sampling_params(**kwargs):
     """

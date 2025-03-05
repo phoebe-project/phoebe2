@@ -42,6 +42,7 @@ from phoebe.backend import universe as _universe
 from phoebe.solverbackends import solverbackends as _solverbackends
 from phoebe.distortions import roche
 from phoebe.frontend import io
+from phoebe.atmospheres import models
 from phoebe.atmospheres.passbands import list_installed_passbands, list_online_passbands, get_passband, update_passband, _timestamp_to_dt
 from phoebe import pool as _pool
 from phoebe.dependencies import distl as _distl
@@ -10262,14 +10263,13 @@ class Bundle(ParameterSet):
                     passband = self.get_value(qualifier='passband', dataset=ldcs_param.dataset, context='dataset', **_skip_filter_checks)
 
                 atm = self.get_value(qualifier='atm', compute=compute, component=ldcs_param.component, default='ck2004', atm=kwargs.get('atm', None), **_skip_filter_checks)
-
                 if ldcs == 'auto':
-                    if atm in ['extern_atmx', 'extern_planckint', 'blackbody']:
-                        ldcs = 'ck2004'
-                    else:
-                        ldcs = atm
+                    # in case we have blackbody or extern atmospheres, we default to
+                    # ck2004, otherwise we match the original atm:
+                    atm_class = models.atm_from_name(atm)
+                    ldcs = 'ck2004' if atm_class.external or not hasattr(atm_class, 'mus') else atm
 
-                pb = get_passband(passband, content='{}:ld'.format(ldcs))
+                pb = get_passband(passband, content=f'{ldcs}:ld')
                 teff = self.get_value(qualifier='teff', component=ldcs_param.component, context='component', unit='K', **_skip_filter_checks)
                 logg = self.get_value(qualifier='logg', component=ldcs_param.component, context='component', **_skip_filter_checks)
                 abun = self.get_value(qualifier='abun', component=ldcs_param.component, context='component', **_skip_filter_checks)
@@ -10278,21 +10278,24 @@ class Bundle(ParameterSet):
                 # all other backends that do not have this parameter, the following
                 # expression will default to 'none'.
                 ld_extrapolation_method = compute_ps.get_value(qualifier='ld_blending_method', component=ldcs_param.component, default='none', **_skip_filter_checks)
-                
+
                 if is_bol:
                     intens_weighting = 'energy'
                 else:
                     intens_weighting = self.get_value(qualifier='intens_weighting', dataset=ldcs_param.dataset, context='dataset', check_visible=False)
                 logger.info("{} ld_coeffs lookup for dataset='{}' component='{}' passband='{}' from ld_coeffs_source='{}'".format(ld_func, ldcs_param.dataset, ldcs_param.component, passband, ldcs))
-                logger.debug("pb.interpolate_ldcoeffs(teff={} logg={}, abun={}, ld_coeffs={} ld_func={} intens_weighting={})".format(teff, logg, abun, ldcs, ld_func, intens_weighting))
+                logger.debug(f"pb.interpolate_ldcoeffs({teff=} {logg=}, {abun=}, {ldcs=} {ld_func=} {intens_weighting=})")
 
-                query_pts = np.array([[teff, logg, abun],])
+                # TODO: generalize this.
+                query_cols = ('teffs', 'loggs', 'abuns')
+                query_pts = np.array(((teff, logg, abun),))
+                query_table = (query_cols, query_pts)
 
                 # interpolate_ldcoeffs() always returns an array, so we need
                 # the first element of the array.
                 ld_coeffs = pb.interpolate_ldcoeffs(
-                    query_pts=query_pts,
-                    ldatm=ldcs,
+                    query_table=query_table,
+                    ldatm=models.atm_from_name(ldcs),
                     ld_func=ld_func,
                     intens_weighting=intens_weighting,
                     ld_extrapolation_method=ld_extrapolation_method
@@ -10485,6 +10488,7 @@ class Bundle(ParameterSet):
                 raise NotImplementedError("l3_mode='{}' not supported.".format(l3_mode))
 
         return l3s
+
     def compute_pblums(self, compute=None, model=None, pblum=True, pblum_abs=False,
                        pblum_scale=False, pbflux=False,
                        set_value=False, unit=None, **kwargs):
@@ -10776,12 +10780,15 @@ class Bundle(ParameterSet):
                         required_content += ['{}:ldint'.format(atms[component])]
                     pb = get_passband(passband, content=required_content)
 
-                    query_pts = np.ascontiguousarray( ((teffs[component], loggs[component], abuns[component]),) )
+                    atm_model = models.atm_from_name(atms[component])
+                    query_cols = ['teffs', 'loggs', 'abuns']
+                    query_pts = np.atleast_2d(np.stack((teffs[component], loggs[component], abuns[component])).T)
+                    query_table = (query_cols, query_pts)
 
                     abs_normal_intensities = pb.Inorm(
-                        query_pts=query_pts,
-                        atm=atms[component],
-                        ldatm=atms[component],
+                        query_table=query_table,
+                        atm=atm_model,
+                        ldatm=atm_model,
                         ldint=None,
                         ld_func=ld_func,
                         ld_coeffs=ld_coeffs,
@@ -10792,8 +10799,8 @@ class Bundle(ParameterSet):
                     )['inorms']
 
                     ldint = pb.ldint(
-                        query_pts=query_pts,
-                        ldatm=atms[component],
+                        query_table=query_table,
+                        ldatm=atm_model,
                         ld_func=ld_func,
                         ld_coeffs=ld_coeffs,
                         intens_weighting=intens_weighting,
@@ -10802,7 +10809,7 @@ class Bundle(ParameterSet):
                     )
 
                     if intens_weighting=='photon':
-                        ptfarea = pb.ptf_photon_area/pb.h/pb.c
+                        ptfarea = pb.ptf_photon_area/passbands.h.value/passbands.c.value
                     else:
                         ptfarea = pb.ptf_area
 
@@ -10942,6 +10949,7 @@ class Bundle(ParameterSet):
             # this is an internal output used by run_compute, generally not requested by the user
             if system is not None:
                 system.reset(force_recompute_instantaneous=True)
+            
             return system, pblums_abs, pblums_scale, pblums_rel, pbfluxes
 
         # users will see the twig dictionaries with the exposed values based on

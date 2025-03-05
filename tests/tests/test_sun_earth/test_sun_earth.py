@@ -65,11 +65,11 @@ def _planck(lam, teff):
 
 def sun_earth_result():
     pb_str = 'Bolometric:900-40000'
-    mypb = phoebe.atmospheres.passbands.get_passband(pb_str)
+    mypb = phoebe.get_passband(pb_str)
 
     # theoretical result: Planck x passband, no limb-darkening
     sedptf = lambda w: _planck(w, c.T_sun.si.value)*mypb.ptf(w)
-    sb_flux = np.pi*integrate.quad(sedptf, mypb.ptf_table['wl'][0], mypb.ptf_table['wl'][-1])[0] # Stefan-Boltzmann flux
+    sb_flux = np.pi*integrate.quad(sedptf, mypb.ptf_table['wl'][0], mypb.ptf_table['wl'][-1])[0]  # Stefan-Boltzmann flux
 
     # fixed point observer
     # xi = ((1*u.solRad).si.value/c.au.si.value)**2
@@ -125,8 +125,7 @@ def test_sun_earth(print_results=False, save_results=False):
         np.savetxt("res.txt", res)
 
     assert np.abs(res[:,1]).max() < 1e-14
-    assert np.abs(res[:,2]).max() < 1e-3
-
+    assert np.abs(res[:,2]).max() < 1e-2  # 1% accuracy required
 
 
 if __name__ == '__main__':

@@ -14,7 +14,8 @@ def test_bb_extinction_computation():
         calibrated=True
     )
 
-    pb.compute_blackbody_intensities(include_extinction=True)
+    atm = phoebe.atmospheres.models.BlackbodyModelAtmosphere()
+    pb.compute_intensities(atm=atm, include_mus=False, include_ld=False, include_extinction=True, verbose=False)
     assert 'blackbody:ext' in pb.content
 
     pb.save('box_test.fits')
@@ -33,19 +34,23 @@ def test_bb_extinction():
 
     axbx = lp.gordon_extinction(pb.wl.reshape(-1, 1))  # (101, 2)
     ax, bx = axbx[:, 0, None], axbx[:, 1, None]
-    
+
     Alam = 10**(-0.4 * ebvs * (rvs * ax + bx))  # (101, 11)
     iext_predicted = np.trapz(bb_sed * Alam, axis=0) / np.trapz(bb_sed, axis=0)
 
+    query_cols = ['teffs', 'ebvs', 'rvs']
     query_pts = np.vstack((teffs, ebvs, rvs)).T
-    iext = pb.interpolate_extinct(query_pts=query_pts, atm='blackbody', intens_weighting='photon', extrapolation_method='none').flatten()
+    query_table = (query_cols, query_pts)
+
+    atm = phoebe.atmospheres.models.BlackbodyModelAtmosphere()
+    iext = pb.interpolate_extinct(query_table=query_table, atm=atm, intens_weighting='photon', extrapolation_method='none').flatten()
 
     assert np.allclose(iext, iext_predicted, atol=2e-3, rtol=2e-3)
 
 
 def test_frontend():
     phoebe.install_passband('box_test.fits')
-    
+
     b = phoebe.default_binary()
     b.add_dataset('lc', compute_times=phoebe.linspace(0, 1, 21), passband='box:test')
     b['atm@primary'] = 'blackbody'

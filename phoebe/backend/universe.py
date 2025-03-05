@@ -4,8 +4,9 @@ from scipy.special import sph_harm as Y
 from math import sqrt, sin, cos, acos, atan2, trunc, pi
 import sys, os
 import copy
+from astropy.constants import sigma_sb
 
-from phoebe.atmospheres import passbands
+from phoebe.atmospheres import models, passbands
 from phoebe.distortions import roche, rotstar
 from phoebe.backend import eclipse, oc_geometry, mesh, mesh_wd
 from phoebe.utils import _bytes
@@ -335,11 +336,9 @@ class System(object):
         logger.debug("reflection: computing bolometric intensities")
         fluxes_intrins_per_body = []
         for starref, body in self.items():
-            if body.mesh is None: continue
-            abs_normal_intensities = passbands.Inorm_bol_bb(Teff=body.mesh.teffs.for_computations,
-                                                            atm='blackbody',
-                                                            intens_weighting='energy')
-
+            if body.mesh is None:
+                continue
+            abs_normal_intensities = sigma_sb.value * body.mesh.teffs.for_computations**4 / np.pi  # bolometric intensities
             fluxes_intrins_per_body.append(abs_normal_intensities * np.pi)
 
         fluxes_intrins_flat = meshes.pack_column_flat(fluxes_intrins_per_body)
@@ -356,48 +355,47 @@ class System(object):
             normals_per_body = list(meshes.get_column('vnormals').values())
             areas_per_body = list(meshes.get_column('areas').values())
             irrad_frac_refl_per_body = list(meshes.get_column('irrad_frac_refl', computed_type='for_computations').values())
-            teffs_intrins_per_body = list(meshes.get_column('teffs', computed_type='for_computations').values())
 
             ld_func_and_coeffs = [tuple([_bytes(body.ld_func['bol'])] + [np.asarray(body.ld_coeffs['bol'])]) for body in self.bodies]
             logger.debug("irradiation ld_func_and_coeffs: {}".format(ld_func_and_coeffs))
-            fluxes_intrins_and_refl_per_body = libphoebe.mesh_radiosity_problem_nbody_convex(vertices_per_body,
-                                                                                       triangles_per_body,
-                                                                                       normals_per_body,
-                                                                                       areas_per_body,
-                                                                                       irrad_frac_refl_per_body,
-                                                                                       fluxes_intrins_per_body,
-                                                                                       ld_func_and_coeffs,
-                                                                                       _bytes(self.irrad_method.title()),
-                                                                                       support=_bytes('vertices')
-                                                                                       )
+            fluxes_intrins_and_refl_per_body = libphoebe.mesh_radiosity_problem_nbody_convex(
+                vertices_per_body,
+                triangles_per_body,
+                normals_per_body,
+                areas_per_body,
+                irrad_frac_refl_per_body,
+                fluxes_intrins_per_body,
+                ld_func_and_coeffs,
+                _bytes(self.irrad_method.title()),
+                support=_bytes('vertices')
+            )
 
             fluxes_intrins_and_refl_flat = meshes.pack_column_flat(fluxes_intrins_and_refl_per_body)
 
         else:
             logger.debug("handling reflection (general case), method='{}'".format(self.irrad_method))
 
-            vertices_flat = meshes.get_column_flat('vertices') # np.ndarray
-            triangles_flat = meshes.get_column_flat('triangles') # np.ndarray
-            normals_flat = meshes.get_column_flat('vnormals') # np.ndarray
-            areas_flat = meshes.get_column_flat('areas') # np.ndarray
+            vertices_flat = meshes.get_column_flat('vertices')  # np.ndarray
+            triangles_flat = meshes.get_column_flat('triangles')  # np.ndarray
+            normals_flat = meshes.get_column_flat('vnormals')  # np.ndarray
+            areas_flat = meshes.get_column_flat('areas')  # np.ndarray
             irrad_frac_refl_flat = meshes.get_column_flat('irrad_frac_refl', computed_type='for_computations') # np.ndarray
 
             ld_func_and_coeffs = [tuple([_bytes(body.ld_func['bol'])] + [np.asarray(body.ld_coeffs['bol'])]) for body in self.mesh_bodies] # list
             ld_inds_flat = meshes.pack_column_flat({body.comp_no: np.full(fluxes.shape, body.comp_no-1) for body, fluxes in zip(self.mesh_bodies, fluxes_intrins_per_body)}) # np.ndarray
 
-            fluxes_intrins_and_refl_flat = libphoebe.mesh_radiosity_problem(vertices_flat,
-                                                                            triangles_flat,
-                                                                            normals_flat,
-                                                                            areas_flat,
-                                                                            irrad_frac_refl_flat,
-                                                                            fluxes_intrins_flat,
-                                                                            ld_func_and_coeffs,
-                                                                            ld_inds_flat,
-                                                                            _bytes(self.irrad_method.title()),
-                                                                            support=_bytes('vertices')
-                                                                            )
-
-
+            fluxes_intrins_and_refl_flat = libphoebe.mesh_radiosity_problem(
+                vertices_flat,
+                triangles_flat,
+                normals_flat,
+                areas_flat,
+                irrad_frac_refl_flat,
+                fluxes_intrins_flat,
+                ld_func_and_coeffs,
+                ld_inds_flat,
+                _bytes(self.irrad_method.title()),
+                support=_bytes('vertices')
+            )
 
         teffs_intrins_flat = meshes.get_column_flat('teffs', computed_type='for_computations')
 
@@ -1799,56 +1797,71 @@ class Star(Body):
         boosting_method = kwargs.get('boosting_method', self.boosting_method.get(dataset, None))
         bindex = kwargs.get('boosting_index', self.boosting_index.get(dataset, None)) if boosting_method == 'manual' else None
 
+        atm_model = models.atm_from_name(atm)
+
         if ld_mode == 'interp':
             # calls to pb.Imu need to pass on ld_func='interp'
             # NOTE: we'll do another check when calling pb.Imu, but we'll also
             # change the value here for the debug logger
             ld_func = 'interp'
-            ldatm = atm
+            ldatm_model = atm_model
         elif ld_mode == 'lookup':
             if ld_coeffs_source == 'auto':
-                ldatm = 'ck2004' if atm in ['blackbody', 'extern_atmx', 'extern_planckint'] else atm
+                # default to ck2004 for external and blackbody atmospheres, and
+                # use the same model atmosphere for all other atmospheres:
+                ldatm_model = models.CK2004ModelAtmosphere if atm_model.external or not hasattr(atm_model, 'mus') else atm_model
             else:
-                ldatm = ld_coeffs_source
+                ldatm_model = models.atm_from_name(ld_coeffs_source)
         elif ld_mode == 'manual':
-            ldatm = 'none'
+            ldatm_model = None
         else:
             raise NotImplementedError
 
-
-
-
-        logger.debug("ld_func={}, ld_coeffs={}, atm={}, ldatm={}".format(ld_func, ld_coeffs, atm, ldatm))
-
-        pblum = kwargs.get('pblum', 4*np.pi)
+        logger.debug(f'{ld_mode=}, {ld_func=}, {ld_coeffs=}, {atm_model=}, {ldatm_model=}')
 
         if lc_method == 'numerical':
             pb = passbands.get_passband(passband)
 
-            if ldatm != 'none' and '{}:ldint'.format(ldatm) not in pb.content:
+            if ldatm_model is not None and f'{ldatm_model.name}:ldint' not in pb.content:
                 if ld_mode == 'lookup':
-                    raise ValueError("{} not supported for limb-darkening with {}:{} passband.  Try changing the value of the ld_coeffs_source parameter".format(ldatm, pb.pbset, pb.pbname))
+                    raise ValueError(f'{ldatm_model.name} not supported for limb-darkening with {pb.pbset}:{pb.pbname} passband.  Try changing the value of the ld_coeffs_source parameter')
                 else:
-                    raise ValueError("{} not supported for limb-darkening with {}:{} passband.  Try changing the value of the atm parameter".format(ldatm, pb.pbset, pb.pbname))
+                    raise ValueError(f'{ldatm_model.name} not supported for limb-darkening with {pb.pbset}:{pb.pbname} passband.  Try changing the value of the atm parameter')
 
             if intens_weighting == 'photon':
-                ptfarea = pb.ptf_photon_area/pb.h/pb.c
+                ptfarea = pb.ptf_photon_area/passbands.h.value/passbands.c.value
             else:
                 ptfarea = pb.ptf_area
 
             self.set_ptfarea(dataset, ptfarea)
 
-            # Inorm/Imu are smart enough to extract teffs for atm='blackbody'
-            # so we don't need to worry about that here.
+            # figure out what columns need to be packed into query_pts:
+            query_cols = atm_model.basic_axis_names.copy()
+            if ldatm_model is not None and ldatm_model != atm_model:
+                # add any new ldatm columns:
+                # note: can't use set() because the order is arbitrary
+                query_cols += [column for column in ldatm_model.basic_axis_names if column not in query_cols]
+
             query_pts = np.stack((
-                self.mesh.teffs.for_computations,
-                self.mesh.loggs.for_computations,
-                self.mesh.abuns.for_computations
+                [getattr(self.mesh, column).for_computations for column in query_cols]
             )).T
 
+            # TODO: change this once mus are stored as a column in the mesh
+            # if hasattr(atm_model, 'mus') or hasattr(ldatm_model, 'mus'):
+            query_cols += ['mus']
+            query_pts = np.c_[query_pts, np.abs(self.mesh.mus_for_computations)]
+
+            if extinct != 0.0 and not ignore_effects:
+                query_cols += ['ebvs', 'rvs']
+                ebvs = np.full_like(query_pts[:, 0], fill_value=extinct)
+                rvs = np.full_like(query_pts[:, 0], fill_value=Rv)
+                query_pts = np.c_[query_pts, ebvs, rvs]
+
+            query_table = (query_cols, query_pts)
+
             ldint = pb.ldint(
-                query_pts=query_pts,
-                ldatm=ldatm,
+                query_table=query_table,
+                ldatm=ldatm_model,
                 ld_func=ld_func if ld_mode != 'interp' else ld_mode,
                 ld_coeffs=ld_coeffs,
                 intens_weighting=intens_weighting,
@@ -1857,9 +1870,9 @@ class Star(Body):
             )
 
             abs_normal_intensities = pb.Inorm(
-                query_pts=query_pts,
-                atm=atm,
-                ldatm=ldatm,
+                query_table=query_table,
+                atm=atm_model,
+                ldatm=ldatm_model,
                 ldint=ldint,
                 ld_func=ld_func,
                 ld_coeffs=ld_coeffs,
@@ -1869,18 +1882,10 @@ class Star(Body):
                 blending_method=blending_method
             )['inorms']
 
-            # add mus to query points:
-            query_pts = np.c_[query_pts, np.abs(self.mesh.mus_for_computations)]
-
-            # abs_intensities are the projected (limb-darkened) passband intensities
-            # TODO: why do we need to use abs(mus) here?
-            # ! Because the interpolation within Imu will otherwise fail.
-            # ! It would be best to pass only [visibilities > 0] elements to Imu.
-
             abs_intensities = pb.Imu(
-                query_pts=query_pts,
-                atm=atm,
-                ldatm=ldatm,
+                query_table=query_table,
+                atm=atm_model,
+                ldatm=ldatm_model,
                 ldint=ldint,
                 ld_func=ld_func if ld_mode != 'interp' else ld_mode,
                 ld_coeffs=ld_coeffs,
@@ -1908,10 +1913,9 @@ class Star(Body):
             if extinct == 0.0 or ignore_effects:
                 extinct_factors = 1.0
             else:
-                query_pts = np.c_[query_pts[:,:-1], np.full_like(query_pts[:,0], fill_value=extinct), np.full_like(query_pts[:,0], fill_value=Rv)]
                 extinct_factors = pb.interpolate_extinct(
-                    query_pts=query_pts,
-                    atm=atm,
+                    query_table=query_table,
+                    atm=atm_model,
                     intens_weighting=intens_weighting,
                     extrapolation_method=atm_extrapolation_method
                 )

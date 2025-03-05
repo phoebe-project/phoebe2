@@ -1,13 +1,14 @@
 import phoebe
 from phoebe import u
-from phoebe.atmospheres.passbands import atm_tables
+from phoebe.atmospheres import models
 import os
 
 
 path = os.path.dirname(__file__)
+atms = [atm for atm in models.ModelAtmosphere.__subclasses__() if not atm.external]
 
 
-def test_compute(atm_grids_available=False, atm_path=None, atms=atm_tables.keys()):
+def test_compute(atm_tables_available=False, atm_path=None, atms=atms):
     pb = phoebe.atmospheres.passbands.Passband(
         ptf=os.path.join(path, 'test.ptf'),
         pbset='test',
@@ -18,13 +19,17 @@ def test_compute(atm_grids_available=False, atm_path=None, atms=atm_tables.keys(
         version=1.0
     )
 
-    pb.compute_blackbody_intensities(include_extinction=True)
+    # generate blackbody tables:
+    pb.compute_intensities(atm=models.BlackbodyModelAtmosphere(), include_mus=False, include_ld=False, verbose=True)
 
-    if atm_grids_available:
+    if atm_tables_available:
+        # generate tables:
         for atm in atms:
-            pb.compute_intensities(atm=atm, path=f'{atm_path}/{atm}', verbose=True)
-            pb.compute_ldcoeffs(ldatm=atm)
-            pb.compute_ldints(ldatm=atm)
+            if atm.name == 'blackbody':
+                continue
+
+            instance = atm.from_path(atm_path + '/' + atm.name)
+            pb.compute_intensities(atm=instance, include_extinction=True, verbose=True)
 
     pb.save(os.path.join(path, 'test.fits'))
 
@@ -39,6 +44,6 @@ def test_load():
 
 if __name__ == '__main__':
     atm_path = os.path.join(path, 'tables')
-    atm_grids_available = os.path.exists(atm_path)
-    test_compute(atm_grids_available=atm_grids_available, atm_path=atm_path)
+    atm_tables_available = os.path.exists(atm_path)
+    test_compute(atm_tables_available=atm_tables_available, atm_path=atm_path)
     test_load()
