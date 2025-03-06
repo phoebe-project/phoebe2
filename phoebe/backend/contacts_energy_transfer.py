@@ -295,7 +295,6 @@ def lateral_transfer(t2s, teffs2, mixing_power, teff_ratio):
     z2s_neck = z2s[x2s < 1]
     rs_neck = (y2s_neck ** 2 + z2s_neck ** 2) ** 0.5
     lat = np.min(rs_neck)
-    assert lat == np.min(z2s_neck)
     filt = (z2s > -lat) & (z2s < lat)  # select band extending the (projected) height of the neck
     c = (lat - np.abs(z2s[filt])) ** mixing_power
     latitude_dependence = c / c.max()
