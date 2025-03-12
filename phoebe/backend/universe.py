@@ -2393,6 +2393,7 @@ class Star_rotstar(Star):
         """
         """
         # extra things (not used by Star) will be stored in kwargs
+        self.F = kwargs.pop('F', 1.0)
 
         super(Star_rotstar, self).__init__(component, comp_no, ind_self, ind_sibling,
                                            masses, ecc, incl,
@@ -2417,10 +2418,12 @@ class Star_rotstar(Star):
     def from_bundle(cls, b, component, compute=None,
                     datasets=[], **kwargs):
 
+        self_ps = b.filter(component=component, context='component', **_skip_filter_checks)
+        F = self_ps.get_value(qualifier='syncpar', **_skip_filter_checks)
 
         return super(Star_rotstar, cls).from_bundle(b, component, compute,
                                                     datasets,
-                                                    **kwargs)
+                                                    F=F, **kwargs)
 
 
 
@@ -2432,7 +2435,7 @@ class Star_rotstar(Star):
     def needs_recompute_instantaneous(self):
         # recompute instantaneous for asynchronous spots, even if meshing
         # doesn't need to be recomputed
-        return self.needs_remesh or (not self.is_single and len(self.features) and self.F != 1)
+        return self.needs_remesh or (len(self.features) and self.F != 1.0) or self.is_single
 
     @property
     def needs_remesh(self):
