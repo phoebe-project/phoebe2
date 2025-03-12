@@ -3173,11 +3173,11 @@ class Spot(Feature):
         # define the basis vectors in the spin (primed) coordinates in terms of
         # the Roche coordinates.
         # ez' = s
-        # ex' =  (ex - s(s.ex)) /|i - s(s.ex)|
+        # ex' = ey x s
         # ey' = s x ex'
-        ex = np.array([1., 0., 0.])
+        ey = np.array([0., 1., 0.])
         ezp = s
-        exp = (ex - s*np.dot(s,ex))
+        exp = np.cross(ey, s)
         eyp = np.cross(s, exp)
 
         return np.sin(self._colat)*np.cos(longitude)*exp +\
@@ -3201,6 +3201,10 @@ class Spot(Feature):
         pointing_vector = self.pointing_vector(s,t)
         logger.debug("spot.process_teffs at t={} with pointing_vector={} and radius={}".format(t, pointing_vector, self._radius))
 
+        # alpha_coords = np.dot(coords, pointing_vector)
+        # print(alpha_coords)
+        # rs = np.sqrt((alpha_coords**2).sum(axis=1))
+        # cos_alpha_coords = alpha_coords / rs
         cos_alpha_coords = np.dot(coords, pointing_vector) / np.linalg.norm(coords, axis=1)
         cos_alpha_spot = np.cos(self._radius)
 
