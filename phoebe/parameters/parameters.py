@@ -4353,7 +4353,7 @@ class ParameterSet(object):
                                     # array_value_norms *= -1
                             kwargs['{}normals'.format(direction)] = array_value_norms
 
-                    elif current_value in ['time', 'times'] and 'residuals' in kwargs.values():
+                    elif current_value in ['time', 'times'] and 'residuals' in [i for i in kwargs.values() if isinstance(i, str)]:
                         # then we actually need to pull the times from the dataset instead of the model since the length may not match
                         ds_ps = ps._bundle.get_dataset(dataset=ps.dataset, **_skip_filter_checks)
                         array_value = _handle_mask(ds_ps, ds_ps.get_quantity(qualifier='times', component=ps.component, **_skip_filter_checks), **kwargs)
@@ -4432,7 +4432,7 @@ class ParameterSet(object):
                                         else None
 
 
-                    if 'residuals' in kwargs.values():
+                    if 'residuals' in [i for i in kwargs.values() if isinstance(i, str)]:
                         # then we actually need to pull the times from the dataset instead of the model since the length may not match
                         ds_ps = ps._bundle.get_dataset(dataset=ps.dataset, **_skip_filter_checks)
                         times = ds_ps.get_value(qualifier='times', component=ps.component, **_skip_filter_checks)
