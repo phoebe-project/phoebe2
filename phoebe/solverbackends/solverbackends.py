@@ -2454,6 +2454,7 @@ class Differential_CorrectionsBackend(BaseSolverBackend):
             _dc_pbar.update(1)
 
         for k, (uniqueid, value, step) in enumerate(zip(params_uniqueids, p0, steps)):
+            uniqueid, index = _extract_index_from_string(uniqueid)
             param = b_solver.get_parameter(uniqueid=uniqueid, **_skip_filter_checks)
             # analytical derivatives:
             if param.qualifier == 'pblum':
@@ -2461,7 +2462,10 @@ class Differential_CorrectionsBackend(BaseSolverBackend):
                 continue
             # numerical derivatives:
             if deriv_method == 'asymmetric':
-                param.set_value(value=value+step)
+                if index is not None:
+                    param.set_index_value(index=index, value=value+step)
+                else:
+                    param.set_value(value=value+step)
                 upper_model = b_solver.run_compute(model='upper', overwrite=True)
                 resid_upper, obs_upper = _get_residuals_and_interp_model(b_solver, 'upper', obs_params)
                 if _use_progressbar:
@@ -2469,13 +2473,19 @@ class Differential_CorrectionsBackend(BaseSolverBackend):
                 A[:,k] = (obs_upper-obs_baseline)/step
 
             elif deriv_method == 'symmetric':
-                param.set_value(value=value+step/2)
+                if index is not None:
+                    param.set_index_value(index=index, value=value + step / 2)
+                else:
+                    param.set_value(value=value + step / 2)
                 upper_model = b_solver.run_compute(model='upper', overwrite=True)
                 resid_upper, obs_upper = _get_residuals_and_interp_model(b_solver, 'upper', obs_params)
                 if _use_progressbar:
                     _dc_pbar.update(1)
 
-                param.set_value(value=value-step/2)
+                if index is not None:
+                    param.set_index_value(index=index, value=value - step / 2)
+                else:
+                    param.set_value(value=value - step / 2)
                 lower_model = b_solver.run_compute(model='lower', overwrite=True)
                 resid_lower, obs_lower = _get_residuals_and_interp_model(b_solver, 'lower', obs_params)
                 if _use_progressbar:
@@ -2486,7 +2496,10 @@ class Differential_CorrectionsBackend(BaseSolverBackend):
                 raise ValueError(f"deriv_method='{deriv_method}' is not recognized ('symmetric' or 'asymmetric' supported).")
 
             # reset this parameter for the next parameter to step
-            param.set_value(value=value, **_skip_filter_checks)
+            if index is not None:
+                param.set_index_value(index=index, value=value)
+            else:
+                param.set_value(value=value, **_skip_filter_checks)
 
         corrections, chi2, nparams, eigenvalues =  np.linalg.lstsq(V@A, V@xi, rcond=None)
 
