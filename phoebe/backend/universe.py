@@ -3170,11 +3170,18 @@ class Spot(Feature):
         t = time - self._t0
         longitude = self._longitude + self._dlongdt * t
 
-        # define the basis vectors in the spin (primed) coordinates in terms of
-        # the Roche coordinates.
-        # ez' = s
-        # ex' = ey x s
-        # ey' = s x ex'
+        '''
+        define the basis vectors in the spin (primed) coordinates in terms of
+        the Roche coordinates.
+        - the z' direction is explicitly given by the spin vector
+        ez' = s
+        - the x' direction is defined as being towards the companion and therefore
+        must be in the roche x-z plane. We can find where the plane of the orbit 
+        and the x-z plane intersect by taking the cross product of their normal vectors.
+        ex' = ey x s
+        - the y' direction is then defined by the cross product of the other two
+        ey' = s x ex'
+        '''
         ey = np.array([0., 1., 0.])
         ezp = s
         exp = np.cross(ey, s)
@@ -3201,10 +3208,6 @@ class Spot(Feature):
         pointing_vector = self.pointing_vector(s,t)
         logger.debug("spot.process_teffs at t={} with pointing_vector={} and radius={}".format(t, pointing_vector, self._radius))
 
-        # alpha_coords = np.dot(coords, pointing_vector)
-        # print(alpha_coords)
-        # rs = np.sqrt((alpha_coords**2).sum(axis=1))
-        # cos_alpha_coords = alpha_coords / rs
         cos_alpha_coords = np.dot(coords, pointing_vector) / np.linalg.norm(coords, axis=1)
         cos_alpha_spot = np.cos(self._radius)
 
