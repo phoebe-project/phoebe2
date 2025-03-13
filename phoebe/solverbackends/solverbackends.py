@@ -2574,32 +2574,35 @@ class Differential_EvolutionBackend(BaseSolverBackend):
             params_twigs = []
             params = []
             fitted_units = []
-            for twig in fit_parameters:
-                p = b.get_parameter(twig=twig, context=['component', 'dataset', 'feature', 'system'], **_skip_filter_checks)
+            for twig_orig in fit_parameters:
+                twig, index = _extract_index_from_string(twig_orig)
+                p = b.get_parameter(twig=twig, context=['component', 'dataset', 'feature', 'system'],
+                                    **_skip_filter_checks)
                 params.append(p)
-                params_uniqueids.append(p.uniqueid)
-                params_twigs.append(p.twig)
+                params_uniqueids.append(p.uniqueid if index is None else p.uniqueid + '[{}]'.format(index))
+                params_twigs.append(p.twig if index is None else twig_orig)
                 fitted_units.append(p.get_default_unit().to_string())
 
             bounds = kwargs.get('bounds')
             bounds_combine = kwargs.get('bounds_combine')
             bounds_sigma = kwargs.get('bounds_sigma')
 
-
-            bounds_dc, uniqueids = b.get_distribution_collection(distribution=bounds,
-                                                                 keys='uniqueid',
-                                                                 combine=bounds_combine,
-                                                                 include_constrained=False,
-                                                                 to_univariates=True,
-                                                                 to_uniforms=bounds_sigma,
+            bounds_dc, uniqueids = b.get_distribution_collection(distribution=bounds, keys='uniqueid',
+                                                                 combine=bounds_combine, include_constrained=False,
+                                                                 to_univariates=True, to_uniforms=bounds_sigma,
                                                                  set_labels=False)
 
             # for each parameter, if a distribution is found in bounds_dict (from
             # the bounds parameter), then the bounds are adopted from that (taking
             # bounds_combine and bounds_sigma into account).  Otherwise, the limits
             # of the parameter itself are adopted.
-            bounds = [_get_bounds(param, bounds_dc.dists[uniqueids.index(param.uniqueid)] if param.uniqueid in uniqueids else None, bounds_sigma) for param in params]
-
+            bounds = []
+            for uniqueid in params_uniqueids:
+                uniqueid, index = _extract_index_from_string(uniqueid)
+                param = b.get_parameter(uniqueid=uniqueid, **_skip_filter_checks)
+                dist_uniqueid = uniqueid if index is None else uniqueid + '[{}]'.format(index)
+                bounds.append(
+                    _get_bounds(param, bounds_dc.dists[uniqueids.index(dist_uniqueid)] if dist_uniqueid in uniqueids else None, bounds_sigma))
             compute_kwargs = {k:v for k,v in kwargs.items() if k in b.get_compute(compute=compute, **_skip_filter_checks).qualifiers}
 
             options = {k:v for k,v in kwargs.items() if k in ['strategy', 'maxiter', 'popsize', 'tol', 'atol', 'polish', 'recombination']}
