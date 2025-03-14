@@ -3184,7 +3184,10 @@ class Spot(Feature):
         '''
         ey = np.array([0., 1., 0.])
         ezp = s
-        exp = np.cross(ey, s)
+        if s[2] > 0.:
+            exp = np.cross(ey, s)
+        else:
+            exp = np.cross(s, ey)
         eyp = np.cross(s, exp)
 
         return np.sin(self._colat)*np.cos(longitude)*exp +\
