@@ -3175,28 +3175,31 @@ class Spot(Feature):
         the Roche coordinates.
         - the z' direction is explicitly given by the spin vector
         ez' = s
-        - the x' direction is defined as being towards the companion and therefore
-        must be in the roche x-z plane. We can find where the plane of the orbit 
-        and the x-z plane intersect by taking the cross product of their normal vectors.
-        ex' = ey x s
-        if the pole aligns with the y-axis, then the x' direction is the x direction
-        - the y' direction is then defined by the cross product of the other two
-        ey' = s x ex'
+        - the x' direction is defined as being towards the companion, which means 
+        that the y' direction should always be orthogonal to x. Thus, to get this,
+        we'll first calculate the y' direction by taking the cross product of the 
+        z' and x directions 
+        ey' = ez' x ex
+        if the pole aligns with the x-axis, then the y' direction is the z direction
+        - the x' direction is then defined by the cross product of the other two
+        ex' = ey' x ez'
         '''
-        ey = np.array([0., 1., 0.])
+        ex = np.array([1., 0., 0.])
         ezp = s
-        if s == ey:
-            exp = np.array([1., 0., 0.])
+        if (s == ex).all():
+            eyp = np.array([0., 0., 1.])
         else:
-            exp = np.cross(ey, s)
-            # make sure the x' direction is facing the companion
-            if exp[0] < 0:
-                exp = -exp
-        eyp = np.cross(s, exp)
+            eyp = np.cross(ezp, ex)
+        exp = np.cross(eyp, ezp)
 
-        return np.sin(self._colat)*np.cos(longitude)*exp +\
+        # now we can express the pointing vector in terms of the primed basis
+        pv = np.sin(self._colat)*np.cos(longitude)*exp +\
                   np.sin(self._colat)*np.sin(longitude)*eyp +\
                   np.cos(self._colat)*ezp
+        
+        # renormalize and return pointing vector
+        return pv / np.sqrt(np.sum(pv**2))
+
 
     def process_teffs(self, teffs, coords, s=np.array([0., 0., 1.]), t=None):
         """
@@ -3213,7 +3216,6 @@ class Spot(Feature):
             t = self._t0
 
         pointing_vector = self.pointing_vector(s,t)
-        # print(pointing_vector)
         logger.debug("spot.process_teffs at t={} with pointing_vector={} and radius={}".format(t, pointing_vector, self._radius))
 
         cos_alpha_coords = np.dot(coords, pointing_vector) / np.linalg.norm(coords, axis=1)
