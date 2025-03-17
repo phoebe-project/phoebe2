@@ -3179,15 +3179,19 @@ class Spot(Feature):
         must be in the roche x-z plane. We can find where the plane of the orbit 
         and the x-z plane intersect by taking the cross product of their normal vectors.
         ex' = ey x s
+        if the pole aligns with the y-axis, then the x' direction is the x direction
         - the y' direction is then defined by the cross product of the other two
         ey' = s x ex'
         '''
         ey = np.array([0., 1., 0.])
         ezp = s
-        if s[2] > 0.:
-            exp = np.cross(ey, s)
+        if s == ey:
+            exp = np.array([1., 0., 0.])
         else:
-            exp = np.cross(s, ey)
+            exp = np.cross(ey, s)
+            # make sure the x' direction is facing the companion
+            if exp[0] < 0:
+                exp = -exp
         eyp = np.cross(s, exp)
 
         return np.sin(self._colat)*np.cos(longitude)*exp +\
@@ -3209,6 +3213,7 @@ class Spot(Feature):
             t = self._t0
 
         pointing_vector = self.pointing_vector(s,t)
+        # print(pointing_vector)
         logger.debug("spot.process_teffs at t={} with pointing_vector={} and radius={}".format(t, pointing_vector, self._radius))
 
         cos_alpha_coords = np.dot(coords, pointing_vector) / np.linalg.norm(coords, axis=1)
