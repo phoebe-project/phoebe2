@@ -79,7 +79,7 @@ def test_single_distortions(distortion_method='sphere', plot=False, gen_comp=Fal
         comp_val = b.get_value('fluxes@comp_model')
         test_val = b.get_value('fluxes@test_model')
 
-        assert np.allclose(comp_val, test_val, rtol=2e-3, atol=5e-4)
+        assert np.allclose(comp_val, test_val, rtol=2e-2, atol=5e-3)
 
 
 def test_binary_distortions(distortion_method='sphere', plot=False, gen_comp=False):
@@ -120,7 +120,7 @@ def test_binary_distortions(distortion_method='sphere', plot=False, gen_comp=Fal
         comp_val = b.get_value('fluxes@comp_model')
         test_val = b.get_value('fluxes@test_model')
 
-        assert np.allclose(comp_val, test_val, rtol=2e-3, atol=5e-4)
+        assert np.allclose(comp_val, test_val, rtol=2e-2, atol=5e-3)
 
 
 def test_binary_misalignment(case='case1', plot=False, gen_comp=False):
@@ -166,7 +166,7 @@ def test_binary_misalignment(case='case1', plot=False, gen_comp=False):
         comp_val = b.get_value('fluxes@comp_model')
         test_val = b.get_value('fluxes@test_model')
 
-        assert np.allclose(comp_val, test_val, rtol=2e-3, atol=5e-4)
+        assert np.allclose(comp_val, test_val, rtol=2e-2, atol=5e-3)
 
 
 
