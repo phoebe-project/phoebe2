@@ -275,10 +275,13 @@ def envelope(component, **kwargs):
     * `abun` (float, optional): abundance/metallicity.
     * `fillout_factor` (float, optional): fillout-factor of the envelope.
     * `pot` (float, optional): potential of the envelope.
-    * `pot_min` (float, optional): critical (minimum) value of the potential to
-        remain a contact.
-    * `pot_max` (float, optional): critical (maximum) value of the potential to
-        remain a contact.
+    * `pot_min` (float, optional): critical (minimum) value of the potential to remain a contact.
+    * `pot_max` (float, optional): critical (maximum) value of the potential to remain a contact.
+    * `mixing_enabled` (float, optional): whether to allow thermal mixing of the surface (default = False)
+    * `mixing_method` (str, optional): method to use to perform the thermal mixing, choose between [lateral, isotropic,
+            perfect, spotty] (default = 'lateral')
+    * `mixing_power` (float, optional): thermal mixing strength, free parameter of the model. Generally, higher values
+            mean more efficient mixing (default = 0.5)
 
     Returns
     --------
@@ -298,6 +301,9 @@ def envelope(component, **kwargs):
     # params += [FloatParameter(qualifier='frac_lost_bol', value=kwargs.get('frac_lost_bol', 1.0), default_unit=u.dimensionless_unscaled, limits=(0.0, 1.0), description='ratio of incident bolometric light that is lost/ignored')]
 
 
+    params += [BoolParameter(qualifier='mixing_enabled', latexfmt=r'\mathrm{{wenabled}}_\mathrm{{ {component} }}', value=kwargs.get('mixing_enabled', False), description='Whether to apply thermal mixing of the contact envelope')]
+    params += [FloatParameter(qualifier='mixing_power', latexfmt=r'\mathrm{{w}}_\mathrm{{ {component} }}', value=kwargs.get('mixing_power', 0.5), default_unit=u.dimensionless_unscaled, limits=(None,None), description='Power of the thermal mixing of the envelope')]
+    params += [ChoiceParameter(qualifier='mixing_method', latexfmt=r'\mathrm{{smethod}}_\mathrm{{ {component} }}', value=kwargs.get('mixing_method', 'lateral'), choices=['lateral', 'isotropic', 'perfect', 'gaussian'], description='Method for thermal mixing of the envelope')]
     params += [FloatParameter(qualifier='fillout_factor', latexfmt=r'\mathrm{{FF}}_\mathrm{{ {component} }}', value=kwargs.get('fillout_factor', 0.5), default_unit=u.dimensionless_unscaled, limits=(0.0,1.0), description='Fillout-factor of the envelope')]
     params += [FloatParameter(qualifier='pot', latexfmt=r'\Omega_\mathrm{{ {component} }}', value=kwargs.get('pot', 3.5), default_unit=u.dimensionless_unscaled, limits=(0.0,None), description='Potential of the envelope (from the primary component\'s reference)')]
     params += [FloatParameter(qualifier='pot_min', latexfmt=r'\Omega_\mathrm{{ min,  {component} }}', value=kwargs.get('pot_min', 3.5), default_unit=u.dimensionless_unscaled, limits=(0.0,None), description='Critical (minimum) value of the potential to remain a contact')]

@@ -14,7 +14,7 @@ from phoebe.parameters import dataset as _dataset
 from phoebe.parameters import StringParameter, DictParameter, ArrayParameter, ParameterSet
 from phoebe.parameters.parameters import _extract_index_from_string
 from phoebe import dynamics
-from phoebe.backend import universe, horizon_analytic
+from phoebe.backend import universe, horizon_analytic, contacts_energy_transfer
 from phoebe.atmospheres import passbands
 from phoebe.distortions  import roche
 from phoebe.frontend import io
@@ -976,6 +976,13 @@ class PhoebeBackend(BaseBackendByTime):
         # kinds = [b.get_dataset(dataset=ds).kind for ds in datasets]
 
         system.update_positions(t0, x0, y0, z0, vx0, vy0, vz0, etheta0, elongan0, eincl0, ignore_effects=True)
+
+        #ENERGY TRANSFER FOR CONTACTS
+        if 'envelope' in b.filter(context='component'):  # only makes sense when an envelope is present
+            mixing_enabled = b.get_value(qualifier='mixing_enabled', context='component', **_skip_filter_checks)
+            if mixing_enabled:
+                self._do_mixing(b, system)
+
         system.populate_observables(t0, ['lc' for dataset in datasets], datasets, ignore_effects=True)
 
 
@@ -985,6 +992,33 @@ class PhoebeBackend(BaseBackendByTime):
 
         return system
 
+    @staticmethod
+    def _do_mixing(b, system):
+        mixing_method = b.get_value(qualifier='mixing_method', context='component', **_skip_filter_checks)
+        mixing_power = b.get_value(qualifier='mixing_power', context='component', **_skip_filter_checks)
+        secondary_teff = b.get_value(qualifier='teff', context='component', component='secondary',
+                                     **_skip_filter_checks)
+        primary_teff = b.get_value(qualifier='teff', context='component', component='primary', **_skip_filter_checks)
+        teff_ratio = secondary_teff / primary_teff
+
+        primary_mesh, secondary_mesh = system.bodies[0].meshes.values()
+        coords1 = primary_mesh.roche_coords_for_computations
+        teffs1 = primary_mesh.teffs
+        coords2 = secondary_mesh.roche_coords_for_computations
+        teffs2 = secondary_mesh.teffs
+
+        new_teffs1, new_teffs2 = contacts_energy_transfer.mix_teffs(np.array(coords1), np.array(teffs1),
+                                                                    np.array(coords2), np.array(teffs2),
+                                                                    mixing_method=mixing_method,
+                                                                    mixing_power=mixing_power, teff_ratio=teff_ratio)
+        # w=smoothing_factor, cutoff=0.)
+        primary_mesh.update_columns(teffs=new_teffs1)
+        secondary_mesh.update_columns(teffs=new_teffs2)
+
+        # print("new_teffs1.median", np.median(new_teffs1))
+        # print("new_teffs2.median", np.median(new_teffs2))
+        system.bodies[0]._halves[0].smoothed_teffs = new_teffs1
+        system.bodies[0]._halves[1].smoothed_teffs = new_teffs2
 
     def _worker_setup(self, b, compute, times, infolists, **kwargs):
         logger.debug("rank:{}/{} PhoebeBackend._worker_setup: extracting parameters".format(mpi.myrank, mpi.nprocs))
@@ -1071,6 +1105,12 @@ class PhoebeBackend(BaseBackendByTime):
 
             logger.debug("rank:{}/{} PhoebeBackend._run_single_time: calling system.update_positions at time={}".format(mpi.myrank, mpi.nprocs, time))
             system.update_positions(time, xi, yi, zi, vxi, vyi, vzi, ethetai, elongani, eincli, ds=di, Fs=Fi)
+
+            #ENERGY TRANSFER FOR CONTACTS
+            if 'envelope' in b.filter(context='component'):  # only makes sense when an envelope is present
+                mixing_enabled = b.get_value(qualifier='mixing_enabled', context='component', **_skip_filter_checks)
+                if mixing_enabled and i==0:
+                    self._do_mixing(b, system)
 
             # Now we need to determine which triangles are visible and handle subdivision
             # NOTE: this should come after populate_observables so that each subdivided triangle

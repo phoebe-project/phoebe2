@@ -1581,22 +1581,27 @@ class Star(Body):
         if mesh is None:
             mesh = self.mesh
 
-        # Now we can compute the local temperatures.
-        # see PHOEBE Legacy scientific reference eq 5.23
-        teffs = self.instantaneous_tpole*mesh.gravs.for_computations**0.25
+        if hasattr(self, 'smoothed_teffs'):
+            teffs = self.smoothed_teffs
+            # print("teffs.median", np.median(teffs))
+        else:
 
-        if not ignore_effects:
-            for feature in self.features:
-                if feature.proto_coords:
+            # Now we can compute the local temperatures.
+            # see PHOEBE Legacy scientific reference eq 5.23
+            teffs = self.instantaneous_tpole*mesh.gravs.for_computations**0.25
 
-                    if self.__class__.__name__ == 'Star_roche_envelope_half' and self.ind_self != self.ind_self_vel:
-                        # then this is the secondary half of a contact envelope
-                        roche_coords_for_computations = np.array([1.0, 0.0, 0.0]) - mesh.roche_coords_for_computations
+            if not ignore_effects:
+                for feature in self.features:
+                    if feature.proto_coords:
+
+                        if self.__class__.__name__ == 'Star_roche_envelope_half' and self.ind_self != self.ind_self_vel:
+                            # then this is the secondary half of a contact envelope
+                            roche_coords_for_computations = np.array([1.0, 0.0, 0.0]) - mesh.roche_coords_for_computations
+                        else:
+                            roche_coords_for_computations = mesh.roche_coords_for_computations
+                        teffs = feature.process_teffs(teffs, roche_coords_for_computations, s=self.polar_direction_xyz, t=self.time)
                     else:
-                        roche_coords_for_computations = mesh.roche_coords_for_computations
-                    teffs = feature.process_teffs(teffs, roche_coords_for_computations, s=self.polar_direction_xyz, t=self.time)
-                else:
-                    teffs = feature.process_teffs(teffs, mesh.coords_for_computations, s=self.polar_direction_xyz, t=self.time)
+                        teffs = feature.process_teffs(teffs, mesh.coords_for_computations, s=self.polar_direction_xyz, t=self.time)
 
         mesh.update_columns(teffs=teffs)
 
