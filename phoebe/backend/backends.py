@@ -996,6 +996,7 @@ class PhoebeBackend(BaseBackendByTime):
     def _do_mixing(b, system):
         mixing_method = b.get_value(qualifier='mixing_method', context='component', **_skip_filter_checks)
         mixing_params = b.get_value(qualifier='mixing_params', context='component', **_skip_filter_checks)
+        mixing_width = b.get_value(qualifier='mixing_width', context='component', **_skip_filter_checks)
         secondary_teff = b.get_value(qualifier='teff', context='component', component='secondary',
                                      **_skip_filter_checks)
         primary_teff = b.get_value(qualifier='teff', context='component', component='primary', **_skip_filter_checks)
@@ -1011,7 +1012,8 @@ class PhoebeBackend(BaseBackendByTime):
                                                                     np.array(coords2), np.array(teffs2),
                                                                     mixing_method=mixing_method,
                                                                     mixing_params=mixing_params,
-                                                                    teff_ratio=teff_ratio)
+                                                                    teff_ratio=teff_ratio,
+                                                                    mixing_width=mixing_width)
         # w=smoothing_factor, cutoff=0.)
         primary_mesh.update_columns(teffs=new_teffs1)
         secondary_mesh.update_columns(teffs=new_teffs2)

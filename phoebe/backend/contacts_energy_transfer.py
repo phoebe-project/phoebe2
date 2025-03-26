@@ -282,7 +282,7 @@ def gaussian_smoothing(xyz1, teffs1, xyz2, teffs2, w=0.5, cutoff=0., offset=0.):
     return teffs1, teffs2
 
 
-def lateral_transfer(t2s, teffs2, teff_ratio, mixing_params):
+def lateral_transfer(t2s, teffs2, teff_ratio, mixing_params, mixing_width):
     """
     Scales the temperatures of the secondary to that of the primary only in a horizontal band the size of the contact's
     neck. This implies mixing occurs due to mass transfer across the neck.
@@ -300,8 +300,8 @@ def lateral_transfer(t2s, teffs2, teff_ratio, mixing_params):
     latitude_dependence = bandfactor / bandfactor.max()
     z2s_neck = z2s[x2s < 1]
     rs_neck = (y2s_neck ** 2 + z2s_neck ** 2) ** 0.5
-    lat = np.min(rs_neck)
-    filt = (z2s > -lat) & (z2s < lat)  # select band extending the (projected) height of the neck
+    lat = mixing_width * z2s_neck.max()
+    filt = (z2s > -lat) & (z2s < lat)  # select band extending the (projected) height
     # latitude dependence
     c = (lat - np.abs(z2s[filt])) ** mixing_params[0]
     latitude_dependence = c / c.max()  # [0, 1]
@@ -346,7 +346,8 @@ def perfect_transfer(teff2s, teff_ratio):
     return teff2s
 
 
-def mix_teffs(xyz1, teffs1, xyz2, teffs2, mixing_method='lateral', teff_ratio=1., mixing_params=[.5, .5]):
+def mix_teffs(xyz1, teffs1, xyz2, teffs2, mixing_method='lateral',
+              teff_ratio=1., mixing_params=[.5, .5], mixing_width=0.5):
     """
     Applies a temperature mixing component 2, according to some mixing method and other parameters.
     If `mixing_method == 'smoothing'`, simple gaussian smoothing is applied rather than an energy transfer model
@@ -364,14 +365,15 @@ def mix_teffs(xyz1, teffs1, xyz2, teffs2, mixing_method='lateral', teff_ratio=1.
         to be applied, since there's no expected energy transfer)
     mixing_params: parameters of the mixing efficiency of the lateral and isotropic mixing model. In the isotropic
         model, only mixing_params[0] is used, while in lateral, mixing_params[0] gives the latitudinal mixing
-        strengh, and mixing_params[1] the longitudinal one.
+        strengh, mixing_params[1] the longitudinal one, and mixing_params[2] the height of the ET band in units of
+        fraction z-height of the secondary
 
     Returns
     -------
     modified Teffs of the primary, modified Teffs of the secondary
     """
     if mixing_method == 'lateral':
-        teffs2 = lateral_transfer(xyz2, teffs2, teff_ratio, mixing_params)
+        teffs2 = lateral_transfer(xyz2, teffs2, teff_ratio, mixing_params, mixing_width)
     elif mixing_method == 'isotropic':
         teffs2 = isotropic_transfer(xyz2, teffs2, teff_ratio, mixing_params)
     elif mixing_method == 'internal':
