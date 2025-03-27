@@ -2435,7 +2435,7 @@ class Star_rotstar(Star):
     def needs_recompute_instantaneous(self):
         # recompute instantaneous for asynchronous spots, even if meshing
         # doesn't need to be recomputed
-        return self.needs_remesh or (len(self.features) and self.F != 1.0) or self.is_single
+        return self.needs_remesh or (len(self.features) and self.F != 1.0) or (len(self.features) and self.is_single)
 
     @property
     def needs_remesh(self):
@@ -3175,17 +3175,17 @@ class Spot(Feature):
         the Roche coordinates.
         - the z' direction is explicitly given by the spin vector
         ez' = s
-        - the x' direction is defined as being towards the companion, which means 
-        that the y' direction should always be orthogonal to x. Thus, to get this,
-        we'll first calculate the y' direction by taking the cross product of the 
-        z' and x directions 
+        - the x' direction should point in the longitudinal direction that the 
+        companion is in the rotating frame, which means that the y' direction should 
+        always be orthogonal to x. Thus, to get this, we'll first calculate the y' 
+        direction by taking the cross product of the z' and x directions 
         ey' = ez' x ex
         if the pole aligns with the x-axis, then the y' direction is the z direction
         - the x' direction is then defined by the cross product of the other two
         ex' = ey' x ez'
         '''
         ex = np.array([1., 0., 0.])
-        ezp = s
+        ezp = s / np.linalg.norm(s)
         if (s == ex).all():
             eyp = np.array([0., 0., 1.])
         else:
@@ -3198,7 +3198,7 @@ class Spot(Feature):
                   np.cos(self._colat)*ezp
         
         # renormalize and return pointing vector
-        return pv / np.sqrt(np.sum(pv**2))
+        return pv / np.linalg.norm(pv)
 
 
     def process_teffs(self, teffs, coords, s=np.array([0., 0., 1.]), t=None):
