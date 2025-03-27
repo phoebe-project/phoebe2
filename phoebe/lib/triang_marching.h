@@ -2291,7 +2291,7 @@ struct Tmarching: public Tbody {
     return err;
   }
 
-  ALIAS_TEMPLATE_FUNCTION(triangulize_full_clever, triangulize_full_clever_new)
+  // ALIAS_TEMPLATE_FUNCTION(triangulize_full_clever, triangulize_full_clever_new)
 
   /*
     Calculate the central_points of triangles i.e. barycenters
