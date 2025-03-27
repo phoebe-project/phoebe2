@@ -1803,7 +1803,7 @@ struct Tmarching: public Tbody {
     T init_r[3],
     T init_g[3],
     const T & delta,
-    Tfront_polygon & start_P,
+    const unsigned & max_triangles,
     std::vector <T3Dpoint<T>> & V,
     std::vector <T3Dpoint<T>> & NatV,
     std::vector <T3Dpoint<int>> & Tr,
@@ -1819,19 +1819,24 @@ struct Tmarching: public Tbody {
     // error
     int error = 0;
 
-    // list of fronts
-    std::vector<Tfront_polygon> lP{start_P};
+    V.clear();
+    Tr.clear();
+
+    const int max_iter = 100;
+
+    // list of front polygons: front is threated as circular list
+    std::vector<Tfront_polygon> lP(1);
 
     // list of bad pairs
     //   pair.first = pair.second means there is no bad pair
     std::vector<Tbad_pair> lB;
-    lB.emplace_back(0,0);   // no bad pair detected
 
     // calculate distance between iterators
     auto d2 = [&] (auto it0, auto it1) {return dist2(it0->r, it1->r);};
 
     //
-    //  Triangulization of genus 0 surfaces
+    // Create initial frontal polygon lP[0] and initial bad point lB[0]
+    // Step 0:
     //
 
     {
@@ -1959,6 +1964,7 @@ struct Tmarching: public Tbody {
         typename Tfront_polygon::iterator it_min;
 
         {
+
           T omega, t, tt, c, s, st, ct;
 
           // set it_prev, it, it_next: as circular list
