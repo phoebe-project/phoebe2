@@ -2934,21 +2934,6 @@ class Envelope(Body):
     def mesh(self):
         return self.meshes
 
-    @property
-    def needs_recompute_instantaneous(self):
-        """
-        contact envelopes never need quantities recomputed (we assume steady state envelopes). Only line of sight to
-        the binary matters
-        """
-        return False
-
-    @property
-    def needs_remesh(self):
-        """
-        contact envelopes never need remeshing
-        """
-        return False
-
     def update_position(self, *args, **kwargs):
 
         def split_mesh(mesh, q, pot):
