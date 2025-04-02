@@ -674,6 +674,7 @@ class Body(object):
 
         # self.mesh will be filled later once a mesh is created and placed in orbit
         self._mesh = None
+        self._force_recompute_instantaneous_next_update_position = False
 
         # TODO: double check to see if these are still used or can be removed
         self.t0 = t0   # t0@system
@@ -2244,6 +2245,13 @@ class Star_roche_envelope_half(Star):
         return False
 
     @property
+    def needs_recompute_instantaneous(self):
+        """
+        Halfs of contact binary envelopes never need their local quantities recomputed (we assume circular orbit)
+        """
+        return False
+
+    @property
     def needs_remesh(self):
         """
         whether the star needs to be re-meshed (for any reason)
@@ -2287,6 +2295,26 @@ class Star_roche_envelope_half(Star):
             self.inst_vals['mesh_args'] = q, F, d, Phi
 
         return self.inst_vals['mesh_args']
+
+    def create_mesh(self, ignore_effects=False):
+        """
+        create the mesh of the _complete_ contact binary envelope. This mesh must be split into two halves later
+        """
+        logger.debug("{}.create_mesh ignore_effects={}".format(self.component, ignore_effects))
+
+        new_mesh_dict, scale = self._build_mesh(mesh_method=self.mesh_method)
+        new_mesh_dict = self._offset_mesh(new_mesh_dict)
+
+        # We only need the gradients where we'll compute local
+        # quantities which, for a marching mesh, is at the vertices.
+        new_mesh_dict['normgrads'] = new_mesh_dict.pop('vnormgrads', np.array([]))
+
+        # And lastly, let's fill the velocities column - with zeros at each of the vertices
+        new_mesh_dict['velocities'] = np.zeros(new_mesh_dict['vertices'].shape if self.mesh_method != 'wd' else new_mesh_dict['centers'].shape)
+        new_mesh_dict['tareas'] = np.array([])
+
+        protomesh = mesh.ProtoMesh(**new_mesh_dict)
+        self.save_as_standard_mesh(protomesh)
 
     def _build_mesh(self, mesh_method, **kwargs):
         """
@@ -2907,6 +2935,7 @@ class Envelope(Body):
         return False
 
     def update_position(self, *args, **kwargs):
+
         def split_mesh(mesh, q, pot):
             logger.debug("splitting envelope mesh according to neck min")
 
@@ -2992,14 +3021,14 @@ class Envelope(Body):
                 # info0 = libphoebe.roche_contact_partial_area_volume(nekmin, q, 1.0, pot, compno+1)
                 # mesh._volume = info0['lvolume']
                 # mesh._area = info0['lvolume']
-
+            logger.debug('splitting complete')
             return mesh_halves
 
         if not (self._halves[0].has_standard_mesh() and self._halves[1].has_standard_mesh()):
-            # update the position (and build the mesh) of the primary component
+            # create the mesh of the primary component
             # this will internally call save_as_standard mesh with the mesh
             # of the ENTIRE contact envelope.
-            self._halves[0].update_position(*args, **kwargs)
+            self._halves[0].create_mesh(kwargs.get('ignore_effects'))
 
             # now let's access this saved WHOLE mesh
             mesh_contact = self._halves[0].get_standard_mesh(scaled=False)
@@ -3010,6 +3039,9 @@ class Envelope(Body):
             # now override the standard mesh with just the corresponding halves
             self._halves[0].save_as_standard_mesh(mesh_primary)
             self._halves[1].save_as_standard_mesh(mesh_secondary)
+            # force local quantities to be "recomputed" at next update_position call because we'll split the mesh first.
+            self._halves[0]._force_recompute_instantaneous_next_update_position = True
+            self._halves[1]._force_recompute_instantaneous_next_update_position = True
 
 
         # since the standard mesh already exists, this should simply handle
