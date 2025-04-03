@@ -80,6 +80,8 @@ CHANGELOG
 
 ### 2.4.18
 
+* Fix handling of spots in single star rotstar case where spots were not co-rotating properly [#1008]
+* Fix misalined spots bug that caused size of spot to change across the rotation period
 
 
 ### 2.4.17
