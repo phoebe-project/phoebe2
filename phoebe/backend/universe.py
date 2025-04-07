@@ -2393,6 +2393,7 @@ class Star_rotstar(Star):
         """
         """
         # extra things (not used by Star) will be stored in kwargs
+        self.F = kwargs.pop('F', 1.0)
 
         super(Star_rotstar, self).__init__(component, comp_no, ind_self, ind_sibling,
                                            masses, ecc, incl,
@@ -2417,10 +2418,12 @@ class Star_rotstar(Star):
     def from_bundle(cls, b, component, compute=None,
                     datasets=[], **kwargs):
 
+        self_ps = b.filter(component=component, context='component', **_skip_filter_checks)
+        F = self_ps.get_value(qualifier='syncpar', **_skip_filter_checks)
 
         return super(Star_rotstar, cls).from_bundle(b, component, compute,
                                                     datasets,
-                                                    **kwargs)
+                                                    F=F, **kwargs)
 
 
 
@@ -2430,9 +2433,9 @@ class Star_rotstar(Star):
 
     @property
     def needs_recompute_instantaneous(self):
-        # recompute instantaneous for asynchronous spots, even if meshing
-        # doesn't need to be recomputed
-        return self.needs_remesh or (not self.is_single and len(self.features) and self.F != 1)
+        # recompute instantaneous for asynchronous spots, and single star even if meshing
+        # doesn't need to be recomputed.  In the single star case, this is needed for rotstar.
+        return self.needs_remesh or (len(self.features) and (self.is_single or self.F != 1.0))
 
     @property
     def needs_remesh(self):
@@ -3167,19 +3170,36 @@ class Spot(Feature):
         t = time - self._t0
         longitude = self._longitude + self._dlongdt * t
 
-        # define the basis vectors in the spin (primed) coordinates in terms of
-        # the Roche coordinates.
-        # ez' = s
-        # ex' =  (ex - s(s.ex)) /|i - s(s.ex)|
-        # ey' = s x ex'
+        '''
+        define the basis vectors in the spin (primed) coordinates in terms of
+        the Roche coordinates.
+        - the z' direction is explicitly given by the spin vector
+        ez' = s
+        - the x' direction should point in the longitudinal direction that the 
+        companion is in the rotating frame, which means that the y' direction should 
+        always be orthogonal to x. Thus, to get this, we'll first calculate the y' 
+        direction by taking the cross product of the z' and x directions 
+        ey' = ez' x ex
+        if the pole aligns with the x-axis, then the y' direction is the z direction
+        - the x' direction is then defined by the cross product of the other two
+        ex' = ey' x ez'
+        '''
         ex = np.array([1., 0., 0.])
-        ezp = s
-        exp = (ex - s*np.dot(s,ex))
-        eyp = np.cross(s, exp)
+        ezp = s / np.linalg.norm(s)
+        if (s == ex).all():
+            eyp = np.array([0., 0., 1.])
+        else:
+            eyp = np.cross(ezp, ex)
+        exp = np.cross(eyp, ezp)
 
-        return np.sin(self._colat)*np.cos(longitude)*exp +\
+        # now we can express the pointing vector in terms of the primed basis
+        pv = np.sin(self._colat)*np.cos(longitude)*exp +\
                   np.sin(self._colat)*np.sin(longitude)*eyp +\
                   np.cos(self._colat)*ezp
+        
+        # renormalize and return pointing vector
+        return pv / np.linalg.norm(pv)
+
 
     def process_teffs(self, teffs, coords, s=np.array([0., 0., 1.]), t=None):
         """
