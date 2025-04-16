@@ -74,6 +74,9 @@ class ModelAtmosphere:
     # default axes:
     basic_axis_names = ['teffs', 'loggs', 'abuns']
 
+    # default LD coeff behaviour
+    ldweighting = 'uniform'
+
     def __init__(self, basic_axes=None, from_path=False):
         if from_path:
             return
@@ -346,6 +349,7 @@ class TremblayModelAtmosphere(ModelAtmosphere):
     prefix = 'tr'
 
     basic_axis_names = ['teffs', 'loggs']
+    ldweighting = 'interval'
 
     mus = np.array([
         0., 0.0034357 , 0.01801404, 0.04388279, 0.08044151, 0.12683405, 
@@ -376,6 +380,7 @@ class TMAPDOModelAtmosphere(ModelAtmosphere):
     prefix = 'to'
 
     basic_axis_names = ['teffs', 'loggs']
+    ldweighting = 'interval'
 
     mus = np.array([
         0., 0.00136799, 0.00719419, 0.01761889, 0.03254691, 0.05183939, 0.07531619,
@@ -408,6 +413,7 @@ class TMAPDAModelAtmosphere(ModelAtmosphere):
     prefix = 'ta'
 
     basic_axis_names = ['teffs', 'loggs']
+    ldweighting = 'interval'
 
     mus = np.array([
         0., 0.00136799, 0.00719419, 0.01761889, 0.03254691, 0.05183939, 0.07531619,
@@ -435,6 +441,7 @@ class TMAPsdOModelAtmosphere(ModelAtmosphere):
     name = 'tmap_sdO'
     prefix = 'ts'
     basic_axis_names = ['teffs', 'loggs', 'abuns']
+    ldweighting = 'interval'
 
     mus = np.array([0., 0.00136799, 0.00719419, 0.01761889, 0.03254691, 
                     0.05183939, 0.07531619, 0.10275816, 0.13390887, 0.16847785,
@@ -461,6 +468,7 @@ class TMAPDAOModelAtmosphere(ModelAtmosphere):
     name = 'tmap_DAO'
     prefix = 'tm'
     basic_axis_names = ['teffs', 'loggs', 'abuns']
+    ldweighting = 'interval'
 
     mus = np.array([0., 0.00136799, 0.00719419, 0.01761889, 0.03254691, 
                     0.05183939, 0.07531619, 0.10275816, 0.13390887, 0.16847785,

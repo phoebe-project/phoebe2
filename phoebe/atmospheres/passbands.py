@@ -932,9 +932,10 @@ class Passband:
             def ld_resids(x, *args, **kwargs):
                 xdata = kwargs.get('xdata')
                 ydata = kwargs.get('ydata')
+                sigmas = kwargs.get('sigmas') 
                 ld_func = kwargs.get('ld_func', 'linear')
 
-                return self.ld_func(mu=xdata, ld_coeffs=x, ld_func=ld_func) - ydata
+                return (self.ld_func(mu=xdata, ld_coeffs=x, ld_func=ld_func) - ydata)/sigmas
 
             # loop over all defined coordinates to compute limb darkening coefficients and integrals:
             for grid, ld_grid, ldint_grid in zip([atm_energy_grid, atm_photon_grid], [ld_energy_grid, ld_photon_grid], [ldint_energy_grid, ldint_photon_grid]):
@@ -942,11 +943,16 @@ class Passband:
                     xdata = atm.mus
                     ydata = 10**grid[tuple(ind)].flatten()
                     ydata /= ydata[-1]
-                    # TODO: consider support for non-uniform weighing
+                
+                    if atm.ldweighting == 'uniform':
+                        sigmas = np.ones(len(xdata))
+                    elif atm.ldweighting == 'interval':
+                        delta = np.concatenate( (np.array((xdata[1]-xdata[0],)), xdata[1:]-xdata[:-1]))
+                        sigmas = 1./np.sqrt(delta)
 
                     ld_row = []
                     for ld_func, ld_dim in zip(['linear', 'logarithmic', 'square_root', 'quadratic', 'power'], [1, 2, 2, 2, 4]):
-                        result = least_squares(fun=ld_resids, x0=np.full(ld_dim, 0.5), method='lm', kwargs={'xdata': xdata, 'ydata': ydata, 'ld_func': ld_func})
+                        result = least_squares(fun=ld_resids, x0=np.full(ld_dim, 0.5), method='lm', kwargs={'xdata': xdata, 'ydata': ydata, 'sigmas': sigmas, 'ld_func': ld_func})
                         ld_row.append(result.x)
 
                     ld_grid[tuple(ind)] = np.hstack(ld_row)
