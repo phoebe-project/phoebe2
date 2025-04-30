@@ -1907,7 +1907,7 @@ class Star(Body):
 
             # boosting is aspect dependent so we don't need to correct the
             # normal intensities
-            abs_intensities *= np.array([np.ones(len(abs_intensities))*boost_factors]).T
+            abs_intensities *= np.atleast_2d(boost_factors).T
 
 
             # interstellar extinction (reddening):
