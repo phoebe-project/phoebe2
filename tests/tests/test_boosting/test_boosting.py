@@ -9,7 +9,7 @@ def test_boosting(verbose=False):
     b.run_compute()
     noboost=b['fluxes@lc@model'].value
     b.set_value_all('boosting_method','manual')
-    b['boosting_index@primary']=2.
+    b.set_value(qualifier='boosting_index', component='primary', value=2)
     b.run_compute()
     boost=b['fluxes@lc@model'].value
     
