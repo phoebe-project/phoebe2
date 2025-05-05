@@ -10,7 +10,7 @@ def test_boosting(verbose=False):
     noboost=b['fluxes@lc@model'].value
     b.set_value_all('boosting_method','manual')
     b.set_value(qualifier='boosting_index', component='primary', value=2)
-    b.run_compute()
+    b.run_compute(irrad_method='none')
     boost = b.get_value(qualifier='fluxes', kind='lc', context='model')
     
     assert boost > noboost
