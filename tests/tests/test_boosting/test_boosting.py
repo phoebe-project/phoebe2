@@ -11,7 +11,7 @@ def test_boosting(verbose=False):
     b.set_value_all('boosting_method','manual')
     b.set_value(qualifier='boosting_index', component='primary', value=2)
     b.run_compute()
-    boost=b['fluxes@lc@model'].value
+    boost = b.get_value(qualifier='fluxes', kind='lc', context='model')
     
     assert boost > noboost
 
