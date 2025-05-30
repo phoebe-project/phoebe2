@@ -626,7 +626,7 @@ class ProtoMesh(object):
             raise ValueError("bool_per_triangle should have length {}".format(len(self.triangles)))
 
         if len(bool_per_vertex) != len(self.vertices):
-            raise ValueEror("bool_per_vertex should have length {}".format(len(self.vertices)))
+            raise ValueError("bool_per_vertex should have length {}".format(len(self.vertices)))
 
         copy = self.copy()
         for k in self._keys:

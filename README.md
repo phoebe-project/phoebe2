@@ -78,6 +78,14 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.4.18
+
+* Fix handling of spots in single star rotstar case where spots were not co-rotating properly [#1017]
+* Fix misaligned spots bug that caused size of spot to change across the rotation period [#1017]
+* Fix animation bug which prevented passing times as a numpy array [#1018]
+* Fix continue_from support for scipy optimizers [#1041]
+* Fix support for astropy 7.x units [#1043]
+
 ### 2.4.17
 
 * Fix support for numpy 2.0. [#982]
