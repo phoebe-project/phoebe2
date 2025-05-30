@@ -4696,7 +4696,7 @@ class Bundle(ParameterSet):
 
             if 'fit_parameters' in solver_ps.qualifiers:
                 fit_parameters = solver_ps.get_value(qualifier='fit_parameters', fit_parameters=kwargs.get('fit_parameters', None), expand=True, **_skip_filter_checks)
-                if not len(fit_parameters):
+                if not len(fit_parameters) and solver_ps.get_value(qualifier='continue_from', continue_from=kwargs.get('continue_from', None), **_skip_filter_checks).lower() == 'none':
                     report.add_item(self,
                                     "no valid parameters in fit_parameters",
                                     [solver_ps.get_parameter(qualifier='fit_parameters', **_skip_filter_checks)
