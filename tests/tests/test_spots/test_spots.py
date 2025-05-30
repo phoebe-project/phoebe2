@@ -55,6 +55,132 @@ def test_binary(plot=False, gen_comp=False):
     assert np.allclose(phoebe2_val, phoebe1_val, rtol=2e-3, atol=5e-4)
 
 
+def test_single_distortions(distortion_method='sphere', plot=False, gen_comp=False):
+    '''
+    Test single star with a spot using different distortion methods (sphere and rotstar)
+    '''
+    b = phoebe.default_star()
+    b.add_spot(radius=30, colat=80, long=0, relteff=0.9)
+    times = np.linspace(0, 1, 101)
+    b.add_dataset('lc', times=times)
+
+    if gen_comp:
+        b.run_compute(distortion_method=distortion_method, irrad_method='none', model='comp_model')
+        b.filter(model='comp_model').save('test_spots_single_{}.comp.model'.format(distortion_method))
+        return
+    
+    else:
+        b.run_compute(distortion_method=distortion_method, irrad_method='none', model='test_model')
+
+        b.import_model(os.path.join(os.path.dirname(__file__), 'test_spots_single_{}.comp.model'.format(distortion_method)), model='comp_model', overwrite=True)
+        if plot:
+            b.plot(show=True)
+            
+        comp_val = b.get_value('fluxes@comp_model')
+        test_val = b.get_value('fluxes@test_model')
+
+        assert np.allclose(comp_val, test_val, rtol=2e-2, atol=5e-3)
+
+
+def test_binary_distortions(distortion_method='sphere', plot=False, gen_comp=False):
+    '''
+    Test binary star with a spot using different distortion methods (sphere, rotstar and roche)
+    '''
+
+    b = phoebe.default_binary()
+
+    b.flip_constraint('mass@primary', 'sma@binary')
+    b['mass@primary'].set_value(value=1.0)
+    b['q'].set_value(value = 0.0001)
+    b['distortion_method@primary'].set_value(value=distortion_method)
+    b['distortion_method@secondary'].set_value(value='none')
+
+    b.add_spot(component='primary', radius=30, colat=80, long=0, relteff=0.9)
+
+    b.set_value('period@binary', 1000)
+
+    b.flip_constraint('period@primary', 'syncpar@primary')
+    b.set_value('period@primary', 10)
+
+    times = np.linspace(0, 10, 101)
+    b.add_dataset('lc', times=times)
+
+    if gen_comp:
+        b.run_compute(irrad_method='none', model='comp_model')
+        b.filter(model='comp_model').save('test_spots_binary_{}.comp.model'.format(distortion_method))
+        return
+    
+    else:
+        b.run_compute(irrad_method='none', model='test_model')
+
+        b.import_model(os.path.join(os.path.dirname(__file__), 'test_spots_binary_{}.comp.model'.format(distortion_method)), model='comp_model', overwrite=True)
+        if plot:
+            b.plot(show=True)
+            
+        comp_val = b.get_value('fluxes@comp_model')
+        test_val = b.get_value('fluxes@test_model')
+
+        assert np.allclose(comp_val, test_val, rtol=2e-2, atol=5e-3)
+
+
+def test_binary_misalignment(case='case1', plot=False, gen_comp=False):
+    '''
+    Test binary star with a spot using different misalignment cases
+    case1 - pinclination = 50
+    '''
+    b = phoebe.default_binary()
+
+    b.flip_constraint('mass@primary', 'sma@binary')
+    b['mass@primary'].set_value(value=1.0)
+    b['q'].set_value(value = 0.0001)
+    b['distortion_method@primary'].set_value(value='roche')
+    b['distortion_method@secondary'].set_value(value='none')
+
+    b.add_spot(component='primary', radius=30, colat=80, long=0, relteff=0.9)
+
+    b.set_value('period@binary', 1000)
+
+    b.flip_constraint('period@primary', 'syncpar@primary')
+    b.set_value('period@primary', 10)
+
+    times = np.linspace(0, 10, 101)
+    b.add_dataset('lc', times=times)
+
+    if case == 'case1':
+        b.set_value(qualifier='pitch', component='primary', value=-40)
+    elif case == 'case2':
+        b.set_value(qualifier='pitch', component='primary', value=-120)
+
+    if gen_comp:
+        b.run_compute(irrad_method='none', model='comp_model')
+        b.filter(model='comp_model').save('test_spots_misaligned_{}.comp.model'.format(case))
+        return
+    
+    else:
+        b.run_compute(irrad_method='none', model='test_model')
+
+        b.import_model(os.path.join(os.path.dirname(__file__), 'test_spots_misaligned_{}.comp.model'.format(case)), model='comp_model', overwrite=True)
+        if plot:
+            b.plot(show=True)
+            
+        comp_val = b.get_value('fluxes@comp_model')
+        test_val = b.get_value('fluxes@test_model')
+
+        assert np.allclose(comp_val, test_val, rtol=2e-2, atol=5e-3)
+
+
+
+
 if __name__ == '__main__':
     logger = phoebe.logger(clevel='DEBUG')
     test_binary(plot=True, gen_comp=True)
+
+    test_single_distortions(distortion_method='sphere', plot=True, gen_comp=True)
+    test_single_distortions(distortion_method='rotstar', plot=True, gen_comp=True)
+
+    test_binary_distortions(distortion_method='sphere', plot=True, gen_comp=True)
+    test_binary_distortions(distortion_method='rotstar', plot=True, gen_comp=True)
+    test_binary_distortions(distortion_method='roche', plot=True, gen_comp=True)
+
+    test_binary_misalignment(case='case1', plot=True, gen_comp=True)
+    test_binary_misalignment(case='case2', plot=True, gen_comp=True)
