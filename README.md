@@ -80,6 +80,8 @@ CHANGELOG
 
 ### 2.4.19
 
+* Remove unused passband files [#1045]
+
 ### 2.4.18
 
 * Fix handling of spots in single star rotstar case where spots were not co-rotating properly [#1017]
