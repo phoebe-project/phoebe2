@@ -78,6 +78,8 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.4.20
+
 ### 2.4.19
 
 * Remove unused passband files [#1045]
