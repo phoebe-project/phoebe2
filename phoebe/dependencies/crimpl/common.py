@@ -282,10 +282,32 @@ class Server(object):
         if self.conda_installed:
             return
 
+        python_version = "{}.{}".format(_sys.version_info.major, _sys.version_info.minor)
+
         if in_server_directory:
-            out = self._run_server_cmd("cd {directory}; wget -q https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh; sh Miniconda3-latest-Linux-x86_64.sh -u -b -p ./crimpl-conda; mkdir ./crimpl-bin; cp ./crimpl-conda/bin/conda ./crimpl-bin/conda".format(directory=self.directory, exportpath=False))
+            out = self._run_server_cmd(
+                "cd {directory}; "
+                "wget -q https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh; "
+                "sh Miniconda3-latest-Linux-x86_64.sh -u -b -p ./crimpl-conda; "
+                "mkdir ./crimpl-bin; "
+                "cp ./crimpl-conda/bin/conda ./crimpl-bin/conda; "
+                "./crimpl-conda/bin/conda config --set auto_activate_base false; "
+                "./crimpl-conda/bin/conda create -n crimpl python={python_version} --override-channels -c conda-forge -y; ".format(
+                    directory=self.directory, python_version=python_version
+                )
+            )
         else:
-            out = self._run_server_cmd("cd {directory}; wget -q https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh; sh Miniconda3-latest-Linux-x86_64.sh -u -b; mkdir ./crimpl-bin; cp ~/miniconda3/bin/conda ./crimpl-bin".format(directory=self.directory, exportpath=False))
+            out = self._run_server_cmd(
+                "cd {directory}; "
+                "wget -q https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh; "
+                "sh Miniconda3-latest-Linux-x86_64.sh -u -b; "
+                "mkdir ./crimpl-bin; "
+                "cp ~/miniconda3/bin/conda ./crimpl-bin; "
+                "./crimpl-conda/bin/conda config --set auto_activate_base false; "
+                "~/miniconda3/bin/conda create -n crimpl python={python_version} --override-channels -c conda-forge -y; ".format(
+                    directory=self.directory, python_version=python_version
+                )
+            )
         out = self._run_server_cmd("conda init")
 
         return self.conda_installed
