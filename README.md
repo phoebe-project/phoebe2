@@ -80,6 +80,8 @@ CHANGELOG
 
 ### 2.4.20
 
+* Fix parse_solver_times compatibility with numpy > 1.24. [#1056]
+
 ### 2.4.19
 
 * Remove unused passband files [#1045]
