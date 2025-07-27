@@ -215,7 +215,7 @@ class Server(object):
 
             if conda_env not in conda_envs_dict.keys():
                 # create the environment at the server level
-                cmd += "conda create -p {envpath_server} -y {default_deps} python={python_version}; ".format(envpath_server=envpath_server, default_deps=default_deps, python_version=python_version)
+                cmd += "conda create -p {envpath_server} -y {default_deps} python={python_version} --override-channels -c conda-forge -y; ".format(envpath_server=envpath_server, default_deps=default_deps, python_version=python_version)
             if len(cmd) or job_name not in conda_envs_dict.get(conda_env):
                 # clone the server environment at the job level
                 cmd += "conda create -p {envpath} -y --clone {envpath_server};".format(envpath=envpath, envpath_server=envpath_server)
@@ -230,7 +230,7 @@ class Server(object):
 
             # create the environment at the server level
             envpath = _os.path.join(self.directory, "crimpl-envs", conda_env)
-            cmd = "conda create -p {envpath} -y {default_deps} python={python_version}".format(envpath=envpath, default_deps=default_deps, python_version=python_version)
+            cmd = "conda create -p {envpath} -y {default_deps} python={python_version} --override-channels -c conda-forge -y".format(envpath=envpath, default_deps=default_deps, python_version=python_version)
 
         if run_cmd:
             return self._run_server_cmd(cmd), envpath
@@ -291,8 +291,7 @@ class Server(object):
                 "sh Miniconda3-latest-Linux-x86_64.sh -u -b -p ./crimpl-conda; "
                 "mkdir ./crimpl-bin; "
                 "cp ./crimpl-conda/bin/conda ./crimpl-bin/conda; "
-                "./crimpl-conda/bin/conda config --set auto_activate_base false; "
-                "./crimpl-conda/bin/conda create -n crimpl python={python_version} --override-channels -c conda-forge -y; ".format(
+                "./crimpl-conda/bin/conda config --set auto_activate_base false; ".format(
                     directory=self.directory, python_version=python_version
                 )
             )
@@ -303,8 +302,7 @@ class Server(object):
                 "sh Miniconda3-latest-Linux-x86_64.sh -u -b; "
                 "mkdir ./crimpl-bin; "
                 "cp ~/miniconda3/bin/conda ./crimpl-bin; "
-                "./crimpl-conda/bin/conda config --set auto_activate_base false; "
-                "~/miniconda3/bin/conda create -n crimpl python={python_version} --override-channels -c conda-forge -y; ".format(
+                "./crimpl-conda/bin/conda config --set auto_activate_base false; ".format(
                     directory=self.directory, python_version=python_version
                 )
             )
