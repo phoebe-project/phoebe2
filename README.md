@@ -82,6 +82,8 @@ CHANGELOG
 
 * Fix parse_solver_times compatibility with numpy > 1.24. [#1056]
 
+* Update crimpl to allow custom MPI paths on the server and to use conda-forge as the default conda channel to avoid the need to agree to terms of the default channel. [#1055]
+
 ### 2.4.19
 
 * Remove unused passband files [#1045]
