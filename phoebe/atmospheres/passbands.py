@@ -390,8 +390,11 @@ class Passband:
         content = []
 
         # Add history entries:
-        for entry in self.history:
-            header['history'] = entry
+        if export_to_pre25:
+            header['history'] = '-END-'.join(self.history) + '-END-'
+        else:
+            for entry in self.history:
+                header['history'] = entry
 
         # Add comments:
         for comment in self.comments:
@@ -514,6 +517,10 @@ class Passband:
         --------
         * the instantiated <phoebe.atmospheres.passbands.Passband> object.
         """
+
+        # NOTE: all passband files on the server are stored in the new
+        # format, so it's not necessary to test for legacy constructs,
+        # in particular for 'comments' and 'history' entries.
 
         logger.debug("loading passband from {}".format(archive))
 
