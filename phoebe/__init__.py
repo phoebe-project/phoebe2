@@ -12,7 +12,6 @@ Available environment variables:
 * PHOEBE_ENABLE_MPI=TRUE/FALSE (whether to use internal parallelization: defaults to True if within mpirun, otherwise False, can override in python with phoebe.mpi.on() and phoebe.mpi.off())
 * PHOEBE_MPI_NPROCS=INT (number of procs to spawn in mpi is enabled but not running within mpirun: defaults to 4, only applicable if not within mpirun and PHOEBE_ENABLE_MPI=TRUE or phoebe.mpi.on() called, can override in python by passing nprocs to phoebe.mpi.on() or by setting phoebe.mpi.nprocs)
 * PHOEBE_MULTIPROC_NPROCS=INT (number of proces to use within multiprocessing.  Multiprocessing is used for solver that support it and when sampling over a distribution in run_compute if MPI is not in use.  Set to 0 to disable multiprocessing and force serial.  Defaults to number of CPUs available.)
-* PHOEBE_PBDIR (directory to search for passbands, in addition to phoebe.list_passband_directories())
 * PHOEBE_DEVEL=TRUE/FALSE enable developer mode by default
 
 """

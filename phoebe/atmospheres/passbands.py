@@ -74,8 +74,6 @@ if not os.path.exists(_pbdir_local):
 _pbdir_env = os.getenv('PHOEBE_PBDIR', None)
 
 
-_pbdir_env = os.getenv('PHOEBE_PBDIR', None)
-
 def _dict_without_keys(d, skip_keys=[]):
     return {k:v for k,v in d.items() if k not in skip_keys}
 
