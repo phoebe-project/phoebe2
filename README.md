@@ -78,6 +78,8 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.4.21
+
 ### 2.4.20
 
 * Fix parse_solver_times compatibility with numpy > 1.24. [#1056]
