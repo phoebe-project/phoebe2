@@ -74,9 +74,9 @@ dependencies = [
 ]
 
 [project.urls]
-homepage = "http://phoebe-project.org"
+homepage = "https://phoebe-project.org"
 repository = "https://github.com/phoebe-project/phoebe2"
-documentation = "http://phoebe-project.org/docs"
+documentation = "https://phoebe-project.org/docs"
 
 [build-system]
 requires = ["setuptools", "numpy", "wheel"]

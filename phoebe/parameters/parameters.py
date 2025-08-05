@@ -2051,7 +2051,7 @@ class ParameterSet(object):
         the notebook execution if blocking.
 
         To more information or to install the desktop-client, see
-        http://phoebe-project.org/clients
+        https://phoebe-project.org/clients
 
         See also:
         * <phoebe.frontend.bundle.Bundle.ui_figures>

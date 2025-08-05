@@ -48,7 +48,7 @@ def phoebe(**kwargs):
     pre-requisites are required.
 
     When using this backend, please see the
-    http://phoebe-project.org/publications and cite
+    https://phoebe-project.org/publications and cite
     the appropriate references.
 
     See also:
@@ -196,7 +196,7 @@ def phoebe(**kwargs):
 def legacy(**kwargs):
     """
     Create a <phoebe.parameters.ParameterSet> for compute options for the
-    [PHOEBE 1.0 legacy](http://phoebe-project.org/1.0) backend.
+    [PHOEBE 1.0 legacy](https://phoebe-project.org/1.0) backend.
 
     See also:
     * <phoebe.frontend.bundle.Bundle.export_legacy>
@@ -206,7 +206,7 @@ def legacy(**kwargs):
     to compute radial velocities and light curves for binary systems
     (>2 stars not supported).  The code is available here:
 
-    http://phoebe-project.org/1.0
+    https://phoebe-project.org/1.0
 
     PHOEBE 1.0 and the 'phoebeBackend' python interface must be installed
     and available on the system in order to use this plugin.

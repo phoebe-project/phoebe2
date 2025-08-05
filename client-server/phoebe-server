@@ -1131,7 +1131,7 @@ def ui_file(static_file=None, bootstrap_file=None, fa_file=None):
 @app.route('/<path:path>', methods=['GET', 'POST'])
 def ui(path=''):
     if _ui_path is None:
-        return redirect('http://ui.phoebe-project.org/'+str(path)+'?'+str(request.query_string))
+        return redirect('https://ui.phoebe-project.org/'+str(path)+'?'+str(request.query_string))
 
     base, fname = os.path.dirname(_ui_path), os.path.basename(_ui_path)
     return send_from_directory(base, fname)
