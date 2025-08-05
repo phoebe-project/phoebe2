@@ -39,7 +39,7 @@ logger.addHandler(logging.NullHandler())
 
 # define the URL to query for online passbands.  See tables.phoebe-project.org
 # repo for the source-code of the server
-_url_tables_server = 'http://tables.phoebe-project.org'
+_url_tables_server = os.getenv('PHOEBE_TABLES_SERVER', 'http://tables.phoebe-project.org')
 # comment out the following line if testing tables.phoebe-project.org server locally:
 # _url_tables_server = 'http://localhost:5555'
 
@@ -73,8 +73,6 @@ if not os.path.exists(_pbdir_local):
 
 _pbdir_env = os.getenv('PHOEBE_PBDIR', None)
 
-
-_pbdir_env = os.getenv('PHOEBE_PBDIR', None)
 
 def _dict_without_keys(d, skip_keys=[]):
     return {k:v for k,v in d.items() if k not in skip_keys}

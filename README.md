@@ -80,6 +80,8 @@ CHANGELOG
 
 ### 2.4.21
 
+* Add a PHOEBE_TABLES_SERVER environment variable to allow overriding the URL of the queried tables server. [#1060]
+
 ### 2.4.20
 
 * Fix parse_solver_times compatibility with numpy > 1.24. [#1056]
