@@ -646,11 +646,12 @@ class Lc_GeometryBackend(BaseSolverBackend):
         if fit_eclipses:
             try:
                 import ellc
+            except (ImportError, OSError):
+                raise ImportError('ellc needs to be installed to refine the fit when fit_eclipses = True')
+            else:
                 rratio_param = orbit_ps.get_parameter(qualifier='requivratio', **_skip_filter_checks)
                 incl_param = orbit_ps.get_parameter(qualifier='incl@binary', **_skip_filter_checks)
                 fitted_params += [rratio_param, incl_param]
-            except:
-                raise ImportError('ellc needs to be installed to refine the fit when fit_eclipses = True')
 
         eb_params = ligeor.eclipse.EbParams(eclipse_dict, fit_eclipses=fit_eclipses)
         t0_near_times = kwargs.get('t0_near_times', True)

@@ -162,7 +162,7 @@ class EbParams(object):
         '''
         try:
             import ellc
-        except:
+        except (ImportError, OSError):
             raise ImportError('ellc is required for parameter refinement, please install it before running this step.')
         
         def wrap_around_05(phases):
