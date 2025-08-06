@@ -127,7 +127,7 @@ class Spot(ComponentFeature):
         """
         Initialize a Spot feature from the bundle.
         """
-
+        import numpy as np
         feature_ps = b.get_feature(feature=feature, **_skip_filter_checks)
 
         colat = feature_ps.get_value(qualifier='colat', unit=u.rad, **_skip_filter_checks)
@@ -161,6 +161,7 @@ class Spot(ComponentFeature):
         s is the spin vector in roche coordinates
         time is the current time
         """
+        import numpy as np
         t = time - self.kwargs['t0']
         longitude = self.kwargs['longitude'] + self.kwargs['dlongdt'] * t
         colat = self.kwargs['colat']
@@ -179,7 +180,7 @@ class Spot(ComponentFeature):
                   np.sin(colat)*np.sin(longitude)*eyp +\
                   np.cos(colat)*ezp
 
-    def modify_teffs(self, teffs, coords, s=np.array([0., 0., 1.]), t=None):
+    def modify_teffs(self, teffs, coords, s=[0., 0., 1.], t=None):
         """
         Change the local effective temperatures for any values within the
         "cone" defined by the spot.  Any teff within the spot will have its
@@ -189,12 +190,14 @@ class Spot(ComponentFeature):
         :parameter array coords: array of coords for computations
         :t float: current time
         """
+        import numpy as np
+        s = np.asarray(s)
         if t is None:
             # then assume at t0
             t = self._t0
 
         pointing_vector = self.pointing_vector(s,t)
-        logger.debug("spot.modify_teffs at t={} with pointing_vector={} and radius={}".format(t, pointing_vector, self.kwargs['radius']))
+        #logger.debug("spot.modify_teffs at t={} with pointing_vector={} and radius={}".format(t, pointing_vector, self.kwargs['radius']))
 
         cos_alpha_coords = np.dot(coords, pointing_vector) / np.linalg.norm(coords, axis=1)
         cos_alpha_spot = np.cos(self.kwargs['radius'])

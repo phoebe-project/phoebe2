@@ -9,7 +9,7 @@ from phoebe.atmospheres import passbands
 from phoebe.distortions import roche, rotstar
 from phoebe.backend import eclipse, oc_geometry, mesh, mesh_wd
 from phoebe.utils import _bytes
-from phoebe.features import component_features, get_class_from_code
+from phoebe.features import component_features
 import libphoebe
 
 from phoebe import u
@@ -1252,7 +1252,7 @@ class Star(Body):
             if feature_ps.get_value(qualifier='feature_type', **_skip_filter_checks) != 'component':
                 continue
             if 'feature_code' in feature_ps.qualifiers:
-                feature_cls = get_class_from_code(feature_ps.get_value(qualifier='feature_code', **_skip_filter_checks))
+                feature_cls = feature_ps.get_value(qualifier='feature_code', **_skip_filter_checks)
             else:
                 feature_cls = getattr(component_features, feature_ps.kind.title())
             features.append(feature_cls.from_bundle(b, feature))

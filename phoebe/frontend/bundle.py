@@ -41,7 +41,7 @@ from phoebe.backend import universe as _universe
 from phoebe.solverbackends import solverbackends as _solverbackends
 from phoebe.distortions import roche
 from phoebe.frontend import io
-from phoebe.features import dataset_features, component_features, get_code_for_cls, get_class_from_code
+from phoebe.features import dataset_features, component_features
 from phoebe.features.gaussian_processes import handle_gaussian_processes, _use_celerite2, _use_sklearn
 from phoebe.atmospheres.passbands import list_installed_passbands, list_online_passbands, get_passband, update_passband, _timestamp_to_dt
 from phoebe import pool as _pool
@@ -5637,8 +5637,7 @@ class Bundle(ParameterSet):
 
         if custom_feature:
             # then add another parameter that stores the class to run the feature itself
-            code = get_code_for_cls(kind, ignore=['get_parameters'])
-            params += [StringParameter(qualifier='feature_code', visible_if='False', value=code, readonly=True)]
+            params += [CodeParameter(qualifier='feature_code', value=kind, readonly=True)]
         # TODO: this may need to be more flexible in the future for features on solvers, etc
         feature_type = 'component' if component_kind is not None else 'dataset'
         params += [StringParameter(qualifier='feature_type', visible_if='False', value=feature_type, readonly=True)]
@@ -11996,7 +11995,7 @@ class Bundle(ParameterSet):
                     if feature_ps.get_value(qualifier='feature_type', **_skip_filter_checks) != 'dataset':
                         continue
                     if 'feature_code' in feature_ps.qualifiers:
-                        feature_cls = get_class_from_code(feature_ps.get_value(qualifier='feature_code', **_skip_filter_checks))
+                        feature_cls = feature_ps.get_value(qualifier='feature_code', **_skip_filter_checks)
                     else:
                         feature_cls = getattr(dataset_features, feature_ps.kind.title(), None)
                     feature_cls.from_bundle(self, feature_ps).modify_model(self, feature_ps, ml_params)
