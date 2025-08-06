@@ -8,6 +8,7 @@ logger.addHandler(logging.NullHandler())
 from phoebe.parameters import FloatParameter, ParameterSet
 from phoebe.parameters import constraint
 import phoebe.parameters.feature as _parameters_feature
+from phoebe.features.common import BaseFeature
 
 __all__ = ['DatasetFeature']
 
@@ -21,7 +22,7 @@ def _register_feature(feature_cls, kind=None):
     globals()[kind.title()] = feature_cls
     __all__.append(kind.title())
 
-class DatasetFeature(object):
+class DatasetFeature(BaseFeature):
     """
     
     """
@@ -29,19 +30,8 @@ class DatasetFeature(object):
     allowed_component_kinds = [None]
     allowed_dataset_kinds = ['lc', 'rv', 'lp']
 
-    def __init__(self, **kwargs):
-        self.kwargs = kwargs
-
     def __repr__(self):
         return f"<DatasetFeature: {self.__class__.__name__}>"
-
-    @classmethod
-    def from_bundle(cls, b, feature_ps):
-        return cls(**cls.parse_bundle(b, feature_ps))
-
-    @classmethod
-    def parse_bundle(cls, b, feature_ps):
-        return dict()
 
     @classmethod
     def get_parameters(self, feature, **kwargs):

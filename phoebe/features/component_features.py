@@ -2,6 +2,7 @@ import numpy as np
 import astropy.units as u
 
 import phoebe.parameters.feature as _parameters_feature
+from phoebe.features.common import BaseFeature
 
 import logging
 logger = logging.getLogger("COMPONENT_FEATURES")
@@ -20,7 +21,7 @@ def _register_feature(feature_cls, kind=None):
     globals()[kind.title()] = feature_cls
     __all__.append(kind.title())
 
-class ComponentFeature(object):
+class ComponentFeature(BaseFeature):
     """
     Note that for all features, each of the methods below will be called.  So
     changing the coordinates WILL affect the original/intrinsic loggs which
@@ -49,23 +50,8 @@ class ComponentFeature(object):
     remeshing_required = True
     proto_coords = True
 
-    def __init__(self, **kwargs):
-        self.kwargs = kwargs
-
     def __repr__(self):
         return f"<ComponentFeature: {self.__class__.__name__}>"
-
-    @classmethod
-    def from_bundle(cls, b, feature):
-        return cls(**cls.parse_bundle(b, feature))
-
-    @classmethod
-    def parse_bundle(cls, b, feature):
-        return {}
-
-    @classmethod
-    def get_parameters(self, feature, **kwargs):
-        raise NotImplementedError("get_parameters must be implemented in the feature subclass")
 
     def modify_coords_for_computations(self, coords_for_computations, s, t):
         """

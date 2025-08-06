@@ -104,6 +104,7 @@ packages = [
     "phoebe.solverbackends.ebai",
     "phoebe.solverbackends.knn",
     "phoebe.features",
+    "phoebe.features.common",
     "phoebe.utils",
     "phoebe.helpers",
     "phoebe.pool",
