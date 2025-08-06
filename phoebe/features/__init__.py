@@ -2,6 +2,7 @@ from .dataset_features import *
 from .component_features import *
 import inspect
 
+
 def get_code_for_cls(cls, ignore=[]):
     code = inspect.getsource(cls.__init__)
     for name, member in inspect.getmembers_static(cls):
@@ -20,7 +21,9 @@ def get_code_for_cls(cls, ignore=[]):
             code += f"    {name} = {value}\n"
     return code
 
+
 def get_class_from_code(code):
     code = f"class ClassFromCode:\n" + code
-    exec(code)
-    return locals()["ClassFromCode"]
+    namespace = {}
+    exec(code, globals(), namespace)
+    return namespace["ClassFromCode"]
