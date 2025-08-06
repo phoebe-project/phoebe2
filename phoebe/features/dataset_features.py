@@ -32,6 +32,9 @@ class DatasetFeature(object):
     def __init__(self, **kwargs):
         self.kwargs = kwargs
 
+    def __repr__(self):
+        return f"<DatasetFeature: {self.__class__.__name__}>"
+
     @classmethod
     def from_bundle(cls, b, feature_ps):
         return cls(**cls.parse_bundle(b, feature_ps))

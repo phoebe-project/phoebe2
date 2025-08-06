@@ -43,7 +43,7 @@ class ComponentFeature(object):
         in the protomesh (star) frame-of-reference rather than the
         current in-orbit system frame-of-reference.
     """
-    _phoebe_custom_feature = 'dataset'
+    _phoebe_custom_feature = 'component'
     allowed_component_kinds = ['star', 'envelope', 'orbit']
     allowed_dataset_kinds = [None]
     remeshing_required = True
@@ -51,6 +51,9 @@ class ComponentFeature(object):
 
     def __init__(self, **kwargs):
         self.kwargs = kwargs
+
+    def __repr__(self):
+        return f"<ComponentFeature: {self.__class__.__name__}>"
 
     @classmethod
     def from_bundle(cls, b, feature):

@@ -1381,10 +1381,6 @@ class Star(Body):
         return self.polar_direction_xyz[2] != 1.0
 
     @property
-    def spots(self):
-        return [f for f in self.features if f.__class__.__name__=='Spot']
-
-    @property
     def polar_direction_xyz(self):
         """
         get current polar direction in Roche (xyz) coordinates
