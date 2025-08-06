@@ -12679,17 +12679,18 @@ class CodeParameter(StringParameter):
 
     @staticmethod
     def get_class_from_code(code, clsname='ClassFromCode'):
-        if 'spot' in clsname.lower():
-            # TODO: do this in general with inspection
-            code = f"class {clsname}(Spot):\n    def __repr__(self):\n        return '<Feature {clsname}>'\n" + code
-        else:
-            code = f"class {clsname}:\n    def __repr__(self):\n        return '<Feature {clsname}>'\n" + code
+        code = f"class {clsname}:\n    def __repr__(self):\n        return '<Feature {clsname}>'\n" + code
         namespace = {}
         exec(code, globals(), namespace)
         return namespace[clsname]
 
     def set_value(self, value, **kwargs):
-        super().set_value(self.get_code_for_cls(value, ignore=['get_parameters']), **kwargs)
+        str_value = self.get_code_for_cls(value, ignore=['get_parameters'])
+        try:
+            self.get_class_from_code(str_value)
+        except Exception as err:
+            raise ValueError(f"Error parsing code for {self.kind}: {str(err)}")
+        super().set_value(str_value, **kwargs)
 
     def get_value(self, **kwargs):
         str_value = super().get_value(**kwargs)

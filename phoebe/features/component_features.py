@@ -107,6 +107,7 @@ class ComponentFeature(BaseFeature):
         """
         return abs_normal_intensities, normal_intensities, abs_intensities, intensities
 
+
 class Spot(ComponentFeature):
     remeshing_required = False
     proto_coords = True
@@ -132,10 +133,10 @@ class Spot(ComponentFeature):
             # syncpar = period_anom_orb / period_star
             period_anom_orb = orbit_ps.get_value(qualifier='period_anom', unit=u.d, **_skip_filter_checks)
             period_star = star_ps.get_value(qualifier='period', unit=u.d, **_skip_filter_checks)
-            dlongdt = 2 * np.pi * (period_anom_orb/period_star - 1) / period_anom_orb
+            rot_dlongdt = 2 * np.pi * (period_anom_orb/period_star - 1) / period_anom_orb
         else:
             star_ps = b.get_component(component=feature_ps.component, **_skip_filter_checks)
-            dlongdt = star_ps.get_value(qualifier='freq', unit=u.rad/u.d, **_skip_filter_checks)
+            rot_dlongdt = star_ps.get_value(qualifier='freq', unit=u.rad/u.d, **_skip_filter_checks)
             longitude += np.pi/2
 
         radius = feature_ps.get_value(qualifier='radius', unit=u.rad, **_skip_filter_checks)
@@ -143,7 +144,17 @@ class Spot(ComponentFeature):
 
         t0 = b.get_value(qualifier='t0', context='system', unit=u.d, **_skip_filter_checks)
 
-        return dict(colat=colat, longitude=longitude, dlongdt=dlongdt, radius=radius, relteff=relteff, t0=t0)
+        return dict(colat=colat, longitude=longitude, rot_dlongdt=rot_dlongdt, radius=radius, relteff=relteff, t0=t0)
+
+    def instantaneous_position(self, s, time):
+        """
+        s is the spin vector in roche coordinates
+        time is the current time
+        """
+        t = time - self.kwargs['t0']
+        longitude = self.kwargs['longitude'] + self.kwargs['rot_dlongdt'] * t
+        colat = self.kwargs['colat']
+        return longitude, colat
 
     def pointing_vector(self, s, time):
         """
@@ -151,9 +162,7 @@ class Spot(ComponentFeature):
         time is the current time
         """
         import numpy as np
-        t = time - self.kwargs['t0']
-        longitude = self.kwargs['longitude'] + self.kwargs['dlongdt'] * t
-        colat = self.kwargs['colat']
+        longitude, colat = self.instantaneous_position(s, time)
 
         # define the basis vectors in the spin (primed) coordinates in terms of
         # the Roche coordinates.
@@ -185,7 +194,7 @@ class Spot(ComponentFeature):
             # then assume at t0
             t = self._t0
 
-        pointing_vector = self.pointing_vector(s,t)
+        pointing_vector = self.pointing_vector(s, t)
         #logger.debug("spot.modify_teffs at t={} with pointing_vector={} and radius={}".format(t, pointing_vector, self.kwargs['radius']))
 
         cos_alpha_coords = np.dot(coords, pointing_vector) / np.linalg.norm(coords, axis=1)
@@ -195,6 +204,7 @@ class Spot(ComponentFeature):
         teffs[filter_] = teffs[filter_] * self.kwargs['relteff']
 
         return teffs
+
 
 class Pulsation(ComponentFeature):
     proto_coords = True
