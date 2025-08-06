@@ -5590,14 +5590,14 @@ class Bundle(ParameterSet):
         if getattr(kind, '_phoebe_custom_feature', False):
             func = kind.get_parameters
             kind_name = kind.__name__
-            custom_constraint = True
+            custom_feature = True
         else:
             func = _get_add_func(_feature, kind, return_none_if_not_found=True)
             if isinstance(kind, str):
                 kind_name = kind
             else:
                 kind_name = func.__name__
-            custom_constraint = False
+            custom_feature = False
 
 
         if kwargs.get('feature', False) is None:
@@ -5635,8 +5635,8 @@ class Bundle(ParameterSet):
 
         params, constraints = func(**kwargs)
 
-        if custom_constraint:
-            # then add another parameter that stores the class to run the constraint itself
+        if custom_feature:
+            # then add another parameter that stores the class to run the feature itself
             code = get_code_for_cls(kind, ignore=['get_parameters'])
             params += [StringParameter(qualifier='feature_code', visible_if='False', value=code, readonly=True)]
         # TODO: this may need to be more flexible in the future for features on solvers, etc
