@@ -14,13 +14,6 @@ __all__ = ['DatasetFeature']
 
 _skip_filter_checks = {'check_default': False, 'check_visible': False}
 
-def _register_feature(feature_cls, kind=None):
-    if kind is None:
-        kind = feature_cls.__name__.lower()
-
-    _parameters_feature._register(feature_cls, kind)
-    globals()[kind.title()] = feature_cls
-    __all__.append(kind.title())
 
 class DatasetFeature(BaseFeature):
     """
