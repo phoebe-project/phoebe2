@@ -45,7 +45,7 @@ else:
 
 try:
     import ellc
-except (ImportError, OSError):
+except Exception:
     _use_ellc = False
 else:
     _use_ellc = True

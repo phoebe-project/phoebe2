@@ -646,7 +646,7 @@ class Lc_GeometryBackend(BaseSolverBackend):
         if fit_eclipses:
             try:
                 import ellc
-            except (ImportError, OSError):
+            except Exception:
                 raise ImportError('ellc needs to be installed to refine the fit when fit_eclipses = True')
             else:
                 rratio_param = orbit_ps.get_parameter(qualifier='requivratio', **_skip_filter_checks)
