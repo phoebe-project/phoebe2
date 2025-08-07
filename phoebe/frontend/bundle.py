@@ -5386,7 +5386,7 @@ class Bundle(ParameterSet):
                          'Skilling (2006)': 'https://projecteuclid.org/euclid.ba/1340370944',
                          'Foreman-Mackey et al. (2017)': 'https://ui.adsabs.harvard.edu/abs/2017AJ....154..220F',
                          'Prsa et al. (2008)': 'https://ui.adsabs.harvard.edu/abs/2008ApJ...687..542P',
-                         'Kochoska et al. (in prep)': 'http://phoebe-project.org/publications/2022Kochoska+',
+                         'Kochoska et al. (in prep)': 'https://phoebe-project.org/publications/2022Kochoska+',
                          'scikit-learn': 'https://scikit-learn.org/stable/about.html#citing-scikit-learn',
                         }
 
