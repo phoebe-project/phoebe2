@@ -76,6 +76,16 @@ class ComponentFeature(BaseFeature):
         """
         return coords_for_observations
 
+    def modify_rvs(self, rvs, orbit_vel, coords, s=[0., 0., 1.], t=None):
+        """
+        Method for a feature to modify the radial velocities.
+
+        Features that affect radial velocities (RV+LP datasets) should override this method
+
+        NOTE: orbit_vel[2] is in the OPPOSITE direction of the radial velocity
+        """
+        return rvs
+
     def modify_loggs(self, loggs, coords, s=[0., 0., 1.], t=None):
         """
         Method for a feature to modify the loggs.

@@ -1739,6 +1739,12 @@ class Star(Body):
 
         rvs = -1*self.mesh.velocities.for_computations[:,2]
 
+        for feature in self.features:
+            if feature.proto_coords:
+                rvs = feature.modify_rvs(rvs, self.mesh._vel, self.mesh.roche_coords_for_computations,  s=self.polar_direction_xyz, t=self.time)
+            else:
+                rvs = feature.modify_rvs(rvs, self.mesh._vel, self.mesh.coords_for_computations, s=self.polar_direction_xyz, t=self.time)
+
         # Gravitational redshift
         if self.do_rv_grav:
             # self.mass is in solar masses
