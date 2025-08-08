@@ -119,6 +119,7 @@ def phoebe(**kwargs):
     params += [BoolParameter(visible_if='ds_has_enabled_feature:gp_*', qualifier='gp_exclude_phases_enabled', value=kwargs.get('gp_exclude_phases_enabled', True), copy_for={'kind': ['lc', 'rv', 'lp'], 'dataset': '*'}, dataset='_default', description='Whether to apply the mask in gp_exclude_phases during gaussian process fitting.')]
     params += [FloatArrayParameter(visible_if='ds_has_enabled_feature:gp_*,gp_exclude_phases_enabled:True', qualifier='gp_exclude_phases', value=kwargs.get('gp_exclude_phases', []), copy_for={'kind': ['lc', 'rv', 'lp'], 'dataset': '*'}, dataset='_default', default_unit=u.dimensionless_unscaled, required_shape=[None, 2], description='List of phase-tuples.  Any observations inside the range set by any of the tuples will be ignored by the gaussian process features.')]
 
+    params += [SelectParameter(qualifier='system', value=kwargs.get('system', '*'),  choices=['default_system'], description='Which system(s) to compute')]
 
     # DYNAMICS
     params += [ChoiceParameter(qualifier='dynamics_method', value=kwargs.get('dynamics_method', 'keplerian'), choices=['keplerian'], description='Which method to use to determine the dynamics of components')]
@@ -260,6 +261,8 @@ def legacy(**kwargs):
 
     params += [BoolParameter(qualifier='enabled', copy_for={'context': 'dataset', 'kind': ['lc', 'rv', 'mesh'], 'dataset': '*'}, dataset='_default', value=kwargs.get('enabled', True), description='Whether to create synthetics in compute/solver run')]
     params += [BoolParameter(qualifier='enabled', copy_for={'context': 'feature', 'kind': ['spot', 'gp_sklearn', 'gp_celerite2'], 'feature': '*'}, feature='_default', value=kwargs.get('enabled', True), description='Whether to enable the feature in compute/solver run')]
+
+    params += [ChoiceParameter(qualifier='system', value=kwargs.get('system', '*'),  choices=['default_system'], description='Which system(s) to compute')]
 
     params += [ChoiceParameter(copy_for = {'kind': ['star'], 'component': '*'}, component='_default', qualifier='atm', value=kwargs.get('atm', 'extern_atmx'), choices=['extern_atmx', 'extern_planckint'], description='Atmosphere table to use within legacy.  For estimating passband luminosities and flux scaling (see pblum_method), extern_atmx will use ck2004 and extern_planckint will use blackbody.')]
     params += [ChoiceParameter(qualifier='pblum_method', value=kwargs.get('pblum_method', 'phoebe'), choices=['stefan-boltzmann', 'phoebe'], description='Method to estimate passband luminosities and handle scaling of returned fluxes from legacy.  stefan-boltzmann: approximate the star as a uniform sphere and estimate the luminosities from teff, requiv, logg, and abun from the internal passband and atmosphere tables.  phoebe: build the mesh using roche distortion at time t0 and compute luminosities use the internal atmosphere tables (considerable overhead, but more accurate for distorted stars).')]
@@ -410,6 +413,8 @@ def jktebop(**kwargs):
 
     params += [BoolParameter(qualifier='enabled', copy_for={'context': 'dataset', 'kind': ['lc', 'rv'], 'dataset': '*'}, dataset='_default', value=kwargs.get('enabled', True), description='Whether to create synthetics in compute/solver run')]
     params += [BoolParameter(qualifier='enabled', copy_for={'context': 'feature', 'kind': ['gp_sklearn', 'gp_celerite2'], 'feature': '*'}, feature='_default', value=kwargs.get('enabled', True), description='Whether to enable the feature in compute/solver run')]
+
+    params += [ChoiceParameter(qualifier='system', value=kwargs.get('system', '*'),  choices=['default_system'], description='Which system(s) to compute')]
 
     params += [FloatParameter(qualifier='requiv_max_limit', value=kwargs.get('requiv_max_limit', 0.5), limits=(0.01,1), default_unit=u.dimensionless_unscaled, advanced=True, description='Maximum allowed fraction of requiv_max (as jktebop does not handle highly distorted systems) before raising an error in run_checks_compute.')]
 
@@ -569,6 +574,8 @@ def ellc(**kwargs):
 
     params += [BoolParameter(qualifier='enabled', copy_for={'context': 'dataset', 'kind': ['lc', 'rv'], 'dataset': '*'}, dataset='_default', value=kwargs.get('enabled', True), description='Whether to create synthetics in compute/solver run')]
     params += [BoolParameter(qualifier='enabled', copy_for={'context': 'feature', 'kind': ['spot', 'gp_sklearn', 'gp_celerite2'], 'feature': '*'}, feature='_default', value=kwargs.get('enabled', True), description='Whether to enable the feature in compute/solver run')]
+
+    params += [ChoiceParameter(qualifier='system', value=kwargs.get('system', '*'),  choices=['default_system'], description='Which system(s) to compute')]
 
     params += [ChoiceParameter(copy_for = {'kind': ['star'], 'component': '*'}, component='_default', qualifier='atm', value=kwargs.get('atm', 'ck2004'), advanced=True, choices=_atm_choices, description='Atmosphere table to use when estimating passband luminosities and flux scaling (see pblum_method).  Note ellc itself does not support atmospheres.')]
     params += [ChoiceParameter(qualifier='pblum_method', value=kwargs.get('pblum_method', 'stefan-boltzmann'), choices=['stefan-boltzmann', 'phoebe'], description='Method to estimate passband luminosities and handle scaling of returned fluxes from ellc.  stefan-boltzmann: approximate the star as a uniform sphere and estimate the luminosities from teff, requiv, logg, and abun from the internal passband and atmosphere tables.  phoebe: build the mesh using roche distortion at time t0 and compute luminosities use the internal atmosphere tables (considerable overhead, but more accurate for distorted stars).')]

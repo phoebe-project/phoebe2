@@ -1164,7 +1164,10 @@ class Star(Body):
         # TODO [DONE?]: handle overriding options from kwargs
         # TODO [DONE?]: do we need dynamics method???
 
-        hier = b.hierarchy
+        self_ps = b.filter(component=component, context='component', **_skip_filter_checks)
+        system = self_ps.system
+
+        hier = b.get_hierarchy(system=system)
 
         if not len(hier.get_value()):
             raise NotImplementedError("Star meshing requires a hierarchy to exist")
@@ -1179,7 +1182,6 @@ class Star(Body):
         ind_sibling = starrefs.index(label_sibling) if isinstance(label_sibling, str) else [starrefs.index(l) for l in label_sibling]
         comp_no = ['primary', 'secondary'].index(hier.get_primary_or_secondary(component))+1
 
-        self_ps = b.filter(component=component, context='component', **_skip_filter_checks)
         requiv = self_ps.get_value(qualifier='requiv', unit=u.solRad, **_skip_filter_checks)
 
 
@@ -1274,7 +1276,7 @@ class Star(Body):
         intens_weighting_override = kwargs.pop('intens_weighting', None)
         intens_weighting = {ds: b.get_value(qualifier='intens_weighting', dataset=ds, intens_weighting=intens_weighting_override, **_skip_filter_checks) for ds in datasets_intens}
         ebv_override = kwargs.pop('ebv', None)
-        extinct = b.get_value('ebv', context='system', ebv=ebv_override, **_skip_filter_checks)
+        extinct = b.get_value('ebv', context='system', system=system, ebv=ebv_override, **_skip_filter_checks)
         Rv_override = kwargs.pop('Rv', None)
         Rv = b.get_value('Rv', context='system', Rv=Rv_override)
         ld_mode_override = kwargs.pop('ld_mode', None)

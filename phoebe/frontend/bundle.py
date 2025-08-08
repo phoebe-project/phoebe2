@@ -496,7 +496,6 @@ class Bundle(ParameterSet):
         # by self._bundle, in this case we just need to fake that to refer to
         # self
         self._bundle = self
-        self._hierarchy_param = None
 
         self._af_figure = None
 
@@ -506,16 +505,10 @@ class Bundle(ParameterSet):
 
         if not len(params):
             # add position (only 1 allowed and required)
-            params, constraints = _system.system()
-            self._attach_params(params, context='system')
-            for constraint in constraints:
-                self.add_constraint(*constraint)
+            self.add_system(system=None)
 
             # add default settings (only 1 allowed and required)
             self._attach_params(_setting.settings(), context='setting')
-
-            # set a blank hierarchy to start
-            self.set_hierarchy(_hierarchy.blank)
 
             # add necessary figure options
             self._attach_params(_figure._new_bundle(), context='figure')
@@ -525,7 +518,7 @@ class Bundle(ParameterSet):
                 param._bundle = self
 
             try:
-                self._hierarchy_param = self.get_parameter(qualifier='hierarchy', context='system')
+                hierarchy_param = self.get_parameter(qualifier='hierarchy', context='system', **_skip_filter_checks)
             except ValueError:
                 # possibly this is a bundle without a hierarchy
                 self.set_hierarchy(_hierarchy.blank)
@@ -2545,6 +2538,27 @@ class Bundle(ParameterSet):
 
         return affected_params
 
+    def add_system(self, system=None, **kwargs):
+        """
+        """
+        if system is None:
+            if not len(self.systems):
+                system = 'default_system'
+            else:
+                system = self._default_label('system', context='system')
+
+        kwargs['system'] = system
+        params, constraints = _system.system(**kwargs)
+        self._attach_params(params, context='system', system=system)
+        self.set_hierarchy(system=system,
+                           value=kwargs.get('hierarchy', _hierarchy.blank()))
+        for constraint in constraints:
+            self.add_constraint(*constraint)
+
+
+
+        return _return_ps(self, params)
+
     def set_hierarchy(self, *args, **kwargs):
         """
         Set the hierarchy of the system, and recreate/rerun all necessary
@@ -2579,8 +2593,11 @@ class Bundle(ParameterSet):
         # need to run any constraints since some may be deleted and rebuilt
         changed_params = self.run_delayed_constraints()
 
-
-        _old_param = self.get_hierarchy()
+        system = kwargs.get('system', 'default_system')
+        try:
+            _old_param = self.get_hierarchy(system=system)
+        except ValueError:
+            _old_param = None
 
         if len(args) == 1 and isinstance(args[0], str):
             repr_ = args[0]
@@ -2591,7 +2608,7 @@ class Bundle(ParameterSet):
                 repr_ = kwargs['value']
                 kind = None
             else:
-                repr_ = self.get_hierarchy().get_value()
+                repr_ = self.get_hierarchy(system=system).get_value()
                 kind = None
 
         else:
@@ -2603,16 +2620,14 @@ class Bundle(ParameterSet):
             kind = func.__name__
 
         hier_param = HierarchyParameter(value=repr_,
+                                        system=system,
                                         description='Hierarchy representation')
 
-        self.remove_parameters_all(qualifier='hierarchy', context='system')
+        self.remove_parameters_all(qualifier='hierarchy', system=system, context='system', **_skip_filter_checks)
 
         metawargs = {'context': 'system'}
         self._attach_params([hier_param], **metawargs)
 
-        # cache hierarchy param so we don't need to do a filter everytime we
-        # want to access it in is_visible, etc
-        self._hierarchy_param = hier_param
 
         self._handle_pblum_defaults()
         # self._handle_dataset_selectparams()
@@ -3051,7 +3066,7 @@ class Bundle(ParameterSet):
         """
         return self.get_hierarchy()
 
-    def get_hierarchy(self):
+    def get_hierarchy(self, system='default_system'):
         """
         Get the hierarchy parameter.
 
@@ -3066,7 +3081,10 @@ class Bundle(ParameterSet):
         --------
         * the <phoebe.parameters.HierarchyParameter> or None (if no hierarchy exists)
         """
-        return self._hierarchy_param
+        return self.get_parameter(qualifier='hierarchy',
+                                  system=system,
+                                  context='system',
+                                  **_skip_filter_checks)
 
     def _kwargs_checks(self, kwargs,
                        additional_allowed_keys=[],
@@ -6005,6 +6023,8 @@ class Bundle(ParameterSet):
                           self._default_label(kind,
                                               **{'context': 'component',
                                                  'kind': kind}))
+        kwargs.setdefault('system',
+                          'default_system')
 
         if kwargs.pop('check_label', True):
             self._check_label(kwargs['component'], allow_overwrite=kwargs.get('overwrite', False))
@@ -6014,6 +6034,7 @@ class Bundle(ParameterSet):
 
         metawargs = {'context': 'component',
                      'component': kwargs['component'],
+                     'system': kwargs['system'],
                      'kind': kind}
 
         if kwargs.get('overwrite', False):
@@ -7342,6 +7363,7 @@ class Bundle(ParameterSet):
 
         constraint_param = ConstraintParameter(self,
                                                qualifier=lhs.qualifier,
+                                               system=lhs.system,
                                                component=lhs.component,
                                                dataset=lhs.dataset,
                                                feature=lhs.feature,
@@ -7652,6 +7674,7 @@ class Bundle(ParameterSet):
         kwargs['twig'] = None
         # TODO: this might not be the case, we just know its not in constraint
         kwargs['qualifier'] = expression_param.qualifier
+        kwargs['system'] = expression_param.system
         kwargs['component'] = expression_param.component
         kwargs['dataset'] = expression_param.dataset
         kwargs['feature'] = expression_param.feature

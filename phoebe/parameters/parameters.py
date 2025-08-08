@@ -145,7 +145,7 @@ _parameter_class_that_require_bundle = ['TwigParameter',
                                         'ConstraintParameter', 'DistributionParameter',
                                         'JobParameter']
 
-_meta_fields_twig = ['time', 'qualifier', 'feature', 'component',
+_meta_fields_twig = ['time', 'qualifier', 'feature', 'component', 'system',
                      'dataset', 'constraint', 'distribution', 'compute', 'model',
                      'solver', 'solution', 'figure', 'server', 'kind',
                      'context']
@@ -1017,6 +1017,41 @@ class ParameterSet(object):
     #     :return: list of strings
     #     """
     #     return self.to_dict(field='feature').keys()
+
+    @property
+    def system(self):
+        """Return the value for system if shared by ALL Parameters.
+
+        If the value is not shared by ALL, then None will be returned.  To see
+        all the qualifiers of all parameters, see <phoebe.parameters.ParameterSet.systems>.
+
+        To see the value of a single <phoebe.parameters.Parameter> object, see
+        <phoebe.parameters.Parameter.system>.
+
+        Returns
+        --------
+        (string or None) the value if shared by ALL <phoebe.parameters.Parameter>
+            objects in the <phoebe.parmaters.ParameterSet>, otherwise None
+        """
+        return self._system
+
+    @property
+    def systems(self):
+        """Return a list of all the systems of the Parameters.
+
+        See also:
+        * <phoebe.parameters.ParameterSet.tags>
+
+        For the singular version, see:
+        * <phoebe.parameters.ParameterSet.system>
+
+        Returns
+        --------
+        * (list) a list of all systems for each <phoebe.parameters.Parameter>
+            in this <phoebe.parameters.ParameterSet>
+        """
+        return self._options_for_tag('system', include_default=False)
+
 
     @property
     def component(self):
@@ -6182,6 +6217,7 @@ class Parameter(object):
             and a random string will be generated)
         * `time` (string/float, optional): value for the time tag
         * `feature` (string, optional): label for the feature tag
+        * `system` (string, optional): label for the system tag
         * `component` (string, optional): label for the component tag
         * `dataset` (string, optional): label for the dataset tag
         * `figure` (string, optional): label for the figure tag
@@ -6219,6 +6255,7 @@ class Parameter(object):
         self._qualifier = qualifier
         self._time = kwargs.get('time', None)
         self._feature = kwargs.get('feature', None)
+        self._system = kwargs.get('system', None)
         self._component = kwargs.get('component', None)
         self._dataset = kwargs.get('dataset', None)
         self._figure = kwargs.get('figure', None)
@@ -6779,6 +6816,21 @@ class Parameter(object):
         return self._feature
 
     @property
+    def system(self):
+        """
+        Return the system of this <phoebe.parameters.Parameter>.
+
+        See also:
+        * <phoebe.parameters.ParameterSet.system>
+        * <phoebe.parameters.ParameterSet.systems>
+
+        Returns
+        -------
+        * (str) the system tag of this Parameter.
+        """
+        return self._system
+
+    @property
     def component(self):
         """
         Return the component of this <phoebe.parameters.Parameter>.
@@ -7161,7 +7213,7 @@ class Parameter(object):
             if 'hierarchy.' in qualifier:
                 # TODO: set specific syntax (hierarchy.get_meshables:2)
                 # then this needs to do some logic on the hierarchy
-                parameter_uids += [self._bundle.hierarchy.uniqueid]
+                parameter_uids += [self._bundle.get_hierarchy(system=self.system).uniqueid]
 
             else:
                 # the parameter needs to have all the same meta data except qualifier
@@ -7243,7 +7295,20 @@ class Parameter(object):
             if 'hierarchy.' in qualifier:
                 # TODO: set specific syntax (hierarchy.get_meshables:2)
                 # then this needs to do some logic on the hierarchy
-                hier = self._bundle.hierarchy
+                # OR mesh_method, etc, need to copy_for system and be tagged with system so they only get their own
+                system = self.system
+                if system is None and self.context == 'compute':
+                    system = self._bundle.get_parameter(qualifier='system', compute=self.compute, context='compute', **_skip_filter_checks).get_value(expand=True, **_skip_filter_checks)
+                    if isinstance(system, list):
+                        # TODO: need any or all logic
+                        system = system[0]
+                if system is None:
+                    system = 'default_system'
+                try:
+                    hier = self._bundle.get_hierarchy(system=system)
+                except Exception:
+                    print("***", self.twig, self.system, system)
+                    raise
                 if not hier or not len(hier.get_value()):
                     # then hierarchy hasn't been set yet, so we can't do any
                     # of these tests
@@ -11481,11 +11546,11 @@ class ConstraintParameter(Parameter):
 
         if self.qualifier:
             #~ print "***", self._bundle.__repr__(), self.qualifier, self.component
-            ps = self._bundle.exclude(context='constraint', **_skip_filter_checks).filter(qualifier=self.qualifier, component=self.component, dataset=self.dataset, feature=self.feature, model=self.model, **_skip_filter_checks)
+            ps = self._bundle.exclude(context='constraint', **_skip_filter_checks).filter(qualifier=self.qualifier, component=self.component, system=self.system, dataset=self.dataset, feature=self.feature, model=self.model, **_skip_filter_checks)
             if len(ps) == 1:
                 constrained_parameter = ps.get_parameter(**_skip_filter_checks)
             else:
-                raise KeyError("could not find single match for {} (found {})".format({'qualifier': self.qualifier, 'component': self.component, 'dataset': self.dataset, 'feature': self.feature, 'model': self.model}, ps.twigs))
+                raise KeyError("could not find single match for {} (found {})".format({'qualifier': self.qualifier, 'component': self.component, 'system': self.system, 'dataset': self.dataset, 'feature': self.feature, 'model': self.model}, ps.twigs))
 
 
             var = ConstraintVar(self._bundle, constrained_parameter.twig)
