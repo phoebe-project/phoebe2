@@ -2020,7 +2020,8 @@ class _ScipyOptimizeBaseBackend(BaseSolverBackend):
 
     def run_checks(self, b, solver, compute, **kwargs):
         solver_ps = b.get_solver(solver=solver, **_skip_filter_checks)
-        if not len(solver_ps.get_value(qualifier='fit_parameters', fit_parameters=kwargs.get('fit_parameters', None), expand=True)):
+        continue_from = solver_ps.get_value(qualifier='continue_from', continue_from=kwargs.get('continue_from', None), **_skip_filter_checks)
+        if continue_from == 'None' and not len(solver_ps.get_value(qualifier='fit_parameters', fit_parameters=kwargs.get('fit_parameters', None), expand=True, **_skip_filter_checks)):
             raise ValueError("cannot run scipy.optimize.minimize(method='nelder-mead') without any parameters in fit_parameters")
 
 

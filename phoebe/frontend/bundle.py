@@ -4707,7 +4707,7 @@ class Bundle(ParameterSet):
 
             if 'fit_parameters' in solver_ps.qualifiers:
                 fit_parameters = solver_ps.get_value(qualifier='fit_parameters', fit_parameters=kwargs.get('fit_parameters', None), expand=True, **_skip_filter_checks)
-                if not len(fit_parameters):
+                if not len(fit_parameters) and solver_ps.get_value(qualifier='continue_from', continue_from=kwargs.get('continue_from', None), **_skip_filter_checks).lower() == 'none':
                     report.add_item(self,
                                     "no valid parameters in fit_parameters",
                                     [solver_ps.get_parameter(qualifier='fit_parameters', **_skip_filter_checks)
@@ -13402,7 +13402,7 @@ class Bundle(ParameterSet):
                 raise NotImplementedError("solver_times='{}' not implemented".format(solver_times))
 
             if return_as_dict:
-                if new_compute_times == []:
+                if len(new_compute_times) == 0:
                     if masked_times is None:
                         compute_times_per_ds[param.dataset] = _get_masked_times(self, param.dataset, [], 0.0, return_times_phases=False)
                     else:

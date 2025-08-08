@@ -36,11 +36,13 @@ def _run_cmd(cmd, detach=False, log_cmd=True, allow_retries=True):
             return ret
 
 class Server(object):
-    def __init__(self, directory=None):
+    def __init__(self, directory=None, openmpi_path=None, openmpi_ld_library_path=None):
         self._directory = directory
         self._directory_exists = False
+        self._openmpi_path = openmpi_path
+        self._openmpi_ld_library_path = openmpi_ld_library_path
 
-        self._dict_keys = ['directory']
+        self._dict_keys = ['directory', 'openmpi_path', 'openmpi_ld_library_path']
 
     def __repr__(self):
         def _format_val(v):
@@ -69,6 +71,14 @@ class Server(object):
         if "~" not in self._directory:
             return _os.path.join("~", self._directory)
         return self._directory
+
+    @property
+    def openmpi_path(self):
+        return self._openmpi_path
+
+    @property
+    def openmpi_ld_library_path(self):
+        return self._openmpi_ld_library_path
 
     @property
     def existing_jobs(self):
@@ -183,7 +193,7 @@ class Server(object):
         if conda_env is False:
             return None, None
 
-        default_deps = "pip numpy"
+        default_deps = "pip"
 
         if not (isinstance(conda_env, str) or conda_env is None):
             raise TypeError("conda_env must be a string or None")
@@ -205,7 +215,7 @@ class Server(object):
 
             if conda_env not in conda_envs_dict.keys():
                 # create the environment at the server level
-                cmd += "conda create -p {envpath_server} -y {default_deps} python={python_version}; ".format(envpath_server=envpath_server, default_deps=default_deps, python_version=python_version)
+                cmd += "conda create -p {envpath_server} -y {default_deps} python={python_version} --override-channels -c conda-forge -y; ".format(envpath_server=envpath_server, default_deps=default_deps, python_version=python_version)
             if len(cmd) or job_name not in conda_envs_dict.get(conda_env):
                 # clone the server environment at the job level
                 cmd += "conda create -p {envpath} -y --clone {envpath_server};".format(envpath=envpath, envpath_server=envpath_server)
@@ -220,13 +230,12 @@ class Server(object):
 
             # create the environment at the server level
             envpath = _os.path.join(self.directory, "crimpl-envs", conda_env)
-            cmd = "conda create -p {envpath} -y {default_deps} python>={python_version}".format(envpath=envpath, default_deps=default_deps, python_version=python_version)
+            cmd = "conda create -p {envpath} -y {default_deps} python={python_version} --override-channels -c conda-forge -y".format(envpath=envpath, default_deps=default_deps, python_version=python_version)
 
         if run_cmd:
             return self._run_server_cmd(cmd), envpath
         else:
             return self.ssh_cmd.format(cmd), envpath
-
 
     def _create_crimpl_directory(self):
 
@@ -240,14 +249,17 @@ class Server(object):
         else:
             # TODO: use temporary file
             f = open('exportpath.sh', 'w')
-            f.write('export PATH="{}/crimpl-bin:$PATH"'.format(self.directory.replace("~", "$HOME")))
+            f.write(f'export PATH="{self.directory.replace("~", "$HOME")}/crimpl-bin:$PATH"\n')
+            if self.openmpi_path:
+                f.write(f'export PATH="{self.openmpi_path}:$PATH"\n')
+            if self.openmpi_ld_library_path:
+                f.write(f'export LD_LIBRARY_PATH="{self.openmpi_ld_library_path}:$LD_LIBRARY_PATH"\n')
             f.close()
             scp_cmd = self.scp_cmd_to.format(local_path='exportpath.sh', server_path=self.directory+"/")
             _run_cmd(scp_cmd)
 
         self._directory_exists = True
         return True
-
 
     def install_conda(self, in_server_directory=False):
         """
@@ -270,10 +282,30 @@ class Server(object):
         if self.conda_installed:
             return
 
+        python_version = "{}.{}".format(_sys.version_info.major, _sys.version_info.minor)
+
         if in_server_directory:
-            out = self._run_server_cmd("cd {directory}; wget -q https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh; sh Miniconda3-latest-Linux-x86_64.sh -u -b -p ./crimpl-conda; mkdir ./crimpl-bin; cp ./crimpl-conda/bin/conda ./crimpl-bin/conda".format(directory=self.directory, exportpath=False))
+            out = self._run_server_cmd(
+                "cd {directory}; "
+                "wget -q https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh; "
+                "sh Miniconda3-latest-Linux-x86_64.sh -u -b -p ./crimpl-conda; "
+                "mkdir ./crimpl-bin; "
+                "cp ./crimpl-conda/bin/conda ./crimpl-bin/conda; "
+                "./crimpl-conda/bin/conda config --set auto_activate_base false; ".format(
+                    directory=self.directory, python_version=python_version
+                )
+            )
         else:
-            out = self._run_server_cmd("cd {directory}; wget -q https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh; sh Miniconda3-latest-Linux-x86_64.sh -u -b; mkdir ./crimpl-bin; cp ~/miniconda3/bin/conda ./crimpl-bin".format(directory=self.directory, exportpath=False))
+            out = self._run_server_cmd(
+                "cd {directory}; "
+                "wget -q https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh; "
+                "sh Miniconda3-latest-Linux-x86_64.sh -u -b; "
+                "mkdir ./crimpl-bin; "
+                "cp ~/miniconda3/bin/conda ./crimpl-bin; "
+                "./crimpl-conda/bin/conda config --set auto_activate_base false; ".format(
+                    directory=self.directory, python_version=python_version
+                )
+            )
         out = self._run_server_cmd("conda init")
 
         return self.conda_installed
