@@ -8,6 +8,7 @@ except ImportError:
     import os
     DEVNULL = open(os.devnull, 'wb')
 
+import numpy as np
 import re
 import json
 import atexit
@@ -981,6 +982,17 @@ class Bundle(ParameterSet):
         if phoebe_version_import < parse("2.5.0") or ".dev" in version:
             warning = "importing from an older version ({}) of PHOEBE to PHOEBE 2.5+.  This may take some time.  Please check all values.".format(phoebe_version_import)
             logger.warning(warning)
+            # migrate rv_offset@dataset to new feature implementation, if non-zero
+            for rv_ds in b.filter(context='dataset', kind='rv', **_skip_filter_checks).datasets:
+                rv_offsets = [param.get_value() for param in b.filter(qualifier='rv_offset', dataset=rv_ds, context='dataset', **_skip_filter_checks).to_list()]
+                if np.any(rv_offsets != 0):
+                    logger.warning(f"migrating rv_offset@{rv_ds}@dataset to new features implementation")
+                    b.add_feature('rv_offset', dataset=rv_ds)
+                    for comp in b.hierarchy.get_stars():
+                        b.set_value(qualifier='rv_offset', component=comp, context='feature', value=b.get_quantity(qualifier='rv_offset', component=comp, context='dataset'))
+                    # delete original rv_offset parameters
+                    b.remove_parameters_all(qualifier='rv_offset', context='dataset', **_skip_filter_checks)
+
             # update all datasets to get boosting_method/index parameters
             for dataset in b.filter(qualifier='passband', context='dataset', **_skip_filter_checks).datasets:
                 logger.info("attempting to update dataset='{}' to new version requirements".format(dataset))
@@ -11973,19 +11985,17 @@ class Bundle(ParameterSet):
 
                         flux_param.set_value(fluxes, ignore_readonly=True)
 
-                # handle vgamma and rv_offset
+                # handle vgamma
                 vgamma = self.get_value(qualifier='vgamma', context='system', unit=u.km/u.s, **_skip_filter_checks)
                 for rv_param in ml_params.filter(qualifier='rvs', kind='rv', **_skip_filter_checks).to_list():
                     dataset = rv_param.dataset
                     component = rv_param.component
 
-                    rv_offset = self.get_value(qualifier='rv_offset', dataset=dataset, component=component, context='dataset', default=0.0, unit=u.km/u.s, **_skip_filter_checks)
-
                     if computeparams.kind in ['phoebe', 'legacy']:
                         # we'll use native vgamma so ltte, etc, can be handled appropriately
-                        rv_param.set_value(rv_param.get_value(unit=u.km/u.s)+rv_offset, ignore_readonly=True)
+                        rv_param.set_value(rv_param.get_value(unit=u.km/u.s), ignore_readonly=True)
                     else:
-                        rv_param.set_value(rv_param.get_value(unit=u.km/u.s)+vgamma+rv_offset, ignore_readonly=True)
+                        rv_param.set_value(rv_param.get_value(unit=u.km/u.s)+vgamma, ignore_readonly=True)
 
                 # handle all dataset-features (except for GPs, which need to all be handled simultaneously
                 # and AFTER - instead of BEFORE - dataset-scaling from pblum_mode='dataset-scaled')

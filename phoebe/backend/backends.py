@@ -1173,12 +1173,7 @@ class PhoebeBackend(BaseBackendByTime):
                                          kind=kind,
                                          components=info['component'])
 
-                    rv = obs['rv'] + b.get_value(qualifier='rv_offset',
-                                                 component=info['component'],
-                                                 dataset=info['dataset'],
-                                                 context='dataset',
-                                                unit=u.solRad/u.d,
-                                                 **_skip_filter_checks)
+                    rv = obs['rv']
                 else:
                     # then rv_method == 'dynamical'
                     rv = -1*vzi[cind]
@@ -1608,13 +1603,6 @@ class LegacyBackend(BaseBackendByDataset):
             phb1.setpar(proximity_par, rv_method=='flux-weighted')
 
             rvs = np.array(rv_call(tuple(info['times'].tolist()), rvind))
-            rvs += b.get_value(qualifier='rv_offset',
-                               component=info['component'],
-                               dataset=info['dataset'],
-                               context='dataset',
-                               unit=u.km/u.s,
-                               **_skip_filter_checks)
-
             packetlist.append(_make_packet('rvs',
                                            rvs*u.km/u.s,
                                            None,

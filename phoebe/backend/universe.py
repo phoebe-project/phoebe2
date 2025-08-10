@@ -1255,7 +1255,7 @@ class Star(Body):
                 feature_cls = feature_ps.get_value(qualifier='feature_code', **_skip_filter_checks)
             else:
                 feature_cls = getattr(component_features, feature_ps.kind.title())
-            features.append(feature_cls.from_bundle(b, feature))
+            features.append(feature_cls.from_bundle(b, feature_ps))
 
         if conf.devel:
             mesh_offset_override = kwargs.pop('mesh_offset', None)

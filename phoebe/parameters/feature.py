@@ -13,12 +13,14 @@ logger.addHandler(logging.NullHandler())
 ### NOTE: if creating new parameters, add to the _forbidden_labels list in parameters.py
 
 _allowed_components = {'spot': ['star', 'envelope'],
+                       'rv_offset': [None],
                        'pulsation': ['star', 'envelope'],
                        'gp_sklearn': [None],
                        'gp_celerite2': [None],
                        'gaussian_process': [None]}
 
 _allowed_datasets = {'spot': [None],
+                     'rv_offset': ['rv'],
                      'pulsation': [None],
                      'gp_sklearn': ['lc', 'rv', 'lp'],
                      'gp_celerite2': ['lc', 'rv', 'lp'],
@@ -80,6 +82,27 @@ def spot(feature, **kwargs):
     constraints = []
 
     return ParameterSet(params), constraints
+
+def rv_offset(feature, **kwargs):
+    """
+    Create a <phoebe.parameters.ParameterSet> for an rvoffset feature.
+
+    Generally, this will be used as an input to the kind argument in
+    <phoebe.frontend.bundle.Bundle.add_feature>.  If attaching through
+    <phoebe.frontend.bundle.Bundle.add_feature>, all `**kwargs` will be
+    passed on to set the values as described in the arguments below.  Alternatively,
+    see <phoebe.parameters.ParameterSet.set_value> to set/change the values
+    after creating the Parameters.
+
+    Allowed to attach to:
+    * datasets: rv
+    """
+    params = []
+
+    params += [FloatParameter(qualifier='rv_offset', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=kwargs.get('rv_offset', 0.0), default_unit=u.km/u.s, description='Per-component offset to add to synthetic RVs (i.e. for hot stars)')]
+
+    return ParameterSet(params), []
+
 
 def gp_sklearn(feature, **kwargs):
     """

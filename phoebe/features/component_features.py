@@ -116,13 +116,11 @@ class Spot(ComponentFeature):
     proto_coords = True
 
     @classmethod
-    def parse_bundle(cls, b, feature):
+    def parse_bundle(cls, b, feature_ps):
         """
         Initialize a Spot feature from the bundle.
         """
         import numpy as np
-        feature_ps = b.get_feature(feature=feature, **_skip_filter_checks)
-
         colat = feature_ps.get_value(qualifier='colat', unit=u.rad, **_skip_filter_checks)
         longitude = feature_ps.get_value(qualifier='long', unit=u.rad, **_skip_filter_checks)
 
@@ -229,12 +227,10 @@ class Pulsation(ComponentFeature):
     proto_coords = True
 
     @classmethod
-    def parse_bundle(cls, b, feature):
+    def parse_bundle(cls, b, feature_ps):
         """
         Initialize a Pulsation feature from the bundle.
         """
-
-        feature_ps = b.get_feature(feature=feature, **_skip_filter_checks)
         freq = feature_ps.get_value(qualifier='freq', unit=u.d**-1, **_skip_filter_checks)
         radamp = feature_ps.get_value(qualifier='radamp', unit=u.dimensionless_unscaled, **_skip_filter_checks)
         l = feature_ps.get_value(qualifier='l', unit=u.dimensionless_unscaled, **_skip_filter_checks)

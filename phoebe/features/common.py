@@ -23,12 +23,12 @@ class BaseFeature:
         return {kw['qualifier']: feature_ps.get_value(**kw, **_skip_filter_checks) for kw in kws}
 
     @classmethod
-    def parse_bundle(cls, b, feature):
+    def parse_bundle(cls, b, feature_ps):
         return {}
 
     @classmethod
-    def from_bundle(cls, b, feature):
-        return cls(**cls.parse_bundle(b, feature))
+    def from_bundle(cls, b, feature_ps):
+        return cls(**cls.parse_bundle(b, feature_ps))
 
     @classmethod
     def get_parameters(self, feature, **kwargs):
