@@ -167,19 +167,35 @@ class Spot(ComponentFeature):
         import numpy as np
         longitude, colat = self.instantaneous_position(s, time)
 
-        # define the basis vectors in the spin (primed) coordinates in terms of
-        # the Roche coordinates.
-        # ez' = s
-        # ex' =  (ex - s(s.ex)) /|i - s(s.ex)|
-        # ey' = s x ex'
+        """
+        define the basis vectors in the spin (primed) coordinates in terms of
+        the Roche coordinates.
+        - the z' direction is explicitly given by the spin vector
+        ez' = s
+        - the x' direction should point in the longitudinal direction that the 
+        companion is in the rotating frame, which means that the y' direction should 
+        always be orthogonal to x. Thus, to get this, we'll first calculate the y' 
+        direction by taking the cross product of the z' and x directions 
+        ey' = ez' x ex
+        if the pole aligns with the x-axis, then the y' direction is the z direction
+        - the x' direction is then defined by the cross product of the other two
+        ex' = ey' x ez'
+        """
         ex = np.array([1., 0., 0.])
-        ezp = s
-        exp = (ex - s*np.dot(s,ex))
-        eyp = np.cross(s, exp)
+        ezp = s / np.linalg.norm(s)
+        if (s == ex).all():
+            eyp = np.array([0., 0., 1.])
+        else:
+            eyp = np.cross(ezp, ex)
+        exp = np.cross(eyp, ezp)
 
-        return np.sin(colat)*np.cos(longitude)*exp +\
-                  np.sin(colat)*np.sin(longitude)*eyp +\
-                  np.cos(colat)*ezp
+        # now we can express the pointing vector in terms of the primed basis
+        pv = (np.sin(self._colat)*np.cos(longitude)*exp +
+              np.sin(self._colat)*np.sin(longitude)*eyp +
+              np.cos(self._colat)*ezp)
+
+        # renormalize and return pointing vector
+        return pv / np.linalg.norm(pv)
 
     def modify_teffs(self, teffs, coords, s=[0., 0., 1.], t=None):
         """
