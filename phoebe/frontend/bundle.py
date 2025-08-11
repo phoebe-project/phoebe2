@@ -5649,7 +5649,7 @@ class Bundle(ParameterSet):
 
         if custom_feature:
             # then add another parameter that stores the class to run the feature itself
-            params += [CodeParameter(qualifier='feature_code', value=kind, readonly=True)]
+            params += [CodeParameter(qualifier='custom_code', value=kind, readonly=True)]
         # TODO: this may need to be more flexible in the future for features on solvers, etc
         feature_type = 'component' if component_kind is not None else 'dataset'
         params += [StringParameter(qualifier='feature_type', visible_if='False', value=feature_type, readonly=True)]
@@ -12004,8 +12004,8 @@ class Bundle(ParameterSet):
                     feature_ps = self.get_feature(feature=feature, **_skip_filter_checks)
                     if feature_ps.get_value(qualifier='feature_type', **_skip_filter_checks) != 'dataset':
                         continue
-                    if 'feature_code' in feature_ps.qualifiers:
-                        feature_cls = feature_ps.get_value(qualifier='feature_code', **_skip_filter_checks)
+                    if 'custom_code' in feature_ps.qualifiers:
+                        feature_cls = feature_ps.get_value(qualifier='custom_code', **_skip_filter_checks)
                     else:
                         feature_cls = getattr(dataset_features, feature_ps.kind.title(), None)
                     feature_cls.from_bundle(self, feature_ps).modify_model(self, feature_ps, ml_params)

@@ -1251,8 +1251,8 @@ class Star(Body):
                 continue
             if feature_ps.get_value(qualifier='feature_type', **_skip_filter_checks) != 'component':
                 continue
-            if 'feature_code' in feature_ps.qualifiers:
-                feature_cls = feature_ps.get_value(qualifier='feature_code', **_skip_filter_checks)
+            if 'custom_code' in feature_ps.qualifiers:
+                feature_cls = feature_ps.get_value(qualifier='custom_code', **_skip_filter_checks)
             else:
                 feature_cls = getattr(component_features, feature_ps.kind.title())
             features.append(feature_cls.from_bundle(b, feature_ps))
