@@ -28,8 +28,15 @@ class DatasetFeature(BaseFeature):
         return f"<DatasetFeature: {self.__class__.__name__}>"
 
     @classmethod
-    def get_parameters(self, feature, **kwargs):
+    def get_parameters(self, **kwargs):
         raise NotImplementedError("get_parameters must be implemented in the feature subclass")
+
+    def modify_data_for_estimators(self, b, feature_ps, data_ps, **data_arrays):
+        """
+        Modify the data parameters for the estimators.
+        This is called before the data is passed to the estimators.
+        """
+        return {}
 
     def modify_model(self, b, feature_ps, model_ps):
         raise NotImplementedError("modify_model must be implemented in the feature subclass")

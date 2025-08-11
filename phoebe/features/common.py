@@ -30,6 +30,6 @@ class BaseFeature:
         return cls(**cls.parse_bundle(b, feature_ps))
 
     @classmethod
-    def get_parameters(self, feature, **kwargs):
+    def get_parameters(self, **kwargs):
         raise NotImplementedError("get_parameters must be implemented in the feature subclass")
 

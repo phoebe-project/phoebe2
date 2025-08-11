@@ -15,6 +15,7 @@ from phoebe import u, c
 from phoebe import conf, mpi
 from phoebe.parameters.parameters import _extract_index_from_string
 from phoebe.backend.backends import _simplify_error_message
+from phoebe.features import dataset_features
 from phoebe.utils import phase_mask_inds
 from phoebe.dependencies import nparray
 from phoebe.helpers import get_emcee_object as _get_emcee_object
@@ -243,6 +244,27 @@ def _get_combined_lc(b, datasets, combine, phase_component=None, mask=True, norm
         if len(ds_sigmas) == 0:
             # TODO: option for this???
             ds_sigmas = np.full_like(ds_fluxes, fill_value=0.001*ds_fluxes.mean())
+
+        # run dataset features attached to this dataset
+        for feature in b.filter(context='feature', dataset=dataset, **_skip_filter_checks).features:
+            feature_ps = b.get_feature(feature=feature, **_skip_filter_checks)
+            if feature_ps.get_value(qualifier='feature_type', **_skip_filter_checks) != 'dataset':
+                continue
+            if 'custom_code' in feature_ps.qualifiers:
+                feature_cls = feature_ps.get_value(qualifier='custom_code', **_skip_filter_checks)
+            else:
+                # TODO: import
+                feature_cls = getattr(dataset_features, feature_ps.kind.title(), None)
+            if feature_cls is None:
+                raise ValueError("dataset feature '{}' not found".format(feature_ps.kind))
+            modified_params = feature_cls.from_bundle(b, feature).modify_data_for_estimators(b, feature_ps,
+                                                                                             lc_ps,
+                                                                                             times=ds_times,
+                                                                                             fluxes=ds_fluxes,
+                                                                                             sigmas=ds_sigmas)
+            ds_times = modified_params.get('times', ds_times)
+            ds_fluxes = modified_params.get('fluxes', ds_fluxes)
+            ds_sigmas = modified_params.get('sigmas', ds_sigmas)
 
         if normalize:
             if combine == 'max':
