@@ -6,11 +6,10 @@ class BaseFeature:
         self.kwargs = kwargs
 
     @classmethod
-    def parse_from_feature_ps(cls, b, feature, param_list):
+    def parse_from_feature_ps(cls, b, feature_ps, param_list):
         _skip_filter_checks = {'check_default': False,
                                'check_visible': False,
                                'check_advanced': False}
-        feature_ps = b.filter(feature=feature, context='feature', **_skip_filter_checks)
 
         def item_to_kwargs(item):
             if isinstance(item, str):
