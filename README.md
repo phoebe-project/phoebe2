@@ -84,6 +84,7 @@ CHANGELOG
 * Improved description for fti_oversample parameter. [#1061]
 * Updated all http links to https. [#1062]
 * Catch ellc OSError. [#1063]
+* Fixes parse_solver_times regression introduced in 2.4.20. [#1067]
 
 ### 2.4.20
 

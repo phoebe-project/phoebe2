@@ -13390,16 +13390,16 @@ class Bundle(ParameterSet):
                 raise NotImplementedError("solver_times='{}' not implemented".format(solver_times))
 
             if return_as_dict:
-                if len(new_compute_times) == 0:
-                    if masked_times is None:
-                        compute_times_per_ds[param.dataset] = _get_masked_times(self, param.dataset, [], 0.0, return_times_phases=False)
-                    else:
-                        compute_times_per_ds[param.dataset] = masked_times
-                elif new_compute_times is None:
+                if new_compute_times is None:
                     if masked_compute_times is None:
                         compute_times_per_ds[param.dataset] = ds_ps.get_value(qualifier='compute_times', unit=u.d, **_skip_filter_checks)
                     else:
                         compute_times_per_ds[param.dataset] = masked_compute_times
+                elif len(new_compute_times) == 0:
+                    if masked_times is None:
+                        compute_times_per_ds[param.dataset] = _get_masked_times(self, param.dataset, [], 0.0, return_times_phases=False)
+                    else:
+                        compute_times_per_ds[param.dataset] = masked_times
                 else:
                     compute_times_per_ds[param.dataset] = new_compute_times
 
