@@ -83,6 +83,7 @@ CHANGELOG
 * Add a PHOEBE_TABLES_SERVER environment variable to allow overriding the URL of the queried tables server. [#1060]
 * Improved description for fti_oversample parameter. [#1061]
 * Updated all http links to https. [#1062]
+* Catch ellc OSError. [#1063]
 
 ### 2.4.20
 
