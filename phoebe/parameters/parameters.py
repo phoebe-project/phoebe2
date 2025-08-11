@@ -12656,10 +12656,6 @@ class CodeParameter(StringParameter):
     def get_code_for_cls(cls, ignore=[]):
         import inspect
 
-        # TODO: remove
-        from phoebe.features.component_features import Spot
-
-
         code = inspect.getsource(cls.__init__)
         for name, member in inspect.getmembers_static(cls):
             if name in ignore:
@@ -12667,7 +12663,7 @@ class CodeParameter(StringParameter):
             if name.startswith('__') and name not in ['__repr__']:
                 continue
             if isinstance(member, property):
-                raise ValueError("input class cannot contain any properties (pass to ignore to skip during export)")
+                raise ValueError("input class cannot contain any properties")
             if hasattr(member, '__call__') or hasattr(member, '__wrapped__'):
                 code += inspect.getsource(member)
             else:
