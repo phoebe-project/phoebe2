@@ -6,6 +6,10 @@ class BaseFeature:
         self.kwargs = kwargs
 
     @classmethod
+    def create_feature_parameters(self, feature, **kwargs):
+        raise NotImplementedError("create_feature_parameters must be implemented in the feature subclass")
+
+    @classmethod
     def parse_from_feature_ps(cls, b, feature_ps, param_list):
         _skip_filter_checks = {'check_default': False,
                                'check_visible': False,
@@ -28,8 +32,3 @@ class BaseFeature:
     @classmethod
     def from_bundle(cls, b, feature_ps):
         return cls(**cls.parse_bundle(b, feature_ps))
-
-    @classmethod
-    def get_parameters(self, **kwargs):
-        raise NotImplementedError("get_parameters must be implemented in the feature subclass")
-

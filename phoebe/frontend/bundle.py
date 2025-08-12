@@ -17,7 +17,7 @@ from datetime import datetime
 from packaging.version import parse
 from copy import deepcopy as _deepcopy
 import pickle as _pickle
-from inspect import getsource as _getsource
+from inspect import getsource as _getsource, isclass
 
 from scipy.optimize import curve_fit as cfit
 from tqdm import tqdm as _tqdm
@@ -42,6 +42,7 @@ from phoebe.backend import universe as _universe
 from phoebe.solverbackends import solverbackends as _solverbackends
 from phoebe.distortions import roche
 from phoebe.frontend import io
+from phoebe.features.common import BaseFeature
 from phoebe.features import dataset_features, component_features
 from phoebe.features.gaussian_processes import handle_gaussian_processes, _use_celerite2, _use_sklearn
 from phoebe.atmospheres.passbands import list_installed_passbands, list_online_passbands, get_passband, update_passband, _timestamp_to_dt
@@ -5599,8 +5600,8 @@ class Bundle(ParameterSet):
         * ValueError: if `dataset` is required but it not provided or is of the
             wrong kind.
         """
-        if getattr(kind, '_phoebe_custom_feature', False):
-            func = kind.get_parameters
+        if isclass(kind) and issubclass(kind, BaseFeature):
+            func = kind.create_feature_parameters
             kind_name = kind.__name__
             custom_feature = True
         else:
@@ -5645,6 +5646,7 @@ class Bundle(ParameterSet):
         if not _feature._dataset_allowed_for_feature(kind, dataset_kind):
             raise ValueError("{} does not support dataset with kind {}".format(kind_name, dataset_kind))
 
+        # NOTE: kwargs is guaranteed to include feature, which is a required argument to func
         params, constraints = func(**kwargs)
 
         if custom_feature:
@@ -5708,6 +5710,28 @@ class Bundle(ParameterSet):
                 raise ValueError("feature='{}' not found".format(feature))
         kwargs['context'] = 'feature'
         return self.filter(**kwargs)
+
+    def get_feature_code(self, feature=None, **kwargs):
+        """
+        Get the instantiated object containing the logic to run a feature.
+
+        See also:
+        * <phoebe.frontend.bundle.Bundle.get_feature>
+
+        Arguments
+        ---------
+        * `feature`: (string, optional, default=None): the name of the feature
+        * `**kwargs`: any other tags to do the filtering (excluding feature and context)
+
+        Returns:
+        * (obj): the object that implements the feature logic
+        """
+        feature_ps = self.get_feature(feature=feature, **kwargs)
+        if 'custom_code' in feature_ps.qualifiers:
+            cls = feature_ps.get_value(qualifier='custom_code', check_visible=False, check_default=False)
+        else:
+            cls = _feature._feature_classes.get(feature_ps.kind)
+        return cls.from_bundle(self, feature_ps)
 
     @send_if_client
     def remove_feature(self, feature=None, return_changes=False, **kwargs):
@@ -12000,15 +12024,10 @@ class Bundle(ParameterSet):
                 # handle all dataset-features (except for GPs, which need to all be handled simultaneously
                 # and AFTER - instead of BEFORE - dataset-scaling from pblum_mode='dataset-scaled')
                 enabled_features = self.filter(qualifier='enabled', compute=compute, context='compute', value=True, **_skip_filter_checks).features
-                for feature in enabled_features:
-                    feature_ps = self.get_feature(feature=feature, **_skip_filter_checks)
-                    if feature_ps.get_value(qualifier='feature_type', **_skip_filter_checks) != 'dataset':
-                        continue
-                    if 'custom_code' in feature_ps.qualifiers:
-                        feature_cls = feature_ps.get_value(qualifier='custom_code', **_skip_filter_checks)
-                    else:
-                        feature_cls = getattr(dataset_features, feature_ps.kind.title(), None)
-                    feature_cls.from_bundle(self, feature_ps).modify_model(self, feature_ps, ml_params)
+                enabled_dataset_features = self.filter(qualifier='feature_type', feature=enabled_features, context='feature', value='dataset', **_skip_filter_checks).features
+                for feature in enabled_dataset_features:
+                    feature_obj = self.get_feature_code(feature=feature)
+                    feature_obj.modify_model(self, ml_params)
 
                 # handle flux scaling for any pblum_mode == 'dataset-scaled'
                 # or for any dataset in which pblum_mode == 'dataset-coupled' and pblum_dataset points to a 'dataset-scaled' dataset

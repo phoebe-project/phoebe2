@@ -246,22 +246,17 @@ def _get_combined_lc(b, datasets, combine, phase_component=None, mask=True, norm
             ds_sigmas = np.full_like(ds_fluxes, fill_value=0.001*ds_fluxes.mean())
 
         # run dataset features attached to this dataset
-        for feature in b.filter(context='feature', dataset=dataset, **_skip_filter_checks).features:
-            feature_ps = b.get_feature(feature=feature, **_skip_filter_checks)
-            if feature_ps.get_value(qualifier='feature_type', **_skip_filter_checks) != 'dataset':
-                continue
-            if 'custom_code' in feature_ps.qualifiers:
-                feature_cls = feature_ps.get_value(qualifier='custom_code', **_skip_filter_checks)
-            else:
-                # TODO: import
-                feature_cls = getattr(dataset_features, feature_ps.kind.title(), None)
-            if feature_cls is None:
-                raise ValueError("dataset feature '{}' not found".format(feature_ps.kind))
-            modified_params = feature_cls.from_bundle(b, feature).modify_data_for_estimators(b, feature_ps,
-                                                                                             lc_ps,
-                                                                                             times=ds_times,
-                                                                                             fluxes=ds_fluxes,
-                                                                                             sigmas=ds_sigmas)
+        # NOTE: enabled features are per-compute but estimators don't even have a compute
+        # so instead we just include any that are enabled in ANY compute
+        # TODO: copy enabled@feature for all estimators (but not other solvers)
+        enabled_features = b.filter(qualifier='enabled', value=True, **_skip_filter_checks).features
+        for feature in b.filter(context='feature', feature=enabled_features, dataset=dataset, **_skip_filter_checks).features:
+            feature_obj = b.get_feature_code(feature=feature)
+            modified_params = feature_obj.modify_data_for_estimators(b,
+                                                                     lc_ps,
+                                                                     times=ds_times,
+                                                                     fluxes=ds_fluxes,
+                                                                     sigmas=ds_sigmas)
             ds_times = modified_params.get('times', ds_times)
             ds_fluxes = modified_params.get('fluxes', ds_fluxes)
             ds_sigmas = modified_params.get('sigmas', ds_sigmas)

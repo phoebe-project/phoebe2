@@ -2,6 +2,7 @@ import numpy as np
 import astropy.units as u
 
 import phoebe.parameters.feature as _parameters_feature
+from phoebe.parameters import FloatParameter, ParameterSet, constraint
 from phoebe.features.common import BaseFeature
 
 import logging
@@ -116,6 +117,46 @@ class Spot(ComponentFeature):
     proto_coords = True
 
     @classmethod
+    def create_feature_parameters(cls, feature, **kwargs):
+        """
+        Create a <phoebe.parameters.ParameterSet> for a spot feature.
+
+        Generally, this will be used as an input to the kind argument in
+        <phoebe.frontend.bundle.Bundle.add_feature>.  If attaching through
+        <phoebe.frontend.bundle.Bundle.add_feature>, all `**kwargs` will be
+        passed on to set the values as described in the arguments below.  Alternatively,
+        see <phoebe.parameters.ParameterSet.set_value> to set/change the values
+        after creating the Parameters.
+
+        Allowed to attach to:
+        * components with kind: star
+        * datasets: not allowed
+
+        Arguments
+        ----------
+        * `colat` (float/quantity, optional): colatitude of the center of the spot
+            wrt spin axis.
+        * `long` (float/quantity, optional): longitude of the center of the spot wrt
+            spin axis.
+        * `radius` (float/quantity, optional): angular radius of the spot.
+        * `relteff` (float/quantity, optional): temperature of the spot relative
+            to the intrinsic temperature.
+
+        Returns
+        --------
+        * (<phoebe.parameters.ParameterSet>, list): ParameterSet of all newly created
+            <phoebe.parameters.Parameter> objects and a list of all necessary
+            constraints.
+        """
+        params = []
+        params += [FloatParameter(qualifier="colat", value=kwargs.get('colat', 0.0), default_unit=u.deg, description='Colatitude of the center of the spot wrt spin axis')]
+        params += [FloatParameter(qualifier="long", value=kwargs.get('long', 0.0), default_unit=u.deg, description='Longitude of the center of the spot wrt spin axis')]
+        params += [FloatParameter(qualifier='radius', value=kwargs.get('radius', 1.0), default_unit=u.deg, description='Angular radius of the spot')]
+        params += [FloatParameter(qualifier='relteff', value=kwargs.get('relteff', 1.0), limits=(0.,None), default_unit=u.dimensionless_unscaled, description='Temperature of the spot relative to the intrinsic temperature')]
+
+        return ParameterSet(params), []
+
+    @classmethod
     def parse_bundle(cls, b, feature_ps):
         """
         Initialize a Spot feature from the bundle.
@@ -188,9 +229,9 @@ class Spot(ComponentFeature):
         exp = np.cross(eyp, ezp)
 
         # now we can express the pointing vector in terms of the primed basis
-        pv = (np.sin(self._colat)*np.cos(longitude)*exp +
-              np.sin(self._colat)*np.sin(longitude)*eyp +
-              np.cos(self._colat)*ezp)
+        pv = (np.sin(colat)*np.cos(longitude)*exp +
+              np.sin(colat)*np.sin(longitude)*eyp +
+              np.cos(colat)*ezp)
 
         # renormalize and return pointing vector
         return pv / np.linalg.norm(pv)
