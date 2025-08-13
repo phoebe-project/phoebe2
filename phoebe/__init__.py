@@ -949,7 +949,7 @@ def list_available_features(devel=False):
     ---------
     * (list of strings)
     """
-    return _get_phoebe_funcs(feature, devel=devel)
+    return list(feature._feature_classes.keys())
 
 def list_available_datasets(devel=False):
     """
