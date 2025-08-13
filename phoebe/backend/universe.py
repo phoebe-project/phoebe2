@@ -1246,16 +1246,12 @@ class Star(Body):
 
         features = []
         for feature in b.filter(qualifier='enabled', compute=compute, value=True, **_skip_filter_checks).features:
-            feature_ps = b.get_feature(feature=feature, **_skip_filter_checks)
             if feature_ps.component != component:
                 continue
             if feature_ps.get_value(qualifier='feature_type', **_skip_filter_checks) != 'component':
                 continue
-            if 'custom_code' in feature_ps.qualifiers:
-                feature_cls = feature_ps.get_value(qualifier='custom_code', **_skip_filter_checks)
-            else:
-                feature_cls = getattr(component_features, feature_ps.kind.title())
-            features.append(feature_cls.from_bundle(b, feature_ps))
+            feature_obj = b.get_feature_code(feature=feature)
+            features.append(feature_obj)
 
         if conf.devel:
             mesh_offset_override = kwargs.pop('mesh_offset', None)

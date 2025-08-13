@@ -3175,19 +3175,20 @@ class Bundle(ParameterSet):
         Arguments
         -----------
         * `compute` (string or list of strings, optional, default=None): the
-            compute options to use  when running checks.  If None (or not provided),
+            compute options to use when running checks.  If None (or not provided),
             the compute options in the 'run_checks_compute@setting' parameter
             will be used (which defaults to all available compute options).
+            All enabled features in `compute` will also be checked.
         * `solver` (string or list of strings, optional, default=None): the
-            solver options to use  when running checks.  If None (or not provided),
+            solver options to use when running checks.  If None (or not provided),
             the compute options in the 'run_checks_solver@setting' parameter
             will be used (which defaults to all available solver options).
         * `solution` (string or list of strings, optional, default=None): the
-            solutions to use  when running checks.  If None (or not provided),
+            solutions to use when running checks.  If None (or not provided),
             the compute options in the 'run_checks_solution@setting' parameter
             will be used (which defaults to no solutions, if not set).
         * `figure` (string or list of strings, optional, default=None): the
-            figures to use  when running checks.  If None (or not provided),
+            figures to use when running checks.  If None (or not provided),
             the compute options in the 'run_checks_figure@setting' parameter
             will be used (which defaults to no figures, if not set).
         * `allow_skip_constraints` (bool, optional, default=False): whether
@@ -4034,10 +4035,12 @@ class Bundle(ParameterSet):
 
 
         for compute in computes:
-            compute_kind = self.get_compute(compute=compute, **_skip_filter_checks).kind
+            compute_ps = self.get_compute(compute=compute, **_skip_filter_checks)
+            compute_kind = compute_ps.kind
 
             gps = self.filter(kind=['gp_celerite2','gp_sklearn'], context='feature', **_skip_filter_checks).features
             compute_enabled_gps = self.filter(qualifier='enabled', compute=compute, feature=gps, value=True, **_skip_filter_checks).features
+            compute_enabled_features = self.filter(qualifier='enabled', compute=compute, value=True, **_skip_filter_checks).features
             compute_enabled_datasets = self.filter(qualifier='enabled', dataset=self.datasets, value=True, **_skip_filter_checks).datasets
             compute_enabled_datasets_with_gps = [ds for ds in self.filter(feature=compute_enabled_gps, **_skip_filter_checks).datasets if ds in compute_enabled_datasets]
 
@@ -4117,6 +4120,16 @@ class Bundle(ParameterSet):
                                              error, 'run_compute')
                 else:
                     raise ValueError("{} could not be found in distributions or solutions".format(dist_or_solution))
+
+            for feature in compute_enabled_features:
+                feature_ps = self.get_feature(feature=feature, **_skip_filter_checks)
+                feature_cls = self.get_feature_code(feature=feature, instantiate=False)
+                for item in feature_cls.run_checks_compute(b=self, feature_ps=feature_ps, compute_ps=compute_ps):
+                    report.add_item(self,
+                                    item.get('msg'),
+                                    item.get('params', []),
+                                    item.get('is_error', False),
+                                    'run_compute')
 
             if len(compute_enabled_gps):
                 # check for time-dependency issues with GPs
@@ -5711,9 +5724,9 @@ class Bundle(ParameterSet):
         kwargs['context'] = 'feature'
         return self.filter(**kwargs)
 
-    def get_feature_code(self, feature=None, **kwargs):
+    def get_feature_code(self, feature=None, instantiate=True, **kwargs):
         """
-        Get the instantiated object containing the logic to run a feature.
+        Get the instantiated object (or non-instantiated class) containing the logic to run a feature.
 
         See also:
         * <phoebe.frontend.bundle.Bundle.get_feature>
@@ -5721,6 +5734,8 @@ class Bundle(ParameterSet):
         Arguments
         ---------
         * `feature`: (string, optional, default=None): the name of the feature
+        * `instantiate`: (bool, optional, default=True): whether to intstantiate the object
+            or return the class
         * `**kwargs`: any other tags to do the filtering (excluding feature and context)
 
         Returns:
@@ -5731,7 +5746,10 @@ class Bundle(ParameterSet):
             cls = feature_ps.get_value(qualifier='custom_code', check_visible=False, check_default=False)
         else:
             cls = _feature._feature_classes.get(feature_ps.kind)
-        return cls.from_bundle(self, feature_ps)
+        if instantiate:
+            return cls._from_bundle(self, feature_ps)
+        else:
+            return cls
 
     @send_if_client
     def remove_feature(self, feature=None, return_changes=False, **kwargs):

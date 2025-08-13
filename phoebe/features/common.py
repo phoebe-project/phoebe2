@@ -6,7 +6,7 @@ class BaseFeature:
         self.kwargs = kwargs
 
     @classmethod
-    def create_feature_parameters(self, feature, **kwargs):
+    def create_feature_parameters(self, feature_ps, **kwargs):
         raise NotImplementedError("create_feature_parameters must be implemented in the feature subclass")
 
     @classmethod
@@ -30,5 +30,9 @@ class BaseFeature:
         return {}
 
     @classmethod
-    def from_bundle(cls, b, feature_ps):
+    def _from_bundle(cls, b, feature_ps):
         return cls(**cls.parse_bundle(b, feature_ps))
+
+    @classmethod
+    def run_checks_compute(cls, b, feature_ps, compute_ps):
+        return [{}]

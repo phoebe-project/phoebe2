@@ -151,8 +151,8 @@ class Spot(ComponentFeature):
         params = []
         params += [FloatParameter(qualifier="colat", value=kwargs.get('colat', 0.0), default_unit=u.deg, description='Colatitude of the center of the spot wrt spin axis')]
         params += [FloatParameter(qualifier="long", value=kwargs.get('long', 0.0), default_unit=u.deg, description='Longitude of the center of the spot wrt spin axis')]
-        params += [FloatParameter(qualifier='radius', value=kwargs.get('radius', 1.0), default_unit=u.deg, description='Angular radius of the spot')]
-        params += [FloatParameter(qualifier='relteff', value=kwargs.get('relteff', 1.0), limits=(0.,None), default_unit=u.dimensionless_unscaled, description='Temperature of the spot relative to the intrinsic temperature')]
+        params += [FloatParameter(qualifier='radius', value=kwargs.get('radius', 1.0), limits=(0, 180), default_unit=u.deg, description='Angular radius of the spot')]
+        params += [FloatParameter(qualifier='relteff', value=kwargs.get('relteff', 1.0), limits=(0, None), default_unit=u.dimensionless_unscaled, description='Temperature of the spot relative to the intrinsic temperature')]
 
         return ParameterSet(params), []
 
@@ -187,6 +187,21 @@ class Spot(ComponentFeature):
         t0 = b.get_value(qualifier='t0', context='system', unit=u.d, **_skip_filter_checks)
 
         return dict(colat=colat, longitude=longitude, rot_dlongdt=rot_dlongdt, radius=radius, relteff=relteff, t0=t0)
+
+    @classmethod
+    def run_checks_compute(cls, b, feature_ps, compute_ps):
+        items = []
+        relteff_param = feature_ps.get_parameter(qualifier='relteff', **_skip_filter_checks)
+        radius_param = feature_ps.get_parameter(qualifier='radius', **_skip_filter_checks)
+        if relteff_param.get_value(**_skip_filter_checks) == 1:
+            items += [{'msg': 'relteff of spot is 1.0 which will have no affect',
+                       'params': [relteff_param],
+                       'is_error': False}]
+        if radius_param.get_value(**_skip_filter_checks) == 0:
+            items += [{'msg': 'radius of spot is 0.0 which will have no affect',
+                       'params': [radius_param],
+                       'is_error': False}]
+        return items
 
     def instantaneous_position(self, s, time):
         """
