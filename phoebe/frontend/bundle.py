@@ -12161,7 +12161,7 @@ class Bundle(ParameterSet):
                 # NOTE: this has to happen after _attach_params as it uses
                 # several bundle methods that act on the model and also
                 # has to happen after dataset-scaling (for pblum_mode=='dataset-scaled')
-                handle_gaussian_processes(self, model, model_ps, enabled_features, computeparams)
+                handle_gaussian_processes(self, model, model_ps, enabled_features, computeparams, metawargs)
 
         except Exception as err:
             restore_conf()

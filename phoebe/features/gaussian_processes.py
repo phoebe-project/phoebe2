@@ -21,7 +21,7 @@ __all__ = ['handle_gaussian_processes']
 
 _skip_filter_checks = {'check_default': False, 'check_visible': False}
 
-def handle_gaussian_processes(b, model, model_ps, enabled_features, computeparams):
+def handle_gaussian_processes(b, model, model_ps, enabled_features, computeparams, metawargs):
 
     for ds in model_ps.datasets:
         gp_sklearn_features = b.filter(feature=enabled_features, dataset=ds, kind='gp_sklearn', **_skip_filter_checks).features
