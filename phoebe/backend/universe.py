@@ -1246,9 +1246,10 @@ class Star(Body):
 
         features = []
         for feature in b.filter(qualifier='enabled', compute=compute, value=True, **_skip_filter_checks).features:
-            if feature_ps.component != component:
-                continue
+            feature_ps = b.get_feature(feature=feature, **_skip_filter_checks)
             if feature_ps.get_value(qualifier='feature_type', **_skip_filter_checks) != 'component':
+                continue
+            if feature_ps.component != component:
                 continue
             feature_obj = b.get_feature_code(feature=feature)
             features.append(feature_obj)
