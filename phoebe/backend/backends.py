@@ -51,6 +51,14 @@ else:
     _use_ellc = True
 
 
+try:
+    import pandas as pd
+    import tables
+except ImportError:
+    _has_phoebai_deps = False
+else:
+    _has_phoebai_deps = True
+
 from tqdm import tqdm as _tqdm
 
 def _progressbar(args, total=None, show_progressbar=True):
@@ -1462,6 +1470,139 @@ class PhoebeBackend(BaseBackendByTime):
                 raise NotImplementedError("kind {} not yet supported by this backend".format(kind))
 
         logger.debug("rank:{}/{} PhoebeBackend._run_single_time: returning packetlist at time={}".format(mpi.myrank, mpi.nprocs, time))
+
+        return packetlist
+
+
+class PhoebaiBackend(BaseBackendByDataset):
+    """
+    See <phoebe.parameters.compute.phoebai>.
+
+    The run method in this class will almost always be called through the bundle, using
+    * <phoebe.frontend.bundle.Bundle.add_compute>
+    * <phoebe.frontend.bundle.Bundle.run_compute>
+    """
+
+    def run_checks(self, b, compute, times=[], **kwargs):
+        computeparams = b.get_compute(compute, force_ps=True)
+        hier = b.get_hierarchy()
+
+        starrefs  = hier.get_stars()
+        meshablerefs = hier.get_meshables()
+
+        if not _has_phoebai_deps:
+            raise ValueError("phoebai backend requires pandas and pytables to be installed (pip install pandas tables)")
+
+        if len(starrefs)!=2:
+            raise ValueError("only binaries are supported by phoebai backend")
+
+
+    def _worker_setup(self, b, compute, infolist, **kwargs):
+        """
+        """
+        logger.debug("rank:{}/{} PhoebaiBackend._worker_setup".format(mpi.myrank, mpi.nprocs))
+
+        computeparams = b.get_compute(compute, force_ps=True)
+        component_ps = b.filter(context='component', **_skip_filter_checks)
+        orbit = b.get_hierarchy().get_top()
+
+        params = {'esinw': component_ps.get_value(qualifier='esinw', **_skip_filter_checks),
+                  'ecosw': component_ps.get_value(qualifier='ecosw', **_skip_filter_checks),
+                  'cosi': np.cos(component_ps.get_value(qualifier='incl', component=orbit, unit='rad', **_skip_filter_checks)),
+                  'requivsumfrac': component_ps.get_value(qualifier='requivsumfrac', **_skip_filter_checks),
+                  'requivratio': component_ps.get_value(qualifier='requivratio', **_skip_filter_checks),
+                  'teffratio': component_ps.get_value(qualifier='teffratio', **_skip_filter_checks),
+                  'D_f': 1.0}
+
+        path = os.path.abspath(__file__)
+        dir_path = os.path.dirname(path)
+        H5_FILE = '{}/phoebeai/model_data.h5'.format(dir_path)
+
+        # load everything from the single HDF5
+        with pd.HDFStore(H5_FILE, mode='r') as store:
+            # detect scaler center key:
+            if 'scaler/mean' in store:
+                scaler_center = store['scaler/mean'].values
+            else:
+                scaler_center = store['scaler/center'].values
+            scaler_scale  = store['scaler/scale'].values
+
+            # load weights & biases
+            weights_biases = []
+            idx = 0
+            while True:
+                w_key = f'layer_{idx}/W'
+                b_key = f'layer_{idx}/b'
+                if w_key not in store:
+                    break
+                W = store[w_key].values
+                b = store[b_key].values
+                weights_biases.append((W, b))
+                idx += 1
+
+        def custom_predict(x):
+            for i, (W, b) in enumerate(weights_biases[:-1]):
+                x = x.dot(W) + b
+                if i == 0:
+                    x = np.where(x > 0, x, np.exp(x) - 1)
+                else:
+                    x = 1/(1+np.exp(-x))
+            W, b = weights_biases[-1]
+            return (x.dot(W) + b).flatten()
+
+        def predict_light_curve(params):
+            arr = np.array([[ params['esinw'], params['ecosw'], params['cosi'],
+                            params['requivsumfrac'], params['requivratio'], params['teffratio'] ]])
+            # manual scaling
+            scaled = (arr - scaler_center) / scaler_scale
+            pred   = custom_predict(scaled)
+            F_S = 2.0
+            f_b = params['D_f']
+            F_B = F_S*(1-f_b)/f_b
+            return (pred + F_B)/(2.0+F_B)*2
+        
+        fluxes = predict_light_curve(params)
+
+        return dict(fluxes=fluxes)
+
+    def _run_single_dataset(self, b, info, **kwargs):
+        """
+        """
+        logger.debug("rank:{}/{} PhoebaiBackend._run_single_dataset(info['dataset']={} info['component']={} info.keys={}, **kwargs.keys={})".format(mpi.myrank, mpi.nprocs, info['dataset'], info['component'], info.keys(), kwargs.keys()))
+
+        packetlist = []
+
+
+        if info['kind'] != 'lc':
+            raise NotImplementedError("dataset '{}' with kind '{}' not supported by phoebai backend".format(info['dataset'], info['kind']))
+
+        phoebai_fluxes = kwargs.get('fluxes')
+        # Remap phases from (-0.75, 0.25) to (-0.5, 0.5) without phase shift
+        # Original phases cover one complete cycle
+        original_phases = np.linspace(-0.75, 0.25, 501)
+        
+        # Split the original data at phase 0.0 boundary
+        # Indices for phases >= -0.5 (these map to the start of new range)
+        start_idx = np.where(original_phases >= -0.5)[0]
+        # Indices for phases < -0.5 (these wrap to the end of new range)
+        wrap_idx = np.where(original_phases < -0.5)[0]
+        
+        # Remap without interpolation by reordering
+        # Phases >= -0.5 stay as-is, phases < -0.5 wrap around by +1.0
+        phoebai_phases = np.concatenate([original_phases[start_idx],
+                                         original_phases[wrap_idx] + 1.0])
+        phoebai_fluxes = np.concatenate([phoebai_fluxes[start_idx],
+                                         phoebai_fluxes[wrap_idx]])
+        
+        compute_phases = b.to_phases(info['times'])
+        # fluxes is sampled evenly in phases
+        fluxes_interp = np.interp(compute_phases, phoebai_phases,
+                                  phoebai_fluxes)
+
+        packetlist.append(_make_packet('fluxes',
+                                        fluxes_interp,
+                                        None,
+                                        info))
 
         return packetlist
 

@@ -182,6 +182,57 @@ def phoebe(**kwargs):
     return ParameterSet(params)
 
 
+def phoebai(**kwargs):
+    """
+    Create a <phoebe.parameters.ParameterSet> for compute options for the
+    PHOEBEAI backend.
+
+    When using this backend, please see the
+    http://phoebe-project.org/publications and cite
+    the appropriate references.
+
+    See also:
+    * <phoebe.frontend.bundle.Bundle.references>
+
+    Generally, this will be used as an input to the kind argument in
+    <phoebe.frontend.bundle.Bundle.add_compute>.  If attaching through
+    <phoebe.frontend.bundle.Bundle.add_compute>, all `**kwargs` will be
+    passed on to set the values as described in the arguments below.  Alternatively,
+    see <phoebe.parameters.ParameterSet.set_value> to set/change the values
+    after creating the Parameters.
+
+    For example:
+
+    ```py
+    b.add_compute('phoebai')
+    b.run_compute(kind='phoebai')
+    ```
+
+    Arguments
+    ----------
+    * `enabled` (bool, optional, default=True): whether to create synthetics in
+        compute/solver runs.
+
+    Returns
+    --------
+    * (<phoebe.parameters.ParameterSet>): ParameterSet of all newly created
+        <phoebe.parameters.Parameter> objects.
+    """
+    params = _sampling_params(**kwargs)
+    params += _comments_params(**kwargs)
+    params += _server_params(**kwargs)
+
+    params += [BoolParameter(qualifier='enabled', copy_for={'context': 'dataset', 'dataset': '*'}, dataset='_default', value=kwargs.get('enabled', True), description='Whether to create synthetics in compute/solver run')]
+    params += [BoolParameter(qualifier='enabled', copy_for={'context': 'feature', 'feature': '*'}, feature='_default', value=kwargs.get('enabled', True), description='Whether to enable the feature in compute/solver run')]
+    params += [BoolParameter(visible_if='ds_has_enabled_feature:gp_*', qualifier='gp_exclude_phases_enabled', value=kwargs.get('gp_exclude_phases_enabled', True), copy_for={'kind': ['lc', 'rv', 'lp'], 'dataset': '*'}, dataset='_default', description='Whether to apply the mask in gp_exclude_phases during gaussian process fitting.')]
+    params += [FloatArrayParameter(visible_if='ds_has_enabled_feature:gp_*,gp_exclude_phases_enabled:True', qualifier='gp_exclude_phases', value=kwargs.get('gp_exclude_phases', []), copy_for={'kind': ['lc', 'rv', 'lp'], 'dataset': '*'}, dataset='_default', default_unit=u.dimensionless_unscaled, required_shape=[None, 2], description='List of phase-tuples.  Any observations inside the range set by any of the tuples will be ignored by the gaussian process features.')]
+
+    params += [ChoiceParameter(copy_for = {'kind': ['star'], 'component': '*'}, component='_default', qualifier='atm', value=kwargs.get('atm', 'ck2004'), advanced=True, choices=_atm_choices, description='Atmosphere table to use when estimating passband luminosities and flux scaling (see pblum_method).  Note phoebai itself does not support atmospheres.')]
+
+
+    return ParameterSet(params)
+
+
 def legacy(**kwargs):
     """
     Create a <phoebe.parameters.ParameterSet> for compute options for the

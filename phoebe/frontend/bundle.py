@@ -5324,6 +5324,7 @@ class Bundle(ParameterSet):
                          'Prsa et al. (2008)': 'https://ui.adsabs.harvard.edu/abs/2008ApJ...687..542P',
                          'Kochoska et al. (in prep)': 'http://phoebe-project.org/publications/2022Kochoska+',
                          'scikit-learn': 'https://scikit-learn.org/stable/about.html#citing-scikit-learn',
+                         'Wrona et al. (2025)': 'https://ui.adsabs.harvard.edu/abs/2025ApJS..277....1W'
                         }
 
         # ref: [reasons] pairs
@@ -5348,6 +5349,8 @@ class Bundle(ParameterSet):
                 recs = _add_reason(recs, 'jktebop', 'jktebop compute backend')
             elif self.get_compute(compute).kind == 'ellc':
                 recs = _add_reason(recs, 'Maxted (2016)', 'ellc compute backend')
+            elif self.get_compute(compute).kind == 'phoebai':
+                recs = _add_reason(recs, 'Wrona et al. (2016)', 'phoebai compute backend')
 
         if len(solvers):
             recs = _add_reason(recs, 'Conroy et al. (2020)', 'general inverse problem framework in PHOEBE')
