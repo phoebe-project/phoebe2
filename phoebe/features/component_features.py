@@ -5,10 +5,6 @@ import phoebe.parameters.feature as _parameters_feature
 from phoebe.parameters import FloatParameter, ParameterSet, constraint
 from phoebe.features.common import BaseFeature
 
-import logging
-logger = logging.getLogger("COMPONENT_FEATURES")
-logger.addHandler(logging.NullHandler())
-
 
 __all__ = ['ComponentFeature', 'Spot', 'Pulsation']
 
@@ -155,8 +151,6 @@ class ComponentFeature(BaseFeature):
 
 
 class Spot(ComponentFeature):
-    proto_coords = True
-
     @classmethod
     def create_feature_parameters(cls, feature, **kwargs):
         """
@@ -312,7 +306,7 @@ class Spot(ComponentFeature):
             t = self._t0
 
         pointing_vector = self.pointing_vector(s, t)
-        #logger.debug("spot.modify_teffs at t={} with pointing_vector={} and radius={}".format(t, pointing_vector, self.kwargs['radius']))
+        self.logger.debug("spot.modify_teffs at t={} with pointing_vector={} and radius={}".format(t, pointing_vector, self.kwargs['radius']))
 
         cos_alpha_coords = np.dot(roche_coords, pointing_vector) / np.linalg.norm(roche_coords, axis=1)
         cos_alpha_spot = np.cos(self.kwargs['radius'])
@@ -324,8 +318,6 @@ class Spot(ComponentFeature):
 
 
 class Pulsation(ComponentFeature):
-    proto_coords = True
-
     @classmethod
     def parse_bundle(cls, b, feature_ps):
         """

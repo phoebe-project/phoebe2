@@ -1,9 +1,15 @@
+import logging
+logger = logging.getLogger("FEATURES")
+logger.addHandler(logging.NullHandler())
+
+
 __all__ = ['BaseFeature']
 
 
 class BaseFeature:
     def __init__(self, **kwargs):
         self.kwargs = kwargs
+        self.logger = logger
 
     @classmethod
     def create_feature_parameters(self, feature_ps, **kwargs):
