@@ -43,6 +43,36 @@ class ComponentFeature(BaseFeature):
         """
         return True
 
+    def cartesian_to_spherical(self, roche_coords):
+        """
+        Transform Cartesian Roche coordinates to spherical coordinates.
+        
+        Parameters
+        ----------
+        roche_coords : array_like
+            Array of Cartesian coordinates with shape (N, 3) where columns
+            are [x, y, z]
+            
+        Returns
+        -------
+        r : ndarray
+            Radial distance from origin
+        theta : ndarray
+            Colatitude (polar angle) in radians, measured from positive
+            z-axis [0, π]
+        phi : ndarray
+            Longitude (azimuthal angle) in radians, measured from positive
+            x-axis [-π, π]
+        """
+        import numpy as np
+        
+        x, y, z = roche_coords[:, 0], roche_coords[:, 1], roche_coords[:, 2]
+        r = np.sqrt((roche_coords**2).sum(axis=1))
+        theta = np.arccos(z/r)  # colatitude [0, π]
+        phi = np.arctan2(y, x)  # longitude [-π, π]
+        
+        return r, theta, phi
+
     def modify_coords_for_computations(self, coords_for_computations, s, t):
         """
         Method for a feature to modify the coordinates.  Coordinates are
