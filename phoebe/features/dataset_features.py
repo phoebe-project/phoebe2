@@ -18,7 +18,6 @@ class DatasetFeature(BaseFeature):
     DatasetFeatures modify the model dataset after it is returned from the backend.
     
     """
-    _phoebe_custom_feature = 'dataset'
     allowed_component_kinds = [None]
     allowed_dataset_kinds = ['lc', 'rv', 'lp']
 

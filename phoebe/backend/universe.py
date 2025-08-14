@@ -1533,10 +1533,11 @@ class Star(Body):
 
         if not ignore_effects:
             for feature in self.features:
-                if feature.proto_coords:
-                    loggs = feature.modify_loggs(loggs, mesh.roche_coords_for_computations, s=self.polar_direction_xyz, t=self.time)
-                else:
-                    loggs = feature.modify_loggs(loggs, mesh.coords_for_computations, s=self.polar_direction_xyz, t=self.time)
+                loggs = feature.modify_loggs(loggs,
+                                             mesh.roche_coords_for_computations,
+                                             s=self.polar_direction_xyz,
+                                             t=self.time)
+
 
         mesh.update_columns(loggs=loggs)
 
@@ -1586,16 +1587,15 @@ class Star(Body):
 
         if not ignore_effects:
             for feature in self.features:
-                if feature.proto_coords:
-
-                    if self.__class__.__name__ == 'Star_roche_envelope_half' and self.ind_self != self.ind_self_vel:
-                        # then this is the secondary half of a contact envelope
-                        roche_coords_for_computations = np.array([1.0, 0.0, 0.0]) - mesh.roche_coords_for_computations
-                    else:
-                        roche_coords_for_computations = mesh.roche_coords_for_computations
-                    teffs = feature.modify_teffs(teffs, roche_coords_for_computations, s=self.polar_direction_xyz, t=self.time)
+                if self.__class__.__name__ == 'Star_roche_envelope_half' and self.ind_self != self.ind_self_vel:
+                    # then this is the secondary half of a contact envelope
+                    roche_coords_for_computations = np.array([1.0, 0.0, 0.0]) - mesh.roche_coords_for_computations
                 else:
-                    teffs = feature.modify_teffs(teffs, mesh.coords_for_computations, s=self.polar_direction_xyz, t=self.time)
+                    roche_coords_for_computations = mesh.roche_coords_for_computations
+                teffs = feature.modify_teffs(teffs,
+                                             roche_coords_for_computations,
+                                             s=self.polar_direction_xyz,
+                                             t=self.time)
 
         mesh.update_columns(teffs=teffs)
 
@@ -1737,10 +1737,11 @@ class Star(Body):
         rvs = -1*self.mesh.velocities.for_computations[:,2]
 
         for feature in self.features:
-            if feature.proto_coords:
-                rvs = feature.modify_rvs(rvs, self.mesh._vel, self.mesh.roche_coords_for_computations,  s=self.polar_direction_xyz, t=self.time)
-            else:
-                rvs = feature.modify_rvs(rvs, self.mesh._vel, self.mesh.coords_for_computations, s=self.polar_direction_xyz, t=self.time)
+            rvs = feature.modify_rvs(rvs,
+                                     self.mesh._vel,
+                                     self.mesh.roche_coords_for_computations,
+                                     s=self.polar_direction_xyz,
+                                     t=self.time)
 
         # Gravitational redshift
         if self.do_rv_grav:
@@ -1934,15 +1935,18 @@ class Star(Body):
 
         if not ignore_effects:
             for feature in self.features:
-                if feature.proto_coords:
-                    if self.__class__.__name__ == 'Star_roche_envelope_half' and self.ind_self != self.ind_self_vel:
-                        # then this is the secondary half of a contact envelope
-                        roche_coords_for_computations = np.array([1.0, 0.0, 0.0]) - mesh.roche_coords_for_computations
-                    else:
-                        roche_coords_for_computations = self.mesh.roche_coords_for_computations
-                    abs_normal_intensities, normal_intensities, abs_intensities, intensities = feature.modify_intensities(abs_normal_intensities, normal_intensities, abs_intensities, intensities, roche_coords_for_computations, s=self.polar_direction_xyz, t=self.time)
+                if self.__class__.__name__ == 'Star_roche_envelope_half' and self.ind_self != self.ind_self_vel:
+                    # then this is the secondary half of a contact envelope
+                    roche_coords_for_computations = np.array([1.0, 0.0, 0.0]) - mesh.roche_coords_for_computations
                 else:
-                    abs_normal_intensities, normal_intensities, abs_intensities, intensities = feature.modify_intensities(abs_normal_intensities, normal_intensities, abs_intensities, intensities, self.mesh.coords_for_computations, s=self.polar_direction_xyz, t=self.time)
+                    roche_coords_for_computations = self.mesh.roche_coords_for_computations
+                abs_normal_intensities, normal_intensities, abs_intensities, intensities = feature.modify_intensities(abs_normal_intensities,
+                                                                                                                      normal_intensities,
+                                                                                                                      abs_intensities,
+                                                                                                                      intensities,
+                                                                                                                      roche_coords_for_computations,
+                                                                                                                      s=self.polar_direction_xyz,
+                                                                                                                      t=self.time)
 
         # TODO: do we really need to store all of these if store_mesh==False?
         # Can we optimize by only returning the essentials if we know we don't need them?
@@ -2033,7 +2037,7 @@ class Star_roche(Star):
         # TODO: what about dpdt, deccdt, dincldt, etc?
 
         for feature in self.features:
-            if feature.remeshing_required:
+            if feature.requires_remeshing():
                 return True
 
         return self.is_misaligned or self.ecc != 0 or self.dynamics_method != 'keplerian'

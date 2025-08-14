@@ -29,23 +29,19 @@ class ComponentFeature(BaseFeature):
     kind of change it exacts to the mesh. For example, pulsations will require
     recomputing a mesh while spots will not. By default, the mesh will be
     recomputed (set in this superclass' `__init__()` method) but inherited
-    classes should overload `self.remeshing_required`.
-
-    remeshing_required:
-
-    proto_coords: Override this to True if all methods (except modify_coords*... those
-        ALWAYS expect protomesh coordinates) are expecting coordinates
-        in the protomesh (star) frame-of-reference rather than the
-        current in-orbit system frame-of-reference.
+    classes should overload `self.requires_remeshing`.
     """
-    _phoebe_custom_feature = 'component'
     allowed_component_kinds = ['star', 'envelope', 'orbit']
     allowed_dataset_kinds = [None]
-    remeshing_required = True
-    proto_coords = True
 
     def __repr__(self):
         return f"<ComponentFeature: {self.__class__.__name__}>"
+
+    def requires_remeshing(self):
+        """
+        Whether this feature requires remeshing of the component mesh.
+        """
+        return True
 
     def modify_coords_for_computations(self, coords_for_computations, s, t):
         """
@@ -77,7 +73,7 @@ class ComponentFeature(BaseFeature):
         """
         return coords_for_observations
 
-    def modify_rvs(self, rvs, orbit_vel, coords, s=[0., 0., 1.], t=None):
+    def modify_rvs(self, rvs, orbit_vel, roche_coords, s=[0., 0., 1.], t=None):
         """
         Method for a feature to modify the radial velocities.
 
@@ -87,7 +83,7 @@ class ComponentFeature(BaseFeature):
         """
         return rvs
 
-    def modify_loggs(self, loggs, coords, s=[0., 0., 1.], t=None):
+    def modify_loggs(self, loggs, roche_coords, s=[0., 0., 1.], t=None):
         """
         Method for a feature to modify the loggs.
 
@@ -95,7 +91,7 @@ class ComponentFeature(BaseFeature):
         """
         return loggs
 
-    def modify_teffs(self, teffs, coords, s=[0., 0., 1.], t=None):
+    def modify_teffs(self, teffs, roche_coords, s=[0., 0., 1.], t=None):
         """
         Method for a feature to modify the teffs.
 
@@ -104,7 +100,7 @@ class ComponentFeature(BaseFeature):
         return teffs
 
     def modify_intensities(self, abs_normal_intensities, normal_intensities, abs_intensities, intensities,
-                            coords, s=[0., 0., 1.], t=None):
+                           roche_coords, s=[0., 0., 1.], t=None):
         """
         Method for a feature to modify the intensities.
         Features that affect intensities should override this method
@@ -113,7 +109,6 @@ class ComponentFeature(BaseFeature):
 
 
 class Spot(ComponentFeature):
-    remeshing_required = False
     proto_coords = True
 
     @classmethod
@@ -203,6 +198,9 @@ class Spot(ComponentFeature):
                        'is_error': False}]
         return items
 
+    def requires_remeshing(self):
+        return True
+
     def instantaneous_position(self, s, time):
         """
         s is the spin vector in roche coordinates
@@ -251,7 +249,7 @@ class Spot(ComponentFeature):
         # renormalize and return pointing vector
         return pv / np.linalg.norm(pv)
 
-    def modify_teffs(self, teffs, coords, s=[0., 0., 1.], t=None):
+    def modify_teffs(self, teffs, roche_coords, s=[0., 0., 1.], t=None):
         """
         Change the local effective temperatures for any values within the
         "cone" defined by the spot.  Any teff within the spot will have its
@@ -270,7 +268,7 @@ class Spot(ComponentFeature):
         pointing_vector = self.pointing_vector(s, t)
         #logger.debug("spot.modify_teffs at t={} with pointing_vector={} and radius={}".format(t, pointing_vector, self.kwargs['radius']))
 
-        cos_alpha_coords = np.dot(coords, pointing_vector) / np.linalg.norm(coords, axis=1)
+        cos_alpha_coords = np.dot(roche_coords, pointing_vector) / np.linalg.norm(roche_coords, axis=1)
         cos_alpha_spot = np.cos(self.kwargs['radius'])
 
         filter_ = cos_alpha_coords > cos_alpha_spot
@@ -367,7 +365,7 @@ class Pulsation(ComponentFeature):
 
         return new_coords
 
-    def modify_teffs(self, teffs, coords, s=np.array([0., 0., 1.]), t=None):
+    def modify_teffs(self, teffs, roche_coords, s=np.array([0., 0., 1.]), t=None):
         """
         """
         if not self.kwargs['teffext']:
