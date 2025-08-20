@@ -838,12 +838,28 @@ class ServerJob(object):
 
         if isinstance(server_path, str):
             server_path_str = _os.path.join(self.remote_directory, server_path)
-        else:
-            server_path_str = "%s/{%s}" %  (self.remote_directory, ",".join(server_path))
+            scp_cmd = self.server.scp_cmd_from.format(
+                server_path=server_path_str, local_path=local_path
+            )
+            # TODO: execute cmd, and handle errors if stopped/terminated before getting results
+            _run_cmd(scp_cmd)
 
-        scp_cmd = self.server.scp_cmd_from.format(server_path=server_path_str, local_path=local_path)
-        # TODO: execute cmd, and handle errors if stopped/terminated before getting results
-        _run_cmd(scp_cmd)
+        else:
+            brace_spec = "%s/{%s}" % (self.remote_directory, ",".join(server_path))
+            scp_cmd = self.server.scp_cmd_from.format(
+                server_path=brace_spec, local_path=local_path
+            )
+            try:
+                _run_cmd(scp_cmd)  # Works on legacy scp/rcp behavior
+
+            except _subprocess.CalledProcessError:
+                # Fallback: copy each file individually (works on SFTP-mode scp too)
+                for path in server_path:
+                    server_path_str = _os.path.join(self.remote_directory, path)
+                    scp_cmd = self.server.scp_cmd_from.format(
+                        server_path=server_path_str, local_path=local_path
+                    )
+                    _run_cmd(scp_cmd)
 
         return [server_path] if isinstance(server_path, str) else server_path
 
