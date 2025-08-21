@@ -86,6 +86,7 @@ CHANGELOG
 * Catch ellc OSError. [#1063]
 * Fixes parse_solver_times regression introduced in 2.4.20. [#1067]
 * Fixes differential_corrections solver when multiple compute options exist. [#1069]
+* Fixes crimpl issue with scp files from remote server. [#1074]
 
 ### 2.4.20
 
