@@ -1,7 +1,7 @@
 PHOEBE 2.4
 ------------------------
 
-<p align="center"><a href="http://phoebe-project.org"><img src="./images/logo_blue.svg" alt="PHOEBE logo" width="160px" align="center"/></a></p>
+<p align="center"><a href="https://phoebe-project.org"><img src="./images/logo_blue.svg" alt="PHOEBE logo" width="160px" align="center"/></a></p>
 
 <pre align="center" style="text-align:center; font-family:monospace; margin: 30px">
   pip install phoebe
@@ -9,10 +9,10 @@ PHOEBE 2.4
 
 <p align="center">
   <a href="https://pypi.org/project/phoebe/"><img src="https://img.shields.io/badge/pip-phoebe-blue.svg"/></a>
-  <a href="http://phoebe-project.org/install"><img src="https://img.shields.io/badge/python-3.8+-blue.svg"/></a>
+  <a href="https://phoebe-project.org/install"><img src="https://img.shields.io/badge/python-3.8+-blue.svg"/></a>
   <a href="https://github.com/phoebe-project/phoebe2/blob/master/LICENSE"><img src="https://img.shields.io/badge/license-GPL3-blue.svg"/></a>
   <a href="https://github.com/phoebe-project/phoebe2/actions/workflows/on_pr.yml?query=branch%3Amaster"><img src="https://github.com/phoebe-project/phoebe2/actions/workflows/on_pr.yml/badge.svg?branch=master"/></a>
-  <a href="http://phoebe-project.org/docs/2.4"><img src="https://github.com/phoebe-project/phoebe2-docs/actions/workflows/build-docs.yml/badge.svg?branch=2.4"/></a>
+  <a href="https://phoebe-project.org/docs/2.4"><img src="https://github.com/phoebe-project/phoebe2-docs/actions/workflows/build-docs.yml/badge.svg?branch=2.4"/></a>
 <br/>
   <a href="https://ui.adsabs.harvard.edu/abs/2016ApJS..227...29P"><img src="https://img.shields.io/badge/ApJS-Prsa+2016-lightgrey.svg"/></a>
   <a href="https://ui.adsabs.harvard.edu/abs/2018ApJS..237...26H"><img src="https://img.shields.io/badge/ApJS-Horvat+2018-lightgrey.svg"/></a>
@@ -21,7 +21,7 @@ PHOEBE 2.4
 </p>
 
 <p align="center">
-  <a href="http://phoebe-project.org"><img src="./images/console.gif" alt="Console Animation" width="600px" align="center"/></a>
+  <a href="https://phoebe-project.org"><img src="./images/console.gif" alt="Console Animation" width="600px" align="center"/></a>
 </p>
 
 
@@ -30,13 +30,13 @@ INTRODUCTION
 
 PHOEBE stands for PHysics Of Eclipsing BinariEs. PHOEBE is pronounced [fee-bee](https://www.merriam-webster.com/dictionary/phoebe?pronunciation&lang=en_us&file=phoebe01.wav).
 
-PHOEBE 2 is a rewrite of the original PHOEBE code. For most up-to-date information please refer to the PHOEBE project webpage: [http://phoebe-project.org](http://phoebe-project.org)
+PHOEBE 2 is a rewrite of the original PHOEBE code. For most up-to-date information please refer to the PHOEBE project webpage: [https://phoebe-project.org](https://phoebe-project.org)
 
-PHOEBE 2.0 is described by the release paper published in the Astrophysical Journal Supplement, [Prša et al. (2016, ApJS 227, 29)](https://ui.adsabs.harvard.edu/#abs/2016ApJS..227...29P).  The addition of support for misaligned stars in version 2.1 is described in [Horvat et al. (2018, ApJS 237, 26)](https://ui.adsabs.harvard.edu/#abs/2018ApJS..237...26H).  Interstellar extinction and support for Python 3 was added in version 2.2 and described in [Jones et al. (2020, ApJS 247, 63)](https://ui.adsabs.harvard.edu/abs/2020ApJS..247...63J).  Inclusion of a general framework for solving the inverse problem as well as support for the [web and desktop clients](http://phoebe-project.org/clients) was introduced in version 2.3 as described in [Conroy et al. (2020, ApJS 250, 34)](https://ui.adsabs.harvard.edu/abs/2020ApJS..250...34C), which also removes support for Python 2.  PHOEBE 2.4 improves on the geometry and ebai estimators, updates gaussian processes to use either scikit-learn or celerite2, and adds support for submitting compute or solver runs on external servers.  These updates and fitting "best practices" will be discussed in Kochoska et al., in prep.
+PHOEBE 2.0 is described by the release paper published in the Astrophysical Journal Supplement, [Prša et al. (2016, ApJS 227, 29)](https://ui.adsabs.harvard.edu/#abs/2016ApJS..227...29P).  The addition of support for misaligned stars in version 2.1 is described in [Horvat et al. (2018, ApJS 237, 26)](https://ui.adsabs.harvard.edu/#abs/2018ApJS..237...26H).  Interstellar extinction and support for Python 3 was added in version 2.2 and described in [Jones et al. (2020, ApJS 247, 63)](https://ui.adsabs.harvard.edu/abs/2020ApJS..247...63J).  Inclusion of a general framework for solving the inverse problem as well as support for the [web and desktop clients](https://phoebe-project.org/clients) was introduced in version 2.3 as described in [Conroy et al. (2020, ApJS 250, 34)](https://ui.adsabs.harvard.edu/abs/2020ApJS..250...34C), which also removes support for Python 2.  PHOEBE 2.4 improves on the geometry and ebai estimators, updates gaussian processes to use either scikit-learn or celerite2, and adds support for submitting compute or solver runs on external servers.  These updates and fitting "best practices" will be discussed in Kochoska et al., in prep.
 
 PHOEBE 2 is released under the [GNU General Public License v3](https://www.gnu.org/licenses/gpl-3.0.en.html).
 
-The source code is available for download from the [PHOEBE project homepage](http://phoebe-project.org) and from [github](https://github.com/phoebe-project/phoebe2).
+The source code is available for download from the [PHOEBE project homepage](https://phoebe-project.org) and from [github](https://github.com/phoebe-project/phoebe2).
 
 The development of PHOEBE 2 is funded in part by [NSF grant #1517474](https://www.nsf.gov/awardsearch/showAward?AWD_ID=1517474), [NSF grant #1909109](https://www.nsf.gov/awardsearch/showAward?AWD_ID=1909109) and [NASA 17-ADAP17-68](https://ui.adsabs.harvard.edu/abs/2017adap.prop...68P).
 
@@ -58,7 +58,7 @@ To install PHOEBE 2 from the source locally, go to the `phoebe2/` directory and 
 
     pip install .
 
-Note that as of the 2.4.16 release, PHOEBE requires Python 3.8 or later.  For further details on pre-requisites consult the [PHOEBE project webpage](http://phoebe-project.org/install/2.4).
+Note that as of the 2.4.16 release, PHOEBE requires Python 3.8 or later.  For further details on pre-requisites consult the [PHOEBE project webpage](https://phoebe-project.org/install/2.4).
 
 
 GETTING STARTED
@@ -70,13 +70,23 @@ PHOEBE 2 has a fairly steep learning curve. To start PHOEBE from python, issue:
     >>> import phoebe
     >>>
 
-As of the 2.3 release, PHOEBE also includes a desktop and web client user-interface which is installed independently of the python package here.  See the [phoebe2-ui repository](https://github.com/phoebe-project/phoebe2-ui) and [phoebe-project.org/clients](http://phoebe-project.org/clients) for more details.
+As of the 2.3 release, PHOEBE also includes a desktop and web client user-interface which is installed independently of the python package here.  See the [phoebe2-ui repository](https://github.com/phoebe-project/phoebe2-ui) and [phoebe-project.org/clients](https://phoebe-project.org/clients) for more details.
 
-To understand how to use PHOEBE, please consult the [tutorials, scripts and manuals](http://phoebe-project.org/docs/2.4/) hosted on the PHOEBE webpage.
+To understand how to use PHOEBE, please consult the [tutorials, scripts and manuals](https://phoebe-project.org/docs/2.4/) hosted on the PHOEBE webpage.
 
 
 CHANGELOG
 ----------
+
+### 2.4.21
+
+* Add a PHOEBE_TABLES_SERVER environment variable to allow overriding the URL of the queried tables server. [#1060]
+* Improved description for fti_oversample parameter. [#1061]
+* Updated all http links to https. [#1062]
+* Catch ellc OSError. [#1063]
+* Fixes parse_solver_times regression introduced in 2.4.20. [#1067]
+* Fixes differential_corrections solver when multiple compute options exist. [#1069]
+* Fixes crimpl issue with scp files from remote server. [#1074]
 
 ### 2.4.20
 
@@ -375,8 +385,8 @@ CHANGELOG
 
 ### 2.3.30 - ld_coeffs fitting bugfix
 
-* all fitting ld_coeffs.  Each coefficient is referenced by index and can be fit or have distributions attached independently.  See [tutorial](http://phoebe-project.org/docs/latest/tutorials/fitting_ld_coeffs) for more details.
-* also fixes support for [custom constraints](http://phoebe-project.org/docs/latest/tutorials/constraints_custom) which can be used to link ld_coeffs between datasets of the same passband, for example.
+* all fitting ld_coeffs.  Each coefficient is referenced by index and can be fit or have distributions attached independently.  See [tutorial](https://phoebe-project.org/docs/latest/tutorials/fitting_ld_coeffs) for more details.
+* also fixes support for [custom constraints](https://phoebe-project.org/docs/latest/tutorials/constraints_custom) which can be used to link ld_coeffs between datasets of the same passband, for example.
 
 ### 2.3.29 - adopt_solution bugfix
 
@@ -518,7 +528,7 @@ CHANGELOG
 
 * Add support for inverse problem solvers, including "estimators", "optimizers", and "samplers"
 * Add support for attaching distributions (as [distl](https://github.com/kecnry/distl) objects) to parameters, including priors and posteriors.
-* Add support for [web and desktop clients](http://phoebe-project.org/clients) via a light-weight built in `phoebe-server`.
+* Add support for [web and desktop clients](https://phoebe-project.org/clients) via a light-weight built in `phoebe-server`.
 * Removed support for Python 2 (now requires Python 3.6+)
 * Implement optional gaussian processes for light curves
 * Implement phase-masking
@@ -731,4 +741,4 @@ an envelope were being raised before all constraints could resolve successfully.
 QUESTIONS? SUGGESTIONS? CONCERNS?
 ---------------------------------
 
-Contact us! Issues and feature requests should be submitted directly through GitHub's [issue tracker](https://github.com/phoebe-project/phoebe2/issues).  Additional questions or feature requests should be submitted via [GitHub PHOEBE2 discussions](https://github.com/phoebe-project/phoebe2/discussions) or [GitHub PHOEBE2-UI discussions](https://github.com/phoebe-project/phoebe2-ui/discussions). We are eager to hear from you, so do not hesitate to [contact us](http://phoebe-project.org/help/contact)!
+Contact us! Issues and feature requests should be submitted directly through GitHub's [issue tracker](https://github.com/phoebe-project/phoebe2/issues).  Additional questions or feature requests should be submitted via [GitHub PHOEBE2 discussions](https://github.com/phoebe-project/phoebe2/discussions) or [GitHub PHOEBE2-UI discussions](https://github.com/phoebe-project/phoebe2-ui/discussions). We are eager to hear from you, so do not hesitate to [contact us](https://phoebe-project.org/help/contact)!
