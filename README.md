@@ -78,6 +78,8 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.4.22
+
 ### 2.4.21
 
 * Add a PHOEBE_TABLES_SERVER environment variable to allow overriding the URL of the queried tables server. [#1060]
