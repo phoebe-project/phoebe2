@@ -253,8 +253,7 @@ def gaussian_smoothing(xyz1, teffs1, xyz2, teffs2, w=0.5, cutoff=0., offset=0.):
     coords_neck_1, teffs_neck_1, cond1 = _isolate_neck(xyz1, teffs1, cutoff=cutoff, component=1, plot=False)
     coords_neck_2, teffs_neck_2, cond2 = _isolate_neck(xyz2, teffs2, cutoff=cutoff, component=2, plot=False)
 
-    x_neck, Tavg = _compute_new_teff_at_neck(coords_neck_1, teffs_neck_1, coords_neck_2, teffs_neck_2, w=w,
-                                             offset=offset)
+    x_neck, Tavg = _compute_new_teff_at_neck(coords_neck_1, teffs_neck_1, coords_neck_2, teffs_neck_2, w=w)
 
     sigma_x1 = _compute_sigmax(Tavg, x_neck, x0=0 + cutoff, offset=offset, amplitude=teffs_neck_1.max())
     sigma_x2 = _compute_sigmax(Tavg, x_neck, x0=1 - cutoff, offset=offset, amplitude=teffs_neck_2.max())
