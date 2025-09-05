@@ -209,7 +209,7 @@ _forbidden_labels += ['requiv', 'requiv_max', 'requiv_min', 'teff', 'abun', 'log
                       'dperdt', 'ecc', 'deccdt', 't0_perpass', 't0_supconj',
                       't0_ref', 'mean_anom', 'q', 'sma', 'asini', 'ecosw', 'esinw',
                       'teffratio', 'requivratio', 'requivsumfrac',
-                      'mixing_enabled', 'mixing_params', 'mixing_method', 'mixing_width'
+                      'mixing_enabled', 'mixing_params', 'mixing_method'
                       ]
 
 # from dataset:
