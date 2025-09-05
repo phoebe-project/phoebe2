@@ -316,7 +316,12 @@ def isotropic_transfer(t2s, teffs2, teff_ratio, mixing_params):
     origin (which is the center of the primary). Implies mixing occurs diffusively from the center of the neck.
     """
     d2s = np.sqrt(t2s[:, 0] * t2s[:, 0] + t2s[:, 1] * t2s[:, 1] + t2s[:, 2] * t2s[:, 2])
-    teffs2 *= 1 / teff_ratio * (1 - ((d2s - d2s.min()) / (d2s.max() - d2s.min()))) ** mixing_params[0]
+    r = (d2s - d2s.min()) ** mixing_params[0]
+    radial_dependence = r / r.max()  # in [0, 1]
+
+    # map [0, 1] to [1, 1/teffratio]
+    teffs2 *= (1 + (1/teff_ratio - 1) * radial_dependence)
+
     return teffs2
 
 
@@ -357,11 +362,11 @@ def mix_teffs(xyz1, teffs1, xyz2, teffs2, mixing_method='lateral',
     modified Teffs of the primary, modified Teffs of the secondary
     """
     if mixing_method == 'lateral':
-        teffs2 = lateral_transfer(xyz2, teffs2, teff_ratio, mixing_params, mixing_width)
+        teffs2 = lateral_transfer(xyz2, teffs2, teff_ratio, mixing_params)
     elif mixing_method == 'isotropic':
         teffs2 = isotropic_transfer(xyz2, teffs2, teff_ratio, mixing_params)
     elif mixing_method == 'internal':
-        teffs2 = perfect_transfer(xyz2, teffs2, teff_ratio)
+        teffs2 = perfect_transfer(teffs2, teff_ratio)
     elif mixing_method == 'smoothing':
         teffs1, teffs2 = gaussian_smoothing(xyz1, teffs1, xyz2, teffs2)
     else:
