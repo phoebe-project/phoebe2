@@ -1220,9 +1220,9 @@ class Passband:
         Returns
         ----------
         * (dict) a dict of normal emergent passband intensities and associated
-          values. Dictionary keys are: 'inorms' (required; normal intensities),
-          'dists' (optional, distances from the grid); 'nanmask' (optional, a
-          boolean mask where inorms are nan).
+          values. Dictionary keys are: 'inorms' (normal intensities),
+          and 'bfs' (blending factors, only if blending_method is not
+          'none').
 
         Raises
         ----------
