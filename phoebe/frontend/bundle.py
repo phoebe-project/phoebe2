@@ -5335,7 +5335,7 @@ class Bundle(ParameterSet):
                          'Skilling (2006)': 'https://projecteuclid.org/euclid.ba/1340370944',
                          'Foreman-Mackey et al. (2017)': 'https://ui.adsabs.harvard.edu/abs/2017AJ....154..220F',
                          'Prsa et al. (2008)': 'https://ui.adsabs.harvard.edu/abs/2008ApJ...687..542P',
-                         'Kochoska et al. (in prep)': 'http://phoebe-project.org/publications/2022Kochoska+',
+                         'Kochoska et al. (in prep)': 'https://phoebe-project.org/publications/2022Kochoska+',
                          'scikit-learn': 'https://scikit-learn.org/stable/about.html#citing-scikit-learn',
                         }
 
@@ -13355,16 +13355,16 @@ class Bundle(ParameterSet):
                 raise NotImplementedError("solver_times='{}' not implemented".format(solver_times))
 
             if return_as_dict:
-                if new_compute_times == []:
-                    if masked_times is None:
-                        compute_times_per_ds[param.dataset] = _get_masked_times(self, param.dataset, [], 0.0, return_times_phases=False)
-                    else:
-                        compute_times_per_ds[param.dataset] = masked_times
-                elif new_compute_times is None:
+                if new_compute_times is None:
                     if masked_compute_times is None:
                         compute_times_per_ds[param.dataset] = ds_ps.get_value(qualifier='compute_times', unit=u.d, **_skip_filter_checks)
                     else:
                         compute_times_per_ds[param.dataset] = masked_compute_times
+                elif len(new_compute_times) == 0:
+                    if masked_times is None:
+                        compute_times_per_ds[param.dataset] = _get_masked_times(self, param.dataset, [], 0.0, return_times_phases=False)
+                    else:
+                        compute_times_per_ds[param.dataset] = masked_times
                 else:
                     compute_times_per_ds[param.dataset] = new_compute_times
 

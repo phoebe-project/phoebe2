@@ -11,7 +11,7 @@
 
 [project]
 name = "phoebe"
-version = "2.4.18.dev+feature-blending"
+version = "2.4.21.dev+feature-blending"
 description = "PHOEBE: modeling and analysis of eclipsing binary stars"
 readme = "README.md"
 requires-python = ">=3.8"
@@ -75,9 +75,9 @@ dependencies = [
 ]
 
 [project.urls]
-homepage = "http://phoebe-project.org"
+homepage = "https://phoebe-project.org"
 repository = "https://github.com/phoebe-project/phoebe2"
-documentation = "http://phoebe-project.org/docs"
+documentation = "https://phoebe-project.org/docs"
 
 [build-system]
 requires = ["setuptools", "numpy", "wheel"]
