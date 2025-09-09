@@ -140,14 +140,16 @@ class InterpQuery:
         """
 
         self.cols = list(cols)
-        self.pts = pts
+        self.pts = np.ascontiguousarray(pts)
+        if self.pts.ndim != 2 or self.pts.shape[1] != len(self.cols):
+            raise ValueError(f"Shape mismatch: pts.shape={self.pts.shape}, len(cols)={len(self.cols)}")
         self.meta = meta if meta is not None else {}
 
     def index(self, name):
         try:
             return self.cols.index(name)
         except ValueError:
-            raise ValueError(f'column `{name}` not found in query.')
+            raise KeyError(f"Column '{name}' not found")
 
     def get_column(self, name):
         idx = self.index(name)
@@ -155,10 +157,18 @@ class InterpQuery:
 
     def subset(self, names):
         idxs = [self.index(name) for name in names]
-        return InterpQuery([self.cols[i] for i in idxs], self.pts[:, idxs], meta=self.meta)
+        return InterpQuery([self.cols[i] for i in idxs], np.ascontiguousarray(self.pts[:, idxs]), meta=self.meta)
 
     def __getitem__(self, key):
-        return InterpQuery(self.cols, self.pts[key], meta=self.meta)
+        subset_pts = self.pts[key]
+
+        if subset_pts.ndim == 1:
+            subset_pts = subset_pts.reshape(1, -1)
+        return InterpQuery(self.cols, np.ascontiguousarray(subset_pts), meta=self.meta)
+
+    def __len__(self):
+        """Return number of query points"""
+        return self.pts.shape[0]
 
 
 class Passband:
@@ -1056,10 +1066,7 @@ class Passband:
             raise ValueError(f'Limb darkening coefficients for {ldatm.name} atmosphere are not available.')
 
         # limb darkening coefficients depend only on basic axes:
-        query_cols = [i for i, col in enumerate(query.cols) if col in ldatm.basic_axis_names]
-        query_pts = np.ascontiguousarray(query.pts[:, query_cols])
-
-        ld_coeffs = self.ndp[ldatm.name].ndpolate(f'ld@{intens_weighting}', query_pts=query_pts, extrapolation_method=ld_extrapolation_method)
+        ld_coeffs = self.ndp[ldatm.name].ndpolate(f'ld@{intens_weighting}', query_pts=query.subset(ldatm.basic_axis_names).pts, extrapolation_method=ld_extrapolation_method)
 
         return ld_coeffs['interps'][s[ld_func]]
 
@@ -1087,10 +1094,7 @@ class Passband:
             raise ValueError(f"extinction factors for atm={atm.name} not found for the {self.pbset}:{self.pbname} passband.")
 
         # extinction coefficients depend on basic axes, ebvs and rvs:
-        query_cols = [i for i, col in enumerate(query.cols) if col in atm.basic_axis_names + ['ebvs', 'rvs']]
-        query_pts = np.ascontiguousarray(query.pts[:, query_cols])
-
-        extinct_factor = self.ndp[atm.name].ndpolate(f'ext@{intens_weighting}', query_pts, extrapolation_method=extrapolation_method)['interps']
+        extinct_factor = self.ndp[atm.name].ndpolate(f'ext@{intens_weighting}', query_pts=query.subset(atm.basic_axis_names + ['ebvs', 'rvs']).pts, extrapolation_method=extrapolation_method)['interps']
         return extinct_factor
 
     def import_wd_atmcof(self, plfile, atmfile, wdidx, Nabun=19, Nlogg=11, Npb=25, Nints=4):
@@ -1172,8 +1176,7 @@ class Passband:
         """
 
         # atmx intensities depend on basic axes:
-        query_cols = [i for i, col in enumerate(query.cols) if col in models.WDKurucz93ModelAtmosphere.basic_axis_names]
-        query_pts = np.ascontiguousarray(query.pts[:, query_cols])
+        query_pts = query.subset(models.WDKurucz93ModelAtmosphere.basic_axis_names).pts
 
         log10_Inorm = libphoebe.wd_atmint(
             np.ascontiguousarray(query_pts[:, 0]),  # teffs
@@ -1277,9 +1280,7 @@ class Passband:
         raise_on_nans = True if atm_extrapolation_method == 'none' else False
         blending_factors = None
 
-        # normal intensities depend only on basic axes:
-        query_cols = [i for i, col in enumerate(query.cols) if col in atm.basic_axis_names]
-        query_pts = np.ascontiguousarray(query.pts[:, query_cols])
+        query_pts = query.subset(atm.basic_axis_names).pts
 
         if atm.name == 'blackbody' and 'blackbody:Inorm' in self.content:
             # check if the required tables for the chosen ldatm are available:
@@ -1292,6 +1293,7 @@ class Passband:
             # if blending_method == 'blackbody':
             #     raise ValueError(f'the combination of {atm.name} atmosphere and blending_method={blending_method} is not valid.')
 
+            # normal intensities depend only on basic axes:
             ndpolants = self.ndp[atm.name].ndpolate(f'inorm@{intens_weighting}', query_pts=query_pts, extrapolation_method=atm_extrapolation_method)
 
             if ldint is None:
@@ -1393,10 +1395,7 @@ class Passband:
         """
 
         # specific intensities depend on basic axes and mus:
-        query_cols = [i for i, col in enumerate(query.cols) if col in atm.basic_axis_names + ['mus']]
-        query_pts = np.ascontiguousarray(query.pts[:, query_cols])
-
-        ndpolants = self.ndp[atm].ndpolate(f'imu@{intens_weighting}', query_pts, extrapolation_method=atm_extrapolation_method)
+        ndpolants = self.ndp[atm].ndpolate(f'imu@{intens_weighting}', query_pts=query.subset(atm.basic_axis_names + ['mus']).pts, extrapolation_method=atm_extrapolation_method)
         log10_Imu = ndpolants['interps']
         dists = ndpolants['dists']
 
@@ -1474,10 +1473,6 @@ class Passband:
         * NotImplementedError: if `ld_func` is not supported.
         """
 
-        # specific intensities depend on basic axes and mus:
-        query_cols = [i for i, col in enumerate(query.cols) if col in atm.basic_axis_names + ['mus']]
-        query_pts = np.ascontiguousarray(query.pts[:, query_cols])
-
         if ld_func == 'interp':
             if atm.name == 'blackbody' and 'blackbody:Inorm' in self.content and hasattr(ldatm, 'mus'):
                 # we need to apply ldatm's limb darkening to blackbody intensities:
@@ -1529,7 +1524,7 @@ class Passband:
                 if f'{atm.name}:Imu' not in self.content:
                     raise ValueError(f'{atm.name=} tables are not available in the {self.pbset}:{self.pbname} passband.')
 
-                ndpolants = self.ndp[atm.name].ndpolate(f'imu@{intens_weighting}', query_pts, extrapolation_method=atm_extrapolation_method)
+                ndpolants = self.ndp[atm.name].ndpolate(f'imu@{intens_weighting}', query_pts=query.subset(atm.basic_axis_names + ['mus']).pts, extrapolation_method=atm_extrapolation_method)
                 log10imus_atm = ndpolants['interps']
                 dists = ndpolants.get('dists', np.zeros_like(log10imus_atm))
 
@@ -1539,7 +1534,7 @@ class Passband:
                     # print(f'{query_pts.shape=} {off_grid.shape=}')
 
                     ints_bb = self.Imu(
-                        query_pts=query_pts[off_grid],
+                        query=query[off_grid],
                         atm=models.BlackbodyModelAtmosphere,
                         ldatm=ldatm,
                         ldint=ldint,
@@ -1622,31 +1617,27 @@ class Passband:
 
         if ld_func == 'interp':
             # ldints depend only on basic ldatm axes:
-            query_cols = [i for i, col in enumerate(query.cols) if col in ldatm.basic_axis_names]
-            query_pts = np.ascontiguousarray(query.pts[:, query_cols])
-            ldints = self.ndp[ldatm.name].ndpolate(f'ldint@{intens_weighting}', query_pts, extrapolation_method=ld_extrapolation_method)['interps']
+            ldints = self.ndp[ldatm.name].ndpolate(f'ldint@{intens_weighting}', query_pts=query.subset(ldatm.basic_axis_names).pts, extrapolation_method=ld_extrapolation_method)['interps']
             return ldints
 
         if ld_coeffs is not None:
             ld_coeffs = np.atleast_2d(ld_coeffs)
 
         if ld_coeffs is None:
-            query_cols = [i for i, col in enumerate(query.cols) if col in ldatm.basic_axis_names]
-            query_pts = np.ascontiguousarray(query.pts[:, query_cols])
             ld_coeffs = self.interpolate_ldcoeffs(query=query, ldatm=ldatm, ld_func=ld_func, intens_weighting=intens_weighting, ld_extrapolation_method=ld_extrapolation_method)
 
         ldints = np.ones(shape=(len(query.pts), 1))
 
         if ld_func == 'linear':
-            ldints[:,0] *= 1-ld_coeffs[:,0]/3
+            ldints[:, 0] *= 1-ld_coeffs[:, 0]/3
         elif ld_func == 'logarithmic':
-            ldints[:,0] *= 1-ld_coeffs[:,0]/3+2.*ld_coeffs[:,1]/9
+            ldints[:, 0] *= 1-ld_coeffs[:, 0]/3+2.*ld_coeffs[:, 1]/9
         elif ld_func == 'square_root':
-            ldints[:,0] *= 1-ld_coeffs[:,0]/3-ld_coeffs[:,1]/5
+            ldints[:, 0] *= 1-ld_coeffs[:, 0]/3-ld_coeffs[:, 1]/5
         elif ld_func == 'quadratic':
-            ldints[:,0] *= 1-ld_coeffs[:,0]/3-ld_coeffs[:,1]/6
+            ldints[:, 0] *= 1-ld_coeffs[:, 0]/3-ld_coeffs[:, 1]/6
         elif ld_func == 'power':
-            ldints[:,0] *= 1-ld_coeffs[:,0]/5-ld_coeffs[:,1]/3-3.*ld_coeffs[:,2]/7-ld_coeffs[:,3]/2
+            ldints[:, 0] *= 1-ld_coeffs[:, 0]/5-ld_coeffs[:, 1]/3-3.*ld_coeffs[:, 2]/7-ld_coeffs[:, 3]/2
         else:
             raise ValueError(f'ld_func={ld_func} is not recognized.')
 
