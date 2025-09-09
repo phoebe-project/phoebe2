@@ -642,7 +642,7 @@ class Bundle(ParameterSet):
             conf._interactive_checks = False
 
         if phoebe_version_import < parse("2.1.0"):
-            logger.warning("importing from an older version ({}) of PHOEBE into version {}".format(phoebe_version_import, phoebe_version_this))
+            logger.warning("importing from an older version ({}) of PHOEBE to PHOEBE 2.1+".format(phoebe_version_import))
 
             # rpole -> requiv: https://github.com/phoebe-project/phoebe2/pull/300
             dict_stars = {}
@@ -734,7 +734,7 @@ class Bundle(ParameterSet):
             logger.warning(warning)
 
         if phoebe_version_import < parse("2.2.0"):
-            warning = "importing from an older version ({}) of PHOEBE to PHOEBE 2.2.  Previous versions did not support compute_times, ld_mode/ld_coeffs_source, pblum_mode, l3_mode, etc... all datasets will be migrated to include all new options.  This may take some time.  Please check all values.".format(phoebe_version_import)
+            warning = "importing from an older version ({}) of PHOEBE to PHOEBE 2.2+.  Previous versions did not support compute_times, ld_mode/ld_coeffs_source, pblum_mode, l3_mode, etc... all datasets will be migrated to include all new options.  This may take some time.  Please check all values.".format(phoebe_version_import)
             # print("WARNING: {}".format(warning))
             logger.warning(warning)
 
@@ -839,7 +839,7 @@ class Bundle(ParameterSet):
             b._attach_params(ps_model, context='model')
 
         if phoebe_version_import < parse("2.3.0"):
-            warning = "importing from an older version ({}) of PHOEBE to PHOEBE 2.3.  The previous versions did not support sample_from, etc... all compute options will be migrated to include all new options.  Additionally, extinction parameters will be moved from the dataset to system context.  This may take some time.  Please check all values.".format(phoebe_version_import)
+            warning = "importing from an older version ({}) of PHOEBE to PHOEBE 2.3+.  The previous versions did not support sample_from, etc... all compute options will be migrated to include all new options.  Additionally, extinction parameters will be moved from the dataset to system context.  This may take some time.  Please check all values.".format(phoebe_version_import)
             logger.warning(warning)
 
             b.remove_parameters_all(qualifier='log_history', **_skip_filter_checks)
@@ -916,8 +916,8 @@ class Bundle(ParameterSet):
             # call set_hierarchy to force mass constraints to be rebuilt
             b.set_hierarchy()
 
-        if phoebe_version_import < parse("2.4.0") or ".dev" in version:
-            warning = "importing from an older version ({}) of PHOEBE to PHOEBE 2.4.  This may take some time.  Please check all values.".format(phoebe_version_import)
+        if phoebe_version_import < parse("2.4.0"):
+            warning = "importing from an older version ({}) of PHOEBE to PHOEBE 2.4+.  This may take some time.  Please check all values.".format(phoebe_version_import)
             logger.warning(warning)
 
             existing_values_settings = {p.qualifier: p.get_value() for p in b.filter(context='setting').to_list()}
@@ -993,6 +993,17 @@ class Bundle(ParameterSet):
                 if solved_for.qualifier != constraint.constraint_func:
                     new_constraint_ps.get_parameter().flip_for(solved_for.twig)
 
+        if phoebe_version_import < parse("2.5.0") or ".dev" in version:
+            warning = "importing from an older version ({}) of PHOEBE to PHOEBE 2.5+.  This may take some time.  Please check all values.".format(phoebe_version_import)
+            logger.warning(warning)
+            # update all datasets to get boosting_method/index parameters
+            for dataset in b.filter(qualifier='passband', context='dataset', **_skip_filter_checks).datasets:
+                logger.info("attempting to update dataset='{}' to new version requirements".format(dataset))
+                ps_ds = b.filter(context='dataset', dataset=dataset, **_skip_filter_checks)
+                ds_kind = ps_ds.kind
+                dict_ds = _ps_dict(ps_ds, include_constrained=False)
+                b.remove_dataset(dataset, context=['dataset', 'constraint'])
+                b.add_dataset(ds_kind, dataset=dataset, check_label=False, **dict_ds)
 
         if conf_interactive_checks:
             logger.debug("re-enabling interactive_checks")
@@ -1271,77 +1282,6 @@ class Bundle(ParameterSet):
         but with `contact_binary` set to True.
         """
         return cls.default_binary(contact_binary=True, *args, **kwargs)
-
-    @classmethod
-    def default_triple(cls, inner_as_primary=True, inner_as_overcontact=False,
-                       starA='starA', starB='starB', starC='starC',
-                       inner='inner', outer='outer',
-                       contact_envelope='contact_envelope'):
-        """
-        For convenience, this function is available at the top-level as
-        <phoebe.default_triple> as well as
-        <phoebe.frontend.bundle.Bundle.default_triple>.
-
-        Load a bundle with a default triple system.
-
-        Set inner_as_primary based on what hierarchical configuration you want.
-
-        `inner_as_primary = True`:
-
-        starA - starB -- starC
-
-        `inner_as_primary = False`:
-
-        starC -- starA - starB
-
-        This is a constructor, so should be called as:
-
-        ```py
-        b = Bundle.default_triple_primary()
-        ```
-
-        Arguments
-        -----------
-
-
-        Returns
-        -------------
-        * an instantiated <phoebe.frontend.bundle.Bundle> object.
-        """
-        if not conf.devel:
-            raise NotImplementedError("'default_triple' not officially supported for this release.  Enable developer mode to test.")
-
-        b = cls()
-        b.add_star(component=starA, color='blue')
-        b.add_star(component=starB, color='orange')
-        b.add_star(component=starC, color='green')
-        b.add_orbit(component=inner, period=1)
-        b.add_orbit(component=outer, period=10)
-
-        if inner_as_overcontact:
-            b.add_envelope(component=contact_envelope)
-            inner_hier = _hierarchy.binaryorbit(b[inner],
-                                           b[starA],
-                                           b[starB],
-                                           b[contact_envelope])
-        else:
-            inner_hier = _hierarchy.binaryorbit(b[inner], b[starA], b[starB])
-
-        if inner_as_primary:
-            hierstring = _hierarchy.binaryorbit(b[outer], inner_hier, b[starC])
-        else:
-            hierstring = _hierarchy.binaryorbit(b[outer], b[starC], inner_hier)
-        b.set_hierarchy(hierstring)
-
-        b.add_constraint(constraint.keplers_third_law_hierarchical,
-                         outer, inner)
-
-        # TODO: does this constraint need to be rebuilt when things change?
-        # (ie in set_hierarchy)
-
-        b.add_compute()
-
-        return b
 
     def save(self, filename, compact=False, incl_uniqueid=True):
         """
@@ -3636,10 +3576,6 @@ class Bundle(ParameterSet):
                                     [param, self.get_parameter(qualifier='t0', context='system', **_skip_filter_checks)],
                                     False, ['system', 'run_compute'])
 
-        # TODO: add other checks
-        # - make sure all ETV components are legal
-        # - check for conflict between dynamics_method and mesh_method (?)
-
         self._run_checks_warning_error(report, raise_logger_warning, raise_error)
 
         return report
@@ -4248,9 +4184,9 @@ class Bundle(ParameterSet):
 
             # 2.2 disables support for boosting.  The boosting parameter in 2.2 only has 'none' as an option, but
             # importing a bundle from old releases may still have 'linear' as an option, so we'll check here
-            if compute_kind in ['phoebe'] and self.get_value(qualifier='boosting_method', compute=compute, boosting_method=kwargs.get('boosting_method', None), **_skip_filter_checks) != 'none':
+            if compute_kind in ['phoebe'] and self.get_value(qualifier='boosting_method', compute=compute, boosting_method=kwargs.get('boosting_method', None), default='none', **_skip_filter_checks) != 'none':
                 report.add_item(self,
-                                "support for beaming/boosting has been removed from PHOEBE 2.2.  Set boosting_method to 'none'.",
+                                "support for interpolated ('linear') beaming/boosting in compute options has been removed since PHOEBE 2.2.  'manual' boosting is now supported in the dataset options instead.",
                                 [self.get_parameter(qualifier='boosting_method', compute=compute, boosting_method=kwargs.get('boosting_method', None), **_skip_filter_checks)
                                 ]+addl_parameters,
                                 True, 'run_compute')
@@ -5410,9 +5346,6 @@ class Bundle(ParameterSet):
                 # TODO: include Wilson & Devinney?
             elif self.get_compute(compute).kind == 'jktebop':
                 recs = _add_reason(recs, 'jktebop', 'jktebop compute backend')
-            elif self.get_compute(compute).kind == 'photodynam':
-                recs = _add_reason(recs, 'Carter et al. (2011)', 'photodynam compute backend')
-                recs = _add_reason(recs, 'Andras (2012)', 'photodynam compute backend')
             elif self.get_compute(compute).kind == 'ellc':
                 recs = _add_reason(recs, 'Maxted (2016)', 'ellc compute backend')
 
@@ -5575,8 +5508,6 @@ class Bundle(ParameterSet):
                 deps_other.append('phoebe1')
             elif self.get_compute(compute).kind == 'jktebop' and 'jktebop' not in deps_other:
                 deps_other.append('jktebop')
-            elif self.get_compute(compute).kind == 'photodynam' and 'photodynam' not in deps_other:
-                deps_other.append('photodynam')
             elif self.get_compute(compute).kind == 'ellc' and 'ellc' not in deps_pip:
                 deps_pip.append('ellc')
 
@@ -6718,14 +6649,6 @@ class Bundle(ParameterSet):
             # allowed_components = self.hierarchy.get_stars()
             # TODO: how will this work when changing hierarchy to add/remove the common envelope?
             default_components = allowed_components
-        elif kind in ['etv']:
-            hier = self.hierarchy
-            stars = hier.get_stars()
-            # only include components in which the sibling is also a star that
-            # means that the companion in a triple cannot be timed, because how
-            # do we know who it's eclipsing?
-            allowed_components = [s for s in stars if hier.get_sibling_of(s) in stars]
-            default_components = allowed_components
         elif kind in ['lp']:
             # TODO: need to think about what this should be for contacts...
             allowed_components = self.hierarchy.get_stars() + self.hierarchy.get_orbits()
@@ -6848,8 +6771,7 @@ class Bundle(ParameterSet):
                 raise ValueError("cannot provide both 'compute_phases' and 'compute_times' for a {} dataset. Dataset has not been added.".format(kind))
             else:
                 # then we must flip the constraint
-                # TODO: this will probably break with triple support - we'll need to handle the multiple orbit components by accepting the dictionary.
-                # For now we'll assume the component is top-level binary
+                # assume the component is top-level binary
                 self.flip_constraint('compute_phases', component=self.hierarchy.get_top(), dataset=kwargs['dataset'], solve_for='compute_times')
 
         if kind in ['mesh','orb'] and 'times' in kwargs.keys():
@@ -6946,7 +6868,7 @@ class Bundle(ParameterSet):
                     components_ = None
                 elif k in ['compute_phases']:
                     components_ = self.hierarchy.get_top()
-                elif k in ['pblum']:
+                elif k in ['pblum', 'boosting_method', 'boosting_index']:
                     check_visible = True
 
                     components_ = self.hierarchy.get_stars()+['_default']
@@ -6962,6 +6884,7 @@ class Bundle(ParameterSet):
                     self.set_value_all(qualifier=k,
                                        dataset=kwargs['dataset'],
                                        component=components_,
+                                       context='dataset',
                                        value=v,
                                        check_visible=check_visible,
                                        ignore_none=True)
@@ -11954,7 +11877,7 @@ class Bundle(ParameterSet):
                     continue
 
                 # we now need to handle any computations of ld_coeffs, pblums, l3s, etc
-                # TODO: skip lookups for phoebe, skip non-supported ld_func for photodynam, etc
+                # TODO: skip lookups for phoebe
                 # TODO: have this return a dictionary like pblums/l3s that we can pass on to the backend?
 
                 # we need to check both for enabled but also passed via dataset kwarg
