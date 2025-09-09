@@ -76,7 +76,10 @@ _physical_types_to_solar = {'length': 'solRad',
                             'time': 'd',
                             'speed': 'solRad/d',
                             'angle': 'rad',
+                            'angular frequency': 'rad/d',
+                            'angular velocity': 'rad/d',
                             'angular speed': 'rad/d',
+                            'angular frequency/angular speed/angular velocity': 'rad/d',
                             'dimensionless': ''}
 
 _physical_types_to_si = {'length': 'm',
@@ -2109,7 +2112,7 @@ class BaseUnivariateDistribution(BaseDistribution):
         physical_type = str(self.unit.physical_type)
 
         if physical_type not in _physical_types_to_solar.keys():
-            raise NotImplementedError("cannot convert object with physical_type={} to solar units".format(physical_type))
+            raise NotImplementedError(f"cannot convert '{self.unit}' with physical_type='{physical_type}' to solar units")
 
         return self.to(_units.Unit(_physical_types_to_solar.get(physical_type)), strip_units=strip_units)
 
@@ -8431,7 +8434,7 @@ class BaseAroundGenerator(BaseDistlObject):
         physical_type = self.unit.physical_type
 
         if physical_type not in _physical_types_to_solar.keys():
-            raise NotImplementedError("cannot convert object with physical_type={} to solar units".format(physical_type))
+            raise NotImplementedError(f"cannot convert '{self.unit}' with physical_type='{physical_type}' to solar units")
 
         return self.to(_units.Unit(_physical_types_to_solar.get(physical_type)), strip_units=strip_units)
 
