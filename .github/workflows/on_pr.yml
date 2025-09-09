@@ -55,7 +55,7 @@ jobs:
       env:
         FC: ${{ steps.setup-fortran.outputs.fc }}
       run: |
-        wget http://www.astro.keele.ac.uk/jkt/codes/jktebop-v44.tgz --no-check-certificate
+        wget https://www.astro.keele.ac.uk/jkt/codes/jktebop-v44.tgz --no-check-certificate
         tar -xvzf jktebop-v44.tgz
         cd jktebop44
         ${{ env.FC }} -o jktebop jktebop.f
