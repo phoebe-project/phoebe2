@@ -1,4 +1,5 @@
 import phoebe
+from phoebe.atmospheres import passbands
 import libphoebe as lp
 from phoebe import u
 import numpy as np
@@ -6,7 +7,7 @@ import os
 
 
 def test_bb_extinction_computation():
-    pb = phoebe.atmospheres.passbands.Passband(
+    pb = passbands.Passband(
         ptf=np.vstack((np.linspace(500., 600., 101), np.ones(101))).T,
         pbset='box',
         pbname='test',
@@ -40,10 +41,10 @@ def test_bb_extinction():
 
     query_cols = ['teffs', 'ebvs', 'rvs']
     query_pts = np.vstack((teffs, ebvs, rvs)).T
-    query_table = (query_cols, query_pts)
+    query = passbands.InterpQuery(cols=query_cols, pts=query_pts)
 
     atm = phoebe.atmospheres.models.BlackbodyModelAtmosphere()
-    iext = pb.interpolate_extinct(query_table=query_table, atm=atm, intens_weighting='photon', extrapolation_method='none').flatten()
+    iext = pb.interpolate_extinct(query=query, atm=atm, intens_weighting='photon', extrapolation_method='none').flatten()
 
     assert np.allclose(iext, iext_predicted, atol=2e-3, rtol=2e-3)
 

@@ -1,8 +1,6 @@
 import numpy as np
-from scipy.optimize import newton
 from scipy.special import sph_harm as Y
-from math import sqrt, sin, cos, acos, atan2, trunc, pi
-import sys, os
+import os
 import copy
 from astropy.constants import sigma_sb
 
@@ -1857,10 +1855,10 @@ class Star(Body):
                 rvs = np.full_like(query_pts[:, 0], fill_value=Rv)
                 query_pts = np.c_[query_pts, ebvs, rvs]
 
-            query_table = (query_cols, query_pts)
+            query = passbands.InterpQuery(cols=query_cols, pts=query_pts)
 
             ldint = pb.ldint(
-                query_table=query_table,
+                query=query,
                 ldatm=ldatm_model,
                 ld_func=ld_func if ld_mode != 'interp' else ld_mode,
                 ld_coeffs=ld_coeffs,
@@ -1870,7 +1868,7 @@ class Star(Body):
             )
 
             abs_normal_intensities = pb.Inorm(
-                query_table=query_table,
+                query=query,
                 atm=atm_model,
                 ldatm=ldatm_model,
                 ldint=ldint,
@@ -1883,7 +1881,7 @@ class Star(Body):
             )['inorms']
 
             abs_intensities = pb.Imu(
-                query_table=query_table,
+                query=query,
                 atm=atm_model,
                 ldatm=ldatm_model,
                 ldint=ldint,
@@ -1915,7 +1913,7 @@ class Star(Body):
                 extinct_factors = 1.0
             else:
                 extinct_factors = pb.interpolate_extinct(
-                    query_table=query_table,
+                    query=query,
                     atm=atm_model,
                     intens_weighting=intens_weighting,
                     extrapolation_method=atm_extrapolation_method
@@ -3168,7 +3166,7 @@ class Spot(Feature):
             # syncpar = period_anom_orb / period_star
             period_anom_orb = orbit_ps.get_value(qualifier='period_anom', unit=u.d, **_skip_filter_checks)
             period_star = star_ps.get_value(qualifier='period', unit=u.d, **_skip_filter_checks)
-            dlongdt = 2*pi * (period_anom_orb/period_star - 1) / period_anom_orb
+            dlongdt = 2*np.pi * (period_anom_orb/period_star - 1) / period_anom_orb
         else:
             star_ps = b.get_component(component=feature_ps.component, **_skip_filter_checks)
             dlongdt = star_ps.get_value(qualifier='freq', unit=u.rad/u.d, **_skip_filter_checks)
