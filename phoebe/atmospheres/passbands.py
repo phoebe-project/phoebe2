@@ -39,7 +39,7 @@ logger.addHandler(logging.NullHandler())
 
 # define the URL to query for online passbands.  See tables.phoebe-project.org
 # repo for the source-code of the server
-_url_tables_server = 'http://tables.phoebe-project.org'
+_url_tables_server = os.getenv('PHOEBE_TABLES_SERVER', 'https://tables.phoebe-project.org')
 # comment out the following line if testing tables.phoebe-project.org server locally:
 # _url_tables_server = 'http://localhost:5555'
 
@@ -73,8 +73,6 @@ if not os.path.exists(_pbdir_local):
 
 _pbdir_env = os.getenv('PHOEBE_PBDIR', None)
 
-
-_pbdir_env = os.getenv('PHOEBE_PBDIR', None)
 
 def _dict_without_keys(d, skip_keys=[]):
     return {k:v for k,v in d.items() if k not in skip_keys}
@@ -2577,7 +2575,7 @@ def download_passband(passband, content=None, local=True, gzipped=None):
     <phoebe.atmospheres.passbands.download_passband>.
 
     Download and install a given passband from
-    http://tables.phoebe-project.org.
+    the tables server (https://tables.phoebe-project.org by default).
 
     The local and global installation directories can be listed by calling
     <phoebe.atmospheres.passbands.list_passband_directories>.  The local
@@ -2681,7 +2679,7 @@ def list_passband_online_history(passband, since_installed=True):
     try:
         resp = urlopen(url, timeout=3)
     except Exception as err:
-        msg = "connection to online passbands at {} could not be established.  Check your internet connection or try again later.  If the problem persists and you're using a Mac, you may need to update openssl (see http://phoebe-project.org/help/faq).".format(_url_tables_server)
+        msg = "connection to online passbands at {} could not be established.  Check your internet connection or try again later.  If the problem persists and you're using a Mac, you may need to update openssl (see https://phoebe-project.org/help/faq).".format(_url_tables_server)
         msg += " Original error from urlopen: {} {}".format(err.__class__.__name__, str(err))
 
         logger.warning(msg)
@@ -2818,7 +2816,7 @@ def update_passband(passband, local=True, content=None, gzipped=None):
     <phoebe.atmospheres.passbands.update_passband>.
 
     Download and install updates for a single passband from
-    http://tables.phoebe-project.org, retrieving
+    the tables server (https://tables.phoebe-project.org by default), retrieving
     the same content as in the installed passband.
 
     This will install into the directory dictated by `local`, regardless of the
@@ -2886,7 +2884,7 @@ def update_all_passbands(local=True, content=None):
     <phoebe.atmospheres.passbands.update_all_passbands>.
 
     Download and install updates for all passbands from
-    http://tables.phoebe-project.org, retrieving
+    the tables server (https://tables.phoebe-project.org by default), retrieving
     the same content as in the installed passbands.
 
     This will install into the directory dictated by `local`, regardless of the
@@ -3034,7 +3032,7 @@ def list_online_passbands(refresh=False, full_dict=False, skip_keys=[], repeat_e
     <phoebe.atmospheres.passbands.list_online_passbands>.
 
     List all passbands available for download from
-    http://tables.phoebe-project.org.
+    the tables server (https://tables.phoebe-project.org by default).
 
     Arguments
     ---------
@@ -3071,7 +3069,7 @@ def list_online_passbands(refresh=False, full_dict=False, skip_keys=[], repeat_e
                 resp = urlopen(url, timeout=3)
             except Exception as err:
                 _online_passband_failedtries += 1
-                msg = "Connection to online passbands at {} could not be established.  Check your internet connection or try again later (can manually call phoebe.list_online_passbands(refresh=True) to retry).  If the problem persists and you're using a Mac, you may need to update openssl (see http://phoebe-project.org/help/faq).".format(_url_tables_server, _online_passband_failedtries)
+                msg = "Connection to online passbands at {} could not be established.  Check your internet connection or try again later (can manually call phoebe.list_online_passbands(refresh=True) to retry).  If the problem persists and you're using a Mac, you may need to update openssl (see https://phoebe-project.org/help/faq).".format(_url_tables_server, _online_passband_failedtries)
                 msg += " Original error from urlopen: {} {}".format(err.__class__.__name__, str(err))
 
                 logger.warning("(Attempt {} of 3): ".format(_online_passband_failedtries)+msg)
@@ -3129,7 +3127,7 @@ def get_passband(passband, content=None, reload=False, update_if_necessary=False
     will be downloaded and installed locally.  If the installed passband does
     not have the necessary tables to match `content` then an attempt will be
     made to download the necessary additional tables from
-    http://tables.phoebe-project.org
+    the tables server (https://tables.phoebe-project.org by default)
     as long as the timestamps match the local version.  If the online version
     includes other version updates, then an error will be
     raised suggesting to call <phoebe.atmospheres.passbands.update_passband>
