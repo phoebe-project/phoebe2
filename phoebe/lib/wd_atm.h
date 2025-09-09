@@ -6,7 +6,7 @@
     * atmx.f
     * planckint.f
 
-  from http://phoebe-project.org/1.0/releases/wd_2007-08-15_phoebe.tar.gz
+  from https://phoebe-project.org/1.0/releases/wd_2007-08-15_phoebe.tar.gz
 
   or combined in atomcof.f in phoebe pre v2
 

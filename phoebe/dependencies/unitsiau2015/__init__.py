@@ -57,6 +57,7 @@ _physical_types_to_solar = {'length': 'solRad',
                             'angular speed': 'rad/d',
                             'angular velocity': 'rad/d',
                             'angular frequency': 'rad/d',
+                            'angular frequency/angular speed/angular velocity': 'rad/d',
                             'dimensionless': ''}
 
 _physical_types_to_si = {'length': 'm',
@@ -114,7 +115,7 @@ def to_solar(object):
     physical_type = _get_physical_type(object)
 
     if physical_type not in _physical_types_to_solar.keys():
-        raise NotImplementedError("cannot convert object with physical_type={} to solar units".format(physical_type))
+        raise NotImplementedError(f"cannot convert '{object}' with physical_type='{physical_type}' to solar units")
 
     return object.to(_physical_types_to_solar.get(physical_type))
 

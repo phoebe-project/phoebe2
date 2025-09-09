@@ -47,7 +47,7 @@ else:
 
 try:
     import ellc
-except ImportError:
+except Exception:
     _use_ellc = False
 else:
     _use_ellc = True
