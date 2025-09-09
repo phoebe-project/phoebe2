@@ -401,7 +401,8 @@ class RemoteSlurmJob(_remotethread.RemoteThreadJob):
 class RemoteSlurmServer(_remotethread.RemoteThreadServer):
     _JobClass = RemoteSlurmJob
     def __init__(self, host, directory='~/crimpl', ssh='ssh', scp='scp',
-                 mail_user=None, server_name=None):
+                 mail_user=None, server_name=None, openmpi_path=None,
+                 openmpi_ld_library_path=None):
         """
         Connect to a remote server running a Slurm scheduler.
 
@@ -425,8 +426,15 @@ class RemoteSlurmServer(_remotethread.RemoteThreadServer):
         * `server_name` (string): name to assign to the server.  If not provided,
             will be adopted automatically from `host` and available from
             <RemoteSlurmServer.server_name>.
+        * `openmpi_path` (string, optional, default=None): path to the OpenMPI
+            installation on the remote server.  If provided, will be added to
+            the PATH environment variable when running scripts on the server.
+        * `openmpi_ld_library_path` (string, optional, default=None): path to
+            the OpenMPI library on the remote server.  If provided, will be added
+            to the LD_LIBRARY_PATH environment variable when running scripts
+            on the server.
         """
-        super().__init__(host, directory, ssh, scp)
+        super().__init__(host, directory, openmpi_path=openmpi_path, openmpi_ld_library_path=openmpi_ld_library_path, ssh=ssh, scp=scp)
         self.mail_user = mail_user
         self._dict_keys += ['mail_user']
 
