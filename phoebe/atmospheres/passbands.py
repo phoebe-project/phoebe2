@@ -170,6 +170,96 @@ class InterpQuery:
         """Return number of query points"""
         return self.pts.shape[0]
 
+    def __repr__(self):
+        return f'<InterpQuery: {len(self)} points, cols={self.cols}, meta_keys={list(self.meta.keys())}>'
+
+
+class InterpResult:
+    def __init__(self, interps, **kwargs):
+        """
+        A class to hold interpolation results from ndpolator operations.
+
+        Arguments
+        ---------
+        * `interps` (array, required): interpolated values
+        * `**kwargs`: any additional results or metadata
+        """
+        self.interps = interps
+        for key, value in kwargs.items():
+            setattr(self, key, value)
+
+    @classmethod
+    def from_ndpolator(cls, ndp_output):
+        """
+        Create an InterpResult from an ndpolator dictionary result.
+        
+        Arguments
+        ---------
+        * `ndp_output` (dict): dictionary returned by ndpolator.ndpolate()
+
+        Returns
+        -------
+        * InterpResult instance
+        """
+        if not isinstance(ndp_output, dict):
+            raise TypeError("ndp_output must be a dictionary")
+
+        # Extract required and common optional fields
+        interps = ndp_output.pop('interps', None)
+        if interps is None:
+            raise ValueError("ndp_output must contain 'interps' key")
+
+        return cls(interps=interps, **ndp_output)
+
+    @property
+    def shape(self):
+        """Shape of interpolated results"""
+        return self.interps.shape
+
+    @property
+    def size(self):
+        """Size of interpolated results"""
+        return self.interps.size
+
+    def get_interpolated_values(self):
+        if hasattr(self, 'interps'):
+            return self.interps
+        return None
+
+    def __len__(self):
+        """Number of interpolated points"""
+        return len(self.interps)
+
+    def __getitem__(self, key):
+        """Allow slicing of results"""
+        sliced_attrs = {'interps': self.interps[key]}
+        
+        # Handle other array-like attributes that should be sliced along the same dimension
+        for attr_name, attr_value in self.__dict__.items():
+            if attr_name == 'interps':
+                continue
+            elif attr_value is None:
+                sliced_attrs[attr_name] = None
+            elif hasattr(attr_value, '__getitem__') and hasattr(attr_value, 'shape'):
+                # This is an array-like object, slice it appropriately
+                try:
+                    if isinstance(key, tuple) and len(key) == 2:
+                        # For 2D slicing like s[ld_func] = np.s_[:, 7:11]
+                        sliced_attrs[attr_name] = attr_value[key[0]]  # Only slice rows
+                    else:
+                        sliced_attrs[attr_name] = attr_value[key]
+                except (IndexError, TypeError):
+                    # If slicing fails, keep the original
+                    sliced_attrs[attr_name] = attr_value
+            else:
+                # Keep scalar/non-array attributes unchanged
+                sliced_attrs[attr_name] = attr_value
+        
+        return InterpResult(**sliced_attrs)
+
+    def __repr__(self):
+        return f'<InterpResult: {self.shape}>'
+
 
 class Passband:
     def __init__(self, ptf=None, pbset='Johnson', pbname='V',
@@ -782,15 +872,15 @@ class Passband:
         ld_coeffs = np.atleast_2d(ld_coeffs)
 
         if ld_func == 'linear':
-            return 1-ld_coeffs[:,0]*(1-mu)
+            return 1-ld_coeffs[:, 0]*(1-mu)
         elif ld_func == 'logarithmic':
-            return 1-ld_coeffs[:,0]*(1-mu)-ld_coeffs[:,1]*mu*np.log(np.maximum(mu, 1e-6))
+            return 1-ld_coeffs[:, 0]*(1-mu)-ld_coeffs[:, 1]*mu*np.log(np.maximum(mu, 1e-6))
         elif ld_func == 'square_root':
-            return 1-ld_coeffs[:,0]*(1-mu)-ld_coeffs[:,1]*(1-np.sqrt(mu))
+            return 1-ld_coeffs[:, 0]*(1-mu)-ld_coeffs[:, 1]*(1-np.sqrt(mu))
         elif ld_func == 'quadratic':
-            return 1-ld_coeffs[:,0]*(1-mu)-ld_coeffs[:,1]*(1-mu)*(1-mu)
+            return 1-ld_coeffs[:, 0]*(1-mu)-ld_coeffs[:, 1]*(1-mu)*(1-mu)
         elif ld_func == 'power':
-            return 1-ld_coeffs[:,0]*(1-np.sqrt(mu))-ld_coeffs[:,1]*(1-mu)-ld_coeffs[:,2]*(1-mu*np.sqrt(mu))-ld_coeffs[:,3]*(1.0-mu*mu)
+            return 1-ld_coeffs[:, 0]*(1-np.sqrt(mu))-ld_coeffs[:, 1]*(1-mu)-ld_coeffs[:, 2]*(1-mu*np.sqrt(mu))-ld_coeffs[:, 3]*(1.0-mu*mu)
         else:
             raise NotImplementedError(f'ld_func={ld_func} is not supported.')
 
@@ -1063,12 +1153,16 @@ class Passband:
             raise ValueError(f'ld_func={ld_func} is invalid; valid options are {s.keys()}.')
 
         if f'{ldatm.name}:ld' not in self.content:
-            raise ValueError(f'Limb darkening coefficients for {ldatm.name} atmosphere are not available.')
+            raise ValueError(f'limb darkening coefficients for ldatm={ldatm.name} not found for the {self.pbset}:{self.pbname} passband.')
 
         # limb darkening coefficients depend only on basic axes:
-        ld_coeffs = self.ndp[ldatm.name].ndpolate(f'ld@{intens_weighting}', query_pts=query.subset(ldatm.basic_axis_names).pts, extrapolation_method=ld_extrapolation_method)
+        ndp_output = self.ndp[ldatm.name].ndpolate(
+            f'ld@{intens_weighting}',
+            query_pts=query.subset(ldatm.basic_axis_names).pts,
+            extrapolation_method=ld_extrapolation_method
+        )
 
-        return ld_coeffs['interps'][s[ld_func]]
+        return InterpResult.from_ndpolator(ndp_output)[s[ld_func]]
 
     def interpolate_extinct(self, query, atm=models.CK2004ModelAtmosphere, intens_weighting='photon', extrapolation_method='none'):
         """
@@ -1091,11 +1185,16 @@ class Passband:
         """
 
         if f'{atm.name}:ext' not in self.content:
-            raise ValueError(f"extinction factors for atm={atm.name} not found for the {self.pbset}:{self.pbname} passband.")
+            raise ValueError(f'extinction factors for atm={atm.name} not found for the {self.pbset}:{self.pbname} passband.')
 
         # extinction coefficients depend on basic axes, ebvs and rvs:
-        extinct_factor = self.ndp[atm.name].ndpolate(f'ext@{intens_weighting}', query_pts=query.subset(atm.basic_axis_names + ['ebvs', 'rvs']).pts, extrapolation_method=extrapolation_method)['interps']
-        return extinct_factor
+        ndp_output = self.ndp[atm.name].ndpolate(
+            f'ext@{intens_weighting}',
+            query_pts=query.subset(atm.basic_axis_names + ['ebvs', 'rvs']).pts,
+            extrapolation_method=extrapolation_method
+        )
+
+        return InterpResult.from_ndpolator(ndp_output)
 
     def import_wd_atmcof(self, plfile, atmfile, wdidx, Nabun=19, Nlogg=11, Npb=25, Nints=4):
         """
@@ -1293,15 +1392,30 @@ class Passband:
             # if blending_method == 'blackbody':
             #     raise ValueError(f'the combination of {atm.name} atmosphere and blending_method={blending_method} is not valid.')
 
-            # normal intensities depend only on basic axes:
-            ndpolants = self.ndp[atm.name].ndpolate(f'inorm@{intens_weighting}', query_pts=query_pts, extrapolation_method=atm_extrapolation_method)
+            ndp_output = self.ndp['blackbody'].ndpolate(f'inorm@{intens_weighting}', query_pts=query_pts, extrapolation_method=atm_extrapolation_method)
+            log_inorms = InterpResult.from_ndpolator(ndp_output).interps
 
             if ldint is None:
                 if ld_func != 'interp' and ld_coeffs is None:
-                    ld_coeffs = self.interpolate_ldcoeffs(query=query, ldatm=ldatm, ld_func=ld_func, intens_weighting=intens_weighting, ld_extrapolation_method=ld_extrapolation_method)
-                ldint = self.ldint(query=query, ldatm=ldatm, ld_func=ld_func, ld_coeffs=ld_coeffs, intens_weighting=intens_weighting, ld_extrapolation_method=ld_extrapolation_method, raise_on_nans=raise_on_nans)
+                    ld_coeffs = self.interpolate_ldcoeffs(
+                        query=query,
+                        ldatm=ldatm,
+                        ld_func=ld_func,
+                        intens_weighting=intens_weighting,
+                        ld_extrapolation_method=ld_extrapolation_method
+                    ).get_interpolated_values()
 
-            intensities = 10**ndpolants['interps'] / ldint
+                ldint = self.interpolate_ldints(
+                    query=query,
+                    ldatm=ldatm,
+                    ld_func=ld_func,
+                    ld_coeffs=ld_coeffs,
+                    intens_weighting=intens_weighting,
+                    ld_extrapolation_method=ld_extrapolation_method,
+                    raise_on_nans=raise_on_nans
+                ).get_interpolated_values()
+
+            intensities = 10**log_inorms / ldint
 
         elif atm.name == 'extern_planckint' and 'extern_planckint:Inorm' in self.content:
             if intens_weighting == 'photon':
@@ -1310,7 +1424,7 @@ class Passband:
 
             intensities = 10**(self._log10_Inorm_extern_planckint(query_pts)-1)  # -1 is for cgs -> SI
             if ldint is None:
-                ldint = self.ldint(query=query, ldatm=ldatm, ld_func=ld_func, ld_coeffs=ld_coeffs, intens_weighting=intens_weighting, ld_extrapolation_method=ld_extrapolation_method, raise_on_nans=raise_on_nans)
+                ldint = self.interpolate_ldints(query=query, ldatm=ldatm, ld_func=ld_func, ld_coeffs=ld_coeffs, intens_weighting=intens_weighting, ld_extrapolation_method=ld_extrapolation_method, raise_on_nans=raise_on_nans)
 
             # print(f'{intensities.shape=} {ldint.shape=} {intensities[:5]=} {ldint[:5]=}')
             intensities /= ldint
@@ -1569,7 +1683,7 @@ class Passband:
                     ld_func=ld_func,
                     intens_weighting=intens_weighting,
                     ld_extrapolation_method=ld_extrapolation_method
-                )
+                ).get_interpolated_values()
 
             ints = self.Inorm(
                 query=query,
@@ -1589,7 +1703,7 @@ class Passband:
 
             return ints['inorms'] * ld
 
-    def ldint(self, query, ldatm=models.CK2004ModelAtmosphere, ld_func='linear', ld_coeffs=np.array([[0.5]]), intens_weighting='photon', ld_extrapolation_method='none', raise_on_nans=True):
+    def interpolate_ldints(self, query, ldatm=models.CK2004ModelAtmosphere, ld_func='linear', ld_coeffs=np.array([[0.5]]), intens_weighting='photon', ld_extrapolation_method='none', raise_on_nans=True):
         """
         Computes ldint value for the given `ld_func` and `ld_coeffs`.
 
@@ -1617,14 +1731,23 @@ class Passband:
 
         if ld_func == 'interp':
             # ldints depend only on basic ldatm axes:
-            ldints = self.ndp[ldatm.name].ndpolate(f'ldint@{intens_weighting}', query_pts=query.subset(ldatm.basic_axis_names).pts, extrapolation_method=ld_extrapolation_method)['interps']
-            return ldints
+            ndp_output = self.ndp[ldatm.name].ndpolate(
+                f'ldint@{intens_weighting}',
+                query_pts=query.subset(ldatm.basic_axis_names).pts,
+                extrapolation_method=ld_extrapolation_method)
+            return InterpResult.from_ndpolator(ndp_output)
 
         if ld_coeffs is not None:
             ld_coeffs = np.atleast_2d(ld_coeffs)
 
         if ld_coeffs is None:
-            ld_coeffs = self.interpolate_ldcoeffs(query=query, ldatm=ldatm, ld_func=ld_func, intens_weighting=intens_weighting, ld_extrapolation_method=ld_extrapolation_method)
+            ld_coeffs = self.interpolate_ldcoeffs(
+                query=query,
+                ldatm=ldatm,
+                ld_func=ld_func,
+                intens_weighting=intens_weighting,
+                ld_extrapolation_method=ld_extrapolation_method
+            ).get_interpolated_values()
 
         ldints = np.ones(shape=(len(query.pts), 1))
 
@@ -1641,7 +1764,7 @@ class Passband:
         else:
             raise ValueError(f'ld_func={ld_func} is not recognized.')
 
-        return ldints
+        return InterpResult(interps=ldints)
 
     def _bindex_blackbody(self, Teff, intens_weighting='photon'):
         r"""

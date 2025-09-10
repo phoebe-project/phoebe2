@@ -10283,15 +10283,13 @@ class Bundle(ParameterSet):
                 query_pts = np.array(((teff, logg, abun),))
                 query = passbands.InterpQuery(cols=query_cols, pts=query_pts)
 
-                # interpolate_ldcoeffs() always returns an array, so we need
-                # the first element of the array.
                 ld_coeffs = pb.interpolate_ldcoeffs(
                     query=query,
                     ldatm=models.atm_from_name(ldcs),
                     ld_func=ld_func,
                     intens_weighting=intens_weighting,
                     ld_extrapolation_method=ld_extrapolation_method
-                )[0]
+                ).get_interpolated_values()[0]
 
                 # NOTE: these may return nans... if so, run_checks will handle the error
 
@@ -10790,7 +10788,7 @@ class Bundle(ParameterSet):
                         blending_method=blending_method
                     )['inorms']
 
-                    ldint = pb.ldint(
+                    ldint = pb.interpolate_ldints(
                         query=query,
                         ldatm=atm_model,
                         ld_func=ld_func,
@@ -10798,7 +10796,7 @@ class Bundle(ParameterSet):
                         intens_weighting=intens_weighting,
                         ld_extrapolation_method=ld_extrapolation_method,
                         raise_on_nans=True
-                    )
+                    ).get_interpolated_values()
 
                     if intens_weighting=='photon':
                         ptfarea = pb.ptf_photon_area/passbands.h.value/passbands.c.value

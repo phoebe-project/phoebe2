@@ -44,7 +44,12 @@ def test_bb_extinction():
     query = passbands.InterpQuery(cols=query_cols, pts=query_pts)
 
     atm = phoebe.atmospheres.models.BlackbodyModelAtmosphere()
-    iext = pb.interpolate_extinct(query=query, atm=atm, intens_weighting='photon', extrapolation_method='none').flatten()
+    iext = pb.interpolate_extinct(
+        query=query,
+        atm=atm,
+        intens_weighting='photon',
+        extrapolation_method='none'
+    ).get_interpolated_values().flatten()
 
     assert np.allclose(iext, iext_predicted, atol=2e-3, rtol=2e-3)
 

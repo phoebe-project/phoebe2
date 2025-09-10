@@ -1857,7 +1857,7 @@ class Star(Body):
 
             query = passbands.InterpQuery(cols=query_cols, pts=query_pts)
 
-            ldint = pb.ldint(
+            ldint = pb.interpolate_ldints(
                 query=query,
                 ldatm=ldatm_model,
                 ld_func=ld_func if ld_mode != 'interp' else ld_mode,
@@ -1865,7 +1865,7 @@ class Star(Body):
                 intens_weighting=intens_weighting,
                 ld_extrapolation_method=ld_extrapolation_method,
                 raise_on_nans=True
-            )
+            ).get_interpolated_values()
 
             abs_normal_intensities = pb.Inorm(
                 query=query,
@@ -1907,17 +1907,17 @@ class Star(Body):
             # normal intensities
             abs_intensities *= np.atleast_2d(boost_factors).T
 
-
             # interstellar extinction (reddening):
             if extinct == 0.0 or ignore_effects:
                 extinct_factors = 1.0
             else:
-                extinct_factors = pb.interpolate_extinct(
+                result = pb.interpolate_extinct(
                     query=query,
                     atm=atm_model,
                     intens_weighting=intens_weighting,
                     extrapolation_method=atm_extrapolation_method
                 )
+                extinct_factors = result.interps
 
             # extinction is NOT aspect dependent, so we'll correct both
             # normal and directional intensities
