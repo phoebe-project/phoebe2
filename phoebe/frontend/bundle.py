@@ -10775,7 +10775,7 @@ class Bundle(ParameterSet):
                     query_pts = np.atleast_2d(np.stack((teffs[component], loggs[component], abuns[component])).T)
                     query = passbands.InterpQuery(cols=query_cols, pts=query_pts)
 
-                    abs_normal_intensities = pb.Inorm(
+                    abs_normal_intensities = pb.interpolate_inorms(
                         query=query,
                         atm=atm_model,
                         ldatm=atm_model,
@@ -10786,7 +10786,7 @@ class Bundle(ParameterSet):
                         atm_extrapolation_method=atm_extrapolation_method,
                         ld_extrapolation_method=ld_extrapolation_method,
                         blending_method=blending_method
-                    )['inorms']
+                    ).get_interpolated_values()
 
                     ldint = pb.interpolate_ldints(
                         query=query,
@@ -10795,7 +10795,6 @@ class Bundle(ParameterSet):
                         ld_coeffs=ld_coeffs,
                         intens_weighting=intens_weighting,
                         ld_extrapolation_method=ld_extrapolation_method,
-                        raise_on_nans=True
                     ).get_interpolated_values()
 
                     if intens_weighting=='photon':

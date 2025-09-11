@@ -1864,10 +1864,9 @@ class Star(Body):
                 ld_coeffs=ld_coeffs,
                 intens_weighting=intens_weighting,
                 ld_extrapolation_method=ld_extrapolation_method,
-                raise_on_nans=True
             ).get_interpolated_values()
 
-            abs_normal_intensities = pb.Inorm(
+            abs_normal_intensities = pb.interpolate_inorms(
                 query=query,
                 atm=atm_model,
                 ldatm=ldatm_model,
@@ -1878,9 +1877,9 @@ class Star(Body):
                 atm_extrapolation_method=atm_extrapolation_method,
                 ld_extrapolation_method=ld_extrapolation_method,
                 blending_method=blending_method
-            )['inorms']
+            ).get_interpolated_values()
 
-            abs_intensities = pb.Imu(
+            abs_intensities = pb.interpolate_imus(
                 query=query,
                 atm=atm_model,
                 ldatm=ldatm_model,
@@ -1891,7 +1890,7 @@ class Star(Body):
                 atm_extrapolation_method=atm_extrapolation_method,
                 ld_extrapolation_method=ld_extrapolation_method,
                 blending_method=blending_method
-            )
+            ).get_interpolated_values()
 
             # Beaming/boosting
             if boosting_method == 'none' or ignore_effects:
