@@ -81,12 +81,12 @@ def phoebe(**kwargs):
     * `atm` (string, optional, default='ck2004'): atmosphere table
     * `irrad_method` (string, optional, default='horvat'): which method to use
         to handle irradiation.
-    * `blending_method` (string, optional, default='none'): Method to use for
-        blending. (Only applicable if `atm` is not 'blackbody')
-    * `ld_blending_method` (string, optional, default='none'): Method to use
-        for extrapolating limb-darkening during blending (for all datasets and
-        bolometric for irradiation, if applicable).  (Only applicable if `atm`
-        is not 'blackbody' and `blending_method` is not 'none')
+    * `atm_extrapolation_method` (string, optional, default='linear'): method
+        of extrapolating intensities outside of the atmosphere grid.
+    * `ld_extrapolation_method` (string, optional, default='nearest'): method
+        of extrapolating limb-darkening intensities outside of the atmosphere grid.
+    * `blending_method` (string, optional, default='blackbody'): method to use
+        for blending model atmosphere and blackbody intensities off the atmosphere grid.
     * `mesh_method` (string, optional, default='marching'): which method to use
         for discretizing the surface.
     * `ntriangles` (int, optional, default=1500): target number of triangles
@@ -170,8 +170,13 @@ def phoebe(**kwargs):
 
     # PER-COMPONENT
     params += [ChoiceParameter(copy_for = {'kind': ['star'], 'component': '*'}, component='_default', qualifier='atm', value=kwargs.get('atm', 'ck2004'), choices=_atm_choices, description='Atmosphere table')]
-    params += [ChoiceParameter(visible_if='atm:!blackbody', copy_for = {'kind': ['star'], 'component': '*'}, component='_default', qualifier='blending_method', value=kwargs.get('blending_method', 'none'), choices=['none', 'nearest', 'linear'], description='Method to use for blending')]
-    params += [ChoiceParameter(visible_if='atm:!blackbody', copy_for = {'kind': ['star'], 'component': '*'}, component='_default', qualifier='ld_blending_method', value=kwargs.get('ld_blending_method', 'none'), choices=['none', 'nearest', 'linear'], description='Method to use for extrapolating limb-darkening during blending (for all datasets and bolometric for irradiation, if applicable)')]
+    params += [ChoiceParameter(visible_if='atm:!blackbody,atm:!extern_planckint,atm:!extern_atmx', copy_for = {'kind': ['star'], 'component': '*'}, component='_default', qualifier='atm_extrapolation_method', value=kwargs.get('atm_extrapolation_method', 'linear'), choices=['none', 'nearest', 'linear'], description='Method of extrapolating intensities outside of the atmosphere grid')]
+    params += [ChoiceParameter(visible_if='atm:!blackbody,atm:!extern_planckint,atm:!extern_atmx', copy_for = {'kind': ['star'], 'component': '*'}, component='_default', qualifier='ld_extrapolation_method', value=kwargs.get('ld_extrapolation_method', 'nearest'), choices=['none', 'nearest', 'linear'], description='Method of extrapolating limb-darkening intensities outside of the atmosphere grid')]
+    params += [ChoiceParameter(visible_if='atm:!blackbody,atm:!extern_planckint,atm:!extern_atmx,atm_extrapolation_method:!none,ld_extrapolation_method:!none', copy_for = {'kind': ['star'], 'component': '*'}, component='_default', qualifier='blending_method', value=kwargs.get('blending_method', 'blackbody'), choices=['none', 'blackbody'], description='Method to use for blending model atmosphere and blackbody intensities off the atmosphere grid')]
+
+    # b['atm_extrapolation_method@primary@compute'] = 'linear'
+    # b['ld_extrapolation_method@primary@compute'] = 'nearest'
+    # b['blending_method@primary@compute'] = 'blackbody'
 
     # PER-DATASET
 

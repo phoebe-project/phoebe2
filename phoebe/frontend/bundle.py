@@ -10758,9 +10758,20 @@ class Bundle(ParameterSet):
                     else:
                         ld_func = 'interp'
                         ld_coeffs = None
-                    atm_extrapolation_method = compute_ps.get_value(qualifier='blending_method', component=component, default='none', **_skip_filter_checks)
-                    ld_extrapolation_method = compute_ps.get_value(qualifier='ld_blending_method', component=component, default='none', **_skip_filter_checks)
-                    blending_method = 'none' if atm_extrapolation_method == 'none' else 'blackbody'
+
+                    if atms[component] in ['blackbody', 'extern_planckint', 'extern_atmx']:
+                        atm_extrapolation_method = 'none'
+                        ld_extrapolation_method = 'none'
+                        blending_method = 'none'
+                    else:
+                        atm_extrapolation_method = compute_ps.get_value(qualifier='atm_extrapolation_method', component=component, default='none', **_skip_filter_checks)
+                        ld_extrapolation_method = compute_ps.get_value(qualifier='ld_extrapolation_method', component=component, default='none', **_skip_filter_checks)
+
+                        # if either extrapolation method is 'none', then we can't blend
+                        if atm_extrapolation_method == 'none' or ld_extrapolation_method == 'none':
+                            blending_method = 'none'
+                        else:
+                            blending_method = compute_ps.get_value(qualifier='blending_method', component=component, default='none', **_skip_filter_checks)
 
                     if atms[component] == 'blackbody' and ld_mode!='manual':
                         raise NotImplementedError("pblum_method='stefan-boltzmann' not currently implemented for atm='blackbody' unless ld_mode='manual'")
