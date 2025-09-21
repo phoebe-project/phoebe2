@@ -7277,10 +7277,10 @@ class Parameter(object):
                 return dataset in self._bundle.filter(context='feature', feature=enabled_features_with_kind, **_skip_filter_checks).datasets
 
             elif qualifier == 'atm_in_computes':
-                compute_atms = [p.get_value() for p in self._bundle.filter(qualifier='atm', context='compute', **_skip_filter_checks).to_list()]
+                compute_atms = [p.get_value() for p in self._bundle.filter(qualifier='atm', context='compute', component=self.component, **_skip_filter_checks).to_list()]
                 if value[0] in ['!', '~']:
-                    return value[1:] not in compute_atms
-                return value in compute_atms
+                    return not all(fnmatch(atm, value[1:]) for atm in compute_atms)
+                return any(fnmatch(atm, value) for atm in compute_atms)
             
             else:
 
