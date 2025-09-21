@@ -236,7 +236,8 @@ _forbidden_labels += ['times', 'fluxes', 'sigmas', 'sigmas_lnf',
                      'intensities', 'abs_intensities',
                      'normal_intensities', 'abs_normal_intensities',
                      'boost_factors', 'ldint', 'ptfarea',
-                     'pblum', 'pblum_ext', 'abs_pblum', 'abs_pblum_ext']
+                     'pblum', 'pblum_ext', 'abs_pblum', 'abs_pblum_ext',
+                     'blending_factors', 'extrapolation_dists']
 
 
 # from compute:

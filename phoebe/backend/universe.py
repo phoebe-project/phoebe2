@@ -1890,7 +1890,7 @@ class Star(Body):
                 blending_method=blending_method
             ).get_interpolated_values()
 
-            abs_intensities = pb.interpolate_imus(
+            abs_intens_results = pb.interpolate_imus(
                 query=query,
                 atm=atm_model,
                 ldatm=ldatm_model,
@@ -1901,7 +1901,10 @@ class Star(Body):
                 atm_extrapolation_method=atm_extrapolation_method,
                 ld_extrapolation_method=ld_extrapolation_method,
                 blending_method=blending_method
-            ).get_interpolated_values()
+            )
+            abs_intensities = abs_intens_results.get_interpolated_values()
+            blending_factors = abs_intens_results.get_bfs()
+            extrapolation_dists = abs_intens_results.get_distances()
 
             # Beaming/boosting
             if boosting_method == 'none' or ignore_effects:
@@ -1956,7 +1959,9 @@ class Star(Body):
                 'abs_intensities': abs_intensities.flatten(),
                 'intensities': intensities.flatten(),
                 'ldint': ldint.flatten(),
-                'boost_factors': boost_factors}
+                'boost_factors': boost_factors,
+                'blending_factors': blending_factors.flatten(),
+                'extrapolation_dists': extrapolation_dists.flatten()}
 
 
 class Star_roche(Star):

@@ -1434,7 +1434,8 @@ class PhoebeBackend(BaseBackendByTime):
                     for indep in ['rvs', 'dls',
                                   'intensities', 'normal_intensities',
                                   'abs_intensities', 'abs_normal_intensities',
-                                  'boost_factors', 'ldint']:
+                                  'boost_factors', 'ldint',
+                                  'blending_factors', 'extrapolation_dists']:
 
                         if "{}@{}".format(indep, mesh_dataset) in info['mesh_columns']:
                             key = "{}:{}".format(indep, mesh_dataset)
