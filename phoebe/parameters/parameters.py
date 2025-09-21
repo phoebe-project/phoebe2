@@ -7266,6 +7266,12 @@ class Parameter(object):
                 enabled_features_with_kind = self._bundle.filter(qualifier='enabled', value=True, compute=self.compute, feature=features_with_kind, **_skip_filter_checks).features
                 return dataset in self._bundle.filter(context='feature', feature=enabled_features_with_kind, **_skip_filter_checks).datasets
 
+            elif qualifier == 'atm_in_computes':
+                compute_atms = [p.get_value() for p in self._bundle.filter(qualifier='atm', context='compute', **_skip_filter_checks).to_list()]
+                if value[0] in ['!', '~']:
+                    return value[1:] not in compute_atms
+                return value in compute_atms
+            
             else:
 
                 # the parameter needs to have all the same meta data except qualifier
