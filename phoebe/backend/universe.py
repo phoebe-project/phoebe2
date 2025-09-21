@@ -1904,7 +1904,9 @@ class Star(Body):
             )
             abs_intensities = abs_intens_results.get_interpolated_values()
             blending_factors = abs_intens_results.get_bfs()
+            blending_factors[blending_factors == 0] = np.nan
             extrapolation_dists = abs_intens_results.get_distances()
+            extrapolation_dists[extrapolation_dists == 0] = np.nan
 
             # Beaming/boosting
             if boosting_method == 'none' or ignore_effects:

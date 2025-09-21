@@ -779,9 +779,9 @@ def mesh(syn=False, as_ps=True, **kwargs):
                 if 'ldint@{}'.format(dataset) in columns:
                     params += [FloatArrayParameter(qualifier='ldint', dataset=dataset, time=t, value=kwargs.get('ldint', []), readonly=True, default_unit=u.dimensionless_unscaled, description='Integral of the limb-darkening function')]
                 if 'blending_factors@{}'.format(dataset) in columns:
-                    params += [FloatArrayParameter(qualifier='blending_factors', dataset=dataset, time=t, value=kwargs.get('blending_factors', []), readonly=True, default_unit=u.dimensionless_unscaled, description='Ratio of blended intensity from blackbody atmospheres (0 is all from the atm grid, 1 is all from blackbody).')]
+                    params += [FloatArrayParameter(qualifier='blending_factors', dataset=dataset, time=t, value=kwargs.get('blending_factors', []), readonly=True, default_unit=u.dimensionless_unscaled, description='Ratio of blended intensity from blackbody atmospheres (0/nan is all from the atm grid, 1 is all from blackbody).')]
                 if 'extrapolation_dists@{}'.format(dataset) in columns:
-                    params += [FloatArrayParameter(qualifier='extrapolation_dists', dataset=dataset, time=t, value=kwargs.get('extrapolation_dists', []), readonly=True, default_unit=u.dimensionless_unscaled, description='Normalized distance each triangle is from the atmosphere grid (0 is on grid)')]
+                    params += [FloatArrayParameter(qualifier='extrapolation_dists', dataset=dataset, time=t, value=kwargs.get('extrapolation_dists', []), readonly=True, default_unit=u.dimensionless_unscaled, description='Normalized distance each triangle is from the atmosphere grid (0/nan is on grid)')]
 
                 if 'ptfarea@{}'.format(dataset) in columns:
                     params += [FloatParameter(qualifier='ptfarea', dataset=dataset, time=t, value=kwargs.get('ptfarea', 1.0), readonly=True, default_unit=u.m, description='Area of the passband transmission function')]
