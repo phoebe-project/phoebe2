@@ -220,14 +220,13 @@ class InterpResult:
         return self.interps.size
 
     def get_interpolated_values(self):
-        if hasattr(self, 'interps'):
-            return self.interps
-        return None
+        return getattr(self, 'interps', None)
 
     def get_distances(self):
-        if hasattr(self, 'dists'):
-            return self.dists
-        return None
+        return getattr(self, 'dists', np.full(self.shape, np.nan))
+
+    def get_bfs(self):
+        return getattr(self, 'bfs', np.full(self.shape, np.nan))
 
     def __len__(self):
         """Number of interpolated points"""
