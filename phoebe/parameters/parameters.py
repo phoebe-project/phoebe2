@@ -198,7 +198,7 @@ _forbidden_labels += ['phoebe_version', 'dict_filter',
                       'auto_add_figure', 'auto_remove_figure', 'web_client', 'web_client_url']
 
 # from component
-_forbidden_labels += ['requiv', 'requiv_max', 'requiv_min', 'teff', 'abun', 'logg',
+_forbidden_labels += ['requiv', 'requiv_max', 'requiv_min', 'teff', 'abun', 'hefrac', 'logg',
                       'fillout_factor', 'pot_min', 'pot_max',
                       'period_anom',
                       'syncpar', 'period', 'pitch', 'yaw', 'incl', 'long_an',
