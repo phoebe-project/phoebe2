@@ -5402,6 +5402,15 @@ class ParameterSet(object):
             elif qualifier in ['visibilities']:
                 kwargs.setdefault('{}map'.format(af_direction), 'RdYlGn')
                 kwargs.setdefault('{}lim'.format(af_direction), (0,1))
+            elif qualifier == 'blending_factors':
+                kwargs.setdefault('{}map'.format(af_direction), 'RdYlGn_r')
+                kwargs.setdefault('{}lim'.format(af_direction), (0,1))
+            elif qualifier == 'extrapolation_dists':
+                kwargs.setdefault('{}map'.format(af_direction), 'RdYlGn_r')
+                # NOTE: max value here should match the value of blending_margin
+                # passed to interpolate_inorms/imus, which is currently
+                # hardcoded to 3
+                kwargs.setdefault('{}lim'.format(af_direction), (0,3))
 
         #### LABEL FOR LEGENDS
         attrs = ['component', 'dataset']
