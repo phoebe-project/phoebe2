@@ -199,7 +199,23 @@ null
 null,
 null
 ],
-"visible_if": "hierarchy.is_contact_binary:False",
+"visible_if": "hierarchy.is_contact_binary:False,atm_in_computes:!tmap*",
+"copy_for": false,
+"Class": "FloatParameter"
+},
+{
+"qualifier": "loghefrac",
+"component": "primary",
+"kind": "star",
+"context": "component",
+"description": "Helium fraction, log(He/H) abundance by number.",
+"value": 0.0,
+"default_unit": "",
+"limits": [
+0.0,
+1.0
+],
+"visible_if": "hierarchy.is_contact_binary:False,atm_in_computes:tmap*",
 "copy_for": false,
 "Class": "FloatParameter"
 },
@@ -552,7 +568,23 @@ null
 null,
 null
 ],
-"visible_if": "hierarchy.is_contact_binary:False",
+"visible_if": "hierarchy.is_contact_binary:False,atm_in_computes:!tmap*",
+"copy_for": false,
+"Class": "FloatParameter"
+},
+{
+"qualifier": "loghefrac",
+"component": "secondary",
+"kind": "star",
+"context": "component",
+"description": "Helium fraction, log(He/H) abundance by number.",
+"value": 0.0,
+"default_unit": "",
+"limits": [
+0.0,
+1.0
+],
+"visible_if": "hierarchy.is_contact_binary:False,atm_in_computes:tmap*",
 "copy_for": false,
 "Class": "FloatParameter"
 },
@@ -2185,7 +2217,7 @@ null
 "compute": "phoebe01",
 "kind": "phoebe",
 "context": "compute",
-"description": "Number of times to sample per-datapoint for finite-time integration",
+"description": "Number of times to sample per-datapoint for finite-time integration (when non-zero exptime)",
 "value": 5,
 "limits": [
 1,
@@ -2645,7 +2677,7 @@ null
 "qualifier": "phoebe_version",
 "context": "setting",
 "description": "Version of PHOEBE",
-"value": "2.4.16.dev+feature-blending",
+"value": "2.4.21.dev+feature-blending",
 "copy_for": false,
 "readonly": true,
 "advanced": true,
