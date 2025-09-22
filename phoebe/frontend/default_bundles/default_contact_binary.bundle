@@ -144,7 +144,7 @@ null
 "kind": "star",
 "context": "component",
 "description": "Critical (maximum) value of the equivalent radius for the given morphology",
-"value": 1.6724563972838289,
+"value": 1.6724563972838287,
 "default_unit": "solRad",
 "limits": [
 0.0,
@@ -199,7 +199,23 @@ null
 null,
 null
 ],
-"visible_if": "hierarchy.is_contact_binary:False",
+"visible_if": "hierarchy.is_contact_binary:False,atm_in_computes:!tmap*",
+"copy_for": false,
+"Class": "FloatParameter"
+},
+{
+"qualifier": "loghefrac",
+"component": "primary",
+"kind": "star",
+"context": "component",
+"description": "Helium fraction, log(He/H) abundance by number.",
+"value": 0.0,
+"default_unit": "",
+"limits": [
+0.0,
+1.0
+],
+"visible_if": "hierarchy.is_contact_binary:False,atm_in_computes:tmap*",
 "copy_for": false,
 "Class": "FloatParameter"
 },
@@ -497,7 +513,7 @@ null
 "kind": "star",
 "context": "component",
 "description": "Critical (maximum) value of the equivalent radius for the given morphology",
-"value": 1.6724563972838782,
+"value": 1.672456397283698,
 "default_unit": "solRad",
 "limits": [
 0.0,
@@ -552,7 +568,23 @@ null
 null,
 null
 ],
-"visible_if": "hierarchy.is_contact_binary:False",
+"visible_if": "hierarchy.is_contact_binary:False,atm_in_computes:!tmap*",
+"copy_for": false,
+"Class": "FloatParameter"
+},
+{
+"qualifier": "loghefrac",
+"component": "secondary",
+"kind": "star",
+"context": "component",
+"description": "Helium fraction, log(He/H) abundance by number.",
+"value": 0.0,
+"default_unit": "",
+"limits": [
+0.0,
+1.0
+],
+"visible_if": "hierarchy.is_contact_binary:False,atm_in_computes:tmap*",
 "copy_for": false,
 "Class": "FloatParameter"
 },
@@ -1141,7 +1173,7 @@ null
 "kind": "envelope",
 "context": "component",
 "description": "Fillout-factor of the envelope",
-"value": 0.6417897080770848,
+"value": 0.6417897080770861,
 "default_unit": "",
 "limits": [
 0.0,
@@ -1157,7 +1189,7 @@ null
 "kind": "envelope",
 "context": "component",
 "description": "Potential of the envelope (from the primary component's reference)",
-"value": 3.401377407229882,
+"value": 3.4013774072298815,
 "default_unit": "",
 "limits": [
 0.0,
@@ -1173,7 +1205,7 @@ null
 "kind": "envelope",
 "context": "component",
 "description": "Critical (minimum) value of the potential to remain a contact",
-"value": 3.206796224086153,
+"value": 3.2067962240861534,
 "default_unit": "",
 "limits": [
 0.0,
@@ -2376,7 +2408,7 @@ null
 "compute": "phoebe01",
 "kind": "phoebe",
 "context": "compute",
-"description": "Number of times to sample per-datapoint for finite-time integration",
+"description": "Number of times to sample per-datapoint for finite-time integration (when non-zero exptime)",
 "value": 5,
 "limits": [
 1,
@@ -2877,7 +2909,7 @@ null
 "qualifier": "phoebe_version",
 "context": "setting",
 "description": "Version of PHOEBE",
-"value": "2.4.16.dev+feature-blending",
+"value": "2.4.21.dev+feature-blending",
 "copy_for": false,
 "readonly": true,
 "advanced": true,
