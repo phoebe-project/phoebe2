@@ -17,7 +17,7 @@ Available environment variables:
 
 """
 
-__version__ = '2.4.21.dev+feature-contacts'
+__version__ = '2.4.22.dev+feature-contacts'
 
 import os as _os
 import sys as _sys
