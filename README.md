@@ -13,6 +13,8 @@ PHOEBE 2.4
   <a href="https://github.com/phoebe-project/phoebe2/blob/master/LICENSE"><img src="https://img.shields.io/badge/license-GPL3-blue.svg"/></a>
   <a href="https://github.com/phoebe-project/phoebe2/actions/workflows/on_pr.yml?query=branch%3Amaster"><img src="https://github.com/phoebe-project/phoebe2/actions/workflows/on_pr.yml/badge.svg?branch=master"/></a>
   <a href="https://phoebe-project.org/docs/2.4"><img src="https://github.com/phoebe-project/phoebe2-docs/actions/workflows/build-docs.yml/badge.svg?branch=2.4"/></a>
+  <img src="https://img.shields.io/badge/dependabot-enabled-025e8c?logo=dependabot">
+  <a href="https://github.com/phoebe-project/phoebe2/actions/workflows/dependabot/dependabot-updates"><img src="https://img.shields.io/github/issues-pr/phoebe-project/phoebe2/CI"></a>
 <br/>
   <a href="https://ui.adsabs.harvard.edu/abs/2016ApJS..227...29P"><img src="https://img.shields.io/badge/ApJS-Prsa+2016-lightgrey.svg"/></a>
   <a href="https://ui.adsabs.harvard.edu/abs/2018ApJS..237...26H"><img src="https://img.shields.io/badge/ApJS-Horvat+2018-lightgrey.svg"/></a>
