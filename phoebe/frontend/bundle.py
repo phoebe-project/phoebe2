@@ -1,22 +1,16 @@
-import sys
-import subprocess
 import os
 import numpy as np
 
 try:
     from subprocess import DEVNULL
 except ImportError:
-    import os
     DEVNULL = open(os.devnull, 'wb')
 
-import re
 import json
 import atexit
 import time
-from datetime import datetime
 from packaging.version import parse
 from copy import deepcopy as _deepcopy
-import pickle as _pickle
 from inspect import getsource as _getsource
 
 from scipy.optimize import curve_fit as cfit
@@ -36,14 +30,13 @@ from phoebe.parameters import constraint as _constraint
 from phoebe.parameters import feature as _feature
 from phoebe.parameters import figure as _figure
 from phoebe.parameters import server as _server
-from phoebe.parameters.parameters import _uniqueid, _clientid, _return_ps, _extract_index_from_string, _corner_twig, _corner_label, _cached_crimpl_servers
-from phoebe.backend import backends, mesh
-from phoebe.backend import universe as _universe
+from phoebe.parameters.parameters import _uniqueid, _clientid, _return_ps, _extract_index_from_string, _corner_twig, _cached_crimpl_servers
+from phoebe.backend import backends
 from phoebe.solverbackends import solverbackends as _solverbackends
 from phoebe.distortions import roche
 from phoebe.frontend import io
 from phoebe.atmospheres import models
-from phoebe.atmospheres.passbands import list_installed_passbands, list_online_passbands, get_passband, update_passband, _timestamp_to_dt
+from phoebe.atmospheres import passbands
 from phoebe import pool as _pool
 from phoebe.dependencies import distl as _distl
 from phoebe.dependencies import crimpl as _crimpl
@@ -59,7 +52,6 @@ import logging
 logger = logging.getLogger("BUNDLE")
 logger.addHandler(logging.NullHandler())
 
-from io import IOBase
 
 _bundle_cache_dir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'default_bundles'))+'/'
 
@@ -3697,8 +3689,8 @@ class Bundle(ParameterSet):
         kwargs.setdefault('check_default', False)
 
         # run passband checks
-        all_pbs = list_passbands(full_dict=True)
-        online_pbs = list_online_passbands(full_dict=True)
+        all_pbs = passbands.list_passbands(full_dict=True)
+        online_pbs = passbands.list_online_passbands(full_dict=True)
 
         # TODO: is this robust against flipping constraints?
         pb_needs_ext = self.get_value(qualifier='ebv', context='system', **_skip_filter_checks) != 0
@@ -3707,7 +3699,7 @@ class Bundle(ParameterSet):
 
             # we include this in the loop so that we get the most recent dict
             # if a previous passband had to be updated
-            installed_pbs = list_installed_passbands(full_dict=True)
+            installed_pbs = passbands.list_installed_passbands(full_dict=True)
 
             pb = pbparam.get_value()
 
@@ -3721,7 +3713,7 @@ class Bundle(ParameterSet):
             if pb_needs_ext and pb in ['Stromgren:u', 'Johnson:U', 'SDSS:u', 'SDSS:uprime']:
                 # need to check for bugfix in coefficients from 2.3.4 release
                 installed_timestamp = installed_pbs.get(pb, {}).get('timestamp', None)
-                if installed_timestamp is not None and _timestamp_to_dt(installed_timestamp) < _timestamp_to_dt("Mon Nov 2 00:00:00 2020"):
+                if installed_timestamp is not None and passbands._timestamp_to_dt(installed_timestamp) < passbands._timestamp_to_dt("Mon Nov 2 00:00:00 2020"):
                     report.add_item(self,
                                     "'{}' passband ({}) with extinction needs to be updated for fixed UV extinction coefficients.  Run phoebe.list_passband_online_history('{}') to get a list of available changes and phoebe.update_passband('{}') or phoebe.update_all_passbands() to update.".format(pb, pbparam.twig, pb, pb),
                                     [pbparam, self.get_parameter(qualifier='ebv', context='system', **_skip_filter_checks)],
@@ -3799,7 +3791,7 @@ class Bundle(ParameterSet):
                         logger.warning("updating installed {} passband (ignoring timestamp mismatch) to include content={}".format(pb, missing_pb_content))
 
                     try:
-                        update_passband(pb, content=missing_pb_content)
+                        passbands.update_passband(pb, content=missing_pb_content)
                     except IOError:
                         report.add_item(self,
                                         'Attempt to update {} passband for the {} tables failed.  Check internet connection, wait for tables.phoebe-project.org to come back online, or try another passband.'.format(pb, missing_pb_content),
@@ -5413,7 +5405,7 @@ class Bundle(ParameterSet):
         # provide any references from passband tables
         for pb_param in self.filter(qualifier='passband', dataset=datasets, component=self.hierarchy.get_stars()).to_list():
             pbname = pb_param.get_value()
-            pb = get_passband(pb)
+            pb = passbands.get_passband(pb)
             if pb.reference is not None:
                 recs = _add_reason(recs, pb.reference, '{} passband'.format(pbname))
 
@@ -10269,7 +10261,7 @@ class Bundle(ParameterSet):
                     atm_class = models.atm_from_name(atm)
                     ldcs = 'ck2004' if atm_class.external or not hasattr(atm_class, 'mus') else atm
 
-                pb = get_passband(passband, content=f'{ldcs}:ld')
+                pb = passbands.get_passband(passband, content=f'{ldcs}:ld')
                 teff = self.get_value(qualifier='teff', component=ldcs_param.component, context='component', unit='K', **_skip_filter_checks)
                 logg = self.get_value(qualifier='logg', component=ldcs_param.component, context='component', **_skip_filter_checks)
                 abun = self.get_value(qualifier='abun', component=ldcs_param.component, context='component', **_skip_filter_checks)
@@ -10289,17 +10281,15 @@ class Bundle(ParameterSet):
                 # TODO: generalize this.
                 query_cols = ('teffs', 'loggs', 'abuns')
                 query_pts = np.array(((teff, logg, abun),))
-                query_table = (query_cols, query_pts)
+                query = passbands.InterpQuery(cols=query_cols, pts=query_pts)
 
-                # interpolate_ldcoeffs() always returns an array, so we need
-                # the first element of the array.
                 ld_coeffs = pb.interpolate_ldcoeffs(
-                    query_table=query_table,
+                    query=query,
                     ldatm=models.atm_from_name(ldcs),
                     ld_func=ld_func,
                     intens_weighting=intens_weighting,
                     ld_extrapolation_method=ld_extrapolation_method
-                )[0]
+                ).get_interpolated_values()[0]
 
                 # NOTE: these may return nans... if so, run_checks will handle the error
 
@@ -10778,15 +10768,15 @@ class Bundle(ParameterSet):
                     required_content = ['{}:Imu'.format(atms[component])]
                     if atms[component] != 'blackbody':
                         required_content += ['{}:ldint'.format(atms[component])]
-                    pb = get_passband(passband, content=required_content)
+                    pb = passbands.get_passband(passband, content=required_content)
 
                     atm_model = models.atm_from_name(atms[component])
                     query_cols = ['teffs', 'loggs', 'abuns']
                     query_pts = np.atleast_2d(np.stack((teffs[component], loggs[component], abuns[component])).T)
-                    query_table = (query_cols, query_pts)
+                    query = passbands.InterpQuery(cols=query_cols, pts=query_pts)
 
-                    abs_normal_intensities = pb.Inorm(
-                        query_table=query_table,
+                    abs_normal_intensities = pb.interpolate_inorms(
+                        query=query,
                         atm=atm_model,
                         ldatm=atm_model,
                         ldint=None,
@@ -10796,17 +10786,16 @@ class Bundle(ParameterSet):
                         atm_extrapolation_method=atm_extrapolation_method,
                         ld_extrapolation_method=ld_extrapolation_method,
                         blending_method=blending_method
-                    )['inorms']
+                    ).get_interpolated_values()
 
-                    ldint = pb.ldint(
-                        query_table=query_table,
+                    ldint = pb.interpolate_ldints(
+                        query=query,
                         ldatm=atm_model,
                         ld_func=ld_func,
                         ld_coeffs=ld_coeffs,
                         intens_weighting=intens_weighting,
                         ld_extrapolation_method=ld_extrapolation_method,
-                        raise_on_nans=True
-                    )
+                    ).get_interpolated_values()
 
                     if intens_weighting=='photon':
                         ptfarea = pb.ptf_photon_area/passbands.h.value/passbands.c.value

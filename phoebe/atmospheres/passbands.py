@@ -9,7 +9,7 @@ import ndpolator
 # NOTE: we'll import directly from astropy here to avoid
 # circular imports BUT any changes to these units/constants
 # inside phoebe will be ignored within passbands
-from astropy.constants import h, c, k_B, sigma_sb
+from astropy.constants import h, c, k_B
 from astropy import units as u
 from astropy.io import fits
 from astropy.table import Table
@@ -22,11 +22,9 @@ from datetime import datetime
 import libphoebe
 import os
 import sys
-import glob
 import shutil
 import json
 import time
-import re
 
 # NOTE: python3 only
 from urllib.request import urlopen, urlretrieve
@@ -121,6 +119,162 @@ def raise_out_of_bounds(nanvals, atm=None, ldatm=None, intens_weighting=None):
         value_error += f'intens_weighting={intens_weighting} '
     value_error += f'values={nanvals}'
     raise ValueError(value_error)
+
+
+class InterpQuery:
+    def __init__(self, cols, pts, meta=None):
+        """
+        A simple class to hold query information for model atmosphere
+        interpolation.
+
+        Arguments
+        ---------
+        * `cols` (list of strings): names of the columns in the query table
+        * `pts` (2D array): points in the query table; shape is (N, len(cols))
+        * `meta` (dict, optional, default=None): any additional metadata
+            associated with the query
+
+        Returns
+        -------
+        * an instatiated <phoebe.atmospheres.passbands.InterpQuery> object.
+        """
+
+        self.cols = list(cols)
+        self.pts = np.ascontiguousarray(pts)
+        if self.pts.ndim != 2 or self.pts.shape[1] != len(self.cols):
+            raise ValueError(f"Shape mismatch: pts.shape={self.pts.shape}, len(cols)={len(self.cols)}")
+        self.meta = meta if meta is not None else {}
+
+    def index(self, name):
+        try:
+            return self.cols.index(name)
+        except ValueError:
+            raise KeyError(f"Column '{name}' not found")
+
+    def get_column(self, name):
+        idx = self.index(name)
+        return self.pts[:, idx]
+
+    def subset(self, names):
+        idxs = [self.index(name) for name in names]
+        return InterpQuery([self.cols[i] for i in idxs], np.ascontiguousarray(self.pts[:, idxs]), meta=self.meta)
+
+    def __getitem__(self, key):
+        subset_pts = self.pts[key]
+
+        if subset_pts.ndim == 1:
+            subset_pts = subset_pts.reshape(1, -1)
+        return InterpQuery(self.cols, np.ascontiguousarray(subset_pts), meta=self.meta)
+
+    def __len__(self):
+        """Return number of query points"""
+        return self.pts.shape[0]
+
+    def __repr__(self):
+        return f'<InterpQuery: {len(self)} points, cols={self.cols}, meta_keys={list(self.meta.keys())}>'
+
+
+class InterpResult:
+    def __init__(self, interps, **kwargs):
+        """
+        A class to hold interpolation results from ndpolator operations.
+
+        Arguments
+        ---------
+        * `interps` (array, required): interpolated values
+        * `**kwargs`: any additional results or metadata
+        """
+        self.interps = interps
+        for key, value in kwargs.items():
+            setattr(self, key, value)
+
+    @classmethod
+    def from_ndpolator(cls, ndp_output):
+        """
+        Create an InterpResult from an ndpolator dictionary result.
+        
+        Arguments
+        ---------
+        * `ndp_output` (dict): dictionary returned by ndpolator.ndpolate()
+
+        Returns
+        -------
+        * InterpResult instance
+        """
+        if not isinstance(ndp_output, dict):
+            raise TypeError("ndp_output must be a dictionary")
+
+        if 'interps' not in ndp_output:
+            raise ValueError("ndp_output must contain 'interps' key")
+
+        return cls(**ndp_output)
+
+    @property
+    def shape(self):
+        """Shape of interpolated results"""
+        return self.interps.shape
+
+    @property
+    def size(self):
+        """Size of interpolated results"""
+        return self.interps.size
+
+    def get_interpolated_values(self):
+        if hasattr(self, 'interps'):
+            return self.interps
+        return None
+
+    def get_distances(self):
+        if hasattr(self, 'dists'):
+            return self.dists
+        return None
+
+    def __len__(self):
+        """Number of interpolated points"""
+        return len(self.interps)
+
+    def __getitem__(self, key):
+        """Allow slicing of results"""
+        sliced_interps = self.interps[key]
+        
+        # Handle single row slicing to maintain 2D structure when appropriate
+        if isinstance(key, int) and np.ndim(sliced_interps) == 1 and np.ndim(self.interps) == 2:
+            # Reshape single row to maintain 2D structure
+            sliced_interps = sliced_interps.reshape(1, -1)
+        
+        sliced_attrs = {'interps': sliced_interps}
+        
+        # Handle other array-like attributes that should be sliced along the same dimension
+        for attr_name, attr_value in self.__dict__.items():
+            if attr_name == 'interps':
+                continue
+            elif attr_value is None:
+                sliced_attrs[attr_name] = None
+            elif hasattr(attr_value, '__getitem__') and hasattr(attr_value, 'shape'):
+                # This is an array-like object, slice it appropriately
+                try:
+                    if isinstance(key, tuple) and len(key) == 2:
+                        # For 2D slicing like s[ld_func] = np.s_[:, 7:11]
+                        sliced_value = attr_value[key[0]]  # Only slice rows
+                    else:
+                        sliced_value = attr_value[key]
+                    
+                    # Apply same reshaping logic for single row slices
+                    if isinstance(key, int) and np.ndim(sliced_value) == 1 and np.ndim(attr_value) == 2:
+                        sliced_value = sliced_value.reshape(1, -1)
+                    
+                    sliced_attrs[attr_name] = sliced_value
+                except (IndexError, TypeError):
+                    # If slicing fails, keep the original
+                    sliced_attrs[attr_name] = attr_value
+            else:
+                # Keep scalar/non-array attributes unchanged
+                sliced_attrs[attr_name] = attr_value
+        
+        return InterpResult(**sliced_attrs)
+
+    def __repr__(self):
+        return f'<InterpResult: {self.shape}>'
 
 
 class Passband:
@@ -343,7 +497,7 @@ class Passband:
         self.ptf_photon = lambda wl: interpolate.splev(wl, self.ptf_photon_func)
         self.ptf_photon_area = interpolate.splint(self.wl[0], self.wl[-1], self.ptf_photon_func, 0)
 
-        self.add_to_history(f'passband transmission function updated.')
+        self.add_to_history('passband transmission function updated.')
 
     def save(self, archive, overwrite=True, update_timestamp=True, export_to_pre25=False):
         """
@@ -734,15 +888,15 @@ class Passband:
         ld_coeffs = np.atleast_2d(ld_coeffs)
 
         if ld_func == 'linear':
-            return 1-ld_coeffs[:,0]*(1-mu)
+            return 1-ld_coeffs[:, 0]*(1-mu)
         elif ld_func == 'logarithmic':
-            return 1-ld_coeffs[:,0]*(1-mu)-ld_coeffs[:,1]*mu*np.log(np.maximum(mu, 1e-6))
+            return 1-ld_coeffs[:, 0]*(1-mu)-ld_coeffs[:, 1]*mu*np.log(np.maximum(mu, 1e-6))
         elif ld_func == 'square_root':
-            return 1-ld_coeffs[:,0]*(1-mu)-ld_coeffs[:,1]*(1-np.sqrt(mu))
+            return 1-ld_coeffs[:, 0]*(1-mu)-ld_coeffs[:, 1]*(1-np.sqrt(mu))
         elif ld_func == 'quadratic':
-            return 1-ld_coeffs[:,0]*(1-mu)-ld_coeffs[:,1]*(1-mu)*(1-mu)
+            return 1-ld_coeffs[:, 0]*(1-mu)-ld_coeffs[:, 1]*(1-mu)*(1-mu)
         elif ld_func == 'power':
-            return 1-ld_coeffs[:,0]*(1-np.sqrt(mu))-ld_coeffs[:,1]*(1-mu)-ld_coeffs[:,2]*(1-mu*np.sqrt(mu))-ld_coeffs[:,3]*(1.0-mu*mu)
+            return 1-ld_coeffs[:, 0]*(1-np.sqrt(mu))-ld_coeffs[:, 1]*(1-mu)-ld_coeffs[:, 2]*(1-mu*np.sqrt(mu))-ld_coeffs[:, 3]*(1.0-mu*mu)
         else:
             raise NotImplementedError(f'ld_func={ld_func} is not supported.')
 
@@ -980,13 +1134,13 @@ class Passband:
             if add_history_entry:
                 self.add_to_history(f'LD integrals for {atm.name} added.')
 
-    def interpolate_ldcoeffs(self, query_table, ldatm=models.CK2004ModelAtmosphere, ld_func='power', intens_weighting='photon', ld_extrapolation_method='none'):
+    def interpolate_ldcoeffs(self, query, ldatm=models.CK2004ModelAtmosphere, ld_func='power', intens_weighting='photon', ld_extrapolation_method='none'):
         """
         Interpolate the passband-stored table of LD model coefficients.
 
         Arguments
         ------------
-        * `query_pts` (ndarray, required): a C-contiguous DxN array of queried points
+        * `query` (<InterpQuery>, required): the interpolation query object.
         * `ldatm` (string, default='ck2004'): limb darkening table: 'ck2004' or 'phoenix'
         * `ld_func` (string, default='power'): limb darkening fitting function: 'linear',
           'logarithmic', 'square_root', 'quadratic', 'power' or 'all'
@@ -1015,23 +1169,24 @@ class Passband:
             raise ValueError(f'ld_func={ld_func} is invalid; valid options are {s.keys()}.')
 
         if f'{ldatm.name}:ld' not in self.content:
-            raise ValueError(f'Limb darkening coefficients for {ldatm.name} atmosphere are not available.')
+            raise ValueError(f'limb darkening coefficients for ldatm={ldatm.name} not found for the {self.pbset}:{self.pbname} passband.')
 
         # limb darkening coefficients depend only on basic axes:
-        query_cols = [i for i, col in enumerate(query_table[0]) if col in ldatm.basic_axis_names]
-        query_pts = np.ascontiguousarray(query_table[1][:, query_cols])
+        ndp_output = self.ndp[ldatm.name].ndpolate(
+            f'ld@{intens_weighting}',
+            query_pts=query.subset(ldatm.basic_axis_names).pts,
+            extrapolation_method=ld_extrapolation_method
+        )
 
-        ld_coeffs = self.ndp[ldatm.name].ndpolate(f'ld@{intens_weighting}', query_pts=query_pts, extrapolation_method=ld_extrapolation_method)
+        return InterpResult.from_ndpolator(ndp_output)[s[ld_func]]
 
-        return ld_coeffs['interps'][s[ld_func]]
-
-    def interpolate_extinct(self, query_table, atm=models.CK2004ModelAtmosphere, intens_weighting='photon', extrapolation_method='none'):
+    def interpolate_extinct(self, query, atm=models.CK2004ModelAtmosphere, intens_weighting='photon', extrapolation_method='none'):
         """
         Interpolates the passband-stored tables of extinction corrections
 
         Arguments
         ----------
-        * `query_table`
+        * `query`
         * `atm`
         * `intens_weighting`
         * `extrapolation_method`
@@ -1046,14 +1201,16 @@ class Passband:
         """
 
         if f'{atm.name}:ext' not in self.content:
-            raise ValueError(f"extinction factors for atm={atm.name} not found for the {self.pbset}:{self.pbname} passband.")
+            raise ValueError(f'extinction factors for atm={atm.name} not found for the {self.pbset}:{self.pbname} passband.')
 
         # extinction coefficients depend on basic axes, ebvs and rvs:
-        query_cols = [i for i, col in enumerate(query_table[0]) if col in atm.basic_axis_names + ['ebvs', 'rvs']]
-        query_pts = np.ascontiguousarray(query_table[1][:, query_cols])
+        ndp_output = self.ndp[atm.name].ndpolate(
+            f'ext@{intens_weighting}',
+            query_pts=query.subset(atm.basic_axis_names + ['ebvs', 'rvs']).pts,
+            extrapolation_method=extrapolation_method
+        )
 
-        extinct_factor = self.ndp[atm.name].ndpolate(f'ext@{intens_weighting}', query_pts, extrapolation_method=extrapolation_method)['interps']
-        return extinct_factor
+        return InterpResult.from_ndpolator(ndp_output)
 
     def import_wd_atmcof(self, plfile, atmfile, wdidx, Nabun=19, Nlogg=11, Npb=25, Nints=4):
         """
@@ -1102,56 +1259,9 @@ class Passband:
         # self.extern_wd_atmx = atmtab[::-1,:,:,:]
         self.content += ['extern_planckint:Inorm', 'extern_atmx:Inorm']
 
-        self.add_to_history(f'Wilson-Devinney atmosphere tables imported.')
+        self.add_to_history('Wilson-Devinney atmosphere tables imported.')
 
-    def _log10_Inorm_extern_planckint(self, teffs):
-        """
-        Internal function to compute normal passband intensities using
-        the external WD machinery that employs blackbody approximation.
-
-        @teffs: effective temperature in K
-
-        Returns: log10(Inorm)
-        """
-
-        log10_Inorm = libphoebe.wd_planckint(teffs, self.extern_wd_idx, self.wd_data["planck_table"])
-
-        return log10_Inorm.reshape(-1, 1)
-
-    def _log10_Inorm_extern_atmx(self, query_table):
-        """
-        Internal function to compute normal passband intensities using
-        the external WD machinery that employs model atmospheres and
-        ramps.
-
-        Arguments
-        ----------
-        * `query_table` (tuple, required): a (query_cols, query_pts) tuple
-          where query_cols is an array of column labels that must match
-          <models.ModelAtmosphere> basic_axis_names, and query_pts is a
-          C-contiguous DxN array of queried points
-
-        Returns
-        ----------
-        * log10(Inorm)
-        """
-
-        # atmx intensities depend on basic axes:
-        query_cols = [i for i, col in enumerate(query_table[0]) if col in models.WDKurucz93ModelAtmosphere.basic_axis_names]
-        query_pts = np.ascontiguousarray(query_table[1][:, query_cols])
-
-        log10_Inorm = libphoebe.wd_atmint(
-            np.ascontiguousarray(query_pts[:, 0]),  # teffs
-            np.ascontiguousarray(query_pts[:, 1]),  # loggs
-            np.ascontiguousarray(query_pts[:, 2]),  # abuns
-            self.extern_wd_idx,
-            self.wd_data["planck_table"],
-            self.wd_data["atm_table"]
-        ) - 1  # -1 for cgs -> metric
-
-        return log10_Inorm.reshape(-1, 1)
-
-    def Inorm(self, query_table, atm=models.CK2004ModelAtmosphere, ldatm=models.CK2004ModelAtmosphere, ldint=None, ld_func='interp', ld_coeffs=None, intens_weighting='photon', atm_extrapolation_method='none', ld_extrapolation_method='none', blending_method='none', blending_margin=3, dist_threshold=1e-5):
+    def interpolate_inorms(self, query, atm=models.CK2004ModelAtmosphere, ldatm=models.CK2004ModelAtmosphere, ldint=None, ld_func='interp', ld_coeffs=None, intens_weighting='photon', atm_extrapolation_method='none', ld_extrapolation_method='none', blending_method='none', blending_margin=3, dist_threshold=1e-5):
         r"""
         Computes normal emergent passband intensity.
 
@@ -1174,43 +1284,45 @@ class Passband:
 
         Arguments
         ----------
-        * `query_table` (tuple, required): a (query_cols, query_pts) tuple
-          where query_cols is an array of column labels that must match
-          <models.ModelAtmosphere> basic_axis_names, and query_pts is a
-          C-contiguous DxN array of queried points
+        * `query` (<InterpQuery>, required): the interpolation query object.
         * `atm` (<models.ModelAtmosphere>, optional,
           default=CK2004ModelAtmosphere): model atmosphere to be used for
           calculation
         * `ldatm` (string, optional, default='ck2004'): model atmosphere to be
           used for limb darkening coefficients
         * `ldint` (string, optional, default=None): integral of the limb
-            darkening function, \int_0^1 \mu L(\mu) d\mu. Its general role is
-            to convert intensity to flux. In this method, however, it is only
-            needed for blackbody atmospheres because they are not
-            limb-darkened (i.e. the blackbody intensity is the same
-            irrespective of \mu), so we need to *divide* by ldint to ascertain
-            the correspondence between luminosity, effective temperature and
-            fluxes once limb darkening correction is applied at flux
-            integration time. If None, and if `atm=='blackbody'`, it will be
-            computed from `ld_func` and `ld_coeffs`.
+          darkening function, \int_0^1 \mu L(\mu) d\mu. Its general role is
+          to convert intensity to flux. In this method, however, it is only
+          needed for blackbody atmospheres because they are not
+          limb-darkened (i.e. the blackbody intensity is the same
+          irrespective of \mu), so we need to *divide* by ldint to ascertain
+          the correspondence between luminosity, effective temperature and
+          fluxes once limb darkening correction is applied at flux
+          integration time. If None, and if `atm=='blackbody'`, it will be
+          computed from `ld_func` and `ld_coeffs`.
         * `ld_func` (string, optional, default='interp') limb darkening
-            function.  One of: linear, sqrt, log, quadratic, power, interp.
+          function.  One of: linear, sqrt, log, quadratic, power, interp.
         * `ld_coeffs` (list, optional, default=None): limb darkening
-            coefficients for the corresponding limb darkening function,
-            `ld_func`. If None, the coefficients are interpolated from the
-            corresponding table. List length needs to correspond to the
-            `ld_func`: 1 for linear, 2 for sqrt, log and quadratic, and 4 for
-            power.
+          coefficients for the corresponding limb darkening function,
+          `ld_func`. If None, the coefficients are interpolated from the
+          corresponding table. List length needs to correspond to the
+          `ld_func`: 1 for linear, 2 for sqrt, log and quadratic, and 4 for
+          power.
         * `intens_weighting` (string, optional, default='photon'): photon/energy
-          switch
-        * `atm_extraplation_method` (string, optional, default='none'): the
-          method of intensity extrapolation and off-the-grid blending with
-          blackbody atmosheres ('none', 'nearest', 'linear')
+          weighting switch
+        * `atm_extrapolation_method` (string, optional, default='none'): the
+          method for off-grid intensity extrapolation ('none', 'nearest',
+          'linear'). Option 'none' will return a nan for off-grid points;
+          'nearest' will use the nearest grid point value; 'linear' will use
+          linear extrapolation.
         * `ld_extrapolation_method` (string, optional, default='none'): the
-          method of limb darkening extrapolation ('none', 'nearest' or
-          'linear')
-        * `blending_method` (string, optional, default='none'): whether to
-          blend model atmosphere with blackbody ('none' or 'blackbody')
+          method for off-grid limb darkening extrapolation ('none', 'nearest', 
+          'linear'). See `atm_extrapolation_method` for details on options.
+        * `blending_method` (string, optional, default='none'): the method to
+          blend model atmosphere with blackbody ('none' or 'blackbody'). Option
+          'none' will not do blending; 'blackbody' will use blackbody
+          intensities for off-grid points and blend the model into the
+          blackbody over a distance defined by `blending_margin`.
         * `dist_threshold` (float, optional, default=1e-5): off-grid distance
           threshold. Query points farther than this value, in hypercube-
           normalized units, are considered off-grid.
@@ -1220,9 +1332,9 @@ class Passband:
         Returns
         ----------
         * (dict) a dict of normal emergent passband intensities and associated
-          values. Dictionary keys are: 'inorms' (required; normal intensities),
-          'dists' (optional, distances from the grid); 'nanmask' (optional, a
-          boolean mask where inorms are nan).
+          values. Dictionary keys are: 'inorms' (normal intensities),
+          and 'bfs' (blending factors, only if blending_method is not
+          'none').
 
         Raises
         ----------
@@ -1230,76 +1342,94 @@ class Passband:
           table.
         * NotImplementedError: if `ld_func` is not supported.
         """
-        # if atm not in ['blackbody', 'extern_planckint', 'extern_atmx', 'ck2004', 'phoenix', 'tmap_sdO', 'tmap_DA', 'tmap_DAO', 'tmap_DO']:
-        #     raise ValueError(f'atm={atm} is not supported.')
 
-        # if ldatm not in ['none', 'ck2004', 'phoenix', 'tmap_sdO', 'tmap_DA', 'tmap_DAO', 'tmap_DO']:
-        #     raise ValueError(f'ldatm={ldatm} is not supported.')
+        if f'{atm.name}:Inorm' not in self.content:
+            raise ValueError(f'atm={atm.name} tables are not available in the {self.pbset}:{self.pbname} passband.')
 
-        # if intens_weighting not in ['energy', 'photon']:
-        #     raise ValueError(f'intens_weighting={intens_weighting} is not supported.')
+        if atm.name == 'blackbody':
+            # compute normal emergent blackbody intensities:
+            log_inorms = InterpResult.from_ndpolator(
+                self.ndp[atm.name].ndpolate(
+                    f'inorm@{intens_weighting}',
+                    query_pts=query.subset(atm.basic_axis_names).pts,
+                    extrapolation_method=atm_extrapolation_method
+                )
+            ).get_interpolated_values()
 
-        # if blending_method not in ['none', 'blackbody']:
-        #     raise ValueError(f'blending_method={blending_method} is not supported.')
-
-        raise_on_nans = True if atm_extrapolation_method == 'none' else False
-        blending_factors = None
-
-        # normal intensities depend only on basic axes:
-        query_cols = [i for i, col in enumerate(query_table[0]) if col in atm.basic_axis_names]
-        query_pts = np.ascontiguousarray(query_table[1][:, query_cols])
-
-        if atm.name == 'blackbody' and 'blackbody:Inorm' in self.content:
-            # check if the required tables for the chosen ldatm are available:
-            # if ldatm is None and ld_coeffs is None:
-            #     raise ValueError("ld_coeffs must be passed when ldatm=None.")
-            # if ld_func == 'interp' and f'{ldatm.name}:Imu' not in self.content:
-            #     raise RuntimeError(f'passband {self.pbset}:{self.pbname} does not contain specific intensities for {ldatm.name} atmosphere.')
-            # if ld_func != 'interp' and ld_coeffs is None and f'{ldatm.name}:ld' not in self.content:
-            #     raise RuntimeError(f'passband {self.pbset}:{self.pbname} does not contain limb darkening coefficients for {ldatm.name} atmosphere.')
-            # if blending_method == 'blackbody':
-            #     raise ValueError(f'the combination of {atm.name} atmosphere and blending_method={blending_method} is not valid.')
-
-            ndpolants = self.ndp[atm.name].ndpolate(f'inorm@{intens_weighting}', query_pts=query_pts, extrapolation_method=atm_extrapolation_method)
-
+            # correct normal intensities for integrated limb darkening:
             if ldint is None:
-                if ld_func != 'interp' and ld_coeffs is None:
-                    ld_coeffs = self.interpolate_ldcoeffs(query_table=query_table, ldatm=ldatm, ld_func=ld_func, intens_weighting=intens_weighting, ld_extrapolation_method=ld_extrapolation_method)
-                ldint = self.ldint(query_table=query_table, ldatm=ldatm, ld_func=ld_func, ld_coeffs=ld_coeffs, intens_weighting=intens_weighting, ld_extrapolation_method=ld_extrapolation_method, raise_on_nans=raise_on_nans)
+                ldint = self.interpolate_ldints(
+                    query=query,
+                    ldatm=ldatm,
+                    ld_func=ld_func,
+                    ld_coeffs=ld_coeffs,
+                    intens_weighting=intens_weighting,
+                    ld_extrapolation_method=ld_extrapolation_method
+                ).get_interpolated_values()
 
-            intensities = 10**ndpolants['interps'] / ldint
+            return InterpResult(interps=10**log_inorms / ldint)
 
-        elif atm.name == 'extern_planckint' and 'extern_planckint:Inorm' in self.content:
+        elif atm.name == 'extern_planckint':
             if intens_weighting == 'photon':
                 raise ValueError(f'the combination of atm={atm} and intens_weighting={intens_weighting} is not supported.')
             # TODO: add all other exceptions
 
-            intensities = 10**(self._log10_Inorm_extern_planckint(query_pts)-1)  # -1 is for cgs -> SI
+            # wd_planckint() is rigid about its input, that's why we name a column:
+            log10_inorms = libphoebe.wd_planckint(
+                np.ascontiguousarray(query.pts[:, query.index('teffs')]),
+                self.extern_wd_idx,
+                self.wd_data["planck_table"]
+            ).reshape(-1, 1)
+            inorms = 10**(log10_inorms - 1)  # -1 is for cgs -> SI
+
             if ldint is None:
-                ldint = self.ldint(query_table=query_table, ldatm=ldatm, ld_func=ld_func, ld_coeffs=ld_coeffs, intens_weighting=intens_weighting, ld_extrapolation_method=ld_extrapolation_method, raise_on_nans=raise_on_nans)
+                ldint = self.interpolate_ldints(
+                    query=query,
+                    ldatm=ldatm,
+                    ld_func=ld_func,
+                    ld_coeffs=ld_coeffs,
+                    intens_weighting=intens_weighting,
+                    ld_extrapolation_method=ld_extrapolation_method
+                ).get_interpolated_values()
 
-            # print(f'{intensities.shape=} {ldint.shape=} {intensities[:5]=} {ldint[:5]=}')
-            intensities /= ldint
+            return InterpResult(interps=inorms/ldint)
 
-        elif atm.name == 'extern_atmx' and 'extern_atmx:Inorm' in self.content:
+        elif atm.name == 'extern_atmx':
             if intens_weighting == 'photon':
                 raise ValueError(f'the combination of atm={atm} and intens_weighting={intens_weighting} is not supported.')
             # TODO: add all other exceptions
 
-            intensities = 10**(self._log10_Inorm_extern_atmx(query_table=query_table))
+            log10_inorms = libphoebe.wd_atmint(
+                np.ascontiguousarray(query.pts[:, query.index('teffs')]),
+                np.ascontiguousarray(query.pts[:, query.index('loggs')]),
+                np.ascontiguousarray(query.pts[:, query.index('abuns')]),
+                self.extern_wd_idx,
+                self.wd_data["planck_table"],
+                self.wd_data["atm_table"]
+            ).reshape(-1, 1)
 
-        else:  # atm in one of the model atmospheres
-            if f'{atm.name}:Imu' not in self.content:
-                raise ValueError(f'atm={atm.name} tables are not available in the {self.pbset}:{self.pbname} passband.')
+            inorms = 10**(log10_inorms - 1)  # -1 for cgs -> metric
+            return InterpResult(interps=inorms)
 
-            ndpolants = self.ndp[atm.name].ndpolate(f'inorm@{intens_weighting}', query_pts, extrapolation_method=atm_extrapolation_method)
+        elif atm.name in self.ndp.keys():  # atm in one of the model atmospheres
+            result = InterpResult.from_ndpolator(
+                self.ndp[atm.name].ndpolate(
+                    f'inorm@{intens_weighting}',
+                    query.subset(atm.basic_axis_names).pts,
+                    extrapolation_method=atm_extrapolation_method
+                )
+            )
 
-            log10ints = ndpolants['interps']
-            dists = ndpolants.get('dists', np.zeros_like(log10ints))
+            log10ints = result.get_interpolated_values()
+            dists = result.get_distances()
 
-            if np.any(dists > dist_threshold) and blending_method == 'blackbody':
-                ints_bb = self.Inorm(
-                    query_table=query_table,
+            if blending_method == 'blackbody' and dists is not None and np.any(dists > dist_threshold):
+                if ld_extrapolation_method == 'none' and ld_func == 'interp':
+                    raise ValueError('ld_extrapolation_method cannot be "none" when ld_func="interp" and blending_method="blackbody".')
+
+                # TODO: it would make sense to use this only on the off-grid points!
+                ints_bb = self.interpolate_inorms(
+                    query=query,
                     atm=models.BlackbodyModelAtmosphere,
                     ldatm=ldatm,
                     ldint=ldint,
@@ -1308,8 +1438,9 @@ class Passband:
                     intens_weighting=intens_weighting,
                     atm_extrapolation_method=atm_extrapolation_method,
                     ld_extrapolation_method=ld_extrapolation_method
-                )
-                log10ints_bb = np.log10(ints_bb['inorms'])
+                ).get_interpolated_values()
+
+                log10ints_bb = np.log10(ints_bb)
 
                 off_grid = dists > dist_threshold
 
@@ -1318,85 +1449,22 @@ class Passband:
                 blending_factors = np.minimum(dists, blending_margin)/blending_margin
 
                 intensities = 10**log10ints_blended
+                
+                return InterpResult(interps=intensities, dists=dists, bfs=blending_factors)
             else:
                 intensities = 10**log10ints
+                return InterpResult(interps=intensities)
 
-        ints = {
-            'inorms': intensities,
-            'bfs': blending_factors,
-            # TODO: add any other dict keys?
-        }
+        else:
+            raise ValueError(f'atm={atm.name} is not supported.')
 
-        return ints
-
-    def _log10_Imu(self, atm, query_table, intens_weighting='photon', atm_extrapolation_method='none', ld_extrapolation_method='none', blending_method='none', raise_on_nans=True):
-        """
-        Computes specific emergent passband intensities for model atmospheres.
-
-        Parameters
-        ----------
-        * `atm` (str, required): model atmosphere
-        * `query_table` (tuple, required): a (query_cols, query_pts) tuple
-          where query_cols is an array of column labels that must match
-          <models.ModelAtmosphere> basic_axis_names, and query_pts is a
-          C-contiguous DxN array of queried points
-        * `intens_weighting` (string, optional): intensity weighting scheme,
-          by default 'photon'
-        * `atm_extrapolation_method` (str, optional): out-of-bounds intensity
-          extrapolation method, by default 'none'
-        * `ld_extrapolation_method` (str, optional): out-of-bounds limb
-          darkening extrapolation method, by default 'none'
-        * `blending_method` (str, optional): out-of-bounds blending method, by
-          default 'none'
-        * `raise_on_nans` (bool, optional): should an error be raised on
-          failed intensity lookup, by default True
-
-        Returns
-        -------
-        * `log10_Imu` (dict)
-            keys: 'interps' (required), 'dists' (optional) interpolated
-            (possibly extrapolated, blended) model atmosphre intensity
-
-        Raises
-        ------
-        ValueError
-            when interpolants are nan and raise_on_nans=True
-        """
-
-        # specific intensities depend on basic axes and mus:
-        query_cols = [i for i, col in enumerate(query_table[0]) if col in atm.basic_axis_names + ['mus']]
-        query_pts = np.ascontiguousarray(query_table[1][:, query_cols])
-
-        ndpolants = self.ndp[atm].ndpolate(f'imu@{intens_weighting}', query_pts, extrapolation_method=atm_extrapolation_method)
-        log10_Imu = ndpolants['interps']
-        dists = ndpolants['dists']
-
-        if raise_on_nans and np.any(dists > 1e-5):
-            raise ValueError('specific intensity interpolation failed: queried atmosphere values are out of bounds.')
-
-        nanmask = np.isnan(log10_Imu)
-        if ~np.any(nanmask):
-            return ndpolants
-
-        if blending_method == 'blackbody':
-            # TODO: needs revision
-            log10_Imu_bb = np.log10(self.Imu(query_table=query_table[nanmask], atm=models.BlackbodyModelAtmosphere, ldatm=atm, ld_extrapolation_method=ld_extrapolation_method, intens_weighting=intens_weighting))
-            log10_Imu_blended = log10_Imu[:]
-            log10_Imu_blended[nanmask] = np.min(dists[nanmask], 3)*log10_Imu_bb[nanmask] + np.max(3-dists[nanmask], 0)*log10_Imu[nanmask]
-            return {'interps': log10_Imu_blended, 'dists': dists}
-
-        return ndpolants
-
-    def Imu(self, query_table, atm=models.CK2004ModelAtmosphere, ldatm=models.CK2004ModelAtmosphere, ldint=None, ld_func='interp', ld_coeffs=None, intens_weighting='photon', atm_extrapolation_method='none', ld_extrapolation_method='none', blending_method='none', dist_threshold=1e-5, blending_margin=3):
+    def interpolate_imus(self, query, atm=models.CK2004ModelAtmosphere, ldatm=models.CK2004ModelAtmosphere, ldint=None, ld_func='interp', ld_coeffs=None, intens_weighting='photon', atm_extrapolation_method='none', ld_extrapolation_method='none', blending_method='none', dist_threshold=1e-5, blending_margin=3):
         r"""
         Computes specific emergent passband intensities.
 
         Arguments
         ----------
-        * `query_table` (tuple, required): a (query_cols, query_pts) tuple
-          where query_cols is an array of column labels that must match
-          <models.ModelAtmosphere> basic_axis_names, and query_pts is a
-          C-contiguous DxN array of queried points
+        * `query` (<InterpQuery>, required): the interpolation query object.
         * `atm` (string, optional, default='ck2004'): model atmosphere to be
           used for calculation
         * `ldatm` (string, optional, default='ck2004'): model atmosphere to be
@@ -1448,39 +1516,117 @@ class Passband:
         * NotImplementedError: if `ld_func` is not supported.
         """
 
-        # specific intensities depend on basic axes and mus:
-        query_cols = [i for i, col in enumerate(query_table[0]) if col in atm.basic_axis_names + ['mus']]
-        query_pts = np.ascontiguousarray(query_table[1][:, query_cols])
+        if f'{atm.name}:Imu' not in self.content:
+            # external WD atmospheres are an exception (only Inorms, no Imus):
+            if atm.name in ['extern_planckint', 'extern_atmx', 'blackbody'] and f'{atm.name}:Inorm' in self.content:
+                pass
+            else:
+                raise ValueError(f'atm={atm.name} tables are not available in the {self.pbset}:{self.pbname} passband.')
 
-        if ld_func == 'interp':
-            if atm.name == 'blackbody' and 'blackbody:Inorm' in self.content and hasattr(ldatm, 'mus'):
-                # we need to apply ldatm's limb darkening to blackbody intensities:
-                #   Imu^bb = Lmu Inorm^bb = Imu^atm / Inorm^atm * Inorm^bb
-
-                ndpolants = self.Imu(
-                    atm=ldatm,
-                    query_table=query_table,
-                    intens_weighting=intens_weighting,
-                    atm_extrapolation_method=atm_extrapolation_method,
-                    ld_extrapolation_method=ld_extrapolation_method)['interps']
-                log10imus_atm = ndpolants['interps']
-                dists = ndpolants.get('dists', np.zeros_like(log10imus_atm))
-
-                ints_atm = self.Inorm(
-                    query_table=query_table,
-                    atm=ldatm,
+        # let's first handle explicitly provided limb darkening func/coeffs;
+        # in that case, imus = ld_mus * inorms:
+        if ld_func != 'interp':
+            if ld_coeffs is None:
+                # interpolate limb darkening coefficients from the table:
+                ld_coeffs = self.interpolate_ldcoeffs(
+                    query=query,
                     ldatm=ldatm,
-                    ldint=ldint,
                     ld_func=ld_func,
-                    ld_coeffs=ld_coeffs,
                     intens_weighting=intens_weighting,
-                    atm_extrapolation_method=atm_extrapolation_method,
                     ld_extrapolation_method=ld_extrapolation_method
-                )
-                log10inorms_atm = np.log10(ints_atm['inorms'])
+                ).get_interpolated_values()
 
-                ints_bb = self.Inorm(
-                    query_table=query_table,
+            inorms = self.interpolate_inorms(
+                query=query,
+                atm=atm,
+                ldatm=ldatm,
+                ldint=ldint,
+                ld_func=ld_func,
+                ld_coeffs=ld_coeffs,
+                intens_weighting=intens_weighting,
+                atm_extrapolation_method=atm_extrapolation_method,
+                ld_extrapolation_method=ld_extrapolation_method
+            ).get_interpolated_values()
+
+            ld_mus = self.ld_func(mu=query.pts[:, query.index('mus')], ld_coeffs=ld_coeffs, ld_func=ld_func).reshape(-1, 1)
+
+            return InterpResult(interps=ld_mus * inorms)
+
+        # now we need to handle the case of interpolated limb darkening:
+        if atm.name == 'blackbody':
+            if not hasattr(ldatm, 'mus'):
+                raise ValueError(f'atm={atm.name} and ld_func={ld_func} are incompatible with ldatm={ldatm.name}.')
+
+            # blackbody atmospheres are not limb-darkened (i.e., no specific
+            # emergent passband intensities), so we need to appropriate ldatm's
+            # limb darkening to normal emergent blackbody intensities:
+            # 
+            #   Imu^bb = Lmu Inorm^bb = Imu^atm / Inorm^atm * Inorm^bb
+
+            inorms_bb = self.interpolate_inorms(
+                query=query,
+                atm=atm,
+                ldatm=ldatm,
+                ldint=ldint,
+                ld_func=ld_func,
+                ld_coeffs=ld_coeffs,
+                intens_weighting=intens_weighting,
+                atm_extrapolation_method=atm_extrapolation_method,
+                ld_extrapolation_method=ld_extrapolation_method
+            ).get_interpolated_values()
+
+            result = self.interpolate_imus(
+                query=query,
+                atm=ldatm,
+                ldatm=ldatm,
+                ldint=ldint,
+                ld_func=ld_func,
+                ld_coeffs=ld_coeffs,
+                intens_weighting=intens_weighting,
+                atm_extrapolation_method=atm_extrapolation_method,
+                ld_extrapolation_method=ld_extrapolation_method
+            )
+
+            imus_atm = result.get_interpolated_values()
+            imus_dists = result.get_distances()
+
+            inorms_atm = self.interpolate_inorms(
+                query=query.subset(ldatm.basic_axis_names),
+                atm=ldatm,
+                ldatm=ldatm,
+                ldint=ldint,
+                ld_func=ld_func,
+                ld_coeffs=ld_coeffs,
+                intens_weighting=intens_weighting,
+                atm_extrapolation_method=atm_extrapolation_method,
+                ld_extrapolation_method=ld_extrapolation_method
+            ).get_interpolated_values()
+
+            imus_bb = imus_atm / inorms_atm * inorms_bb
+
+            return InterpResult(interps=imus_bb, dists=imus_dists)
+
+        elif atm.name in ['extern_planckint', 'extern_atmx']:
+            raise ValueError(f'atm={atm.name} is incompatible with specific emergent intensities.')
+
+        elif atm.name in self.ndp.keys():  # atm in one of the model atmospheres
+            result = InterpResult.from_ndpolator(
+                self.ndp[atm.name].ndpolate(
+                    f'imu@{intens_weighting}',
+                    query_pts=query.subset(atm.basic_axis_names + ['mus']).pts,
+                    extrapolation_method=atm_extrapolation_method
+                )
+            )
+
+            log10imus = result.get_interpolated_values()
+            dists = result.get_distances()
+
+            if blending_method == 'blackbody' and dists is not None and np.any(dists > dist_threshold):
+                if ld_extrapolation_method == 'none' and ld_func == 'interp':
+                    raise ValueError('ld_extrapolation_method cannot be "none" when ld_func="interp" and blending_method="blackbody".')
+
+                imus_bb = self.interpolate_imus(
+                    query=query,
                     atm=models.BlackbodyModelAtmosphere,
                     ldatm=ldatm,
                     ldint=ldint,
@@ -1489,145 +1635,96 @@ class Passband:
                     intens_weighting=intens_weighting,
                     atm_extrapolation_method=atm_extrapolation_method,
                     ld_extrapolation_method=ld_extrapolation_method
-                )
-                log10inorms_bb = np.log10(ints_bb['inorms'])
+                ).get_interpolated_values()
 
-                log10imus_bb = log10imus_atm / log10inorms_atm * log10inorms_bb
-                
-                return 10**log10imus_bb
-            
-            elif atm.name == 'blackbody' and 'blackbody:Inorm' in self.content and not hasattr(ldatm, 'mus'):
-                raise ValueError(f'{atm.name=} and {ld_func=} are incompatible with {ldatm.name=}.')
+                # Convert blackbody intensities to log10 for consistent blending
+                log10imus_bb = np.log10(imus_bb)
 
-            elif hasattr(atm, 'mus'):
-                if f'{atm.name}:Imu' not in self.content:
-                    raise ValueError(f'{atm.name=} tables are not available in the {self.pbset}:{self.pbname} passband.')
+                off_grid = dists > dist_threshold
 
-                ndpolants = self.ndp[atm.name].ndpolate(f'imu@{intens_weighting}', query_pts, extrapolation_method=atm_extrapolation_method)
-                log10imus_atm = ndpolants['interps']
-                dists = ndpolants.get('dists', np.zeros_like(log10imus_atm))
+                log10imus_blended = log10imus.copy()
+                log10imus_blended[off_grid] = (
+                    np.minimum(dists[off_grid], blending_margin) * log10imus_bb[off_grid] +
+                    np.maximum(blending_margin-dists[off_grid], 0) * log10imus[off_grid]
+                ) / blending_margin
+                blending_factors = np.minimum(dists, blending_margin)/blending_margin
 
-                # TODO: revision needed!
-                if np.any(dists > dist_threshold) and blending_method == 'blackbody':
-                    off_grid = (dists > dist_threshold).flatten()
-                    # print(f'{query_pts.shape=} {off_grid.shape=}')
+                intensities = 10**log10imus_blended
 
-                    ints_bb = self.Imu(
-                        query_pts=query_pts[off_grid],
-                        atm=models.BlackbodyModelAtmosphere,
-                        ldatm=ldatm,
-                        ldint=ldint,
-                        ld_func=ld_func,
-                        ld_coeffs=ld_coeffs,
-                        intens_weighting=intens_weighting,
-                        atm_extrapolation_method=atm_extrapolation_method,
-                        ld_extrapolation_method=ld_extrapolation_method
-                    )
-                    log10imus_bb = np.log10(ints_bb)
-
-                    log10imus_blended = log10imus_atm.copy()
-                    log10imus_blended[off_grid] = (np.minimum(dists[off_grid], blending_margin) * log10imus_bb + np.maximum(blending_margin-dists[off_grid], 0) * log10imus_atm[off_grid])/blending_margin
-
-                    intensities = 10**log10imus_blended
-                else:
-                    intensities = 10**log10imus_atm
-
-                return intensities
+                return InterpResult(interps=intensities, dists=dists, bfs=blending_factors)
 
             else:
-                # anything else we need to special-handle for ld_func == 'interp'?
-                pass
+                intensities = 10**log10imus
+                return InterpResult(interps=intensities)
 
-        else:  # if ld_func != 'interp':
-            if ld_coeffs is None:
-                # LD function can be passed without coefficients; in that
-                # case we need to interpolate them from the tables.
-                ld_coeffs = self.interpolate_ldcoeffs(
-                    query_table=query_table,
-                    ldatm=ldatm,
-                    ld_func=ld_func,
-                    intens_weighting=intens_weighting,
-                    ld_extrapolation_method=ld_extrapolation_method
-                )
+        else:
+            raise ValueError(f'atm={atm.name} is not supported.')
 
-            ints = self.Inorm(
-                query_table=query_table,
-                atm=atm,
-                ldatm=ldatm,
-                ldint=ldint,
-                ld_func=ld_func,
-                ld_coeffs=ld_coeffs,
-                intens_weighting=intens_weighting,
-                atm_extrapolation_method=atm_extrapolation_method,
-                ld_extrapolation_method=ld_extrapolation_method,
-                blending_method=blending_method
-            )
-
-            mus = query_table[1][:, query_table[0].index('mus')]
-            ld = self.ld_func(ld_func=ld_func, mu=mus, ld_coeffs=ld_coeffs).reshape(-1, 1)
-
-            return ints['inorms'] * ld
-
-    def ldint(self, query_table, ldatm=models.CK2004ModelAtmosphere, ld_func='linear', ld_coeffs=np.array([[0.5]]), intens_weighting='photon', ld_extrapolation_method='none', raise_on_nans=True):
+    def interpolate_ldints(self, query, ldatm=models.CK2004ModelAtmosphere, ld_func='linear', ld_coeffs=np.array([[0.5]]), intens_weighting='photon', ld_extrapolation_method='none'):
         """
         Computes ldint value for the given `ld_func` and `ld_coeffs`.
 
         Arguments
         ----------
-        * `query_table` (tuple, required): a (query_cols, query_pts) tuple
-          where query_cols is an array of column labels that must match
-          <models.ModelAtmosphere> basic_axis_names, and query_pts is a
-          C-contiguous DxN array of queried points
+        * `query` (<InterpQuery>, required): the interpolation query object.
         * `ldatm` (<models.ModelAtmosphere> subclass, optional,
-          default=<models.CK2004ModelAtmosphere>): limb darkening model
-          atmosphere
+          default=<models.CK2004ModelAtmosphere>): model atmosphere for
+            limb darkening coefficients
         * `ld_func` (string, optional, default='linear'): limb darkening
           function
         * `ld_coeffs` (array, optional, default=[[0.5]]): limb darkening
           coefficients
         * `intens_weighting` (string, optional, default='photon'): intensity
           weighting mode
-        * `ld_extrapolation_mode` (string, optional, default='none):
+        * `ld_extrapolation_mode` (string, optional, default='none'): limb darkening
           extrapolation mode
-        * `raise_on_nans` (boolean, optional, default=True): should any nans
-          raise an exception
 
         Returns
         -------
         * (array) ldint value(s)
         """
 
+        # the most common scenario: interpolating ldints from the tables:
         if ld_func == 'interp':
             # ldints depend only on basic ldatm axes:
-            query_cols = [i for i, col in enumerate(query_table[0]) if col in ldatm.basic_axis_names]
-            query_pts = np.ascontiguousarray(query_table[1][:, query_cols])
-            ldints = self.ndp[ldatm.name].ndpolate(f'ldint@{intens_weighting}', query_pts, extrapolation_method=ld_extrapolation_method)['interps']
-            return ldints
+            ndp_output = self.ndp[ldatm.name].ndpolate(
+                f'ldint@{intens_weighting}',
+                query_pts=query.subset(ldatm.basic_axis_names).pts,
+                extrapolation_method=ld_extrapolation_method)
+            return InterpResult.from_ndpolator(ndp_output)
 
+        # if LD coefficients are provided, make sure they are the correct shape:
         if ld_coeffs is not None:
             ld_coeffs = np.atleast_2d(ld_coeffs)
 
+        # if LD coefficients are not provided and ld_func is not 'interp',
+        # we can then get them from the tables:
         if ld_coeffs is None:
-            query_cols = [i for i, col in enumerate(query_table[0]) if col in ldatm.basic_axis_names]
-            query_pts = np.ascontiguousarray(query_table[1][:, query_cols])
-            ld_coeffs = self.interpolate_ldcoeffs(query_table=query_table, ldatm=ldatm, ld_func=ld_func, intens_weighting=intens_weighting, ld_extrapolation_method=ld_extrapolation_method)
+            ld_coeffs = self.interpolate_ldcoeffs(
+                query=query,
+                ldatm=ldatm,
+                ld_func=ld_func,
+                intens_weighting=intens_weighting,
+                ld_extrapolation_method=ld_extrapolation_method
+            ).get_interpolated_values()
 
-        ldints = np.ones(shape=(len(query_table[1]), 1))
+        # now we have ld_coeffs and can compute ldints for any non-interp ld_func:
+        ldints = np.ones(shape=(len(query.pts), 1))
 
         if ld_func == 'linear':
-            ldints[:,0] *= 1-ld_coeffs[:,0]/3
+            ldints[:, 0] *= 1-ld_coeffs[:, 0]/3
         elif ld_func == 'logarithmic':
-            ldints[:,0] *= 1-ld_coeffs[:,0]/3+2.*ld_coeffs[:,1]/9
+            ldints[:, 0] *= 1-ld_coeffs[:, 0]/3+2.*ld_coeffs[:, 1]/9
         elif ld_func == 'square_root':
-            ldints[:,0] *= 1-ld_coeffs[:,0]/3-ld_coeffs[:,1]/5
+            ldints[:, 0] *= 1-ld_coeffs[:, 0]/3-ld_coeffs[:, 1]/5
         elif ld_func == 'quadratic':
-            ldints[:,0] *= 1-ld_coeffs[:,0]/3-ld_coeffs[:,1]/6
+            ldints[:, 0] *= 1-ld_coeffs[:, 0]/3-ld_coeffs[:, 1]/6
         elif ld_func == 'power':
-            ldints[:,0] *= 1-ld_coeffs[:,0]/5-ld_coeffs[:,1]/3-3.*ld_coeffs[:,2]/7-ld_coeffs[:,3]/2
+            ldints[:, 0] *= 1-ld_coeffs[:, 0]/5-ld_coeffs[:, 1]/3-3.*ld_coeffs[:, 2]/7-ld_coeffs[:, 3]/2
         else:
             raise ValueError(f'ld_func={ld_func} is not recognized.')
 
-        return ldints
+        return InterpResult(interps=ldints)
 
     def _bindex_blackbody(self, Teff, intens_weighting='photon'):
         r"""
@@ -2372,7 +2469,7 @@ def list_online_passbands(refresh=False, full_dict=False, skip_keys=[], repeat_e
                 resp = urlopen(url, timeout=3)
             except Exception as err:
                 _online_passband_failedtries += 1
-                msg = "Connection to online passbands at {} could not be established.  Check your internet connection or try again later (can manually call phoebe.list_online_passbands(refresh=True) to retry).  If the problem persists and you're using a Mac, you may need to update openssl (see https://phoebe-project.org/help/faq).".format(_url_tables_server, _online_passband_failedtries)
+                msg = "Connection to online passbands at {} could not be established.  Check your internet connection or try again later (can manually call phoebe.list_online_passbands(refresh=True) to retry).  If the problem persists and you're using a Mac, you may need to update openssl (see https://phoebe-project.org/help/faq).".format(_url_tables_server)
                 msg += " Original error from urlopen: {} {}".format(err.__class__.__name__, str(err))
 
                 logger.warning("(Attempt {} of 3): ".format(_online_passband_failedtries)+msg)
