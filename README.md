@@ -9,7 +9,7 @@ PHOEBE 2.4
 
 <p align="center">
   <a href="https://pypi.org/project/phoebe/"><img src="https://img.shields.io/badge/pip-phoebe-blue.svg"/></a>
-  <a href="https://phoebe-project.org/install"><img src="https://img.shields.io/badge/python-3.8+-blue.svg"/></a>
+  <a href="https://phoebe-project.org/install"><img src="https://img.shields.io/badge/python-3.10+-blue.svg"/></a>
   <a href="https://github.com/phoebe-project/phoebe2/blob/master/LICENSE"><img src="https://img.shields.io/badge/license-GPL3-blue.svg"/></a>
   <a href="https://github.com/phoebe-project/phoebe2/actions/workflows/on_pr.yml?query=branch%3Amaster"><img src="https://github.com/phoebe-project/phoebe2/actions/workflows/on_pr.yml/badge.svg?branch=master"/></a>
   <a href="https://phoebe-project.org/docs/2.4"><img src="https://github.com/phoebe-project/phoebe2-docs/actions/workflows/build-docs.yml/badge.svg?branch=2.4"/></a>
@@ -58,7 +58,7 @@ To install PHOEBE 2 from the source locally, go to the `phoebe2/` directory and 
 
     pip install .
 
-Note that as of the 2.4.16 release, PHOEBE requires Python 3.8 or later.  For further details on pre-requisites consult the [PHOEBE project webpage](https://phoebe-project.org/install/2.4).
+Note that as of the 2.4.16 release, PHOEBE requires Python 3.10 or later.  For further details on pre-requisites consult the [PHOEBE project webpage](https://phoebe-project.org/install/2.4).
 
 
 GETTING STARTED
