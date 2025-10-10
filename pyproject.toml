@@ -62,7 +62,7 @@ dependencies = [
     "scipy",
     "astropy",
     "pytest",
-    "ndpolator == 1.2.2",
+    "ndpolator == 1.3.0",
     "tqdm",
     "corner",
     "requests",
