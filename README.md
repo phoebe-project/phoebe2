@@ -58,7 +58,7 @@ To install PHOEBE 2 from the source locally, go to the `phoebe2/` directory and 
 
     pip install .
 
-Note that as of the 2.4.16 release, PHOEBE requires Python 3.10 or later.  For further details on pre-requisites consult the [PHOEBE project webpage](https://phoebe-project.org/install/2.4).
+Note that as of the 2.5 release, PHOEBE requires Python 3.10 or later.  For further details on pre-requisites consult the [PHOEBE project webpage](https://phoebe-project.org/install/2.4).
 
 
 GETTING STARTED
