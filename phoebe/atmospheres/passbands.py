@@ -204,16 +204,10 @@ class InterpResult:
         if not isinstance(ndp_output, dict):
             raise TypeError("ndp_output must be a dictionary")
 
-        # Extract required and common optional fields
-        interps = ndp_output.get('interps', None)
-        if interps is None:
+        if 'interps' not in ndp_output:
             raise ValueError("ndp_output must contain 'interps' key")
 
-        # It is tempting to .pop() instead of .get() interps but
-        # that would change ndp_output in-place, which is undesirable.
-        kwargs = {k: v for k, v in ndp_output.items() if k != 'interps'}
-
-        return cls(interps=interps, **kwargs)
+        return cls(**ndp_output)
 
     @property
     def shape(self):
