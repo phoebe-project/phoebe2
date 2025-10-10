@@ -10269,7 +10269,7 @@ class Bundle(ParameterSet):
                 # NOTE: only compute_ps.kind == 'phoebe' defines this parameter, so for
                 # all other backends that do not have this parameter, the following
                 # expression will default to 'none'.
-                ld_extrapolation_method = compute_ps.get_value(qualifier='ld_blending_method', component=ldcs_param.component, default='none', **_skip_filter_checks)
+                ld_extrapolation_method = compute_ps.get_value(qualifier='ld_extrapolation_method', component=ldcs_param.component, default='none', **_skip_filter_checks)
 
                 if is_bol:
                     intens_weighting = 'energy'
