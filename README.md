@@ -80,7 +80,7 @@ CHANGELOG
 
 ### 2.4.22
 
-* Fixes bug where LS periodogram was returning frequency instead of period [#1088]
+* Fixes bug where LS periodogram was returning frequency instead of period [#1089]
 
 ### 2.4.21
 
