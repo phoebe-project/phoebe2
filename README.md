@@ -80,6 +80,8 @@ CHANGELOG
 
 ### 2.4.22
 
+* Fixes bug where LS periodogram was returning frequency instead of period [#1089]
+
 ### 2.4.21
 
 * Add a PHOEBE_TABLES_SERVER environment variable to allow overriding the URL of the queried tables server. [#1060]
