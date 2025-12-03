@@ -10420,7 +10420,7 @@ class Bundle(ParameterSet):
         # subset can have repeated entries; return unique occurrences:     
         return list(set(subset))
 
-    def compute_l3s(self, compute=None, use_pbfluxes={},
+    def compute_l3s(self, compute=None, model=None, use_pbfluxes={},
                    set_value=False, **kwargs):
         """
         Compute third lights (`l3`) that will be applied to the system from
@@ -10437,6 +10437,9 @@ class Bundle(ParameterSet):
         ------------
         * `compute` (string, optional, default=None): label of the compute
             options (not required if only one is attached to the bundle).
+        * `model` (string, optional, default=None): label of the model to use
+            for scaling fluxes for any cases where `pblum_mode='dataset-scaled'`.
+            Required if any dataset has `pblum_mode='dataset-scaled'`.
         * `dataset` (string or list of strings, optional): label of the
             dataset(s) requested.  If not provided, will be provided for all
             datasets in which an `l3_mode` Parameter exists.
@@ -10460,6 +10463,11 @@ class Bundle(ParameterSet):
         * (dict) computed l3s in a dictionary with keys formatted as
             l3@dataset or l3_frac@dataset and the l3 (as quantity objects
             with units of W/m**2) or l3_frac (as unitless floats).
+
+        Raises
+        ----------
+        * ValueError: if any dataset has `pblum_mode='dataset-scaled'` and
+            `model` is not provided.
         """
         logger.debug("b.compute_l3s")
 
@@ -10481,11 +10489,20 @@ class Bundle(ParameterSet):
 
         datasets_need_pbflux = [d for d in datasets if d not in use_pbfluxes.keys()]
         if len(datasets_need_pbflux):
-            _, _, _, _, compute_pblums_pbfluxes = self.compute_pblums(compute=compute, dataset=datasets_need_pbflux, ret_structured_dicts=True, **kwargs)
+            for dataset in datasets_need_pbflux:
+                pblum_mode = self.get_value(qualifier='pblum_mode', dataset=dataset, default='absolute', **_skip_filter_checks)
+                if pblum_mode == 'dataset-scaled' and model is None:
+                    raise ValueError(f"pblum_mode='dataset-scaled' for dataset='{dataset}' requires model to be provided for accurate l3 conversion. Call compute_l3s(model='your_model') after run_compute.")
+            _, _, _, _, compute_pblums_pbfluxes = self.compute_pblums(compute=compute, model=model, dataset=datasets_need_pbflux, ret_structured_dicts=True, **kwargs)
             for dataset in datasets_need_pbflux:
                 use_pbfluxes[dataset] = compute_pblums_pbfluxes.get(dataset)
 
-        elif not kwargs.get('skip_checks', False):
+        if model is not None and len(use_pbfluxes):
+            datasets_with_pbfluxes = [d for d in datasets if d in use_pbfluxes.keys() and d not in datasets_need_pbflux]
+            if len(datasets_with_pbfluxes):
+                logger.warning(f'both model and use_pbfluxes provided for datasets {datasets_with_pbfluxes}; use_pbfluxes will be used and model will be ignored for these datasets')
+
+        if not len(datasets_need_pbflux) and not kwargs.get('skip_checks', False):
             report = self.run_checks_compute(compute=compute,
                                              run_checks_server=False,
                                              allow_skip_constraints=False,
@@ -12051,9 +12068,7 @@ class Bundle(ParameterSet):
                 # or for any dataset in which pblum_mode == 'dataset-coupled' and pblum_dataset points to a 'dataset-scaled' dataset
                 datasets_dsscaled = []
                 coupled_datasets = self.filter(qualifier='pblum_mode', dataset=ml_params.datasets, value='dataset-coupled', **_skip_filter_checks).datasets
-                print(f'coupled_datasets: {coupled_datasets}')
                 scaled_datasets = self.filter(qualifier='pblum_mode', dataset=ml_params.datasets, value='dataset-scaled', **_skip_filter_checks).datasets
-                print(f'scaled_datasets: {scaled_datasets}')
                 for scaled_dataset in scaled_datasets:
                     this_dsscale_datasets = [scaled_dataset] + self.filter(qualifier='pblum_dataset', dataset=coupled_datasets, value=scaled_dataset, **_skip_filter_checks).datasets
                     # keep track of all datasets that are scaled so we don't do distance/l3 corrections later
