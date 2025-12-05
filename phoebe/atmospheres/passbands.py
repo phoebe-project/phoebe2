@@ -566,7 +566,7 @@ class Passband:
         data.append(fits.table_to_hdu(Table(self.ptf_table, meta={'extname': 'PTFTABLE'})))
 
         # axes:
-        for atm in models._atmtable:
+        for atm in models._atmtable.values():
             if atm.external:
                 continue
 
@@ -599,7 +599,7 @@ class Passband:
                         data.append(fits.table_to_hdu(Table({name: axis}, meta={'extname': f'{atm.prefix}_{name}'})))
 
         # grids:
-        for atm in models._atmtable:
+        for atm in models._atmtable.values():
             if atm.external:
                 continue
 
@@ -2666,7 +2666,8 @@ if __name__ == '__main__':
 
     pb.compute_blackbody_intensities(include_extinction=False)
 
-    for atm in ['ck2004', 'phoenix', 'tmap_sdO', 'tmap_DA', 'tmap_DAO', 'tmap_DO', 'tremblay']:
+    atms = [atm for atm in models._atmtable.keys() if atm != 'blackbody' and not atm.startswith('extern')]
+    for atm in atms:
         pb.compute_intensities(atm=atm, path=f'tables/{atm}', verbose=True)
         pb.compute_ldcoeffs(ldatm=atm)
         pb.compute_ldints(ldatm=atm)
@@ -2693,7 +2694,8 @@ if __name__ == '__main__':
 
     pb.compute_blackbody_intensities(include_extinction=True)
 
-    for atm in ['ck2004', 'phoenix', 'tmap_sdO', 'tmap_DA', 'tmap_DAO', 'tmap_DO', 'tremblay']:
+    atms = [atm for atm in models._atmtable.keys() if atm != 'blackbody' and not atm.startswith('extern')]
+    for atm in atms:
         pb.compute_intensities(atm=atm, path=f'tables/{atm}', verbose=True)
 
     pb.import_wd_atmcof('tables/wd/atmcofplanck.dat', 'tables/wd/atmcof.dat', 7)

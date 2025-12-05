@@ -10258,7 +10258,7 @@ class Bundle(ParameterSet):
                 if ldcs == 'auto':
                     # in case we have blackbody or extern atmospheres, we default to
                     # ck2004, otherwise we match the original atm:
-                    atm_class = models.atm_from_name(atm)
+                    atm_class = models._atmtable[atm]
                     ldcs = 'ck2004' if atm_class.external or not hasattr(atm_class, 'mus') else atm
 
                 pb = passbands.get_passband(passband, content=f'{ldcs}:ld')
@@ -10285,7 +10285,7 @@ class Bundle(ParameterSet):
 
                 ld_coeffs = pb.interpolate_ldcoeffs(
                     query=query,
-                    ldatm=models.atm_from_name(ldcs),
+                    ldatm=models._atmtable[ldcs],
                     ld_func=ld_func,
                     intens_weighting=intens_weighting,
                     ld_extrapolation_method=ld_extrapolation_method
@@ -10781,7 +10781,7 @@ class Bundle(ParameterSet):
                         required_content += ['{}:ldint'.format(atms[component])]
                     pb = passbands.get_passband(passband, content=required_content)
 
-                    atm_model = models.atm_from_name(atms[component])
+                    atm_model = models._atmtable[atms[component]]
                     query_cols = ['teffs', 'loggs', 'abuns']
                     query_pts = np.atleast_2d(np.stack((teffs[component], loggs[component], abuns[component])).T)
                     query = passbands.InterpQuery(cols=query_cols, pts=query_pts)

@@ -9,7 +9,7 @@ from phoebe import conf
 # NOTE: if creating new parameters, add to the _forbidden_labels list in parameters.py
 
 passbands._init_passbands()  # TODO: move to module import
-_supported_atms = [atm.name for atm in models.ModelAtmosphere.__subclasses__()]
+_supported_atms = list(models._atmtable.keys())
 _atm_choices = list(set([atm for pb in passbands._pbtable.values() for atm in pb['atms'] if atm in _supported_atms]))
 
 def _sampling_params(**kwargs):

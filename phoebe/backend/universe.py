@@ -1806,7 +1806,7 @@ class Star(Body):
         boosting_method = kwargs.get('boosting_method', self.boosting_method.get(dataset, None))
         bindex = kwargs.get('boosting_index', self.boosting_index.get(dataset, None)) if boosting_method == 'manual' else None
 
-        atm_model = models.atm_from_name(atm)
+        atm_model = models._atmtable[atm]
 
         if ld_mode == 'interp':
             # calls to pb.Imu need to pass on ld_func='interp'
@@ -1820,7 +1820,7 @@ class Star(Body):
                 # use the same model atmosphere for all other atmospheres:
                 ldatm_model = models.CK2004ModelAtmosphere if atm_model.external or not hasattr(atm_model, 'mus') else atm_model
             else:
-                ldatm_model = models.atm_from_name(ld_coeffs_source)
+                ldatm_model = models._atmtable[ld_coeffs_source]
         elif ld_mode == 'manual':
             ldatm_model = None
         else:

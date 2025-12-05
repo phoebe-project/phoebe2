@@ -2,6 +2,7 @@ import numpy as np
 import glob
 import os
 import re
+from phoebe import c
 
 
 class ModelAtmosphere:
@@ -109,8 +110,7 @@ class ModelAtmosphere:
         Registers the model atmosphere with the global model table.
         """
 
-        global _atmtable
-        _atmtable.append(self.__class__)
+        _atmtable[self.__class__.name] = self.__class__
 
     @classmethod
     def from_path(cls, path, wls_file=None):
@@ -130,7 +130,7 @@ class ModelAtmosphere:
         self.path = path
 
         if wls_file is not None:
-            self.wls= np.load(os.path.join(path,wls_file)) 
+            self.wls = np.load(os.path.join(path, wls_file))
 
         try:
             self.models = glob.glob(os.path.join(path, '*fits'))
@@ -153,10 +153,7 @@ class ModelAtmosphere:
         self.basic_axes = tuple([np.unique(getattr(self, name)) for name in self.basic_axis_names])
 
         # store all node indices:
-        nodes = np.vstack([getattr(self, name) for name in self.basic_axis_names]).T
-        self.indices = np.empty_like(nodes, dtype=int)
-        for i, basic_axis in enumerate(self.basic_axes):
-            self.indices[:, i] = np.searchsorted(basic_axis, nodes[:, i])
+        self._recompute_indices()
 
         return self
 
@@ -165,8 +162,16 @@ class ModelAtmosphere:
         Provides rules for parsing atmosphere fits files containing data.
         Only derived classes should implement this method.
         """
+        raise NotImplementedError
 
-        return NotImplementedError
+    def _recompute_indices(self):
+        """
+        Recomputes the indices array based on current basic axes.
+        """
+        nodes = np.vstack([getattr(self, name) for name in self.basic_axis_names]).T
+        self.indices = np.empty_like(nodes, dtype=int)
+        for i, basic_axis in enumerate(self.basic_axes):
+            self.indices[:, i] = np.searchsorted(basic_axis, nodes[:, i])
 
     def add_axis_node(self, axis_name, axis_node):
         """
@@ -191,10 +196,7 @@ class ModelAtmosphere:
 
                 new_axes[axis_index] = axis
                 self.basic_axes = tuple(new_axes)
-                nodes = np.vstack([getattr(self, name) for name in self.basic_axis_names]).T
-                self.indices = np.empty_like(nodes, dtype=int)
-                for i, basic_axis in enumerate(self.basic_axes):
-                    self.indices[:, i] = np.searchsorted(basic_axis, nodes[:, i])
+                self._recompute_indices()
         else:
             raise ValueError(f"Axis name '{axis_name}' not recognized.")
 
@@ -250,9 +252,6 @@ class BlackbodyModelAtmosphere(ModelAtmosphere):
     basic_axis_names = ['teffs']
     teffs = np.logspace(2.5, 5.7, 500)  # this corresponds to the 316K-501187K range.
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
     def limb_treatment(self, intensities):
         return intensities
 
@@ -262,14 +261,14 @@ class BlackbodyModelAtmosphere(ModelAtmosphere):
 
         Arguments
         ----------
-        * `wls` (array): wavelengths
+        * `wls` (array): wavelengths in meters
 
         Returns
         --------
-        * an array of intensities.
+        * an array of intensities in W/m^3.
         """
-
-        return 2 * 6.62607015e-34 * 2.99792458e8**2 / wls**5 / (np.exp(6.62607015e-34 * 2.99792458e8 / (wls * 1.380649e-23 * self.teffs[:, None])) - 1)
+        hc_over_kT = c.h.value * c.c.value / (wls * c.k_B.value * self.teffs[:, None])
+        return 2 * c.h.value * c.c.value**2 / wls**5 / (np.exp(hc_over_kT) - 1)
 
 
 class CK2004ModelAtmosphere(ModelAtmosphere):
@@ -293,9 +292,6 @@ class CK2004ModelAtmosphere(ModelAtmosphere):
     ])
     wls = np.arange(900., 39999.501, 0.5)/1e10  # AA -> m
     units = 1e7  # erg/s/cm^2/A -> W/m^3
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
 
     def parse_rules(self, relative_filename):
         return [
@@ -326,9 +322,6 @@ class PhoenixModelAtmosphere(ModelAtmosphere):
     wls = np.arange(500., 26000.)/1e10  # AA -> m
     units = 1  # W/m^3
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
     def parse_rules(self, relative_filename):
         return [
             float(relative_filename[1:6]),  # teff
@@ -355,9 +348,6 @@ class TremblayModelAtmosphere(ModelAtmosphere):
     ])
 
     units = 1  # W/m^3
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
 
     def parse_rules(self, relative_filename):
         pars = re.split('[TGA.]+', relative_filename)
@@ -388,9 +378,6 @@ class TMAPDOModelAtmosphere(ModelAtmosphere):
 
     units = 1  # W/m^3
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
     def parse_rules(self, relative_filename):
         pars = re.split('[TGA.]+', relative_filename)
         return [
@@ -420,9 +407,6 @@ class TMAPDAModelAtmosphere(ModelAtmosphere):
 
     units = 1  # W/m^3
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
     def parse_rules(self, relative_filename):
         pars = re.split('[TGA.]+', relative_filename)
         return [
@@ -444,9 +428,6 @@ class TMAPsdOModelAtmosphere(ModelAtmosphere):
                     0.86609102, 0.89724188, 0.92468378, 0.9481606,  0.96745302,
                     0.98238112, 0.99280576, 0.99863193, 1.])
     units = 1  # W/m^3
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
 
     def parse_rules(self, relative_filename):
         pars = re.split('[TGA.]+', relative_filename)
@@ -471,9 +452,6 @@ class TMAPDAOModelAtmosphere(ModelAtmosphere):
                     0.98238112, 0.99280576, 0.99863193, 1.])
     units = 1  # W/m^3
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
     def parse_rules(self, relative_filename):
         pars = re.split('[TGA.]+', relative_filename)
         return [
@@ -483,25 +461,6 @@ class TMAPDAOModelAtmosphere(ModelAtmosphere):
         ]
 
 
-# global model atmosphere table:
-_atmtable = ModelAtmosphere.__subclasses__()
+# global model atmosphere table:(dict of name -> class):
+_atmtable = {atm.name: atm for atm in ModelAtmosphere.__subclasses__()}
 
-
-def atm_from_name(name):
-    """
-    Returns a model atmosphere class from its name.
-
-    Arguments
-    ----------
-    * `name` (string): name of the model atmosphere
-
-    Returns
-    --------
-    * the model atmosphere class
-    """
-
-    for atm in _atmtable:
-        if atm.name == name:
-            return atm
-
-    raise ValueError(f'Atmosphere named "{name}" not found.')
