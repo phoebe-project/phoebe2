@@ -174,10 +174,6 @@ def phoebe(**kwargs):
     params += [ChoiceParameter(visible_if='atm:!blackbody,atm:!extern_planckint,atm:!extern_atmx', copy_for = {'kind': ['star'], 'component': '*'}, component='_default', qualifier='ld_extrapolation_method', value=kwargs.get('ld_extrapolation_method', 'nearest'), choices=['none', 'nearest', 'linear'], description='Method of extrapolating limb-darkening intensities outside of the atmosphere grid')]
     params += [ChoiceParameter(visible_if='atm:!blackbody,atm:!extern_planckint,atm:!extern_atmx,atm_extrapolation_method:!none,ld_extrapolation_method:!none', copy_for = {'kind': ['star'], 'component': '*'}, component='_default', qualifier='blending_method', value=kwargs.get('blending_method', 'blackbody'), choices=['none', 'blackbody'], description='Method to use for blending model atmosphere and blackbody intensities off the atmosphere grid')]
 
-    # b['atm_extrapolation_method@primary@compute'] = 'linear'
-    # b['ld_extrapolation_method@primary@compute'] = 'nearest'
-    # b['blending_method@primary@compute'] = 'blackbody'
-
     # PER-DATASET
 
     # -- these parameters all need to exist per-rvobs or lcobs --
