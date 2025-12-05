@@ -223,10 +223,10 @@ class InterpResult:
         return getattr(self, 'interps', None)
 
     def get_distances(self):
-        return getattr(self, 'dists', np.full(self.shape, np.nan))
+        return getattr(self, 'dists', None)
 
     def get_bfs(self):
-        return getattr(self, 'bfs', np.full(self.shape, np.nan))
+        return getattr(self, 'bfs', None)
 
     def __len__(self):
         """Number of interpolated points"""
