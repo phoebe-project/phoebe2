@@ -92,7 +92,7 @@ def test_compute_l3s_non_dataset_scaled_no_model_succeeds():
                   dataset='lc01', passband='Johnson:V',
                   pblum_mode='component-coupled', l3_mode='fraction')
 
-    b.set_value('l3_frac', 0.1, dataset='lc01')
+    b.set_value(qualifier='l3_frac', value=0.1, dataset='lc01')
 
     # Should work without model since not dataset-scaled
     l3s = b.compute_l3s()
