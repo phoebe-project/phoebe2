@@ -114,7 +114,7 @@ def test_compute_l3s_model_and_use_pbfluxes_warning(caplog):
                   dataset='lc01', passband='Johnson:V',
                   pblum_mode='component-coupled', l3_mode='fraction')
 
-    b.set_value('l3_frac', 0.1, dataset='lc01')
+    b.set_value(qualifier='l3_frac', value=0.1, dataset='lc01')
 
     # Run compute to generate a model
     b.run_compute(irrad_method='none', model='mymodel')
@@ -145,7 +145,7 @@ def test_compute_l3s_l3_frac_to_l3_conversion():
                   pblum_mode='component-coupled', l3_mode='fraction')
 
     l3_frac_input = 0.15
-    b.set_value('l3_frac', l3_frac_input, dataset='lc_frac_to_l3')
+    b.set_value(qualifier='l3_frac', value=l3_frac_input, dataset='lc_frac_to_l3')
 
     # Get l3 from compute_l3s
     l3s = b.compute_l3s()
@@ -215,8 +215,8 @@ def test_compute_l3s_multiple_datasets_mixed_modes():
                   dataset='lc_coupled', passband='Johnson:B',
                   pblum_mode='component-coupled', l3_mode='fraction')
 
-    b.set_value('l3_frac', 0.1, dataset='lc_scaled')
-    b.set_value('l3_frac', 0.05, dataset='lc_coupled')
+    b.set_value(qualifier='l3_frac', value=0.1, dataset='lc_scaled')
+    b.set_value(qualifier='l3_frac', value=0.05, dataset='lc_coupled')
 
     # Without model, should raise error because of the dataset-scaled dataset
     with pytest.raises(ValueError) as excinfo:
@@ -252,8 +252,8 @@ def test_compute_l3s_specific_dataset_only():
                   dataset='lc_coupled', passband='Johnson:B',
                   pblum_mode='component-coupled', l3_mode='fraction')
 
-    b.set_value('l3_frac', 0.1, dataset='lc_scaled')
-    b.set_value('l3_frac', 0.05, dataset='lc_coupled')
+    b.set_value(qualifier='l3_frac', value=0.1, dataset='lc_scaled')
+    b.set_value(qualifier='l3_frac', value=0.05, dataset='lc_coupled')
 
     # Request only the component-coupled dataset - should work without model
     l3s = b.compute_l3s(dataset='lc_coupled')
