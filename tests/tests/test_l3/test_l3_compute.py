@@ -63,7 +63,7 @@ def test_compute_l3s_dataset_scaled_with_model_succeeds():
                   dataset='lc01', passband='Johnson:V',
                   pblum_mode='dataset-scaled', l3_mode='fraction')
 
-    b.set_value('l3_frac', 0.1, dataset='lc01')
+    b.set_value(qualifier='l3_frac', value=0.1, dataset='lc01')
 
     # Run compute first to generate the model with flux_scale
     b.run_compute(irrad_method='none', model='mymodel')
