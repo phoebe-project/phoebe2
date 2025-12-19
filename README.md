@@ -80,6 +80,10 @@ CHANGELOG
 
 ### 2.4.22
 
+* Fixes passband luminosity computation for the dataset-scaled mode. [#1091]
+* Fixes third light computation when multiple passbands are used. [#1091]
+* Argument order for compute_l3s() changed to explicitly provide the model as it is required for correct scaling. [#1091]
+
 ### 2.4.21
 
 * Add a PHOEBE_TABLES_SERVER environment variable to allow overriding the URL of the queried tables server. [#1060]
