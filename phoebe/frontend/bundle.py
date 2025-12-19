@@ -10502,7 +10502,7 @@ class Bundle(ParameterSet):
             if len(datasets_with_pbfluxes):
                 logger.warning(f'both model and use_pbfluxes provided for datasets {datasets_with_pbfluxes}; use_pbfluxes will be used and model will be ignored for these datasets')
 
-        if not len(datasets_need_pbflux) and not kwargs.get('skip_checks', False):
+        if not kwargs.get('skip_checks', False):
             report = self.run_checks_compute(compute=compute,
                                              run_checks_server=False,
                                              allow_skip_constraints=False,
