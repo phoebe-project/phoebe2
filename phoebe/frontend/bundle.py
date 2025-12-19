@@ -10258,7 +10258,7 @@ class Bundle(ParameterSet):
                 if ldcs == 'auto':
                     # in case we have blackbody or extern atmospheres, we default to
                     # ck2004, otherwise we match the original atm:
-                    atm_class = models.atm_from_name(atm)
+                    atm_class = models._atmtable[atm]
                     ldcs = 'ck2004' if atm_class.external or not hasattr(atm_class, 'mus') else atm
 
                 pb = passbands.get_passband(passband, content=f'{ldcs}:ld')
@@ -10269,7 +10269,7 @@ class Bundle(ParameterSet):
                 # NOTE: only compute_ps.kind == 'phoebe' defines this parameter, so for
                 # all other backends that do not have this parameter, the following
                 # expression will default to 'none'.
-                ld_extrapolation_method = compute_ps.get_value(qualifier='ld_blending_method', component=ldcs_param.component, default='none', **_skip_filter_checks)
+                ld_extrapolation_method = compute_ps.get_value(qualifier='ld_extrapolation_method', component=ldcs_param.component, default='none', **_skip_filter_checks)
 
                 if is_bol:
                     intens_weighting = 'energy'
@@ -10285,7 +10285,7 @@ class Bundle(ParameterSet):
 
                 ld_coeffs = pb.interpolate_ldcoeffs(
                     query=query,
-                    ldatm=models.atm_from_name(ldcs),
+                    ldatm=models._atmtable[ldcs],
                     ld_func=ld_func,
                     intens_weighting=intens_weighting,
                     ld_extrapolation_method=ld_extrapolation_method
@@ -10758,9 +10758,20 @@ class Bundle(ParameterSet):
                     else:
                         ld_func = 'interp'
                         ld_coeffs = None
-                    atm_extrapolation_method = compute_ps.get_value(qualifier='blending_method', component=component, default='none', **_skip_filter_checks)
-                    ld_extrapolation_method = compute_ps.get_value(qualifier='ld_blending_method', component=component, default='none', **_skip_filter_checks)
-                    blending_method = 'none' if atm_extrapolation_method == 'none' else 'blackbody'
+
+                    if atms[component] in ['blackbody', 'extern_planckint', 'extern_atmx']:
+                        atm_extrapolation_method = 'none'
+                        ld_extrapolation_method = 'none'
+                        blending_method = 'none'
+                    else:
+                        atm_extrapolation_method = compute_ps.get_value(qualifier='atm_extrapolation_method', component=component, default='none', **_skip_filter_checks)
+                        ld_extrapolation_method = compute_ps.get_value(qualifier='ld_extrapolation_method', component=component, default='none', **_skip_filter_checks)
+
+                        # if either extrapolation method is 'none', then we can't blend
+                        if atm_extrapolation_method == 'none' or ld_extrapolation_method == 'none':
+                            blending_method = 'none'
+                        else:
+                            blending_method = compute_ps.get_value(qualifier='blending_method', component=component, default='none', **_skip_filter_checks)
 
                     if atms[component] == 'blackbody' and ld_mode!='manual':
                         raise NotImplementedError("pblum_method='stefan-boltzmann' not currently implemented for atm='blackbody' unless ld_mode='manual'")
@@ -10770,7 +10781,7 @@ class Bundle(ParameterSet):
                         required_content += ['{}:ldint'.format(atms[component])]
                     pb = passbands.get_passband(passband, content=required_content)
 
-                    atm_model = models.atm_from_name(atms[component])
+                    atm_model = models._atmtable[atms[component]]
                     query_cols = ['teffs', 'loggs', 'abuns']
                     query_pts = np.atleast_2d(np.stack((teffs[component], loggs[component], abuns[component])).T)
                     query = passbands.InterpQuery(cols=query_cols, pts=query_pts)

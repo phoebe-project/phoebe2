@@ -1079,7 +1079,7 @@ class Star(Body):
                  long_an, t0, do_mesh_offset, mesh_init_phi,
 
                  atm, datasets, passband, intens_weighting,
-                 blending_method, ld_blending_method,
+                 atm_extrapolation_method, ld_extrapolation_method, blending_method,
                  extinct, Rv,
                  ld_mode, ld_func, ld_coeffs, ld_coeffs_source,
                  lp_profile_rest,
@@ -1119,8 +1119,9 @@ class Star(Body):
         self.gridsize = kwargs.get('gridsize', 90)                          # WD
         self.is_single = is_single
         self.atm = atm
+        self.atm_extrapolation_method = atm_extrapolation_method
+        self.ld_extrapolation_method = ld_extrapolation_method
         self.blending_method = blending_method
-        self.ld_blending_method = ld_blending_method
 
         # DATSET-DEPENDENT DICTS
         self.passband = passband
@@ -1268,15 +1269,24 @@ class Star(Body):
         if isinstance(atm_override, dict):
             atm_override = atm_override.get(component, None)
         atm = b.get_value(qualifier='atm', compute=compute, component=component, atm=atm_override, **_skip_filter_checks) if compute is not None else atm_override if atm_override is not None else 'ck2004'
-        
-        blending_method_override = kwargs.pop('blending_method', None)
-        blending_method = b.get_value(qualifier='blending_method', compute=compute, component=component, blending_method=blending_method_override, **_skip_filter_checks) if compute is not None else blending_method_override if blending_method_override is not None else 'linear'
-        ld_blending_method_override = kwargs.pop('ld_blending_method', None)
-        ld_blending_method = b.get_value(qualifier='ld_blending_method', compute=compute, component=component, ld_blending_method=ld_blending_method_override, **_skip_filter_checks) if compute is not None else ld_blending_method_override if ld_blending_method_override is not None else 'nearest'
-        if atm == 'blackbody':  # TODO: what about atm=='extern_atmx'?
-            # blackbody model atmospheres cannot be blended into themselves:
+
+        if atm in ['blackbody', 'extern_planckint', 'extern_atmx']:
+            atm_extrapolation_method = 'none'
+            ld_extrapolation_method = 'none'
             blending_method = 'none'
-            ld_blending_method = 'none'
+        else:
+            atm_extrapolation_method_override = kwargs.pop('atm_extrapolation_method', None)
+            atm_extrapolation_method = b.get_value(qualifier='atm_extrapolation_method', compute=compute, component=component, atm_extrapolation_method=atm_extrapolation_method_override, **_skip_filter_checks) if compute is not None else atm_extrapolation_method_override if atm_extrapolation_method_override is not None else 'linear'
+
+            ld_extrapolation_method_override = kwargs.pop('ld_extrapolation_method', None)
+            ld_extrapolation_method = b.get_value(qualifier='ld_extrapolation_method', compute=compute, component=component, ld_extrapolation_method=ld_extrapolation_method_override, **_skip_filter_checks) if compute is not None else ld_extrapolation_method_override if ld_extrapolation_method_override is not None else 'nearest'
+
+            if atm_extrapolation_method == 'none' or ld_extrapolation_method == 'none':
+                blending_method = 'none'
+            else:
+                blending_method_override = kwargs.pop('blending_method', None)
+                blending_method = b.get_value(qualifier='blending_method', compute=compute, component=component, blending_method=blending_method_override, **_skip_filter_checks) if compute is not None else blending_method_override if blending_method_override is not None else 'blackbody'
+
         passband_override = kwargs.pop('passband', None)
         passband = {ds: b.get_value(qualifier='passband', dataset=ds, passband=passband_override, **_skip_filter_checks) for ds in datasets_intens}
         intens_weighting_override = kwargs.pop('intens_weighting', None)
@@ -1318,8 +1328,9 @@ class Star(Body):
                    datasets,
                    passband,
                    intens_weighting,
+                   atm_extrapolation_method,
+                   ld_extrapolation_method,
                    blending_method,
-                   ld_blending_method,
                    extinct, Rv,
                    ld_mode,
                    ld_func,
@@ -1782,9 +1793,9 @@ class Star(Body):
         passband = kwargs.get('passband', self.passband.get(dataset, None))
         intens_weighting = kwargs.get('intens_weighting', self.intens_weighting.get(dataset, None))
         atm = kwargs.get('atm', self.atm)
-        atm_extrapolation_method = kwargs.get('blending_method', self.blending_method)
-        ld_extrapolation_method = kwargs.get('ld_blending_method', self.ld_blending_method)
-        blending_method = 'none' if atm_extrapolation_method == 'none' else 'blackbody'
+        atm_extrapolation_method = kwargs.get('atm_extrapolation_method', self.atm_extrapolation_method)
+        ld_extrapolation_method = kwargs.get('ld_extrapolation_method', self.ld_extrapolation_method)
+        blending_method = kwargs.get('blending_method', self.blending_method)
         extinct = kwargs.get('extinct', self.extinct)
         Rv = kwargs.get('Rv', self.Rv)
         ld_mode = kwargs.get('ld_mode', self.ld_mode.get(dataset, None))
@@ -1795,7 +1806,7 @@ class Star(Body):
         boosting_method = kwargs.get('boosting_method', self.boosting_method.get(dataset, None))
         bindex = kwargs.get('boosting_index', self.boosting_index.get(dataset, None)) if boosting_method == 'manual' else None
 
-        atm_model = models.atm_from_name(atm)
+        atm_model = models._atmtable[atm]
 
         if ld_mode == 'interp':
             # calls to pb.Imu need to pass on ld_func='interp'
@@ -1809,7 +1820,7 @@ class Star(Body):
                 # use the same model atmosphere for all other atmospheres:
                 ldatm_model = models.CK2004ModelAtmosphere if atm_model.external or not hasattr(atm_model, 'mus') else atm_model
             else:
-                ldatm_model = models.atm_from_name(ld_coeffs_source)
+                ldatm_model = models._atmtable[ld_coeffs_source]
         elif ld_mode == 'manual':
             ldatm_model = None
         else:
@@ -1879,7 +1890,7 @@ class Star(Body):
                 blending_method=blending_method
             ).get_interpolated_values()
 
-            abs_intensities = pb.interpolate_imus(
+            abs_intens_results = pb.interpolate_imus(
                 query=query,
                 atm=atm_model,
                 ldatm=ldatm_model,
@@ -1890,7 +1901,19 @@ class Star(Body):
                 atm_extrapolation_method=atm_extrapolation_method,
                 ld_extrapolation_method=ld_extrapolation_method,
                 blending_method=blending_method
-            ).get_interpolated_values()
+            )
+            abs_intensities = abs_intens_results.get_interpolated_values()
+            blending_factors = abs_intens_results.get_bfs()
+            if blending_factors is not None:
+                blending_factors[blending_factors == 0] = np.nan
+            else:
+                blending_factors = np.full(abs_intensities.shape[0], np.nan)
+
+            extrapolation_dists = abs_intens_results.get_distances()
+            if extrapolation_dists is not None:
+                extrapolation_dists[extrapolation_dists == 0] = np.nan
+            else:
+                extrapolation_dists = np.full(abs_intensities.shape[0], np.nan)
 
             # Beaming/boosting
             if boosting_method == 'none' or ignore_effects:
@@ -1945,7 +1968,9 @@ class Star(Body):
                 'abs_intensities': abs_intensities.flatten(),
                 'intensities': intensities.flatten(),
                 'ldint': ldint.flatten(),
-                'boost_factors': boost_factors}
+                'boost_factors': boost_factors,
+                'blending_factors': blending_factors.flatten(),
+                'extrapolation_dists': extrapolation_dists.flatten()}
 
 
 class Star_roche(Star):
@@ -1957,7 +1982,7 @@ class Star_roche(Star):
                  long_an, t0, do_mesh_offset, mesh_init_phi,
 
                  atm, datasets, passband, intens_weighting,
-                 blending_method, ld_blending_method,
+                 atm_extrapolation_method, ld_extrapolation_method, blending_method,
                  extinct, Rv,
                  ld_mode, ld_func, ld_coeffs, ld_coeffs_source,
                  lp_profile_rest,
@@ -1983,7 +2008,7 @@ class Star_roche(Star):
                                          do_mesh_offset, mesh_init_phi,
 
                                          atm, datasets, passband, intens_weighting,
-                                         blending_method, ld_blending_method,
+                                         atm_extrapolation_method, ld_extrapolation_method, blending_method,
                                          extinct, Rv,
                                          ld_mode, ld_func, ld_coeffs, ld_coeffs_source,
                                          lp_profile_rest,
@@ -2189,7 +2214,7 @@ class Star_roche_envelope_half(Star):
                  long_an, t0, do_mesh_offset, mesh_init_phi,
 
                  atm, datasets, passband, intens_weighting,
-                 blending_method, ld_blending_method,
+                 atm_extrapolation_method, ld_extrapolation_method, blending_method,
                  extinct, Rv,
                  ld_mode, ld_func, ld_coeffs, ld_coeffs_source,
                  lp_profile_rest,
@@ -2219,7 +2244,7 @@ class Star_roche_envelope_half(Star):
                                          do_mesh_offset, mesh_init_phi,
 
                                          atm, datasets, passband, intens_weighting,
-                                         blending_method, ld_blending_method,
+                                         atm_extrapolation_method, ld_extrapolation_method, blending_method,
                                          extinct, Rv,
                                          ld_mode, ld_func, ld_coeffs, ld_coeffs_source,
                                          lp_profile_rest,
@@ -2396,7 +2421,7 @@ class Star_rotstar(Star):
                  long_an, t0, do_mesh_offset, mesh_init_phi,
 
                  atm, datasets, passband, intens_weighting,
-                 blending_method, ld_blending_method,
+                 atm_extrapolation_method, ld_extrapolation_method, blending_method,
                  extinct, Rv,
                  ld_mode, ld_func, ld_coeffs, ld_coeffs_source,
                  lp_profile_rest,
@@ -2422,7 +2447,7 @@ class Star_rotstar(Star):
                                            do_mesh_offset, mesh_init_phi,
 
                                            atm, datasets, passband, intens_weighting,
-                                           blending_method, ld_blending_method,
+                                           atm_extrapolation_method, ld_extrapolation_method, blending_method,
                                            extinct, Rv,
                                            ld_mode, ld_func, ld_coeffs, ld_coeffs_source,
                                            lp_profile_rest,
@@ -2584,7 +2609,7 @@ class Star_sphere(Star):
                  long_an, t0, do_mesh_offset, mesh_init_phi,
 
                  atm, datasets, passband, intens_weighting,
-                 blending_method, ld_blending_method,
+                 atm_extrapolation_method, ld_extrapolation_method, blending_method,
                  extinct, Rv,
                  ld_mode, ld_func, ld_coeffs, ld_coeffs_source,
                  lp_profile_rest,
@@ -2610,7 +2635,7 @@ class Star_sphere(Star):
                                           do_mesh_offset, mesh_init_phi,
 
                                           atm, datasets, passband, intens_weighting,
-                                          blending_method, ld_blending_method,
+                                          atm_extrapolation_method, ld_extrapolation_method, blending_method,
                                           extinct, Rv,
                                           ld_mode, ld_func, ld_coeffs, ld_coeffs_source,
                                           lp_profile_rest,

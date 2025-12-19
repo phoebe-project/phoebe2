@@ -34,8 +34,6 @@ def test_binary(plot=False, gen_comp=False):
     # turn off albedos (legacy requirement):
     b.set_value_all('irrad_frac_refl_bol',  0.0)
 
-    b.set_value_all('blending_method', 'none')
-
     if plot:
         print("running phoebe2 model...")
     b.run_compute(compute='phoebe2', irrad_method='none', model='phoebe2model')

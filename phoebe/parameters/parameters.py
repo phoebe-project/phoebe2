@@ -236,14 +236,15 @@ _forbidden_labels += ['times', 'fluxes', 'sigmas', 'sigmas_lnf',
                      'intensities', 'abs_intensities',
                      'normal_intensities', 'abs_normal_intensities',
                      'boost_factors', 'ldint', 'ptfarea',
-                     'pblum', 'pblum_ext', 'abs_pblum', 'abs_pblum_ext']
+                     'pblum', 'pblum_ext', 'abs_pblum', 'abs_pblum_ext',
+                     'blending_factors', 'extrapolation_dists']
 
 
 # from compute:
 _forbidden_labels += ['enabled', 'dynamics_method', 'ltte', 'comments',
                       'gr', 'stepsize', 'integrator',
                       'irrad_method', 'mesh_method', 'distortion_method',
-                      'blending_method', 'ld_blending_method',
+                      'atm_extrapolation_method', 'ld_extrapolation_method', 'blending_method',
                       'ntriangles', 'rv_grav',
                       'mesh_offset', 'mesh_init_phi', 'horizon_method', 'eclipse_method',
                       'atm', 'lc_method', 'rv_method', 'fti_method', 'fti_oversample',
@@ -5401,6 +5402,15 @@ class ParameterSet(object):
             elif qualifier in ['visibilities']:
                 kwargs.setdefault('{}map'.format(af_direction), 'RdYlGn')
                 kwargs.setdefault('{}lim'.format(af_direction), (0,1))
+            elif qualifier == 'blending_factors':
+                kwargs.setdefault('{}map'.format(af_direction), 'RdYlGn_r')
+                kwargs.setdefault('{}lim'.format(af_direction), (0,1))
+            elif qualifier == 'extrapolation_dists':
+                kwargs.setdefault('{}map'.format(af_direction), 'RdYlGn_r')
+                # NOTE: max value here should match the value of blending_margin
+                # passed to interpolate_inorms/imus, which is currently
+                # hardcoded to 3
+                kwargs.setdefault('{}lim'.format(af_direction), (0,3))
 
         #### LABEL FOR LEGENDS
         attrs = ['component', 'dataset']
