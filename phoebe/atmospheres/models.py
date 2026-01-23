@@ -418,7 +418,7 @@ class TMAPDAModelAtmosphere(ModelAtmosphere):
 class TMAPsdOModelAtmosphere(ModelAtmosphere):
     name = 'tmap_sdO'
     prefix = 'ts'
-    basic_axis_names = ['teffs', 'loggs', 'abuns']
+    basic_axis_names = ['teffs', 'loggs', 'loghefrac']
 
     mus = np.array([0., 0.00136799, 0.00719419, 0.01761889, 0.03254691, 
                     0.05183939, 0.07531619, 0.10275816, 0.13390887, 0.16847785,
@@ -434,14 +434,14 @@ class TMAPsdOModelAtmosphere(ModelAtmosphere):
         return [
             float(pars[1]),      # teff
             float(pars[2])/100,  # logg
-            float(pars[3])/100   # abun
+            float(pars[3])/100   # loghefrac
         ]
 
 
 class TMAPDAOModelAtmosphere(ModelAtmosphere):
     name = 'tmap_DAO'
     prefix = 'tm'
-    basic_axis_names = ['teffs', 'loggs', 'abuns']
+    basic_axis_names = ['teffs', 'loggs', 'loghefrac']
 
     mus = np.array([0., 0.00136799, 0.00719419, 0.01761889, 0.03254691, 
                     0.05183939, 0.07531619, 0.10275816, 0.13390887, 0.16847785,
@@ -457,7 +457,7 @@ class TMAPDAOModelAtmosphere(ModelAtmosphere):
         return [
             float(pars[1]),      # teff
             float(pars[2])/100,  # logg
-            float(pars[3])/100   # abun
+            float(pars[3])/100   # loghefrac
         ]
 
 
