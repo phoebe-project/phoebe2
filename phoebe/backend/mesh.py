@@ -535,7 +535,6 @@ class ProtoMesh(object):
         # we call something like ScaledProtoMesh.from_proto we don't have
         # to do all the on-the-fly computations just to discard them because
         # they aren't setable.
-        # TODO: loghefrac should be pluralized!
         keys = ['compute_at_vertices',
                   'pvertices', 'vertices', 'triangles', 'centers',
                   'coords_for_computations', 'normals_for_computations',
@@ -544,7 +543,7 @@ class ProtoMesh(object):
                   'velocities', 'vnormals', 'tnormals',
                   'normgrads', 'volume', 'area',
                   'phis', 'thetas',
-                  'loggs', 'gravs', 'teffs', 'abuns', 'loghefrac', 'irrad_frac_refl'] # frac_heats, frac_scatts
+                  'loggs', 'gravs', 'teffs', 'abuns', 'loghefracs', 'irrad_frac_refl'] # frac_heats, frac_scatts
         self._keys = keys + kwargs.pop('keys', [])
 
         self.update_columns(**kwargs)
@@ -1071,15 +1070,22 @@ class ProtoMesh(object):
         """
         return self._abuns
 
-    # TODO: should be pluralized!
     @property
-    def loghefrac(self):
+    def loghefracs(self):
         """
         Return the array of loghefracs, where each item is a scalar/float.
 
         TODO: UNIT?
 
         (ComputedColumn)
+        """
+        return self._loghefracs
+
+    # TODO: remove once passband files use plural loghefracs
+    @property
+    def loghefrac(self):
+        """
+        Alias for :meth:`loghefracs` for backwards compatibility.
         """
         return self._loghefracs
 
