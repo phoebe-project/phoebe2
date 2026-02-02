@@ -74,6 +74,8 @@ class ModelAtmosphere:
 
     # default axes:
     basic_axis_names = ['teffs', 'loggs', 'abuns']
+    # assumed/fixed axes and their values:
+    fixed_axis_values = {}
 
     def __init__(self, basic_axes=None, from_path=False):
         if from_path:
@@ -111,6 +113,22 @@ class ModelAtmosphere:
         """
 
         _atmtable[self.__class__.name] = self.__class__
+
+    @classmethod
+    def has_axis(cls, axis_name):
+        """
+        Checks if the model atmosphere has the specified axis (either as
+        an interpolated axis or fixed/assumed value)
+
+        Arguments
+        ----------
+        * `axis_name` (string): name of the axis
+
+        Returns
+        --------
+        * True if the axis exists, False otherwise.
+        """
+        return axis_name in cls.basic_axis_names or axis_name in cls.fixed_axis_values.keys()
 
     @classmethod
     def from_path(cls, path, wls_file=None):
@@ -225,6 +243,7 @@ class WDBlackbodyModelAtmosphere(ModelAtmosphere):
 
     name = 'extern_planckint'
     basic_axis_names = ['teffs']
+    fixed_axis_values = {'abuns': 0.0}
     external = True
 
 
@@ -250,6 +269,7 @@ class BlackbodyModelAtmosphere(ModelAtmosphere):
     prefix = 'bb'
 
     basic_axis_names = ['teffs']
+    fixed_axis_values = {'abuns': 0.0}
     teffs = np.logspace(2.5, 5.7, 500)  # this corresponds to the 316K-501187K range.
 
     def limb_treatment(self, intensities):
@@ -339,6 +359,7 @@ class TremblayModelAtmosphere(ModelAtmosphere):
     prefix = 'tr'
 
     basic_axis_names = ['teffs', 'loggs']
+    fixed_axis_values = {'loghefrac': -10.0}
 
     mus = np.array([
         0., 0.0034357 , 0.01801404, 0.04388279, 0.08044151, 0.12683405, 
@@ -366,6 +387,7 @@ class TMAPDOModelAtmosphere(ModelAtmosphere):
     prefix = 'to'
 
     basic_axis_names = ['teffs', 'loggs']
+    fixed_axis_values = {'loghefrac': 9.4}
 
     mus = np.array([
         0., 0.00136799, 0.00719419, 0.01761889, 0.03254691, 0.05183939, 0.07531619,
@@ -395,6 +417,7 @@ class TMAPDAModelAtmosphere(ModelAtmosphere):
     prefix = 'ta'
 
     basic_axis_names = ['teffs', 'loggs']
+    fixed_axis_values = {'loghefrac': -10.0}
 
     mus = np.array([
         0., 0.00136799, 0.00719419, 0.01761889, 0.03254691, 0.05183939, 0.07531619,

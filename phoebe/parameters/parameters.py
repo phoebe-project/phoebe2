@@ -4,6 +4,7 @@ General logic for all Parameters and ParameterSets which makeup the overall
 framework of the PHOEBE 2.0 frontend.
 """
 
+from phoebe.atmospheres.models import _atmtable
 from phoebe.constraints.expression import ConstraintVar
 # from phoebe.constraints import builtin
 from phoebe.parameters.twighelpers import _uniqueid_to_uniquetwig
@@ -7276,14 +7277,17 @@ class Parameter(object):
                 enabled_features_with_kind = self._bundle.filter(qualifier='enabled', value=True, compute=self.compute, feature=features_with_kind, **_skip_filter_checks).features
                 return dataset in self._bundle.filter(context='feature', feature=enabled_features_with_kind, **_skip_filter_checks).datasets
 
-            elif qualifier == 'atm_in_computes':
+            elif qualifier == 'atm_in_computes': # can probably get rid of this, but will break any bundle created in blending dev branch
                 compute_atms = [p.get_value() for p in self._bundle.filter(qualifier='atm', context='compute', component=self.component, **_skip_filter_checks).to_list()]
                 if value[0] in ['!', '~']:
                     return not all(fnmatch(atm, value[1:]) for atm in compute_atms)
                 return any(fnmatch(atm, value) for atm in compute_atms)
-            
-            else:
 
+            elif qualifier == 'atm_in_computes_has_axis':
+                compute_atms = [p.get_value() for p in self._bundle.filter(qualifier='atm', context='compute', component=self.component, **_skip_filter_checks).to_list()]
+                return any(_atmtable.get(compute_atm).has_axis(value) for compute_atm in compute_atms)
+
+            else:
                 # the parameter needs to have all the same meta data except qualifier
                 # TODO: switch this to use self.get_parent_ps ?
                 metawargs = {k:v for k,v in self.get_meta(ignore=['twig', 'uniquetwig', 'uniqueid']+remove_metawargs).items() if v is not None}
