@@ -883,6 +883,24 @@ class Passband:
         expterm = np.exp(hclkt)
         return hclkt * expterm/(expterm-1)
 
+    def get_axis_limits(self, atm, axis):
+        """
+        Get the limits from the model atmosphere for a given axis.
+
+        Arguments
+        ---------
+        * `atm` (string): name model atmosphere.
+        * `axis` (string): name of the axis.
+
+        Returns
+        -------
+        * (tuple) minimum and maximum values for the given axis.
+        """
+        atm_cls = models._atmtable[atm]
+        ind = atm_cls.basic_axis_names.index(axis)
+        ax = self.ndp[atm].axes[ind]
+        return ax[0], ax[-1]
+
     def ld_func(self, mu=1.0, ld_coeffs=np.array([[0.5]]), ld_func='linear'):
         """
         Computes the limb darkening correction factor for a given angle.
