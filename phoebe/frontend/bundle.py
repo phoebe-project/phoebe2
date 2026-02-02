@@ -10264,7 +10264,6 @@ class Bundle(ParameterSet):
                 pb = passbands.get_passband(passband, content=f'{ldcs}:ld')
                 teff = self.get_value(qualifier='teff', component=ldcs_param.component, context='component', unit='K', **_skip_filter_checks)
                 logg = self.get_value(qualifier='logg', component=ldcs_param.component, context='component', **_skip_filter_checks)
-                abun = self.get_value(qualifier='abun', component=ldcs_param.component, context='component', **_skip_filter_checks)
 
                 # NOTE: only compute_ps.kind == 'phoebe' defines this parameter, so for
                 # all other backends that do not have this parameter, the following
@@ -10276,16 +10275,25 @@ class Bundle(ParameterSet):
                 else:
                     intens_weighting = self.get_value(qualifier='intens_weighting', dataset=ldcs_param.dataset, context='dataset', check_visible=False)
                 logger.info("{} ld_coeffs lookup for dataset='{}' component='{}' passband='{}' from ld_coeffs_source='{}'".format(ld_func, ldcs_param.dataset, ldcs_param.component, passband, ldcs))
-                logger.debug(f"pb.interpolate_ldcoeffs({teff=} {logg=}, {abun=}, {ldcs=} {ld_func=} {intens_weighting=})")
 
-                # TODO: generalize this.
-                query_cols = ('teffs', 'loggs', 'abuns')
-                query_pts = np.array(((teff, logg, abun),))
+                # TODO: generalize this further (some have neither and so should be able to handle not passing either)
+                ldatm = models._atmtable[ldcs]
+                if ldatm.has_axis('loghefrac'):
+                    loghefrac = self.get_value(qualifier='loghefrac', component=ldcs_param.component, context='component', **_skip_filter_checks)
+                    # TODO: loghefrac should be pluralized!
+                    query_cols = ('teffs', 'loggs', 'loghefrac')
+                    query_pts = np.array(((teff, logg, loghefrac),))
+                    logger.debug(f"pb.interpolate_ldcoeffs({teff=} {logg=}, {loghefrac=}, {ldcs=} {ld_func=} {intens_weighting=})")
+                else:
+                    abun = self.get_value(qualifier='abun', component=ldcs_param.component, context='component', **_skip_filter_checks)
+                    query_cols = ('teffs', 'loggs', 'abuns')
+                    query_pts = np.array(((teff, logg, abun),))
+                    logger.debug(f"pb.interpolate_ldcoeffs({teff=} {logg=}, {abun=}, {ldcs=} {ld_func=} {intens_weighting=})")
+
                 query = passbands.InterpQuery(cols=query_cols, pts=query_pts)
-
                 ld_coeffs = pb.interpolate_ldcoeffs(
                     query=query,
-                    ldatm=models._atmtable[ldcs],
+                    ldatm=ldatm,
                     ld_func=ld_func,
                     intens_weighting=intens_weighting,
                     ld_extrapolation_method=ld_extrapolation_method
