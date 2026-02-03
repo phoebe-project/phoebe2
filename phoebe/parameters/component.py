@@ -193,8 +193,7 @@ def star(component, **kwargs):
     params += [FloatParameter(qualifier='requiv_min', latexfmt=r'R_{{ \mathrm{{ equiv }}, \mathrm{{ min }}, \mathrm{{ {component} }} }}', visible_if='hierarchy.is_contact_binary:True', value=kwargs.get('requiv_min', 0.1), default_unit=u.solRad, limits=(0.0, None), description='Critical (minimum) value of the equivalent radius for the given morphology')]
     params += [FloatParameter(qualifier='teff', latexfmt=r'T_{{ \mathrm{{ eff }}, \mathrm{{ {component} }} }}', value=kwargs.get('teff', 6000.), default_unit=u.K, limits=(300.0,None), description='Mean effective temperature')]
     params += [FloatParameter(qualifier='abun', visible_if='hierarchy.is_contact_binary:False,atm_in_computes_has_axis:abuns', value=kwargs.get('abun', 0.), default_unit=u.dimensionless_unscaled, description='Abundance/Metallicity')]   # TODO: correct units??? check if log or not? (logabun = 0)
-    # TODO: for consistency, rename loghefrac to loghefracs in atmospheres/passbands
-    params += [FloatParameter(qualifier='loghefrac', visible_if='hierarchy.is_contact_binary:False,atm_in_computes_has_axis:loghefrac', value=kwargs.get('loghefrac', 0.), default_unit=u.dimensionless_unscaled, limits=(0.0,1.0), description='Helium fraction, log(He/H) abundance by number.')]
+    params += [FloatParameter(qualifier='loghefrac', visible_if='hierarchy.is_contact_binary:False,atm_in_computes_has_axis:loghefracs', value=kwargs.get('loghefrac', 0.), default_unit=u.dimensionless_unscaled, limits=(0.0,1.0), description='Helium fraction, log(He/H) abundance by number.')]
 
     params += [FloatParameter(qualifier='logg', latexfmt=r'\mathrm{{log}}g_\mathrm{{ {component} }}', value=1.0, default_unit=u.dimensionless_unscaled, description='logg at requiv')]
 

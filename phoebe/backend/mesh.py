@@ -1081,14 +1081,6 @@ class ProtoMesh(object):
         """
         return self._loghefracs
 
-    # TODO: remove once passband files use plural loghefracs
-    @property
-    def loghefrac(self):
-        """
-        Alias for :meth:`loghefracs` for backwards compatibility.
-        """
-        return self._loghefracs
-
     @property
     def irrad_frac_refl(self):
         """
