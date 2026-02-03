@@ -4710,7 +4710,23 @@ class Bundle(ParameterSet):
                                         ]+addl_parameters,
                                         True, 'run_solver')
 
-                    if not fit_parameter.is_visible:
+                    # check if fitting abun/loghefrac when it's a fixed value in the atmosphere
+                    # (do this before the visibility check to avoid issues with visible_if_parameters)
+                    if fit_parameter.qualifier in ['abun', 'loghefrac'] and 'compute' in solver_ps.qualifiers:
+                        component = fit_parameter.component
+                        axis_name = 'abuns' if fit_parameter.qualifier == 'abun' else 'loghefracs'
+                        atm = self.get_value(qualifier='atm', component=component, compute=compute, context='compute', atm=kwargs.get('atm', None), **_skip_filter_checks)
+                        if atm in models._atmtable:
+                            atm_cls = models._atmtable[atm]
+                            if not atm_cls.has_axis(axis_name) or axis_name in atm_cls.fixed_axis_values:
+                                report.add_item(self,
+                                                "fit_parameters contains '{}' but atm@{}@{}='{}' does not support interpolating over {}.  Fitting this parameter will have no effect.".format(twig, component, compute, atm, fit_parameter.qualifier),
+                                                [solver_ps.get_parameter(qualifier='fit_parameters', **_skip_filter_checks),
+                                                 self.get_parameter(qualifier='atm', component=component, compute=compute, context='compute', **_skip_filter_checks)
+                                                ]+addl_parameters,
+                                                True, 'run_solver')
+
+                    elif not fit_parameter.is_visible:
                         report.add_item(self,
                                         "fit_parameters contains the invisible parameter '{}'".format(twig),
                                         [solver_ps.get_parameter(qualifier='fit_parameters', **_skip_filter_checks)]
@@ -4801,7 +4817,23 @@ class Bundle(ParameterSet):
                                             ]+addl_parameters,
                                             True, 'run_solver')
 
-                        if not ref_param.is_visible:
+                        # check if fitting abun/loghefrac when it's a fixed value in the atmosphere
+                        # (do this before the visibility check to avoid issues with visible_if_parameters)
+                        if ref_param.qualifier in ['abun', 'loghefrac'] and 'compute' in solver_ps.qualifiers:
+                            component = ref_param.component
+                            axis_name = 'abuns' if ref_param.qualifier == 'abun' else 'loghefracs'
+                            atm = self.get_value(qualifier='atm', component=component, compute=compute, context='compute', atm=kwargs.get('atm', None), **_skip_filter_checks)
+                            if atm in models._atmtable:
+                                atm_cls = models._atmtable[atm]
+                                if not atm_cls.has_axis(axis_name) or axis_name in atm_cls.fixed_axis_values:
+                                    report.add_item(self,
+                                                    "{} is included in init_from='{}' but atm@{}@{}='{}' does not support interpolating over {}.  Fitting this parameter will have no effect.".format(ref_param.twig, dist_or_solution, component, compute, atm, ref_param.qualifier),
+                                                    [solver_ps.get_parameter(qualifier='init_from', **_skip_filter_checks),
+                                                     self.get_parameter(qualifier='atm', component=component, compute=compute, context='compute', **_skip_filter_checks)
+                                                    ]+addl_parameters,
+                                                    True, 'run_solver')
+
+                        elif not ref_param.is_visible:
                             report.add_item(self,
                                             "{} is not a visible parameter, so cannot be included in init_from='{}'.".format(ref_param.twig, dist_or_solution),
                                             [solver_ps.get_parameter(qualifier='init_from', **_skip_filter_checks)]
@@ -4839,11 +4871,27 @@ class Bundle(ParameterSet):
                                              ]+addl_parameters,
                                              True, 'run_solver')
 
-                        if not ref_param.is_visible:
+                        # check if fitting abun/loghefrac when it's a fixed value in the atmosphere
+                        # (do this before the visibility check to avoid issues with visible_if_parameters)
+                        if param.qualifier in ['abun', 'loghefrac'] and 'compute' in solver_ps.qualifiers:
+                            component = param.component
+                            axis_name = 'abuns' if param.qualifier == 'abun' else 'loghefracs'
+                            atm = self.get_value(qualifier='atm', component=component, compute=compute, context='compute', atm=kwargs.get('atm', None), **_skip_filter_checks)
+                            if atm in models._atmtable:
+                                atm_cls = models._atmtable[atm]
+                                if not atm_cls.has_axis(axis_name) or axis_name in atm_cls.fixed_axis_values:
+                                    report.add_item(self,
+                                                    "{} is included in init_from='{}' but atm@{}@{}='{}' does not support interpolating over {}.  Fitting this parameter will have no effect.".format(param.twig, dist_or_solution, component, compute, atm, param.qualifier),
+                                                    [solver_ps.get_parameter(qualifier='init_from', **_skip_filter_checks),
+                                                     self.get_parameter(qualifier='atm', component=component, compute=compute, context='compute', **_skip_filter_checks)
+                                                    ]+addl_parameters,
+                                                    True, 'run_solver')
+
+                        elif not param.is_visible:
                             report.add_item(self,
-                                            "{} is not a visible parameter, so cannot be included in init_from='{}'.".format(ref_param.twig, dist_or_solution),
+                                            "{} is not a visible parameter, so cannot be included in init_from='{}'.".format(param.twig, dist_or_solution),
                                             [solver_ps.get_parameter(qualifier='init_from', **_skip_filter_checks)]
-                                            +ref_param.visible_if_parameters.filter(check_visible=True).to_list()
+                                            +param.visible_if_parameters.filter(check_visible=True).to_list()
                                             +addl_parameters,
                                              True, 'run_solver')
 
