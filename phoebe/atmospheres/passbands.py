@@ -894,12 +894,23 @@ class Passband:
 
         Returns
         -------
-        * (tuple) minimum and maximum values for the given axis.
+        * (tuple) minimum and maximum values for the given axis,
+          or (fixed_value, fixed_value) if the axis is fixed.
+
+        Raises
+        ------
+        * ValueError: if the axis is not found in the model atmosphere.
         """
         atm_cls = models._atmtable[atm]
-        ind = atm_cls.basic_axis_names.index(axis)
-        ax = self.ndp[atm].axes[ind]
-        return ax[0], ax[-1]
+        if axis in atm_cls.basic_axis_names:
+            ind = atm_cls.basic_axis_names.index(axis)
+            ax = self.ndp[atm].axes[ind]
+            return ax[0], ax[-1]
+        elif axis in atm_cls.fixed_axis_values:
+            fixed_val = atm_cls.fixed_axis_values[axis]
+            return fixed_val, fixed_val
+        else:
+            raise ValueError(f"axis '{axis}' not found in model atmosphere '{atm}'")
 
     def ld_func(self, mu=1.0, ld_coeffs=np.array([[0.5]]), ld_func='linear'):
         """

@@ -268,6 +268,9 @@ class RunChecksReport(object):
         """String representation for the ParameterSet."""
         return "Run Checks Report: {}\n".format(self.status) + "\n".join([str(i) for i in self.items])
 
+    def __len__(self):
+        return len(self._items)
+
     @property
     def passed(self):
         """
@@ -4023,6 +4026,45 @@ class Bundle(ParameterSet):
                                     self.filter(qualifier='atm', component=component, compute=compute, context='compute', **_skip_filter_checks)+
                                     self.filter(qualifier='pblum_method', compute=compute, context='compute', **_skip_filter_checks),
                                     True, 'run_compute')
+
+                # check abun and loghefrac values are consistent with the atmosphere
+                if atm in models._atmtable:
+                    atm_cls = models._atmtable[atm]
+                    for axis_name, qualifier in [('abuns', 'abun'), ('loghefracs', 'loghefrac')]:
+                        value = self.get_value(qualifier=qualifier, component=component, context='component', default=0.0, **_skip_filter_checks)
+                        atm_param = self.get_parameter(qualifier='atm', component=component, compute=compute, context='compute', **_skip_filter_checks)
+                        comp_param = self.filter(qualifier=qualifier, component=component, context='component', **_skip_filter_checks)
+
+                        if atm_cls.has_axis(axis_name):
+                            # atmosphere supports this axis (either interpolated or fixed)
+                            if axis_name in atm_cls.fixed_axis_values:
+                                # axis is fixed - check if value matches the fixed value
+                                fixed_val = atm_cls.fixed_axis_values[axis_name]
+                                if value != fixed_val:
+                                    report.add_item(self,
+                                                    "{}@{}={} but atm@{}@{}='{}' assumes {}={}.".format(qualifier, component, value, component, compute, atm, qualifier, fixed_val),
+                                                    comp_param.to_list() + [atm_param],
+                                                    True, 'run_compute')
+                            else:
+                                # axis is interpolated - check if value is within range
+                                try:
+                                    pb_obj = passbands.get_passband(pb, content=f'{atm}:Imu')
+                                    axis_min, axis_max = pb_obj.get_axis_limits(atm, axis_name)
+                                    if value < axis_min or value > axis_max:
+                                        report.add_item(self,
+                                                        "{}@{}={} is outside the range [{}, {}] supported by atm@{}@{}='{}' for passband '{}'.".format(qualifier, component, value, axis_min, axis_max, component, compute, atm, pb),
+                                                        comp_param.to_list() + [atm_param, dataset_ps.get_parameter(qualifier='passband', **_skip_filter_checks)],
+                                                        True, 'run_compute')
+                                except Exception:
+                                    # passband may not be loaded or available - skip this check
+                                    pass
+                        else:
+                            # atmosphere does not support this axis (WARNING)
+                            if value != 0.0:
+                                report.add_item(self,
+                                                "{}@{}={} but atm@{}@{}='{}' does not support {}.  The set value will be ignored.".format(qualifier, component, value, component, compute, atm, qualifier),
+                                                comp_param.to_list() + [atm_param],
+                                                False, 'run_compute')
 
 
         def _get_proj_area(comp):

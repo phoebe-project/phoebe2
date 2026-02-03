@@ -212,8 +212,8 @@ null
 "value": 0.0,
 "default_unit": "",
 "limits": [
-0.0,
-1.0
+-10.0,
+10.0
 ],
 "visible_if": "hierarchy.is_contact_binary:False,atm_in_computes_has_axis:loghefracs",
 "copy_for": false,
@@ -442,13 +442,13 @@ null
 "description": "Source for bolometric limb darkening coefficients (used only for irradiation; 'auto' to interpolate from the applicable table according to the 'atm' parameter, or the name of a specific atmosphere table)",
 "choices": [
 "auto",
-"ck2004",
-"tmap_DAO",
-"tmap_DA",
-"tremblay",
-"tmap_sdO",
 "tmap_DO",
-"phoenix"
+"phoenix",
+"tmap_DAO",
+"tmap_sdO",
+"tremblay",
+"ck2004",
+"tmap_DA"
 ],
 "value": "auto",
 "visible_if": "ld_mode_bol:lookup",
@@ -581,8 +581,8 @@ null
 "value": 0.0,
 "default_unit": "",
 "limits": [
-0.0,
-1.0
+-10.0,
+10.0
 ],
 "visible_if": "hierarchy.is_contact_binary:False,atm_in_computes_has_axis:loghefracs",
 "copy_for": false,
@@ -811,13 +811,13 @@ null
 "description": "Source for bolometric limb darkening coefficients (used only for irradiation; 'auto' to interpolate from the applicable table according to the 'atm' parameter, or the name of a specific atmosphere table)",
 "choices": [
 "auto",
-"ck2004",
-"tmap_DAO",
-"tmap_DA",
-"tremblay",
-"tmap_sdO",
 "tmap_DO",
-"phoenix"
+"phoenix",
+"tmap_DAO",
+"tmap_sdO",
+"tremblay",
+"ck2004",
+"tmap_DA"
 ],
 "value": "auto",
 "visible_if": "ld_mode_bol:lookup",
@@ -2318,16 +2318,16 @@ null
 "context": "compute",
 "description": "Atmosphere table",
 "choices": [
-"ck2004",
-"tmap_DAO",
-"tmap_DA",
-"extern_planckint",
-"extern_atmx",
-"tremblay",
-"tmap_sdO",
 "tmap_DO",
 "phoenix",
-"blackbody"
+"extern_atmx",
+"tmap_sdO",
+"tmap_DAO",
+"tremblay",
+"ck2004",
+"extern_planckint",
+"blackbody",
+"tmap_DA"
 ],
 "value": "ck2004",
 "copy_for": {
@@ -2624,16 +2624,16 @@ null
 "context": "compute",
 "description": "Atmosphere table",
 "choices": [
-"ck2004",
-"tmap_DAO",
-"tmap_DA",
-"extern_planckint",
-"extern_atmx",
-"tremblay",
-"tmap_sdO",
 "tmap_DO",
 "phoenix",
-"blackbody"
+"extern_atmx",
+"tmap_sdO",
+"tmap_DAO",
+"tremblay",
+"ck2004",
+"extern_planckint",
+"blackbody",
+"tmap_DA"
 ],
 "value": "ck2004",
 "copy_for": false,
@@ -2647,16 +2647,16 @@ null
 "context": "compute",
 "description": "Atmosphere table",
 "choices": [
-"ck2004",
-"tmap_DAO",
-"tmap_DA",
-"extern_planckint",
-"extern_atmx",
-"tremblay",
-"tmap_sdO",
 "tmap_DO",
 "phoenix",
-"blackbody"
+"extern_atmx",
+"tmap_sdO",
+"tmap_DAO",
+"tremblay",
+"ck2004",
+"extern_planckint",
+"blackbody",
+"tmap_DA"
 ],
 "value": "ck2004",
 "copy_for": false,
