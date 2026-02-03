@@ -3,6 +3,11 @@ from phoebe.atmospheres import passbands
 import libphoebe as lp
 from phoebe import u
 import numpy as np
+# numpy 2.0+ renamed trapz to trapezoid
+try:
+    from numpy import trapezoid as np_trapz
+except ImportError:
+    from numpy import trapz as np_trapz
 import os
 
 
@@ -37,7 +42,7 @@ def test_bb_extinction():
     ax, bx = axbx[:, 0, None], axbx[:, 1, None]
 
     Alam = 10**(-0.4 * ebvs * (rvs * ax + bx))  # (101, 11)
-    iext_predicted = np.trapz(bb_sed * Alam, axis=0) / np.trapz(bb_sed, axis=0)
+    iext_predicted = np_trapz(bb_sed * Alam, axis=0) / np_trapz(bb_sed, axis=0)
 
     query_cols = ['teffs', 'ebvs', 'rvs']
     query_pts = np.vstack((teffs, ebvs, rvs)).T

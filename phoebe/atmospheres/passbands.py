@@ -15,6 +15,11 @@ from astropy.io import fits
 from astropy.table import Table
 
 import numpy as np
+# numpy 2.0+ renamed trapz to trapezoid
+try:
+    from numpy import trapezoid as np_trapz
+except ImportError:
+    from numpy import trapz as np_trapz
 from scipy import interpolate, integrate
 from scipy.optimize import least_squares
 from packaging.version import parse
@@ -1044,11 +1049,11 @@ class Passband:
         if can_compute_intensity:
             ints = atm.intensity(wls)  # must be in in W/m^3
             pbints_energy = ptf*ints
-            fluxes_energy = np.trapz(pbints_energy, wls)
+            fluxes_energy = np_trapz(pbints_energy, wls)
             fluxes_energy = atm.limb_treatment(fluxes_energy)
 
             pbints_photon = wls * pbints_energy
-            fluxes_photon = np.trapz(pbints_photon, wls)
+            fluxes_photon = np_trapz(pbints_photon, wls)
             fluxes_photon = atm.limb_treatment(fluxes_photon)
 
             atm_energy_grid = np.log10(fluxes_energy/self.ptf_area).reshape(-1, 1)
@@ -1058,8 +1063,8 @@ class Passband:
             self.ndp[atm.name].register('inorm@energy', None, atm_energy_grid)
 
             if include_extinction:
-                egrid = np.trapz(pbints_energy[:, :, None, None] * Alam[None, :, :, :], x=wls, axis=1) / np.trapz(pbints_energy[:, :, None, None], x=wls, axis=1)
-                pgrid = np.trapz(pbints_photon[:, :, None, None] * Alam[None, :, :, :], x=wls, axis=1) / np.trapz(pbints_photon[:, :, None, None], x=wls, axis=1)
+                egrid = np_trapz(pbints_energy[:, :, None, None] * Alam[None, :, :, :], x=wls, axis=1) / np_trapz(pbints_energy[:, :, None, None], x=wls, axis=1)
+                pgrid = np_trapz(pbints_photon[:, :, None, None] * Alam[None, :, :, :], x=wls, axis=1) / np_trapz(pbints_photon[:, :, None, None], x=wls, axis=1)
 
                 ext_energy_grid = egrid.reshape(len(atm.teffs), len(ebvs), len(rvs), 1)
                 ext_photon_grid = pgrid.reshape(len(atm.teffs), len(ebvs), len(rvs), 1)
@@ -1083,11 +1088,11 @@ class Passband:
 
             # calculate energy-weighted passband intensities and fluxes:
             pbints_energy = ptf*ints
-            fluxes_energy = np.trapz(pbints_energy, wls)
+            fluxes_energy = np_trapz(pbints_energy, wls)
 
             # calculate photon count-weighted passband intensities and fluxes:
             pbints_photon = wls*pbints_energy
-            fluxes_photon = np.trapz(pbints_photon, wls)
+            fluxes_photon = np_trapz(pbints_photon, wls)
 
             # handle the limb according to the prescription in the model atmosphere:
             fluxes_energy = atm.limb_treatment(fluxes_energy)
@@ -1100,10 +1105,10 @@ class Passband:
             if include_extinction:
                 # we only use normal emergent intensities for extinction:
                 epbints = pbints_energy[-1].reshape(-1, 1)
-                egrid = np.trapz(epbints[:, :, None, None] * Alam[:, None, :, :], wls, axis=0) / np.trapz(epbints[:, :, None, None], wls, axis=0)
+                egrid = np_trapz(epbints[:, :, None, None] * Alam[:, None, :, :], wls, axis=0) / np_trapz(epbints[:, :, None, None], wls, axis=0)
 
                 ppbints = pbints_photon[-1].reshape(-1, 1)
-                pgrid = np.trapz(ppbints[:, :, None, None] * Alam[:, None, :, :], wls, axis=0) / np.trapz(ppbints[:, :, None, None], wls, axis=0)
+                pgrid = np_trapz(ppbints[:, :, None, None] * Alam[:, None, :, :], wls, axis=0) / np_trapz(ppbints[:, :, None, None], wls, axis=0)
 
                 ext_energy_grid[tuple(atm.indices[i])] = egrid.reshape(len(ebvs), len(rvs), 1)
                 ext_photon_grid[tuple(atm.indices[i])] = pgrid.reshape(len(ebvs), len(rvs), 1)
