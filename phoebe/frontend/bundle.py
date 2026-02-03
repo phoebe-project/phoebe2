@@ -1009,7 +1009,15 @@ class Bundle(ParameterSet):
                 # NOTE: we will not remove (or update) the dataset from any existing models
                 b.remove_compute(compute, context=['compute'])
                 b.add_compute(compute_kind, compute=compute, check_label=False, overwrite=True, **dict_compute)
+            # update all components to get new loghefrac parameter
+            for component in b.filter(context='component', **_skip_filter_checks).components:
+                existing_values = {p.qualifier: p.get_value() for p in b.filter(context='component', component=component, **_skip_filter_checks).to_list()}
+                logger.info("migrating '{}' component".format(component))
+                logger.debug("applying existing values to {} component: {}".format(component, existing_values))
+                b.add_component(kind=b.get_component(component=component).kind, component=component, check_label=False, overwrite=True, **existing_values)
 
+            # rebuild hierarchy-dependent constraints after component migration
+            b.set_hierarchy()
 
         if conf_interactive_checks:
             logger.debug("re-enabling interactive_checks")
