@@ -949,7 +949,7 @@ class _PeriodogramBaseBackend(BaseSolverBackend):
                 periods = out.period
                 powers = out.power
             elif algorithm in ['ls']:
-                periods = out[0]
+                periods = 1/out[0]
                 powers = out[1]
             else:
                 raise NotImplementedError("algorithm='{}' not supported".format(algorithm))
