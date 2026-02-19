@@ -6,7 +6,7 @@ import numpy as np
 import os
 
 
-def test_binary(plot=False, gen_comp=False):
+def test_binary_against_legacy(plot=False, gen_comp=False):
     b = phoebe.Bundle.default_binary()
 
     b.add_dataset('lc', times=phoebe.linspace(0, 1, 21))
@@ -62,4 +62,4 @@ def test_binary(plot=False, gen_comp=False):
 
 if __name__ == '__main__':
     logger = phoebe.logger(clevel='INFO')
-    test_binary(plot=True, gen_comp=True)
+    test_binary_against_legacy(plot=True, gen_comp=True)
