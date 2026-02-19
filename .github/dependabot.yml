@@ -1,0 +1,41 @@
+version: 2
+updates:
+    # keep github actions up to date
+    - package-ecosystem: "github-actions"
+      directory: "/"
+      schedule:
+        interval: "monthly"
+        day: "friday"
+        time: "08:00"
+        timezone: "America/New_York"
+      labels: ["dependencies", "CI"]
+      open-pull-requests-limit: 100
+      commit-message:
+        prefix: "deps(gha):"
+      groups:
+        actions-minors:
+          patterns: ["*"]
+          update-types: ["minor", "patch"]
+        actions-majors:
+          patterns: ["*"]
+          update-types: ["major"]
+
+    # keep pip dependencies up to date
+    - package-ecosystem: "pip"
+      directory: "/"
+      schedule:
+        interval: "monthly"
+        day: "friday"
+        time: "08:00"
+        timezone: "America/New_York"
+      labels: ["dependencies"]
+      open-pull-requests-limit: 10
+      commit-message:
+        prefix: "deps(py):"
+      groups:
+        pip-minors:
+          patterns: ["*"]
+          update-types: ["minor", "patch"]
+        pip-majors:
+          patterns: ["*"]
+          update-types: ["major"]
