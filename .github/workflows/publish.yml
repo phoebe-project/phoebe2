@@ -55,5 +55,9 @@ jobs:
                 pattern: cibw-*
                 path: dist
                 merge-multiple: true
+            - name: Set up Python
+              uses: actions/setup-python@v5
+              with:
+                python-version: '3.12'
             - name: Publish package distributions to PyPI
               uses: pypa/gh-action-pypi-publish@release/v1
