@@ -10343,7 +10343,7 @@ class Bundle(ParameterSet):
         # subset can have repeated entries; return unique occurrences:     
         return list(set(subset))
 
-    def compute_l3s(self, compute=None, use_pbfluxes={},
+    def compute_l3s(self, compute=None, model=None, use_pbfluxes={},
                    set_value=False, **kwargs):
         """
         Compute third lights (`l3`) that will be applied to the system from
@@ -10360,6 +10360,9 @@ class Bundle(ParameterSet):
         ------------
         * `compute` (string, optional, default=None): label of the compute
             options (not required if only one is attached to the bundle).
+        * `model` (string, optional, default=None): label of the model to use
+            for scaling fluxes for any cases where `pblum_mode='dataset-scaled'`.
+            Required if any dataset has `pblum_mode='dataset-scaled'`.
         * `dataset` (string or list of strings, optional): label of the
             dataset(s) requested.  If not provided, will be provided for all
             datasets in which an `l3_mode` Parameter exists.
@@ -10383,6 +10386,11 @@ class Bundle(ParameterSet):
         * (dict) computed l3s in a dictionary with keys formatted as
             l3@dataset or l3_frac@dataset and the l3 (as quantity objects
             with units of W/m**2) or l3_frac (as unitless floats).
+
+        Raises
+        ----------
+        * ValueError: if any dataset has `pblum_mode='dataset-scaled'` and
+            `model` is not provided.
         """
         logger.debug("b.compute_l3s")
 
@@ -10404,11 +10412,20 @@ class Bundle(ParameterSet):
 
         datasets_need_pbflux = [d for d in datasets if d not in use_pbfluxes.keys()]
         if len(datasets_need_pbflux):
-            _, _, _, _, compute_pblums_pbfluxes = self.compute_pblums(compute=compute, dataset=datasets_need_pbflux, ret_structured_dicts=True, **kwargs)
+            for dataset in datasets_need_pbflux:
+                pblum_mode = self.get_value(qualifier='pblum_mode', dataset=dataset, default='absolute', **_skip_filter_checks)
+                if pblum_mode == 'dataset-scaled' and model is None:
+                    raise ValueError(f"pblum_mode='dataset-scaled' for dataset='{dataset}' requires model to be provided for accurate l3 conversion. Call compute_l3s(model='your_model') after run_compute.")
+            _, _, _, _, compute_pblums_pbfluxes = self.compute_pblums(compute=compute, model=model, dataset=datasets_need_pbflux, ret_structured_dicts=True, **kwargs)
             for dataset in datasets_need_pbflux:
                 use_pbfluxes[dataset] = compute_pblums_pbfluxes.get(dataset)
 
-        elif not kwargs.get('skip_checks', False):
+        if model is not None and len(use_pbfluxes):
+            datasets_with_pbfluxes = [d for d in datasets if d in use_pbfluxes.keys() and d not in datasets_need_pbflux]
+            if len(datasets_with_pbfluxes):
+                logger.warning(f'both model and use_pbfluxes provided for datasets {datasets_with_pbfluxes}; use_pbfluxes will be used and model will be ignored for these datasets')
+
+        if not kwargs.get('skip_checks', False):
             report = self.run_checks_compute(compute=compute,
                                              run_checks_server=False,
                                              allow_skip_constraints=False,
@@ -11974,50 +11991,40 @@ class Bundle(ParameterSet):
                 # or for any dataset in which pblum_mode == 'dataset-coupled' and pblum_dataset points to a 'dataset-scaled' dataset
                 datasets_dsscaled = []
                 coupled_datasets = self.filter(qualifier='pblum_mode', dataset=ml_params.datasets, value='dataset-coupled', **_skip_filter_checks).datasets
-                for pblum_mode_param in self.filter(qualifier='pblum_mode', dataset=ml_params.datasets, value='dataset-scaled', **_skip_filter_checks).to_list():
-                    this_dsscale_datasets = [pblum_mode_param.dataset] + self.filter(qualifier='pblum_dataset', dataset=coupled_datasets, value=pblum_mode_param.dataset, **_skip_filter_checks).datasets
+                scaled_datasets = self.filter(qualifier='pblum_mode', dataset=ml_params.datasets, value='dataset-scaled', **_skip_filter_checks).datasets
+                for scaled_dataset in scaled_datasets:
+                    this_dsscale_datasets = [scaled_dataset] + self.filter(qualifier='pblum_dataset', dataset=coupled_datasets, value=scaled_dataset, **_skip_filter_checks).datasets
                     # keep track of all datasets that are scaled so we don't do distance/l3 corrections later
                     datasets_dsscaled += this_dsscale_datasets
                     logger.info("rescaling fluxes to data for dataset={}".format(this_dsscale_datasets))
 
-                    ds_fluxess = np.array([])
-                    ds_sigmass = np.array([])
-                    l3_fluxes = np.array([])
-                    l3_fracs = np.array([])
-                    l3_pblum_abs_sums = np.array([])
-                    model_fluxess_interp = np.array([])
+                    # compute the scale factor from the scaled_dataset
+                    ds_obs_ref = self.get_dataset(scaled_dataset, **_skip_filter_checks)
+                    ds_times_ref = ds_obs_ref.get_value(qualifier='times')
+                    ds_fluxes_ref = ds_obs_ref.get_value(qualifier='fluxes', unit=u.W/u.m**2, **_skip_filter_checks)
+                    ds_sigmas_ref = ds_obs_ref.get_value(qualifier='sigmas', **_skip_filter_checks)
+                    if not len(ds_sigmas_ref):
+                        sigma_est = 0.001*ds_fluxes_ref.mean()
+                        logger.warning(f"dataset-scaling: adopting sigmas={sigma_est} for dataset='{scaled_dataset}'")
+                        ds_sigmas_ref = sigma_est*np.ones(len(ds_fluxes_ref))
 
-                    for dataset in this_dsscale_datasets:
-                        ds_obs = self.get_dataset(dataset, **_skip_filter_checks)
-                        ds_times = ds_obs.get_value(qualifier='times')
+                    ml_ds_ref = ml_params.filter(dataset=scaled_dataset, **_skip_filter_checks)
+                    model_fluxes_interp_ref = ml_ds_ref.get_parameter(qualifier='fluxes', dataset=scaled_dataset, **_skip_filter_checks).interp_value(times=ds_times_ref, parent_ps=ml_ds_ref, bundle=self, consider_gaussian_process=False)
 
-                        l3_mode = ds_obs.get_value(qualifier='l3_mode', **_skip_filter_checks)
-                        if l3_mode == 'flux':
-                            l3_flux = ds_obs.get_value(qualifier='l3', unit=u.W/u.m**2, **_skip_filter_checks)
-                            l3_fluxes = np.append(l3_fluxes, np.full_like(ds_times, fill_value=l3_flux))
-                            l3_fracs = np.append(l3_fracs, np.zeros_like(ds_times))
-                            l3_pblum_abs_sums = np.append(l3_pblum_abs_sums, np.zeros_like(ds_times))
-                        else:
-                            l3_frac = ds_obs.get_value(qualifier='l3_frac', **_skip_filter_checks)
-                            l3_fluxes = np.append(l3_fluxes, np.zeros_like(ds_times))
-                            l3_fracs = np.append(l3_fracs, np.full_like(ds_times, fill_value=l3_frac))
-                            l3_pblum_abs_sums = np.append(l3_pblum_abs_sums, np.full_like(ds_times, fill_value=np.sum(list(pblums_abs.get(dataset).values()))))
+                    # get l3 info for the reference dataset
+                    l3_mode = ds_obs_ref.get_value(qualifier='l3_mode', **_skip_filter_checks)
+                    if l3_mode == 'flux':
+                        l3_flux_ref = ds_obs_ref.get_value(qualifier='l3', unit=u.W/u.m**2, **_skip_filter_checks)
+                        l3_fluxes_ref = np.full_like(ds_times_ref, fill_value=l3_flux_ref)
+                        l3_fracs_ref = np.zeros_like(ds_times_ref)
+                        l3_pblum_abs_sums_ref = np.zeros_like(ds_times_ref)
+                    else:
+                        l3_frac_ref = ds_obs_ref.get_value(qualifier='l3_frac', **_skip_filter_checks)
+                        l3_fluxes_ref = np.zeros_like(ds_times_ref)
+                        l3_fracs_ref = np.full_like(ds_times_ref, fill_value=l3_frac_ref)
+                        l3_pblum_abs_sums_ref = np.full_like(ds_times_ref, fill_value=np.sum(list(pblums_abs.get(scaled_dataset).values())))
 
-                        ds_fluxes = ds_obs.get_value(qualifier='fluxes', unit=u.W/u.m**2, **_skip_filter_checks)
-                        ds_fluxess = np.append(ds_fluxess, ds_fluxes)
-                        ds_sigmas = ds_obs.get_value(qualifier='sigmas', **_skip_filter_checks)
-                        if len(ds_sigmas):
-                            ds_sigmass = np.append(ds_sigmass, ds_sigmas)
-                        else:
-                            sigma_est = 0.001*ds_fluxes.mean()
-                            logger.warning("dataset-scaling: adopting sigmas={} for dataset='{}'".format(sigma_est, dataset))
-                            ds_sigmass = np.append(ds_sigmass, sigma_est*np.ones(len(ds_fluxes)))
-
-                        ml_ds = ml_params.filter(dataset=dataset, **_skip_filter_checks)
-                        model_fluxes_interp = ml_ds.get_parameter(qualifier='fluxes', dataset=dataset, **_skip_filter_checks).interp_value(times=ds_times, parent_ps=ml_ds, bundle=self, consider_gaussian_process=False)
-                        model_fluxess_interp = np.append(model_fluxess_interp, model_fluxes_interp)
-
-                    scale_factor_approx = np.median(ds_fluxess / model_fluxess_interp)
+                    scale_factor_approx = np.median(ds_fluxes_ref / model_fluxes_interp_ref)
 
                     def _scale_fluxes(fluxes, scale_factor, l3_frac, l3_pblum_abs_sum, l3_flux):
                         # note: l3_frac or l3_flux will be zero, based on which is provided
@@ -12025,14 +12032,16 @@ class Bundle(ParameterSet):
 
                     def _scale_fluxes_cfit(fluxes, scale_factor):
                         # use values in this namespace rather than passing directly
-                        return _scale_fluxes(fluxes, scale_factor, l3_fracs, l3_pblum_abs_sums, l3_fluxes)
+                        return _scale_fluxes(fluxes, scale_factor, l3_fracs_ref, l3_pblum_abs_sums_ref, l3_fluxes_ref)
 
                     logger.debug("calling curve_fit with estimated scale_factor={}".format(scale_factor_approx))
-                    popt, pcov = cfit(_scale_fluxes_cfit, model_fluxess_interp, ds_fluxess, p0=(scale_factor_approx), sigma=ds_sigmass)
+                    popt, pcov = cfit(_scale_fluxes_cfit, model_fluxes_interp_ref, ds_fluxes_ref, p0=(scale_factor_approx), sigma=ds_sigmas_ref)
                     scale_factor = popt[0]
 
-                    for flux_param in ml_params.filter(qualifier='fluxes', dataset=this_dsscale_datasets, **_skip_filter_checks).to_list():
-                        logger.debug("applying scale_factor={} to fluxes@{}".format(scale_factor, flux_param.dataset))
+                    # now we can apply the computed scale factor to all datasets in this_dsscale_datasets
+                    flux_params = ml_params.filter(qualifier='fluxes', dataset=this_dsscale_datasets, **_skip_filter_checks).to_list()
+                    for flux_param in flux_params:
+                        logger.debug(f'applying scale_factor={scale_factor} to fluxes@{flux_param.dataset}')
 
                         ds_obs = self.get_dataset(dataset=flux_param.dataset, **_skip_filter_checks)
                         l3_mode = ds_obs.get_value(qualifier='l3_mode', **_skip_filter_checks)
@@ -12045,13 +12054,13 @@ class Bundle(ParameterSet):
                         else:
                             l3_frac = ds_obs.get_value(qualifier='l3_frac', **_skip_filter_checks)
                             l3_flux = 0.0
-                            l3_pblum_abs_sum = np.sum(list(pblums_abs.get(dataset).values()))
+                            l3_pblum_abs_sum = np.sum(list(pblums_abs.get(flux_param.dataset).values()))
 
                         syn_fluxes = _scale_fluxes(flux_param.get_value(unit=u.W/u.m**2), scale_factor, l3_frac, l3_pblum_abs_sum, l3_flux)
 
                         flux_param.set_value(qualifier='fluxes', value=syn_fluxes, ignore_readonly=True)
 
-                        ml_addl_params += [FloatParameter(qualifier='flux_scale', dataset=dataset, value=scale_factor, readonly=True, default_unit=u.dimensionless_unscaled, description='scaling applied to fluxes (intensities/luminosities) due to dataset-scaling')]
+                        ml_addl_params += [FloatParameter(qualifier='flux_scale', dataset=flux_param.dataset, value=scale_factor, readonly=True, default_unit=u.dimensionless_unscaled, description='scaling applied to fluxes (intensities/luminosities) due to dataset-scaling')]
 
                         for mesh_param in ml_params.filter(kind='mesh', **_skip_filter_checks).to_list():
                             if mesh_param.qualifier in ['intensities', 'abs_intensities', 'normal_intensities', 'abs_normal_intensities', 'pblum_ext']:
