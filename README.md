@@ -78,6 +78,14 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.4.22
+
+* Fixes bug where LS periodogram was returning frequency instead of period [#1089]
+* Fixes passband luminosity computation for the dataset-scaled mode. [#1091]
+* Fixes third light computation when multiple passbands are used. [#1091]
+* Argument order for compute_l3s() changed to explicitly provide the model as it is required for correct scaling. [#1091]
+* Fixes support for newer releases of scipy. [#1102]
+
 ### 2.4.21
 
 * Add a PHOEBE_TABLES_SERVER environment variable to allow overriding the URL of the queried tables server. [#1060]

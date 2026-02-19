@@ -1,6 +1,16 @@
 import numpy as np
-from scipy.special import sph_harm as Y
-import os
+from scipy.optimize import newton
+try:
+    from scipy.special import sph_harm as Y
+except ImportError:
+    # scipy 1.14+ renamed sph_harm to sph_harm_y with swapped argument order
+    # old: sph_harm(m, n, theta, phi)
+    # new: sph_harm_y(n, m, theta, phi)
+    from scipy.special import sph_harm_y as _sph_harm_y
+    def Y(m, n, theta, phi):
+        return _sph_harm_y(n, m, theta, phi)
+from math import sqrt, sin, cos, acos, atan2, trunc, pi
+import sys, os
 import copy
 from astropy.constants import sigma_sb
 
