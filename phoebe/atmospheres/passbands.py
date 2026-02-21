@@ -721,7 +721,7 @@ class Passband:
                 stored_atms = set([content.split(':')[0] for content in self.content])
 
                 # TODO: replace with < parse('2.5.0') when 2.5.0 is released
-                if parse(self.phoebe_version) != parse('2.4.22.dev+feature-blending'):
+                if parse(self.phoebe_version) != parse('2.4.21.dev+feature-blending'):
                     if 'blackbody' in stored_atms:
                         # blackbody atmospheres are reworked, so we need to
                         # recompute the intensities:
@@ -888,35 +888,6 @@ class Passband:
         expterm = np.exp(hclkt)
         return hclkt * expterm/(expterm-1)
 
-    def get_axis_limits(self, atm, axis):
-        """
-        Get the limits from the model atmosphere for a given axis.
-
-        Arguments
-        ---------
-        * `atm` (string): name model atmosphere.
-        * `axis` (string): name of the axis.
-
-        Returns
-        -------
-        * (tuple) minimum and maximum values for the given axis,
-          or (fixed_value, fixed_value) if the axis is fixed.
-
-        Raises
-        ------
-        * ValueError: if the axis is not found in the model atmosphere.
-        """
-        atm_cls = models._atmtable[atm]
-        if axis in atm_cls.basic_axis_names:
-            ind = atm_cls.basic_axis_names.index(axis)
-            ax = self.ndp[atm].axes[ind]
-            return ax[0], ax[-1]
-        elif axis in atm_cls.fixed_axis_values:
-            fixed_val = atm_cls.fixed_axis_values[axis]
-            return fixed_val, fixed_val
-        else:
-            raise ValueError(f"axis '{axis}' not found in model atmosphere '{atm}'")
-
     def ld_func(self, mu=1.0, ld_coeffs=np.array([[0.5]]), ld_func='linear'):
         """
         Computes the limb darkening correction factor for a given angle.
@@ -1006,7 +977,7 @@ class Passband:
             raise ValueError(f'Model atmosphere {atm.name} does not have specific angles defined.')
 
         # Preliminary checks passed, we can instantiate an ndpolator instance:
-        self.ndp[atm.name] = ndpolator.Ndpolator(basic_axes=atm.basic_axes)
+        self.ndp[atm.name] = ndpolator.Ndpolator(basic_axes=atm.ndp_basic_axes)
 
         if can_compute_intensity:
             # If the model atmosphere defines an intensity function, use the passband itself:
@@ -1019,9 +990,9 @@ class Passband:
             ptf = self.ptf(wls)
 
         if include_mus:
-            grid_shape = tuple([len(axis) for axis in atm.basic_axes + (atm.mus,)] + [1])
+            grid_shape = tuple([len(axis) for axis in atm.ndp_basic_axes + (atm.mus,)] + [1])
         else:
-            grid_shape = tuple([len(axis) for axis in atm.basic_axes] + [1])
+            grid_shape = tuple([len(axis) for axis in atm.ndp_basic_axes] + [1])
 
         # initialize intensity arrays:
         atm_energy_grid = np.full(shape=grid_shape, fill_value=np.nan)
@@ -1036,7 +1007,7 @@ class Passband:
 
             # initialize arrays for extincted intensities:
             associated_axes = (ebvs, rvs)
-            grid_shape = tuple([len(axis) for axis in atm.basic_axes + associated_axes] + [1])
+            grid_shape = tuple([len(axis) for axis in atm.ndp_basic_axes + associated_axes] + [1])
             ext_photon_grid = np.empty(shape=grid_shape)
             ext_energy_grid = np.empty_like(ext_photon_grid)
 
@@ -1137,11 +1108,11 @@ class Passband:
                 print(f'Computing {atm.name} limb darkening coefficients...')
 
             # initialize arrays for limb darkening coefficients:
-            ld_energy_grid = np.full(shape=[len(axis) for axis in atm.basic_axes]+[11], fill_value=np.nan)
+            ld_energy_grid = np.full(shape=[len(axis) for axis in atm.ndp_basic_axes]+[11], fill_value=np.nan)
             ld_photon_grid = np.full_like(ld_energy_grid, fill_value=np.nan)
 
             # initialize arrays for limb darkening integrals:
-            ldint_energy_grid = np.full(shape=[len(axis) for axis in atm.basic_axes]+[1], fill_value=np.nan)
+            ldint_energy_grid = np.full(shape=[len(axis) for axis in atm.ndp_basic_axes]+[1], fill_value=np.nan)
             ldint_photon_grid = np.full_like(ldint_energy_grid, fill_value=np.nan)
 
             # define the residuals function for the least squares optimization:

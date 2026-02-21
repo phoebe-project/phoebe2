@@ -226,7 +226,11 @@ class TestInterpolateInorms:
         # Try to use an atmosphere that definitely doesn't exist
         class NonExistentAtmosphere(models.ModelAtmosphere):
             name = 'nonexistent'
-            basic_axis_names = ['teffs', 'loggs', 'abuns']
+            basic_axes = {
+                'teffs': np.array([]),
+                'loggs': np.array([]),
+                'abuns': np.array([])
+            }
 
         with pytest.raises(ValueError, match="tables are not available"):
             johnson_v_passband.interpolate_inorms(

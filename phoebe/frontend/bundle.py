@@ -4045,9 +4045,9 @@ class Bundle(ParameterSet):
 
                         if atm_cls.has_axis(axis_name):
                             # atmosphere supports this axis (either interpolated or fixed)
-                            if axis_name in atm_cls.fixed_axis_values:
+                            if axis_name in atm_cls.assumed_axes:
                                 # axis is fixed - check if value matches the fixed value
-                                fixed_val = atm_cls.fixed_axis_values[axis_name]
+                                fixed_val = atm_cls.assumed_axes[axis_name]
                                 if value != fixed_val:
                                     report.add_item(self,
                                                     "{}@{}={} but atm@{}@{}='{}' assumes {}={}.".format(qualifier, component, value, component, compute, atm, qualifier, fixed_val),
@@ -4056,13 +4056,15 @@ class Bundle(ParameterSet):
                             else:
                                 # axis is interpolated - check if value is within range
                                 try:
-                                    pb_obj = passbands.get_passband(pb, content=f'{atm}:Imu')
-                                    axis_min, axis_max = pb_obj.get_axis_limits(atm, axis_name)
-                                    if value < axis_min or value > axis_max:
-                                        report.add_item(self,
-                                                        "{}@{}={} is outside the range [{}, {}] supported by atm@{}@{}='{}' for passband '{}'.".format(qualifier, component, value, axis_min, axis_max, component, compute, atm, pb),
-                                                        comp_param.to_list() + [atm_param, dataset_ps.get_parameter(qualifier='passband', **_skip_filter_checks)],
-                                                        True, 'run_compute')
+                                    axis_limits = atm_cls.get_axis_limits(axis_name)
+                                    if axis_limits is not None:
+                                        axis_min, axis_max = axis_limits
+                                        if value < axis_min or value > axis_max:
+                                            report.add_item(self,
+                                                            "{}@{}={} is outside the range [{}, {}] supported by atm@{}@{}='{}' for passband '{}'.".format(qualifier, component, value, axis_min, axis_max, component, compute, atm, pb),
+                                                            comp_param.to_list() + [atm_param, dataset_ps.get_parameter(qualifier='passband', **_skip_filter_checks)],
+                                                            True, 'run_compute')
+                                    # else: axis exists but limits unknown (e.g., external atmosphere) - skip validation
                                 except Exception:
                                     # passband may not be loaded or available - skip this check
                                     pass
@@ -4726,7 +4728,7 @@ class Bundle(ParameterSet):
                         atm = self.get_value(qualifier='atm', component=component, compute=compute, context='compute', atm=kwargs.get('atm', None), **_skip_filter_checks)
                         if atm in models._atmtable:
                             atm_cls = models._atmtable[atm]
-                            if not atm_cls.has_axis(axis_name) or axis_name in atm_cls.fixed_axis_values:
+                            if not atm_cls.has_axis(axis_name) or axis_name in atm_cls.assumed_axes:
                                 report.add_item(self,
                                                 "fit_parameters contains '{}' but atm@{}@{}='{}' does not support interpolating over {}.  Fitting this parameter will have no effect.".format(twig, component, compute, atm, fit_parameter.qualifier),
                                                 [solver_ps.get_parameter(qualifier='fit_parameters', **_skip_filter_checks),
@@ -4833,7 +4835,7 @@ class Bundle(ParameterSet):
                             atm = self.get_value(qualifier='atm', component=component, compute=compute, context='compute', atm=kwargs.get('atm', None), **_skip_filter_checks)
                             if atm in models._atmtable:
                                 atm_cls = models._atmtable[atm]
-                                if not atm_cls.has_axis(axis_name) or axis_name in atm_cls.fixed_axis_values:
+                                if not atm_cls.has_axis(axis_name) or axis_name in atm_cls.assumed_axes:
                                     report.add_item(self,
                                                     "{} is included in init_from='{}' but atm@{}@{}='{}' does not support interpolating over {}.  Fitting this parameter will have no effect.".format(ref_param.twig, dist_or_solution, component, compute, atm, ref_param.qualifier),
                                                     [solver_ps.get_parameter(qualifier='init_from', **_skip_filter_checks),
@@ -4887,7 +4889,7 @@ class Bundle(ParameterSet):
                             atm = self.get_value(qualifier='atm', component=component, compute=compute, context='compute', atm=kwargs.get('atm', None), **_skip_filter_checks)
                             if atm in models._atmtable:
                                 atm_cls = models._atmtable[atm]
-                                if not atm_cls.has_axis(axis_name) or axis_name in atm_cls.fixed_axis_values:
+                                if not atm_cls.has_axis(axis_name) or axis_name in atm_cls.assumed_axes:
                                     report.add_item(self,
                                                     "{} is included in init_from='{}' but atm@{}@{}='{}' does not support interpolating over {}.  Fitting this parameter will have no effect.".format(param.twig, dist_or_solution, component, compute, atm, param.qualifier),
                                                     [solver_ps.get_parameter(qualifier='init_from', **_skip_filter_checks),

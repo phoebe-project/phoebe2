@@ -42,20 +42,21 @@ def test_abun_loghefrac_parameters():
     # revert value for next test
     b.set_value(qualifier='loghefrac', component='primary', value=0.0)
 
-    # blackbody uses a fixed value (0.0) for abun
+    # blackbody does not support abun
+    b.set_value(qualifier='atm', component='primary', value='ck2004')
+    b.set_value(qualifier='abun', component='primary', value=0.3)
+    assert len(b.filter(qualifier='abun', component='primary')) == 1
     b.set_value(qualifier='atm', component='primary', value='blackbody')
     b.set_value(qualifier='ld_mode', component='primary', value='manual')
-    assert len(b.filter(qualifier='abun', component='primary')) == 1
+    assert len(b.filter(qualifier='abun', component='primary')) == 0
     assert len(b.filter(qualifier='loghefrac', component='primary')) == 0
-    assert len(b.run_checks_compute()) == 0
-    b.set_value(qualifier='abun', component='primary', value=0.2)
+    # setting abun to non-zero and then switching to blackbody should result in a warning
     assert len(b.run_checks_compute()) == 1
-    assert not b.run_checks_compute().passed
-    # revert value for next test
-    b.set_value(qualifier='abun', component='primary', value=0.0)
+    assert b.run_checks_compute().passed
 
     # setting abun to non-zero and then switching to an atmosphere that does not
-    # use abun should result in a warning
+    # use abun should result in a warning (tmap_sdO)
+    b.set_value(qualifier='atm', component='primary', value='ck2004')
     b.set_value(qualifier='abun', component='primary', value=0.3)
     b.set_value(qualifier='atm', component='primary', value='tmap_sdO')
     b.set_value(qualifier='loghefrac', component='primary', value=-1.0)
@@ -97,7 +98,7 @@ def test_abun_loghefrac_solver_checks():
     assert not b.run_checks_solver(solver='nm_solver').passed
     assert any('does not support interpolating over loghefrac' in item.message for item in b.run_checks_solver(solver='nm_solver').items)
 
-    # test fitting abun when atmosphere uses a fixed value (blackbody)
+    # test fitting abun when atmosphere does not support abun (blackbody)
     b.set_value(qualifier='atm', component='primary', value='blackbody')
     b.set_value(qualifier='ld_mode', component='primary', value='manual')
     b.set_value(qualifier='fit_parameters', solver='nm_solver', value=['abun@primary'])
