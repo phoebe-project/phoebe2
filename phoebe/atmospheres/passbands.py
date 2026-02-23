@@ -721,7 +721,7 @@ class Passband:
                 stored_atms = set([content.split(':')[0] for content in self.content])
 
                 # TODO: replace with < parse('2.5.0') when 2.5.0 is released
-                if parse(self.phoebe_version) != parse('2.4.22.dev+feature-blending'):
+                if parse(self.phoebe_version) != parse('2.4.21.dev+feature-blending'):
                     if 'blackbody' in stored_atms:
                         # blackbody atmospheres are reworked, so we need to
                         # recompute the intensities:
