@@ -84,7 +84,7 @@ def complexvis_simple(b, system, ucoord=None, vcoord=None, wavelengths=None, inf
                         
     """
 
-#    print("vis_simple")
+#    print("complexvis_simple")
 #    print("b = ", b)
 #    print("b['distance@system'] = ", b['distance@system'])
 #    print("b['hierarchy@system'] = ", b['hierarchy@system'])
@@ -124,13 +124,13 @@ def complexvis_simple(b, system, ucoord=None, vcoord=None, wavelengths=None, inf
         y = system.yi[i]/d		# rad
         arg = np.pi*phi*B/lambda_	# rad
 
-	# Note: limb-darkening should be passband (monochromatic)!
-        coeff = body.ld_coeffs['bol'][0]
+	# Note: limb-darkening is passband, not per-wavelength!
+        coeff = body.ld_coeffs[info['dataset']][0]
         alpha = 1.0-coeff
         beta = coeff
 
-        # Note: luminosity should be passband & integrated over surface!
-        Lum_lambda = np.pi*(body.requiv*units.solRad.to('m'))**2 * planck(lambda_, T=body.teff)
+        I_lambda = planck(lambda_, T=body.teff)
+        Lum_lambda = np.pi*(body.requiv*units.solRad.to('m'))**2 * I_lambda
 
         mu = Lum_lambda * 1.0/(alpha/2.0 + beta/3.0)
         mu *= (alpha*j1(arg)/arg + beta*np.sqrt(np.pi/2.0)*j32(arg)/arg**(3.0/2.0))
@@ -142,20 +142,6 @@ def complexvis_simple(b, system, ucoord=None, vcoord=None, wavelengths=None, inf
     val = mutot/Lumtot
 
     return {'complexvis': val}
-
-
-def vis_simple(b, system, ucoord=None, vcoord=None, wavelengths=None, info={}):
-    """
-    Compute interferometric squared visibility |V|^2.
-
-    Note: See complexvis_simple().
-
-    """
-    mu = complexvis_simple(b, system, ucoord=ucoord, vcoord=vcoord, wavelengths=wavelengths, info=info)
-    mu = mu['complexvis']
-    val = (abs(mu))**2
-
-    return {'vis': val}
 
 
 def complexvis_integrate(b, system, ucoord=None, vcoord=None, wavelengths=None, info={}):
@@ -182,7 +168,7 @@ def complexvis_integrate(b, system, ucoord=None, vcoord=None, wavelengths=None, 
     if np.all(visibilities==0):
         return {'complexvis': np.nan}
 
-    # Note: intensity should be per-wavelength!
+    # Note: intensities are passband, not per-wavelength!
     abs_intensities = meshes.get_column_flat('abs_intensities:{}'.format(dataset), components)
     mus = meshes.get_column_flat('mus', components)
     areas = meshes.get_column_flat('areas_si', components)
@@ -214,23 +200,22 @@ def complexvis_integrate(b, system, ucoord=None, vcoord=None, wavelengths=None, 
     return {'complexvis': val}
 
 
-def vis_integrate(b, system, ucoord=None, vcoord=None, wavelengths=None, info={}):
+def vis(b, system, ucoord=None, vcoord=None, wavelengths=None, info={}):
     """
     Compute interferometric squared visibility |V|^2.
-    A complex model w. integration over meshes.
 
     Note: See complexvis_integrate().
 
     """
 
-    mu = complexvis_integrate(b, system, ucoord=ucoord, vcoord=vcoord, wavelengths=wavelengths, info=info)
+    mu = complexvis(b, system, ucoord=ucoord, vcoord=vcoord, wavelengths=wavelengths, info=info)
     mu = mu['complexvis']
     val = (abs(mu))**2
 
     return {'vis': val}
 
 
-def clo_integrate(b, system, ucoord1=None, vcoord1=None, ucoord2=None, vcoord2=None, wavelengths=None, info={}):
+def clo(b, system, ucoord1=None, vcoord1=None, ucoord2=None, vcoord2=None, wavelengths=None, info={}):
     """
     Compute interferometric closure phase arg T_3 and triple product |T_3|.
 
@@ -240,13 +225,13 @@ def clo_integrate(b, system, ucoord1=None, vcoord1=None, ucoord2=None, vcoord2=N
 
     j = info['original_index']
     u = [ucoord1[j], ucoord2[j], -(ucoord2[j]+ucoord1[j])]	# m
-    v = [vcoord1[j], vcoord2[j], -(vcoord2[j]+ucoord1[j])]	# m
+    v = [vcoord1[j], vcoord2[j], -(vcoord2[j]+vcoord1[j])]	# m
 
     info_ = {'dataset': info['dataset'], 'component': info['component'], 'original_index': 0}
 
     mu = 3*[0.0]
     for i in range(0,3):
-        val = complexvis_integrate(b, system, ucoord=[u[i]], vcoord=[v[i]], wavelengths=[wavelengths[j]], info=info_)
+        val = complexvis(b, system, ucoord=[u[i]], vcoord=[v[i]], wavelengths=[wavelengths[j]], info=info_)
         mu[i] = val['complexvis']
 
     T_3 = mu[0]*mu[1]*mu[2]		# 1
@@ -257,8 +242,6 @@ def clo_integrate(b, system, ucoord1=None, vcoord1=None, ucoord2=None, vcoord2=N
 
 
 complexvis = complexvis_integrate
-vis = vis_integrate
-clo = clo_integrate
-t3 = clo_integrate
+t3 = clo
 
 
