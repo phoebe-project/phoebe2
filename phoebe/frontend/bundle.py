@@ -993,17 +993,17 @@ class Bundle(ParameterSet):
                 if solved_for.qualifier != constraint.constraint_func:
                     new_constraint_ps.get_parameter().flip_for(solved_for.twig)
 
-        if phoebe_version_import < parse("2.5.0") or ".dev" in version:
-            warning = "importing from an older version ({}) of PHOEBE to PHOEBE 2.5+.  This may take some time.  Please check all values.".format(phoebe_version_import)
-            logger.warning(warning)
-            # update all datasets to get boosting_method/index parameters
-            for dataset in b.filter(qualifier='passband', context='dataset', **_skip_filter_checks).datasets:
-                logger.info("attempting to update dataset='{}' to new version requirements".format(dataset))
-                ps_ds = b.filter(context='dataset', dataset=dataset, **_skip_filter_checks)
-                ds_kind = ps_ds.kind
-                dict_ds = _ps_dict(ps_ds, include_constrained=False)
-                b.remove_dataset(dataset, context=['dataset', 'constraint'])
-                b.add_dataset(ds_kind, dataset=dataset, check_label=False, **dict_ds)
+        # if phoebe_version_import < parse("2.5.0") or ".dev" in version:
+        #     warning = "importing from an older version ({}) of PHOEBE to PHOEBE 2.5+.  This may take some time.  Please check all values.".format(phoebe_version_import)
+        #     logger.warning(warning)
+        #     # update all datasets to get boosting_method/index parameters
+        #     for dataset in b.filter(qualifier='passband', context='dataset', **_skip_filter_checks).datasets:
+        #         logger.info("attempting to update dataset='{}' to new version requirements".format(dataset))
+        #         ps_ds = b.filter(context='dataset', dataset=dataset, **_skip_filter_checks)
+        #         ds_kind = ps_ds.kind
+        #         dict_ds = _ps_dict(ps_ds, include_constrained=False)
+        #         b.remove_dataset(dataset, context=['dataset', 'constraint'])
+        #         b.add_dataset(ds_kind, dataset=dataset, check_label=False, **dict_ds)
 
         if conf_interactive_checks:
             logger.debug("re-enabling interactive_checks")

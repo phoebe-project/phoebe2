@@ -253,8 +253,7 @@ def gaussian_smoothing(xyz1, teffs1, xyz2, teffs2, w=0.5, cutoff=0., offset=0.):
     coords_neck_1, teffs_neck_1, cond1 = _isolate_neck(xyz1, teffs1, cutoff=cutoff, component=1, plot=False)
     coords_neck_2, teffs_neck_2, cond2 = _isolate_neck(xyz2, teffs2, cutoff=cutoff, component=2, plot=False)
 
-    x_neck, Tavg = _compute_new_teff_at_neck(coords_neck_1, teffs_neck_1, coords_neck_2, teffs_neck_2, w=w,
-                                             offset=offset)
+    x_neck, Tavg = _compute_new_teff_at_neck(coords_neck_1, teffs_neck_1, coords_neck_2, teffs_neck_2, w=w)
 
     sigma_x1 = _compute_sigmax(Tavg, x_neck, x0=0 + cutoff, offset=offset, amplitude=teffs_neck_1.max())
     sigma_x2 = _compute_sigmax(Tavg, x_neck, x0=1 - cutoff, offset=offset, amplitude=teffs_neck_2.max())
@@ -269,9 +268,9 @@ def gaussian_smoothing(xyz1, teffs1, xyz2, teffs2, w=0.5, cutoff=0., offset=0.):
     sigma_y2, amplitude_y2, model_y2 = _fit_sigma(coords_fit_y2, teffs_fit_y2, offset, direction='y',
                                                   component=2, plot=False)
 
-    new_teffs1 = _compute_twoD_Gaussian(coords_neck_1, sigma_x1, sigma_y1, teffs_neck_1.max(), cutoff=cutoff,
+    new_teffs1 = _twoD_Gaussian(coords_neck_1, sigma_x1, sigma_y1, teffs_neck_1.max(), cutoff=cutoff,
                                         offset=offset, component=1)
-    new_teffs2 = _compute_twoD_Gaussian(coords_neck_2, sigma_x2, sigma_y2, teffs_neck_2.max(), cutoff=cutoff,
+    new_teffs2 = _twoD_Gaussian(coords_neck_2, sigma_x2, sigma_y2, teffs_neck_2.max(), cutoff=cutoff,
                                         offset=offset, component=2)
 
     # print(cond1, len(cond1), len(new_teffs1))
@@ -282,7 +281,7 @@ def gaussian_smoothing(xyz1, teffs1, xyz2, teffs2, w=0.5, cutoff=0., offset=0.):
     return teffs1, teffs2
 
 
-def lateral_transfer(t2s, teffs2, mixing_power, teff_ratio):
+def lateral_transfer(t2s, teffs2, teff_ratio, mixing_params):
     """
     Scales the temperatures of the secondary to that of the primary only in a horizontal band the size of the contact's
     neck. This implies mixing occurs due to mass transfer across the neck.
@@ -291,40 +290,55 @@ def lateral_transfer(t2s, teffs2, mixing_power, teff_ratio):
     y2s = t2s[:, 1]
     z2s = t2s[:, 2]
 
-    y2s_neck = y2s[x2s < 1]
     z2s_neck = z2s[x2s < 1]
-    rs_neck = (y2s_neck ** 2 + z2s_neck ** 2) ** 0.5
-    lat = np.min(rs_neck)
-    filt = (z2s > -lat) & (z2s < lat)  # select band extending the (projected) height of the neck
-    c = (lat - np.abs(z2s[filt])) ** mixing_power
-    latitude_dependence = c / c.max()
-    teffs2[filt] *= 1 + (1 - teff_ratio) * latitude_dependence
+    lat = mixing_params[2] * z2s_neck.max()
+    filt = (z2s > -lat) & (z2s < lat)  # select band extending the (projected) height
+    # latitude dependence
+    c = (lat - np.abs(z2s[filt])) ** mixing_params[0]
+    latitude_dependence = c / c.max()  # [0, 1]
+    # longitude dependence
+    phi = np.arctan2(y2s[filt], x2s[filt] - 1) + np.pi  # [0, 2pi)
+    c = (phi.max() - phi) ** mixing_params[1]
+    longitude_dependence = c / c.max()  # [0, 1]
+
+    # total mixing function
+    prod = latitude_dependence * longitude_dependence
+
+    # map [0, 1] to [1, 1/teff_ratio]
+    teffs2[filt] *= 1 + (1/teff_ratio - 1) * prod
 
     return teffs2
 
 
-def isotropic_transfer(t2s, teffs2, mixing_power, teff_ratio):
+def isotropic_transfer(t2s, teffs2, teff_ratio, mixing_params):
     """
     Scales the temperatures of the secondary to that of the primary, parametrized by the radial distance from the
-    origin (which is the center of the primary). Implies mixing occurs diffusively from th center of the neck.
+    origin (which is the center of the primary). Implies mixing occurs diffusively from the center of the neck.
     """
     d2s = np.sqrt(t2s[:, 0] * t2s[:, 0] + t2s[:, 1] * t2s[:, 1] + t2s[:, 2] * t2s[:, 2])
-    teffs2 *= 1 + (1 - teff_ratio) * (1 - ((d2s - d2s.min()) / (d2s.max() - d2s.min()))) ** mixing_power
+    r = (d2s.max() - d2s) ** mixing_params[0]
+    radial_dependence = r / r.max()  # in [0, 1]
+
+    # map [0, 1] to [1, 1/teff_ratio]
+    teffs2 *= 1 + (1/teff_ratio - 1) * radial_dependence
+
     return teffs2
 
 
-def perfect_transfer(t2s, teff2s, teff_ratio):
+def perfect_transfer(teff2s, teff_ratio):
     """
     Scales the temperatures of the secondary to that of the primary, implying perfect thermal mixing occurred deep in
-    the interior of the stars, and little surface mixing occurs.
+    the interior of the stars, and little surface mixing occurs. This is actually independent of the coordinates of the
+    secondary, t2s.
     """
     teff2s *= 1 / teff_ratio
     return teff2s
 
 
-def mix_teffs(xyz1, teffs1, xyz2, teffs2, mixing_method='lateral', mixing_power=0.5, teff_ratio=1.):
+def mix_teffs(xyz1, teffs1, xyz2, teffs2, mixing_method='lateral',
+              teff_ratio=1., mixing_params=(.5, .5, .5)):
     """
-    Applies a temperature mixing, primarily of component 2, according to some mixing method and other parameters.
+    Applies a temperature mixing component 2, according to some mixing method and other parameters.
     If `mixing_method == 'smoothing'`, simple gaussian smoothing is applied rather than an energy transfer model
 
     Parameters
@@ -333,25 +347,28 @@ def mix_teffs(xyz1, teffs1, xyz2, teffs2, mixing_method='lateral', mixing_power=
     teffs1: Teffs of the primary (these are only altered by smoothing)
     xyz2: 3D roche coordinates of the secondary
     teffs2: Teffs of the secondary (these are altered by all mixing methods)
-    mixing_method: model of energy transfer, 'lateral', 'isotropic', 'spotty', 'perfect' or 'smoothing'
+    mixing_method: model of energy transfer, 'lateral', 'isotropic', 'internal' or 'smoothing'
         (default='lateral')
-    mixing_power: parameter value of the mixing efficiency of the lateral and isotropic mixing model.
     teff_ratio: ratio of (averaged/global) secondary Teff over (averaged/global) primary Teff (pre-mixing of course).
         This value determines temperature gradient which drives the mixing. (E.g. if `teff_ratio==1` then no mixing is
         to be applied, since there's no expected energy transfer)
+    mixing_params: parameters of the mixing efficiency of the lateral and isotropic mixing model. In the isotropic
+        model, only mixing_params[0] is used, while in lateral, mixing_params[0] gives the latitudinal mixing
+        strengh, mixing_params[1] the longitudinal one, and mixing_params[2] the height of the ET band in units of
+        fraction z-height of the secondary
 
     Returns
     -------
     modified Teffs of the primary, modified Teffs of the secondary
     """
     if mixing_method == 'lateral':
-        teffs2 = lateral_transfer(xyz2, teffs2, mixing_power, teff_ratio)
+        teffs2 = lateral_transfer(xyz2, teffs2, teff_ratio, mixing_params)
     elif mixing_method == 'isotropic':
-        teffs2 = isotropic_transfer(xyz2, teffs2, mixing_power, teff_ratio)
-    elif mixing_method == 'perfect':
-        teffs2 = perfect_transfer(xyz2, teffs2, teff_ratio)
+        teffs2 = isotropic_transfer(xyz2, teffs2, teff_ratio, mixing_params)
+    elif mixing_method == 'internal':
+        teffs2 = perfect_transfer(teffs2, teff_ratio)
     elif mixing_method == 'smoothing':
         teffs1, teffs2 = gaussian_smoothing(xyz1, teffs1, xyz2, teffs2)
     else:
-        raise ValueError('`mixing_method` must be "lateral", "isotropic", "perfect" or "smoothing"')
+        raise ValueError('`mixing_method` must be "lateral", "isotropic", "internal" or "smoothing"')
     return teffs1, teffs2

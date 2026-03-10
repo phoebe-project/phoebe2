@@ -209,7 +209,7 @@ _forbidden_labels += ['requiv', 'requiv_max', 'requiv_min', 'teff', 'abun', 'log
                       'dperdt', 'ecc', 'deccdt', 't0_perpass', 't0_supconj',
                       't0_ref', 'mean_anom', 'q', 'sma', 'asini', 'ecosw', 'esinw',
                       'teffratio', 'requivratio', 'requivsumfrac',
-                      'mixing_enabled', 'mixing_power', 'mixing_method'
+                      'mixing_enabled', 'mixing_params', 'mixing_method'
                       ]
 
 # from dataset:
@@ -9964,7 +9964,7 @@ class FloatArrayParameter(FloatParameter):
             required_shape = [required_shape]
         self._required_shape = np.asarray(required_shape) if required_shape is not None else None
 
-        super(FloatArrayParameter, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         # NOTE: default_unit and value handled in FloatParameter.__init__()
 
@@ -10382,6 +10382,31 @@ class FloatArrayParameter(FloatParameter):
         for property, value in kwargs.items():
             setattr(self._value, property, value)
 
+    def within_limits(self, values):
+        """
+        Check whether each value of the array falls within the set limits.
+
+        See also:
+        * <phoebe.parameters.FloatParameter.get_limits>
+        * <phoebe.parameters.FloatParameter.set_limits>
+
+        Arguments
+        --------
+        * `values` (array of float/quantity): the values to check against the current
+            limits.  If `values` in the list are floats, it is assumed to have the same
+            units as the default units (see
+            <phoebe.parameters.FloatParameter.get_default_unit> and
+            <phoebe.parameters.FloatParameter.set_default_unit>).
+
+        Returns
+        --------
+        * (bool): whether `value` is valid according to the limits.
+        """
+        values = list(values)
+        for value in values:
+            if not super(FloatArrayParameter, self).within_limits(value):
+                return False
+        return True
 
 class ArrayParameter(Parameter):
     def __init__(self, *args, **kwargs):
