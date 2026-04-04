@@ -179,12 +179,14 @@ def dynamics(times, masses, smas, eccs, incls, per0s, long_ans, mean_anoms,
         rebx.add_force(gr)
 
     sim.integrator = integrator
+    sim.t = t0
     # NOTE: according to rebound docs: "stepsize will change for adaptive integrators such as IAS15"
     sim.dt = stepsize
     sim.ri_ias15.epsilon = epsilon
     sim.ri_whfast.corrector = 17
     sim.ri_whfast.safe_mode = 0;
     sim.G = 1.0
+
     if conf.devel:
         sim.status()
 

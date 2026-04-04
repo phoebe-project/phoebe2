@@ -220,6 +220,7 @@ def dynamics(times, masses, xi, yi, zi, vxi, vyi, vzi, \
     sim = rebound.Simulation()
 
     sim.integrator = integrator
+    sim.t = t0
     sim.dt = stepsize
     sim.ri_ias15.epsilon = epsilon
     sim.ri_whfast.corrector = 17
