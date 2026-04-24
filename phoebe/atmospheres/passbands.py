@@ -753,22 +753,32 @@ class Passband:
 
                     # rename columns in old tables:
                     if 'ck2004' in stored_atms:
-                        hdul['ck_teffs'].data.columns.change_name('teff', 'teffs')
-                        hdul['ck_loggs'].data.columns.change_name('logg', 'loggs')
-                        hdul['ck_abuns'].data.columns.change_name('abun', 'abuns')
+                        if 'teff' in hdul['ck_teffs'].data.columns.names:
+                            hdul['ck_teffs'].data.columns.change_name('teff', 'teffs')
+                        if 'logg' in hdul['ck_loggs'].data.columns.names:
+                            hdul['ck_loggs'].data.columns.change_name('logg', 'loggs')
+                        if 'abun' in hdul['ck_abuns'].data.columns.names:
+                            hdul['ck_abuns'].data.columns.change_name('abun', 'abuns')
 
                         if 'ck2004:ext' in self.content:
-                            hdul['ck_ebvs'].data.columns.change_name('ebv', 'ebvs')
-                            hdul['ck_rvs'].data.columns.change_name('rv', 'rvs')
+                            if 'ebv' in hdul['ck_ebvs'].data.columns.names:
+                                hdul['ck_ebvs'].data.columns.change_name('ebv', 'ebvs')
+                            if 'rv' in hdul['ck_rvs'].data.columns.names:
+                                hdul['ck_rvs'].data.columns.change_name('rv', 'rvs')
 
                     if 'phoenix' in stored_atms:
-                        hdul['ph_teffs'].data.columns.change_name('teff', 'teffs')
-                        hdul['ph_loggs'].data.columns.change_name('logg', 'loggs')
-                        hdul['ph_abuns'].data.columns.change_name('abun', 'abuns')
+                        if 'teff' in hdul['ph_teffs'].data.columns.names:
+                            hdul['ph_teffs'].data.columns.change_name('teff', 'teffs')
+                        if 'logg' in hdul['ph_loggs'].data.columns.names:
+                            hdul['ph_loggs'].data.columns.change_name('logg', 'loggs')
+                        if 'abun' in hdul['ph_abuns'].data.columns.names:
+                            hdul['ph_abuns'].data.columns.change_name('abun', 'abuns')
 
                         if 'phoenix:ext' in self.content:
-                            hdul['ph_ebvs'].data.columns.change_name('ebv', 'ebvs')
-                            hdul['ph_rvs'].data.columns.change_name('rv', 'rvs')
+                            if 'ebv' in hdul['ph_ebvs'].data.columns.names:
+                                hdul['ph_ebvs'].data.columns.change_name('ebv', 'ebvs')
+                            if 'rv' in hdul['ph_rvs'].data.columns.names:
+                                hdul['ph_rvs'].data.columns.change_name('rv', 'rvs')
 
                 if 'extern_planckint:Inorm' in self.content or 'extern_atmx:Inorm' in self.content:
                     atmdir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tables/wd'))
