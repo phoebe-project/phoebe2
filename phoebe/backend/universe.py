@@ -1552,9 +1552,7 @@ class Star(Body):
 
     def _fill_loggs(self, mesh=None, ignore_effects=False):
         """
-        TODO: add documentation
-
-        Calculate local surface gravity
+        Calculate local surface gravity and populate the mesh
 
         GMSunNom = 1.3271244e20 m**3 s**-2
         RSunNom = 6.597e8 m

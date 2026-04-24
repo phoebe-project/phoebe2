@@ -10380,7 +10380,6 @@ class Bundle(ParameterSet):
                 ldatm = models._atmtable[ldcs]
                 if ldatm.has_axis('loghefracs'):
                     loghefrac = self.get_value(qualifier='loghefrac', component=ldcs_param.component, context='component', **_skip_filter_checks)
-                    # TODO: loghefrac should be pluralized!
                     query_cols = ('teffs', 'loggs', 'loghefracs')
                     query_pts = np.array(((teff, logg, loghefrac),))
                     logger.debug(f"pb.interpolate_ldcoeffs({teff=} {logg=}, {loghefrac=}, {ldcs=} {ld_func=} {intens_weighting=})")

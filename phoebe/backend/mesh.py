@@ -1073,9 +1073,7 @@ class ProtoMesh(object):
     @property
     def loghefracs(self):
         """
-        Return the array of loghefracs, where each item is a scalar/float.
-
-        TODO: UNIT?
+        Return the array of unitless loghefracs, where each item is a scalar/float.
 
         (ComputedColumn)
         """
