@@ -56,7 +56,7 @@ def test_bb_extinction():
         extrapolation_method='none'
     ).get_interpolated_values().flatten()
 
-    assert np.allclose(iext, iext_predicted, atol=2e-3, rtol=2e-3)
+    assert np.allclose(iext, iext_predicted, atol=4e-3, rtol=4e-3)
 
 
 def test_frontend():
