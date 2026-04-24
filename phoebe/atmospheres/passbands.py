@@ -532,7 +532,7 @@ class Passband:
         header['TIMESTMP'] = timestamp
         header['PBSET'] = self.pbset
         header['PBNAME'] = self.pbname
-        header['EFFWL'] = self.effwl.value
+        header['EFFWL'] = self.effwl.to(u.m).value
         header['CALIBRTD'] = self.calibrated
         header['WLOVSMPL'] = self.wl_oversampling
         header['VERSION'] = self.version
@@ -1967,7 +1967,7 @@ def install_passband(fname, local=True):
 
     Arguments
     ----------
-    * `fname` (string) the filename of the local passband.
+    * `fname` (string) the basename of the local passband.
     * `local` (bool, optional, default=True): whether to install to the local/user
         directory or the PHOEBE installation directory.  If `local=False`, you
         must have the necessary permissions to write to the installation
