@@ -129,10 +129,10 @@ class ModelAtmosphere:
             cls.axis_limits = limits
 
     def __repr__(self):
-        return self.name
+        return self.name or '<ModelAtmosphere>'
 
     def __str__(self):
-        return self.name
+        return self.name or '<ModelAtmosphere>'
 
     def register(self):
         """
@@ -702,6 +702,9 @@ class TMAPDAOModelAtmosphere(ModelAtmosphere):
         ]
 
 
-# global model atmosphere table:(dict of name -> class):
-_atmtable = {atm.name: atm for atm in ModelAtmosphere.__subclasses__()}
+def get_available_atms():
+    return ModelAtmosphere.__subclasses__()
 
+
+# global model atmosphere table:(dict of name -> class):
+_atmtable = {atm.name: atm for atm in get_available_atms()}

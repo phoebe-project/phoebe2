@@ -720,8 +720,7 @@ class Passband:
             if load_content:
                 stored_atms = set([content.split(':')[0] for content in self.content])
 
-                # TODO: replace with < parse('2.5.0') when 2.5.0 is released
-                if parse(self.phoebe_version) != parse('2.4.21.dev+feature-blending'):
+                if parse(self.phoebe_version) < parse('2.5.0'):
                     if 'blackbody' in stored_atms:
                         # blackbody atmospheres are reworked, so we need to
                         # recompute the intensities:
@@ -784,7 +783,7 @@ class Passband:
 
                 # We have to iterate over available atms rather than stored atms because
                 # the stored atms may not be available in the current version of PHOEBE.
-                available_atms = models.ModelAtmosphere.__subclasses__()
+                available_atms = models.get_available_atms()
                 for atm in available_atms:
                     if atm.name not in stored_atms:
                         continue
@@ -813,20 +812,20 @@ class Passband:
                         self.ndp[atm.name].register(name='imu@energy', associated_axes=(atm.mus,), grid=atm_energy_grid)
 
                     if f'{atm.name}:ld' in self.content:
-                        self.ndp[atm.name].register(name='ld@photon', associated_axes=None, grid=hdul[f'{atm.prefix}legrid'].data)
-                        self.ndp[atm.name].register(name='ld@energy', associated_axes=None, grid=hdul[f'{atm.prefix}lpgrid'].data)
+                        self.ndp[atm.name].register(name='ld@photon', associated_axes=None, grid=hdul[f'{atm.prefix}lpgrid'].data)
+                        self.ndp[atm.name].register(name='ld@energy', associated_axes=None, grid=hdul[f'{atm.prefix}legrid'].data)
 
                     if f'{atm.name}:ldint' in self.content:
-                        self.ndp[atm.name].register(name='ldint@photon', associated_axes=None, grid=hdul[f'{atm.prefix}iegrid'].data)
-                        self.ndp[atm.name].register(name='ldint@energy', associated_axes=None, grid=hdul[f'{atm.prefix}ipgrid'].data)
+                        self.ndp[atm.name].register(name='ldint@photon', associated_axes=None, grid=hdul[f'{atm.prefix}ipgrid'].data)
+                        self.ndp[atm.name].register(name='ldint@energy', associated_axes=None, grid=hdul[f'{atm.prefix}iegrid'].data)
 
                     if f'{atm.name}:ext' in self.content:
                         # associated axes:
                         ebvs = np.array(list(hdul[f'{atm.prefix}_ebvs'].data['ebvs']))
                         rvs = np.array(list(hdul[f'{atm.prefix}_rvs'].data['rvs']))
 
-                        self.ndp[atm.name].register(name='ext@photon', associated_axes=(ebvs, rvs), grid=hdul[f'{atm.prefix}xegrid'].data)
-                        self.ndp[atm.name].register(name='ext@energy', associated_axes=(ebvs, rvs), grid=hdul[f'{atm.prefix}xpgrid'].data)
+                        self.ndp[atm.name].register(name='ext@photon', associated_axes=(ebvs, rvs), grid=hdul[f'{atm.prefix}xpgrid'].data)
+                        self.ndp[atm.name].register(name='ext@energy', associated_axes=(ebvs, rvs), grid=hdul[f'{atm.prefix}xegrid'].data)
 
         return self
 
