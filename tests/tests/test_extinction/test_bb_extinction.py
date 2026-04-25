@@ -52,11 +52,11 @@ def test_bb_extinction():
     iext = pb.interpolate_extinct(
         query=query,
         atm=atm,
-        intens_weighting='photon',
+        intens_weighting='energy',
         extrapolation_method='none'
     ).get_interpolated_values().flatten()
 
-    assert np.allclose(iext, iext_predicted, atol=4e-3, rtol=4e-3)
+    assert np.allclose(iext, iext_predicted, atol=2e-3, rtol=2e-3)
 
 
 def test_frontend():
