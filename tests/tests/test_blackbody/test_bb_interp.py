@@ -1,4 +1,9 @@
 import numpy as np
+# numpy 2.0+ renamed trapz to trapezoid
+try:
+    from numpy import trapezoid as np_trapz
+except ImportError:
+    from numpy import trapz as np_trapz
 from phoebe import u
 from phoebe.atmospheres.passbands import Passband
 from phoebe.atmospheres.models import BlackbodyModelAtmosphere
@@ -51,7 +56,7 @@ def test_bb_interpolation_accuracy():
     # Compute theoretical blackbody intensities:
     bolseds = 2 * 6.62607015e-34 * 2.99792458e8**2 / pb.wl**5 / (np.exp(6.62607015e-34 * 2.99792458e8 / (pb.wl * 1.380649e-23 * teffs[:, None])) - 1)
     fltseds = bolseds * pb.ptf(pb.wl)  # Apply the passband transmission
-    bbints = np.trapz(fltseds, pb.wl, axis=1) / pb.ptf_area
+    bbints = np_trapz(fltseds, pb.wl, axis=1) / pb.ptf_area
     bbints = np.log10(bbints).reshape(-1, 1)
 
     # Interpolate blackbody intensities from the table:

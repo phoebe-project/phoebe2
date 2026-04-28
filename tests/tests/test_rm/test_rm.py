@@ -57,9 +57,7 @@ def test_binary(plot=False, gen_comp=False):
         b.set_value('syncpar@primary', syncpar)
         _beta_vs_legacy(b, syncpar, plot=plot, gen_comp=gen_comp)
 
-    return b
-
 
 if __name__ == '__main__':
     logger = phoebe.logger()
-    b = test_binary(plot=True, gen_comp=True)
+    test_binary(plot=True, gen_comp=True)

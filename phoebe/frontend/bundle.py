@@ -268,6 +268,9 @@ class RunChecksReport(object):
         """String representation for the ParameterSet."""
         return "Run Checks Report: {}\n".format(self.status) + "\n".join([str(i) for i in self.items])
 
+    def __len__(self):
+        return len(self._items)
+
     @property
     def passed(self):
         """
@@ -1006,7 +1009,15 @@ class Bundle(ParameterSet):
                 # NOTE: we will not remove (or update) the dataset from any existing models
                 b.remove_compute(compute, context=['compute'])
                 b.add_compute(compute_kind, compute=compute, check_label=False, overwrite=True, **dict_compute)
+            # update all components to get new loghefrac parameter
+            for component in b.filter(context='component', **_skip_filter_checks).components:
+                existing_values = {p.qualifier: p.get_value() for p in b.filter(context='component', component=component, **_skip_filter_checks).to_list()}
+                logger.info("migrating '{}' component".format(component))
+                logger.debug("applying existing values to {} component: {}".format(component, existing_values))
+                b.add_component(kind=b.get_component(component=component).kind, component=component, check_label=False, overwrite=True, **existing_values)
 
+            # rebuild hierarchy-dependent constraints after component migration
+            b.set_hierarchy()
 
         if conf_interactive_checks:
             logger.debug("re-enabling interactive_checks")
@@ -4024,6 +4035,47 @@ class Bundle(ParameterSet):
                                     self.filter(qualifier='pblum_method', compute=compute, context='compute', **_skip_filter_checks),
                                     True, 'run_compute')
 
+                # check abun and loghefrac values are consistent with the atmosphere
+                if atm in models._atmtable:
+                    atm_cls = models._atmtable[atm]
+                    for axis_name, qualifier in [('abuns', 'abun'), ('loghefracs', 'loghefrac')]:
+                        value = self.get_value(qualifier=qualifier, component=component, context='component', default=0.0, **_skip_filter_checks)
+                        atm_param = self.get_parameter(qualifier='atm', component=component, compute=compute, context='compute', **_skip_filter_checks)
+                        comp_param = self.filter(qualifier=qualifier, component=component, context='component', **_skip_filter_checks)
+
+                        if atm_cls.has_axis(axis_name):
+                            # atmosphere supports this axis (either interpolated or fixed)
+                            if axis_name in atm_cls.assumed_axes:
+                                # axis is fixed - check if value matches the fixed value
+                                fixed_val = atm_cls.assumed_axes[axis_name]
+                                if value != fixed_val:
+                                    report.add_item(self,
+                                                    "{}@{}={} but atm@{}@{}='{}' assumes {}={}.".format(qualifier, component, value, component, compute, atm, qualifier, fixed_val),
+                                                    comp_param.to_list() + [atm_param],
+                                                    True, 'run_compute')
+                            else:
+                                # axis is interpolated - check if value is within range
+                                try:
+                                    axis_limits = atm_cls.get_axis_limits(axis_name)
+                                    if axis_limits is not None:
+                                        axis_min, axis_max = axis_limits
+                                        if value < axis_min or value > axis_max:
+                                            report.add_item(self,
+                                                            "{}@{}={} is outside the range [{}, {}] supported by atm@{}@{}='{}' for passband '{}'.".format(qualifier, component, value, axis_min, axis_max, component, compute, atm, pb),
+                                                            comp_param.to_list() + [atm_param, dataset_ps.get_parameter(qualifier='passband', **_skip_filter_checks)],
+                                                            True, 'run_compute')
+                                    # else: axis exists but limits unknown (e.g., external atmosphere) - skip validation
+                                except Exception:
+                                    # passband may not be loaded or available - skip this check
+                                    pass
+                        else:
+                            # atmosphere does not support this axis (WARNING)
+                            if value != 0.0:
+                                report.add_item(self,
+                                                "{}@{}={} but atm@{}@{}='{}' does not support {}.  The set value will be ignored.".format(qualifier, component, value, component, compute, atm, qualifier),
+                                                comp_param.to_list() + [atm_param],
+                                                False, 'run_compute')
+
 
         def _get_proj_area(comp):
             if self.hierarchy.get_kind_of(comp)=='envelope':
@@ -4668,7 +4720,23 @@ class Bundle(ParameterSet):
                                         ]+addl_parameters,
                                         True, 'run_solver')
 
-                    if not fit_parameter.is_visible:
+                    # check if fitting abun/loghefrac when it's a fixed value in the atmosphere
+                    # (do this before the visibility check to avoid issues with visible_if_parameters)
+                    if fit_parameter.qualifier in ['abun', 'loghefrac'] and 'compute' in solver_ps.qualifiers:
+                        component = fit_parameter.component
+                        axis_name = 'abuns' if fit_parameter.qualifier == 'abun' else 'loghefracs'
+                        atm = self.get_value(qualifier='atm', component=component, compute=compute, context='compute', atm=kwargs.get('atm', None), **_skip_filter_checks)
+                        if atm in models._atmtable:
+                            atm_cls = models._atmtable[atm]
+                            if not atm_cls.has_axis(axis_name) or axis_name in atm_cls.assumed_axes:
+                                report.add_item(self,
+                                                "fit_parameters contains '{}' but atm@{}@{}='{}' does not support interpolating over {}.  Fitting this parameter will have no effect.".format(twig, component, compute, atm, fit_parameter.qualifier),
+                                                [solver_ps.get_parameter(qualifier='fit_parameters', **_skip_filter_checks),
+                                                 self.get_parameter(qualifier='atm', component=component, compute=compute, context='compute', **_skip_filter_checks)
+                                                ]+addl_parameters,
+                                                True, 'run_solver')
+
+                    elif not fit_parameter.is_visible:
                         report.add_item(self,
                                         "fit_parameters contains the invisible parameter '{}'".format(twig),
                                         [solver_ps.get_parameter(qualifier='fit_parameters', **_skip_filter_checks)]
@@ -4759,7 +4827,23 @@ class Bundle(ParameterSet):
                                             ]+addl_parameters,
                                             True, 'run_solver')
 
-                        if not ref_param.is_visible:
+                        # check if fitting abun/loghefrac when it's a fixed value in the atmosphere
+                        # (do this before the visibility check to avoid issues with visible_if_parameters)
+                        if ref_param.qualifier in ['abun', 'loghefrac'] and 'compute' in solver_ps.qualifiers:
+                            component = ref_param.component
+                            axis_name = 'abuns' if ref_param.qualifier == 'abun' else 'loghefracs'
+                            atm = self.get_value(qualifier='atm', component=component, compute=compute, context='compute', atm=kwargs.get('atm', None), **_skip_filter_checks)
+                            if atm in models._atmtable:
+                                atm_cls = models._atmtable[atm]
+                                if not atm_cls.has_axis(axis_name) or axis_name in atm_cls.assumed_axes:
+                                    report.add_item(self,
+                                                    "{} is included in init_from='{}' but atm@{}@{}='{}' does not support interpolating over {}.  Fitting this parameter will have no effect.".format(ref_param.twig, dist_or_solution, component, compute, atm, ref_param.qualifier),
+                                                    [solver_ps.get_parameter(qualifier='init_from', **_skip_filter_checks),
+                                                     self.get_parameter(qualifier='atm', component=component, compute=compute, context='compute', **_skip_filter_checks)
+                                                    ]+addl_parameters,
+                                                    True, 'run_solver')
+
+                        elif not ref_param.is_visible:
                             report.add_item(self,
                                             "{} is not a visible parameter, so cannot be included in init_from='{}'.".format(ref_param.twig, dist_or_solution),
                                             [solver_ps.get_parameter(qualifier='init_from', **_skip_filter_checks)]
@@ -4797,11 +4881,27 @@ class Bundle(ParameterSet):
                                              ]+addl_parameters,
                                              True, 'run_solver')
 
-                        if not ref_param.is_visible:
+                        # check if fitting abun/loghefrac when it's a fixed value in the atmosphere
+                        # (do this before the visibility check to avoid issues with visible_if_parameters)
+                        if param.qualifier in ['abun', 'loghefrac'] and 'compute' in solver_ps.qualifiers:
+                            component = param.component
+                            axis_name = 'abuns' if param.qualifier == 'abun' else 'loghefracs'
+                            atm = self.get_value(qualifier='atm', component=component, compute=compute, context='compute', atm=kwargs.get('atm', None), **_skip_filter_checks)
+                            if atm in models._atmtable:
+                                atm_cls = models._atmtable[atm]
+                                if not atm_cls.has_axis(axis_name) or axis_name in atm_cls.assumed_axes:
+                                    report.add_item(self,
+                                                    "{} is included in init_from='{}' but atm@{}@{}='{}' does not support interpolating over {}.  Fitting this parameter will have no effect.".format(param.twig, dist_or_solution, component, compute, atm, param.qualifier),
+                                                    [solver_ps.get_parameter(qualifier='init_from', **_skip_filter_checks),
+                                                     self.get_parameter(qualifier='atm', component=component, compute=compute, context='compute', **_skip_filter_checks)
+                                                    ]+addl_parameters,
+                                                    True, 'run_solver')
+
+                        elif not param.is_visible:
                             report.add_item(self,
-                                            "{} is not a visible parameter, so cannot be included in init_from='{}'.".format(ref_param.twig, dist_or_solution),
+                                            "{} is not a visible parameter, so cannot be included in init_from='{}'.".format(param.twig, dist_or_solution),
                                             [solver_ps.get_parameter(qualifier='init_from', **_skip_filter_checks)]
-                                            +ref_param.visible_if_parameters.filter(check_visible=True).to_list()
+                                            +param.visible_if_parameters.filter(check_visible=True).to_list()
                                             +addl_parameters,
                                              True, 'run_solver')
 
@@ -10264,7 +10364,6 @@ class Bundle(ParameterSet):
                 pb = passbands.get_passband(passband, content=f'{ldcs}:ld')
                 teff = self.get_value(qualifier='teff', component=ldcs_param.component, context='component', unit='K', **_skip_filter_checks)
                 logg = self.get_value(qualifier='logg', component=ldcs_param.component, context='component', **_skip_filter_checks)
-                abun = self.get_value(qualifier='abun', component=ldcs_param.component, context='component', **_skip_filter_checks)
 
                 # NOTE: only compute_ps.kind == 'phoebe' defines this parameter, so for
                 # all other backends that do not have this parameter, the following
@@ -10276,16 +10375,24 @@ class Bundle(ParameterSet):
                 else:
                     intens_weighting = self.get_value(qualifier='intens_weighting', dataset=ldcs_param.dataset, context='dataset', check_visible=False)
                 logger.info("{} ld_coeffs lookup for dataset='{}' component='{}' passband='{}' from ld_coeffs_source='{}'".format(ld_func, ldcs_param.dataset, ldcs_param.component, passband, ldcs))
-                logger.debug(f"pb.interpolate_ldcoeffs({teff=} {logg=}, {abun=}, {ldcs=} {ld_func=} {intens_weighting=})")
 
-                # TODO: generalize this.
-                query_cols = ('teffs', 'loggs', 'abuns')
-                query_pts = np.array(((teff, logg, abun),))
+                # TODO: generalize this further (some have neither and so should be able to handle not passing either)
+                ldatm = models._atmtable[ldcs]
+                if ldatm.has_axis('loghefracs'):
+                    loghefrac = self.get_value(qualifier='loghefrac', component=ldcs_param.component, context='component', **_skip_filter_checks)
+                    query_cols = ('teffs', 'loggs', 'loghefracs')
+                    query_pts = np.array(((teff, logg, loghefrac),))
+                    logger.debug(f"pb.interpolate_ldcoeffs({teff=} {logg=}, {loghefrac=}, {ldcs=} {ld_func=} {intens_weighting=})")
+                else:
+                    abun = self.get_value(qualifier='abun', component=ldcs_param.component, context='component', **_skip_filter_checks)
+                    query_cols = ('teffs', 'loggs', 'abuns')
+                    query_pts = np.array(((teff, logg, abun),))
+                    logger.debug(f"pb.interpolate_ldcoeffs({teff=} {logg=}, {abun=}, {ldcs=} {ld_func=} {intens_weighting=})")
+
                 query = passbands.InterpQuery(cols=query_cols, pts=query_pts)
-
                 ld_coeffs = pb.interpolate_ldcoeffs(
                     query=query,
-                    ldatm=models._atmtable[ldcs],
+                    ldatm=ldatm,
                     ld_func=ld_func,
                     intens_weighting=intens_weighting,
                     ld_extrapolation_method=ld_extrapolation_method

@@ -144,7 +144,7 @@ null
 "kind": "star",
 "context": "component",
 "description": "Critical (maximum) value of the equivalent radius for the given morphology",
-"value": 1.6724563972838289,
+"value": 1.6724563972838287,
 "default_unit": "solRad",
 "limits": [
 0.0,
@@ -199,7 +199,23 @@ null
 null,
 null
 ],
-"visible_if": "hierarchy.is_contact_binary:False",
+"visible_if": "hierarchy.is_contact_binary:False,atm_in_computes_has_axis:abuns",
+"copy_for": false,
+"Class": "FloatParameter"
+},
+{
+"qualifier": "loghefrac",
+"component": "primary",
+"kind": "star",
+"context": "component",
+"description": "Helium fraction, log(He/H) abundance by number.",
+"value": 0.0,
+"default_unit": "",
+"limits": [
+-10.0,
+10.0
+],
+"visible_if": "hierarchy.is_contact_binary:False,atm_in_computes_has_axis:loghefracs",
 "copy_for": false,
 "Class": "FloatParameter"
 },
@@ -426,13 +442,13 @@ null
 "description": "Source for bolometric limb darkening coefficients (used only for irradiation; 'auto' to interpolate from the applicable table according to the 'atm' parameter, or the name of a specific atmosphere table)",
 "choices": [
 "auto",
-"tmap_DA",
-"phoenix",
-"tmap_sdO",
 "tmap_DO",
-"ck2004",
+"phoenix",
+"tmap_DAO",
+"tmap_sdO",
 "tremblay",
-"tmap_DAO"
+"ck2004",
+"tmap_DA"
 ],
 "value": "auto",
 "visible_if": "ld_mode_bol:lookup",
@@ -497,7 +513,7 @@ null
 "kind": "star",
 "context": "component",
 "description": "Critical (maximum) value of the equivalent radius for the given morphology",
-"value": 1.6724563972838782,
+"value": 1.672456397283698,
 "default_unit": "solRad",
 "limits": [
 0.0,
@@ -552,7 +568,23 @@ null
 null,
 null
 ],
-"visible_if": "hierarchy.is_contact_binary:False",
+"visible_if": "hierarchy.is_contact_binary:False,atm_in_computes_has_axis:abuns",
+"copy_for": false,
+"Class": "FloatParameter"
+},
+{
+"qualifier": "loghefrac",
+"component": "secondary",
+"kind": "star",
+"context": "component",
+"description": "Helium fraction, log(He/H) abundance by number.",
+"value": 0.0,
+"default_unit": "",
+"limits": [
+-10.0,
+10.0
+],
+"visible_if": "hierarchy.is_contact_binary:False,atm_in_computes_has_axis:loghefracs",
 "copy_for": false,
 "Class": "FloatParameter"
 },
@@ -779,13 +811,13 @@ null
 "description": "Source for bolometric limb darkening coefficients (used only for irradiation; 'auto' to interpolate from the applicable table according to the 'atm' parameter, or the name of a specific atmosphere table)",
 "choices": [
 "auto",
-"tmap_DA",
-"phoenix",
-"tmap_sdO",
 "tmap_DO",
-"ck2004",
+"phoenix",
+"tmap_DAO",
+"tmap_sdO",
 "tremblay",
-"tmap_DAO"
+"ck2004",
+"tmap_DA"
 ],
 "value": "auto",
 "visible_if": "ld_mode_bol:lookup",
@@ -1141,7 +1173,7 @@ null
 "kind": "envelope",
 "context": "component",
 "description": "Fillout-factor of the envelope",
-"value": 0.6417897080770848,
+"value": 0.6417897080770861,
 "default_unit": "",
 "limits": [
 0.0,
@@ -1157,7 +1189,7 @@ null
 "kind": "envelope",
 "context": "component",
 "description": "Potential of the envelope (from the primary component's reference)",
-"value": 3.401377407229882,
+"value": 3.4013774072298815,
 "default_unit": "",
 "limits": [
 0.0,
@@ -1173,7 +1205,7 @@ null
 "kind": "envelope",
 "context": "component",
 "description": "Critical (minimum) value of the potential to remain a contact",
-"value": 3.206796224086153,
+"value": 3.2067962240861534,
 "default_unit": "",
 "limits": [
 0.0,
@@ -2286,18 +2318,62 @@ null
 "context": "compute",
 "description": "Atmosphere table",
 "choices": [
-"tmap_DA",
-"tmap_sdO",
-"phoenix",
-"blackbody",
-"ck2004",
 "tmap_DO",
+"phoenix",
 "extern_atmx",
-"tremblay",
+"tmap_sdO",
 "tmap_DAO",
-"extern_planckint"
+"tremblay",
+"ck2004",
+"extern_planckint",
+"blackbody",
+"tmap_DA"
 ],
 "value": "ck2004",
+"copy_for": {
+"kind": [
+"star"
+],
+"component": "*"
+},
+"Class": "ChoiceParameter"
+},
+{
+"qualifier": "atm_extrapolation_method",
+"component": "_default",
+"compute": "phoebe01",
+"kind": "phoebe",
+"context": "compute",
+"description": "Method of extrapolating intensities outside of the atmosphere grid",
+"choices": [
+"none",
+"nearest",
+"linear"
+],
+"value": "linear",
+"visible_if": "atm:!blackbody,atm:!extern_planckint,atm:!extern_atmx",
+"copy_for": {
+"kind": [
+"star"
+],
+"component": "*"
+},
+"Class": "ChoiceParameter"
+},
+{
+"qualifier": "ld_extrapolation_method",
+"component": "_default",
+"compute": "phoebe01",
+"kind": "phoebe",
+"context": "compute",
+"description": "Method of extrapolating limb-darkening intensities outside of the atmosphere grid",
+"choices": [
+"none",
+"nearest",
+"linear"
+],
+"value": "nearest",
+"visible_if": "atm:!blackbody,atm:!extern_planckint,atm:!extern_atmx",
 "copy_for": {
 "kind": [
 "star"
@@ -2312,36 +2388,13 @@ null
 "compute": "phoebe01",
 "kind": "phoebe",
 "context": "compute",
-"description": "Method to use for blending",
+"description": "Method to use for blending model atmosphere and blackbody intensities off the atmosphere grid",
 "choices": [
 "none",
-"nearest",
-"linear"
+"blackbody"
 ],
-"value": "none",
-"visible_if": "atm:!blackbody",
-"copy_for": {
-"kind": [
-"star"
-],
-"component": "*"
-},
-"Class": "ChoiceParameter"
-},
-{
-"qualifier": "ld_blending_method",
-"component": "_default",
-"compute": "phoebe01",
-"kind": "phoebe",
-"context": "compute",
-"description": "Method to use for extrapolating limb-darkening during blending (for all datasets and bolometric for irradiation, if applicable)",
-"choices": [
-"none",
-"nearest",
-"linear"
-],
-"value": "none",
-"visible_if": "atm:!blackbody",
+"value": "blackbody",
+"visible_if": "atm:!blackbody,atm:!extern_planckint,atm:!extern_atmx,atm_extrapolation_method:!none,ld_extrapolation_method:!none",
 "copy_for": {
 "kind": [
 "star"
@@ -2376,7 +2429,7 @@ null
 "compute": "phoebe01",
 "kind": "phoebe",
 "context": "compute",
-"description": "Number of times to sample per-datapoint for finite-time integration",
+"description": "Number of times to sample per-datapoint for finite-time integration (when non-zero exptime)",
 "value": 5,
 "limits": [
 1,
@@ -2571,16 +2624,16 @@ null
 "context": "compute",
 "description": "Atmosphere table",
 "choices": [
-"tmap_DA",
-"tmap_sdO",
-"phoenix",
-"blackbody",
-"ck2004",
 "tmap_DO",
+"phoenix",
 "extern_atmx",
-"tremblay",
+"tmap_sdO",
 "tmap_DAO",
-"extern_planckint"
+"tremblay",
+"ck2004",
+"extern_planckint",
+"blackbody",
+"tmap_DA"
 ],
 "value": "ck2004",
 "copy_for": false,
@@ -2594,35 +2647,102 @@ null
 "context": "compute",
 "description": "Atmosphere table",
 "choices": [
-"tmap_DA",
-"tmap_sdO",
-"phoenix",
-"blackbody",
-"ck2004",
 "tmap_DO",
+"phoenix",
 "extern_atmx",
-"tremblay",
+"tmap_sdO",
 "tmap_DAO",
-"extern_planckint"
+"tremblay",
+"ck2004",
+"extern_planckint",
+"blackbody",
+"tmap_DA"
 ],
 "value": "ck2004",
 "copy_for": false,
 "Class": "ChoiceParameter"
 },
 {
-"qualifier": "blending_method",
+"qualifier": "atm_extrapolation_method",
 "component": "primary",
 "compute": "phoebe01",
 "kind": "phoebe",
 "context": "compute",
-"description": "Method to use for blending",
+"description": "Method of extrapolating intensities outside of the atmosphere grid",
 "choices": [
 "none",
 "nearest",
 "linear"
 ],
-"value": "none",
-"visible_if": "atm:!blackbody",
+"value": "linear",
+"visible_if": "atm:!blackbody,atm:!extern_planckint,atm:!extern_atmx",
+"copy_for": false,
+"Class": "ChoiceParameter"
+},
+{
+"qualifier": "atm_extrapolation_method",
+"component": "secondary",
+"compute": "phoebe01",
+"kind": "phoebe",
+"context": "compute",
+"description": "Method of extrapolating intensities outside of the atmosphere grid",
+"choices": [
+"none",
+"nearest",
+"linear"
+],
+"value": "linear",
+"visible_if": "atm:!blackbody,atm:!extern_planckint,atm:!extern_atmx",
+"copy_for": false,
+"Class": "ChoiceParameter"
+},
+{
+"qualifier": "ld_extrapolation_method",
+"component": "primary",
+"compute": "phoebe01",
+"kind": "phoebe",
+"context": "compute",
+"description": "Method of extrapolating limb-darkening intensities outside of the atmosphere grid",
+"choices": [
+"none",
+"nearest",
+"linear"
+],
+"value": "nearest",
+"visible_if": "atm:!blackbody,atm:!extern_planckint,atm:!extern_atmx",
+"copy_for": false,
+"Class": "ChoiceParameter"
+},
+{
+"qualifier": "ld_extrapolation_method",
+"component": "secondary",
+"compute": "phoebe01",
+"kind": "phoebe",
+"context": "compute",
+"description": "Method of extrapolating limb-darkening intensities outside of the atmosphere grid",
+"choices": [
+"none",
+"nearest",
+"linear"
+],
+"value": "nearest",
+"visible_if": "atm:!blackbody,atm:!extern_planckint,atm:!extern_atmx",
+"copy_for": false,
+"Class": "ChoiceParameter"
+},
+{
+"qualifier": "blending_method",
+"component": "primary",
+"compute": "phoebe01",
+"kind": "phoebe",
+"context": "compute",
+"description": "Method to use for blending model atmosphere and blackbody intensities off the atmosphere grid",
+"choices": [
+"none",
+"blackbody"
+],
+"value": "blackbody",
+"visible_if": "atm:!blackbody,atm:!extern_planckint,atm:!extern_atmx,atm_extrapolation_method:!none,ld_extrapolation_method:!none",
 "copy_for": false,
 "Class": "ChoiceParameter"
 },
@@ -2632,48 +2752,13 @@ null
 "compute": "phoebe01",
 "kind": "phoebe",
 "context": "compute",
-"description": "Method to use for blending",
+"description": "Method to use for blending model atmosphere and blackbody intensities off the atmosphere grid",
 "choices": [
 "none",
-"nearest",
-"linear"
+"blackbody"
 ],
-"value": "none",
-"visible_if": "atm:!blackbody",
-"copy_for": false,
-"Class": "ChoiceParameter"
-},
-{
-"qualifier": "ld_blending_method",
-"component": "primary",
-"compute": "phoebe01",
-"kind": "phoebe",
-"context": "compute",
-"description": "Method to use for extrapolating limb-darkening during blending (for all datasets and bolometric for irradiation, if applicable)",
-"choices": [
-"none",
-"nearest",
-"linear"
-],
-"value": "none",
-"visible_if": "atm:!blackbody",
-"copy_for": false,
-"Class": "ChoiceParameter"
-},
-{
-"qualifier": "ld_blending_method",
-"component": "secondary",
-"compute": "phoebe01",
-"kind": "phoebe",
-"context": "compute",
-"description": "Method to use for extrapolating limb-darkening during blending (for all datasets and bolometric for irradiation, if applicable)",
-"choices": [
-"none",
-"nearest",
-"linear"
-],
-"value": "none",
-"visible_if": "atm:!blackbody",
+"value": "blackbody",
+"visible_if": "atm:!blackbody,atm:!extern_planckint,atm:!extern_atmx,atm_extrapolation_method:!none,ld_extrapolation_method:!none",
 "copy_for": false,
 "Class": "ChoiceParameter"
 },
@@ -2877,7 +2962,7 @@ null
 "qualifier": "phoebe_version",
 "context": "setting",
 "description": "Version of PHOEBE",
-"value": "2.4.16.dev+feature-blending",
+"value": "2.4.21.dev+feature-blending",
 "copy_for": false,
 "readonly": true,
 "advanced": true,

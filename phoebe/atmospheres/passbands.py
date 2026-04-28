@@ -15,6 +15,11 @@ from astropy.io import fits
 from astropy.table import Table
 
 import numpy as np
+# numpy 2.0+ renamed trapz to trapezoid
+try:
+    from numpy import trapezoid as np_trapz
+except ImportError:
+    from numpy import trapz as np_trapz
 from scipy import interpolate, integrate
 from scipy.optimize import least_squares
 from packaging.version import parse
@@ -104,8 +109,7 @@ def blending_factor(d, func='sigmoid', scale=15, offset=0.5):
     elif func == 'sigmoid':
         rv[d <= 1] = 1-(1+np.exp(-scale*(d[d <= 1]-offset)))**-1
     else:
-        print('function `%s` not supported.' % func)
-        return None
+        raise ValueError(f"blending function '{func}' not supported; must be 'linear' or 'sigmoid'.")
     rv[d < 0] = 1
     return rv
 
@@ -448,7 +452,8 @@ class Passband:
 
         Parameters
         ----------
-        * `comment` (string, required): comment to be added to the passband header.
+        * `history` (string, required): history entry to be added to the passband header.
+        * `max_length` (int, optional, default=46): maximum length of the history entry.
         """
 
         if not isinstance(history, str):
@@ -527,7 +532,7 @@ class Passband:
         header['TIMESTMP'] = timestamp
         header['PBSET'] = self.pbset
         header['PBNAME'] = self.pbname
-        header['EFFWL'] = self.effwl.value
+        header['EFFWL'] = self.effwl.to(u.m).value
         header['CALIBRTD'] = self.calibrated
         header['WLOVSMPL'] = self.wl_oversampling
         header['VERSION'] = self.version
@@ -715,8 +720,7 @@ class Passband:
             if load_content:
                 stored_atms = set([content.split(':')[0] for content in self.content])
 
-                # TODO: replace with < parse('2.5.0') when 2.5.0 is released
-                if parse(self.phoebe_version) != parse('2.4.17.dev+feature-blending'):
+                if parse(self.phoebe_version) < parse('2.5.0'):
                     if 'blackbody' in stored_atms:
                         # blackbody atmospheres are reworked, so we need to
                         # recompute the intensities:
@@ -749,22 +753,32 @@ class Passband:
 
                     # rename columns in old tables:
                     if 'ck2004' in stored_atms:
-                        hdul['ck_teffs'].data.columns.change_name('teff', 'teffs')
-                        hdul['ck_loggs'].data.columns.change_name('logg', 'loggs')
-                        hdul['ck_abuns'].data.columns.change_name('abun', 'abuns')
+                        if 'teff' in hdul['ck_teffs'].data.columns.names:
+                            hdul['ck_teffs'].data.columns.change_name('teff', 'teffs')
+                        if 'logg' in hdul['ck_loggs'].data.columns.names:
+                            hdul['ck_loggs'].data.columns.change_name('logg', 'loggs')
+                        if 'abun' in hdul['ck_abuns'].data.columns.names:
+                            hdul['ck_abuns'].data.columns.change_name('abun', 'abuns')
 
                         if 'ck2004:ext' in self.content:
-                            hdul['ck_ebvs'].data.columns.change_name('ebv', 'ebvs')
-                            hdul['ck_rvs'].data.columns.change_name('rv', 'rvs')
+                            if 'ebv' in hdul['ck_ebvs'].data.columns.names:
+                                hdul['ck_ebvs'].data.columns.change_name('ebv', 'ebvs')
+                            if 'rv' in hdul['ck_rvs'].data.columns.names:
+                                hdul['ck_rvs'].data.columns.change_name('rv', 'rvs')
 
                     if 'phoenix' in stored_atms:
-                        hdul['ph_teffs'].data.columns.change_name('teff', 'teffs')
-                        hdul['ph_loggs'].data.columns.change_name('logg', 'loggs')
-                        hdul['ph_abuns'].data.columns.change_name('abun', 'abuns')
+                        if 'teff' in hdul['ph_teffs'].data.columns.names:
+                            hdul['ph_teffs'].data.columns.change_name('teff', 'teffs')
+                        if 'logg' in hdul['ph_loggs'].data.columns.names:
+                            hdul['ph_loggs'].data.columns.change_name('logg', 'loggs')
+                        if 'abun' in hdul['ph_abuns'].data.columns.names:
+                            hdul['ph_abuns'].data.columns.change_name('abun', 'abuns')
 
                         if 'phoenix:ext' in self.content:
-                            hdul['ph_ebvs'].data.columns.change_name('ebv', 'ebvs')
-                            hdul['ph_rvs'].data.columns.change_name('rv', 'rvs')
+                            if 'ebv' in hdul['ph_ebvs'].data.columns.names:
+                                hdul['ph_ebvs'].data.columns.change_name('ebv', 'ebvs')
+                            if 'rv' in hdul['ph_rvs'].data.columns.names:
+                                hdul['ph_rvs'].data.columns.change_name('rv', 'rvs')
 
                 if 'extern_planckint:Inorm' in self.content or 'extern_atmx:Inorm' in self.content:
                     atmdir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tables/wd'))
@@ -779,7 +793,7 @@ class Passband:
 
                 # We have to iterate over available atms rather than stored atms because
                 # the stored atms may not be available in the current version of PHOEBE.
-                available_atms = models.ModelAtmosphere.__subclasses__()
+                available_atms = models.get_available_atms()
                 for atm in available_atms:
                     if atm.name not in stored_atms:
                         continue
@@ -808,20 +822,20 @@ class Passband:
                         self.ndp[atm.name].register(name='imu@energy', associated_axes=(atm.mus,), grid=atm_energy_grid)
 
                     if f'{atm.name}:ld' in self.content:
-                        self.ndp[atm.name].register(name='ld@photon', associated_axes=None, grid=hdul[f'{atm.prefix}legrid'].data)
-                        self.ndp[atm.name].register(name='ld@energy', associated_axes=None, grid=hdul[f'{atm.prefix}lpgrid'].data)
+                        self.ndp[atm.name].register(name='ld@photon', associated_axes=None, grid=hdul[f'{atm.prefix}lpgrid'].data)
+                        self.ndp[atm.name].register(name='ld@energy', associated_axes=None, grid=hdul[f'{atm.prefix}legrid'].data)
 
                     if f'{atm.name}:ldint' in self.content:
-                        self.ndp[atm.name].register(name='ldint@photon', associated_axes=None, grid=hdul[f'{atm.prefix}iegrid'].data)
-                        self.ndp[atm.name].register(name='ldint@energy', associated_axes=None, grid=hdul[f'{atm.prefix}ipgrid'].data)
+                        self.ndp[atm.name].register(name='ldint@photon', associated_axes=None, grid=hdul[f'{atm.prefix}ipgrid'].data)
+                        self.ndp[atm.name].register(name='ldint@energy', associated_axes=None, grid=hdul[f'{atm.prefix}iegrid'].data)
 
                     if f'{atm.name}:ext' in self.content:
                         # associated axes:
                         ebvs = np.array(list(hdul[f'{atm.prefix}_ebvs'].data['ebvs']))
                         rvs = np.array(list(hdul[f'{atm.prefix}_rvs'].data['rvs']))
 
-                        self.ndp[atm.name].register(name='ext@photon', associated_axes=(ebvs, rvs), grid=hdul[f'{atm.prefix}xegrid'].data)
-                        self.ndp[atm.name].register(name='ext@energy', associated_axes=(ebvs, rvs), grid=hdul[f'{atm.prefix}xpgrid'].data)
+                        self.ndp[atm.name].register(name='ext@photon', associated_axes=(ebvs, rvs), grid=hdul[f'{atm.prefix}xpgrid'].data)
+                        self.ndp[atm.name].register(name='ext@energy', associated_axes=(ebvs, rvs), grid=hdul[f'{atm.prefix}xegrid'].data)
 
         return self
 
@@ -833,11 +847,11 @@ class Passband:
         Arguments
         -----------
         * `lam` (float/array): wavelength in m
-        * `Teff` (float/array): effective temperature in K
+        * `teff` (float/array): effective temperature in K
 
         Returns
         --------
-        * monochromatic blackbody intensity
+        * (float/array) monochromatic blackbody intensity in W/m^3
         """
 
         return 2*h.value*c.value*c.value/lam**5 * 1./(np.exp(h.value*c.value/lam/k_B.value/teff)-1)
@@ -884,6 +898,28 @@ class Passband:
         return hclkt * expterm/(expterm-1)
 
     def ld_func(self, mu=1.0, ld_coeffs=np.array([[0.5]]), ld_func='linear'):
+        """
+        Computes the limb darkening correction factor for a given angle.
+
+        Arguments
+        ----------
+        * `mu` (float/array, optional, default=1.0): cosine of the angle
+          between the line of sight and the surface normal.
+        * `ld_coeffs` (array, optional, default=[[0.5]]): limb darkening
+          coefficients. Shape should be (N, M) where N is the number of
+          points and M is the number of coefficients for the LD law.
+        * `ld_func` (string, optional, default='linear'): limb darkening
+          function. One of: 'linear', 'logarithmic', 'square_root',
+          'quadratic', 'power'.
+
+        Returns
+        -------
+        * (float/array) limb darkening correction factor(s).
+
+        Raises
+        ------
+        * NotImplementedError: if `ld_func` is not supported.
+        """
         ld_coeffs = np.atleast_2d(ld_coeffs)
 
         if ld_func == 'linear':
@@ -950,7 +986,7 @@ class Passband:
             raise ValueError(f'Model atmosphere {atm.name} does not have specific angles defined.')
 
         # Preliminary checks passed, we can instantiate an ndpolator instance:
-        self.ndp[atm.name] = ndpolator.Ndpolator(basic_axes=atm.basic_axes)
+        self.ndp[atm.name] = ndpolator.Ndpolator(basic_axes=atm.ndp_basic_axes)
 
         if can_compute_intensity:
             # If the model atmosphere defines an intensity function, use the passband itself:
@@ -963,9 +999,9 @@ class Passband:
             ptf = self.ptf(wls)
 
         if include_mus:
-            grid_shape = tuple([len(axis) for axis in atm.basic_axes + (atm.mus,)] + [1])
+            grid_shape = tuple([len(axis) for axis in atm.ndp_basic_axes + (atm.mus,)] + [1])
         else:
-            grid_shape = tuple([len(axis) for axis in atm.basic_axes] + [1])
+            grid_shape = tuple([len(axis) for axis in atm.ndp_basic_axes] + [1])
 
         # initialize intensity arrays:
         atm_energy_grid = np.full(shape=grid_shape, fill_value=np.nan)
@@ -980,7 +1016,7 @@ class Passband:
 
             # initialize arrays for extincted intensities:
             associated_axes = (ebvs, rvs)
-            grid_shape = tuple([len(axis) for axis in atm.basic_axes + associated_axes] + [1])
+            grid_shape = tuple([len(axis) for axis in atm.ndp_basic_axes + associated_axes] + [1])
             ext_photon_grid = np.empty(shape=grid_shape)
             ext_energy_grid = np.empty_like(ext_photon_grid)
 
@@ -993,11 +1029,11 @@ class Passband:
         if can_compute_intensity:
             ints = atm.intensity(wls)  # must be in in W/m^3
             pbints_energy = ptf*ints
-            fluxes_energy = np.trapz(pbints_energy, wls)
+            fluxes_energy = np_trapz(pbints_energy, wls)
             fluxes_energy = atm.limb_treatment(fluxes_energy)
 
             pbints_photon = wls * pbints_energy
-            fluxes_photon = np.trapz(pbints_photon, wls)
+            fluxes_photon = np_trapz(pbints_photon, wls)
             fluxes_photon = atm.limb_treatment(fluxes_photon)
 
             atm_energy_grid = np.log10(fluxes_energy/self.ptf_area).reshape(-1, 1)
@@ -1007,8 +1043,8 @@ class Passband:
             self.ndp[atm.name].register('inorm@energy', None, atm_energy_grid)
 
             if include_extinction:
-                egrid = np.trapz(pbints_energy[:, :, None, None] * Alam[None, :, :, :], x=wls, axis=1) / np.trapz(pbints_energy[:, :, None, None], x=wls, axis=1)
-                pgrid = np.trapz(pbints_photon[:, :, None, None] * Alam[None, :, :, :], x=wls, axis=1) / np.trapz(pbints_photon[:, :, None, None], x=wls, axis=1)
+                egrid = np_trapz(pbints_energy[:, :, None, None] * Alam[None, :, :, :], x=wls, axis=1) / np_trapz(pbints_energy[:, :, None, None], x=wls, axis=1)
+                pgrid = np_trapz(pbints_photon[:, :, None, None] * Alam[None, :, :, :], x=wls, axis=1) / np_trapz(pbints_photon[:, :, None, None], x=wls, axis=1)
 
                 ext_energy_grid = egrid.reshape(len(atm.teffs), len(ebvs), len(rvs), 1)
                 ext_photon_grid = pgrid.reshape(len(atm.teffs), len(ebvs), len(rvs), 1)
@@ -1032,11 +1068,11 @@ class Passband:
 
             # calculate energy-weighted passband intensities and fluxes:
             pbints_energy = ptf*ints
-            fluxes_energy = np.trapz(pbints_energy, wls)
+            fluxes_energy = np_trapz(pbints_energy, wls)
 
             # calculate photon count-weighted passband intensities and fluxes:
             pbints_photon = wls*pbints_energy
-            fluxes_photon = np.trapz(pbints_photon, wls)
+            fluxes_photon = np_trapz(pbints_photon, wls)
 
             # handle the limb according to the prescription in the model atmosphere:
             fluxes_energy = atm.limb_treatment(fluxes_energy)
@@ -1049,10 +1085,10 @@ class Passband:
             if include_extinction:
                 # we only use normal emergent intensities for extinction:
                 epbints = pbints_energy[-1].reshape(-1, 1)
-                egrid = np.trapz(epbints[:, :, None, None] * Alam[:, None, :, :], wls, axis=0) / np.trapz(epbints[:, :, None, None], wls, axis=0)
+                egrid = np_trapz(epbints[:, :, None, None] * Alam[:, None, :, :], wls, axis=0) / np_trapz(epbints[:, :, None, None], wls, axis=0)
 
                 ppbints = pbints_photon[-1].reshape(-1, 1)
-                pgrid = np.trapz(ppbints[:, :, None, None] * Alam[:, None, :, :], wls, axis=0) / np.trapz(ppbints[:, :, None, None], wls, axis=0)
+                pgrid = np_trapz(ppbints[:, :, None, None] * Alam[:, None, :, :], wls, axis=0) / np_trapz(ppbints[:, :, None, None], wls, axis=0)
 
                 ext_energy_grid[tuple(atm.indices[i])] = egrid.reshape(len(ebvs), len(rvs), 1)
                 ext_photon_grid[tuple(atm.indices[i])] = pgrid.reshape(len(ebvs), len(rvs), 1)
@@ -1081,11 +1117,11 @@ class Passband:
                 print(f'Computing {atm.name} limb darkening coefficients...')
 
             # initialize arrays for limb darkening coefficients:
-            ld_energy_grid = np.full(shape=[len(axis) for axis in atm.basic_axes]+[11], fill_value=np.nan)
+            ld_energy_grid = np.full(shape=[len(axis) for axis in atm.ndp_basic_axes]+[11], fill_value=np.nan)
             ld_photon_grid = np.full_like(ld_energy_grid, fill_value=np.nan)
 
             # initialize arrays for limb darkening integrals:
-            ldint_energy_grid = np.full(shape=[len(axis) for axis in atm.basic_axes]+[1], fill_value=np.nan)
+            ldint_energy_grid = np.full(shape=[len(axis) for axis in atm.ndp_basic_axes]+[1], fill_value=np.nan)
             ldint_photon_grid = np.full_like(ldint_energy_grid, fill_value=np.nan)
 
             # define the residuals function for the least squares optimization:
@@ -1143,13 +1179,14 @@ class Passband:
         * `ldatm` (string, default='ck2004'): limb darkening table: 'ck2004' or 'phoenix'
         * `ld_func` (string, default='power'): limb darkening fitting function: 'linear',
           'logarithmic', 'square_root', 'quadratic', 'power' or 'all'
-        * `intens_weighting` (string, optional, default='photon'):
+        * `intens_weighting` (string, optional, default='photon'): intensity
+          weighting mode ('photon' or 'energy')
         * `ld_extrapolation_method` (string, optional, default='none'): extrapolation mode:
             'none', 'nearest', 'linear'
 
         Returns
         --------
-        * (list or None) list of limb-darkening coefficients or None if 'ck2004:ld'
+        * (<InterpResult>) interpolated limb-darkening coefficients, or raises ValueError if
             is not available in <phoebe.atmospheres.passbands.Passband.content>
             (see also <phoebe.atmospheres.passbands.Passband.compute_ldcoeffs>)
             or if `ld_func` is not recognized.
@@ -1181,22 +1218,27 @@ class Passband:
 
     def interpolate_extinct(self, query, atm=models.CK2004ModelAtmosphere, intens_weighting='photon', extrapolation_method='none'):
         """
-        Interpolates the passband-stored tables of extinction corrections
+        Interpolates the passband-stored tables of extinction corrections.
 
         Arguments
         ----------
-        * `query`
-        * `atm`
-        * `intens_weighting`
-        * `extrapolation_method`
+        * `query` (<InterpQuery>, required): the interpolation query object.
+          Must contain columns for the atmosphere's basic axes plus 'ebvs'
+          (color excess E(B-V)) and 'rvs' (extinction factor Rv).
+        * `atm` (<models.ModelAtmosphere>, optional, default=CK2004ModelAtmosphere):
+          model atmosphere to use for extinction lookup.
+        * `intens_weighting` (string, optional, default='photon'): intensity
+          weighting mode ('photon' or 'energy').
+        * `extrapolation_method` (string, optional, default='none'): extrapolation
+          method for off-grid points ('none', 'nearest', 'linear').
 
         Returns
         ---------
-        * extinction factor
+        * (<InterpResult>) extinction correction factors.
 
         Raises
         --------
-        * ValueError if `atm` is not supported.
+        * ValueError: if extinction tables for `atm` are not available.
         """
 
         if f'{atm.name}:ext' not in self.content:
@@ -1226,7 +1268,7 @@ class Passband:
             atmcof.dat. For the 2003 version the number of nodes is 19.
         * `Nlogg` (int, optional, default=11): number of logg nodes in
             atmcof.dat. For the 2003 version the number of nodes is 11.
-        * `Nbp` (int, optional, default=25): number of passbands in atmcof.dat.
+        * `Npb` (int, optional, default=25): number of passbands in atmcof.dat.
             For the 2003 version the number of passbands is 25.
         * `Nints` (int, optional, default=4): number of temperature intervals
             (input lines) per entry. For the 2003 version the number of lines
@@ -1259,6 +1301,32 @@ class Passband:
         self.content += ['extern_planckint:Inorm', 'extern_atmx:Inorm']
 
         self.add_to_history('Wilson-Devinney atmosphere tables imported.')
+
+    def _blend_intensities(self, log10ints, log10ints_bb, dists, dist_threshold, blending_margin):
+        """
+        Blend model atmosphere intensities with blackbody intensities in
+        off-grid regions.
+
+        Arguments
+        ----------
+        * `log10ints` (array): log10 of model atmosphere intensities
+        * `log10ints_bb` (array): log10 of blackbody intensities
+        * `dists` (array): distances from grid points (hypercube-normalized)
+        * `dist_threshold` (float): off-grid distance threshold
+        * `blending_margin` (float): distance over which blending occurs
+
+        Returns
+        ----------
+        * (tuple): (blended intensities, blending factors)
+        """
+        off_grid = dists > dist_threshold
+        log10ints_blended = log10ints.copy()
+        log10ints_blended[off_grid] = (
+            np.minimum(dists[off_grid], blending_margin) * log10ints_bb[off_grid] +
+            np.maximum(blending_margin - dists[off_grid], 0) * log10ints[off_grid]
+        ) / blending_margin
+        blending_factors = np.minimum(dists, blending_margin) / blending_margin
+        return 10**log10ints_blended, blending_factors
 
     def interpolate_inorms(self, query, atm=models.CK2004ModelAtmosphere, ldatm=models.CK2004ModelAtmosphere, ldint=None, ld_func='interp', ld_coeffs=None, intens_weighting='photon', atm_extrapolation_method='none', ld_extrapolation_method='none', blending_method='none', blending_margin=3, dist_threshold=1e-5):
         r"""
@@ -1330,17 +1398,18 @@ class Passband:
 
         Returns
         ----------
-        * (dict) a dict of normal emergent passband intensities and associated
-          values. Dictionary keys are: 'inorms' (normal intensities),
-          and 'bfs' (blending factors, only if blending_method is not
-          'none').
+        * (<InterpResult>) normal emergent passband intensities, with optional
+          distances and blending factors (bfs) if blending_method is not 'none'.
 
         Raises
         ----------
         * ValueError: if atmosphere parameters are out of bounds for the
-          table.
+          table, or if blending_method is invalid.
         * NotImplementedError: if `ld_func` is not supported.
         """
+
+        if blending_method not in ('none', 'blackbody'):
+            raise ValueError(f"blending_method='{blending_method}' is not supported; must be 'none' or 'blackbody'.")
 
         if f'{atm.name}:Inorm' not in self.content:
             raise ValueError(f'atm={atm.name} tables are not available in the {self.pbset}:{self.pbname} passband.')
@@ -1441,13 +1510,9 @@ class Passband:
 
                 log10ints_bb = np.log10(ints_bb)
 
-                off_grid = dists > dist_threshold
-
-                log10ints_blended = log10ints.copy()
-                log10ints_blended[off_grid] = (np.minimum(dists[off_grid], blending_margin) * log10ints_bb[off_grid] + np.maximum(blending_margin-dists[off_grid], 0) * log10ints[off_grid])/blending_margin
-                blending_factors = np.minimum(dists, blending_margin)/blending_margin
-
-                intensities = 10**log10ints_blended
+                intensities, blending_factors = self._blend_intensities(
+                    log10ints, log10ints_bb, dists, dist_threshold, blending_margin
+                )
                 
                 return InterpResult(interps=intensities, dists=dists, bfs=blending_factors)
             else:
@@ -1457,7 +1522,7 @@ class Passband:
         else:
             raise ValueError(f'atm={atm.name} is not supported.')
 
-    def interpolate_imus(self, query, atm=models.CK2004ModelAtmosphere, ldatm=models.CK2004ModelAtmosphere, ldint=None, ld_func='interp', ld_coeffs=None, intens_weighting='photon', atm_extrapolation_method='none', ld_extrapolation_method='none', blending_method='none', dist_threshold=1e-5, blending_margin=3):
+    def interpolate_imus(self, query, atm=models.CK2004ModelAtmosphere, ldatm=models.CK2004ModelAtmosphere, ldint=None, ld_func='interp', ld_coeffs=None, intens_weighting='photon', atm_extrapolation_method='none', ld_extrapolation_method='none', blending_method='none', blending_margin=3, dist_threshold=1e-5):
         r"""
         Computes specific emergent passband intensities.
 
@@ -1488,25 +1553,25 @@ class Passband:
             power.
         * `intens_weighting` (string, optional, default='photon'): photon/energy
           switch
-        * `atm_extraplation_method` (string, optional, default='none'): the
+        * `atm_extrapolation_method` (string, optional, default='none'): the
           method of intensity extrapolation and off-the-grid blending with
-          blackbody atmosheres ('none', 'nearest', 'linear')
+          blackbody atmospheres ('none', 'nearest', 'linear')
         * `ld_extrapolation_method` (string, optional, default='none'): the
           method of limb darkening extrapolation ('none', 'nearest' or
           'linear')
         * `blending_method` (string, optional, default='none'): whether to
           blend model atmosphere with blackbody ('none' or 'blackbody')
+        * `blending_margin` (float, optional, default=3): the off-grid region,
+          in hypercube-normalized units, where blending should be done.
         * `dist_threshold` (float, optional, default=1e-5): off-grid distance
           threshold. Query points farther than this value, in hypercube-
           normalized units, are considered off-grid.
-        * `blending_margin` (float, optional, default=3): the off-grid region,
-          in hypercube-normalized units, where blending should be done.
 
 
         Returns
         ----------
-        * (array) specific emargent passband intensities, or:
-        * (tuple) specific emargent passband intensities and a nan mask.
+        * (<InterpResult>) specific emergent passband intensities, with optional
+          distances and blending factors if blending_method is not 'none'.
 
         Raises
         ----------
@@ -1514,6 +1579,9 @@ class Passband:
           table.
         * NotImplementedError: if `ld_func` is not supported.
         """
+
+        if blending_method not in ('none', 'blackbody'):
+            raise ValueError(f"blending_method='{blending_method}' is not supported; must be 'none' or 'blackbody'.")
 
         if f'{atm.name}:Imu' not in self.content:
             # external WD atmospheres are an exception (only Inorms, no Imus):
@@ -1636,19 +1704,11 @@ class Passband:
                     ld_extrapolation_method=ld_extrapolation_method
                 ).get_interpolated_values()
 
-                # Convert blackbody intensities to log10 for consistent blending
                 log10imus_bb = np.log10(imus_bb)
 
-                off_grid = dists > dist_threshold
-
-                log10imus_blended = log10imus.copy()
-                log10imus_blended[off_grid] = (
-                    np.minimum(dists[off_grid], blending_margin) * log10imus_bb[off_grid] +
-                    np.maximum(blending_margin-dists[off_grid], 0) * log10imus[off_grid]
-                ) / blending_margin
-                blending_factors = np.minimum(dists, blending_margin)/blending_margin
-
-                intensities = 10**log10imus_blended
+                intensities, blending_factors = self._blend_intensities(
+                    log10imus, log10imus_bb, dists, dist_threshold, blending_margin
+                )
 
                 return InterpResult(interps=intensities, dists=dists, bfs=blending_factors)
 
@@ -1675,8 +1735,8 @@ class Passband:
           coefficients
         * `intens_weighting` (string, optional, default='photon'): intensity
           weighting mode
-        * `ld_extrapolation_mode` (string, optional, default='none'): limb darkening
-          extrapolation mode
+        * `ld_extrapolation_method` (string, optional, default='none'): limb darkening
+          extrapolation method ('none', 'nearest', 'linear')
 
         Returns
         -------
@@ -1737,11 +1797,12 @@ class Passband:
         Arguments
         ----------
         * `Teff` (float/array): effective temperature in K
-        * `intens_weighting`
+        * `intens_weighting` (string, optional, default='photon'): intensity
+          weighting mode ('photon' or 'energy').
 
         Returns
         ------------
-        * mean boosting index using blackbody atmosphere.
+        * (float) mean boosting index using blackbody atmosphere.
         """
 
         if intens_weighting == 'photon':
@@ -1760,6 +1821,30 @@ class Passband:
 
     def bindex(self, teffs=5772., loggs=4.43, abuns=0.0, mus=1.0, atm='ck2004', intens_weighting='photon'):
         """
+        Computes the mean Doppler boosting index for the passband.
+
+        NOTE: This method is currently disabled pending review.
+
+        Arguments
+        ----------
+        * `teffs` (float/array, optional, default=5772.): effective temperature(s) in K.
+        * `loggs` (float/array, optional, default=4.43): surface gravity/gravities (log g).
+        * `abuns` (float/array, optional, default=0.0): metallicity/metallicities.
+        * `mus` (float/array, optional, default=1.0): cosine(s) of the angle between
+          the line of sight and the surface normal.
+        * `atm` (string, optional, default='ck2004'): atmosphere model to use
+          ('ck2004' or 'blackbody').
+        * `intens_weighting` (string, optional, default='photon'): intensity
+          weighting mode ('photon' or 'energy').
+
+        Returns
+        -------
+        * (float/array) mean boosting index.
+
+        Raises
+        ------
+        * NotImplementedError: Doppler boosting is currently offline for review.
+        * ValueError: if atmosphere parameters are out of bounds.
         """
         # TODO: implement phoenix boosting.
         raise NotImplementedError('Doppler boosting is currently offline for review.')
@@ -1787,6 +1872,17 @@ def _timestamp_to_dt(timestamp):
 
 def _init_passband(fullpath, check_for_update=True):
     """
+    Initialize a single passband from a file and add it to the global table.
+
+    Arguments
+    ----------
+    * `fullpath` (string): full path to the passband file.
+    * `check_for_update` (bool, optional, default=True): whether to check
+      for updates (currently unused).
+
+    Raises
+    ------
+    * RuntimeError: if the passband file fails to load.
     """
     global _pbtable
     logger.info("initializing passband (headers only) at {}".format(fullpath))
@@ -1808,10 +1904,22 @@ def _init_passband(fullpath, check_for_update=True):
 
 def _init_passbands(refresh=False, query_online=True, passband_directories=None):
     """
+    Initialize all passbands from local directories and online repository.
+
     This function should be called only once, at import time. It
     traverses the passbands directory and builds a lookup table of
     passband names qualified as 'pbset:pbname' and corresponding files
     and atmosphere content within.
+
+    Arguments
+    ----------
+    * `refresh` (bool, optional, default=False): whether to refresh the
+      passband table even if already initialized.
+    * `query_online` (bool, optional, default=True): whether to query the
+      online passband repository.
+    * `passband_directories` (list or string or None, optional, default=None):
+      list of directories to search for passbands. If None, uses the default
+      directories from list_passband_directories().
     """
     global _initialized
     global _pbtable
@@ -1869,7 +1977,7 @@ def install_passband(fname, local=True):
 
     Arguments
     ----------
-    * `fname` (string) the filename of the local passband.
+    * `fname` (string) the basename of the local passband.
     * `local` (bool, optional, default=True): whether to install to the local/user
         directory or the PHOEBE installation directory.  If `local=False`, you
         must have the necessary permissions to write to the installation
@@ -1921,7 +2029,7 @@ def uninstall_passband(passband, local=True):
     if fname is None:
         raise ValueError("could not find entry for '{}' in list_installed_passbands()".format(passband))
 
-    allowed_dir = _pbdir_local if local else _pbdir_local
+    allowed_dir = _pbdir_local if local else _pbdir_global
     if os.path.dirname(fname) != os.path.dirname(allowed_dir):
         raise ValueError("entry for '{}' was not found in {} (directory for local={})".format(passband, allowed_dir, local))
 

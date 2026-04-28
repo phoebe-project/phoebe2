@@ -1097,7 +1097,7 @@ class Star(Body):
                  requiv, sma,
                  polar_direction_uvw,
                  freq_rot,
-                 teff, gravb_bol, abun,
+                 teff, gravb_bol, abun, loghefrac,
                  irrad_frac_refl,
                  mesh_method, is_single,
                  do_rv_grav,
@@ -1122,6 +1122,7 @@ class Star(Body):
         self.teff = teff
         self.gravb_bol = gravb_bol
         self.abun = abun
+        self.loghefrac = loghefrac
         self.irrad_frac_refl = irrad_frac_refl
         self.mesh_method = mesh_method
         self.ntriangles = kwargs.get('ntriangles', 1000)                    # Marching
@@ -1222,6 +1223,7 @@ class Star(Body):
         gravb_bol= b.get_value(qualifier='gravb_bol', component=component, context='component', **_skip_filter_checks)
 
         abun = b.get_value(qualifier='abun', component=component, context='component', **_skip_filter_checks)
+        loghefrac = b.get_value(qualifier='loghefrac', component=component, context='component', **_skip_filter_checks)
         irrad_frac_refl = b.get_value(qualifier='irrad_frac_refl_bol', component=component, context='component', **_skip_filter_checks)
 
         try:
@@ -1356,6 +1358,7 @@ class Star(Body):
                    teff,
                    gravb_bol,
                    abun,
+                   loghefrac,
                    irrad_frac_refl,
                    mesh_method,
                    is_single,
@@ -1455,6 +1458,7 @@ class Star(Body):
         self._fill_gravs()
         self._fill_teffs(ignore_effects=ignore_effects)
         self._fill_abuns(abun=self.abun)
+        self._fill_loghefracs(loghefrac=self.loghefrac)
         self._fill_albedos(irrad_frac_refl=self.irrad_frac_refl)
 
     @property
@@ -1548,9 +1552,7 @@ class Star(Body):
 
     def _fill_loggs(self, mesh=None, ignore_effects=False):
         """
-        TODO: add documentation
-
-        Calculate local surface gravity
+        Calculate local surface gravity and populate the mesh
 
         GMSunNom = 1.3271244e20 m**3 s**-2
         RSunNom = 6.597e8 m
@@ -1652,6 +1654,24 @@ class Star(Body):
             logger.debug("{}._fill_abuns: copying abuns to standard mesh".format(self.component))
             theta = 0.0
             self._standard_meshes[theta].update_columns(abuns=abun)
+
+    def _fill_loghefracs(self, mesh=None, loghefrac=0.0):
+        """
+        TODO: add documentation
+        """
+        logger.debug("{}._fill_loghefracs".format(self.component))
+
+        if mesh is None:
+            mesh = self.mesh
+
+        # TODO: support from frontend
+
+        mesh.update_columns(loghefracs=loghefrac)
+
+        if not self.needs_recompute_instantaneous:
+            logger.debug("{}._fill_loghefracs: copying loghefracs to standard mesh".format(self.component))
+            theta = 0.0
+            self._standard_meshes[theta].update_columns(loghefracs=loghefrac)
 
     def _fill_albedos(self, mesh=None, irrad_frac_refl=0.0):
         """
@@ -2000,7 +2020,7 @@ class Star_roche(Star):
                  requiv, sma,
                  polar_direction_uvw,
                  freq_rot,
-                 teff, gravb_bol, abun,
+                 teff, gravb_bol, abun, loghefrac,
                  irrad_frac_refl,
                  mesh_method, is_single,
                  do_rv_grav,
@@ -2026,7 +2046,7 @@ class Star_roche(Star):
                                          requiv, sma,
                                          polar_direction_uvw,
                                          freq_rot,
-                                         teff, gravb_bol, abun,
+                                         teff, gravb_bol, abun, loghefrac,
                                          irrad_frac_refl,
                                          mesh_method, is_single,
                                          do_rv_grav,
@@ -2232,7 +2252,7 @@ class Star_roche_envelope_half(Star):
                  requiv, sma,
                  polar_direction_uvw,
                  freq_rot,
-                 teff, gravb_bol, abun,
+                 teff, gravb_bol, abun, loghefrac,
                  irrad_frac_refl,
                  mesh_method, is_single,
                  do_rv_grav,
@@ -2262,7 +2282,7 @@ class Star_roche_envelope_half(Star):
                                          requiv, sma,
                                          polar_direction_uvw,
                                          freq_rot,
-                                         teff, gravb_bol, abun,
+                                         teff, gravb_bol, abun, loghefrac,
                                          irrad_frac_refl,
                                          mesh_method, is_single,
                                          do_rv_grav,
@@ -2439,7 +2459,7 @@ class Star_rotstar(Star):
                  requiv, sma,
                  polar_direction_uvw,
                  freq_rot,
-                 teff, gravb_bol, abun,
+                 teff, gravb_bol, abun, loghefrac,
                  irrad_frac_refl,
                  mesh_method, is_single,
                  do_rv_grav,
@@ -2465,7 +2485,7 @@ class Star_rotstar(Star):
                                            requiv, sma,
                                            polar_direction_uvw,
                                            freq_rot,
-                                           teff, gravb_bol, abun,
+                                           teff, gravb_bol, abun, loghefrac,
                                            irrad_frac_refl,
                                            mesh_method, is_single,
                                            do_rv_grav,
@@ -2627,7 +2647,7 @@ class Star_sphere(Star):
                  requiv, sma,
                  polar_direction_uvw,
                  freq_rot,
-                 teff, gravb_bol, abun,
+                 teff, gravb_bol, abun, loghefrac,
                  irrad_frac_refl,
                  mesh_method, is_single,
                  do_rv_grav,
@@ -2653,7 +2673,7 @@ class Star_sphere(Star):
                                           requiv, sma,
                                           polar_direction_uvw,
                                           freq_rot,
-                                          teff, gravb_bol, abun,
+                                          teff, gravb_bol, abun, loghefrac,
                                           irrad_frac_refl,
                                           mesh_method, is_single,
                                           do_rv_grav,

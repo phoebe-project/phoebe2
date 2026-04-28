@@ -521,6 +521,7 @@ class ProtoMesh(object):
         self._gravs             = ComputedColumn(mesh=self)
         self._teffs             = ComputedColumn(mesh=self)
         self._abuns             = ComputedColumn(mesh=self)
+        self._loghefracs        = ComputedColumn(mesh=self)
         self._irrad_frac_refl  = ComputedColumn(mesh=self)
         # self._frac_heats          = ComputedColumn(mesh=self)
         # self._frac_scatts          = ComputedColumn(mesh=self)
@@ -542,7 +543,7 @@ class ProtoMesh(object):
                   'velocities', 'vnormals', 'tnormals',
                   'normgrads', 'volume', 'area',
                   'phis', 'thetas',
-                  'loggs', 'gravs', 'teffs', 'abuns', 'irrad_frac_refl'] # frac_heats, frac_scatts
+                  'loggs', 'gravs', 'teffs', 'abuns', 'loghefracs', 'irrad_frac_refl'] # frac_heats, frac_scatts
         self._keys = keys + kwargs.pop('keys', [])
 
         self.update_columns(**kwargs)
@@ -1068,6 +1069,15 @@ class ProtoMesh(object):
         (ComputedColumn)
         """
         return self._abuns
+
+    @property
+    def loghefracs(self):
+        """
+        Return the array of unitless loghefracs, where each item is a scalar/float.
+
+        (ComputedColumn)
+        """
+        return self._loghefracs
 
     @property
     def irrad_frac_refl(self):
