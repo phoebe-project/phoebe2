@@ -42,7 +42,7 @@ logger.addHandler(logging.NullHandler())
 
 # define the URL to query for online passbands.  See tables.phoebe-project.org
 # repo for the source-code of the server
-_url_tables_server = os.getenv('PHOEBE_TABLES_SERVER', 'https://tables.phoebe-project.org')
+_url_tables_server = os.getenv('PHOEBE_TABLES_SERVER', 'https://tables25.phoebe-project.org')
 # comment out the following line if testing tables.phoebe-project.org server locally:
 # _url_tables_server = 'http://localhost:5555'
 
@@ -61,9 +61,9 @@ _pbdir_global = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__f
 # this check may fail for Python 3
 if hasattr(sys, 'real_prefix'):
     # then we're running in a virtualenv
-    _pbdir_local = os.path.join(sys.prefix, '.phoebe/atmospheres/tables/passbands/')
+    _pbdir_local = os.path.join(sys.prefix, '.phoebe/atmospheres/tables/passbands2.5/')
 else:
-    _pbdir_local = os.path.abspath(os.path.expanduser('~/.phoebe/atmospheres/tables/passbands'))+'/'
+    _pbdir_local = os.path.abspath(os.path.expanduser('~/.phoebe/atmospheres/tables/passbands2.5'))+'/'
 
 if not os.path.exists(_pbdir_local):
     if not mpi.within_mpirun or mpi.myrank == 0:
@@ -719,6 +719,67 @@ class Passband:
 
             if load_content:
                 stored_atms = set([content.split(':')[0] for content in self.content])
+
+                if False:  # parse(self.phoebe_version) == parse('2.5.0'):
+                    if 'blackbody' in stored_atms:
+                        # blackbody atmospheres are reworked, so we need to
+                        # recompute the intensities:
+                        self.compute_intensities(
+                            atm=models.BlackbodyModelAtmosphere(),
+                            include_mus=False,
+                            include_ld=False,
+                            include_extinction='blackbody:ext' in self.content,
+                            add_history_entry=False,
+                            verbose=False
+                        )
+                        ndp = self.ndp['blackbody']  # initialized by compute_intensities()
+
+                        # store axes:
+                        hdul['bb_teffs'] = fits.table_to_hdu(Table({'teffs': ndp.axes[0]}, meta={'extname': 'bb_teffs'}))
+                        if 'blackbody:ext' in self.content:
+                            associated_axes = ndp.table['ext@photon']['associated_axes']
+                            hdul['bb_ebvs'] = fits.table_to_hdu(Table({'ebvs': associated_axes[0]}, meta={'extname': 'bb_ebvs'}))
+                            hdul['bb_rvs'] = fits.table_to_hdu(Table({'rvs': associated_axes[1]}, meta={'extname': 'bb_rvs'}))
+
+                        # store tables:
+                        hdul.append(fits.ImageHDU(self.ndp['blackbody'].table['inorm@energy']['grid'], name='bbnegrid'))
+                        hdul.append(fits.ImageHDU(self.ndp['blackbody'].table['inorm@photon']['grid'], name='bbnpgrid'))
+                        if 'blackbody:ext' in self.content:
+                            hdul.append(fits.ImageHDU(self.ndp['blackbody'].table['ext@energy']['grid'], name='bbxegrid'))
+                            hdul.append(fits.ImageHDU(self.ndp['blackbody'].table['ext@photon']['grid'], name='bbxpgrid'))
+
+                        # clean up:
+                        del self.ndp['blackbody']
+
+                    # rename columns in old tables:
+                    if 'ck2004' in stored_atms:
+                        if 'teff' in hdul['ck_teffs'].data.columns.names:
+                            hdul['ck_teffs'].data.columns.change_name('teff', 'teffs')
+                        if 'logg' in hdul['ck_loggs'].data.columns.names:
+                            hdul['ck_loggs'].data.columns.change_name('logg', 'loggs')
+                        if 'abun' in hdul['ck_abuns'].data.columns.names:
+                            hdul['ck_abuns'].data.columns.change_name('abun', 'abuns')
+
+                        if 'ck2004:ext' in self.content:
+                            if 'ebv' in hdul['ck_ebvs'].data.columns.names:
+                                hdul['ck_ebvs'].data.columns.change_name('ebv', 'ebvs')
+                            if 'rv' in hdul['ck_rvs'].data.columns.names:
+                                hdul['ck_rvs'].data.columns.change_name('rv', 'rvs')
+
+                    if 'phoenix' in stored_atms:
+                        if 'teff' in hdul['ph_teffs'].data.columns.names:
+                            hdul['ph_teffs'].data.columns.change_name('teff', 'teffs')
+                        if 'logg' in hdul['ph_loggs'].data.columns.names:
+                            hdul['ph_loggs'].data.columns.change_name('logg', 'loggs')
+                        if 'abun' in hdul['ph_abuns'].data.columns.names:
+                            hdul['ph_abuns'].data.columns.change_name('abun', 'abuns')
+
+                        if 'phoenix:ext' in self.content:
+                            if 'ebv' in hdul['ph_ebvs'].data.columns.names:
+                                hdul['ph_ebvs'].data.columns.change_name('ebv', 'ebvs')
+                            if 'rv' in hdul['ph_rvs'].data.columns.names:
+                                hdul['ph_rvs'].data.columns.change_name('rv', 'rvs')
+
                 if 'extern_planckint:Inorm' in self.content or 'extern_atmx:Inorm' in self.content:
                     atmdir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tables/wd'))
                     planck = os.path.join(atmdir+'/atmcofplanck.dat').encode('utf8')
@@ -727,14 +788,14 @@ class Passband:
                     self.wd_data = libphoebe.wd_readdata(planck, atm_file)
                     self.extern_wd_idx = header['wd_idx']
 
-                # We have to iterate over available atms rather than stored atms because
-                # the stored atms may not be available in the current version of PHOEBE.
-                available_atms = models.get_available_atms()
-                for atm in available_atms:
-                    if atm.name not in stored_atms:
-                        continue
+                # Model atmospheres in the passband file:
+                stored_atms = set([entry.split(':')[0] for entry in self.content])
 
-                    if atm.external:
+                # We have to iterate over supported atms rather than stored atms because
+                # the stored atms may not be available in the current version of PHOEBE.
+                supported_atms = models.get_supported_atms(include_extern=False)
+                for atm in supported_atms:
+                    if atm.name not in stored_atms:
                         continue
 
                     basic_axes = tuple([np.array(list(hdul[f'{atm.prefix}_{name}'].data[name])) for name in atm.basic_axis_names])
@@ -749,11 +810,9 @@ class Passband:
                         atm_photon_grid = hdul[f'{atm.prefix}fpgrid'].data
                         atm_energy_grid = hdul[f'{atm.prefix}fegrid'].data
 
-                        if f'{atm.name}:Inorm' not in self.content:
-                            # extract normal passband intensities if missing:
-                            self.ndp[atm.name].register(name='inorm@photon', associated_axes=None, grid=atm_photon_grid[..., -1, :])
-                            self.ndp[atm.name].register(name='inorm@energy', associated_axes=None, grid=atm_energy_grid[..., -1, :])
-                            self.content.append(f'{atm.name}:Inorm')
+                        # normal passband intensities:
+                        self.ndp[atm.name].register(name='inorm@photon', associated_axes=None, grid=atm_photon_grid[..., -1, :])
+                        self.ndp[atm.name].register(name='inorm@energy', associated_axes=None, grid=atm_energy_grid[..., -1, :])
 
                         # specific passband intensities:
                         self.ndp[atm.name].register(name='imu@photon', associated_axes=(atm.mus,), grid=atm_photon_grid)
@@ -873,7 +932,7 @@ class Passband:
         else:
             raise NotImplementedError(f'ld_func={ld_func} is not supported.')
 
-    def compute_intensities(self, atm, include_mus=True, include_ld=True,  ld_weighting='uniform', include_extinction=False, rvs=None, ebvs=None, add_history_entry=True, verbose=True):
+    def compute_intensities(self, atm, include_mus=True, include_ld=True, include_extinction=False, rvs=None, ebvs=None, add_history_entry=True, verbose=True):
         """
         Computes direction-dependent passband intensities using the passed `atm`
         model atmospheres.
@@ -888,8 +947,6 @@ class Passband:
             limb darkening coefficients in the computation. This will also
             calculate and tabulate integrals of the piecewise linear limb
             darkening function.
-        * `ld_weighting' (optional, default='uniform'): set to 'interval' to derive
-            interval-weighted limb darkening coefficients.
         * `include_extinction` (boolean, optional, default=False): should the
             extinction tables be computed as well. The mean effect of reddening
             (a weighted average) on a passband uses the Gordon et al. (2009,
@@ -1067,21 +1124,10 @@ class Passband:
             # define the residuals function for the least squares optimization:
             def ld_resids(x, *args, **kwargs):
                 xdata = kwargs.get('xdata')
-                
-                if ld_weighting=='uniform':
-                    sigma=np.ones(len(xdata))
-                elif ld_weighting=='interval':
-                    diffs = np.diff(xdata)
-                    delta = np.r_[diffs[0], diffs]
-                    sigma=1/np.sqrt(delta)
-                else:
-                    raise ValueError(f'ld_weighting={ld_weighting} is not supported.')
-                
                 ydata = kwargs.get('ydata')
                 ld_func = kwargs.get('ld_func', 'linear')
 
-                return (self.ld_func(mu=xdata, ld_coeffs=x, ld_func=ld_func) - ydata)/sigma
-
+                return self.ld_func(mu=xdata, ld_coeffs=x, ld_func=ld_func) - ydata
 
             # loop over all defined coordinates to compute limb darkening coefficients and integrals:
             for grid, ld_grid, ldint_grid in zip([atm_energy_grid, atm_photon_grid], [ld_energy_grid, ld_photon_grid], [ldint_energy_grid, ldint_photon_grid]):
@@ -1089,6 +1135,7 @@ class Passband:
                     xdata = atm.mus
                     ydata = 10**grid[tuple(ind)].flatten()
                     ydata /= ydata[-1]
+                    # TODO: consider support for non-uniform weighing
 
                     ld_row = []
                     for ld_func, ld_dim in zip(['linear', 'logarithmic', 'square_root', 'quadratic', 'power'], [1, 2, 2, 2, 4]):
@@ -1600,7 +1647,7 @@ class Passband:
                 ld_func=ld_func,
                 ld_coeffs=ld_coeffs,
                 intens_weighting=intens_weighting,
-                atm_extrapolation_method=ld_extrapolation_method,
+                atm_extrapolation_method=atm_extrapolation_method,
                 ld_extrapolation_method=ld_extrapolation_method
             )
 
@@ -1615,7 +1662,7 @@ class Passband:
                 ld_func=ld_func,
                 ld_coeffs=ld_coeffs,
                 intens_weighting=intens_weighting,
-                atm_extrapolation_method=ld_extrapolation_method,
+                atm_extrapolation_method=atm_extrapolation_method,
                 ld_extrapolation_method=ld_extrapolation_method
             ).get_interpolated_values()
 
@@ -2697,65 +2744,3 @@ def get_passband(passband, content=None, reload=False, update_if_necessary=False
         _pbtable[passband]['pb'] = pb
 
     return _pbtable[passband]['pb']
-
-
-if __name__ == '__main__':
-    # This will generate bolometric and Johnson V passband files. Note that
-    # extinction for the bolometric band cannot be computed because it falls
-    # off the extinction formula validity range in wavelength, and shouldn't
-    # be computed anyway because it is only used for reflection purposes.
-
-    try:
-        pb = Passband.load('tables/passbands/bolometric.fits')
-    except FileNotFoundError:
-        pb = Passband(
-            ptf='tables/ptf/bolometric.ptf',
-            pbset='Bolometric',
-            pbname='900-40000',
-            wlunits=u.m,
-            calibrated=True,
-            reference='Flat response to simulate bolometric throughput',
-            version=2.5
-        )
-
-    pb.version = 2.5
-    pb.add_to_history('TMAP model atmospheres added.')
-    pb.content = []
-
-    pb.compute_blackbody_intensities(include_extinction=False)
-
-    atms = [atm for atm in models._atmtable.keys() if atm != 'blackbody' and not atm.startswith('extern')]
-    for atm in atms:
-        pb.compute_intensities(atm=atm, path=f'tables/{atm}', verbose=True)
-        pb.compute_ldcoeffs(ldatm=atm)
-        pb.compute_ldints(ldatm=atm)
-
-    pb.save('bolometric.fits')
-
-    try:
-        pb = Passband.load('tables/passbands/johnson_v.fits')
-    except FileNotFoundError:
-        pb = Passband(
-            ptf='tables/ptf/johnson_v.ptf',
-            pbset='Johnson',
-            pbname='V',
-            wlunits=u.AA,
-            calibrated=True,
-            reference='Maiz Apellaniz (2006), AJ 131, 1184',
-            version=2.5,
-            comment=''
-        )
-
-    pb.version = 2.5
-    pb.add_to_history('TMAP model atmospheres added.')
-    pb.content = []
-
-    pb.compute_blackbody_intensities(include_extinction=True)
-
-    atms = [atm for atm in models._atmtable.keys() if atm != 'blackbody' and not atm.startswith('extern')]
-    for atm in atms:
-        pb.compute_intensities(atm=atm, path=f'tables/{atm}', verbose=True)
-
-    pb.import_wd_atmcof('tables/wd/atmcofplanck.dat', 'tables/wd/atmcof.dat', 7)
-
-    pb.save('johnson_v.fits')

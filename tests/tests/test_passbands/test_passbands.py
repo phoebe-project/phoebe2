@@ -5,7 +5,7 @@ import os
 
 
 path = os.path.dirname(__file__)
-atms = [atm for atm in models.get_available_atms() if not atm.external]
+atms = [atm for atm in models.get_supported_atms() if not atm.external]
 
 
 def test_compute(atm_tables_available=False, atm_path=None, atms=atms):
