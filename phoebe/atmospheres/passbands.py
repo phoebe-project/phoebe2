@@ -1141,7 +1141,7 @@ class Passband:
                 ydata = kwargs.get('ydata')
                 ld_func = kwargs.get('ld_func', 'linear')
 
-                return (self.ld_func(mu=xdata, ld_coeffs=x, ld_func=ld_func) - ydata)*sigma
+                return (self.ld_func(mu=xdata, ld_coeffs=x, ld_func=ld_func) - ydata)/sigma
 
 
             # loop over all defined coordinates to compute limb darkening coefficients and integrals:
