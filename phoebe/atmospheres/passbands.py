@@ -950,7 +950,7 @@ class Passband:
             limb darkening coefficients in the computation. This will also
             calculate and tabulate integrals of the piecewise linear limb
             darkening function.
-        * `ld_weighting' (optional, default='uniform): set to 'interval' to derive
+        * `ld_weighting' (optional, default='uniform'): set to 'interval' to derive
             interval-weighted limb darkening coefficients.
         * `include_extinction` (boolean, optional, default=False): should the
             extinction tables be computed as well. The mean effect of reddening
