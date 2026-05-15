@@ -1133,7 +1133,8 @@ class Passband:
                 if ld_weighting=='uniform':
                     sigma=np.ones(len(xdata))
                 elif ld_weighting=='interval':
-                    delta = np.concatenate( (np.array((xdata[1]-xdata[0],)), xdata[1:]-xdata[:-1]) )
+                    diffs = np.diff(xdata)
+                    delta = np.r_[diffs[0], diffs]
                     sigma=1/np.sqrt(delta)
                 else:
                     raise ValueError(f'ld_weighting={ld_weighting} is not supported.')
