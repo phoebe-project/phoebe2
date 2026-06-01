@@ -1668,7 +1668,7 @@ class Passband:
                 ld_func=ld_func,
                 ld_coeffs=ld_coeffs,
                 intens_weighting=intens_weighting,
-                atm_extrapolation_method=atm_extrapolation_method,
+                atm_extrapolation_method=ld_extrapolation_method,
                 ld_extrapolation_method=ld_extrapolation_method
             )
 
@@ -1683,7 +1683,7 @@ class Passband:
                 ld_func=ld_func,
                 ld_coeffs=ld_coeffs,
                 intens_weighting=intens_weighting,
-                atm_extrapolation_method=atm_extrapolation_method,
+                atm_extrapolation_method=ld_extrapolation_method,
                 ld_extrapolation_method=ld_extrapolation_method
             ).get_interpolated_values()
 
