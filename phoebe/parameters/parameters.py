@@ -9890,11 +9890,14 @@ class FloatParameter(Parameter):
 
         # handle wrapping for angle measurements
         if value is not None and value.unit.physical_type == 'angle':
-            # NOTE: this may fail for nparray types
-            if value > (360*u.deg) or value < (0*u.deg):
+            value_deg = value.to(u.deg).value
+            out_of_range = np.any((value_deg > 360.0) | (value_deg < 0.0))
+            if out_of_range:
                 if self._bundle is not None and self._bundle._within_solver and not kwargs.get('from_constraint', False):
-                    if abs(value.to(u.deg).value - self._value.to(u.deg).value) > 180:
-                        raise ValueError("value further than 180 deg from {}".format(self._value.to(u.deg).value))
+                    if self._value is not None:
+                        old_deg = self._value.to(u.deg).value
+                        if np.any(np.abs(np.asarray(value_deg) - np.asarray(old_deg)) > 180.0):
+                            raise ValueError("value further than 180 deg from {}".format(old_deg))
                 value = value % (360*u.deg)
                 logger.info("wrapping value of {} to {}".format(self.qualifier, value))
 
