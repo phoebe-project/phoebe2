@@ -42,7 +42,7 @@ logger.addHandler(logging.NullHandler())
 
 # define the URL to query for online passbands.  See tables.phoebe-project.org
 # repo for the source-code of the server
-_url_tables_server = os.getenv('PHOEBE_TABLES_SERVER', 'https://tables.phoebe-project.org')
+_url_tables_server = os.getenv('PHOEBE_TABLES_SERVER', 'https://tables25.phoebe-project.org')
 # comment out the following line if testing tables.phoebe-project.org server locally:
 # _url_tables_server = 'http://localhost:5555'
 
@@ -720,7 +720,7 @@ class Passband:
             if load_content:
                 stored_atms = set([content.split(':')[0] for content in self.content])
 
-                if parse(self.phoebe_version) < parse('2.5.0'):
+                if False:
                     if 'blackbody' in stored_atms:
                         # blackbody atmospheres are reworked, so we need to
                         # recompute the intensities:
