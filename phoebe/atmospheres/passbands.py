@@ -39,7 +39,7 @@ logger.addHandler(logging.NullHandler())
 
 # define the URL to query for online passbands.  See tables.phoebe-project.org
 # repo for the source-code of the server
-_url_tables_server = os.getenv('PHOEBE_TABLES_SERVER', 'https://tables.phoebe-project.org')
+_url_tables_server = os.getenv('PHOEBE_TABLES_SERVER', 'https://router.phoebe-project.org')
 # comment out the following line if testing tables.phoebe-project.org server locally:
 # _url_tables_server = 'http://localhost:5555'
 
