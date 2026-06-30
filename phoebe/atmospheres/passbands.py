@@ -1424,7 +1424,13 @@ class Passband:
             raise ValueError(f"blending_method='{blending_method}' is not supported; must be 'none' or 'blackbody'.")
 
         if f'{atm.name}:Inorm' not in self.content:
-            raise ValueError(f'atm={atm.name} tables are not available in the {self.pbset}:{self.pbname} passband.')
+            if f'{atm.name}:Imu' in self.content:
+                # lazy-load inorms from imu table:
+                self.ndp[atm.name].register(name='inorm@photon', associated_axes=None, grid=self.ndp[atm.name].table['imu@photon']['grid'][..., -1, :])
+                self.ndp[atm.name].register(name='inorm@energy', associated_axes=None, grid=self.ndp[atm.name].table['imu@energy']['grid'][..., -1, :])
+                self.content += [f'{atm.name}:Inorm']
+            else:
+                raise ValueError(f'atm={atm.name} tables are not available in the {self.pbset}:{self.pbname} passband.')
 
         if atm.name == 'blackbody':
             # compute normal emergent blackbody intensities:
