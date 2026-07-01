@@ -719,7 +719,6 @@ class Passband:
 
             if load_content:
                 stored_atms = set([content.split(':')[0] for content in self.content])
-
                 if 'extern_planckint:Inorm' in self.content or 'extern_atmx:Inorm' in self.content:
                     atmdir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tables/wd'))
                     planck = os.path.join(atmdir+'/atmcofplanck.dat').encode('utf8')
