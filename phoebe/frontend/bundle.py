@@ -5431,8 +5431,9 @@ class Bundle(ParameterSet):
                          'Skilling (2006)': 'https://projecteuclid.org/euclid.ba/1340370944',
                          'Foreman-Mackey et al. (2017)': 'https://ui.adsabs.harvard.edu/abs/2017AJ....154..220F',
                          'Prsa et al. (2008)': 'https://ui.adsabs.harvard.edu/abs/2008ApJ...687..542P',
-                         'Kochoska et al. (in prep)': 'https://phoebe-project.org/publications/2022Kochoska+',
+                         'Kochoska et al.': 'https://phoebe-project.org/publications/2022Kochoska+',
                          'scikit-learn': 'https://scikit-learn.org/stable/about.html#citing-scikit-learn',
+                         'Jones et al. (2026)': 'https://phoebe-project.org/publications/2026Jones+',
                         }
 
         # ref: [reasons] pairs
@@ -5468,10 +5469,10 @@ class Bundle(ParameterSet):
                 recs = _add_reason(recs, 'astropy', 'astropy.timeseries for periodograms')
             elif solver_kind in ['lc_geometry', 'rv_geometry']:
                 recs = _add_reason(recs, 'Conroy et al. (2020)', '{} solver initially introduced in PHOEBE'.format(solver_kind))
-                recs = _add_reason(recs, 'Kochoska et al. (in prep)', '{} solver updates'.format(solver_kind))
+                recs = _add_reason(recs, 'Kochoska et al.', '{} solver updates'.format(solver_kind))
             elif solver_kind == 'ebai':
                 recs = _add_reason(recs, 'Conroy et al. (2020)', 'ebai solver initially introduced in PHOEBE')
-                recs = _add_reason(recs, 'Kochoska et al. (in prep)', 'ebai solver updates')
+                recs = _add_reason(recs, 'Kochoska et al.', 'ebai solver updates')
                 ebai_method = self.get_value(qualifier='ebai_method', solver=solver, **_skip_filter_checks)
                 if solver_kind == 'knn':
                     recs = _add_reason(recs, 'scikit-learn', 'knn implementation for ebai solver')
@@ -5488,10 +5489,10 @@ class Bundle(ParameterSet):
                 recs = _add_reason(recs, 'Skilling (2004)', 'nested sampling: dynesty solver backend')
                 recs = _add_reason(recs, 'Skilling (2006)', 'nested sampling: dynesty solver backend')
             elif solver_kind == 'differential_evolution':
-                recs = _add_reason(recs, 'Kochoska et al. (in prep)', 'differential_evolution solver introduced in PHOEBE')
+                recs = _add_reason(recs, 'Kochoska et al.', 'differential_evolution solver introduced in PHOEBE')
                 recs = _add_reason('numpy/scipy', '{} solver uses scipy.optimize.differential_evolution'.format(solver_kind))
             elif solver_kind == 'differential_corrections':
-                recs = _add_reason(recs, 'Kochoska et al. (in prep)', 'differential_corrections solver introduced in PHOEBE')
+                recs = _add_reason(recs, 'Kochoska et al.', 'differential_corrections solver introduced in PHOEBE')
 
 
         # check for presence of datasets that require PHOEBE releases
@@ -5520,14 +5521,19 @@ class Bundle(ParameterSet):
                 recs = _add_reason(recs, 'Castelli & Kurucz (2004)', 'ck2004 atmosphere tables')
             elif atmname == 'phoenix':
                 recs = _add_reason(recs, 'Husser et al. (2013)', 'phoenix atmosphere tables')
+                recs = _add_reason(recs, 'Jones et al. (2026)', 'phoenix atmosphere tables included in PHOEBE')
             elif atmname == 'tmap_sdO':
                 recs = _add_reason(recs, 'Reindl et al. (2016)', 'TMAP atmosphere tables')
+                recs = _add_reason(recs, 'Jones et al. (2026)', 'phoenix atmosphere tables included in PHOEBE')
             elif atmname in ['tmap_DA', 'tmap_DAO', 'tmap_DO']:
                 recs = _add_reason(recs, 'Reindl et al. (2023)', 'TMAP atmosphere tables')
+                recs = _add_reason(recs, 'Jones et al. (2026)', 'phoenix atmosphere tables included in PHOEBE')
             elif atmname in ['extern_planckint', 'extern_atmx']:
                 recs = _add_reason(recs, 'Prsa & Zwitter (2005)', '{} atmosphere tables'.format(atmname))
             elif atmname == 'tremblay':
                 recs = _add_reason(recs, 'Tremblay et al. (2011, 2013)', 'Tremblay atmosphere tables')
+                recs = _add_reason(recs, 'Jones et al. (2026)', 'phoenix atmosphere tables included in PHOEBE')
+
 
         for atm_param in self.filter(qualifier='ld_coeffs_source', component=self.hierarchy.get_stars()).to_list():
             atmname = atm_param.get_value()
@@ -5535,19 +5541,29 @@ class Bundle(ParameterSet):
                 recs = _add_reason(recs, 'Castelli & Kurucz (2004)', 'ck2004 atmosphere tables for limb-darkening interpolation')
             elif atmname == 'phoenix':
                 recs = _add_reason(recs, 'Husser et al. (2013)', 'phoenix atmosphere tables for limb-darkening interpolation')
+                recs = _add_reason(recs, 'Jones et al. (2026)', 'phoenix atmosphere tables included in PHOEBE')
             elif atmname == 'tmap_sdO':
                 recs = _add_reason(recs, 'Reindl et al. (2016)', 'TMAP atmosphere tables')
+                recs = _add_reason(recs, 'Jones et al. (2026)', 'phoenix atmosphere tables included in PHOEBE')
             elif atmname in ['tmap_DA', 'tmap_DAO', 'tmap_DO']:
                 recs = _add_reason(recs, 'Reindl et al. (2023)', 'TMAP atmosphere tables')
+                recs = _add_reason(recs, 'Jones et al. (2026)', 'phoenix atmosphere tables included in PHOEBE')
             elif atmname == 'tremblay':
                 recs = _add_reason(recs, 'Tremblay et al. (2011, 2013)', 'Tremblay atmosphere tables')
+                recs = _add_reason(recs, 'Jones et al. (2026)', 'phoenix atmosphere tables included in PHOEBE')
+
+        # cite extrapolation/blending methods when atmosphere grids are used off-grid
+        for extrap_param in self.filter(qualifier=['atm_extrapolation_method', 'ld_extrapolation_method'], compute=computes).to_list():
+            if extrap_param.get_value() != 'none':
+                recs = _add_reason(recs, 'Jones et al. (2026)', 'atmosphere extrapolation/blending')
+                break
                 
         # provide any references from features
         if len(self.filter(context='feature', kind='gp_sklearn').features):
-            recs = _add_reason(recs, 'Kochoska et al. (in prep)', 'sklearn GPs introduced in PHOEBE')
+            recs = _add_reason(recs, 'Kochoska et al.', 'sklearn GPs introduced in PHOEBE')
             recs = _add_reason(recs, 'scikit-learn', 'scikit-learn for gaussian processes')
         if len(self.filter(context='feature', kind='gp_celerite2').features):
-            recs = _add_reason(recs, 'Kochoska et al. (in prep)', 'celerite2 GPs introduced in PHOEBE')
+            recs = _add_reason(recs, 'Kochoska et al.', 'celerite2 GPs introduced in PHOEBE')
             recs = _add_reason(recs, 'Foreman-Mackey et al., (2017)', 'celerite2 for gaussian processes')
         # provide references from dependencies
         recs = _add_reason(recs, 'numpy/scipy', 'numpy/scipy dependency within PHOEBE')
