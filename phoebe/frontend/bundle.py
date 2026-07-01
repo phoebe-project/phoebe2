@@ -5431,7 +5431,6 @@ class Bundle(ParameterSet):
                          'Skilling (2006)': 'https://projecteuclid.org/euclid.ba/1340370944',
                          'Foreman-Mackey et al. (2017)': 'https://ui.adsabs.harvard.edu/abs/2017AJ....154..220F',
                          'Prsa et al. (2008)': 'https://ui.adsabs.harvard.edu/abs/2008ApJ...687..542P',
-                         'Kochoska et al.': 'https://phoebe-project.org/publications/2022Kochoska+',
                          'scikit-learn': 'https://scikit-learn.org/stable/about.html#citing-scikit-learn',
                          'Jones et al. (2026)': 'https://phoebe-project.org/publications/2026Jones+',
                         }
@@ -5469,10 +5468,8 @@ class Bundle(ParameterSet):
                 recs = _add_reason(recs, 'astropy', 'astropy.timeseries for periodograms')
             elif solver_kind in ['lc_geometry', 'rv_geometry']:
                 recs = _add_reason(recs, 'Conroy et al. (2020)', '{} solver initially introduced in PHOEBE'.format(solver_kind))
-                recs = _add_reason(recs, 'Kochoska et al.', '{} solver updates'.format(solver_kind))
             elif solver_kind == 'ebai':
                 recs = _add_reason(recs, 'Conroy et al. (2020)', 'ebai solver initially introduced in PHOEBE')
-                recs = _add_reason(recs, 'Kochoska et al.', 'ebai solver updates')
                 ebai_method = self.get_value(qualifier='ebai_method', solver=solver, **_skip_filter_checks)
                 if solver_kind == 'knn':
                     recs = _add_reason(recs, 'scikit-learn', 'knn implementation for ebai solver')
@@ -5489,10 +5486,10 @@ class Bundle(ParameterSet):
                 recs = _add_reason(recs, 'Skilling (2004)', 'nested sampling: dynesty solver backend')
                 recs = _add_reason(recs, 'Skilling (2006)', 'nested sampling: dynesty solver backend')
             elif solver_kind == 'differential_evolution':
-                recs = _add_reason(recs, 'Kochoska et al.', 'differential_evolution solver introduced in PHOEBE')
-                recs = _add_reason('numpy/scipy', '{} solver uses scipy.optimize.differential_evolution'.format(solver_kind))
+                recs = _add_reason(recs, 'Conroy et al. (2020)', 'differential_evolution solver introduced in PHOEBE')
+                recs = _add_reason(recs, 'numpy/scipy', '{} solver uses scipy.optimize.differential_evolution'.format(solver_kind))
             elif solver_kind == 'differential_corrections':
-                recs = _add_reason(recs, 'Kochoska et al.', 'differential_corrections solver introduced in PHOEBE')
+                recs = _add_reason(recs, 'Conroy et al. (2020)', 'differential_corrections solver introduced in PHOEBE')
 
 
         # check for presence of datasets that require PHOEBE releases
@@ -5560,10 +5557,10 @@ class Bundle(ParameterSet):
                 
         # provide any references from features
         if len(self.filter(context='feature', kind='gp_sklearn').features):
-            recs = _add_reason(recs, 'Kochoska et al.', 'sklearn GPs introduced in PHOEBE')
+            recs = _add_reason(recs, 'Conroy et al. (2020)', 'sklearn GPs introduced in PHOEBE')
             recs = _add_reason(recs, 'scikit-learn', 'scikit-learn for gaussian processes')
         if len(self.filter(context='feature', kind='gp_celerite2').features):
-            recs = _add_reason(recs, 'Kochoska et al.', 'celerite2 GPs introduced in PHOEBE')
+            recs = _add_reason(recs, 'Conroy et al. (2020)', 'celerite2 GPs introduced in PHOEBE')
             recs = _add_reason(recs, 'Foreman-Mackey et al., (2017)', 'celerite2 for gaussian processes')
         # provide references from dependencies
         recs = _add_reason(recs, 'numpy/scipy', 'numpy/scipy dependency within PHOEBE')
