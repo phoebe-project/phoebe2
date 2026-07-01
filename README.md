@@ -80,6 +80,8 @@ CHANGELOG
 
 ### 2.5.0
 
+* Adds blending/TMAP atmosphere support and the related passband and intensity infrastructure. [#1132]
+
 ### 2.4.22
 
 * Fixes bug where LS periodogram was returning frequency instead of period [#1089]
