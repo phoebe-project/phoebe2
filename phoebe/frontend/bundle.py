@@ -990,7 +990,7 @@ class Bundle(ParameterSet):
                 if solved_for.qualifier != constraint.constraint_func:
                     new_constraint_ps.get_parameter().flip_for(solved_for.twig)
 
-        if phoebe_version_import < parse("2.5.0") or ".dev" in version:
+        if phoebe_version_import < parse("2.5.0"):
             warning = "importing from an older version ({}) of PHOEBE to PHOEBE 2.5+.  This may take some time.  Please check all values.".format(phoebe_version_import)
             logger.warning(warning)
             # update all datasets to get boosting_method/index parameters
