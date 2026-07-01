@@ -2,16 +2,15 @@
 import numpy as np
 
 from phoebe.parameters import *
-from phoebe.parameters import dataset as _dataset
-import phoebe.dynamics as dynamics
-from phoebe.atmospheres import passbands # needed to get choices for 'atm' parameter
+from phoebe.atmospheres import passbands, models  # needed to get choices for 'atm' parameter
 from phoebe import u
 from phoebe import conf
 
-### NOTE: if creating new parameters, add to the _forbidden_labels list in parameters.py
+# NOTE: if creating new parameters, add to the _forbidden_labels list in parameters.py
 
 passbands._init_passbands()  # TODO: move to module import
-_atm_choices = list(set([atm for pb in passbands._pbtable.values() for atm in pb['atms'] if atm in passbands._supported_atms]))
+_supported_atms = list(models._atmtable.keys())
+_atm_choices = list(set([atm for pb in passbands._pbtable.values() for atm in pb['atms'] if atm in _supported_atms]))
 
 def _sampling_params(**kwargs):
     """
@@ -48,7 +47,7 @@ def phoebe(**kwargs):
     pre-requisites are required.
 
     When using this backend, please see the
-    http://phoebe-project.org/publications and cite
+    https://phoebe-project.org/publications and cite
     the appropriate references.
 
     See also:
@@ -79,9 +78,15 @@ def phoebe(**kwargs):
         use to determine the dynamics of components.
     * `ltte` (bool, optional, default=False): whether to correct for light
         travel time effects.
-    * `atm` (string, optional, default='ck2004'): atmosphere tables.
+    * `atm` (string, optional, default='ck2004'): atmosphere table
     * `irrad_method` (string, optional, default='horvat'): which method to use
         to handle irradiation.
+    * `atm_extrapolation_method` (string, optional, default='linear'): method
+        of extrapolating intensities outside of the atmosphere grid.
+    * `ld_extrapolation_method` (string, optional, default='nearest'): method
+        of extrapolating limb-darkening intensities outside of the atmosphere grid.
+    * `blending_method` (string, optional, default='blackbody'): method to use
+        for blending model atmosphere and blackbody intensities off the atmosphere grid.
     * `mesh_method` (string, optional, default='marching'): which method to use
         for discretizing the surface.
     * `ntriangles` (int, optional, default=1500): target number of triangles
@@ -165,6 +170,9 @@ def phoebe(**kwargs):
 
     # PER-COMPONENT
     params += [ChoiceParameter(copy_for = {'kind': ['star'], 'component': '*'}, component='_default', qualifier='atm', value=kwargs.get('atm', 'ck2004'), choices=_atm_choices, description='Atmosphere table')]
+    params += [ChoiceParameter(visible_if='atm:!blackbody,atm:!extern_planckint,atm:!extern_atmx', copy_for = {'kind': ['star'], 'component': '*'}, component='_default', qualifier='atm_extrapolation_method', value=kwargs.get('atm_extrapolation_method', 'linear'), choices=['none', 'nearest', 'linear'], description='Method of extrapolating intensities outside of the atmosphere grid')]
+    params += [ChoiceParameter(visible_if='atm:!blackbody,atm:!extern_planckint,atm:!extern_atmx', copy_for = {'kind': ['star'], 'component': '*'}, component='_default', qualifier='ld_extrapolation_method', value=kwargs.get('ld_extrapolation_method', 'nearest'), choices=['none', 'nearest', 'linear'], description='Method of extrapolating limb-darkening intensities outside of the atmosphere grid')]
+    params += [ChoiceParameter(visible_if='atm:!blackbody,atm:!extern_planckint,atm:!extern_atmx,atm_extrapolation_method:!none,ld_extrapolation_method:!none', copy_for = {'kind': ['star'], 'component': '*'}, component='_default', qualifier='blending_method', value=kwargs.get('blending_method', 'blackbody'), choices=['none', 'blackbody'], description='Method to use for blending model atmosphere and blackbody intensities off the atmosphere grid')]
 
     # PER-DATASET
 
@@ -174,7 +182,7 @@ def phoebe(**kwargs):
     # rv_dep kind
     # params += [ChoiceParameter(qualifier='lc_method', copy_for = {'kind': ['lc'], 'dataset': '*'}, dataset='_default', value=kwargs.get('lc_method', 'numerical'), choices=['numerical', 'analytical'] if conf.devel else ['numerical'], advanced=True, description='Method to use for computing LC fluxes')]
     params += [ChoiceParameter(qualifier='fti_method', copy_for = {'kind': ['lc'], 'dataset': '*'}, dataset='_default', value=kwargs.get('fti_method', 'none'), choices=['none', 'oversample'], description='How to handle finite-time integration (when non-zero exptime)')]
-    params += [IntParameter(visible_if='fti_method:oversample', qualifier='fti_oversample', copy_for={'kind': ['lc'], 'dataset': '*'}, dataset='_default', value=kwargs.get('fti_oversample', 5), limits=(1,None), default_unit=u.dimensionless_unscaled, description='Number of times to sample per-datapoint for finite-time integration')]
+    params += [IntParameter(visible_if='fti_method:oversample', qualifier='fti_oversample', copy_for={'kind': ['lc'], 'dataset': '*'}, dataset='_default', value=kwargs.get('fti_oversample', 5), limits=(1,None), default_unit=u.dimensionless_unscaled, description='Number of times to sample per-datapoint for finite-time integration (when non-zero exptime)')]
 
     params += [ChoiceParameter(qualifier='rv_method', copy_for={'component': {'kind': 'star'}, 'dataset': {'kind': 'rv'}}, component='_default', dataset='_default', value=kwargs.get('rv_method', 'flux-weighted'), choices=['flux-weighted', 'dynamical'], description='Method to use for computing RVs (must be flux-weighted for Rossiter-McLaughlin effects)')]
     params += [BoolParameter(visible_if='rv_method:flux-weighted', qualifier='rv_grav', copy_for={'component': {'kind': 'star'}, 'dataset': {'kind': 'rv'}}, component='_default', dataset='_default', value=kwargs.get('rv_grav', False), description='Whether gravitational redshift effects are enabled for RVs')]
@@ -185,7 +193,7 @@ def phoebe(**kwargs):
 def legacy(**kwargs):
     """
     Create a <phoebe.parameters.ParameterSet> for compute options for the
-    [PHOEBE 1.0 legacy](http://phoebe-project.org/1.0) backend.
+    [PHOEBE 1.0 legacy](https://phoebe-project.org/1.0) backend.
 
     See also:
     * <phoebe.frontend.bundle.Bundle.export_legacy>
@@ -195,7 +203,7 @@ def legacy(**kwargs):
     to compute radial velocities and light curves for binary systems
     (>2 stars not supported).  The code is available here:
 
-    http://phoebe-project.org/1.0
+    https://phoebe-project.org/1.0
 
     PHOEBE 1.0 and the 'phoebeBackend' python interface must be installed
     and available on the system in order to use this plugin.
@@ -279,11 +287,9 @@ def legacy(**kwargs):
                                value=kwargs.get('rv_method', 'flux-weighted'), choices=['flux-weighted', 'dynamical'], description='Method to use for computing RVs (must be flux-weighted for Rossiter-McLaughlin)')]
 
     params += [ChoiceParameter(qualifier='fti_method', copy_for = {'kind': ['lc'], 'dataset': '*'}, dataset='_default', value=kwargs.get('fti_method', 'none'), choices=['none', 'oversample'], description='How to handle finite-time integration (when non-zero exptime)')]
-    params += [IntParameter(visible_if='fti_method:oversample', qualifier='fti_oversample', copy_for={'kind': ['lc'], 'dataset': '*'}, dataset='_default', value=kwargs.get('fti_oversample', 5), limits=(1,None), default_unit=u.dimensionless_unscaled, description='Number of times to sample per-datapoint for finite-time integration')]
-
+    params += [IntParameter(visible_if='fti_method:oversample', qualifier='fti_oversample', copy_for={'kind': ['lc'], 'dataset': '*'}, dataset='_default', value=kwargs.get('fti_oversample', 5), limits=(1,None), default_unit=u.dimensionless_unscaled, description='Number of times to sample per-datapoint for finite-time integration (when non-zero exptime)')]
 
     return ParameterSet(params)
-
 
 def jktebop(**kwargs):
     """
@@ -426,7 +432,7 @@ def jktebop(**kwargs):
     params += [ChoiceParameter(qualifier='irrad_method', value=kwargs.get('irrad_method', 'biaxial-spheroid'), choices=['none', 'biaxial-spheroid'], description='Which method to use to handle all irradiation effects')]
 
     params += [ChoiceParameter(qualifier='fti_method', copy_for = {'kind': ['lc'], 'dataset': '*'}, dataset='_default', value=kwargs.get('fti_method', 'none'), choices=['none', 'oversample'], description='How to handle finite-time integration (when non-zero exptime)')]
-    params += [IntParameter(visible_if='fti_method:oversample', qualifier='fti_oversample', copy_for={'kind': ['lc'], 'dataset': '*'}, dataset='_default', value=kwargs.get('fti_oversample', 5), limits=(1,None), default_unit=u.dimensionless_unscaled, description='Number of times to sample per-datapoint for finite-time integration')]
+    params += [IntParameter(visible_if='fti_method:oversample', qualifier='fti_oversample', copy_for={'kind': ['lc'], 'dataset': '*'}, dataset='_default', value=kwargs.get('fti_oversample', 5), limits=(1,None), default_unit=u.dimensionless_unscaled, description='Number of times to sample per-datapoint for finite-time integration (when non-zero exptime)')]
 
     return ParameterSet(params)
 

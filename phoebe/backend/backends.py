@@ -45,7 +45,7 @@ else:
 
 try:
     import ellc
-except ImportError:
+except Exception:
     _use_ellc = False
 else:
     _use_ellc = True
@@ -1429,7 +1429,8 @@ class PhoebeBackend(BaseBackendByTime):
                     for indep in ['rvs', 'dls',
                                   'intensities', 'normal_intensities',
                                   'abs_intensities', 'abs_normal_intensities',
-                                  'boost_factors', 'ldint']:
+                                  'boost_factors', 'ldint',
+                                  'blending_factors', 'extrapolation_dists']:
 
                         if "{}@{}".format(indep, mesh_dataset) in info['mesh_columns']:
                             key = "{}:{}".format(indep, mesh_dataset)
@@ -1452,6 +1453,7 @@ class PhoebeBackend(BaseBackendByTime):
                                                           time, info,
                                                           dataset=mesh_dataset,
                                                           component=info['component']))
+
 
             else:
                 raise NotImplementedError("kind {} not yet supported by this backend".format(kind))
@@ -1925,7 +1927,7 @@ class JktebopBackend(BaseBackendByDataset):
             raise NotImplementedError("irrad_method '{}' not supported".format(irrad_method))
 
         pblums = kwargs.get('pblums').get(info['dataset'])
-        sbratio = (pblums.get(starrefs[1])/b.get_value(qualifier='requiv', component=starrefs[1], context='component', unit=u.solRad)**2)/(pblums.get(starrefs[0])/b.get_value(qualifier='requiv', component=starrefs[0], context='component', unit=u.solRad)**2)
+        sbratio = (pblums.get(starrefs[1])/b.get_value(qualifier='requiv', component=starrefs[1], context='component', unit=u.solRad, **_skip_filter_checks)**2)/(pblums.get(starrefs[0])/b.get_value(qualifier='requiv', component=starrefs[0], context='component', unit=u.solRad, **_skip_filter_checks)**2)
 
         # let's make sure we'll be able to make the translation later
         if ldfuncA not in _jktebop_ld_func.keys() or ldfuncB not in _jktebop_ld_func.keys():

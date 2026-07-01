@@ -4,6 +4,7 @@ General logic for all Parameters and ParameterSets which makeup the overall
 framework of the PHOEBE 2.0 frontend.
 """
 
+from phoebe.atmospheres.models import _atmtable
 from phoebe.constraints.expression import ConstraintVar
 # from phoebe.constraints import builtin
 from phoebe.parameters.twighelpers import _uniqueid_to_uniquetwig
@@ -198,7 +199,7 @@ _forbidden_labels += ['phoebe_version', 'dict_filter',
                       'auto_add_figure', 'auto_remove_figure', 'web_client', 'web_client_url']
 
 # from component
-_forbidden_labels += ['requiv', 'requiv_max', 'requiv_min', 'teff', 'abun', 'logg',
+_forbidden_labels += ['requiv', 'requiv_max', 'requiv_min', 'teff', 'abun', 'loghefrac', 'logg',
                       'fillout_factor', 'pot_min', 'pot_max',
                       'period_anom',
                       'syncpar', 'period', 'pitch', 'yaw', 'incl', 'long_an',
@@ -236,13 +237,15 @@ _forbidden_labels += ['times', 'fluxes', 'sigmas', 'sigmas_lnf',
                      'intensities', 'abs_intensities',
                      'normal_intensities', 'abs_normal_intensities',
                      'boost_factors', 'ldint', 'ptfarea',
-                     'pblum', 'pblum_ext', 'abs_pblum', 'abs_pblum_ext']
+                     'pblum', 'pblum_ext', 'abs_pblum', 'abs_pblum_ext',
+                     'blending_factors', 'extrapolation_dists']
 
 
 # from compute:
 _forbidden_labels += ['enabled', 'dynamics_method', 'ltte', 'comments',
                       'gr', 'stepsize', 'integrator',
                       'irrad_method', 'mesh_method', 'distortion_method',
+                      'atm_extrapolation_method', 'ld_extrapolation_method', 'blending_method',
                       'ntriangles', 'rv_grav',
                       'mesh_offset', 'mesh_init_phi', 'horizon_method', 'eclipse_method',
                       'atm', 'lc_method', 'rv_method', 'fti_method', 'fti_oversample',
@@ -2050,7 +2053,7 @@ class ParameterSet(object):
         the notebook execution if blocking.
 
         To more information or to install the desktop-client, see
-        http://phoebe-project.org/clients
+        https://phoebe-project.org/clients
 
         See also:
         * <phoebe.frontend.bundle.Bundle.ui_figures>
@@ -5400,6 +5403,15 @@ class ParameterSet(object):
             elif qualifier in ['visibilities']:
                 kwargs.setdefault('{}map'.format(af_direction), 'RdYlGn')
                 kwargs.setdefault('{}lim'.format(af_direction), (0,1))
+            elif qualifier == 'blending_factors':
+                kwargs.setdefault('{}map'.format(af_direction), 'RdYlGn_r')
+                kwargs.setdefault('{}lim'.format(af_direction), (0,1))
+            elif qualifier == 'extrapolation_dists':
+                kwargs.setdefault('{}map'.format(af_direction), 'RdYlGn_r')
+                # NOTE: max value here should match the value of blending_margin
+                # passed to interpolate_inorms/imus, which is currently
+                # hardcoded to 3
+                kwargs.setdefault('{}lim'.format(af_direction), (0,3))
 
         #### LABEL FOR LEGENDS
         attrs = ['component', 'dataset']
@@ -7265,8 +7277,17 @@ class Parameter(object):
                 enabled_features_with_kind = self._bundle.filter(qualifier='enabled', value=True, compute=self.compute, feature=features_with_kind, **_skip_filter_checks).features
                 return dataset in self._bundle.filter(context='feature', feature=enabled_features_with_kind, **_skip_filter_checks).datasets
 
-            else:
+            elif qualifier == 'atm_in_computes': # can probably get rid of this, but will break any bundle created in blending dev branch
+                compute_atms = [p.get_value() for p in self._bundle.filter(qualifier='atm', context='compute', component=self.component, **_skip_filter_checks).to_list()]
+                if value[0] in ['!', '~']:
+                    return not all(fnmatch(atm, value[1:]) for atm in compute_atms)
+                return any(fnmatch(atm, value) for atm in compute_atms)
 
+            elif qualifier == 'atm_in_computes_has_axis':
+                compute_atms = [p.get_value() for p in self._bundle.filter(qualifier='atm', context='compute', component=self.component, **_skip_filter_checks).to_list()]
+                return any(_atmtable.get(compute_atm).has_axis(value) for compute_atm in compute_atms)
+
+            else:
                 # the parameter needs to have all the same meta data except qualifier
                 # TODO: switch this to use self.get_parent_ps ?
                 metawargs = {k:v for k,v in self.get_meta(ignore=['twig', 'uniquetwig', 'uniqueid']+remove_metawargs).items() if v is not None}
@@ -11922,8 +11943,6 @@ class ConstraintParameter(Parameter):
             return False
 
         def get_values(vars, safe_label=True, string_safe_arrays=False, use_distribution=None, needs_builtin=False):
-            # use np.float64 so that dividing by zero will result in a
-            # np.inf
             def _single_value(quantity, string_safe_arrays=False):
                 if isinstance(quantity, u.Quantity):
                     if self.in_solar_units:

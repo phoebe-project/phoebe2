@@ -39,6 +39,7 @@ lc_columns = []
 lc_columns += ['intensities', 'normal_intensities', 'abs_intensities', 'abs_normal_intensities']
 lc_columns += ['boost_factors', 'ldint']
 lc_columns += ['pblum_ext', 'abs_pblum_ext', 'ptfarea']
+lc_columns += ['blending_factors', 'extrapolation_dists']
 
 # rv columns have all pb-dependent columns except those that require pblum scaling
 rv_columns = [c for c in lc_columns[:] if c not in ['intensities', 'normal_intensities', 'pblum_ext']]
@@ -775,6 +776,10 @@ def mesh(syn=False, as_ps=True, **kwargs):
                     params += [FloatArrayParameter(qualifier='boost_factors', dataset=dataset, time=t, value=[], readonly=True, default_unit=u.dimensionless_unscaled, description='Per-element value of boost_factors for {} dataset'.format(dataset))]
                 if 'ldint@{}'.format(dataset) in columns:
                     params += [FloatArrayParameter(qualifier='ldint', dataset=dataset, time=t, value=kwargs.get('ldint', []), readonly=True, default_unit=u.dimensionless_unscaled, description='Integral of the limb-darkening function')]
+                if 'blending_factors@{}'.format(dataset) in columns:
+                    params += [FloatArrayParameter(qualifier='blending_factors', dataset=dataset, time=t, value=kwargs.get('blending_factors', []), readonly=True, default_unit=u.dimensionless_unscaled, description='Ratio of blended intensity from blackbody atmospheres (0/nan is all from the atm grid, 1 is all from blackbody).')]
+                if 'extrapolation_dists@{}'.format(dataset) in columns:
+                    params += [FloatArrayParameter(qualifier='extrapolation_dists', dataset=dataset, time=t, value=kwargs.get('extrapolation_dists', []), readonly=True, default_unit=u.dimensionless_unscaled, description='Normalized distance each triangle is from the atmosphere grid (0/nan is on grid)')]
 
                 if 'ptfarea@{}'.format(dataset) in columns:
                     params += [FloatParameter(qualifier='ptfarea', dataset=dataset, time=t, value=kwargs.get('ptfarea', 1.0), readonly=True, default_unit=u.m, description='Area of the passband transmission function')]

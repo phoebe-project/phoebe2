@@ -663,11 +663,12 @@ class Lc_GeometryBackend(BaseSolverBackend):
         if fit_eclipses:
             try:
                 import ellc
+            except Exception:
+                raise ImportError('ellc needs to be installed to refine the fit when fit_eclipses = True')
+            else:
                 rratio_param = orbit_ps.get_parameter(qualifier='requivratio', **_skip_filter_checks)
                 incl_param = orbit_ps.get_parameter(qualifier='incl@binary', **_skip_filter_checks)
                 fitted_params += [rratio_param, incl_param]
-            except:
-                raise ImportError('ellc needs to be installed to refine the fit when fit_eclipses = True')
 
         eb_params = ligeor.eclipse.EbParams(eclipse_dict, fit_eclipses=fit_eclipses)
         t0_near_times = kwargs.get('t0_near_times', True)
@@ -965,7 +966,7 @@ class _PeriodogramBaseBackend(BaseSolverBackend):
                 periods = out.period
                 powers = out.power
             elif algorithm in ['ls']:
-                periods = out[0]
+                periods = 1/out[0]
                 powers = out[1]
             else:
                 raise NotImplementedError("algorithm='{}' not supported".format(algorithm))
@@ -2466,7 +2467,7 @@ class Differential_CorrectionsBackend(BaseSolverBackend):
                 obs_baseline = np.append(obs_baseline, interp_model)
             return xi, obs_baseline
 
-        baseline_model = b_solver.run_compute(model='baseline', overwrite=True)
+        baseline_model = b_solver.run_compute(compute=compute, model='baseline', overwrite=True)
         xi, obs_baseline = _get_residuals_and_interp_model(b_solver, 'baseline', obs_params)
         if _use_progressbar:
             _dc_pbar.update(1)
@@ -2480,7 +2481,7 @@ class Differential_CorrectionsBackend(BaseSolverBackend):
             # numerical derivatives:
             if deriv_method == 'asymmetric':
                 param.set_value(value=value+step)
-                upper_model = b_solver.run_compute(model='upper', overwrite=True)
+                upper_model = b_solver.run_compute(compute=compute, model='upper', overwrite=True)
                 resid_upper, obs_upper = _get_residuals_and_interp_model(b_solver, 'upper', obs_params)
                 if _use_progressbar:
                     _dc_pbar.update(1)
@@ -2488,13 +2489,13 @@ class Differential_CorrectionsBackend(BaseSolverBackend):
 
             elif deriv_method == 'symmetric':
                 param.set_value(value=value+step/2)
-                upper_model = b_solver.run_compute(model='upper', overwrite=True)
+                upper_model = b_solver.run_compute(compute=compute, model='upper', overwrite=True)
                 resid_upper, obs_upper = _get_residuals_and_interp_model(b_solver, 'upper', obs_params)
                 if _use_progressbar:
                     _dc_pbar.update(1)
 
                 param.set_value(value=value-step/2)
-                lower_model = b_solver.run_compute(model='lower', overwrite=True)
+                lower_model = b_solver.run_compute(compute=compute, model='lower', overwrite=True)
                 resid_lower, obs_lower = _get_residuals_and_interp_model(b_solver, 'lower', obs_params)
                 if _use_progressbar:
                     _dc_pbar.update(1)

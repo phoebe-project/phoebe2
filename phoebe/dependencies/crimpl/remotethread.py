@@ -248,7 +248,8 @@ class RemoteThreadJob(_common.ServerJob):
 class RemoteThreadServer(_common.SSHServer):
     _JobClass = RemoteThreadJob
     def __init__(self, host, directory='~/crimpl', ssh='ssh', scp='scp',
-                 server_name=None):
+                 server_name=None, openmpi_path=None,
+                 openmpi_ld_library_path=None):
         """
         Connect to a remote server running jobs in threads (no scheduler).
 
@@ -269,6 +270,13 @@ class RemoteThreadServer(_common.SSHServer):
         * `server_name` (string): name to assign to the server.  If not provided,
             will be adopted automatically from `host` and available from
             <RemoteThreadServer.server_name>.
+        * `openmpi_path` (string, optional, default=None): path to the OpenMPI
+            installation on the remote server.  If provided, will be added to
+            the PATH environment variable when running scripts on the server.
+        * `openmpi_ld_library_path` (string, optional, default=None): path to
+            the OpenMPI library on the remote server.  If provided, will be added
+            to the LD_LIBRARY_PATH environment variable when running scripts
+            on the server.
         """
         self._host = host
 
@@ -277,10 +285,12 @@ class RemoteThreadServer(_common.SSHServer):
 
         self._ssh = ssh
         self._scp = scp
+        self._openmpi_path = openmpi_path
+        self._openmpi_ld_library_path = openmpi_ld_library_path
         self._server_name = server_name
 
-        super().__init__(directory)
-        self._dict_keys = ['host', 'directory', 'ssh', 'scp']
+        super().__init__(directory, openmpi_path=openmpi_path, openmpi_ld_library_path=openmpi_ld_library_path)
+        self._dict_keys = ['host', 'directory', 'ssh', 'scp', 'openmpi_path', 'openmpi_ld_library_path']
 
     @property
     def ssh(self):
@@ -304,6 +314,28 @@ class RemoteThreadServer(_common.SSHServer):
         * (string)
         """
         return self._host
+
+    @property
+    def openmpi_path(self):
+        """
+        Path to the OpenMPI installation on the remote server.
+
+        Returns
+        ----------
+        * (string or None): path to OpenMPI or None if not set.
+        """
+        return self._openmpi_path
+
+    @property
+    def openmpi_ld_library_path(self):
+        """
+        Path to the OpenMPI library on the remote server.
+
+        Returns
+        ----------
+        * (string or None): path to OpenMPI library or None if not set.
+        """
+        return self._openmpi_ld_library_path
 
     @property
     def _ssh_cmd(self):
