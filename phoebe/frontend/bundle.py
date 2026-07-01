@@ -979,7 +979,7 @@ class Bundle(ParameterSet):
                 if solved_for.qualifier != constraint.constraint_func:
                     new_constraint_ps.get_parameter().flip_for(solved_for.twig)
 
-        if phoebe_version_import < parse("2.5.0") or ".dev" in version:
+        if phoebe_version_import < parse("2.5.0"):
             warning = "importing from an older version ({}) of PHOEBE to PHOEBE 2.5+.  This may take some time.  Please check all values.".format(phoebe_version_import)
             logger.warning(warning)
             # migrate rv_offset@dataset to new feature implementation, if non-zero
@@ -3304,14 +3304,6 @@ class Bundle(ParameterSet):
             parent = hier.get_parent_of(component)
             parent_ps = self.get_component(component=parent, **_skip_filter_checks)
             if kind in ['star']:
-                if self.get_value(qualifier='teff', component=component, context='component', unit=u.K, **_skip_filter_checks) >= 10000 and self.get_value(qualifier='ld_mode_bol', component=component, context='component', **_skip_filter_checks) == 'lookup':
-                    report.add_item(self,
-                                    "ld_mode_bol of 'lookup' uses a bolometric passband which is not reliable for hot stars.  Consider using ld_mode_bol of manual and providing ld_coeffs instead.",
-                                    [self.get_parameter(qualifier='teff', component=component, context='component'),
-                                     self.get_parameter(qualifier='ld_mode_bol', component=component, context='component')],
-                                    False, ['system', 'run_compute'])
-
-
                 # contact systems MUST by synchronous
                 if hier.is_contact_binary(component):
                     if self.get_value(qualifier='syncpar', component=component, context='component', **_skip_filter_checks) != 1.0:
@@ -3903,6 +3895,18 @@ class Bundle(ParameterSet):
                                         True, 'run_compute')
                     # other compute backends ignore bolometric limb-darkening
 
+            # issue #1126: bolometric passband is unreliable for hot stars using
+            # ld_mode_bol='lookup', but reliable for Tremblay/TMAP grids.
+            if self.get_value(qualifier='teff', component=component, context='component', unit=u.K, **_skip_filter_checks) >= 10000 and self.get_value(qualifier='ld_mode_bol', component=component, context='component', **_skip_filter_checks) == 'lookup':
+                for compute in computes:
+                    atm = self.get_value(qualifier='atm', component=component, compute=compute, context='compute', **_skip_filter_checks)
+                    if atm not in ['tremblay', 'tmap_sdO', 'tmap_DA', 'tmap_DO', 'tmap_DAO']:
+                        report.add_item(self,
+                                        "ld_mode_bol of 'lookup' uses a bolometric passband which is not reliable for hot stars.  Consider using ld_mode_bol of manual and providing ld_coeffs instead.",
+                                        [self.get_parameter(qualifier='teff', component=component, context='component', **_skip_filter_checks),
+                                         self.get_parameter(qualifier='ld_mode_bol', component=component, context='component', **_skip_filter_checks),
+                                         self.get_parameter(qualifier='atm', component=component, compute=compute, context='compute', **_skip_filter_checks)],
+                                        False, 'run_compute')
 
             for dataset in self.filter(context='dataset', kind=['lc', 'rv'], check_default=True).datasets:
                 if dataset=='_default':

@@ -719,67 +719,6 @@ class Passband:
 
             if load_content:
                 stored_atms = set([content.split(':')[0] for content in self.content])
-
-                if parse(self.phoebe_version) < parse('2.5.0'):
-                    if 'blackbody' in stored_atms:
-                        # blackbody atmospheres are reworked, so we need to
-                        # recompute the intensities:
-                        self.compute_intensities(
-                            atm=models.BlackbodyModelAtmosphere(),
-                            include_mus=False,
-                            include_ld=False,
-                            include_extinction='blackbody:ext' in self.content,
-                            add_history_entry=False,
-                            verbose=False
-                        )
-                        ndp = self.ndp['blackbody']  # initialized by compute_intensities()
-
-                        # store axes:
-                        hdul['bb_teffs'] = fits.table_to_hdu(Table({'teffs': ndp.axes[0]}, meta={'extname': 'bb_teffs'}))
-                        if 'blackbody:ext' in self.content:
-                            associated_axes = ndp.table['ext@photon']['associated_axes']
-                            hdul['bb_ebvs'] = fits.table_to_hdu(Table({'ebvs': associated_axes[0]}, meta={'extname': 'bb_ebvs'}))
-                            hdul['bb_rvs'] = fits.table_to_hdu(Table({'rvs': associated_axes[1]}, meta={'extname': 'bb_rvs'}))
-
-                        # store tables:
-                        hdul.append(fits.ImageHDU(self.ndp['blackbody'].table['inorm@energy']['grid'], name='bbnegrid'))
-                        hdul.append(fits.ImageHDU(self.ndp['blackbody'].table['inorm@photon']['grid'], name='bbnpgrid'))
-                        if 'blackbody:ext' in self.content:
-                            hdul.append(fits.ImageHDU(self.ndp['blackbody'].table['ext@energy']['grid'], name='bbxegrid'))
-                            hdul.append(fits.ImageHDU(self.ndp['blackbody'].table['ext@photon']['grid'], name='bbxpgrid'))
-
-                        # clean up:
-                        del self.ndp['blackbody']
-
-                    # rename columns in old tables:
-                    if 'ck2004' in stored_atms:
-                        if 'teff' in hdul['ck_teffs'].data.columns.names:
-                            hdul['ck_teffs'].data.columns.change_name('teff', 'teffs')
-                        if 'logg' in hdul['ck_loggs'].data.columns.names:
-                            hdul['ck_loggs'].data.columns.change_name('logg', 'loggs')
-                        if 'abun' in hdul['ck_abuns'].data.columns.names:
-                            hdul['ck_abuns'].data.columns.change_name('abun', 'abuns')
-
-                        if 'ck2004:ext' in self.content:
-                            if 'ebv' in hdul['ck_ebvs'].data.columns.names:
-                                hdul['ck_ebvs'].data.columns.change_name('ebv', 'ebvs')
-                            if 'rv' in hdul['ck_rvs'].data.columns.names:
-                                hdul['ck_rvs'].data.columns.change_name('rv', 'rvs')
-
-                    if 'phoenix' in stored_atms:
-                        if 'teff' in hdul['ph_teffs'].data.columns.names:
-                            hdul['ph_teffs'].data.columns.change_name('teff', 'teffs')
-                        if 'logg' in hdul['ph_loggs'].data.columns.names:
-                            hdul['ph_loggs'].data.columns.change_name('logg', 'loggs')
-                        if 'abun' in hdul['ph_abuns'].data.columns.names:
-                            hdul['ph_abuns'].data.columns.change_name('abun', 'abuns')
-
-                        if 'phoenix:ext' in self.content:
-                            if 'ebv' in hdul['ph_ebvs'].data.columns.names:
-                                hdul['ph_ebvs'].data.columns.change_name('ebv', 'ebvs')
-                            if 'rv' in hdul['ph_rvs'].data.columns.names:
-                                hdul['ph_rvs'].data.columns.change_name('rv', 'rvs')
-
                 if 'extern_planckint:Inorm' in self.content or 'extern_atmx:Inorm' in self.content:
                     atmdir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tables/wd'))
                     planck = os.path.join(atmdir+'/atmcofplanck.dat').encode('utf8')
@@ -787,9 +726,6 @@ class Passband:
 
                     self.wd_data = libphoebe.wd_readdata(planck, atm_file)
                     self.extern_wd_idx = header['wd_idx']
-
-                # Model atmospheres in the passband file:
-                stored_atms = set([entry.split(':')[0] for entry in self.content])
 
                 # We have to iterate over available atms rather than stored atms because
                 # the stored atms may not be available in the current version of PHOEBE.
@@ -813,9 +749,11 @@ class Passband:
                         atm_photon_grid = hdul[f'{atm.prefix}fpgrid'].data
                         atm_energy_grid = hdul[f'{atm.prefix}fegrid'].data
 
-                        # normal passband intensities:
-                        self.ndp[atm.name].register(name='inorm@photon', associated_axes=None, grid=atm_photon_grid[..., -1, :])
-                        self.ndp[atm.name].register(name='inorm@energy', associated_axes=None, grid=atm_energy_grid[..., -1, :])
+                        if f'{atm.name}:Inorm' not in self.content:
+                            # extract normal passband intensities if missing:
+                            self.ndp[atm.name].register(name='inorm@photon', associated_axes=None, grid=atm_photon_grid[..., -1, :])
+                            self.ndp[atm.name].register(name='inorm@energy', associated_axes=None, grid=atm_energy_grid[..., -1, :])
+                            self.content.append(f'{atm.name}:Inorm')
 
                         # specific passband intensities:
                         self.ndp[atm.name].register(name='imu@photon', associated_axes=(atm.mus,), grid=atm_photon_grid)
@@ -1424,13 +1362,7 @@ class Passband:
             raise ValueError(f"blending_method='{blending_method}' is not supported; must be 'none' or 'blackbody'.")
 
         if f'{atm.name}:Inorm' not in self.content:
-            if f'{atm.name}:Imu' in self.content:
-                # lazy-load inorms from imu table:
-                self.ndp[atm.name].register(name='inorm@photon', associated_axes=None, grid=self.ndp[atm.name].table['imu@photon']['grid'][..., -1, :])
-                self.ndp[atm.name].register(name='inorm@energy', associated_axes=None, grid=self.ndp[atm.name].table['imu@energy']['grid'][..., -1, :])
-                self.content += [f'{atm.name}:Inorm']
-            else:
-                raise ValueError(f'atm={atm.name} tables are not available in the {self.pbset}:{self.pbname} passband.')
+            raise ValueError(f'atm={atm.name} tables are not available in the {self.pbset}:{self.pbname} passband.')
 
         if atm.name == 'blackbody':
             # compute normal emergent blackbody intensities:
@@ -1668,7 +1600,7 @@ class Passband:
                 ld_func=ld_func,
                 ld_coeffs=ld_coeffs,
                 intens_weighting=intens_weighting,
-                atm_extrapolation_method=atm_extrapolation_method,
+                atm_extrapolation_method=ld_extrapolation_method,
                 ld_extrapolation_method=ld_extrapolation_method
             )
 
@@ -1683,7 +1615,7 @@ class Passband:
                 ld_func=ld_func,
                 ld_coeffs=ld_coeffs,
                 intens_weighting=intens_weighting,
-                atm_extrapolation_method=atm_extrapolation_method,
+                atm_extrapolation_method=ld_extrapolation_method,
                 ld_extrapolation_method=ld_extrapolation_method
             ).get_interpolated_values()
 
