@@ -8,8 +8,6 @@
 /phoebe/atmospheres/tables/tmap*
 /phoebe/atmospheres/tables/tlusty
 /tests/tests/test_passbands/tables
-/tests/local
-/tests/benchmark
 MANIFEST
 *checkme*
 *_tmp*
