@@ -5486,10 +5486,7 @@ class Bundle(ParameterSet):
                 recs = _add_reason(recs, 'Skilling (2004)', 'nested sampling: dynesty solver backend')
                 recs = _add_reason(recs, 'Skilling (2006)', 'nested sampling: dynesty solver backend')
             elif solver_kind == 'differential_evolution':
-                recs = _add_reason(recs, 'Conroy et al. (2020)', 'differential_evolution solver introduced in PHOEBE')
                 recs = _add_reason(recs, 'numpy/scipy', '{} solver uses scipy.optimize.differential_evolution'.format(solver_kind))
-            elif solver_kind == 'differential_corrections':
-                recs = _add_reason(recs, 'Conroy et al. (2020)', 'differential_corrections solver introduced in PHOEBE')
 
 
         # check for presence of datasets that require PHOEBE releases
@@ -5521,15 +5518,15 @@ class Bundle(ParameterSet):
                 recs = _add_reason(recs, 'Jones et al. (2026)', 'phoenix atmosphere tables included in PHOEBE')
             elif atmname == 'tmap_sdO':
                 recs = _add_reason(recs, 'Reindl et al. (2016)', 'TMAP atmosphere tables')
-                recs = _add_reason(recs, 'Jones et al. (2026)', 'phoenix atmosphere tables included in PHOEBE')
+                recs = _add_reason(recs, 'Jones et al. (2026)', 'TMAP atmosphere tables included in PHOEBE')
             elif atmname in ['tmap_DA', 'tmap_DAO', 'tmap_DO']:
                 recs = _add_reason(recs, 'Reindl et al. (2023)', 'TMAP atmosphere tables')
-                recs = _add_reason(recs, 'Jones et al. (2026)', 'phoenix atmosphere tables included in PHOEBE')
+                recs = _add_reason(recs, 'Jones et al. (2026)', 'TMAP atmosphere tables included in PHOEBE')
             elif atmname in ['extern_planckint', 'extern_atmx']:
                 recs = _add_reason(recs, 'Prsa & Zwitter (2005)', '{} atmosphere tables'.format(atmname))
             elif atmname == 'tremblay':
                 recs = _add_reason(recs, 'Tremblay et al. (2011, 2013)', 'Tremblay atmosphere tables')
-                recs = _add_reason(recs, 'Jones et al. (2026)', 'phoenix atmosphere tables included in PHOEBE')
+                recs = _add_reason(recs, 'Jones et al. (2026)', 'Tremblay atmosphere tables included in PHOEBE')
 
 
         for atm_param in self.filter(qualifier='ld_coeffs_source', component=self.hierarchy.get_stars()).to_list():
@@ -5541,13 +5538,13 @@ class Bundle(ParameterSet):
                 recs = _add_reason(recs, 'Jones et al. (2026)', 'phoenix atmosphere tables included in PHOEBE')
             elif atmname == 'tmap_sdO':
                 recs = _add_reason(recs, 'Reindl et al. (2016)', 'TMAP atmosphere tables')
-                recs = _add_reason(recs, 'Jones et al. (2026)', 'phoenix atmosphere tables included in PHOEBE')
+                recs = _add_reason(recs, 'Jones et al. (2026)', 'TMAP atmosphere tables included in PHOEBE')
             elif atmname in ['tmap_DA', 'tmap_DAO', 'tmap_DO']:
                 recs = _add_reason(recs, 'Reindl et al. (2023)', 'TMAP atmosphere tables')
-                recs = _add_reason(recs, 'Jones et al. (2026)', 'phoenix atmosphere tables included in PHOEBE')
+                recs = _add_reason(recs, 'Jones et al. (2026)', 'TMAP atmosphere tables included in PHOEBE')
             elif atmname == 'tremblay':
                 recs = _add_reason(recs, 'Tremblay et al. (2011, 2013)', 'Tremblay atmosphere tables')
-                recs = _add_reason(recs, 'Jones et al. (2026)', 'phoenix atmosphere tables included in PHOEBE')
+                recs = _add_reason(recs, 'Jones et al. (2026)', 'Tremblay atmosphere tables included in PHOEBE')
 
         # cite extrapolation/blending methods when atmosphere grids are used off-grid
         for extrap_param in self.filter(qualifier=['atm_extrapolation_method', 'ld_extrapolation_method'], compute=computes).to_list():
@@ -5557,10 +5554,8 @@ class Bundle(ParameterSet):
                 
         # provide any references from features
         if len(self.filter(context='feature', kind='gp_sklearn').features):
-            recs = _add_reason(recs, 'Conroy et al. (2020)', 'sklearn GPs introduced in PHOEBE')
             recs = _add_reason(recs, 'scikit-learn', 'scikit-learn for gaussian processes')
         if len(self.filter(context='feature', kind='gp_celerite2').features):
-            recs = _add_reason(recs, 'Conroy et al. (2020)', 'celerite2 GPs introduced in PHOEBE')
             recs = _add_reason(recs, 'Foreman-Mackey et al., (2017)', 'celerite2 for gaussian processes')
         # provide references from dependencies
         recs = _add_reason(recs, 'numpy/scipy', 'numpy/scipy dependency within PHOEBE')
