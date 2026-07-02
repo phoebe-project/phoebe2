@@ -727,14 +727,11 @@ class Passband:
                     self.wd_data = libphoebe.wd_readdata(planck, atm_file)
                     self.extern_wd_idx = header['wd_idx']
 
-                # We have to iterate over available atms rather than stored atms because
+                # We have to iterate over supported atms rather than stored atms because
                 # the stored atms may not be available in the current version of PHOEBE.
-                available_atms = models.get_available_atms()
-                for atm in available_atms:
+                supported_atms = models.get_supported_atms(include_extern=False)
+                for atm in supported_atms:
                     if atm.name not in stored_atms:
-                        continue
-
-                    if atm.external:
                         continue
 
                     basic_axes = tuple([np.array(list(hdul[f'{atm.prefix}_{name}'].data[name])) for name in atm.basic_axis_names])
@@ -2697,65 +2694,3 @@ def get_passband(passband, content=None, reload=False, update_if_necessary=False
         _pbtable[passband]['pb'] = pb
 
     return _pbtable[passband]['pb']
-
-
-if __name__ == '__main__':
-    # This will generate bolometric and Johnson V passband files. Note that
-    # extinction for the bolometric band cannot be computed because it falls
-    # off the extinction formula validity range in wavelength, and shouldn't
-    # be computed anyway because it is only used for reflection purposes.
-
-    try:
-        pb = Passband.load('tables/passbands/bolometric.fits')
-    except FileNotFoundError:
-        pb = Passband(
-            ptf='tables/ptf/bolometric.ptf',
-            pbset='Bolometric',
-            pbname='900-40000',
-            wlunits=u.m,
-            calibrated=True,
-            reference='Flat response to simulate bolometric throughput',
-            version=2.5
-        )
-
-    pb.version = 2.5
-    pb.add_to_history('TMAP model atmospheres added.')
-    pb.content = []
-
-    pb.compute_blackbody_intensities(include_extinction=False)
-
-    atms = [atm for atm in models._atmtable.keys() if atm != 'blackbody' and not atm.startswith('extern')]
-    for atm in atms:
-        pb.compute_intensities(atm=atm, path=f'tables/{atm}', verbose=True)
-        pb.compute_ldcoeffs(ldatm=atm)
-        pb.compute_ldints(ldatm=atm)
-
-    pb.save('bolometric.fits')
-
-    try:
-        pb = Passband.load('tables/passbands/johnson_v.fits')
-    except FileNotFoundError:
-        pb = Passband(
-            ptf='tables/ptf/johnson_v.ptf',
-            pbset='Johnson',
-            pbname='V',
-            wlunits=u.AA,
-            calibrated=True,
-            reference='Maiz Apellaniz (2006), AJ 131, 1184',
-            version=2.5,
-            comment=''
-        )
-
-    pb.version = 2.5
-    pb.add_to_history('TMAP model atmospheres added.')
-    pb.content = []
-
-    pb.compute_blackbody_intensities(include_extinction=True)
-
-    atms = [atm for atm in models._atmtable.keys() if atm != 'blackbody' and not atm.startswith('extern')]
-    for atm in atms:
-        pb.compute_intensities(atm=atm, path=f'tables/{atm}', verbose=True)
-
-    pb.import_wd_atmcof('tables/wd/atmcofplanck.dat', 'tables/wd/atmcof.dat', 7)
-
-    pb.save('johnson_v.fits')

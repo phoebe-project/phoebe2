@@ -104,6 +104,7 @@ packages = [
     "phoebe.solverbackends",
     "phoebe.solverbackends.ebai",
     "phoebe.solverbackends.knn",
+    "phoebe.cli",
     "phoebe.utils",
     "phoebe.helpers",
     "phoebe.pool",
@@ -124,3 +125,6 @@ script-files = [
     "client-server/phoebe-server",
     "client-server/phoebe-autofig",
 ]
+
+[project.scripts]
+phoebe-admin = "phoebe.cli.admin:main"

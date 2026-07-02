@@ -702,9 +702,32 @@ class TMAPDAOModelAtmosphere(ModelAtmosphere):
         ]
 
 
-def get_available_atms():
-    return ModelAtmosphere.__subclasses__()
+def get_supported_atms(include_extern=True, include_blackbody=True, return_dict=False):
+    """
+    Returns a list of available model atmosphere classes.
+
+    Arguments
+    ----------
+    * `include_extern` (bool): if True, includes external model atmospheres
+    * `include_blackbody` (bool): if True, includes the blackbody model atmosphere
+    * `return_dict` (bool): if True, returns a dictionary mapping atmosphere names to their classes
+    Returns
+    --------
+    * a list or dictionary of available model atmosphere classes.
+    """
+
+    atms = [atm for atm in ModelAtmosphere.__subclasses__()]
+    if not include_extern:
+        atms = [atm for atm in atms if not atm.name.startswith('extern')]
+
+    if not include_blackbody:
+        atms = [atm for atm in atms if atm.name != 'blackbody']
+
+    if return_dict:
+        return {atm.name: atm for atm in atms}
+    else:
+        return atms
 
 
 # global model atmosphere table:(dict of name -> class):
-_atmtable = {atm.name: atm for atm in get_available_atms()}
+_atmtable = {atm.name: atm for atm in get_supported_atms()}
