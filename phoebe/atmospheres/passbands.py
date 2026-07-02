@@ -430,9 +430,6 @@ class Passband:
         # Initialize n-dimensional interpolators:
         self.ndp = dict()
 
-        # Cache for blackbody Inorm splines, keyed by intens_weighting:
-        self._bb_splines = dict()
-
     def __repr__(self):
         return f'<Passband: {self.pbset}:{self.pbname}>'
 
@@ -710,7 +707,6 @@ class Passband:
 
             # Initialize an ndpolator instance to hold all data:
             self.ndp = dict()
-            self._bb_splines = dict()
 
             self.ptf_table = hdul['ptftable'].data
             self.wl = np.linspace(self.ptf_table['wl'][0], self.ptf_table['wl'][-1], int(self.wl_oversampling*len(self.ptf_table['wl'])))
@@ -748,11 +744,6 @@ class Passband:
                     if f'{atm.name}:Inorm' in self.content:
                         self.ndp[atm.name].register(name='inorm@photon', associated_axes=None, grid=hdul[f'{atm.prefix}npgrid'].data)
                         self.ndp[atm.name].register(name='inorm@energy', associated_axes=None, grid=hdul[f'{atm.prefix}negrid'].data)
-
-                        if atm.name == 'blackbody':
-                            log_teffs = np.log10(basic_axes[0])
-                            self._bb_splines['photon'] = interpolate.splrep(log_teffs, hdul[f'{atm.prefix}npgrid'].data[:, 0], s=0)
-                            self._bb_splines['energy'] = interpolate.splrep(log_teffs, hdul[f'{atm.prefix}negrid'].data[:, 0], s=0)
 
                     if f'{atm.name}:Imu' in self.content:
                         atm_photon_grid = hdul[f'{atm.prefix}fpgrid'].data
@@ -990,12 +981,6 @@ class Passband:
 
             self.ndp[atm.name].register('inorm@photon', None, atm_photon_grid)
             self.ndp[atm.name].register('inorm@energy', None, atm_energy_grid)
-
-            if atm.name == 'blackbody':
-                # cache splines for fast Inorm(log10 teff) evaluation (bypasses ndpolator):
-                log_teffs = np.log10(atm.teffs)
-                self._bb_splines['photon'] = interpolate.splrep(log_teffs, atm_photon_grid[:, 0], s=0)
-                self._bb_splines['energy'] = interpolate.splrep(log_teffs, atm_energy_grid[:, 0], s=0)
 
             if include_extinction:
                 egrid = np_trapz(pbints_energy[:, :, None, None] * Alam[None, :, :, :], x=wls, axis=1) / np_trapz(pbints_energy[:, :, None, None], x=wls, axis=1)
@@ -1380,20 +1365,14 @@ class Passband:
             raise ValueError(f'atm={atm.name} tables are not available in the {self.pbset}:{self.pbname} passband.')
 
         if atm.name == 'blackbody':
-            # blackbody Inorm is never extrapolated: out-of-grid teffs yield
-            # nan regardless of atm_extrapolation_method. Widen atm.teffs if
-            # a wider range is needed.
-            teffs_query = query.subset(atm.basic_axis_names).pts[:, 0]
-            tck = self._bb_splines[intens_weighting]
-            lo, hi = atm.teffs[0], atm.teffs[-1]
-
-            if teffs_query.size == 0:
-                log_inorms = np.empty((0, 1))
-            else:
-                log_teffs_query = np.log10(teffs_query)
-                log_inorms = interpolate.splev(np.clip(log_teffs_query, np.log10(lo), np.log10(hi)), tck)
-                log_inorms = np.where((teffs_query < lo) | (teffs_query > hi), np.nan, log_inorms)
-                log_inorms = log_inorms.reshape(-1, 1)
+            # compute normal emergent blackbody intensities:
+            log_inorms = InterpResult.from_ndpolator(
+                self.ndp[atm.name].ndpolate(
+                    f'inorm@{intens_weighting}',
+                    query_pts=query.subset(atm.basic_axis_names).pts,
+                    extrapolation_method=atm_extrapolation_method
+                )
+            ).get_interpolated_values()
 
             # correct normal intensities for integrated limb darkening:
             if ldint is None:
