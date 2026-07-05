@@ -80,7 +80,11 @@ repository = "https://github.com/phoebe-project/phoebe2"
 documentation = "https://phoebe-project.org/docs"
 
 [build-system]
-requires = ["setuptools", "numpy", "wheel"]
+requires = [
+    "setuptools>=68",
+    "wheel",
+    "numpy>=1.26,<2.3",
+]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
