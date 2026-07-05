@@ -5432,6 +5432,7 @@ class Bundle(ParameterSet):
                          'Foreman-Mackey et al. (2017)': 'https://ui.adsabs.harvard.edu/abs/2017AJ....154..220F',
                          'Prsa et al. (2008)': 'https://ui.adsabs.harvard.edu/abs/2008ApJ...687..542P',
                          'scikit-learn': 'https://scikit-learn.org/stable/about.html#citing-scikit-learn',
+                         'Tremblay & Bergeron (2009)': 'https://ui.adsabs.harvard.edu/abs/2009ApJ...696.1755T',
                          'Jones et al. (2026)': 'https://phoebe-project.org/publications/2026Jones+',
                         }
 
@@ -5525,7 +5526,7 @@ class Bundle(ParameterSet):
             elif atmname in ['extern_planckint', 'extern_atmx']:
                 recs = _add_reason(recs, 'Prsa & Zwitter (2005)', '{} atmosphere tables'.format(atmname))
             elif atmname == 'tremblay':
-                recs = _add_reason(recs, 'Tremblay et al. (2011, 2013)', 'Tremblay atmosphere tables')
+                recs = _add_reason(recs, 'Tremblay & Bergeron (2009)', 'Tremblay atmosphere tables')
                 recs = _add_reason(recs, 'Jones et al. (2026)', 'Tremblay atmosphere tables included in PHOEBE')
 
 
@@ -5543,7 +5544,7 @@ class Bundle(ParameterSet):
                 recs = _add_reason(recs, 'Reindl et al. (2023)', 'TMAP atmosphere tables')
                 recs = _add_reason(recs, 'Jones et al. (2026)', 'TMAP atmosphere tables included in PHOEBE')
             elif atmname == 'tremblay':
-                recs = _add_reason(recs, 'Tremblay et al. (2011, 2013)', 'Tremblay atmosphere tables')
+                recs = _add_reason(recs, 'Tremblay & Bergeron (2009)', 'Tremblay atmosphere tables')
                 recs = _add_reason(recs, 'Jones et al. (2026)', 'Tremblay atmosphere tables included in PHOEBE')
 
         # cite extrapolation/blending methods when atmosphere grids are used off-grid
