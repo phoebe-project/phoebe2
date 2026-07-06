@@ -12710,6 +12710,24 @@ class CodeParameter(StringParameter):
             raise ValueError(f"Error parsing code for {self.kind}: {str(err)}")
         super().set_value(str_value, **kwargs)
 
+    def get_code(self, **kwargs):
+        """
+        Return the raw source string stored in this <phoebe.parameters.CodeParameter>.
+
+        See also:
+        * <phoebe.parameters.CodeParameter.get_value>
+
+        Arguments
+        ----------
+        * `**kwargs`: forwarded to <phoebe.parameters.StringParameter.get_value>
+            for default/override behavior.
+
+        Returns
+        -------
+        * (str): code string used to reconstruct the runtime class.
+        """
+        return super().get_value(**kwargs)
+
     def get_value(self, **kwargs):
-        str_value = super().get_value(**kwargs)
+        str_value = self.get_code(**kwargs)
         return self.get_class_from_code(str_value, self.kind)
