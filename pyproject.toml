@@ -80,7 +80,11 @@ repository = "https://github.com/phoebe-project/phoebe2"
 documentation = "https://phoebe-project.org/docs"
 
 [build-system]
-requires = ["setuptools", "numpy", "wheel"]
+requires = [
+    "setuptools>=68",
+    "wheel",
+    "numpy>=1.26,<2.3",
+]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
@@ -104,6 +108,7 @@ packages = [
     "phoebe.solverbackends",
     "phoebe.solverbackends.ebai",
     "phoebe.solverbackends.knn",
+    "phoebe.cli",
     "phoebe.features",
     "phoebe.utils",
     "phoebe.helpers",
@@ -125,3 +130,6 @@ script-files = [
     "client-server/phoebe-server",
     "client-server/phoebe-autofig",
 ]
+
+[project.scripts]
+phoebe-admin = "phoebe.cli.admin:main"

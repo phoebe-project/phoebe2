@@ -4,10 +4,9 @@
 import phoebe
 import pytest
 
-phoebe.interactive_on()
-
 
 def test_binary(verbose=False):
+    phoebe.interactive_on()
     def assert_t0s(p1_t0_ref, p1_t0_supconj, p1_t0_perpass, tol=1e-4):
         # b.run_delayed_constraints()
 
@@ -81,6 +80,8 @@ def test_binary(verbose=False):
     p1_supconj = 0.418709
     p1_perpass = 0.0
     assert_t0s(p1_ref, p1_supconj, p1_perpass)
+
+    phoebe.reset_settings()
 
 
 if __name__ == '__main__':

@@ -2440,7 +2440,13 @@ class Differential_CorrectionsBackend(BaseSolverBackend):
         datasets_enabled = b.filter(dataset=datasets_enabled, kind=['lc', 'rv'], context='dataset', **_skip_filter_checks).datasets
 
         # need to ensure we access the obs and sigma arrays in the same order
+        # and only include non-empty observations that will contribute to residuals
         obs_params = b.filter(qualifier=['fluxes', 'rvs'], dataset=datasets_enabled, context='dataset', **_skip_filter_checks).to_list()
+        obs_params = [p for p in obs_params if p.component != '_default' and len(p.get_value())]
+
+        if not len(obs_params):
+            raise ValueError("no observations found in enabled lc/rv datasets for differential corrections")
+
         obs_data = np.concatenate([p.get_value() for p in obs_params])
         obs_sigmas = np.concatenate([b.get_parameter(qualifier=['sigmas'], dataset=p.dataset, component=p.component, context='dataset', **_skip_filter_checks).get_value() for p in obs_params])
 
@@ -2461,6 +2467,8 @@ class Differential_CorrectionsBackend(BaseSolverBackend):
             obs_baseline = np.array([])
             for p in obs_params:
                 if p.component == '_default':
+                    continue
+                if not len(p.get_value()):
                     continue
                 resid, interp_model = b_solver.calculate_residuals(model=model, dataset=p.dataset, component=p.component, return_interp_model=True, as_quantity=False)
                 xi = np.append(xi, resid)

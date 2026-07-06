@@ -430,6 +430,9 @@ class Passband:
         # Initialize n-dimensional interpolators:
         self.ndp = dict()
 
+        # Cache for blackbody Inorm splines, keyed by intens_weighting:
+        self._bb_splines = dict()
+
     def __repr__(self):
         return f'<Passband: {self.pbset}:{self.pbname}>'
 
@@ -707,6 +710,7 @@ class Passband:
 
             # Initialize an ndpolator instance to hold all data:
             self.ndp = dict()
+            self._bb_splines = dict()
 
             self.ptf_table = hdul['ptftable'].data
             self.wl = np.linspace(self.ptf_table['wl'][0], self.ptf_table['wl'][-1], int(self.wl_oversampling*len(self.ptf_table['wl'])))
@@ -727,14 +731,11 @@ class Passband:
                     self.wd_data = libphoebe.wd_readdata(planck, atm_file)
                     self.extern_wd_idx = header['wd_idx']
 
-                # We have to iterate over available atms rather than stored atms because
+                # We have to iterate over supported atms rather than stored atms because
                 # the stored atms may not be available in the current version of PHOEBE.
-                available_atms = models.get_available_atms()
-                for atm in available_atms:
+                supported_atms = models.get_supported_atms(include_extern=False)
+                for atm in supported_atms:
                     if atm.name not in stored_atms:
-                        continue
-
-                    if atm.external:
                         continue
 
                     basic_axes = tuple([np.array(list(hdul[f'{atm.prefix}_{name}'].data[name])) for name in atm.basic_axis_names])
@@ -744,6 +745,11 @@ class Passband:
                     if f'{atm.name}:Inorm' in self.content:
                         self.ndp[atm.name].register(name='inorm@photon', associated_axes=None, grid=hdul[f'{atm.prefix}npgrid'].data)
                         self.ndp[atm.name].register(name='inorm@energy', associated_axes=None, grid=hdul[f'{atm.prefix}negrid'].data)
+
+                        if atm.name == 'blackbody':
+                            log_teffs = np.log10(basic_axes[0])
+                            self._bb_splines['photon'] = interpolate.splrep(log_teffs, hdul[f'{atm.prefix}npgrid'].data[:, 0], s=0)
+                            self._bb_splines['energy'] = interpolate.splrep(log_teffs, hdul[f'{atm.prefix}negrid'].data[:, 0], s=0)
 
                     if f'{atm.name}:Imu' in self.content:
                         atm_photon_grid = hdul[f'{atm.prefix}fpgrid'].data
@@ -981,6 +987,12 @@ class Passband:
 
             self.ndp[atm.name].register('inorm@photon', None, atm_photon_grid)
             self.ndp[atm.name].register('inorm@energy', None, atm_energy_grid)
+
+            if atm.name == 'blackbody':
+                # cache splines for fast Inorm(log10 teff) evaluation (bypasses ndpolator):
+                log_teffs = np.log10(atm.teffs)
+                self._bb_splines['photon'] = interpolate.splrep(log_teffs, atm_photon_grid[:, 0], s=0)
+                self._bb_splines['energy'] = interpolate.splrep(log_teffs, atm_energy_grid[:, 0], s=0)
 
             if include_extinction:
                 egrid = np_trapz(pbints_energy[:, :, None, None] * Alam[None, :, :, :], x=wls, axis=1) / np_trapz(pbints_energy[:, :, None, None], x=wls, axis=1)
@@ -1365,14 +1377,20 @@ class Passband:
             raise ValueError(f'atm={atm.name} tables are not available in the {self.pbset}:{self.pbname} passband.')
 
         if atm.name == 'blackbody':
-            # compute normal emergent blackbody intensities:
-            log_inorms = InterpResult.from_ndpolator(
-                self.ndp[atm.name].ndpolate(
-                    f'inorm@{intens_weighting}',
-                    query_pts=query.subset(atm.basic_axis_names).pts,
-                    extrapolation_method=atm_extrapolation_method
-                )
-            ).get_interpolated_values()
+            # blackbody Inorm is never extrapolated: out-of-grid teffs yield
+            # nan regardless of atm_extrapolation_method. Widen atm.teffs if
+            # a wider range is needed.
+            teffs_query = query.subset(atm.basic_axis_names).pts[:, 0]
+            tck = self._bb_splines[intens_weighting]
+            lo, hi = atm.teffs[0], atm.teffs[-1]
+
+            if teffs_query.size == 0:
+                log_inorms = np.empty((0, 1))
+            else:
+                log_teffs_query = np.log10(teffs_query)
+                log_inorms = interpolate.splev(np.clip(log_teffs_query, np.log10(lo), np.log10(hi)), tck)
+                log_inorms = np.where((teffs_query < lo) | (teffs_query > hi), np.nan, log_inorms)
+                log_inorms = log_inorms.reshape(-1, 1)
 
             # correct normal intensities for integrated limb darkening:
             if ldint is None:
@@ -2697,65 +2715,3 @@ def get_passband(passband, content=None, reload=False, update_if_necessary=False
         _pbtable[passband]['pb'] = pb
 
     return _pbtable[passband]['pb']
-
-
-if __name__ == '__main__':
-    # This will generate bolometric and Johnson V passband files. Note that
-    # extinction for the bolometric band cannot be computed because it falls
-    # off the extinction formula validity range in wavelength, and shouldn't
-    # be computed anyway because it is only used for reflection purposes.
-
-    try:
-        pb = Passband.load('tables/passbands/bolometric.fits')
-    except FileNotFoundError:
-        pb = Passband(
-            ptf='tables/ptf/bolometric.ptf',
-            pbset='Bolometric',
-            pbname='900-40000',
-            wlunits=u.m,
-            calibrated=True,
-            reference='Flat response to simulate bolometric throughput',
-            version=2.5
-        )
-
-    pb.version = 2.5
-    pb.add_to_history('TMAP model atmospheres added.')
-    pb.content = []
-
-    pb.compute_blackbody_intensities(include_extinction=False)
-
-    atms = [atm for atm in models._atmtable.keys() if atm != 'blackbody' and not atm.startswith('extern')]
-    for atm in atms:
-        pb.compute_intensities(atm=atm, path=f'tables/{atm}', verbose=True)
-        pb.compute_ldcoeffs(ldatm=atm)
-        pb.compute_ldints(ldatm=atm)
-
-    pb.save('bolometric.fits')
-
-    try:
-        pb = Passband.load('tables/passbands/johnson_v.fits')
-    except FileNotFoundError:
-        pb = Passband(
-            ptf='tables/ptf/johnson_v.ptf',
-            pbset='Johnson',
-            pbname='V',
-            wlunits=u.AA,
-            calibrated=True,
-            reference='Maiz Apellaniz (2006), AJ 131, 1184',
-            version=2.5,
-            comment=''
-        )
-
-    pb.version = 2.5
-    pb.add_to_history('TMAP model atmospheres added.')
-    pb.content = []
-
-    pb.compute_blackbody_intensities(include_extinction=True)
-
-    atms = [atm for atm in models._atmtable.keys() if atm != 'blackbody' and not atm.startswith('extern')]
-    for atm in atms:
-        pb.compute_intensities(atm=atm, path=f'tables/{atm}', verbose=True)
-
-    pb.import_wd_atmcof('tables/wd/atmcofplanck.dat', 'tables/wd/atmcof.dat', 7)
-
-    pb.save('johnson_v.fits')

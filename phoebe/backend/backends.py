@@ -1437,6 +1437,11 @@ class PhoebeBackend(BaseBackendByTime):
 
                             value = body.mesh[key].centers
 
+                            if indep in ['blending_factors', 'extrapolation_dists']:
+                                # Apply on-grid masking at face-level so partially
+                                # off-grid faces are retained after vertex averaging.
+                                value[value == 0] = np.nan
+
                             if indep in ['intensities', 'abs_intensities']:
                                 # replace elements in the back with nan (these
                                 # were computed internally with abs(mus) to
