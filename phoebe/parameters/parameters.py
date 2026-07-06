@@ -12703,12 +12703,23 @@ class CodeParameter(StringParameter):
         return namespace[clsname]
 
     def set_value(self, value, **kwargs):
-        str_value = self.get_code_for_cls(value, ignore=['get_parameters'])
+        if isinstance(value, str):
+            str_value = value
+        else:
+            str_value = self.get_code_for_cls(value, ignore=['get_parameters'])
         try:
             self.get_class_from_code(str_value)
         except Exception as err:
             raise ValueError(f"Error parsing code for {self.kind}: {str(err)}")
         super().set_value(str_value, **kwargs)
+
+    def to_dict(self):
+        """
+        Return dictionary representation with code serialized as a string.
+        """
+        d = super().to_dict()
+        d['value'] = self.get_code()
+        return d
 
     def get_code(self, **kwargs):
         """
