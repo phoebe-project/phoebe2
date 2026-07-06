@@ -12675,11 +12675,20 @@ class JobParameter(Parameter):
 
 class CodeParameter(StringParameter):
     @staticmethod
-    def get_code_for_cls(cls, ignore=[]):
+    def get_code_for_cls(cls, ignore=None):
         import inspect
 
+        if ignore is None:
+            ignore = []
+
+        # inspect.getmembers_static is unavailable in older Python versions.
+        if hasattr(inspect, 'getmembers_static'):
+            members = inspect.getmembers_static(cls)
+        else:
+            members = [(name, inspect.getattr_static(cls, name)) for name in dir(cls)]
+
         code = inspect.getsource(cls.__init__)
-        for name, member in inspect.getmembers_static(cls):
+        for name, member in members:
             if name in ignore:
                 continue
             if name.startswith('__') and name not in ['__repr__']:
@@ -12713,15 +12722,7 @@ class CodeParameter(StringParameter):
             raise ValueError(f"Error parsing code for {self.kind}: {str(err)}")
         super().set_value(str_value, **kwargs)
 
-    def to_dict(self):
-        """
-        Return dictionary representation with code serialized as a string.
-        """
-        d = super().to_dict()
-        d['value'] = self.get_code()
-        return d
-
-    def get_code(self, **kwargs):
+    def get_source_code(self, **kwargs):
         """
         Return the raw source string stored in this <phoebe.parameters.CodeParameter>.
 
@@ -12739,6 +12740,14 @@ class CodeParameter(StringParameter):
         """
         return super().get_value(**kwargs)
 
+    def to_dict(self):
+        """
+        Return dictionary representation with code serialized as a string.
+        """
+        d = super().to_dict()
+        d['value'] = self.get_source_code()
+        return d
+
     def get_value(self, **kwargs):
-        str_value = self.get_code(**kwargs)
+        str_value = self.get_source_code(**kwargs)
         return self.get_class_from_code(str_value, self.kind)

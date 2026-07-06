@@ -39,7 +39,7 @@ def test_user_defined_component_feature_save_load(tmp_path):
     )
 
     feature = 'my_custom_component_feature'
-    custom_code_before = b.get_parameter(qualifier='custom_code', feature=feature).get_code()
+    custom_code_before = b.get_parameter(qualifier='custom_code', feature=feature).get_source_code()
 
     assert 'def create_feature_parameters' in custom_code_before
     assert "qualifier='test_param'" in custom_code_before
@@ -48,8 +48,8 @@ def test_user_defined_component_feature_save_load(tmp_path):
     bundle_path = tmp_path / 'custom_feature.bundle'
     b.save(bundle_path)
 
-    b2 = phoebe.load(bundle_path)
-    custom_code_after = b2.get_parameter(qualifier='custom_code', feature=feature).get_code()
+    b2 = phoebe.load(str(bundle_path))
+    custom_code_after = b2.get_parameter(qualifier='custom_code', feature=feature).get_source_code()
 
     assert custom_code_after == custom_code_before
     assert b2.get_value(qualifier='test_param', feature=feature) == 2
