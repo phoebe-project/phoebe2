@@ -1,13 +1,15 @@
+import numpy as np
 import pytest
 
 import phoebe
 from phoebe import u
 from phoebe.features import ComponentFeature, DatasetFeature
 from phoebe.parameters import FloatParameter, ParameterSet
+from phoebe.parameters import constraint
 
 
 class CustomComponentFeature(ComponentFeature):
-    allowed_component_kinds = ['star', 'envelope', 'orbit']
+    allowed_component_kinds = ['star', 'envelope']
 
     @classmethod
     def create_feature_parameters(cls, feature, **kwargs):
@@ -44,6 +46,44 @@ class CustomDatasetFeature(DatasetFeature):
                 default_unit=u.dimensionless_unscaled,
                 description='Just a test parameter!',
             )
+        ]
+        return ParameterSet(params), []
+
+    @classmethod
+    def parse_bundle(cls, b, feature_ps):
+        return {}
+
+    @classmethod
+    def modify_data_for_estimators(cls, b, data_ps, **data_arrays):
+        return {
+            'times': np.asarray(data_arrays['times']) + 1.0,
+            'fluxes': np.asarray(data_arrays['fluxes']) * 2.0,
+            'sigmas': np.asarray(data_arrays['sigmas']),
+        }
+
+    @classmethod
+    def run_checks_compute(cls, b, feature_ps, compute_ps):
+        return [{}]
+
+
+class CustomFrequencyFeature(ComponentFeature):
+    allowed_component_kinds = ['star', 'envelope']
+
+    @classmethod
+    def create_feature_parameters(cls, feature, **kwargs):
+        params = [
+            FloatParameter(
+                qualifier='period',
+                value=kwargs.get('period', 2.0),
+                default_unit=u.d,
+                description='Test period parameter!',
+            ),
+            FloatParameter(
+                qualifier='freq',
+                value=kwargs.get('freq', 0.5),
+                default_unit=u.d**-1,
+                description='Test frequency parameter!',
+            ),
         ]
         return ParameterSet(params), []
 
@@ -115,11 +155,53 @@ def test_user_defined_dataset_feature_save_load(tmp_path):
     assert hasattr(cls, 'create_feature_parameters')
 
 
-def test_user_defined_component_feature_rejects_dataset_attachment():
+def test_user_defined_dataset_feature_modify_data_for_estimators():
+    b = phoebe.default_binary()
+    b.add_dataset('rv', times=[0], dataset='rv01')
+    b.add_feature(
+        CustomDatasetFeature,
+        dataset='rv01',
+        test_param=2,
+        feature='my_custom_dataset_feature',
+    )
+
+    feature = b.get_feature_code(feature='my_custom_dataset_feature')
+    modified = feature.modify_data_for_estimators(
+        b,
+        b.get_dataset('rv01'),
+        times=np.array([0.0]),
+        fluxes=np.array([1.0]),
+        sigmas=np.array([0.1]),
+    )
+
+    assert modified['times'].tolist() == [1.0]
+    assert modified['fluxes'].tolist() == [2.0]
+    assert modified['sigmas'].tolist() == [0.1]
+
+
+def test_freq_constraint_uses_feature_context():
+    b = phoebe.default_binary()
+    b.add_feature(
+        CustomFrequencyFeature,
+        component='primary',
+        feature='my_feature',
+        period=2.0,
+        freq=0.5,
+    )
+
+    lhs, rhs, addl_vars, constraint_kwargs = constraint.freq(b, 'my_feature', context='feature')
+
+    assert lhs is b.get_parameter(qualifier='freq', feature='my_feature')
+    assert '{period' in rhs.expr
+    assert addl_vars == []
+    assert constraint_kwargs == {'feature': 'my_feature'}
+
+
+def test_user_defined_component_feature_rejects_component_and_dataset_attachment():
     b = phoebe.default_binary()
     b.add_dataset('rv', times=[0], dataset='rv01')
 
-    with pytest.raises(ValueError, match='does not support dataset with kind rv'):
+    with pytest.raises(ValueError, match='feature can only be attached to either a component or a dataset, not both'):
         b.add_feature(
             CustomComponentFeature,
             component='primary',
