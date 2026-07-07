@@ -15,7 +15,6 @@ from phoebe import u, c
 from phoebe import conf, mpi
 from phoebe.parameters.parameters import _extract_index_from_string
 from phoebe.backend.backends import _simplify_error_message
-from phoebe.features import dataset_features
 from phoebe.utils import phase_mask_inds
 from phoebe.dependencies import nparray
 from phoebe.helpers import get_emcee_object as _get_emcee_object

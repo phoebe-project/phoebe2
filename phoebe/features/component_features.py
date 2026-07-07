@@ -36,7 +36,7 @@ class ComponentFeature(BaseFeature):
         """
         Whether this feature requires remeshing of the component mesh.
         """
-        return True
+        return False
 
     def cartesian_to_spherical(self, roche_coords):
         """
@@ -302,7 +302,7 @@ class Spot(ComponentFeature):
         s = np.asarray(s)
         if t is None:
             # then assume at t0
-            t = self._t0
+            t = self.kwargs['t0']
 
         pointing_vector = self.pointing_vector(s, t)
         self.logger.debug("spot.modify_teffs at t={} with pointing_vector={} and radius={}".format(t, pointing_vector, self.kwargs['radius']))
@@ -322,6 +322,7 @@ class Pulsation(ComponentFeature):
         """
         Initialize a Pulsation feature from the bundle.
         """
+        from phoebe import c
         freq = feature_ps.get_value(qualifier='freq', unit=u.d**-1, **_skip_filter_checks)
         radamp = feature_ps.get_value(qualifier='radamp', unit=u.dimensionless_unscaled, **_skip_filter_checks)
         l = feature_ps.get_value(qualifier='l', unit=u.dimensionless_unscaled, **_skip_filter_checks)
@@ -335,6 +336,18 @@ class Pulsation(ComponentFeature):
 
         return dict(radamp=radamp, freq=freq, l=l, m=m, tanamp=tanamp, teffext=teffext)
 
+    @classmethod
+    def Y(self, m, l, theta, phi):
+        try:
+            from scipy.special import sph_harm as Y
+        except ImportError:
+            from scipy.special import sph_harm_y as _sph_harm_y
+
+        def Y(m, n, theta, phi):
+            return _sph_harm_y(n, m, theta, phi)
+
+        return Y(m, l, theta, phi)
+
     def dYdtheta(self, m, l, theta, phi):
         if abs(m) > l:
             return 0
@@ -343,12 +356,12 @@ class Pulsation(ComponentFeature):
         if abs(m+1) > l:
             last_term = 0.0
         else:
-            last_term = Y(m+1, l, theta, phi)
+            last_term = self.Y(m+1, l, theta, phi)
 
-        return m/np.tan(theta)*Y(m, l, theta, phi) + np.sqrt((l-m)*(l+m+1))*np.exp(-1j*phi)*last_term
+        return m/np.tan(theta)*self.Y(m, l, theta, phi) + np.sqrt((l-m)*(l+m+1))*np.exp(-1j*phi)*last_term
 
     def dYdphi(self, m, l, theta, phi):
-        return 1j*m*Y(m, l, theta, phi)
+        return 1j*m*self.Y(m, l, theta, phi)
 
     def modify_coords_for_computations(self, coords_for_computations, s, t):
         """
@@ -360,7 +373,7 @@ class Pulsation(ComponentFeature):
         theta = np.arccos(z/r)
         phi = np.arctan2(y, x)
 
-        xi_r = self.kwargs['radamp'] * Y(self.kwargs['m'], self.kwargs['l'], theta, phi) * np.exp(-1j*2*np.pi*self.kwargs['freq']*t)
+        xi_r = self.kwargs['radamp'] * self.Y(self.kwargs['m'], self.kwargs['l'], theta, phi) * np.exp(-1j*2*np.pi*self.kwargs['freq']*t)
         xi_t = self.kwargs['tanamp'] * self.dYdtheta(self.kwargs['m'], self.kwargs['l'], theta, phi) * np.exp(-1j*2*np.pi*self.kwargs['freq']*t)
         xi_p = self.kwargs['tanamp']/np.sin(theta) * self.dYdphi(self.kwargs['m'], self.kwargs['l'], theta, phi) * np.exp(-1j*2*np.pi*self.kwargs['freq']*t)
 
@@ -391,7 +404,7 @@ class Pulsation(ComponentFeature):
         theta = np.arccos(z/r)
         phi = np.arctan2(y, x)
 
-        xi_r = self.kwargs['radamp'] * Y(self.kwargs['m'], self.kwargs['l'], theta, phi) * np.exp(-1j*2*np.pi*self.kwargs['freq']*t)
+        xi_r = self.kwargs['radamp'] * self.Y(self.kwargs['m'], self.kwargs['l'], theta, phi) * np.exp(-1j*2*np.pi*self.kwargs['freq']*t)
         xi_t = self.kwargs['tanamp'] * self.dYdtheta(self.kwargs['m'], self.kwargs['l'], theta, phi) * np.exp(-1j*2*np.pi*self.kwargs['freq']*t)
         xi_p = self.kwargs['tanamp']/np.sin(theta) * self.dYdphi(self.kwargs['m'], self.kwargs['l'], theta, phi) * np.exp(-1j*2*np.pi*self.kwargs['freq']*t)
 

@@ -10,12 +10,10 @@ logger.addHandler(logging.NullHandler())
 
 ### NOTE: if creating new parameters, add to the _forbidden_labels list in parameters.py
 
-_allowed_components = {'pulsation': ['star', 'envelope'],
-                       'gp_sklearn': [None],
+_allowed_components = {'gp_sklearn': [None],
                        'gp_celerite2': [None]}
 
-_allowed_datasets = {'pulsation': [None],
-                     'gp_sklearn': ['lc', 'rv', 'lp'],
+_allowed_datasets = {'gp_sklearn': ['lc', 'rv', 'lp'],
                      'gp_celerite2': ['lc', 'rv', 'lp']} 
 
 _feature_classes = {}

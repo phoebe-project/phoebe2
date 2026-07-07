@@ -41,4 +41,4 @@ class BaseFeature:
 
     @classmethod
     def run_checks_compute(cls, b, feature_ps, compute_ps):
-        return [{}]
+        return []

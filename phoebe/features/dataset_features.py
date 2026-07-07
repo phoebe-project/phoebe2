@@ -36,7 +36,7 @@ class DatasetFeature(BaseFeature):
         return {}
 
     def modify_model(self, b, model_ps):
-        raise NotImplementedError("modify_model must be implemented in the feature subclass")
+        return None
 
 class GPSKLearn(DatasetFeature):
     allowed_dataset_kinds = ['lc']
