@@ -1,8 +1,7 @@
 import numpy as np
 import astropy.units as u
 
-import phoebe.parameters.feature as _parameters_feature
-from phoebe.parameters import FloatParameter, ParameterSet, constraint
+from phoebe.parameters import FloatParameter, ParameterSet
 from phoebe.features.common import BaseFeature
 
 
@@ -27,7 +26,7 @@ class ComponentFeature(BaseFeature):
     recomputed (set in this superclass' `__init__()` method) but inherited
     classes should overload `self.requires_remeshing`.
     """
-    allowed_component_kinds = ['star', 'envelope', 'orbit']
+    allowed_component_kinds = ['star', 'envelope']
     allowed_dataset_kinds = [None]
 
     def __repr__(self):

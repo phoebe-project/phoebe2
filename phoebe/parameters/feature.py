@@ -1,11 +1,8 @@
 
 
 from phoebe.parameters import *
-from phoebe.parameters import constraint
 from phoebe.features.component_features import Spot
 from phoebe.features.dataset_features import GPSKLearn, GPCelerite2, RVOffset
-from phoebe import u
-from phoebe import conf
 
 import logging
 logger = logging.getLogger("FEATURE")

@@ -5775,6 +5775,9 @@ class Bundle(ParameterSet):
         else:
             component_kind = None
 
+        if component is not None and dataset is not None:
+            raise ValueError("feature can only be attached to either a component or a dataset, not both")
+
         if not _feature._component_allowed_for_feature(kind, component_kind):
             raise ValueError("{} does not support component with kind {}".format(kind_name, component_kind))
 
