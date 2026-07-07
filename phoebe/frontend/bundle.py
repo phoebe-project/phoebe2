@@ -984,14 +984,12 @@ class Bundle(ParameterSet):
             logger.warning(warning)
             # migrate rv_offset@dataset to new feature implementation, if non-zero
             for rv_ds in b.filter(context='dataset', kind='rv', **_skip_filter_checks).datasets:
-                rv_offsets = [param.get_value() for param in b.filter(qualifier='rv_offset', dataset=rv_ds, context='dataset', **_skip_filter_checks).to_list()]
-                if np.any(rv_offsets != 0):
-                    logger.warning(f"migrating rv_offset@{rv_ds}@dataset to new features implementation")
-                    b.add_feature('rv_offset', dataset=rv_ds)
-                    for comp in b.hierarchy.get_stars():
-                        b.set_value(qualifier='rv_offset', component=comp, context='feature', value=b.get_quantity(qualifier='rv_offset', component=comp, context='dataset'))
-                    # delete original rv_offset parameters
-                    b.remove_parameters_all(qualifier='rv_offset', context='dataset', **_skip_filter_checks)
+                rv_offset_ps = b.filter(qualifier='rv_offset', dataset=rv_ds, context='dataset', **_skip_filter_checks)
+                b.add_feature('rv_offset', dataset=rv_ds)
+                for rv_offset_param in rv_offset_ps.filter(qualifier='rv_offset', **_skip_filter_checks).to_list():
+                    b.set_value(qualifier='rv_offset', dataset=rv_ds, component=rv_offset_param.component, context='feature', value=rv_offset_param.get_quantity(**_skip_filter_checks))
+            # delete original rv_offset parameters
+            b.remove_parameters_all(qualifier='rv_offset', context='dataset', **_skip_filter_checks)
 
             # update all datasets to get boosting_method/index parameters
             for dataset in b.filter(qualifier='passband', context='dataset', **_skip_filter_checks).datasets:

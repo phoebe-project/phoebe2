@@ -215,7 +215,6 @@ class GPCelerite2(DatasetFeature):
 
 
 class RVOffset(DatasetFeature):
-    allowed_component_kinds = ['star']
     allowed_dataset_kinds = ['rv']
 
     @classmethod
