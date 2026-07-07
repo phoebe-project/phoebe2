@@ -19,7 +19,7 @@ def _component_allowed_for_feature(feature_kind, component_kind):
     _allowed['gp_celerite2'] = [None]
     _allowed['gaussian_process'] = [None]  # deprecated: remove in 2.5
 
-    return component_kind in _allowed[feature_kind]
+    return component_kind in _allowed.get(feature_kind, [None])
 
 def _dataset_allowed_for_feature(feature_kind, dataset_kind):
     _allowed = {}
@@ -29,7 +29,14 @@ def _dataset_allowed_for_feature(feature_kind, dataset_kind):
     _allowed['gp_celerite2'] = ['lc', 'rv', 'lp']
     _allowed['gaussian_process'] = ['lc', 'rv', 'lp']  # deprecated: remove in 2.5
 
-    return dataset_kind in _allowed[feature_kind]
+    return dataset_kind in _allowed.get(feature_kind, [None])
+
+def _solver_allowed_for_feature(feature_kind, solver_kind):
+    _allowed = {}
+    _allowed['emcee_move'] = ['emcee']
+
+    return solver_kind in _allowed.get(feature_kind, [None])
+
 
 def spot(feature, **kwargs):
     """
@@ -45,6 +52,7 @@ def spot(feature, **kwargs):
     Allowed to attach to:
     * components with kind: star
     * datasets: not allowed
+    * solver: not allowed
 
     Arguments
     ----------
@@ -181,6 +189,7 @@ def gp_celerite2(feature, **kwargs):
     Allowed to attach to:
     * components: not allowed
     * datasets with kind: lc
+    * solvers: not allowed
 
     If `compute_times` or `compute_phases` is used: the underlying model without
     gaussian_processes will be computed at the given times/phases but will then
@@ -244,12 +253,84 @@ def gp_celerite2(feature, **kwargs):
 
     return ParameterSet(params), constraints
 
-def gaussian_process(feature, **kwargs):
+def emcee_move(feature, **kwargs):
     """
-    Deprecated (will be removed in PHOEBE 2.5)
+    Create a <phoebe.parameters.ParameterSet> for an emcee_move feature to attach
+    to an <phoebe.parameters.solver.sampler.emcee> solver.
 
-    Support for celerite gaussian processes has been removed.  This is now an
-    alias to <phoebe.parameters.feature.gp_celerite2>.
+    Generally, this will be used as an input to the kind argument in
+    <phoebe.frontend.bundle.Bundle.add_feature>.  If attaching through
+    <phoebe.frontend.bundle.Bundle.add_feature>, all `**kwargs` will be
+    passed on to set the values as described in the arguments below.  Alternatively,
+    see <phoebe.parameters.ParameterSet.set_value> to set/change the values
+    after creating the Parameters.
+
+    Allowed to attach to:
+    * components: not allowed
+    * datasets: not allowed
+    * solvers with kind: emcee
+
+
+    Arguments
+    ----------
+    * `move` (string, optional, default='Stretch'): Type of move
+        (see https://emcee.readthedocs.io/en/stable/user/moves/)
+    * `weight` (float, optional, default=1.0): Weighted probability to apply to
+        move.  Weights across all enabled emcee_move features will be renormalized
+        to sum to 1 before passing to emcee.
+    * `nsplits` (int, optional, default=2):
+    * `randomize_split` (bool, optional, default=True):
+    * `a` (float, optional, default=2.0):
+    * `smode` (string, optional, default='auto'):
+    * `s` (int, optional, default=16):
+    * `bw_method` (string, optional, default='scott'):
+    * `bw_constant` (float, optional, default=1.0):
+    * `sigma` (float, optional, default=1e-5):
+    * `gamma0_mode` (string, optional, default='auto'):
+    * `gamma0` (float, optional, default=0.5):
+    * `gammas` (float, optional, default=1.7):
+
+
+    Returns
+    --------
+    * (<phoebe.parameters.ParameterSet>, list): ParameterSet of all newly created
+        <phoebe.parameters.Parameter> objects and a list of all necessary
+        constraints.
     """
-    logger.warning("gaussian_process is deprecated.  Use gp_celerite2 instead.")
-    return gp_celerite2(feature, **kwargs)
+
+    params = []
+
+    params += [ChoiceParameter(qualifier='move', value=kwargs.get('move', 'Stretch'), choices=['Stretch', 'Walk', 'KDE', 'DE', 'DESnooker'], description='Type of move (see https://emcee.readthedocs.io/en/stable/user/moves/)')]
+    params += [FloatParameter(qualifier='weight', value=kwargs.get('weight', 1.0), limits=(0,None), default_unit=u.dimensionless_unscaled, description='Weighted probability to apply to move.  Weights across all enabled emcee_move features will be renormalized to sum to 1 before passing to emcee.')]
+
+    # NOTE: RedBlue requires subclassing
+    # params += [IntParameter(visible_if='move:RedBlue', qualifier='nsplits', value=kwargs.get('nsplits', 2), limits=(1,100), description='Passed directly to emcee. The number of sub-ensembles to use. Each sub-ensemble is updated in parallel using the other sets as the complementary ensemble. The default value is 2 and you probably won’t need to change that.')]
+    # params += [BoolParameter(visible_if='move:RedBlue', qualifier='randomize_split', value=kwargs.get('randomize_split', True), description='Passed directly to emcee. Randomly shuffle walkers between sub-ensembles. The same number of walkers will be assigned to each sub-ensemble on each iteration.')]
+
+    params += [FloatParameter(visible_if='move:Stretch', qualifier='a', value=kwargs.get('a', 2.0), limits=(None, None), default_units=u.dimensionless_unscaled, description='Passed directly to emcee.  The stretch scale parameter.')]
+
+    params += [ChoiceParameter(visible_if='move:Walk', qualifier='smode', value=kwargs.get('smode', 'auto'), choices=['auto', 'manual'], description='Whether to manually provide the s parameter (number of helper walkers) or use all walkers in the complement by passing None to emcee.')]
+    params += [IntParameter(visible_if='move:Walk,smode:manual', qualifier='s', value=kwargs.get('s', 16), limits=(1,None), description='Passed directly to emcee.  The number of helper walkers to use.')]
+
+    params += [ChoiceParameter(visible_if='move:KDE', qualifier='bw_method', value=kwargs.get('bw_method', 'scott'), choices=['scott', 'silverman', 'constant'], description='Passed directly to emcee. The bandwidth estimation method.  See https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.gaussian_kde.html')]
+    params += [FloatParameter(visible_if='move:KDE,bw_method:constant', qualifier='bw_constant', value=kwargs.get('bw_constant', 1.0), limits=(None, None), default_unit=u.dimensionless_unscaled, description='Bandwidth estimation kde factor.  See https://docs.scipy.org/docs/scipy/reference/generated/scipy.stats.gaussian_kde.html')]
+
+    params += [FloatParameter(visible_if='move:DE', qualifier='sigma', value=kwargs.get('sigma', 1e-5), limits=(0,None), default_unit=u.dimensionless_unscaled, description='Passed directly to emcee. The standard deviation of the Gaussian used to stretch the proposal vector.')]
+    params += [ChoiceParameter(visible_if='move:DE', qualifier='gamma0_mode', value=kwargs.get('gamma0_mode', 'auto'), choices=['auto', 'manual'], description='Whether to manually provide gamma0 or default to 2.38/sqrt(2 * ndim)')]
+    params += [FloatParameter(visible_if='move:DE,gamma0_mode:manual', qualifier='gamma0', value=kwargs.get('gamma0', 0.5), limits=(0,None), default_unit=u.dimensionless_unscaled, description='Passed directly to emcee.  The mean stretch factor for the proposal vector.')]
+
+    params += [FloatParameter(visible_if='move:DESnooker', qualifier='gammas', value=kwargs.get('gammas', 1.7), limits=(0,None), default_unit=u.dimensionless_unscaled, description='Passed directly to emcee.  The mean stretch factor of the proposal vector.')]
+
+    # NOTE: MH not implemented as it requires a callable
+    # NOTE: Gaussian not implemented as it requires a covariance (as scalar, vector, or matrix)
+
+    constraints = []
+
+    return ParameterSet(params), constraints
+
+
+
+# del deepcopy
+# del _component_allowed_for_feature
+# del download_passband, list_installed_passbands, list_online_passbands, list_passbands, parameter_from_json, parse_json, send_if_client, update_if_client
+# del fnmatch
