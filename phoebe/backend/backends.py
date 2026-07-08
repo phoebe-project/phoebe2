@@ -998,7 +998,7 @@ class PhoebeBackend(BaseBackendByTime):
                 qualifier='extrapolation_frac_allowed',
                 component=component,
                 extrapolation_frac_allowed=extrapolation_frac_allowed_override,
-                default=1.0,
+                default=0.1,
                 **_skip_filter_checks
             )
             for component in starrefs
