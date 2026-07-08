@@ -451,8 +451,7 @@ def test_run_compute_extrapolation_frac_allowed_thresholds():
     with pytest.raises(ValueError, match='extrapolation_frac_allowed'):
         b.run_compute(model='strict_extrapolation_limit', irrad_method='none')
 
-    b.set_value_all('extrapolation_frac_allowed', value=1.0)
-    b.run_compute(model='relaxed_extrapolation_limit', irrad_method='none')
+    b.run_compute(model='relaxed_extrapolation_limit', extrapolation_frac_allowed=1.0, irrad_method='none')
 
     fluxes = b.get_value('fluxes', model='relaxed_extrapolation_limit', dataset='lc01')
     assert len(fluxes) == 5
