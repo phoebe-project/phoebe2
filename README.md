@@ -77,6 +77,8 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.5.1
+
 ### 2.5.0
 
 * Adds blending/TMAP atmosphere support and the related passband and intensity infrastructure. [#1132]
