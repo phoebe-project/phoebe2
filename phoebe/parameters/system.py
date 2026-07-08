@@ -4,7 +4,7 @@ from phoebe import u
 
 ### NOTE: if creating new parameters, add to the _forbidden_labels list in parameters.py
 
-def system(**kwargs):
+def system(system, **kwargs):
     """
     Generally, this will automatically be added to a newly initialized
     <phoebe.frontend.bundle.Bundle>.
@@ -44,6 +44,6 @@ def system(**kwargs):
     params += [FloatParameter(qualifier='ebv', latexfmt=r'E(B-V)', value=kwargs.get('ebv', 0.0), default_unit=u.dimensionless_unscaled, limits=(None, None), description='Extinction E(B-V)')]
     params += [FloatParameter(qualifier='Av', latexfmt=r'A_v', value=kwargs.get('Av', 0.0), default_unit=u.dimensionless_unscaled, limits=(None, None), description='Extinction Av')]
     params += [FloatParameter(qualifier='Rv', latexfmt=r'R_v', value=kwargs.get('Rv', 3.1), default_unit=u.dimensionless_unscaled, limits=(None, None), description='Extinction law parameter')]
-    constraints +=[(constraint.extinction,)]
+    constraints +=[(constraint.extinction, system)]
 
     return ParameterSet(params), constraints

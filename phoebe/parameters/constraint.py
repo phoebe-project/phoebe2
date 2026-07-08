@@ -2630,7 +2630,7 @@ def compute_phases(b, component, dataset, solve_for=None, **kwargs):
 # System constraints
 
 _validsolvefor['extinction'] = ['ebv', 'Av', 'Rv']
-def extinction(b, solve_for=None, **kwargs):
+def extinction(b, system, solve_for=None, **kwargs):
     """
     Create a constraint for the translation between ebv, Av, and Rv.
 
@@ -2660,7 +2660,7 @@ def extinction(b, solve_for=None, **kwargs):
     """
 
     # Rv =Av/ebv
-    system_ps = b.filter(context='system', **_skip_filter_checks)
+    system_ps = b.filter(context='system', system=system, **_skip_filter_checks)
     ebv = system_ps.get_parameter(qualifier='ebv', **_skip_filter_checks)
     Av = system_ps.get_parameter(qualifier='Av', **_skip_filter_checks)
     Rv = system_ps.get_parameter(qualifier='Rv', **_skip_filter_checks)
@@ -2679,10 +2679,10 @@ def extinction(b, solve_for=None, **kwargs):
     else:
         raise NotImplementedError
 
-    return lhs, rhs, [], {}
+    return lhs, rhs, [], {'system': system}
 
 _validsolvefor['parallax'] = ['distance', 'parallax']
-def parallax(b, solve_for=None, **kwargs):
+def parallax(b, system, solve_for=None, **kwargs):
     """
     Create a constraint for the translation between distance and parallax.
 
@@ -2710,7 +2710,7 @@ def parallax(b, solve_for=None, **kwargs):
     """
 
     # Rv =Av/ebv
-    system_ps = b.filter(context='system', **_skip_filter_checks)
+    system_ps = b.filter(context='system', system=system, **_skip_filter_checks)
     distance = system_ps.get_parameter(qualifier='distance', **_skip_filter_checks)
 
     parallax_def = FloatParameter(qualifier='parallax', latexfmt=r'\pi', value=1.0, default_unit=u.arcsec, description='Parallax')
@@ -2730,7 +2730,7 @@ def parallax(b, solve_for=None, **kwargs):
     else:
         raise NotImplementedError
 
-    return lhs, rhs, [], {}
+    return lhs, rhs, [], {'system': system}
 
 def requiv_to_pot(b, component, solve_for=None, **kwargs):
     """
