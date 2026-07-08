@@ -8,10 +8,33 @@ interpolate_imus() methods with real data.
 
 import pytest
 import numpy as np
+import phoebe
 
 # Import the modules we need to test
 import phoebe.atmospheres.passbands as passbands
 import phoebe.atmospheres.models as models
+
+
+def _build_offgrid_blending_binary():
+    """Create a small binary configured to require atmosphere extrapolation."""
+    b = phoebe.default_binary()
+    b.add_dataset('lc', times=np.linspace(0, 1, 5))
+
+    # Keep this lightweight for tests while still meshing enough triangles to
+    # sample off-grid points robustly.
+    b.set_value_all('ntriangles', compute='phoebe01', value=200)
+
+    # Force CK2004 atmosphere usage and allow extrapolation + blending.
+    b.set_value_all('atm', value='ck2004')
+    b.set_value_all('atm_extrapolation_method', value='linear')
+    b.set_value_all('ld_extrapolation_method', value='linear')
+    b.set_value_all('blending_method', value='blackbody')
+
+    # Push temperatures well outside CK2004 bounds so extrapolation is needed.
+    b.set_value('teff', component='primary', value=300.0)
+    b.set_value('teff', component='secondary', value=100000.0)
+
+    return b
 
 
 class TestAtmosphereBlending:
@@ -414,6 +437,25 @@ class TestAtmosphereBlending:
             assert result.dists is not None
             assert len(result.bfs) == len(mixed_grid_query.pts)
             assert len(result.dists) == len(mixed_grid_query.pts)
+
+
+def test_run_compute_extrapolation_frac_allowed_thresholds():
+    """run_compute should fail for zero allowed fraction and pass for relaxed limits."""
+    pb = passbands.get_passband('Johnson:V')
+    if 'ck2004:Imu' not in pb.content:
+        pytest.skip("CK2004 atmosphere tables not available")
+
+    b = _build_offgrid_blending_binary()
+    b.set_value_all('extrapolation_frac_allowed', value=0.0)
+
+    with pytest.raises(ValueError, match='extrapolation_frac_allowed'):
+        b.run_compute(model='strict_extrapolation_limit', irrad_method='none')
+
+    b.set_value_all('extrapolation_frac_allowed', value=1.0)
+    b.run_compute(model='relaxed_extrapolation_limit', irrad_method='none')
+
+    fluxes = b.get_value('fluxes', model='relaxed_extrapolation_limit', dataset='lc01')
+    assert len(fluxes) == 5
 
 
 if __name__ == '__main__':
