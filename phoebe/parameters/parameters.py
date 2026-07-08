@@ -224,7 +224,7 @@ _forbidden_labels += ['times', 'fluxes', 'sigmas', 'sigmas_lnf',
                      'pblum_mode', 'pblum_ref', 'pblum', 'pbflux',
                      'pblum_dataset', 'pblum_component',
                      'l3_mode', 'l3', 'l3_frac',
-                     'exptime', 'rvs', 'wavelengths', 'rv_offset',
+                     'exptime', 'rvs', 'wavelengths',
                      'flux_densities', 'profile_func', 'profile_rest', 'profile_sv',
                      'us', 'vs', 'ws', 'vus', 'vvs', 'vws',
                      'include_times', 'columns', 'coordinates',
@@ -303,7 +303,7 @@ _forbidden_labels += ['colat', 'long', 'radius', 'relteff',
                       'rho', 'sigma', 'tau', 'period', 'Q0', 'dQ', 'f', 'eps',
                       'sigma_0', 'constant_value_bounds', 'length_scale_bounds',
                       'noise_level_bounds', 'periodicity_bounds', 'alpha_bounds', 'nu_bounds',
-                      'sigma_0_bounds', 'alg_operation',
+                      'sigma_0_bounds', 'alg_operation', 'feature_type', 'custom_code'
                       ]
 
 # from figure:
@@ -7912,8 +7912,6 @@ class StringParameter(Parameter):
         """
         self._readonly_check(**kwargs)
 
-        _orig_value = _deepcopy(value)
-
         try:
             value = str(value)
         except:
@@ -9913,11 +9911,14 @@ class FloatParameter(Parameter):
 
         # handle wrapping for angle measurements
         if value is not None and value.unit.physical_type == 'angle':
-            # NOTE: this may fail for nparray types
-            if value > (360*u.deg) or value < (0*u.deg):
+            value_deg = value.to(u.deg).value
+            out_of_range = np.any((value_deg > 360.0) | (value_deg < 0.0))
+            if out_of_range:
                 if self._bundle is not None and self._bundle._within_solver and not kwargs.get('from_constraint', False):
-                    if abs(value.to(u.deg).value - self._value.to(u.deg).value) > 180:
-                        raise ValueError("value further than 180 deg from {}".format(self._value.to(u.deg).value))
+                    if self._value is not None:
+                        old_deg = self._value.to(u.deg).value
+                        if np.any(np.abs(np.asarray(value_deg) - np.asarray(old_deg)) > 180.0):
+                            raise ValueError("value further than 180 deg from {}".format(old_deg))
                 value = value % (360*u.deg)
                 logger.info("wrapping value of {} to {}".format(self.qualifier, value))
 
@@ -12670,3 +12671,83 @@ class JobParameter(Parameter):
         # TODO: options for whether to pass delete_volume
         self.crimpl_job.resubmit_script()
         self._value = 'unknown'
+
+
+class CodeParameter(StringParameter):
+    @staticmethod
+    def get_code_for_cls(cls, ignore=None):
+        import inspect
+
+        if ignore is None:
+            ignore = []
+
+        # inspect.getmembers_static is unavailable in older Python versions.
+        if hasattr(inspect, 'getmembers_static'):
+            members = inspect.getmembers_static(cls)
+        else:
+            members = [(name, inspect.getattr_static(cls, name)) for name in dir(cls)]
+
+        code = inspect.getsource(cls.__init__)
+        for name, member in members:
+            if name in ignore:
+                continue
+            if name.startswith('__') and name not in ['__repr__']:
+                continue
+            if isinstance(member, property):
+                raise ValueError("input class cannot contain any properties")
+            if hasattr(member, '__call__') or hasattr(member, '__wrapped__'):
+                code += inspect.getsource(member)
+            else:
+                value = getattr(cls, name)
+                if isinstance(value, str):
+                    value = f"'{value}'"
+                code += f"    {name} = {value}\n"
+        return code
+
+    @staticmethod
+    def get_class_from_code(code, clsname='ClassFromCode'):
+        code = f"class {clsname}:\n    def __repr__(self):\n        return '<Feature {clsname}>'\n" + code
+        namespace = {}
+        exec(code, globals(), namespace)
+        return namespace[clsname]
+
+    def set_value(self, value, **kwargs):
+        if isinstance(value, str):
+            str_value = value
+        else:
+            str_value = self.get_code_for_cls(value, ignore=['get_parameters'])
+        try:
+            self.get_class_from_code(str_value)
+        except Exception as err:
+            raise ValueError(f"Error parsing code for {self.kind}: {str(err)}")
+        super().set_value(str_value, **kwargs)
+
+    def get_source_code(self, **kwargs):
+        """
+        Return the raw source string stored in this <phoebe.parameters.CodeParameter>.
+
+        See also:
+        * <phoebe.parameters.CodeParameter.get_value>
+
+        Arguments
+        ----------
+        * `**kwargs`: forwarded to <phoebe.parameters.StringParameter.get_value>
+            for default/override behavior.
+
+        Returns
+        -------
+        * (str): code string used to reconstruct the runtime class.
+        """
+        return super().get_value(**kwargs)
+
+    def to_dict(self):
+        """
+        Return dictionary representation with code serialized as a string.
+        """
+        d = super().to_dict()
+        d['value'] = self.get_source_code()
+        return d
+
+    def get_value(self, **kwargs):
+        str_value = self.get_source_code(**kwargs)
+        return self.get_class_from_code(str_value, self.kind)

@@ -384,6 +384,7 @@ from . import utils as _utils
 from . import dynamics as dynamics
 from . import distortions as distortions
 from . import algorithms as algorithms
+from . import features as features
 import libphoebe
 
 # Shortcut to building logger
@@ -882,7 +883,6 @@ add_distl_docstring(mvhistogram_from_data)
 add_distl_docstring(uniform_around)
 add_distl_docstring(gaussian_around)
 
-
 # expose available "kinds" per-context
 def _get_phoebe_funcs(module, devel=False):
     ignore = ['_empty_array', 'deepcopy', 'fnmatch',
@@ -949,7 +949,7 @@ def list_available_features(devel=False):
     ---------
     * (list of strings)
     """
-    return _get_phoebe_funcs(feature, devel=devel)
+    return list(feature._feature_classes.keys())
 
 def list_available_datasets(devel=False):
     """

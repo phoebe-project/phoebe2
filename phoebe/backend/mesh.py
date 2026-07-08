@@ -1336,6 +1336,7 @@ class Mesh(ScaledProtoMesh):
         # let's store the position.  This is both useful for "undoing" the
         # orbit-offset, and also eventually to allow incremental changes.
         self._pos = pos
+        self._vel = vel
         if component_com_x is not None and component_com_x != 0.0:
             self._pos_center = transform_position_array(np.array([component_com_x, 0.0, 0.0]), pos, euler, False)
         else:

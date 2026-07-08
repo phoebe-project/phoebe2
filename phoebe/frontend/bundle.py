@@ -6,12 +6,15 @@ try:
 except ImportError:
     DEVNULL = open(os.devnull, 'wb')
 
+import numpy as np
+import re
 import json
 import atexit
 import time
 from packaging.version import parse
 from copy import deepcopy as _deepcopy
-from inspect import getsource as _getsource
+import pickle as _pickle
+from inspect import getsource as _getsource, isclass
 
 from scipy.optimize import curve_fit as cfit
 from tqdm import tqdm as _tqdm
@@ -35,6 +38,9 @@ from phoebe.backend import backends
 from phoebe.solverbackends import solverbackends as _solverbackends
 from phoebe.distortions import roche
 from phoebe.frontend import io
+from phoebe.features.common import BaseFeature
+from phoebe.features import dataset_features, component_features
+from phoebe.features.gaussian_processes import handle_gaussian_processes, _use_celerite2, _use_sklearn
 from phoebe.atmospheres import models
 from phoebe.atmospheres import passbands
 from phoebe import pool as _pool
@@ -74,23 +80,6 @@ except ImportError:
     _can_client = False
 else:
     _can_client = True
-
-try:
-    import sklearn as _sklearn
-    from sklearn.gaussian_process import GaussianProcessRegressor
-except ImportError:
-    logger.warning("scikit-learn not installed: only required for gaussian processes")
-    _use_sklearn = False
-else:
-    _use_sklearn = True
-
-try:
-    import celerite2 as _celerite2
-except ImportError:
-    logger.warning("celerite2 not installed: only required for gaussian processes")
-    _use_celerite2 = False
-else:
-    _use_celerite2 = True
 
 
 def _get_add_func(mod, func, return_none_if_not_found=False):
@@ -993,6 +982,15 @@ class Bundle(ParameterSet):
         if phoebe_version_import < parse("2.5.0"):
             warning = "importing from an older version ({}) of PHOEBE to PHOEBE 2.5+.  This may take some time.  Please check all values.".format(phoebe_version_import)
             logger.warning(warning)
+            # migrate rv_offset@dataset to new feature implementation, if non-zero
+            for rv_ds in b.filter(context='dataset', kind='rv', **_skip_filter_checks).datasets:
+                rv_offset_ps = b.filter(qualifier='rv_offset', dataset=rv_ds, context='dataset', **_skip_filter_checks)
+                b.add_feature('rv_offset', dataset=rv_ds)
+                for rv_offset_param in rv_offset_ps.filter(qualifier='rv_offset', **_skip_filter_checks).to_list():
+                    b.set_value(qualifier='rv_offset', dataset=rv_ds, component=rv_offset_param.component, context='feature', value=rv_offset_param.get_quantity(**_skip_filter_checks))
+            # delete original rv_offset parameters
+            b.remove_parameters_all(qualifier='rv_offset', context='dataset', **_skip_filter_checks)
+
             # update all datasets to get boosting_method/index parameters
             for dataset in b.filter(qualifier='passband', context='dataset', **_skip_filter_checks).datasets:
                 logger.info("attempting to update dataset='{}' to new version requirements".format(dataset))
@@ -3191,19 +3189,20 @@ class Bundle(ParameterSet):
         Arguments
         -----------
         * `compute` (string or list of strings, optional, default=None): the
-            compute options to use  when running checks.  If None (or not provided),
+            compute options to use when running checks.  If None (or not provided),
             the compute options in the 'run_checks_compute@setting' parameter
             will be used (which defaults to all available compute options).
+            All enabled features in `compute` will also be checked.
         * `solver` (string or list of strings, optional, default=None): the
-            solver options to use  when running checks.  If None (or not provided),
+            solver options to use when running checks.  If None (or not provided),
             the compute options in the 'run_checks_solver@setting' parameter
             will be used (which defaults to all available solver options).
         * `solution` (string or list of strings, optional, default=None): the
-            solutions to use  when running checks.  If None (or not provided),
+            solutions to use when running checks.  If None (or not provided),
             the compute options in the 'run_checks_solution@setting' parameter
             will be used (which defaults to no solutions, if not set).
         * `figure` (string or list of strings, optional, default=None): the
-            figures to use  when running checks.  If None (or not provided),
+            figures to use when running checks.  If None (or not provided),
             the compute options in the 'run_checks_figure@setting' parameter
             will be used (which defaults to no figures, if not set).
         * `allow_skip_constraints` (bool, optional, default=False): whether
@@ -4095,10 +4094,12 @@ class Bundle(ParameterSet):
 
 
         for compute in computes:
-            compute_kind = self.get_compute(compute=compute, **_skip_filter_checks).kind
+            compute_ps = self.get_compute(compute=compute, **_skip_filter_checks)
+            compute_kind = compute_ps.kind
 
             gps = self.filter(kind=['gp_celerite2','gp_sklearn'], context='feature', **_skip_filter_checks).features
             compute_enabled_gps = self.filter(qualifier='enabled', compute=compute, feature=gps, value=True, **_skip_filter_checks).features
+            compute_enabled_features = self.filter(qualifier='enabled', compute=compute, value=True, **_skip_filter_checks).features
             compute_enabled_datasets = self.filter(qualifier='enabled', dataset=self.datasets, value=True, **_skip_filter_checks).datasets
             compute_enabled_datasets_with_gps = [ds for ds in self.filter(feature=compute_enabled_gps, **_skip_filter_checks).datasets if ds in compute_enabled_datasets]
 
@@ -4178,6 +4179,16 @@ class Bundle(ParameterSet):
                                              error, 'run_compute')
                 else:
                     raise ValueError("{} could not be found in distributions or solutions".format(dist_or_solution))
+
+            for feature in compute_enabled_features:
+                feature_ps = self.get_feature(feature=feature, **_skip_filter_checks)
+                feature_cls = self.get_feature_code(feature=feature, instantiate=False)
+                for item in feature_cls.run_checks_compute(b=self, feature_ps=feature_ps, compute_ps=compute_ps):
+                    report.add_item(self,
+                                    item.get('msg'),
+                                    item.get('params', []),
+                                    item.get('is_error', False),
+                                    'run_compute')
 
             if len(compute_enabled_gps):
                 # check for time-dependency issues with GPs
@@ -5732,16 +5743,27 @@ class Bundle(ParameterSet):
         * ValueError: if `dataset` is required but it not provided or is of the
             wrong kind.
         """
-        func = _get_add_func(_feature, kind)
+        if isclass(kind) and issubclass(kind, BaseFeature):
+            func = kind.create_feature_parameters
+            kind_name = kind.__name__
+            custom_feature = True
+        else:
+            func = _get_add_func(_feature, kind, return_none_if_not_found=True)
+            if isinstance(kind, str):
+                kind_name = kind
+            else:
+                kind_name = func.__name__
+            custom_feature = False
+
 
         if kwargs.get('feature', False) is None:
             # then we want to apply the default below, so let's pop for now
             _ = kwargs.pop('feature')
 
         kwargs.setdefault('feature',
-                          self._default_label(func.__name__,
+                          self._default_label(kind_name,
                                               **{'context': 'feature',
-                                                 'kind': func.__name__}))
+                                                 'kind': kind_name}))
 
         self._check_label(kwargs['feature'], allow_overwrite=kwargs.get('overwrite', False))
 
@@ -5753,8 +5775,11 @@ class Bundle(ParameterSet):
         else:
             component_kind = None
 
-        if not _feature._component_allowed_for_feature(func.__name__, component_kind):
-            raise ValueError("{} does not support component with kind {}".format(func.__name__, component_kind))
+        if component is not None and dataset is not None:
+            raise ValueError("feature can only be attached to either a component or a dataset, not both")
+
+        if not _feature._component_allowed_for_feature(kind, component_kind):
+            raise ValueError("{} does not support component with kind {}".format(kind_name, component_kind))
 
         if dataset is not None:
             if dataset not in self.datasets:
@@ -5764,16 +5789,24 @@ class Bundle(ParameterSet):
         else:
             dataset_kind = None
 
-        if not _feature._dataset_allowed_for_feature(func.__name__, dataset_kind):
-            raise ValueError("{} does not support dataset with kind {}".format(func.__name__, dataset_kind))
+        if not _feature._dataset_allowed_for_feature(kind, dataset_kind):
+            raise ValueError("{} does not support dataset with kind {}".format(kind_name, dataset_kind))
 
+        # NOTE: kwargs is guaranteed to include feature, which is a required argument to func
         params, constraints = func(**kwargs)
+
+        if custom_feature:
+            # then add another parameter that stores the class to run the feature itself
+            params += [CodeParameter(qualifier='custom_code', value=kind, readonly=True)]
+        # TODO: this may need to be more flexible in the future for features on solvers, etc
+        feature_type = 'component' if component_kind is not None else 'dataset'
+        params += [StringParameter(qualifier='feature_type', visible_if='False', value=feature_type, readonly=True)]
 
         metawargs = {'context': 'feature',
                      'component': component,
                      'dataset': dataset,
                      'feature': kwargs['feature'],
-                     'kind': func.__name__}
+                     'kind': kind_name}
 
         if kwargs.get('overwrite', False):
             overwrite_ps = self.remove_feature(feature=kwargs['feature'], during_overwrite=True)
@@ -5823,6 +5856,33 @@ class Bundle(ParameterSet):
                 raise ValueError("feature='{}' not found".format(feature))
         kwargs['context'] = 'feature'
         return self.filter(**kwargs)
+
+    def get_feature_code(self, feature=None, instantiate=True, **kwargs):
+        """
+        Get the instantiated object (or non-instantiated class) containing the logic to run a feature.
+
+        See also:
+        * <phoebe.frontend.bundle.Bundle.get_feature>
+
+        Arguments
+        ---------
+        * `feature`: (string, optional, default=None): the name of the feature
+        * `instantiate`: (bool, optional, default=True): whether to intstantiate the object
+            or return the class
+        * `**kwargs`: any other tags to do the filtering (excluding feature and context)
+
+        Returns:
+        * (obj): the object that implements the feature logic
+        """
+        feature_ps = self.get_feature(feature=feature, **kwargs)
+        if 'custom_code' in feature_ps.qualifiers:
+            cls = feature_ps.get_value(qualifier='custom_code', check_visible=False, check_default=False)
+        else:
+            cls = _feature._feature_classes.get(feature_ps.kind)
+        if instantiate:
+            return cls._from_bundle(self, feature_ps)
+        else:
+            return cls
 
     @send_if_client
     def remove_feature(self, feature=None, return_changes=False, **kwargs):
@@ -12149,6 +12209,26 @@ class Bundle(ParameterSet):
 
                         flux_param.set_value(fluxes, ignore_readonly=True)
 
+                # handle vgamma
+                vgamma = self.get_value(qualifier='vgamma', context='system', unit=u.km/u.s, **_skip_filter_checks)
+                for rv_param in ml_params.filter(qualifier='rvs', kind='rv', **_skip_filter_checks).to_list():
+                    dataset = rv_param.dataset
+                    component = rv_param.component
+
+                    if computeparams.kind in ['phoebe', 'legacy']:
+                        # we'll use native vgamma so ltte, etc, can be handled appropriately
+                        rv_param.set_value(rv_param.get_value(unit=u.km/u.s), ignore_readonly=True)
+                    else:
+                        rv_param.set_value(rv_param.get_value(unit=u.km/u.s)+vgamma, ignore_readonly=True)
+
+                # handle all dataset-features (except for GPs, which need to all be handled simultaneously
+                # and AFTER - instead of BEFORE - dataset-scaling from pblum_mode='dataset-scaled')
+                enabled_features = self.filter(qualifier='enabled', compute=compute, context='compute', value=True, **_skip_filter_checks).features
+                enabled_dataset_features = self.filter(qualifier='feature_type', feature=enabled_features, context='feature', value='dataset', **_skip_filter_checks).features
+                for feature in enabled_dataset_features:
+                    feature_obj = self.get_feature_code(feature=feature)
+                    feature_obj.modify_model(self, ml_params)
+
                 # handle flux scaling for any pblum_mode == 'dataset-scaled'
                 # or for any dataset in which pblum_mode == 'dataset-coupled' and pblum_dataset points to a 'dataset-scaled' dataset
                 datasets_dsscaled = []
@@ -12246,20 +12326,6 @@ class Bundle(ParameterSet):
 
                         flux_param.set_value(fluxes, ignore_readonly=True)
 
-                # handle vgamma and rv_offset
-                vgamma = self.get_value(qualifier='vgamma', context='system', unit=u.km/u.s, **_skip_filter_checks)
-                for rv_param in ml_params.filter(qualifier='rvs', kind='rv', **_skip_filter_checks).to_list():
-                    dataset = rv_param.dataset
-                    component = rv_param.component
-
-                    rv_offset = self.get_value(qualifier='rv_offset', dataset=dataset, component=component, context='dataset', default=0.0, unit=u.km/u.s, **_skip_filter_checks)
-
-                    if computeparams.kind in ['phoebe', 'legacy']:
-                        # we'll use native vgamma so ltte, etc, can be handled appropriately
-                        rv_param.set_value(rv_param.get_value(unit=u.km/u.s)+rv_offset, ignore_readonly=True)
-                    else:
-                        rv_param.set_value(rv_param.get_value(unit=u.km/u.s)+vgamma+rv_offset, ignore_readonly=True)
-
                 ml_addl_params += [StringParameter(qualifier='comments', value=kwargs.get('comments', computeparams.get_value(qualifier='comments', default='', **_skip_filter_checks)), description='User-provided comments for this model.  Feel free to place any notes here.')]
                 self._attach_params(ml_params+ml_addl_params, check_copy_for=False, **metawargs)
 
@@ -12267,147 +12333,9 @@ class Bundle(ParameterSet):
 
                 # add any GPs (gaussian processes) to the returned model
                 # NOTE: this has to happen after _attach_params as it uses
-                # several bundle methods that act on the model
-                enabled_features = self.filter(qualifier='enabled', compute=compute, context='compute', value=True, **_skip_filter_checks).features
-
-                for ds in model_ps.datasets:
-                    gp_sklearn_features = self.filter(feature=enabled_features, dataset=ds, kind='gp_sklearn', **_skip_filter_checks).features
-                    gp_celerite2_features = self.filter(feature=enabled_features, dataset=ds, kind='gp_celerite2', **_skip_filter_checks).features
-
-                    if len(gp_sklearn_features)!=0 or len(gp_celerite2_features)!=0:
-                        # we'll loop over components (for RVs or LPs, for example)
-                        # get the data we need to fit the GP model
-                        ds_ps = self.get_dataset(dataset=ds, **_skip_filter_checks)
-                        xqualifier = {'lp': 'wavelength'}.get(ds_ps.kind, 'times')
-                        yqualifier = {'lp': 'flux_densities', 'rv': 'rvs', 'lc': 'fluxes'}.get(ds_ps.kind)
-                        yerrqualifier = {'lp': 'wavelength'}.get(ds_ps.kind, 'sigmas')
-
-                        _exclude_phases_enabled = computeparams.get_value(qualifier='gp_exclude_phases_enabled', dataset=ds, **_skip_filter_checks)
-
-                        if ds_ps.kind in ['lc']:
-                            ds_comps = [None]
-                        else:
-                            ds_comps = ds_ps.filter(qualifier=xqualifier, check_visible=True).components
-                        for ds_comp in ds_comps:
-                            ds_x = ds_ps.get_value(qualifier=xqualifier, component=ds_comp, **_skip_filter_checks)
-                            model_x = model_ps.get_value(qualifier=xqualifier, dataset=ds, component=ds_comp, **_skip_filter_checks)
-                            ds_sigmas = ds_ps.get_value(qualifier=yerrqualifier, component=ds_comp, **_skip_filter_checks)
-                            # ds_sigmas = ds_ps.get_value(qualifier='sigmas', component=ds_comp, **_skip_filter_checks)
-                            # TODO: do we need to inflate sigmas by lnf?
-                            if not len(ds_x):
-                                # should have been caught by run_checks_compute
-                                raise ValueError("gaussian_process requires dataset observations (cannot be synthetic only).  Add observations to dataset='{}' or disable feature={}".format(ds, gp_features))
-
-                        residuals, model_y_dstimes = self.calculate_residuals(model=model,
-                                                        dataset=ds,
-                                                        component=ds_comp,
-                                                        return_interp_model=True,
-                                                        as_quantity=False,
-                                                        consider_gaussian_process=False)
-                        model_y = model_ps.get_quantity(qualifier=yqualifier, dataset=ds, component=ds_comp, **_skip_filter_checks)
-
-                        gp_kernels = []
-                        alg_operations = []
-
-                        def _load_gps(gp_kernel_classes, gp_features, ds):
-
-                            for gp in gp_features:
-                                gp_ps = self.filter(feature=gp, context='feature', **_skip_filter_checks)
-                                kind = gp_ps.get_value(qualifier='kernel', **_skip_filter_checks)
-
-                                kwargs = {p.qualifier: p.value for p in gp_ps.exclude(qualifier=['kernel', 'enabled']).to_list() if p.is_visible}
-                                # TODO: replace this with getting the parameter from compute options
-                                if _exclude_phases_enabled:
-                                    exclude_phase_ranges = computeparams.get_value(qualifier='gp_exclude_phases', dataset=ds, **_skip_filter_checks)
-                                else:
-                                    exclude_phase_ranges = []
-
-                                alg_operations.append(kwargs.pop('alg_operation'))
-                                gp_kernels.append(gp_kernel_classes.get(kind)(**kwargs))
-
-                                gp_kernel = gp_kernels[0]
-                                for i in range(1, len(gp_kernels)):
-                                    if alg_operations[i] == 'product':
-                                        gp_kernel *= gp_kernels[i]
-                                        # print(gp_kernel)
-                                    else:
-                                        gp_kernel += gp_kernels[i]
-                                        # print(gp_kernel)
-
-
-                                if len(exclude_phase_ranges) != 0:
-                                    # get t0, period and exclude_phases
-                                    ephem = self.get_ephemeris(component='binary', period='period', t0='t0_supconj')
-                                    t0 = ephem.get('t0', 0.0)
-                                    period = ephem.get('period', 1.0)
-
-                                    phases = np.array(exclude_phase_ranges)
-
-                                    # determine extent of data wrt t0
-                                    i0 = int((t0 - min(ds_x))/period)-1
-                                    i1 = int((max(ds_x-t0))/period)+1
-
-                                    x_new = ds_x
-                                    residuals_new = residuals
-                                    sigmas_new = ds_sigmas
-                                    for i in range(i0,i1+1,1):
-                                        for j in range(phases.shape[0]):
-                                            condition = (x_new < t0+(i+phases[j][0])*period) | (x_new > t0+(i+phases[j][1])*period)
-                                            x_new = x_new[condition]
-                                            residuals_new = residuals_new[condition]
-                                            sigmas_new = sigmas_new[condition]
-
-                                    gp_x = x_new
-                                    gp_y = residuals_new
-                                    gp_yerr = sigmas_new
-
-                                else:
-                                    gp_x = ds_x
-                                    gp_y = residuals
-                                    gp_yerr = ds_sigmas
-
-                            return gp_kernel, gp_x, gp_y, gp_yerr
-
-                        if len(gp_sklearn_features) > 0:
-                            gp_kernel_classes = {'constant': _sklearn.gaussian_process.kernels.ConstantKernel,
-                                                'white': _sklearn.gaussian_process.kernels.WhiteKernel,
-                                                'rbf': _sklearn.gaussian_process.kernels.RBF,
-                                                'matern': _sklearn.gaussian_process.kernels.Matern,
-                                                'rational_quadratic': _sklearn.gaussian_process.kernels.RationalQuadratic,
-                                                'exp_sine_squared': _sklearn.gaussian_process.kernels.ExpSineSquared,
-                                                'dot_product': _sklearn.gaussian_process.kernels.DotProduct}
-
-                            gp_kernel, gp_x, gp_y, gp_yerr = _load_gps(gp_kernel_classes, gp_sklearn_features, ds)
-
-                            gp_regressor = GaussianProcessRegressor(kernel=gp_kernel)
-                            gp_regressor.fit(gp_x.reshape(-1,1), gp_y)
-
-                            # NOTE: .predict can also be called directly to the model times if we want to avoid interpolation altogether
-                            gp_y = gp_regressor.predict(ds_x.reshape(-1,1), return_std=False)
-
-                        if len(gp_celerite2_features) > 0:
-                            gp_kernel_classes = {'sho': _celerite2.terms.SHOTerm,
-                                                'rotation': _celerite2.terms.RotationTerm,
-                                                'matern32': _celerite2.terms.Matern32Term
-                                                }
-                            gp_kernel, gp_x, gp_y, gp_yerr = _load_gps(gp_kernel_classes, gp_celerite2_features, ds)
-
-                            gp = _celerite2.GaussianProcess(gp_kernel, mean=0.0)
-                            gp.compute(gp_x, yerr=gp_yerr)
-                            gp_y = gp.predict(gp_y, t=ds_x, return_var=False)
-
-
-                        # store just the GP component in the model PS as well
-                        gp_param = FloatArrayParameter(qualifier='gps', value=gp_y, default_unit=model_y.unit, readonly=True, description='GP contribution to the model {}'.format(yqualifier))
-                        y_nogp_param = FloatArrayParameter(qualifier='{}_nogps'.format(yqualifier), value=model_y_dstimes, default_unit=model_y.unit, readonly=True, description='{} before adding gps'.format(yqualifier))
-                        if len(ds_x) != len(model_x) or not np.all(ds_x == model_x):
-                            logger.warning("model for dataset='{}' resampled at dataset times when adding GPs".format(ds))
-                            model_ps.set_value(qualifier=xqualifier, dataset=ds, component=ds_comp, value=ds_x, ignore_readonly=True, **_skip_filter_checks)
-
-                        self._attach_params([gp_param, y_nogp_param], dataset=ds, check_copy_for=False, **metawargs)
-
-                        # update the model to include the GP contribution
-                        model_ps.set_value(qualifier=yqualifier, value=model_y_dstimes+gp_y, dataset=ds, component=ds_comp, ignore_readonly=True, **_skip_filter_checks)
+                # several bundle methods that act on the model and also
+                # has to happen after dataset-scaling (for pblum_mode=='dataset-scaled')
+                handle_gaussian_processes(self, model, model_ps, enabled_features, computeparams, metawargs)
 
         except Exception as err:
             restore_conf()

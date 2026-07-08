@@ -928,7 +928,7 @@ def ph_perpass(b, orbit, solve_for=None, **kwargs):
 
 
 _validsolvefor['freq'] = ['freq', 'period']
-def freq(b, component, solve_for=None, **kwargs):
+def freq(b, component, context='component', solve_for=None, **kwargs):
     """
     Create a constraint for frequency (either orbital or rotational) given a period.
 
@@ -966,8 +966,8 @@ def freq(b, component, solve_for=None, **kwargs):
     --------
     * NotImplementedError: if the value of `solve_for` is not implemented.
     """
-
-    component_ps = _get_system_ps(b, component)
+    # component could also be feature if context='feature'
+    component_ps = _get_system_ps(b, component, context=context)
 
     #metawargs = component_ps.meta
     #metawargs.pop('qualifier')
@@ -986,7 +986,7 @@ def freq(b, component, solve_for=None, **kwargs):
     else:
         raise NotImplementedError
 
-    return lhs, rhs, [], {'component': component}
+    return lhs, rhs, [], {context: component}
 
 #}
 #{ Intra-component constraints

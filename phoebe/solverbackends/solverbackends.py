@@ -244,6 +244,22 @@ def _get_combined_lc(b, datasets, combine, phase_component=None, mask=True, norm
             # TODO: option for this???
             ds_sigmas = np.full_like(ds_fluxes, fill_value=0.001*ds_fluxes.mean())
 
+        # run dataset features attached to this dataset
+        # NOTE: enabled features are per-compute but estimators don't even have a compute
+        # so instead we just include any that are enabled in ANY compute
+        # TODO: copy enabled@feature for all estimators (but not other solvers)
+        enabled_features = b.filter(qualifier='enabled', value=True, **_skip_filter_checks).features
+        for feature in b.filter(context='feature', feature=enabled_features, dataset=dataset, **_skip_filter_checks).features:
+            feature_obj = b.get_feature_code(feature=feature)
+            modified_params = feature_obj.modify_data_for_estimators(b,
+                                                                     lc_ps,
+                                                                     times=ds_times,
+                                                                     fluxes=ds_fluxes,
+                                                                     sigmas=ds_sigmas)
+            ds_times = modified_params.get('times', ds_times)
+            ds_fluxes = modified_params.get('fluxes', ds_fluxes)
+            ds_sigmas = modified_params.get('sigmas', ds_sigmas)
+
         if normalize:
             if combine == 'max':
                 flux_norm = np.nanmax(ds_fluxes)
