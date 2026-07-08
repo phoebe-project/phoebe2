@@ -67,25 +67,6 @@ def rv(b, **kwargs):
 
     return ParameterSet(params)
 
-
-# def etv(b, **kwargs):
-#     params = []
-#
-#     params += [SelectParameter(qualifier='dataset', value=kwargs.get('dataset', '*'), choices=[''], description='Datasets to include in the plot')]
-#     params += [SelectParameter(qualifier='model', value=kwargs.get('model', '*'), choices=[''], description='Models to include in the plot')]
-#
-#     params += [ChoiceParameter(qualifier='x', value=kwargs.get('x', 'time_ephems'), choices=['time_ephems', 'Ns'], description='Array to plot along x-axis')]
-#     params += [ChoiceParameter(qualifier='y', value=kwargs.get('y', 'etvs'), choices=['etvs', 'time_ecls'], description='Array to plot along y-axis')]
-#
-#     params += _label_units_lims('x', visible_if='x:time_ephems', default_unit=u.d, is_default=True, **kwargs)
-#     params += _label_units_lims('x', visible_if='x:Ns', default_unit=u.dimensionless_unscaled, **kwargs)
-#
-#     params += _label_units_lims('y', visible_if='y:etvs', default_unit=u.d, is_default=True, **kwargs)
-#     params += _label_units_lims('y', visible_if='y:time_ecls', default_unit=u.d, **kwargs)
-#
-#     return ParameterSet(params)
-
-
 def orb(b, **kwargs):
     params = []
 
@@ -189,7 +170,7 @@ def mesh(b, **kwargs):
         params += _label_units_lims(q, visible_if='{}_source:column,{}_column:pblum_ext|abs_pblum_ext'.format(q,q), default_unit=u.W, is_default=False, **kwargs)
         params += _label_units_lims(q, visible_if='{}_source:column,{}_column:ptfarea'.format(q,q), default_unit=u.m, is_default=False, **kwargs)
         params += _label_units_lims(q, visible_if='{}_source:column,{}_column:intensities|normal_intensities|abs_intensities|abs_normal_intensities'.format(q,q), default_unit=u.W/u.m**3, is_default=False, **kwargs)
-        params += _label_units_lims(q, visible_if='{}_source:column,{}_column:visibilities|mus|loggs|boost_factors|ldint'.format(q,q), default_unit=u.dimensionless_unscaled, is_default=False, **kwargs)
+        params += _label_units_lims(q, visible_if='{}_source:column,{}_column:visibilities|mus|loggs|boost_factors|ldint|blending_factors|extrapolation_dists'.format(q,q), default_unit=u.dimensionless_unscaled, is_default=False, **kwargs)
 
     # TODO: legend=True currently fails
     params += [BoolParameter(qualifier='draw_sidebars', value=kwargs.get('draw_sidebars', True), advanced=True, description='Whether to draw the sidebars')]

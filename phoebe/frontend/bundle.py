@@ -1,22 +1,20 @@
-import sys
-import subprocess
 import os
+import numpy as np
 
 try:
     from subprocess import DEVNULL
 except ImportError:
-    import os
     DEVNULL = open(os.devnull, 'wb')
 
+import numpy as np
 import re
 import json
 import atexit
 import time
-from datetime import datetime
 from packaging.version import parse
 from copy import deepcopy as _deepcopy
 import pickle as _pickle
-from inspect import getsource as _getsource
+from inspect import getsource as _getsource, isclass
 
 from scipy.optimize import curve_fit as cfit
 from tqdm import tqdm as _tqdm
@@ -35,13 +33,16 @@ from phoebe.parameters import constraint as _constraint
 from phoebe.parameters import feature as _feature
 from phoebe.parameters import figure as _figure
 from phoebe.parameters import server as _server
-from phoebe.parameters.parameters import _uniqueid, _clientid, _return_ps, _extract_index_from_string, _corner_twig, _corner_label, _cached_crimpl_servers
-from phoebe.backend import backends, mesh
-from phoebe.backend import universe as _universe
+from phoebe.parameters.parameters import _uniqueid, _clientid, _return_ps, _extract_index_from_string, _corner_twig, _cached_crimpl_servers
+from phoebe.backend import backends
 from phoebe.solverbackends import solverbackends as _solverbackends
 from phoebe.distortions import roche
 from phoebe.frontend import io
-from phoebe.atmospheres.passbands import list_installed_passbands, list_online_passbands, get_passband, update_passband, _timestamp_to_dt
+from phoebe.features.common import BaseFeature
+from phoebe.features import dataset_features, component_features
+from phoebe.features.gaussian_processes import handle_gaussian_processes, _use_celerite2, _use_sklearn
+from phoebe.atmospheres import models
+from phoebe.atmospheres import passbands
 from phoebe import pool as _pool
 from phoebe.dependencies import distl as _distl
 from phoebe.dependencies import crimpl as _crimpl
@@ -57,7 +58,6 @@ import logging
 logger = logging.getLogger("BUNDLE")
 logger.addHandler(logging.NullHandler())
 
-from io import IOBase
 
 _bundle_cache_dir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'default_bundles'))+'/'
 
@@ -80,23 +80,6 @@ except ImportError:
     _can_client = False
 else:
     _can_client = True
-
-try:
-    import sklearn as _sklearn
-    from sklearn.gaussian_process import GaussianProcessRegressor
-except ImportError:
-    logger.warning("scikit-learn not installed: only required for gaussian processes")
-    _use_sklearn = False
-else:
-    _use_sklearn = True
-
-try:
-    import celerite2 as _celerite2
-except ImportError:
-    logger.warning("celerite2 not installed: only required for gaussian processes")
-    _use_celerite2 = False
-else:
-    _use_celerite2 = True
 
 
 def _get_add_func(mod, func, return_none_if_not_found=False):
@@ -273,6 +256,9 @@ class RunChecksReport(object):
     def __str__(self):
         """String representation for the ParameterSet."""
         return "Run Checks Report: {}\n".format(self.status) + "\n".join([str(i) for i in self.items])
+
+    def __len__(self):
+        return len(self._items)
 
     @property
     def passed(self):
@@ -642,7 +628,7 @@ class Bundle(ParameterSet):
             conf._interactive_checks = False
 
         if phoebe_version_import < parse("2.1.0"):
-            logger.warning("importing from an older version ({}) of PHOEBE into version {}".format(phoebe_version_import, phoebe_version_this))
+            logger.warning("importing from an older version ({}) of PHOEBE to PHOEBE 2.1+".format(phoebe_version_import))
 
             # rpole -> requiv: https://github.com/phoebe-project/phoebe2/pull/300
             dict_stars = {}
@@ -734,7 +720,7 @@ class Bundle(ParameterSet):
             logger.warning(warning)
 
         if phoebe_version_import < parse("2.2.0"):
-            warning = "importing from an older version ({}) of PHOEBE to PHOEBE 2.2.  Previous versions did not support compute_times, ld_mode/ld_coeffs_source, pblum_mode, l3_mode, etc... all datasets will be migrated to include all new options.  This may take some time.  Please check all values.".format(phoebe_version_import)
+            warning = "importing from an older version ({}) of PHOEBE to PHOEBE 2.2+.  Previous versions did not support compute_times, ld_mode/ld_coeffs_source, pblum_mode, l3_mode, etc... all datasets will be migrated to include all new options.  This may take some time.  Please check all values.".format(phoebe_version_import)
             # print("WARNING: {}".format(warning))
             logger.warning(warning)
 
@@ -839,7 +825,7 @@ class Bundle(ParameterSet):
             b._attach_params(ps_model, context='model')
 
         if phoebe_version_import < parse("2.3.0"):
-            warning = "importing from an older version ({}) of PHOEBE to PHOEBE 2.3.  The previous versions did not support sample_from, etc... all compute options will be migrated to include all new options.  Additionally, extinction parameters will be moved from the dataset to system context.  This may take some time.  Please check all values.".format(phoebe_version_import)
+            warning = "importing from an older version ({}) of PHOEBE to PHOEBE 2.3+.  The previous versions did not support sample_from, etc... all compute options will be migrated to include all new options.  Additionally, extinction parameters will be moved from the dataset to system context.  This may take some time.  Please check all values.".format(phoebe_version_import)
             logger.warning(warning)
 
             b.remove_parameters_all(qualifier='log_history', **_skip_filter_checks)
@@ -916,8 +902,8 @@ class Bundle(ParameterSet):
             # call set_hierarchy to force mass constraints to be rebuilt
             b.set_hierarchy()
 
-        if phoebe_version_import < parse("2.4.0") or ".dev" in version:
-            warning = "importing from an older version ({}) of PHOEBE to PHOEBE 2.4.  This may take some time.  Please check all values.".format(phoebe_version_import)
+        if phoebe_version_import < parse("2.4.0"):
+            warning = "importing from an older version ({}) of PHOEBE to PHOEBE 2.4+.  This may take some time.  Please check all values.".format(phoebe_version_import)
             logger.warning(warning)
 
             existing_values_settings = {p.qualifier: p.get_value() for p in b.filter(context='setting').to_list()}
@@ -993,6 +979,43 @@ class Bundle(ParameterSet):
                 if solved_for.qualifier != constraint.constraint_func:
                     new_constraint_ps.get_parameter().flip_for(solved_for.twig)
 
+        if phoebe_version_import < parse("2.5.0"):
+            warning = "importing from an older version ({}) of PHOEBE to PHOEBE 2.5+.  This may take some time.  Please check all values.".format(phoebe_version_import)
+            logger.warning(warning)
+            # migrate rv_offset@dataset to new feature implementation, if non-zero
+            for rv_ds in b.filter(context='dataset', kind='rv', **_skip_filter_checks).datasets:
+                rv_offset_ps = b.filter(qualifier='rv_offset', dataset=rv_ds, context='dataset', **_skip_filter_checks)
+                b.add_feature('rv_offset', dataset=rv_ds)
+                for rv_offset_param in rv_offset_ps.filter(qualifier='rv_offset', **_skip_filter_checks).to_list():
+                    b.set_value(qualifier='rv_offset', dataset=rv_ds, component=rv_offset_param.component, context='feature', value=rv_offset_param.get_quantity(**_skip_filter_checks))
+            # delete original rv_offset parameters
+            b.remove_parameters_all(qualifier='rv_offset', context='dataset', **_skip_filter_checks)
+
+            # update all datasets to get boosting_method/index parameters
+            for dataset in b.filter(qualifier='passband', context='dataset', **_skip_filter_checks).datasets:
+                logger.info("attempting to update dataset='{}' to new version requirements".format(dataset))
+                ps_ds = b.filter(context='dataset', dataset=dataset, **_skip_filter_checks)
+                ds_kind = ps_ds.kind
+                dict_ds = _ps_dict(ps_ds, include_constrained=False)
+                b.remove_dataset(dataset, context=['dataset', 'constraint'])
+                b.add_dataset(ds_kind, dataset=dataset, check_label=False, **dict_ds)
+            for compute in b.filter(context='compute', **_skip_filter_checks).computes:
+                logger.info("attempting to update compute='{}' to new version requirements".format(compute))
+                ps_compute = b.filter(context='compute', compute=compute, **_skip_filter_checks)
+                compute_kind = ps_compute.kind
+                dict_compute = _ps_dict(ps_compute)
+                # NOTE: we will not remove (or update) the dataset from any existing models
+                b.remove_compute(compute, context=['compute'])
+                b.add_compute(compute_kind, compute=compute, check_label=False, overwrite=True, **dict_compute)
+            # update all components to get new loghefrac parameter
+            for component in b.filter(context='component', **_skip_filter_checks).components:
+                existing_values = {p.qualifier: p.get_value() for p in b.filter(context='component', component=component, **_skip_filter_checks).to_list()}
+                logger.info("migrating '{}' component".format(component))
+                logger.debug("applying existing values to {} component: {}".format(component, existing_values))
+                b.add_component(kind=b.get_component(component=component).kind, component=component, check_label=False, overwrite=True, **existing_values)
+
+            # rebuild hierarchy-dependent constraints after component migration
+            b.set_hierarchy()
 
         if conf_interactive_checks:
             logger.debug("re-enabling interactive_checks")
@@ -1271,77 +1294,6 @@ class Bundle(ParameterSet):
         but with `contact_binary` set to True.
         """
         return cls.default_binary(contact_binary=True, *args, **kwargs)
-
-    @classmethod
-    def default_triple(cls, inner_as_primary=True, inner_as_overcontact=False,
-                       starA='starA', starB='starB', starC='starC',
-                       inner='inner', outer='outer',
-                       contact_envelope='contact_envelope'):
-        """
-        For convenience, this function is available at the top-level as
-        <phoebe.default_triple> as well as
-        <phoebe.frontend.bundle.Bundle.default_triple>.
-
-        Load a bundle with a default triple system.
-
-        Set inner_as_primary based on what hierarchical configuration you want.
-
-        `inner_as_primary = True`:
-
-        starA - starB -- starC
-
-        `inner_as_primary = False`:
-
-        starC -- starA - starB
-
-        This is a constructor, so should be called as:
-
-        ```py
-        b = Bundle.default_triple_primary()
-        ```
-
-        Arguments
-        -----------
-
-
-        Returns
-        -------------
-        * an instantiated <phoebe.frontend.bundle.Bundle> object.
-        """
-        if not conf.devel:
-            raise NotImplementedError("'default_triple' not officially supported for this release.  Enable developer mode to test.")
-
-        b = cls()
-        b.add_star(component=starA, color='blue')
-        b.add_star(component=starB, color='orange')
-        b.add_star(component=starC, color='green')
-        b.add_orbit(component=inner, period=1)
-        b.add_orbit(component=outer, period=10)
-
-        if inner_as_overcontact:
-            b.add_envelope(component=contact_envelope)
-            inner_hier = _hierarchy.binaryorbit(b[inner],
-                                           b[starA],
-                                           b[starB],
-                                           b[contact_envelope])
-        else:
-            inner_hier = _hierarchy.binaryorbit(b[inner], b[starA], b[starB])
-
-        if inner_as_primary:
-            hierstring = _hierarchy.binaryorbit(b[outer], inner_hier, b[starC])
-        else:
-            hierstring = _hierarchy.binaryorbit(b[outer], b[starC], inner_hier)
-        b.set_hierarchy(hierstring)
-
-        b.add_constraint(constraint.keplers_third_law_hierarchical,
-                         outer, inner)
-
-        # TODO: does this constraint need to be rebuilt when things change?
-        # (ie in set_hierarchy)
-
-        b.add_compute()
-
-        return b
 
     def save(self, filename, compact=False, incl_uniqueid=True):
         """
@@ -3237,19 +3189,20 @@ class Bundle(ParameterSet):
         Arguments
         -----------
         * `compute` (string or list of strings, optional, default=None): the
-            compute options to use  when running checks.  If None (or not provided),
+            compute options to use when running checks.  If None (or not provided),
             the compute options in the 'run_checks_compute@setting' parameter
             will be used (which defaults to all available compute options).
+            All enabled features in `compute` will also be checked.
         * `solver` (string or list of strings, optional, default=None): the
-            solver options to use  when running checks.  If None (or not provided),
+            solver options to use when running checks.  If None (or not provided),
             the compute options in the 'run_checks_solver@setting' parameter
             will be used (which defaults to all available solver options).
         * `solution` (string or list of strings, optional, default=None): the
-            solutions to use  when running checks.  If None (or not provided),
+            solutions to use when running checks.  If None (or not provided),
             the compute options in the 'run_checks_solution@setting' parameter
             will be used (which defaults to no solutions, if not set).
         * `figure` (string or list of strings, optional, default=None): the
-            figures to use  when running checks.  If None (or not provided),
+            figures to use when running checks.  If None (or not provided),
             the compute options in the 'run_checks_figure@setting' parameter
             will be used (which defaults to no figures, if not set).
         * `allow_skip_constraints` (bool, optional, default=False): whether
@@ -3349,14 +3302,6 @@ class Bundle(ParameterSet):
             parent = hier.get_parent_of(component)
             parent_ps = self.get_component(component=parent, **_skip_filter_checks)
             if kind in ['star']:
-                if self.get_value(qualifier='teff', component=component, context='component', unit=u.K, **_skip_filter_checks) >= 10000 and self.get_value(qualifier='ld_mode_bol', component=component, context='component', **_skip_filter_checks) == 'lookup':
-                    report.add_item(self,
-                                    "ld_mode_bol of 'lookup' uses a bolometric passband which is not reliable for hot stars.  Consider using ld_mode_bol of manual and providing ld_coeffs instead.",
-                                    [self.get_parameter(qualifier='teff', component=component, context='component'),
-                                     self.get_parameter(qualifier='ld_mode_bol', component=component, context='component')],
-                                    False, ['system', 'run_compute'])
-
-
                 # contact systems MUST by synchronous
                 if hier.is_contact_binary(component):
                     if self.get_value(qualifier='syncpar', component=component, context='component', **_skip_filter_checks) != 1.0:
@@ -3636,10 +3581,6 @@ class Bundle(ParameterSet):
                                     [param, self.get_parameter(qualifier='t0', context='system', **_skip_filter_checks)],
                                     False, ['system', 'run_compute'])
 
-        # TODO: add other checks
-        # - make sure all ETV components are legal
-        # - check for conflict between dynamics_method and mesh_method (?)
-
         self._run_checks_warning_error(report, raise_logger_warning, raise_error)
 
         return report
@@ -3750,30 +3691,31 @@ class Bundle(ParameterSet):
         kwargs.setdefault('check_default', False)
 
         # run passband checks
-        all_pbs = list_passbands(full_dict=True)
-        online_pbs = list_online_passbands(full_dict=True)
+        all_pbs = passbands.list_passbands(full_dict=True)
+        online_pbs = passbands.list_online_passbands(full_dict=True)
 
+        # TODO: is this robust against flipping constraints?
         pb_needs_ext = self.get_value(qualifier='ebv', context='system', **_skip_filter_checks) != 0
 
         for pbparam in self.filter(qualifier='passband', **_skip_filter_checks).to_list():
 
             # we include this in the loop so that we get the most recent dict
             # if a previous passband had to be updated
-            installed_pbs = list_installed_passbands(full_dict=True)
+            installed_pbs = passbands.list_installed_passbands(full_dict=True)
 
             pb = pbparam.get_value()
 
-            pb_needs_Inorm = True
             pb_needs_Imu = True
             pb_needs_ld = True
             pb_needs_ldint = True
 
             missing_pb_content = []
 
+            # TODO: do we really want to run this every time we run checks? Perhaps move to init?
             if pb_needs_ext and pb in ['Stromgren:u', 'Johnson:U', 'SDSS:u', 'SDSS:uprime']:
                 # need to check for bugfix in coefficients from 2.3.4 release
                 installed_timestamp = installed_pbs.get(pb, {}).get('timestamp', None)
-                if installed_timestamp is not None and _timestamp_to_dt(installed_timestamp) < _timestamp_to_dt("Mon Nov 2 00:00:00 2020"):
+                if installed_timestamp is not None and passbands._timestamp_to_dt(installed_timestamp) < passbands._timestamp_to_dt("Mon Nov 2 00:00:00 2020"):
                     report.add_item(self,
                                     "'{}' passband ({}) with extinction needs to be updated for fixed UV extinction coefficients.  Run phoebe.list_passband_online_history('{}') to get a list of available changes and phoebe.update_passband('{}') or phoebe.update_all_passbands() to update.".format(pb, pbparam.twig, pb, pb),
                                     [pbparam, self.get_parameter(qualifier='ebv', context='system', **_skip_filter_checks)],
@@ -3795,15 +3737,14 @@ class Bundle(ParameterSet):
 
                 if atm not in installed_pbs.get(pb, {}).get('atms', []):
                     if atm in online_pbs.get(pb, {}).get('atms', []):
-                        missing_pb_content += ['{}:Inorm'.format(atm)]
+                        missing_pb_content += ['{}:Imu'.format(atm)]
                     else:
                         report.add_item(self,
                                         "'{}' passband ({}) does not support atm='{}' ({}).".format(pb, pbparam.twig, atm, atmparam.twig),
                                         [pbparam, atmparam],
                                         True)
 
-                for check,content in [(pb_needs_Inorm, '{}:Inorm'.format(atm)),
-                                      (pb_needs_Imu and atm not in ['extern_planckint', 'extern_atmx', 'blackbody'], '{}:Imu'.format(atm)),
+                for check,content in [(pb_needs_Imu and atm not in ['extern_planckint', 'extern_atmx', 'blackbody'], '{}:Imu'.format(atm)),
                                       (pb_needs_ld and atm not in ['extern_planckint', 'extern_atmx', 'blackbody'], '{}:ld'.format(atm)),
                                       (pb_needs_ldint and atm not in ['extern_planckint', 'extern_atmx', 'blackbody'], '{}:ldint'.format(atm)),
                                       (pb_needs_ext, '{}:ext'.format(atm)),
@@ -3852,7 +3793,7 @@ class Bundle(ParameterSet):
                         logger.warning("updating installed {} passband (ignoring timestamp mismatch) to include content={}".format(pb, missing_pb_content))
 
                     try:
-                        update_passband(pb, content=missing_pb_content)
+                        passbands.update_passband(pb, content=missing_pb_content)
                     except IOError:
                         report.add_item(self,
                                         'Attempt to update {} passband for the {} tables failed.  Check internet connection, wait for tables.phoebe-project.org to come back online, or try another passband.'.format(pb, missing_pb_content),
@@ -3952,6 +3893,18 @@ class Bundle(ParameterSet):
                                         True, 'run_compute')
                     # other compute backends ignore bolometric limb-darkening
 
+            # issue #1126: bolometric passband is unreliable for hot stars using
+            # ld_mode_bol='lookup', but reliable for Tremblay/TMAP grids.
+            if self.get_value(qualifier='teff', component=component, context='component', unit=u.K, **_skip_filter_checks) >= 10000 and self.get_value(qualifier='ld_mode_bol', component=component, context='component', **_skip_filter_checks) == 'lookup':
+                for compute in computes:
+                    atm = self.get_value(qualifier='atm', component=component, compute=compute, context='compute', **_skip_filter_checks)
+                    if atm not in ['tremblay', 'tmap_sdO', 'tmap_DA', 'tmap_DO', 'tmap_DAO']:
+                        report.add_item(self,
+                                        "ld_mode_bol of 'lookup' uses a bolometric passband which is not reliable for hot stars.  Consider using ld_mode_bol of manual and providing ld_coeffs instead.",
+                                        [self.get_parameter(qualifier='teff', component=component, context='component', **_skip_filter_checks),
+                                         self.get_parameter(qualifier='ld_mode_bol', component=component, context='component', **_skip_filter_checks),
+                                         self.get_parameter(qualifier='atm', component=component, compute=compute, context='compute', **_skip_filter_checks)],
+                                        False, 'run_compute')
 
             for dataset in self.filter(context='dataset', kind=['lc', 'rv'], check_default=True).datasets:
                 if dataset=='_default':
@@ -3995,7 +3948,7 @@ class Bundle(ParameterSet):
                                             True, 'run_compute')
                         else:
                             atm = self.get_value(qualifier='atm', component=component, compute=compute, context='compute', atm=kwargs.get('atm', None), **_skip_filter_checks)
-                            if atm not in ['ck2004', 'phoenix']:
+                            if atm not in ['ck2004', 'phoenix', 'tmap_sdO', 'tmap_DA', 'tmap_DAO', 'tmap_DO', 'tremblay']:
                                 if 'ck2004' in self.get_parameter(qualifier='atm', component=component, compute=compute, context='compute', atm=kwargs.get('atm', None), **_skip_filter_checks).choices:
                                     report.add_item(self,
                                                     "ld_mode='interp' not supported by atm='{}'.  Either change atm@{}@{} or ld_mode@{}@{}.".format(atm, component, compute, component, dataset),
@@ -4085,6 +4038,47 @@ class Bundle(ParameterSet):
                                     self.filter(qualifier='pblum_method', compute=compute, context='compute', **_skip_filter_checks),
                                     True, 'run_compute')
 
+                # check abun and loghefrac values are consistent with the atmosphere
+                if atm in models._atmtable:
+                    atm_cls = models._atmtable[atm]
+                    for axis_name, qualifier in [('abuns', 'abun'), ('loghefracs', 'loghefrac')]:
+                        value = self.get_value(qualifier=qualifier, component=component, context='component', default=0.0, **_skip_filter_checks)
+                        atm_param = self.get_parameter(qualifier='atm', component=component, compute=compute, context='compute', **_skip_filter_checks)
+                        comp_param = self.filter(qualifier=qualifier, component=component, context='component', **_skip_filter_checks)
+
+                        if atm_cls.has_axis(axis_name):
+                            # atmosphere supports this axis (either interpolated or fixed)
+                            if axis_name in atm_cls.assumed_axes:
+                                # axis is fixed - check if value matches the fixed value
+                                fixed_val = atm_cls.assumed_axes[axis_name]
+                                if value != fixed_val:
+                                    report.add_item(self,
+                                                    "{}@{}={} but atm@{}@{}='{}' assumes {}={}.".format(qualifier, component, value, component, compute, atm, qualifier, fixed_val),
+                                                    comp_param.to_list() + [atm_param],
+                                                    True, 'run_compute')
+                            else:
+                                # axis is interpolated - check if value is within range
+                                try:
+                                    axis_limits = atm_cls.get_axis_limits(axis_name)
+                                    if axis_limits is not None:
+                                        axis_min, axis_max = axis_limits
+                                        if value < axis_min or value > axis_max:
+                                            report.add_item(self,
+                                                            "{}@{}={} is outside the range [{}, {}] supported by atm@{}@{}='{}' for passband '{}'.".format(qualifier, component, value, axis_min, axis_max, component, compute, atm, pb),
+                                                            comp_param.to_list() + [atm_param, dataset_ps.get_parameter(qualifier='passband', **_skip_filter_checks)],
+                                                            True, 'run_compute')
+                                    # else: axis exists but limits unknown (e.g., external atmosphere) - skip validation
+                                except Exception:
+                                    # passband may not be loaded or available - skip this check
+                                    pass
+                        else:
+                            # atmosphere does not support this axis (WARNING)
+                            if value != 0.0:
+                                report.add_item(self,
+                                                "{}@{}={} but atm@{}@{}='{}' does not support {}.  The set value will be ignored.".format(qualifier, component, value, component, compute, atm, qualifier),
+                                                comp_param.to_list() + [atm_param],
+                                                False, 'run_compute')
+
 
         def _get_proj_area(comp):
             if self.hierarchy.get_kind_of(comp)=='envelope':
@@ -4100,10 +4094,12 @@ class Bundle(ParameterSet):
 
 
         for compute in computes:
-            compute_kind = self.get_compute(compute=compute, **_skip_filter_checks).kind
+            compute_ps = self.get_compute(compute=compute, **_skip_filter_checks)
+            compute_kind = compute_ps.kind
 
             gps = self.filter(kind=['gp_celerite2','gp_sklearn'], context='feature', **_skip_filter_checks).features
             compute_enabled_gps = self.filter(qualifier='enabled', compute=compute, feature=gps, value=True, **_skip_filter_checks).features
+            compute_enabled_features = self.filter(qualifier='enabled', compute=compute, value=True, **_skip_filter_checks).features
             compute_enabled_datasets = self.filter(qualifier='enabled', dataset=self.datasets, value=True, **_skip_filter_checks).datasets
             compute_enabled_datasets_with_gps = [ds for ds in self.filter(feature=compute_enabled_gps, **_skip_filter_checks).datasets if ds in compute_enabled_datasets]
 
@@ -4184,6 +4180,16 @@ class Bundle(ParameterSet):
                 else:
                     raise ValueError("{} could not be found in distributions or solutions".format(dist_or_solution))
 
+            for feature in compute_enabled_features:
+                feature_ps = self.get_feature(feature=feature, **_skip_filter_checks)
+                feature_cls = self.get_feature_code(feature=feature, instantiate=False)
+                for item in feature_cls.run_checks_compute(b=self, feature_ps=feature_ps, compute_ps=compute_ps):
+                    report.add_item(self,
+                                    item.get('msg'),
+                                    item.get('params', []),
+                                    item.get('is_error', False),
+                                    'run_compute')
+
             if len(compute_enabled_gps):
                 # check for time-dependency issues with GPs
                 # then if we're using compute_times/phases, compute_times must cover the range of the dataset times
@@ -4248,9 +4254,9 @@ class Bundle(ParameterSet):
 
             # 2.2 disables support for boosting.  The boosting parameter in 2.2 only has 'none' as an option, but
             # importing a bundle from old releases may still have 'linear' as an option, so we'll check here
-            if compute_kind in ['phoebe'] and self.get_value(qualifier='boosting_method', compute=compute, boosting_method=kwargs.get('boosting_method', None), **_skip_filter_checks) != 'none':
+            if compute_kind in ['phoebe'] and self.get_value(qualifier='boosting_method', compute=compute, boosting_method=kwargs.get('boosting_method', None), default='none', **_skip_filter_checks) != 'none':
                 report.add_item(self,
-                                "support for beaming/boosting has been removed from PHOEBE 2.2.  Set boosting_method to 'none'.",
+                                "support for interpolated ('linear') beaming/boosting in compute options has been removed since PHOEBE 2.2.  'manual' boosting is now supported in the dataset options instead.",
                                 [self.get_parameter(qualifier='boosting_method', compute=compute, boosting_method=kwargs.get('boosting_method', None), **_skip_filter_checks)
                                 ]+addl_parameters,
                                 True, 'run_compute')
@@ -4729,7 +4735,23 @@ class Bundle(ParameterSet):
                                         ]+addl_parameters,
                                         True, 'run_solver')
 
-                    if not fit_parameter.is_visible:
+                    # check if fitting abun/loghefrac when it's a fixed value in the atmosphere
+                    # (do this before the visibility check to avoid issues with visible_if_parameters)
+                    if fit_parameter.qualifier in ['abun', 'loghefrac'] and 'compute' in solver_ps.qualifiers:
+                        component = fit_parameter.component
+                        axis_name = 'abuns' if fit_parameter.qualifier == 'abun' else 'loghefracs'
+                        atm = self.get_value(qualifier='atm', component=component, compute=compute, context='compute', atm=kwargs.get('atm', None), **_skip_filter_checks)
+                        if atm in models._atmtable:
+                            atm_cls = models._atmtable[atm]
+                            if not atm_cls.has_axis(axis_name) or axis_name in atm_cls.assumed_axes:
+                                report.add_item(self,
+                                                "fit_parameters contains '{}' but atm@{}@{}='{}' does not support interpolating over {}.  Fitting this parameter will have no effect.".format(twig, component, compute, atm, fit_parameter.qualifier),
+                                                [solver_ps.get_parameter(qualifier='fit_parameters', **_skip_filter_checks),
+                                                 self.get_parameter(qualifier='atm', component=component, compute=compute, context='compute', **_skip_filter_checks)
+                                                ]+addl_parameters,
+                                                True, 'run_solver')
+
+                    elif not fit_parameter.is_visible:
                         report.add_item(self,
                                         "fit_parameters contains the invisible parameter '{}'".format(twig),
                                         [solver_ps.get_parameter(qualifier='fit_parameters', **_skip_filter_checks)]
@@ -4820,7 +4842,23 @@ class Bundle(ParameterSet):
                                             ]+addl_parameters,
                                             True, 'run_solver')
 
-                        if not ref_param.is_visible:
+                        # check if fitting abun/loghefrac when it's a fixed value in the atmosphere
+                        # (do this before the visibility check to avoid issues with visible_if_parameters)
+                        if ref_param.qualifier in ['abun', 'loghefrac'] and 'compute' in solver_ps.qualifiers:
+                            component = ref_param.component
+                            axis_name = 'abuns' if ref_param.qualifier == 'abun' else 'loghefracs'
+                            atm = self.get_value(qualifier='atm', component=component, compute=compute, context='compute', atm=kwargs.get('atm', None), **_skip_filter_checks)
+                            if atm in models._atmtable:
+                                atm_cls = models._atmtable[atm]
+                                if not atm_cls.has_axis(axis_name) or axis_name in atm_cls.assumed_axes:
+                                    report.add_item(self,
+                                                    "{} is included in init_from='{}' but atm@{}@{}='{}' does not support interpolating over {}.  Fitting this parameter will have no effect.".format(ref_param.twig, dist_or_solution, component, compute, atm, ref_param.qualifier),
+                                                    [solver_ps.get_parameter(qualifier='init_from', **_skip_filter_checks),
+                                                     self.get_parameter(qualifier='atm', component=component, compute=compute, context='compute', **_skip_filter_checks)
+                                                    ]+addl_parameters,
+                                                    True, 'run_solver')
+
+                        elif not ref_param.is_visible:
                             report.add_item(self,
                                             "{} is not a visible parameter, so cannot be included in init_from='{}'.".format(ref_param.twig, dist_or_solution),
                                             [solver_ps.get_parameter(qualifier='init_from', **_skip_filter_checks)]
@@ -4858,11 +4896,27 @@ class Bundle(ParameterSet):
                                              ]+addl_parameters,
                                              True, 'run_solver')
 
-                        if not ref_param.is_visible:
+                        # check if fitting abun/loghefrac when it's a fixed value in the atmosphere
+                        # (do this before the visibility check to avoid issues with visible_if_parameters)
+                        if param.qualifier in ['abun', 'loghefrac'] and 'compute' in solver_ps.qualifiers:
+                            component = param.component
+                            axis_name = 'abuns' if param.qualifier == 'abun' else 'loghefracs'
+                            atm = self.get_value(qualifier='atm', component=component, compute=compute, context='compute', atm=kwargs.get('atm', None), **_skip_filter_checks)
+                            if atm in models._atmtable:
+                                atm_cls = models._atmtable[atm]
+                                if not atm_cls.has_axis(axis_name) or axis_name in atm_cls.assumed_axes:
+                                    report.add_item(self,
+                                                    "{} is included in init_from='{}' but atm@{}@{}='{}' does not support interpolating over {}.  Fitting this parameter will have no effect.".format(param.twig, dist_or_solution, component, compute, atm, param.qualifier),
+                                                    [solver_ps.get_parameter(qualifier='init_from', **_skip_filter_checks),
+                                                     self.get_parameter(qualifier='atm', component=component, compute=compute, context='compute', **_skip_filter_checks)
+                                                    ]+addl_parameters,
+                                                    True, 'run_solver')
+
+                        elif not param.is_visible:
                             report.add_item(self,
-                                            "{} is not a visible parameter, so cannot be included in init_from='{}'.".format(ref_param.twig, dist_or_solution),
+                                            "{} is not a visible parameter, so cannot be included in init_from='{}'.".format(param.twig, dist_or_solution),
                                             [solver_ps.get_parameter(qualifier='init_from', **_skip_filter_checks)]
-                                            +ref_param.visible_if_parameters.filter(check_visible=True).to_list()
+                                            +param.visible_if_parameters.filter(check_visible=True).to_list()
                                             +addl_parameters,
                                              True, 'run_solver')
 
@@ -5381,13 +5435,16 @@ class Bundle(ParameterSet):
                          'Andras (2012)': 'https://ui.adsabs.harvard.edu/abs/2012MNRAS.420.1630P',
                          'Maxted (2016)': 'https://ui.adsabs.harvard.edu/abs/2016A%26A...591A.111M',
                          'Foreman-Mackey et al. (2013)': 'https://ui.adsabs.harvard.edu/abs/2013PASP..125..306F',
+                         'Reindl et al. (2016)': 'https://ui.adsabs.harvard.edu/abs/2016A%26A...587A.101R',
+                         'Reindl et al. (2023)': 'https://ui.adsabs.harvard.edu/abs/2023A%26A...677A..29R',
                          'Speagle (2020)': 'https://ui.adsabs.harvard.edu/abs/2020MNRAS.493.3132S',
                          'Skilling (2004)': 'https://ui.adsabs.harvard.edu/abs/2004AIPC..735..395S',
                          'Skilling (2006)': 'https://projecteuclid.org/euclid.ba/1340370944',
                          'Foreman-Mackey et al. (2017)': 'https://ui.adsabs.harvard.edu/abs/2017AJ....154..220F',
                          'Prsa et al. (2008)': 'https://ui.adsabs.harvard.edu/abs/2008ApJ...687..542P',
-                         'Kochoska et al. (in prep)': 'https://phoebe-project.org/publications/2022Kochoska+',
                          'scikit-learn': 'https://scikit-learn.org/stable/about.html#citing-scikit-learn',
+                         'Tremblay & Bergeron (2009)': 'https://ui.adsabs.harvard.edu/abs/2009ApJ...696.1755T',
+                         'Jones et al. (2026)': 'https://phoebe-project.org/publications/2026Jones+',
                         }
 
         # ref: [reasons] pairs
@@ -5410,9 +5467,6 @@ class Bundle(ParameterSet):
                 # TODO: include Wilson & Devinney?
             elif self.get_compute(compute).kind == 'jktebop':
                 recs = _add_reason(recs, 'jktebop', 'jktebop compute backend')
-            elif self.get_compute(compute).kind == 'photodynam':
-                recs = _add_reason(recs, 'Carter et al. (2011)', 'photodynam compute backend')
-                recs = _add_reason(recs, 'Andras (2012)', 'photodynam compute backend')
             elif self.get_compute(compute).kind == 'ellc':
                 recs = _add_reason(recs, 'Maxted (2016)', 'ellc compute backend')
 
@@ -5426,10 +5480,8 @@ class Bundle(ParameterSet):
                 recs = _add_reason(recs, 'astropy', 'astropy.timeseries for periodograms')
             elif solver_kind in ['lc_geometry', 'rv_geometry']:
                 recs = _add_reason(recs, 'Conroy et al. (2020)', '{} solver initially introduced in PHOEBE'.format(solver_kind))
-                recs = _add_reason(recs, 'Kochoska et al. (in prep)', '{} solver updates'.format(solver_kind))
             elif solver_kind == 'ebai':
                 recs = _add_reason(recs, 'Conroy et al. (2020)', 'ebai solver initially introduced in PHOEBE')
-                recs = _add_reason(recs, 'Kochoska et al. (in prep)', 'ebai solver updates')
                 ebai_method = self.get_value(qualifier='ebai_method', solver=solver, **_skip_filter_checks)
                 if solver_kind == 'knn':
                     recs = _add_reason(recs, 'scikit-learn', 'knn implementation for ebai solver')
@@ -5446,10 +5498,7 @@ class Bundle(ParameterSet):
                 recs = _add_reason(recs, 'Skilling (2004)', 'nested sampling: dynesty solver backend')
                 recs = _add_reason(recs, 'Skilling (2006)', 'nested sampling: dynesty solver backend')
             elif solver_kind == 'differential_evolution':
-                recs = _add_reason(recs, 'Kochoska et al. (in prep)', 'differential_evolution solver introduced in PHOEBE')
-                recs = _add_reason('numpy/scipy', '{} solver uses scipy.optimize.differential_evolution'.format(solver_kind))
-            elif solver_kind == 'differential_corrections':
-                recs = _add_reason(recs, 'Kochoska et al. (in prep)', 'differential_corrections solver introduced in PHOEBE')
+                recs = _add_reason(recs, 'numpy/scipy', '{} solver uses scipy.optimize.differential_evolution'.format(solver_kind))
 
 
         # check for presence of datasets that require PHOEBE releases
@@ -5467,7 +5516,7 @@ class Bundle(ParameterSet):
         # provide any references from passband tables
         for pb_param in self.filter(qualifier='passband', dataset=datasets, component=self.hierarchy.get_stars()).to_list():
             pbname = pb_param.get_value()
-            pb = get_passband(pb)
+            pb = passbands.get_passband(pb)
             if pb.reference is not None:
                 recs = _add_reason(recs, pb.reference, '{} passband'.format(pbname))
 
@@ -5478,8 +5527,19 @@ class Bundle(ParameterSet):
                 recs = _add_reason(recs, 'Castelli & Kurucz (2004)', 'ck2004 atmosphere tables')
             elif atmname == 'phoenix':
                 recs = _add_reason(recs, 'Husser et al. (2013)', 'phoenix atmosphere tables')
+                recs = _add_reason(recs, 'Jones et al. (2026)', 'phoenix atmosphere tables included in PHOEBE')
+            elif atmname == 'tmap_sdO':
+                recs = _add_reason(recs, 'Reindl et al. (2016)', 'TMAP atmosphere tables')
+                recs = _add_reason(recs, 'Jones et al. (2026)', 'TMAP atmosphere tables included in PHOEBE')
+            elif atmname in ['tmap_DA', 'tmap_DAO', 'tmap_DO']:
+                recs = _add_reason(recs, 'Reindl et al. (2023)', 'TMAP atmosphere tables')
+                recs = _add_reason(recs, 'Jones et al. (2026)', 'TMAP atmosphere tables included in PHOEBE')
             elif atmname in ['extern_planckint', 'extern_atmx']:
                 recs = _add_reason(recs, 'Prsa & Zwitter (2005)', '{} atmosphere tables'.format(atmname))
+            elif atmname == 'tremblay':
+                recs = _add_reason(recs, 'Tremblay & Bergeron (2009)', 'Tremblay atmosphere tables')
+                recs = _add_reason(recs, 'Jones et al. (2026)', 'Tremblay atmosphere tables included in PHOEBE')
+
 
         for atm_param in self.filter(qualifier='ld_coeffs_source', component=self.hierarchy.get_stars()).to_list():
             atmname = atm_param.get_value()
@@ -5487,13 +5547,27 @@ class Bundle(ParameterSet):
                 recs = _add_reason(recs, 'Castelli & Kurucz (2004)', 'ck2004 atmosphere tables for limb-darkening interpolation')
             elif atmname == 'phoenix':
                 recs = _add_reason(recs, 'Husser et al. (2013)', 'phoenix atmosphere tables for limb-darkening interpolation')
+                recs = _add_reason(recs, 'Jones et al. (2026)', 'phoenix atmosphere tables included in PHOEBE')
+            elif atmname == 'tmap_sdO':
+                recs = _add_reason(recs, 'Reindl et al. (2016)', 'TMAP atmosphere tables')
+                recs = _add_reason(recs, 'Jones et al. (2026)', 'TMAP atmosphere tables included in PHOEBE')
+            elif atmname in ['tmap_DA', 'tmap_DAO', 'tmap_DO']:
+                recs = _add_reason(recs, 'Reindl et al. (2023)', 'TMAP atmosphere tables')
+                recs = _add_reason(recs, 'Jones et al. (2026)', 'TMAP atmosphere tables included in PHOEBE')
+            elif atmname == 'tremblay':
+                recs = _add_reason(recs, 'Tremblay & Bergeron (2009)', 'Tremblay atmosphere tables')
+                recs = _add_reason(recs, 'Jones et al. (2026)', 'Tremblay atmosphere tables included in PHOEBE')
 
+        # cite extrapolation/blending methods when atmosphere grids are used off-grid
+        for extrap_param in self.filter(qualifier=['atm_extrapolation_method', 'ld_extrapolation_method'], compute=computes).to_list():
+            if extrap_param.get_value() != 'none':
+                recs = _add_reason(recs, 'Jones et al. (2026)', 'atmosphere extrapolation/blending')
+                break
+                
         # provide any references from features
         if len(self.filter(context='feature', kind='gp_sklearn').features):
-            recs = _add_reason(recs, 'Kochoska et al. (in prep)', 'sklearn GPs introduced in PHOEBE')
             recs = _add_reason(recs, 'scikit-learn', 'scikit-learn for gaussian processes')
         if len(self.filter(context='feature', kind='gp_celerite2').features):
-            recs = _add_reason(recs, 'Kochoska et al. (in prep)', 'celerite2 GPs introduced in PHOEBE')
             recs = _add_reason(recs, 'Foreman-Mackey et al., (2017)', 'celerite2 for gaussian processes')
         # provide references from dependencies
         recs = _add_reason(recs, 'numpy/scipy', 'numpy/scipy dependency within PHOEBE')
@@ -5575,8 +5649,6 @@ class Bundle(ParameterSet):
                 deps_other.append('phoebe1')
             elif self.get_compute(compute).kind == 'jktebop' and 'jktebop' not in deps_other:
                 deps_other.append('jktebop')
-            elif self.get_compute(compute).kind == 'photodynam' and 'photodynam' not in deps_other:
-                deps_other.append('photodynam')
             elif self.get_compute(compute).kind == 'ellc' and 'ellc' not in deps_pip:
                 deps_pip.append('ellc')
 
@@ -5671,16 +5743,27 @@ class Bundle(ParameterSet):
         * ValueError: if `dataset` is required but it not provided or is of the
             wrong kind.
         """
-        func = _get_add_func(_feature, kind)
+        if isclass(kind) and issubclass(kind, BaseFeature):
+            func = kind.create_feature_parameters
+            kind_name = kind.__name__
+            custom_feature = True
+        else:
+            func = _get_add_func(_feature, kind, return_none_if_not_found=True)
+            if isinstance(kind, str):
+                kind_name = kind
+            else:
+                kind_name = func.__name__
+            custom_feature = False
+
 
         if kwargs.get('feature', False) is None:
             # then we want to apply the default below, so let's pop for now
             _ = kwargs.pop('feature')
 
         kwargs.setdefault('feature',
-                          self._default_label(func.__name__,
+                          self._default_label(kind_name,
                                               **{'context': 'feature',
-                                                 'kind': func.__name__}))
+                                                 'kind': kind_name}))
 
         self._check_label(kwargs['feature'], allow_overwrite=kwargs.get('overwrite', False))
 
@@ -5692,8 +5775,11 @@ class Bundle(ParameterSet):
         else:
             component_kind = None
 
-        if not _feature._component_allowed_for_feature(func.__name__, component_kind):
-            raise ValueError("{} does not support component with kind {}".format(func.__name__, component_kind))
+        if component is not None and dataset is not None:
+            raise ValueError("feature can only be attached to either a component or a dataset, not both")
+
+        if not _feature._component_allowed_for_feature(kind, component_kind):
+            raise ValueError("{} does not support component with kind {}".format(kind_name, component_kind))
 
         if dataset is not None:
             if dataset not in self.datasets:
@@ -5703,16 +5789,24 @@ class Bundle(ParameterSet):
         else:
             dataset_kind = None
 
-        if not _feature._dataset_allowed_for_feature(func.__name__, dataset_kind):
-            raise ValueError("{} does not support dataset with kind {}".format(func.__name__, dataset_kind))
+        if not _feature._dataset_allowed_for_feature(kind, dataset_kind):
+            raise ValueError("{} does not support dataset with kind {}".format(kind_name, dataset_kind))
 
+        # NOTE: kwargs is guaranteed to include feature, which is a required argument to func
         params, constraints = func(**kwargs)
+
+        if custom_feature:
+            # then add another parameter that stores the class to run the feature itself
+            params += [CodeParameter(qualifier='custom_code', value=kind, readonly=True)]
+        # TODO: this may need to be more flexible in the future for features on solvers, etc
+        feature_type = 'component' if component_kind is not None else 'dataset'
+        params += [StringParameter(qualifier='feature_type', visible_if='False', value=feature_type, readonly=True)]
 
         metawargs = {'context': 'feature',
                      'component': component,
                      'dataset': dataset,
                      'feature': kwargs['feature'],
-                     'kind': func.__name__}
+                     'kind': kind_name}
 
         if kwargs.get('overwrite', False):
             overwrite_ps = self.remove_feature(feature=kwargs['feature'], during_overwrite=True)
@@ -5762,6 +5856,33 @@ class Bundle(ParameterSet):
                 raise ValueError("feature='{}' not found".format(feature))
         kwargs['context'] = 'feature'
         return self.filter(**kwargs)
+
+    def get_feature_code(self, feature=None, instantiate=True, **kwargs):
+        """
+        Get the instantiated object (or non-instantiated class) containing the logic to run a feature.
+
+        See also:
+        * <phoebe.frontend.bundle.Bundle.get_feature>
+
+        Arguments
+        ---------
+        * `feature`: (string, optional, default=None): the name of the feature
+        * `instantiate`: (bool, optional, default=True): whether to intstantiate the object
+            or return the class
+        * `**kwargs`: any other tags to do the filtering (excluding feature and context)
+
+        Returns:
+        * (obj): the object that implements the feature logic
+        """
+        feature_ps = self.get_feature(feature=feature, **kwargs)
+        if 'custom_code' in feature_ps.qualifiers:
+            cls = feature_ps.get_value(qualifier='custom_code', check_visible=False, check_default=False)
+        else:
+            cls = _feature._feature_classes.get(feature_ps.kind)
+        if instantiate:
+            return cls._from_bundle(self, feature_ps)
+        else:
+            return cls
 
     @send_if_client
     def remove_feature(self, feature=None, return_changes=False, **kwargs):
@@ -6718,14 +6839,6 @@ class Bundle(ParameterSet):
             # allowed_components = self.hierarchy.get_stars()
             # TODO: how will this work when changing hierarchy to add/remove the common envelope?
             default_components = allowed_components
-        elif kind in ['etv']:
-            hier = self.hierarchy
-            stars = hier.get_stars()
-            # only include components in which the sibling is also a star that
-            # means that the companion in a triple cannot be timed, because how
-            # do we know who it's eclipsing?
-            allowed_components = [s for s in stars if hier.get_sibling_of(s) in stars]
-            default_components = allowed_components
         elif kind in ['lp']:
             # TODO: need to think about what this should be for contacts...
             allowed_components = self.hierarchy.get_stars() + self.hierarchy.get_orbits()
@@ -6848,8 +6961,7 @@ class Bundle(ParameterSet):
                 raise ValueError("cannot provide both 'compute_phases' and 'compute_times' for a {} dataset. Dataset has not been added.".format(kind))
             else:
                 # then we must flip the constraint
-                # TODO: this will probably break with triple support - we'll need to handle the multiple orbit components by accepting the dictionary.
-                # For now we'll assume the component is top-level binary
+                # assume the component is top-level binary
                 self.flip_constraint('compute_phases', component=self.hierarchy.get_top(), dataset=kwargs['dataset'], solve_for='compute_times')
 
         if kind in ['mesh','orb'] and 'times' in kwargs.keys():
@@ -6946,7 +7058,7 @@ class Bundle(ParameterSet):
                     components_ = None
                 elif k in ['compute_phases']:
                     components_ = self.hierarchy.get_top()
-                elif k in ['pblum']:
+                elif k in ['pblum', 'boosting_method', 'boosting_index']:
                     check_visible = True
 
                     components_ = self.hierarchy.get_stars()+['_default']
@@ -6962,6 +7074,7 @@ class Bundle(ParameterSet):
                     self.set_value_all(qualifier=k,
                                        dataset=kwargs['dataset'],
                                        component=components_,
+                                       context='dataset',
                                        value=v,
                                        check_visible=check_visible,
                                        ignore_none=True)
@@ -10315,32 +10428,48 @@ class Bundle(ParameterSet):
                     passband = self.get_value(qualifier='passband', dataset=ldcs_param.dataset, context='dataset', **_skip_filter_checks)
 
                 atm = self.get_value(qualifier='atm', compute=compute, component=ldcs_param.component, default='ck2004', atm=kwargs.get('atm', None), **_skip_filter_checks)
-
                 if ldcs == 'auto':
-                    if atm in ['extern_atmx', 'extern_planckint', 'blackbody']:
-                        ldcs = 'ck2004'
-                    else:
-                        ldcs = atm
+                    # in case we have blackbody or extern atmospheres, we default to
+                    # ck2004, otherwise we match the original atm:
+                    atm_class = models._atmtable[atm]
+                    ldcs = 'ck2004' if atm_class.external or not hasattr(atm_class, 'mus') else atm
 
-                pb = get_passband(passband, content='{}:ld'.format(ldcs))
+                pb = passbands.get_passband(passband, content=f'{ldcs}:ld')
                 teff = self.get_value(qualifier='teff', component=ldcs_param.component, context='component', unit='K', **_skip_filter_checks)
                 logg = self.get_value(qualifier='logg', component=ldcs_param.component, context='component', **_skip_filter_checks)
-                abun = self.get_value(qualifier='abun', component=ldcs_param.component, context='component', **_skip_filter_checks)
+
+                # NOTE: only compute_ps.kind == 'phoebe' defines this parameter, so for
+                # all other backends that do not have this parameter, the following
+                # expression will default to 'none'.
+                ld_extrapolation_method = compute_ps.get_value(qualifier='ld_extrapolation_method', component=ldcs_param.component, default='none', **_skip_filter_checks)
+
                 if is_bol:
-                    photon_weighted = False
+                    intens_weighting = 'energy'
                 else:
-                    photon_weighted = self.get_value(qualifier='intens_weighting', dataset=ldcs_param.dataset, context='dataset', check_visible=False) == 'photon'
+                    intens_weighting = self.get_value(qualifier='intens_weighting', dataset=ldcs_param.dataset, context='dataset', check_visible=False)
                 logger.info("{} ld_coeffs lookup for dataset='{}' component='{}' passband='{}' from ld_coeffs_source='{}'".format(ld_func, ldcs_param.dataset, ldcs_param.component, passband, ldcs))
-                logger.debug("pb.interpole_ld_coeffs(teff={} logg={}, abun={}, ld_coeffs={} ld_func={} photon_weighted={})".format(teff, logg, abun, ldcs, ld_func, photon_weighted))
-                try:
-                    ld_coeffs = pb.interpolate_ldcoeffs(teff, logg, abun, ldcs, ld_func, photon_weighted)
-                except ValueError as err:
-                    if str(err).split(":")[0] == 'Atmosphere parameters out of bounds':
-                        # let's override with a more helpful error message
-                        logger.warning(str(err))
-                        raise ValueError("Could not lookup ld_coeffs for {}.  Try changing ld_coeffs_source{} to a table that covers a sufficient range of values or set ld_mode{} to 'manual' and manually provide coefficients via ld_coeffs{}. Enable 'warning' logger to see out-of-bound arrays.".format(ldcs_param.twig, bol_suffix, bol_suffix, bol_suffix))
-                    else:
-                        raise err
+
+                # TODO: generalize this further (some have neither and so should be able to handle not passing either)
+                ldatm = models._atmtable[ldcs]
+                if ldatm.has_axis('loghefracs'):
+                    loghefrac = self.get_value(qualifier='loghefrac', component=ldcs_param.component, context='component', **_skip_filter_checks)
+                    query_cols = ('teffs', 'loggs', 'loghefracs')
+                    query_pts = np.array(((teff, logg, loghefrac),))
+                    logger.debug(f"pb.interpolate_ldcoeffs({teff=} {logg=}, {loghefrac=}, {ldcs=} {ld_func=} {intens_weighting=})")
+                else:
+                    abun = self.get_value(qualifier='abun', component=ldcs_param.component, context='component', **_skip_filter_checks)
+                    query_cols = ('teffs', 'loggs', 'abuns')
+                    query_pts = np.array(((teff, logg, abun),))
+                    logger.debug(f"pb.interpolate_ldcoeffs({teff=} {logg=}, {abun=}, {ldcs=} {ld_func=} {intens_weighting=})")
+
+                query = passbands.InterpQuery(cols=query_cols, pts=query_pts)
+                ld_coeffs = pb.interpolate_ldcoeffs(
+                    query=query,
+                    ldatm=ldatm,
+                    ld_func=ld_func,
+                    intens_weighting=intens_weighting,
+                    ld_extrapolation_method=ld_extrapolation_method
+                ).get_interpolated_values()[0]
 
                 # NOTE: these may return nans... if so, run_checks will handle the error
 
@@ -10714,6 +10843,8 @@ class Bundle(ParameterSet):
         pblum_method = kwargs.pop('pblum_method', compute_ps.get_value(qualifier='pblum_method', default='phoebe', **_skip_filter_checks))
         t0 = self.get_value(qualifier='t0', context='system', unit=u.d, t0=kwargs.pop('t0', None), **_skip_filter_checks)
 
+        # print(f'{compute=} {model=} {pblum=} {pblum_abs=} {pblum_scale=} {pbflux=} {set_value=} {unit=} {pblum_method=}')
+
         # don't allow things like model='mymodel', etc
         forbidden_keys = parameters._meta_fields_filter
         if not kwargs.get('skip_checks', False):
@@ -10825,51 +10956,64 @@ class Bundle(ParameterSet):
                         ld_func = 'interp'
                         ld_coeffs = None
 
+                    if atms[component] in ['blackbody', 'extern_planckint', 'extern_atmx']:
+                        atm_extrapolation_method = 'none'
+                        ld_extrapolation_method = 'none'
+                        blending_method = 'none'
+                    else:
+                        atm_extrapolation_method = compute_ps.get_value(qualifier='atm_extrapolation_method', component=component, default='none', **_skip_filter_checks)
+                        ld_extrapolation_method = compute_ps.get_value(qualifier='ld_extrapolation_method', component=component, default='none', **_skip_filter_checks)
+
+                        # if either extrapolation method is 'none', then we can't blend
+                        if atm_extrapolation_method == 'none' or ld_extrapolation_method == 'none':
+                            blending_method = 'none'
+                        else:
+                            blending_method = compute_ps.get_value(qualifier='blending_method', component=component, default='none', **_skip_filter_checks)
+
                     if atms[component] == 'blackbody' and ld_mode!='manual':
                         raise NotImplementedError("pblum_method='stefan-boltzmann' not currently implemented for atm='blackbody' unless ld_mode='manual'")
 
-                    required_content = ['{}:Inorm'.format(atms[component])]
+                    required_content = ['{}:Imu'.format(atms[component])]
                     if atms[component] != 'blackbody':
                         required_content += ['{}:ldint'.format(atms[component])]
-                    pb = get_passband(passband, content=required_content)
+                    pb = passbands.get_passband(passband, content=required_content)
 
-                    # TODO: why is Inorm returning an array when passing all floats but ldint isn't??
-                    try:
-                        Inorm = pb.Inorm(Teff=teffs[component], logg=loggs[component],
-                                         abun=abuns[component], atm=atms[component],
-                                         ldatm=atms[component],
-                                         ldint=None, ld_func=ld_func, ld_coeffs=ld_coeffs,
-                                         photon_weighted=intens_weighting=='photon')[0]
-                    except ValueError as err:
-                        if str(err).split(":")[0] == 'Atmosphere parameters out of bounds':
-                            # let's override with a more helpful error message
-                            logger.warning(str(err))
-                            raise ValueError("compute_pblums failed with pblum_method='{}', atm='{}', ld_mode='{}' with an atmosphere out-of-bounds error when querying for Inorm. Enable 'warning' logger to see out-of-bound arrays.".format(pblum_method, atms[component], ld_mode))
-                        else:
-                            raise err
+                    atm_model = models._atmtable[atms[component]]
+                    query_cols = ['teffs', 'loggs', 'abuns']
+                    query_pts = np.atleast_2d(np.stack((teffs[component], loggs[component], abuns[component])).T)
+                    query = passbands.InterpQuery(cols=query_cols, pts=query_pts)
 
-                    try:
-                        ldint = pb.ldint(Teff=teffs[component], logg=loggs[component],
-                                         abun=abuns[component],
-                                         ldatm=atms[component], ld_func=ld_func, ld_coeffs=ld_coeffs,
-                                         photon_weighted=intens_weighting=='photon')
-                    except ValueError as err:
-                        if str(err).split(":")[0] == 'Atmosphere parameters out of bounds':
-                            # let's override with a more helpful error message
-                            logger.warning(str(err))
-                            raise ValueError("compute_pblums failed with pblum_method='{}', atm='{}', ld_mode='{}' with an atmosphere out-of-bounds error when querying for ldint. Enable 'warning' logger to see out-of-bound arrays.".format(pblum_method, atms[component], ld_mode))
-                        else:
-                            raise err
+                    abs_normal_intensities = pb.interpolate_inorms(
+                        query=query,
+                        atm=atm_model,
+                        ldatm=atm_model,
+                        ldint=None,
+                        ld_func=ld_func,
+                        ld_coeffs=ld_coeffs,
+                        intens_weighting=intens_weighting,
+                        atm_extrapolation_method=atm_extrapolation_method,
+                        ld_extrapolation_method=ld_extrapolation_method,
+                        blending_method=blending_method
+                    ).get_interpolated_values()
 
+                    ldint = pb.interpolate_ldints(
+                        query=query,
+                        ldatm=atm_model,
+                        ld_func=ld_func,
+                        ld_coeffs=ld_coeffs,
+                        intens_weighting=intens_weighting,
+                        ld_extrapolation_method=ld_extrapolation_method,
+                    ).get_interpolated_values()
 
                     if intens_weighting=='photon':
-                        ptfarea = pb.ptf_photon_area/pb.h/pb.c
+                        ptfarea = pb.ptf_photon_area/passbands.h.value/passbands.c.value
                     else:
                         ptfarea = pb.ptf_area
 
                     logger.info("estimating pblum for {}@{} using atm='{}' and stefan-boltzmann approximation".format(dataset, component, atm))
                     # requiv in m, Inorm in W/m**3, ldint unitless, ptfarea in m -> pblum_abs in W
-                    pblums_abs[dataset][component] = 4 * np.pi * requivs[component]**2 * Inorm * ldint * ptfarea
+                    pblum = 4 * np.pi * requivs[component]**2 * abs_normal_intensities * ldint * ptfarea
+                    pblums_abs[dataset][component] = pblum[0,0]
 
             else:
                 raise ValueError("pblum_method='{}' not supported".format(pblum_method))
@@ -11002,6 +11146,7 @@ class Bundle(ParameterSet):
             # this is an internal output used by run_compute, generally not requested by the user
             if system is not None:
                 system.reset(force_recompute_instantaneous=True)
+            
             return system, pblums_abs, pblums_scale, pblums_rel, pbfluxes
 
         # users will see the twig dictionaries with the exposed values based on
@@ -11971,7 +12116,7 @@ class Bundle(ParameterSet):
                     continue
 
                 # we now need to handle any computations of ld_coeffs, pblums, l3s, etc
-                # TODO: skip lookups for phoebe, skip non-supported ld_func for photodynam, etc
+                # TODO: skip lookups for phoebe
                 # TODO: have this return a dictionary like pblums/l3s that we can pass on to the backend?
 
                 # we need to check both for enabled but also passed via dataset kwarg
@@ -12063,6 +12208,26 @@ class Bundle(ParameterSet):
                         # relative pblums or pblums_scale to the respective backend
 
                         flux_param.set_value(fluxes, ignore_readonly=True)
+
+                # handle vgamma
+                vgamma = self.get_value(qualifier='vgamma', context='system', unit=u.km/u.s, **_skip_filter_checks)
+                for rv_param in ml_params.filter(qualifier='rvs', kind='rv', **_skip_filter_checks).to_list():
+                    dataset = rv_param.dataset
+                    component = rv_param.component
+
+                    if computeparams.kind in ['phoebe', 'legacy']:
+                        # we'll use native vgamma so ltte, etc, can be handled appropriately
+                        rv_param.set_value(rv_param.get_value(unit=u.km/u.s), ignore_readonly=True)
+                    else:
+                        rv_param.set_value(rv_param.get_value(unit=u.km/u.s)+vgamma, ignore_readonly=True)
+
+                # handle all dataset-features (except for GPs, which need to all be handled simultaneously
+                # and AFTER - instead of BEFORE - dataset-scaling from pblum_mode='dataset-scaled')
+                enabled_features = self.filter(qualifier='enabled', compute=compute, context='compute', value=True, **_skip_filter_checks).features
+                enabled_dataset_features = self.filter(qualifier='feature_type', feature=enabled_features, context='feature', value='dataset', **_skip_filter_checks).features
+                for feature in enabled_dataset_features:
+                    feature_obj = self.get_feature_code(feature=feature)
+                    feature_obj.modify_model(self, ml_params)
 
                 # handle flux scaling for any pblum_mode == 'dataset-scaled'
                 # or for any dataset in which pblum_mode == 'dataset-coupled' and pblum_dataset points to a 'dataset-scaled' dataset
@@ -12161,20 +12326,6 @@ class Bundle(ParameterSet):
 
                         flux_param.set_value(fluxes, ignore_readonly=True)
 
-                # handle vgamma and rv_offset
-                vgamma = self.get_value(qualifier='vgamma', context='system', unit=u.km/u.s, **_skip_filter_checks)
-                for rv_param in ml_params.filter(qualifier='rvs', kind='rv', **_skip_filter_checks).to_list():
-                    dataset = rv_param.dataset
-                    component = rv_param.component
-
-                    rv_offset = self.get_value(qualifier='rv_offset', dataset=dataset, component=component, context='dataset', default=0.0, unit=u.km/u.s, **_skip_filter_checks)
-
-                    if computeparams.kind in ['phoebe', 'legacy']:
-                        # we'll use native vgamma so ltte, etc, can be handled appropriately
-                        rv_param.set_value(rv_param.get_value(unit=u.km/u.s)+rv_offset, ignore_readonly=True)
-                    else:
-                        rv_param.set_value(rv_param.get_value(unit=u.km/u.s)+vgamma+rv_offset, ignore_readonly=True)
-
                 ml_addl_params += [StringParameter(qualifier='comments', value=kwargs.get('comments', computeparams.get_value(qualifier='comments', default='', **_skip_filter_checks)), description='User-provided comments for this model.  Feel free to place any notes here.')]
                 self._attach_params(ml_params+ml_addl_params, check_copy_for=False, **metawargs)
 
@@ -12182,147 +12333,9 @@ class Bundle(ParameterSet):
 
                 # add any GPs (gaussian processes) to the returned model
                 # NOTE: this has to happen after _attach_params as it uses
-                # several bundle methods that act on the model
-                enabled_features = self.filter(qualifier='enabled', compute=compute, context='compute', value=True, **_skip_filter_checks).features
-
-                for ds in model_ps.datasets:
-                    gp_sklearn_features = self.filter(feature=enabled_features, dataset=ds, kind='gp_sklearn', **_skip_filter_checks).features
-                    gp_celerite2_features = self.filter(feature=enabled_features, dataset=ds, kind='gp_celerite2', **_skip_filter_checks).features
-
-                    if len(gp_sklearn_features)!=0 or len(gp_celerite2_features)!=0:
-                        # we'll loop over components (for RVs or LPs, for example)
-                        # get the data we need to fit the GP model
-                        ds_ps = self.get_dataset(dataset=ds, **_skip_filter_checks)
-                        xqualifier = {'lp': 'wavelength'}.get(ds_ps.kind, 'times')
-                        yqualifier = {'lp': 'flux_densities', 'rv': 'rvs', 'lc': 'fluxes'}.get(ds_ps.kind)
-                        yerrqualifier = {'lp': 'wavelength'}.get(ds_ps.kind, 'sigmas')
-
-                        _exclude_phases_enabled = computeparams.get_value(qualifier='gp_exclude_phases_enabled', dataset=ds, **_skip_filter_checks)
-
-                        if ds_ps.kind in ['lc']:
-                            ds_comps = [None]
-                        else:
-                            ds_comps = ds_ps.filter(qualifier=xqualifier, check_visible=True).components
-                        for ds_comp in ds_comps:
-                            ds_x = ds_ps.get_value(qualifier=xqualifier, component=ds_comp, **_skip_filter_checks)
-                            model_x = model_ps.get_value(qualifier=xqualifier, dataset=ds, component=ds_comp, **_skip_filter_checks)
-                            ds_sigmas = ds_ps.get_value(qualifier=yerrqualifier, component=ds_comp, **_skip_filter_checks)
-                            # ds_sigmas = ds_ps.get_value(qualifier='sigmas', component=ds_comp, **_skip_filter_checks)
-                            # TODO: do we need to inflate sigmas by lnf?
-                            if not len(ds_x):
-                                # should have been caught by run_checks_compute
-                                raise ValueError("gaussian_process requires dataset observations (cannot be synthetic only).  Add observations to dataset='{}' or disable feature={}".format(ds, gp_features))
-
-                        residuals, model_y_dstimes = self.calculate_residuals(model=model,
-                                                        dataset=ds,
-                                                        component=ds_comp,
-                                                        return_interp_model=True,
-                                                        as_quantity=False,
-                                                        consider_gaussian_process=False)
-                        model_y = model_ps.get_quantity(qualifier=yqualifier, dataset=ds, component=ds_comp, **_skip_filter_checks)
-
-                        gp_kernels = []
-                        alg_operations = []
-
-                        def _load_gps(gp_kernel_classes, gp_features, ds):
-
-                            for gp in gp_features:
-                                gp_ps = self.filter(feature=gp, context='feature', **_skip_filter_checks)
-                                kind = gp_ps.get_value(qualifier='kernel', **_skip_filter_checks)
-
-                                kwargs = {p.qualifier: p.value for p in gp_ps.exclude(qualifier=['kernel', 'enabled']).to_list() if p.is_visible}
-                                # TODO: replace this with getting the parameter from compute options
-                                if _exclude_phases_enabled:
-                                    exclude_phase_ranges = computeparams.get_value(qualifier='gp_exclude_phases', dataset=ds, **_skip_filter_checks)
-                                else:
-                                    exclude_phase_ranges = []
-
-                                alg_operations.append(kwargs.pop('alg_operation'))
-                                gp_kernels.append(gp_kernel_classes.get(kind)(**kwargs))
-
-                                gp_kernel = gp_kernels[0]
-                                for i in range(1, len(gp_kernels)):
-                                    if alg_operations[i] == 'product':
-                                        gp_kernel *= gp_kernels[i]
-                                        # print(gp_kernel)
-                                    else:
-                                        gp_kernel += gp_kernels[i]
-                                        # print(gp_kernel)
-
-
-                                if len(exclude_phase_ranges) != 0:
-                                    # get t0, period and exclude_phases
-                                    ephem = self.get_ephemeris(component='binary', period='period', t0='t0_supconj')
-                                    t0 = ephem.get('t0', 0.0)
-                                    period = ephem.get('period', 1.0)
-
-                                    phases = np.array(exclude_phase_ranges)
-
-                                    # determine extent of data wrt t0
-                                    i0 = int((t0 - min(ds_x))/period)-1
-                                    i1 = int((max(ds_x-t0))/period)+1
-
-                                    x_new = ds_x
-                                    residuals_new = residuals
-                                    sigmas_new = ds_sigmas
-                                    for i in range(i0,i1+1,1):
-                                        for j in range(phases.shape[0]):
-                                            condition = (x_new < t0+(i+phases[j][0])*period) | (x_new > t0+(i+phases[j][1])*period)
-                                            x_new = x_new[condition]
-                                            residuals_new = residuals_new[condition]
-                                            sigmas_new = sigmas_new[condition]
-
-                                    gp_x = x_new
-                                    gp_y = residuals_new
-                                    gp_yerr = sigmas_new
-
-                                else:
-                                    gp_x = ds_x
-                                    gp_y = residuals
-                                    gp_yerr = ds_sigmas
-
-                            return gp_kernel, gp_x, gp_y, gp_yerr
-
-                        if len(gp_sklearn_features) > 0:
-                            gp_kernel_classes = {'constant': _sklearn.gaussian_process.kernels.ConstantKernel,
-                                                'white': _sklearn.gaussian_process.kernels.WhiteKernel,
-                                                'rbf': _sklearn.gaussian_process.kernels.RBF,
-                                                'matern': _sklearn.gaussian_process.kernels.Matern,
-                                                'rational_quadratic': _sklearn.gaussian_process.kernels.RationalQuadratic,
-                                                'exp_sine_squared': _sklearn.gaussian_process.kernels.ExpSineSquared,
-                                                'dot_product': _sklearn.gaussian_process.kernels.DotProduct}
-
-                            gp_kernel, gp_x, gp_y, gp_yerr = _load_gps(gp_kernel_classes, gp_sklearn_features, ds)
-
-                            gp_regressor = GaussianProcessRegressor(kernel=gp_kernel)
-                            gp_regressor.fit(gp_x.reshape(-1,1), gp_y)
-
-                            # NOTE: .predict can also be called directly to the model times if we want to avoid interpolation altogether
-                            gp_y = gp_regressor.predict(ds_x.reshape(-1,1), return_std=False)
-
-                        if len(gp_celerite2_features) > 0:
-                            gp_kernel_classes = {'sho': _celerite2.terms.SHOTerm,
-                                                'rotation': _celerite2.terms.RotationTerm,
-                                                'matern32': _celerite2.terms.Matern32Term
-                                                }
-                            gp_kernel, gp_x, gp_y, gp_yerr = _load_gps(gp_kernel_classes, gp_celerite2_features, ds)
-
-                            gp = _celerite2.GaussianProcess(gp_kernel, mean=0.0)
-                            gp.compute(gp_x, yerr=gp_yerr)
-                            gp_y = gp.predict(gp_y, t=ds_x, return_var=False)
-
-
-                        # store just the GP component in the model PS as well
-                        gp_param = FloatArrayParameter(qualifier='gps', value=gp_y, default_unit=model_y.unit, readonly=True, description='GP contribution to the model {}'.format(yqualifier))
-                        y_nogp_param = FloatArrayParameter(qualifier='{}_nogps'.format(yqualifier), value=model_y_dstimes, default_unit=model_y.unit, readonly=True, description='{} before adding gps'.format(yqualifier))
-                        if len(ds_x) != len(model_x) or not np.all(ds_x == model_x):
-                            logger.warning("model for dataset='{}' resampled at dataset times when adding GPs".format(ds))
-                            model_ps.set_value(qualifier=xqualifier, dataset=ds, component=ds_comp, value=ds_x, ignore_readonly=True, **_skip_filter_checks)
-
-                        self._attach_params([gp_param, y_nogp_param], dataset=ds, check_copy_for=False, **metawargs)
-
-                        # update the model to include the GP contribution
-                        model_ps.set_value(qualifier=yqualifier, value=model_y_dstimes+gp_y, dataset=ds, component=ds_comp, ignore_readonly=True, **_skip_filter_checks)
+                # several bundle methods that act on the model and also
+                # has to happen after dataset-scaling (for pblum_mode=='dataset-scaled')
+                handle_gaussian_processes(self, model, model_ps, enabled_features, computeparams, metawargs)
 
         except Exception as err:
             restore_conf()

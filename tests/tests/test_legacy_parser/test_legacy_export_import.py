@@ -1,16 +1,16 @@
-import phoebe as phb2
+import phoebe
 import numpy as np
 
 
 def test_reimport(filename=None):
     if filename:
-        b = phb2.from_legacy(filename)
+        b = phoebe.from_legacy(filename)
     else:
-        b = phb2.default_binary()
+        b = phoebe.default_binary()
         b.add_compute(kind='legacy')
 
     b.export_legacy('test.legacy')
-    b2 = phb2.from_legacy('test.legacy')
+    b2 = phoebe.from_legacy('test.legacy')
 
     # check to see if datasets are attached and the right number
     Nlcs = len(b.get_dataset(kind='lc').datasets)
@@ -31,8 +31,10 @@ def test_reimport(filename=None):
         val1 = pars[x].value
         val2 = pars2[x].value
         if pars[x].qualifier not in ['times', 'fluxes', 'sigmas', 'rvs']:
-            assert np.all(val1 == val2)
-
+            try:
+                assert val1 == val2
+            except:
+                assert np.all(val1 == val2)
 
 if __name__ == '__main__':
     filename = 'default.phoebe'

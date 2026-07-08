@@ -12,11 +12,13 @@ except ImportError:
 from math import sqrt, sin, cos, acos, atan2, trunc, pi
 import sys, os
 import copy
+from astropy.constants import sigma_sb
 
-from phoebe.atmospheres import passbands
+from phoebe.atmospheres import models, passbands
 from phoebe.distortions import roche, rotstar
 from phoebe.backend import eclipse, oc_geometry, mesh, mesh_wd
 from phoebe.utils import _bytes
+from phoebe.features import component_features
 import libphoebe
 
 from phoebe import u
@@ -108,7 +110,6 @@ class System(object):
                  horizon_method='boolean',
                  dynamics_method='keplerian',
                  irrad_method='none',
-                 boosting_method='none',
                  parent_envelope_of={}):
         """
         :parameter dict bodies_dict: dictionary of component names and Bodies (or subclass of Body)
@@ -125,7 +126,6 @@ class System(object):
         for body in self._bodies.values():
             body.system = self
             body.dynamics_method = dynamics_method
-            body.boosting_method = boosting_method
 
         return
 
@@ -166,13 +166,11 @@ class System(object):
             horizon_method = compute_ps.get_value(qualifier='horizon_method', horizon_method=kwargs.get('horizon_method', None), **_skip_filter_checks)
             dynamics_method = compute_ps.get_value(qualifier='dynamics_method', dynamics_method=kwargs.get('dynamics_method', None), **_skip_filter_checks)
             irrad_method = compute_ps.get_value(qualifier='irrad_method', irrad_method=kwargs.get('irrad_method', None), **_skip_filter_checks)
-            boosting_method = compute_ps.get_value(qualifier='boosting_method', boosting_method=kwargs.get('boosting_method', None), **_skip_filter_checks)
         else:
             eclipse_method = 'native'
             horizon_method = 'boolean'
             dynamics_method = 'keplerian'
             irrad_method = 'none'
-            boosting_method = 'none'
             compute_ps = None
 
         # NOTE: here we use globals()[Classname] because getattr doesn't work in
@@ -208,7 +206,6 @@ class System(object):
                    horizon_method=horizon_method,
                    dynamics_method=dynamics_method,
                    irrad_method=irrad_method,
-                   boosting_method=boosting_method,
                    parent_envelope_of=parent_envelope_of)
 
     def items(self):
@@ -348,11 +345,9 @@ class System(object):
         logger.debug("reflection: computing bolometric intensities")
         fluxes_intrins_per_body = []
         for starref, body in self.items():
-            if body.mesh is None: continue
-            abs_normal_intensities = passbands.Inorm_bol_bb(Teff=body.mesh.teffs.for_computations,
-                                                            atm='blackbody',
-                                                            photon_weighted=False)
-
+            if body.mesh is None:
+                continue
+            abs_normal_intensities = sigma_sb.value * body.mesh.teffs.for_computations**4 / np.pi  # bolometric intensities
             fluxes_intrins_per_body.append(abs_normal_intensities * np.pi)
 
         fluxes_intrins_flat = meshes.pack_column_flat(fluxes_intrins_per_body)
@@ -369,48 +364,47 @@ class System(object):
             normals_per_body = list(meshes.get_column('vnormals').values())
             areas_per_body = list(meshes.get_column('areas').values())
             irrad_frac_refl_per_body = list(meshes.get_column('irrad_frac_refl', computed_type='for_computations').values())
-            teffs_intrins_per_body = list(meshes.get_column('teffs', computed_type='for_computations').values())
 
             ld_func_and_coeffs = [tuple([_bytes(body.ld_func['bol'])] + [np.asarray(body.ld_coeffs['bol'])]) for body in self.bodies]
             logger.debug("irradiation ld_func_and_coeffs: {}".format(ld_func_and_coeffs))
-            fluxes_intrins_and_refl_per_body = libphoebe.mesh_radiosity_problem_nbody_convex(vertices_per_body,
-                                                                                       triangles_per_body,
-                                                                                       normals_per_body,
-                                                                                       areas_per_body,
-                                                                                       irrad_frac_refl_per_body,
-                                                                                       fluxes_intrins_per_body,
-                                                                                       ld_func_and_coeffs,
-                                                                                       _bytes(self.irrad_method.title()),
-                                                                                       support=_bytes('vertices')
-                                                                                       )
+            fluxes_intrins_and_refl_per_body = libphoebe.mesh_radiosity_problem_nbody_convex(
+                vertices_per_body,
+                triangles_per_body,
+                normals_per_body,
+                areas_per_body,
+                irrad_frac_refl_per_body,
+                fluxes_intrins_per_body,
+                ld_func_and_coeffs,
+                _bytes(self.irrad_method.title()),
+                support=_bytes('vertices')
+            )
 
             fluxes_intrins_and_refl_flat = meshes.pack_column_flat(fluxes_intrins_and_refl_per_body)
 
         else:
             logger.debug("handling reflection (general case), method='{}'".format(self.irrad_method))
 
-            vertices_flat = meshes.get_column_flat('vertices') # np.ndarray
-            triangles_flat = meshes.get_column_flat('triangles') # np.ndarray
-            normals_flat = meshes.get_column_flat('vnormals') # np.ndarray
-            areas_flat = meshes.get_column_flat('areas') # np.ndarray
+            vertices_flat = meshes.get_column_flat('vertices')  # np.ndarray
+            triangles_flat = meshes.get_column_flat('triangles')  # np.ndarray
+            normals_flat = meshes.get_column_flat('vnormals')  # np.ndarray
+            areas_flat = meshes.get_column_flat('areas')  # np.ndarray
             irrad_frac_refl_flat = meshes.get_column_flat('irrad_frac_refl', computed_type='for_computations') # np.ndarray
 
             ld_func_and_coeffs = [tuple([_bytes(body.ld_func['bol'])] + [np.asarray(body.ld_coeffs['bol'])]) for body in self.mesh_bodies] # list
             ld_inds_flat = meshes.pack_column_flat({body.comp_no: np.full(fluxes.shape, body.comp_no-1) for body, fluxes in zip(self.mesh_bodies, fluxes_intrins_per_body)}) # np.ndarray
 
-            fluxes_intrins_and_refl_flat = libphoebe.mesh_radiosity_problem(vertices_flat,
-                                                                            triangles_flat,
-                                                                            normals_flat,
-                                                                            areas_flat,
-                                                                            irrad_frac_refl_flat,
-                                                                            fluxes_intrins_flat,
-                                                                            ld_func_and_coeffs,
-                                                                            ld_inds_flat,
-                                                                            _bytes(self.irrad_method.title()),
-                                                                            support=_bytes('vertices')
-                                                                            )
-
-
+            fluxes_intrins_and_refl_flat = libphoebe.mesh_radiosity_problem(
+                vertices_flat,
+                triangles_flat,
+                normals_flat,
+                areas_flat,
+                irrad_frac_refl_flat,
+                fluxes_intrins_flat,
+                ld_func_and_coeffs,
+                ld_inds_flat,
+                _bytes(self.irrad_method.title()),
+                support=_bytes('vertices')
+            )
 
         teffs_intrins_flat = meshes.get_column_flat('teffs', computed_type='for_computations')
 
@@ -1012,7 +1006,7 @@ class Body(object):
             # perturbed as well, unless there is a good reason not to.
             for feature in self.features:
                 # NOTE: these are ALWAYS done on the protomesh
-                coords_for_observations = feature.process_coords_for_computations(scaledprotomesh.coords_for_computations, s=self.polar_direction_xyz, t=self.time)
+                coords_for_observations = feature.modify_coords_for_computations(scaledprotomesh.coords_for_computations, s=self.polar_direction_xyz, t=self.time)
                 if scaledprotomesh._compute_at_vertices:
                     scaledprotomesh.update_columns(pvertices=coords_for_observations)
 
@@ -1022,7 +1016,7 @@ class Body(object):
 
 
             for feature in self.features:
-                coords_for_observations = feature.process_coords_for_observations(scaledprotomesh.coords_for_computations, scaledprotomesh.coords_for_observations, s=self.polar_direction_xyz, t=self.time)
+                coords_for_observations = feature.modify_coords_for_observations(scaledprotomesh.coords_for_computations, scaledprotomesh.coords_for_observations, s=self.polar_direction_xyz, t=self.time)
                 if scaledprotomesh._compute_at_vertices:
                     scaledprotomesh.update_columns(vertices=coords_for_observations)
 
@@ -1096,13 +1090,15 @@ class Star(Body):
                  long_an, t0, do_mesh_offset, mesh_init_phi,
 
                  atm, datasets, passband, intens_weighting,
+                 atm_extrapolation_method, ld_extrapolation_method, blending_method,
                  extinct, Rv,
                  ld_mode, ld_func, ld_coeffs, ld_coeffs_source,
                  lp_profile_rest,
+                 boosting_method, boosting_index,
                  requiv, sma,
                  polar_direction_uvw,
                  freq_rot,
-                 teff, gravb_bol, abun,
+                 teff, gravb_bol, abun, loghefrac,
                  irrad_frac_refl,
                  mesh_method, is_single,
                  do_rv_grav,
@@ -1127,6 +1123,7 @@ class Star(Body):
         self.teff = teff
         self.gravb_bol = gravb_bol
         self.abun = abun
+        self.loghefrac = loghefrac
         self.irrad_frac_refl = irrad_frac_refl
         self.mesh_method = mesh_method
         self.ntriangles = kwargs.get('ntriangles', 1000)                    # Marching
@@ -1134,6 +1131,9 @@ class Star(Body):
         self.gridsize = kwargs.get('gridsize', 90)                          # WD
         self.is_single = is_single
         self.atm = atm
+        self.atm_extrapolation_method = atm_extrapolation_method
+        self.ld_extrapolation_method = ld_extrapolation_method
+        self.blending_method = blending_method
 
         # DATSET-DEPENDENT DICTS
         self.passband = passband
@@ -1145,6 +1145,8 @@ class Star(Body):
         self.ld_coeffs = ld_coeffs
         self.ld_coeffs_source = ld_coeffs_source
         self.lp_profile_rest = lp_profile_rest
+        self.boosting_method = boosting_method
+        self.boosting_index = boosting_index
 
         # Let's create a dictionary to handle how each dataset should scale between
         # absolute and relative intensities.
@@ -1186,7 +1188,6 @@ class Star(Body):
         starrefs  = hier.get_stars()
 
         ind_self = starrefs.index(label_self)
-        # for the sibling, we may need to handle a list of stars (ie in the case of a hierarchical triple)
         ind_sibling = starrefs.index(label_sibling) if isinstance(label_sibling, str) else [starrefs.index(l) for l in label_sibling]
         comp_no = ['primary', 'secondary'].index(hier.get_primary_or_secondary(component))+1
 
@@ -1223,6 +1224,7 @@ class Star(Body):
         gravb_bol= b.get_value(qualifier='gravb_bol', component=component, context='component', **_skip_filter_checks)
 
         abun = b.get_value(qualifier='abun', component=component, context='component', **_skip_filter_checks)
+        loghefrac = b.get_value(qualifier='loghefrac', component=component, context='component', **_skip_filter_checks)
         irrad_frac_refl = b.get_value(qualifier='irrad_frac_refl_bol', component=component, context='component', **_skip_filter_checks)
 
         try:
@@ -1257,10 +1259,12 @@ class Star(Body):
         features = []
         for feature in b.filter(qualifier='enabled', compute=compute, value=True, **_skip_filter_checks).features:
             feature_ps = b.get_feature(feature=feature, **_skip_filter_checks)
+            if feature_ps.get_value(qualifier='feature_type', **_skip_filter_checks) != 'component':
+                continue
             if feature_ps.component != component:
                 continue
-            feature_cls = globals()[feature_ps.kind.title()]
-            features.append(feature_cls.from_bundle(b, feature))
+            feature_obj = b.get_feature_code(feature=feature)
+            features.append(feature_obj)
 
         if conf.devel:
             mesh_offset_override = kwargs.pop('mesh_offset', None)
@@ -1280,6 +1284,24 @@ class Star(Body):
         if isinstance(atm_override, dict):
             atm_override = atm_override.get(component, None)
         atm = b.get_value(qualifier='atm', compute=compute, component=component, atm=atm_override, **_skip_filter_checks) if compute is not None else atm_override if atm_override is not None else 'ck2004'
+
+        if atm in ['blackbody', 'extern_planckint', 'extern_atmx']:
+            atm_extrapolation_method = 'none'
+            ld_extrapolation_method = 'none'
+            blending_method = 'none'
+        else:
+            atm_extrapolation_method_override = kwargs.pop('atm_extrapolation_method', None)
+            atm_extrapolation_method = b.get_value(qualifier='atm_extrapolation_method', compute=compute, component=component, atm_extrapolation_method=atm_extrapolation_method_override, **_skip_filter_checks) if compute is not None else atm_extrapolation_method_override if atm_extrapolation_method_override is not None else 'linear'
+
+            ld_extrapolation_method_override = kwargs.pop('ld_extrapolation_method', None)
+            ld_extrapolation_method = b.get_value(qualifier='ld_extrapolation_method', compute=compute, component=component, ld_extrapolation_method=ld_extrapolation_method_override, **_skip_filter_checks) if compute is not None else ld_extrapolation_method_override if ld_extrapolation_method_override is not None else 'nearest'
+
+            if atm_extrapolation_method == 'none' or ld_extrapolation_method == 'none':
+                blending_method = 'none'
+            else:
+                blending_method_override = kwargs.pop('blending_method', None)
+                blending_method = b.get_value(qualifier='blending_method', compute=compute, component=component, blending_method=blending_method_override, **_skip_filter_checks) if compute is not None else blending_method_override if blending_method_override is not None else 'blackbody'
+
         passband_override = kwargs.pop('passband', None)
         passband = {ds: b.get_value(qualifier='passband', dataset=ds, passband=passband_override, **_skip_filter_checks) for ds in datasets_intens}
         intens_weighting_override = kwargs.pop('intens_weighting', None)
@@ -1302,7 +1324,10 @@ class Star(Body):
         ld_coeffs['bol'] = b.get_value(qualifier='ld_coeffs_bol', component=component, context='component', ld_coeffs_bol=ld_coeffs_bol_override, **_skip_filter_checks)
         profile_rest_override = kwargs.pop('profile_rest', None)
         lp_profile_rest = {ds: b.get_value(qualifier='profile_rest', dataset=ds, unit=u.nm, profile_rest=profile_rest_override, **_skip_filter_checks) for ds in datasets_lp}
-
+        boosting_method_override = kwargs.pop('boosting_method', None)
+        boosting_method = {ds: b.get_value(qualifier='boosting_method', dataset=ds, component=component, boosting_method=boosting_method_override, **_skip_filter_checks) for ds in datasets_intens}
+        boosting_index_override = kwargs.pop('boosting_index', None)
+        boosting_index = {ds: b.get_value(qualifier='boosting_index', dataset=ds, component=component, boosting_index=boosting_index_override, **_skip_filter_checks) for ds in datasets_intens}
 
         # we'll pass kwargs on here so they can be overridden by the classmethod
         # of any subclass and then intercepted again by the __init__ by the
@@ -1318,12 +1343,17 @@ class Star(Body):
                    datasets,
                    passband,
                    intens_weighting,
+                   atm_extrapolation_method,
+                   ld_extrapolation_method,
+                   blending_method,
                    extinct, Rv,
                    ld_mode,
                    ld_func,
                    ld_coeffs,
                    ld_coeffs_source,
                    lp_profile_rest,
+                   boosting_method,
+                   boosting_index,
                    requiv,
                    sma,
                    polar_direction_uvw,
@@ -1331,6 +1361,7 @@ class Star(Body):
                    teff,
                    gravb_bol,
                    abun,
+                   loghefrac,
                    irrad_frac_refl,
                    mesh_method,
                    is_single,
@@ -1380,10 +1411,6 @@ class Star(Body):
         return self.polar_direction_xyz[2] != 1.0
 
     @property
-    def spots(self):
-        return [f for f in self.features if f.__class__.__name__=='Spot']
-
-    @property
     def polar_direction_xyz(self):
         """
         get current polar direction in Roche (xyz) coordinates
@@ -1430,6 +1457,7 @@ class Star(Body):
         self._fill_gravs()
         self._fill_teffs(ignore_effects=ignore_effects)
         self._fill_abuns(abun=self.abun)
+        self._fill_loghefracs(loghefrac=self.loghefrac)
         self._fill_albedos(irrad_frac_refl=self.irrad_frac_refl)
 
     @property
@@ -1523,9 +1551,7 @@ class Star(Body):
 
     def _fill_loggs(self, mesh=None, ignore_effects=False):
         """
-        TODO: add documentation
-
-        Calculate local surface gravity
+        Calculate local surface gravity and populate the mesh
 
         GMSunNom = 1.3271244e20 m**3 s**-2
         RSunNom = 6.597e8 m
@@ -1539,10 +1565,11 @@ class Star(Body):
 
         if not ignore_effects:
             for feature in self.features:
-                if feature.proto_coords:
-                    loggs = feature.process_loggs(loggs, mesh.roche_coords_for_computations, s=self.polar_direction_xyz, t=self.time)
-                else:
-                    loggs = feature.process_loggs(loggs, mesh.coords_for_computations, s=self.polar_direction_xyz, t=self.time)
+                loggs = feature.modify_loggs(loggs,
+                                             mesh.roche_coords_for_computations,
+                                             s=self.polar_direction_xyz,
+                                             t=self.time)
+
 
         mesh.update_columns(loggs=loggs)
 
@@ -1592,16 +1619,15 @@ class Star(Body):
 
         if not ignore_effects:
             for feature in self.features:
-                if feature.proto_coords:
-
-                    if self.__class__.__name__ == 'Star_roche_envelope_half' and self.ind_self != self.ind_self_vel:
-                        # then this is the secondary half of a contact envelope
-                        roche_coords_for_computations = np.array([1.0, 0.0, 0.0]) - mesh.roche_coords_for_computations
-                    else:
-                        roche_coords_for_computations = mesh.roche_coords_for_computations
-                    teffs = feature.process_teffs(teffs, roche_coords_for_computations, s=self.polar_direction_xyz, t=self.time)
+                if self.__class__.__name__ == 'Star_roche_envelope_half' and self.ind_self != self.ind_self_vel:
+                    # then this is the secondary half of a contact envelope
+                    roche_coords_for_computations = np.array([1.0, 0.0, 0.0]) - mesh.roche_coords_for_computations
                 else:
-                    teffs = feature.process_teffs(teffs, mesh.coords_for_computations, s=self.polar_direction_xyz, t=self.time)
+                    roche_coords_for_computations = mesh.roche_coords_for_computations
+                teffs = feature.modify_teffs(teffs,
+                                             roche_coords_for_computations,
+                                             s=self.polar_direction_xyz,
+                                             t=self.time)
 
         mesh.update_columns(teffs=teffs)
 
@@ -1627,6 +1653,24 @@ class Star(Body):
             logger.debug("{}._fill_abuns: copying abuns to standard mesh".format(self.component))
             theta = 0.0
             self._standard_meshes[theta].update_columns(abuns=abun)
+
+    def _fill_loghefracs(self, mesh=None, loghefrac=0.0):
+        """
+        TODO: add documentation
+        """
+        logger.debug("{}._fill_loghefracs".format(self.component))
+
+        if mesh is None:
+            mesh = self.mesh
+
+        # TODO: support from frontend
+
+        mesh.update_columns(loghefracs=loghefrac)
+
+        if not self.needs_recompute_instantaneous:
+            logger.debug("{}._fill_loghefracs: copying loghefracs to standard mesh".format(self.component))
+            theta = 0.0
+            self._standard_meshes[theta].update_columns(loghefracs=loghefrac)
 
     def _fill_albedos(self, mesh=None, irrad_frac_refl=0.0):
         """
@@ -1658,8 +1702,10 @@ class Star(Body):
         # abs_normal_intensities are directly out of the passbands module and are
         # emergent normal intensities in this dataset's passband/atm in absolute units
         abs_normal_intensities = self.mesh['abs_normal_intensities:{}'.format(dataset)].centers
+        # print(f'compute_luminosity: {abs_normal_intensities.shape=}')
 
         ldint = self.mesh['ldint:{}'.format(dataset)].centers
+        # print(f'compute_luminosity: {ldint.shape=}')
         ptfarea = self.get_ptfarea(dataset) # just a float
 
         # Our total integrated intensity in absolute units (luminosity) is now
@@ -1668,6 +1714,7 @@ class Star(Body):
         # limbdarkened as if they were at mu=1, and multiplied by their respective areas
 
         abs_luminosity = np.sum(abs_normal_intensities*areas*ldint)*ptfarea*np.pi
+        # print(f'compute_luminosity: {abs_luminosity=}')
 
         # NOTE: when this is computed the first time (for the sake of determining
         # pblum_scale), get_pblum_scale will return 1.0
@@ -1742,6 +1789,13 @@ class Star(Body):
 
         rvs = -1*self.mesh.velocities.for_computations[:,2]
 
+        for feature in self.features:
+            rvs = feature.modify_rvs(rvs,
+                                     self.mesh._vel,
+                                     self.mesh.roche_coords_for_computations,
+                                     s=self.polar_direction_xyz,
+                                     t=self.time)
+
         # Gravitational redshift
         if self.do_rv_grav:
             # self.mass is in solar masses
@@ -1775,159 +1829,187 @@ class Star(Body):
         passband = kwargs.get('passband', self.passband.get(dataset, None))
         intens_weighting = kwargs.get('intens_weighting', self.intens_weighting.get(dataset, None))
         atm = kwargs.get('atm', self.atm)
+        atm_extrapolation_method = kwargs.get('atm_extrapolation_method', self.atm_extrapolation_method)
+        ld_extrapolation_method = kwargs.get('ld_extrapolation_method', self.ld_extrapolation_method)
+        blending_method = kwargs.get('blending_method', self.blending_method)
         extinct = kwargs.get('extinct', self.extinct)
         Rv = kwargs.get('Rv', self.Rv)
         ld_mode = kwargs.get('ld_mode', self.ld_mode.get(dataset, None))
         ld_func = kwargs.get('ld_func', self.ld_func.get(dataset, None))
         ld_coeffs = kwargs.get('ld_coeffs', self.ld_coeffs.get(dataset, None)) if ld_mode == 'manual' else None
         ld_coeffs_source = kwargs.get('ld_coeffs_source', self.ld_coeffs_source.get(dataset, 'none')) if ld_mode == 'lookup' else None
+
+        boosting_method = kwargs.get('boosting_method', self.boosting_method.get(dataset, None))
+        bindex = kwargs.get('boosting_index', self.boosting_index.get(dataset, None)) if boosting_method == 'manual' else None
+
+        atm_model = models._atmtable[atm]
+
         if ld_mode == 'interp':
             # calls to pb.Imu need to pass on ld_func='interp'
             # NOTE: we'll do another check when calling pb.Imu, but we'll also
             # change the value here for the debug logger
             ld_func = 'interp'
-            ldatm = atm
+            ldatm_model = atm_model
         elif ld_mode == 'lookup':
             if ld_coeffs_source == 'auto':
-                if atm == 'blackbody':
-                    ldatm = 'ck2004'
-                elif atm == 'extern_atmx':
-                    ldatm = 'ck2004'
-                elif atm == 'extern_planckint':
-                    ldatm = 'ck2004'
-                else:
-                    ldatm = atm
+                # default to ck2004 for external and blackbody atmospheres, and
+                # use the same model atmosphere for all other atmospheres:
+                ldatm_model = models.CK2004ModelAtmosphere if atm_model.external or not hasattr(atm_model, 'mus') else atm_model
             else:
-                ldatm = ld_coeffs_source
+                ldatm_model = models._atmtable[ld_coeffs_source]
         elif ld_mode == 'manual':
-            ldatm = 'none'
+            ldatm_model = None
         else:
             raise NotImplementedError
 
-        boosting_method = kwargs.get('boosting_method', self.boosting_method)
-
-        logger.debug("ld_func={}, ld_coeffs={}, atm={}, ldatm={}".format(ld_func, ld_coeffs, atm, ldatm))
+        logger.debug(f'{ld_mode=}, {ld_func=}, {ld_coeffs=}, {atm_model=}, {ldatm_model=}')
 
         pblum = kwargs.get('pblum', 4*np.pi)
 
-        if lc_method=='numerical':
-
+        if lc_method == 'numerical':
             pb = passbands.get_passband(passband)
 
-            if ldatm != 'none' and '{}:ldint'.format(ldatm) not in pb.content:
+            if ldatm_model is not None and f'{ldatm_model.name}:ldint' not in pb.content:
                 if ld_mode == 'lookup':
-                    raise ValueError("{} not supported for limb-darkening with {}:{} passband.  Try changing the value of the ld_coeffs_source parameter".format(ldatm, pb.pbset, pb.pbname))
+                    raise ValueError(f'{ldatm_model.name} not supported for limb-darkening with {pb.pbset}:{pb.pbname} passband.  Try changing the value of the ld_coeffs_source parameter')
                 else:
-                    raise ValueError("{} not supported for limb-darkening with {}:{} passband.  Try changing the value of the atm parameter".format(ldatm, pb.pbset, pb.pbname))
+                    raise ValueError(f'{ldatm_model.name} not supported for limb-darkening with {pb.pbset}:{pb.pbname} passband.  Try changing the value of the atm parameter')
 
-            if intens_weighting=='photon':
-                ptfarea = pb.ptf_photon_area/pb.h/pb.c
+            if intens_weighting == 'photon':
+                ptfarea = pb.ptf_photon_area/passbands.h.value/passbands.c.value
             else:
                 ptfarea = pb.ptf_area
 
             self.set_ptfarea(dataset, ptfarea)
 
-            try:
-                ldint = pb.ldint(Teff=self.mesh.teffs.for_computations,
-                                 logg=self.mesh.loggs.for_computations,
-                                 abun=self.mesh.abuns.for_computations,
-                                 ldatm=ldatm,
-                                 ld_func=ld_func if ld_mode != 'interp' else ld_mode,
-                                 ld_coeffs=ld_coeffs,
-                                 photon_weighted=intens_weighting=='photon')
-            except ValueError as err:
-                if str(err).split(":")[0] == 'Atmosphere parameters out of bounds':
-                    # let's override with a more helpful error message
-                    logger.warning(str(err))
-                    if atm=='blackbody':
-                        raise ValueError("Could not compute ldint with ldatm='{}'.  Try changing ld_coeffs_source to a table that covers a sufficient range of values or set ld_mode to 'manual' and manually provide coefficients via ld_coeffs. Enable 'warning' logger to see out-of-bound arrays.".format(ldatm))
-                    else:
-                        if ld_mode=='interp':
-                            raise ValueError("Could not compute ldint with ldatm='{}'.  Try changing atm to a table that covers a sufficient range of values.  If necessary, set atm to 'blackbody' and/or ld_mode to 'manual' (in which case coefficients will need to be explicitly provided via ld_coeffs). Enable 'warning' logger to see out-of-bound arrays.".format(ldatm))
-                        elif ld_mode == 'lookup':
-                            raise ValueError("Could not compute ldint with ldatm='{}'.  Try changing atm to a table that covers a sufficient range of values.  If necessary, set atm to 'blackbody' and/or ld_mode to 'manual' (in which case coefficients will need to be explicitly provided via ld_coeffs). Enable 'warning' logger to see out-of-bound arrays.".format(ldatm))
-                        else:
-                            # manual... this means that the atm itself is out of bounds, so the only option is atm=blackbody
-                            raise ValueError("Could not compute ldint with ldatm='{}'.  Try changing atm to a table that covers a sufficient range of values.  If necessary, set atm to 'blackbody', ld_mode to 'manual', and provide coefficients via ld_coeffs. Enable 'warning' logger to see out-of-bound arrays.".format(ldatm))
-                else:
-                    raise err
+            # figure out what columns need to be packed into query_pts:
+            query_cols = atm_model.basic_axis_names.copy()
+            if ldatm_model is not None and ldatm_model != atm_model:
+                # add any new ldatm columns:
+                # note: can't use set() because the order is arbitrary
+                query_cols += [column for column in ldatm_model.basic_axis_names if column not in query_cols]
 
-            try:
-                # abs_normal_intensities are the normal emergent passband intensities:
-                abs_normal_intensities = pb.Inorm(Teff=self.mesh.teffs.for_computations,
-                                                  logg=self.mesh.loggs.for_computations,
-                                                  abun=self.mesh.abuns.for_computations,
-                                                  atm=atm,
-                                                  ldatm=ldatm,
-                                                  ldint=ldint,
-                                                  photon_weighted=intens_weighting=='photon')
-            except ValueError as err:
-                if str(err).split(":")[0] == 'Atmosphere parameters out of bounds':
-                    # let's override with a more helpful error message
-                    logger.warning(str(err))
-                    raise ValueError("Could not compute intensities with atm='{}'.  Try changing atm to a table that covers a sufficient range of values (or to 'blackbody' in which case ld_mode will need to be set to 'manual' and coefficients provided via ld_coeffs).  Enable 'warning' logger to see out-of-bounds arrays.".format(atm))
-                else:
-                    raise err
+            query_pts = np.stack((
+                [getattr(self.mesh, column).for_computations for column in query_cols]
+            )).T
 
-            # abs_intensities are the projected (limb-darkened) passband intensities
-            # TODO: why do we need to use abs(mus) here?
-            # ! Because the interpolation within Imu will otherwise fail.
-            # ! It would be best to pass only [visibilities > 0] elements to Imu.
-            abs_intensities = pb.Imu(Teff=self.mesh.teffs.for_computations,
-                                     logg=self.mesh.loggs.for_computations,
-                                     abun=self.mesh.abuns.for_computations,
-                                     mu=abs(self.mesh.mus_for_computations),
-                                     atm=atm,
-                                     ldatm=ldatm,
-                                     ldint=ldint,
-                                     ld_func=ld_func if ld_mode != 'interp' else ld_mode,
-                                     ld_coeffs=ld_coeffs,
-                                     photon_weighted=intens_weighting=='photon')
+            # TODO: change this once mus are stored as a column in the mesh
+            # if hasattr(atm_model, 'mus') or hasattr(ldatm_model, 'mus'):
+            query_cols += ['mus']
+            query_pts = np.c_[query_pts, np.abs(self.mesh.mus_for_computations)]
 
+            if extinct != 0.0 and not ignore_effects:
+                query_cols += ['ebvs', 'rvs']
+                ebvs = np.full_like(query_pts[:, 0], fill_value=extinct)
+                rvs = np.full_like(query_pts[:, 0], fill_value=Rv)
+                query_pts = np.c_[query_pts, ebvs, rvs]
+
+            query = passbands.InterpQuery(cols=query_cols, pts=query_pts)
+
+            ldint = pb.interpolate_ldints(
+                query=query,
+                ldatm=ldatm_model,
+                ld_func=ld_func if ld_mode != 'interp' else ld_mode,
+                ld_coeffs=ld_coeffs,
+                intens_weighting=intens_weighting,
+                ld_extrapolation_method=ld_extrapolation_method,
+            ).get_interpolated_values()
+
+            abs_normal_intensities = pb.interpolate_inorms(
+                query=query,
+                atm=atm_model,
+                ldatm=ldatm_model,
+                ldint=ldint,
+                ld_func=ld_func,
+                ld_coeffs=ld_coeffs,
+                intens_weighting=intens_weighting,
+                atm_extrapolation_method=atm_extrapolation_method,
+                ld_extrapolation_method=ld_extrapolation_method,
+                blending_method=blending_method
+            ).get_interpolated_values()
+
+            abs_intens_results = pb.interpolate_imus(
+                query=query,
+                atm=atm_model,
+                ldatm=ldatm_model,
+                ldint=ldint,
+                ld_func=ld_func if ld_mode != 'interp' else ld_mode,
+                ld_coeffs=ld_coeffs,
+                intens_weighting=intens_weighting,
+                atm_extrapolation_method=atm_extrapolation_method,
+                ld_extrapolation_method=ld_extrapolation_method,
+                blending_method=blending_method
+            )
+            abs_intensities = abs_intens_results.get_interpolated_values()
+            blending_factors = abs_intens_results.get_bfs()
+            if blending_factors is not None:
+                blending_factors = blending_factors.copy()
+            else:
+                blending_factors = np.full(abs_intensities.shape[0], np.nan)
+
+            extrapolation_dists = abs_intens_results.get_distances()
+            if extrapolation_dists is not None:
+                extrapolation_dists = extrapolation_dists.copy()
+            else:
+                extrapolation_dists = np.full(abs_intensities.shape[0], np.nan)
 
             # Beaming/boosting
             if boosting_method == 'none' or ignore_effects:
                 boost_factors = 1.0
-            elif boosting_method == 'linear':
-                logger.debug("calling pb.bindex for boosting_method='linear'")
-                bindex = pb.bindex(Teff=self.mesh.teffs.for_computations,
-                                   logg=self.mesh.loggs.for_computations,
-                                   abun=self.mesh.abuns.for_computations,
-                                   mu=abs(self.mesh.mus_for_computations),
-                                   atm=atm,
-                                   photon_weighted=intens_weighting=='photon')
-
-                boost_factors = 1.0 + bindex * self.mesh.velocities.for_computations[:,2]/37241.94167601236
+            elif boosting_method == 'manual':
+                # bindex = kwargs.get('boosting_index', self.boosting_index)
+                # bindex = kwargs.get('boosting_index', self.boosting_index.get(dataset, None))
+                boost_factors = 1.0 + bindex * self.mesh.velocities.for_computations[:, 2] / 37241.94167601236
             else:
                 raise NotImplementedError("boosting_method='{}' not supported".format(self.boosting_method))
 
             # boosting is aspect dependent so we don't need to correct the
             # normal intensities
-            abs_intensities *= boost_factors
+            abs_intensities *= np.atleast_2d(boost_factors).T
 
-            if extinct == 0.0:
+            # interstellar extinction (reddening):
+            if extinct == 0.0 or ignore_effects:
                 extinct_factors = 1.0
             else:
-                extinct_factors = pb.interpolate_extinct(Teff=self.mesh.teffs.for_computations,
-                                                         logg=self.mesh.loggs.for_computations,
-                                                         abun=self.mesh.abuns.for_computations,
-                                                         extinct=extinct,
-                                                         Rv=Rv,
-                                                         atm=atm,
-                                                         photon_weighted=intens_weighting=='photon')
+                result = pb.interpolate_extinct(
+                    query=query,
+                    atm=atm_model,
+                    intens_weighting=intens_weighting,
+                    extrapolation_method=atm_extrapolation_method
+                )
+                extinct_factors = result.interps
 
-                # extinction is NOT aspect dependent, so we'll correct both
-                # normal and directional intensities
-                abs_intensities *= extinct_factors
-                abs_normal_intensities *= extinct_factors
+            # extinction is NOT aspect dependent, so we'll correct both
+            # normal and directional intensities
+            abs_intensities *= extinct_factors
+            abs_normal_intensities *= extinct_factors
+
+            if not ignore_effects:
+                for feature in self.features:
+                    if self.__class__.__name__ == 'Star_roche_envelope_half' and self.ind_self != self.ind_self_vel:
+                        # then this is the secondary half of a contact envelope
+                        roche_coords_for_computations = np.array([1.0, 0.0, 0.0]) - mesh.roche_coords_for_computations
+                    else:
+                        roche_coords_for_computations = self.mesh.roche_coords_for_computations
+                    abs_normal_intensities, abs_intensities = feature.modify_intensities(abs_normal_intensities,
+                                                                                         abs_intensities,
+                                                                                         self.mesh.mus_for_computations,
+                                                                                         self.get_pblum_scale(dataset),
+                                                                                         extinct_factors,
+                                                                                         boost_factors,
+                                                                                         roche_coords_for_computations,
+                                                                                         s=self.polar_direction_xyz,
+                                                                                         t=self.time)
+
 
             # Handle pblum - distance and l3 scaling happens when integrating (in observe)
             # we need to scale each triangle so that the summed normal_intensities over the
             # entire star is equivalent to pblum / 4pi
+            # print(f'{self.get_pblum_scale(dataset)=}')
             normal_intensities = abs_normal_intensities * self.get_pblum_scale(dataset)
             intensities = abs_intensities * self.get_pblum_scale(dataset)
 
-        elif lc_method=='analytical':
+        elif lc_method == 'analytical':
             raise NotImplementedError("analytical fluxes not yet supported")
             # TODO: this probably needs to be moved into observe or backends.phoebe
             # (assuming it doesn't result in per-triangle quantities)
@@ -1937,12 +2019,14 @@ class Star(Body):
 
         # TODO: do we really need to store all of these if store_mesh==False?
         # Can we optimize by only returning the essentials if we know we don't need them?
-        return {'abs_normal_intensities': abs_normal_intensities,
-                'normal_intensities': normal_intensities,
-                'abs_intensities': abs_intensities,
-                'intensities': intensities,
-                'ldint': ldint,
-                'boost_factors': boost_factors}
+        return {'abs_normal_intensities': abs_normal_intensities.flatten(),
+                'normal_intensities': normal_intensities.flatten(),
+                'abs_intensities': abs_intensities.flatten(),
+                'intensities': intensities.flatten(),
+                'ldint': ldint.flatten(),
+                'boost_factors': boost_factors,
+                'blending_factors': blending_factors.flatten(),
+                'extrapolation_dists': extrapolation_dists.flatten()}
 
 
 class Star_roche(Star):
@@ -1954,13 +2038,15 @@ class Star_roche(Star):
                  long_an, t0, do_mesh_offset, mesh_init_phi,
 
                  atm, datasets, passband, intens_weighting,
+                 atm_extrapolation_method, ld_extrapolation_method, blending_method,
                  extinct, Rv,
                  ld_mode, ld_func, ld_coeffs, ld_coeffs_source,
                  lp_profile_rest,
+                 boosting_method, boosting_index,
                  requiv, sma,
                  polar_direction_uvw,
                  freq_rot,
-                 teff, gravb_bol, abun,
+                 teff, gravb_bol, abun, loghefrac,
                  irrad_frac_refl,
                  mesh_method, is_single,
                  do_rv_grav,
@@ -1978,13 +2064,15 @@ class Star_roche(Star):
                                          do_mesh_offset, mesh_init_phi,
 
                                          atm, datasets, passband, intens_weighting,
+                                         atm_extrapolation_method, ld_extrapolation_method, blending_method,
                                          extinct, Rv,
                                          ld_mode, ld_func, ld_coeffs, ld_coeffs_source,
                                          lp_profile_rest,
+                                         boosting_method, boosting_index,
                                          requiv, sma,
                                          polar_direction_uvw,
                                          freq_rot,
-                                         teff, gravb_bol, abun,
+                                         teff, gravb_bol, abun, loghefrac,
                                          irrad_frac_refl,
                                          mesh_method, is_single,
                                          do_rv_grav,
@@ -2022,7 +2110,7 @@ class Star_roche(Star):
         # TODO: what about dpdt, deccdt, dincldt, etc?
 
         for feature in self.features:
-            if feature._remeshing_required:
+            if feature.requires_remeshing():
                 return True
 
         return self.is_misaligned or self.ecc != 0 or self.dynamics_method != 'keplerian'
@@ -2182,13 +2270,15 @@ class Star_roche_envelope_half(Star):
                  long_an, t0, do_mesh_offset, mesh_init_phi,
 
                  atm, datasets, passband, intens_weighting,
+                 atm_extrapolation_method, ld_extrapolation_method, blending_method,
                  extinct, Rv,
                  ld_mode, ld_func, ld_coeffs, ld_coeffs_source,
                  lp_profile_rest,
+                 boosting_method, boosting_index,
                  requiv, sma,
                  polar_direction_uvw,
                  freq_rot,
-                 teff, gravb_bol, abun,
+                 teff, gravb_bol, abun, loghefrac,
                  irrad_frac_refl,
                  mesh_method, is_single,
                  do_rv_grav,
@@ -2210,13 +2300,15 @@ class Star_roche_envelope_half(Star):
                                          do_mesh_offset, mesh_init_phi,
 
                                          atm, datasets, passband, intens_weighting,
+                                         atm_extrapolation_method, ld_extrapolation_method, blending_method,
                                          extinct, Rv,
                                          ld_mode, ld_func, ld_coeffs, ld_coeffs_source,
                                          lp_profile_rest,
+                                         boosting_method, boosting_index,
                                          requiv, sma,
                                          polar_direction_uvw,
                                          freq_rot,
-                                         teff, gravb_bol, abun,
+                                         teff, gravb_bol, abun, loghefrac,
                                          irrad_frac_refl,
                                          mesh_method, is_single,
                                          do_rv_grav,
@@ -2385,13 +2477,15 @@ class Star_rotstar(Star):
                  long_an, t0, do_mesh_offset, mesh_init_phi,
 
                  atm, datasets, passband, intens_weighting,
+                 atm_extrapolation_method, ld_extrapolation_method, blending_method,
                  extinct, Rv,
                  ld_mode, ld_func, ld_coeffs, ld_coeffs_source,
                  lp_profile_rest,
+                 boosting_method, boosting_index,
                  requiv, sma,
                  polar_direction_uvw,
                  freq_rot,
-                 teff, gravb_bol, abun,
+                 teff, gravb_bol, abun, loghefrac,
                  irrad_frac_refl,
                  mesh_method, is_single,
                  do_rv_grav,
@@ -2409,13 +2503,15 @@ class Star_rotstar(Star):
                                            do_mesh_offset, mesh_init_phi,
 
                                            atm, datasets, passband, intens_weighting,
+                                           atm_extrapolation_method, ld_extrapolation_method, blending_method,
                                            extinct, Rv,
                                            ld_mode, ld_func, ld_coeffs, ld_coeffs_source,
                                            lp_profile_rest,
+                                           boosting_method, boosting_index,
                                            requiv, sma,
                                            polar_direction_uvw,
                                            freq_rot,
-                                           teff, gravb_bol, abun,
+                                           teff, gravb_bol, abun, loghefrac,
                                            irrad_frac_refl,
                                            mesh_method, is_single,
                                            do_rv_grav,
@@ -2450,7 +2546,6 @@ class Star_rotstar(Star):
         """
         whether the star needs to be re-meshed (for any reason)
         """
-        # TODO: or self.distortion_method != 'keplerian'?? If Nbody orbits can change freq_rot in time, then we need to remesh
         return self.is_misaligned
 
     @property
@@ -2570,13 +2665,15 @@ class Star_sphere(Star):
                  long_an, t0, do_mesh_offset, mesh_init_phi,
 
                  atm, datasets, passband, intens_weighting,
+                 atm_extrapolation_method, ld_extrapolation_method, blending_method,
                  extinct, Rv,
                  ld_mode, ld_func, ld_coeffs, ld_coeffs_source,
                  lp_profile_rest,
+                 boosting_method, boosting_index,
                  requiv, sma,
                  polar_direction_uvw,
                  freq_rot,
-                 teff, gravb_bol, abun,
+                 teff, gravb_bol, abun, loghefrac,
                  irrad_frac_refl,
                  mesh_method, is_single,
                  do_rv_grav,
@@ -2594,13 +2691,15 @@ class Star_sphere(Star):
                                           do_mesh_offset, mesh_init_phi,
 
                                           atm, datasets, passband, intens_weighting,
+                                          atm_extrapolation_method, ld_extrapolation_method, blending_method,
                                           extinct, Rv,
                                           ld_mode, ld_func, ld_coeffs, ld_coeffs_source,
                                           lp_profile_rest,
+                                          boosting_method, boosting_index,
                                           requiv, sma,
                                           polar_direction_uvw,
                                           freq_rot,
-                                          teff, gravb_bol, abun,
+                                          teff, gravb_bol, abun, loghefrac,
                                           irrad_frac_refl,
                                           mesh_method, is_single,
                                           do_rv_grav,
@@ -3027,320 +3126,3 @@ class Envelope(Body):
 
         for half in self._halves:
             half.populate_observable(time, kind, dataset, **kwargs)
-
-
-################################################################################
-################################################################################
-################################################################################
-
-
-class Feature(object):
-    """
-    Note that for all features, each of the methods below will be called.  So
-    changing the coordinates WILL affect the original/intrinsic loggs which
-    will then be used as input for that method call.
-
-    In other words, its probably safest if each feature only overrides a
-    SINGLE one of the methods.  Overriding multiple methods should be done
-    with great care.
-
-    Each feature may or may not require recomputing a mesh, depending on the
-    kind of change it exacts to the mesh. For example, pulsations will require
-    recomputing a mesh while spots will not. By default, the mesh will be
-    recomputed (set in this superclass' `__init__()` method) but inherited
-    classes should overload `self._remeshing_required`.
-    """
-    def __init__(self, *args, **kwargs):
-        pass
-
-    @property
-    def _remeshing_required(self):
-        return True
-
-    @property
-    def proto_coords(self):
-        """
-        Override this to True if all methods (except process_coords*... those
-        ALWAYS expect protomesh coordinates) are expecting coordinates
-        in the protomesh (star) frame-of-reference rather than the
-        current in-orbit system frame-of-reference.
-        """
-        return False
-
-    def process_coords_for_computations(self, coords_for_computations, s, t):
-        """
-        Method for a feature to process the coordinates.  Coordinates are
-        processed AFTER scaling but BEFORE being placed in orbit.
-
-        NOTE: coords_for_computations affect physical properties only and
-        not geometric properties (areas, eclipse detection, etc).  If you
-        want to override geometric properties, use the hook for
-        process_coords_for_observations as well.
-
-        Features that affect coordinates_for_computations should override
-        this method
-        """
-        return coords_for_computations
-
-    def process_coords_for_observations(self, coords_for_computations, coords_for_observations, s, t):
-        """
-        Method for a feature to process the coordinates.  Coordinates are
-        processed AFTER scaling but BEFORE being placed in orbit.
-
-        NOTE: coords_for_observations affect the geometry only (areas of each
-        element and eclipse detection) but WILL NOT affect any physical
-        parameters (loggs, teffs, intensities).  If you want to override
-        physical parameters, use the hook for process_coords_for_computations
-        as well.
-
-        Features that affect coordinates_for_observations should override this method.
-        """
-        return coords_for_observations
-
-    def process_loggs(self, loggs, coords, s=np.array([0., 0., 1.]), t=None):
-        """
-        Method for a feature to process the loggs.
-
-        Features that affect loggs should override this method
-        """
-        return loggs
-
-    def process_teffs(self, teffs, coords, s=np.array([0., 0., 1.]), t=None):
-        """
-        Method for a feature to process the teffs.
-
-        Features that affect teffs should override this method
-        """
-        return teffs
-
-class Spot(Feature):
-    def __init__(self, colat, longitude, dlongdt, radius, relteff, t0, **kwargs):
-        """
-        Initialize a Spot feature
-        """
-        super(Spot, self).__init__(**kwargs)
-        self._colat = colat
-        self._longitude = longitude
-        self._radius = radius
-        self._relteff = relteff
-        self._dlongdt = dlongdt
-        self._t0 = t0
-
-    @classmethod
-    def from_bundle(cls, b, feature):
-        """
-        Initialize a Spot feature from the bundle.
-        """
-
-        feature_ps = b.get_feature(feature=feature, **_skip_filter_checks)
-
-        colat = feature_ps.get_value(qualifier='colat', unit=u.rad, **_skip_filter_checks)
-        longitude = feature_ps.get_value(qualifier='long', unit=u.rad, **_skip_filter_checks)
-
-        if len(b.hierarchy.get_stars())>=2:
-            star_ps = b.get_component(component=feature_ps.component, **_skip_filter_checks)
-            orbit_ps = b.get_component(component=b.hierarchy.get_parent_of(feature_ps.component), **_skip_filter_checks)
-            # TODO: how should this handle dpdt?
-
-            # we won't use syncpar directly because that is defined wrt sidereal period and we want to make sure
-            # this translated to roche longitude correctly.  In the non-apsidal motion case
-            # syncpar = period_anom_orb / period_star
-            period_anom_orb = orbit_ps.get_value(qualifier='period_anom', unit=u.d, **_skip_filter_checks)
-            period_star = star_ps.get_value(qualifier='period', unit=u.d, **_skip_filter_checks)
-            dlongdt = 2*pi * (period_anom_orb/period_star - 1) / period_anom_orb
-        else:
-            star_ps = b.get_component(component=feature_ps.component, **_skip_filter_checks)
-            dlongdt = star_ps.get_value(qualifier='freq', unit=u.rad/u.d, **_skip_filter_checks)
-            longitude += np.pi/2
-
-        radius = feature_ps.get_value(qualifier='radius', unit=u.rad, **_skip_filter_checks)
-        relteff = feature_ps.get_value(qualifier='relteff', unit=u.dimensionless_unscaled, **_skip_filter_checks)
-
-        t0 = b.get_value(qualifier='t0', context='system', unit=u.d, **_skip_filter_checks)
-
-        return cls(colat, longitude, dlongdt, radius, relteff, t0)
-
-    @property
-    def _remeshing_required(self):
-        return False
-
-    @property
-    def proto_coords(self):
-        """
-        """
-        return True
-
-    def pointing_vector(self, s, time):
-        """
-        s is the spin vector in roche coordinates
-        time is the current time
-        """
-        t = time - self._t0
-        longitude = self._longitude + self._dlongdt * t
-
-        '''
-        define the basis vectors in the spin (primed) coordinates in terms of
-        the Roche coordinates.
-        - the z' direction is explicitly given by the spin vector
-        ez' = s
-        - the x' direction should point in the longitudinal direction that the 
-        companion is in the rotating frame, which means that the y' direction should 
-        always be orthogonal to x. Thus, to get this, we'll first calculate the y' 
-        direction by taking the cross product of the z' and x directions 
-        ey' = ez' x ex
-        if the pole aligns with the x-axis, then the y' direction is the z direction
-        - the x' direction is then defined by the cross product of the other two
-        ex' = ey' x ez'
-        '''
-        ex = np.array([1., 0., 0.])
-        ezp = s / np.linalg.norm(s)
-        if (s == ex).all():
-            eyp = np.array([0., 0., 1.])
-        else:
-            eyp = np.cross(ezp, ex)
-        exp = np.cross(eyp, ezp)
-
-        # now we can express the pointing vector in terms of the primed basis
-        pv = np.sin(self._colat)*np.cos(longitude)*exp +\
-                  np.sin(self._colat)*np.sin(longitude)*eyp +\
-                  np.cos(self._colat)*ezp
-        
-        # renormalize and return pointing vector
-        return pv / np.linalg.norm(pv)
-
-
-    def process_teffs(self, teffs, coords, s=np.array([0., 0., 1.]), t=None):
-        """
-        Change the local effective temperatures for any values within the
-        "cone" defined by the spot.  Any teff within the spot will have its
-        current value multiplied by the "relteff" factor
-
-        :parameter array teffs: array of teffs for computations
-        :parameter array coords: array of coords for computations
-        :t float: current time
-        """
-        if t is None:
-            # then assume at t0
-            t = self._t0
-
-        pointing_vector = self.pointing_vector(s,t)
-        logger.debug("spot.process_teffs at t={} with pointing_vector={} and radius={}".format(t, pointing_vector, self._radius))
-
-        cos_alpha_coords = np.dot(coords, pointing_vector) / np.linalg.norm(coords, axis=1)
-        cos_alpha_spot = np.cos(self._radius)
-
-        filter_ = cos_alpha_coords > cos_alpha_spot
-        teffs[filter_] = teffs[filter_] * self._relteff
-
-        return teffs
-
-class Pulsation(Feature):
-    def __init__(self, radamp, freq, l=0, m=0, tanamp=0.0, teffext=False, **kwargs):
-        self._freq = freq
-        self._radamp = radamp
-        self._l = l
-        self._m = m
-        self._tanamp = tanamp
-
-        self._teffext = teffext
-
-    @classmethod
-    def from_bundle(cls, b, feature):
-        """
-        Initialize a Pulsation feature from the bundle.
-        """
-
-        feature_ps = b.get_feature(feature=feature, **_skip_filter_checks)
-        freq = feature_ps.get_value(qualifier='freq', unit=u.d**-1, **_skip_filter_checks)
-        radamp = feature_ps.get_value(qualifier='radamp', unit=u.dimensionless_unscaled, **_skip_filter_checks)
-        l = feature_ps.get_value(qualifier='l', unit=u.dimensionless_unscaled, **_skip_filter_checks)
-        m = feature_ps.get_value(qualifier='m', unit=u.dimensionless_unscaled, **_skip_filter_checks)
-        teffext = feature_ps.get_value(qualifier='teffext', **_skip_filter_checks)
-
-        GM = c.G.to('solRad3 / (solMass d2)').value*b.get_value(qualifier='mass', component=feature_ps.component, context='component', unit=u.solMass, **_skip_filter_checks)
-        R = b.get_value(qualifier='rpole', component=feature_ps.component, section='component', unit=u.solRad, **_skip_filter_checks)
-
-        tanamp = GM/R**3/freq**2
-
-        return cls(radamp, freq, l, m, tanamp, teffext)
-
-    @property
-    def proto_coords(self):
-        """
-        """
-        return True
-
-    def dYdtheta(self, m, l, theta, phi):
-        if abs(m) > l:
-            return 0
-
-        # TODO: just a quick hack
-        if abs(m+1) > l:
-            last_term = 0.0
-        else:
-            last_term = Y(m+1, l, theta, phi)
-
-        return m/np.tan(theta)*Y(m, l, theta, phi) + np.sqrt((l-m)*(l+m+1))*np.exp(-1j*phi)*last_term
-
-    def dYdphi(self, m, l, theta, phi):
-        return 1j*m*Y(m, l, theta, phi)
-
-    def process_coords_for_computations(self, coords_for_computations, s, t):
-        """
-        """
-        if self._teffext:
-            return coords_for_computations
-
-        x, y, z, r = coords_for_computations[:,0], coords_for_computations[:,1], coords_for_computations[:,2], np.sqrt((coords_for_computations**2).sum(axis=1))
-        theta = np.arccos(z/r)
-        phi = np.arctan2(y, x)
-
-        xi_r = self._radamp * Y(self._m, self._l, theta, phi) * np.exp(-1j*2*np.pi*self._freq*t)
-        xi_t = self._tanamp * self.dYdtheta(self._m, self._l, theta, phi) * np.exp(-1j*2*np.pi*self._freq*t)
-        xi_p = self._tanamp/np.sin(theta) * self.dYdphi(self._m, self._l, theta, phi) * np.exp(-1j*2*np.pi*self._freq*t)
-
-        new_coords = np.zeros(coords_for_computations.shape)
-        new_coords[:,0] = coords_for_computations[:,0] + xi_r * np.sin(theta) * np.cos(phi)
-        new_coords[:,1] = coords_for_computations[:,1] + xi_r * np.sin(theta) * np.sin(phi)
-        new_coords[:,2] = coords_for_computations[:,2] + xi_r * np.cos(theta)
-
-        return new_coords
-
-    def process_coords_for_observations(self, coords_for_computations, coords_for_observations, s, t):
-        """
-        Displacement equations:
-
-          xi_r(r, theta, phi)     = a(r) Y_lm (theta, phi) exp(-i*2*pi*f*t)
-          xi_theta(r, theta, phi) = b(r) dY_lm/dtheta (theta, phi) exp(-i*2*pi*f*t)
-          xi_phi(r, theta, phi)   = b(r)/sin(theta) dY_lm/dphi (theta, phi) exp(-i*2*pi*f*t)
-
-        where:
-
-          b(r) = a(r) GM/(R^3*f^2)
-        """
-        # TODO: we do want to displace the coords_for_observations, but the x,y,z,r below are from the ALSO displaced coords_for_computations
-        # if not self._teffext:
-            # return coords_for_observations
-
-        x, y, z, r = coords_for_computations[:,0], coords_for_computations[:,1], coords_for_computations[:,2], np.sqrt((coords_for_computations**2).sum(axis=1))
-        theta = np.arccos(z/r)
-        phi = np.arctan2(y, x)
-
-        xi_r = self._radamp * Y(self._m, self._l, theta, phi) * np.exp(-1j*2*np.pi*self._freq*t)
-        xi_t = self._tanamp * self.dYdtheta(self._m, self._l, theta, phi) * np.exp(-1j*2*np.pi*self._freq*t)
-        xi_p = self._tanamp/np.sin(theta) * self.dYdphi(self._m, self._l, theta, phi) * np.exp(-1j*2*np.pi*self._freq*t)
-
-        new_coords = np.zeros(coords_for_observations.shape)
-        new_coords[:,0] = coords_for_observations[:,0] + xi_r * np.sin(theta) * np.cos(phi)
-        new_coords[:,1] = coords_for_observations[:,1] + xi_r * np.sin(theta) * np.sin(phi)
-        new_coords[:,2] = coords_for_observations[:,2] + xi_r * np.cos(theta)
-
-        return new_coords
-
-    def process_teffs(self, teffs, coords, s=np.array([0., 0., 1.]), t=None):
-        """
-        """
-        if not self._teffext:
-            return teffs
-
-        raise NotImplementedError("teffext=True not yet supported for pulsations")

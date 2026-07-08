@@ -4,6 +4,7 @@ General logic for all Parameters and ParameterSets which makeup the overall
 framework of the PHOEBE 2.0 frontend.
 """
 
+from phoebe.atmospheres.models import _atmtable
 from phoebe.constraints.expression import ConstraintVar
 # from phoebe.constraints import builtin
 from phoebe.parameters.twighelpers import _uniqueid_to_uniquetwig
@@ -182,7 +183,7 @@ _forbidden_labels += ['bol']
 _forbidden_labels += ['lc', 'rv', 'lp', 'sp', 'orb', 'mesh']
 _forbidden_labels += ['star', 'orbit', 'envelope']
 _forbidden_labels += ['spot', 'pulsation']
-_forbidden_labels += ['phoebe', 'legacy', 'jktebop', 'photodynam', 'ellc']
+_forbidden_labels += ['phoebe', 'legacy', 'jktebop', 'ellc']
 
 
 
@@ -198,7 +199,7 @@ _forbidden_labels += ['phoebe_version', 'dict_filter',
                       'auto_add_figure', 'auto_remove_figure', 'web_client', 'web_client_url']
 
 # from component
-_forbidden_labels += ['requiv', 'requiv_max', 'requiv_min', 'teff', 'abun', 'logg',
+_forbidden_labels += ['requiv', 'requiv_max', 'requiv_min', 'teff', 'abun', 'loghefrac', 'logg',
                       'fillout_factor', 'pot_min', 'pot_max',
                       'period_anom',
                       'syncpar', 'period', 'pitch', 'yaw', 'incl', 'long_an',
@@ -218,13 +219,13 @@ _forbidden_labels += ['times', 'fluxes', 'sigmas', 'sigmas_lnf',
                      'gp_exclude_phases_enabled', 'gp_exclude_phases',
                      'solver_times', 'expose_samples', 'expose_failed',
                      'ld_mode', 'ld_func', 'ld_coeffs', 'ld_coeffs_source',
+                     'boosting_method', 'boosting_index',
                      'passband', 'intens_weighting',
                      'pblum_mode', 'pblum_ref', 'pblum', 'pbflux',
                      'pblum_dataset', 'pblum_component',
                      'l3_mode', 'l3', 'l3_frac',
-                     'exptime', 'rvs', 'wavelengths', 'rv_offset',
+                     'exptime', 'rvs', 'wavelengths',
                      'flux_densities', 'profile_func', 'profile_rest', 'profile_sv',
-                     'Ns', 'time_ecls', 'time_ephems', 'etvs',
                      'us', 'vs', 'ws', 'vus', 'vvs', 'vws',
                      'include_times', 'columns', 'coordinates',
                      'uvw_elements', 'xyz_elements',
@@ -236,18 +237,20 @@ _forbidden_labels += ['times', 'fluxes', 'sigmas', 'sigmas_lnf',
                      'intensities', 'abs_intensities',
                      'normal_intensities', 'abs_normal_intensities',
                      'boost_factors', 'ldint', 'ptfarea',
-                     'pblum', 'pblum_ext', 'abs_pblum', 'abs_pblum_ext']
+                     'pblum', 'pblum_ext', 'abs_pblum', 'abs_pblum_ext',
+                     'blending_factors', 'extrapolation_dists']
 
 
 # from compute:
 _forbidden_labels += ['enabled', 'dynamics_method', 'ltte', 'comments',
                       'gr', 'stepsize', 'integrator',
-                      'irrad_method', 'boosting_method', 'mesh_method', 'distortion_method',
+                      'irrad_method', 'mesh_method', 'distortion_method',
+                      'atm_extrapolation_method', 'ld_extrapolation_method',
+                      'blending_method', 'extrapolation_max_frac',
                       'ntriangles', 'rv_grav',
                       'mesh_offset', 'mesh_init_phi', 'horizon_method', 'eclipse_method',
                       'atm', 'lc_method', 'rv_method', 'fti_method', 'fti_oversample',
                       'pblum_method', 'requiv_max_limit',
-                      'etv_method', 'etv_tol',
                       'gridsize', 'refl_num', 'ie',
                       'stepsize', 'orbiterror', 'ringsize',
                       'exact_grav', 'grid', 'hf',
@@ -301,7 +304,7 @@ _forbidden_labels += ['colat', 'long', 'radius', 'relteff',
                       'rho', 'sigma', 'tau', 'period', 'Q0', 'dQ', 'f', 'eps',
                       'sigma_0', 'constant_value_bounds', 'length_scale_bounds',
                       'noise_level_bounds', 'periodicity_bounds', 'alpha_bounds', 'nu_bounds',
-                      'sigma_0_bounds', 'alg_operation',
+                      'sigma_0_bounds', 'alg_operation', 'feature_type', 'custom_code'
                       ]
 
 # from figure:
@@ -3044,7 +3047,7 @@ class ParameterSet(object):
 
         Returns
         ---------
-        * (<phoebe.parameters.Parameter, bool): the Parameter object (either
+        * (<phoebe.parameters.Parameter>, bool): the Parameter object (either
             from filtering or newly created) and a boolean telling whether the
             Parameter was created or not.
 
@@ -3377,8 +3380,7 @@ class ParameterSet(object):
                 if not isinstance(param, FloatArrayParameter):
                     raise TypeError
 
-                # TODO: do we need to be more clever about time qualifier for
-                # ETV datasets? TODO: is this robust enough... this won't search
+                #  TODO: is this robust enough... this won't search
                 # for times outside the existing ParameterSet.  We could also
                 # try param.get_parent_ps().get_parameter('time'), but this
                 # won't work when outside the bundle (which is used within
@@ -4437,9 +4439,6 @@ class ParameterSet(object):
                         ds_ps = ps._bundle.get_dataset(dataset=ps.dataset, **_skip_filter_checks)
                         times = ds_ps.get_value(qualifier='times', component=ps.component, **_skip_filter_checks)
                         times = _handle_mask(ds_ps, times, **kwargs)
-                    elif ps.kind == 'etvs':
-                        times = ps.get_value(qualifier='time_ecls', unit=u.d, **_skip_filter_checks)
-                        times = _handle_mask(ps, times, **kwargs)
                     else:
                         times = ps.get_value(qualifier='times', unit=u.d, **_skip_filter_checks)
                         times = _handle_mask(ps, times, **kwargs)
@@ -4738,12 +4737,6 @@ class ParameterSet(object):
             kwargs.setdefault('highlight_size', kwargs.get('size', 0.02))  # this matches the default in autofig for call._sizes
             kwargs.setdefault('uncover', True)
             kwargs.setdefault('trail', 0)
-
-        elif ps.kind == 'etv':
-            defaults = {'x': 'time_ecls',
-                        'y': 'etvs',
-                        'z': 0}
-            sigmas_avail = ['etvs']
         elif ps.kind in ['emcee', 'dynesty', 'lc_periodogram', 'rv_periodogram', 'lc_geometry', 'rv_geometry', 'ebai']:
             pass
             # handled below
@@ -5364,17 +5357,6 @@ class ParameterSet(object):
                     kwargs['iqualifier'] = iqualifier
                 else:
                     raise NotImplementedError
-            elif ps.kind == 'etv':
-                if iqualfier=='times':
-                    kwargs['i'] = ps.get_quantity(qualifier='time_ecls', **_skip_filter_checks)
-                    kwargs['iqualifier'] = 'time_ecls'
-                elif iqualifier.split(':')[0] == 'phases':
-                    # TODO: need to test this
-                    icomponent = iqualifier.split(':')[1] if len(iqualifier.split(':')) > 1 else None
-                    kwargs['i'] = self._bundle.to_phase(ps.get_quantity(qualifier='time_ecls'), component=icomponent, **_skip_filter_checks)
-                    kwargs['iqualifier'] = iqualifier
-                else:
-                    raise NotImplementedError
             else:
                 if iqualifier=='times':
                     kwargs['i'] = _handle_mask(ps, ps.get_quantity(qualifier='times', **_skip_filter_checks), **kwargs)
@@ -5422,6 +5404,15 @@ class ParameterSet(object):
             elif qualifier in ['visibilities']:
                 kwargs.setdefault('{}map'.format(af_direction), 'RdYlGn')
                 kwargs.setdefault('{}lim'.format(af_direction), (0,1))
+            elif qualifier == 'blending_factors':
+                kwargs.setdefault('{}map'.format(af_direction), 'RdYlGn_r')
+                kwargs.setdefault('{}lim'.format(af_direction), (0,1))
+            elif qualifier == 'extrapolation_dists':
+                kwargs.setdefault('{}map'.format(af_direction), 'RdYlGn_r')
+                # NOTE: max value here should match the value of blending_margin
+                # passed to interpolate_inorms/imus, which is currently
+                # hardcoded to 3
+                kwargs.setdefault('{}lim'.format(af_direction), (0,3))
 
         #### LABEL FOR LEGENDS
         attrs = ['component', 'dataset']
@@ -7287,8 +7278,17 @@ class Parameter(object):
                 enabled_features_with_kind = self._bundle.filter(qualifier='enabled', value=True, compute=self.compute, feature=features_with_kind, **_skip_filter_checks).features
                 return dataset in self._bundle.filter(context='feature', feature=enabled_features_with_kind, **_skip_filter_checks).datasets
 
-            else:
+            elif qualifier == 'atm_in_computes': # can probably get rid of this, but will break any bundle created in blending dev branch
+                compute_atms = [p.get_value() for p in self._bundle.filter(qualifier='atm', context='compute', component=self.component, **_skip_filter_checks).to_list()]
+                if value[0] in ['!', '~']:
+                    return not all(fnmatch(atm, value[1:]) for atm in compute_atms)
+                return any(fnmatch(atm, value) for atm in compute_atms)
 
+            elif qualifier == 'atm_in_computes_has_axis':
+                compute_atms = [p.get_value() for p in self._bundle.filter(qualifier='atm', context='compute', component=self.component, **_skip_filter_checks).to_list()]
+                return any(_atmtable.get(compute_atm).has_axis(value) for compute_atm in compute_atms)
+
+            else:
                 # the parameter needs to have all the same meta data except qualifier
                 # TODO: switch this to use self.get_parent_ps ?
                 metawargs = {k:v for k,v in self.get_meta(ignore=['twig', 'uniquetwig', 'uniqueid']+remove_metawargs).items() if v is not None}
@@ -7912,8 +7912,6 @@ class StringParameter(Parameter):
             or is not a valid value for the Parameter.
         """
         self._readonly_check(**kwargs)
-
-        _orig_value = _deepcopy(value)
 
         try:
             value = str(value)
@@ -9914,11 +9912,14 @@ class FloatParameter(Parameter):
 
         # handle wrapping for angle measurements
         if value is not None and value.unit.physical_type == 'angle':
-            # NOTE: this may fail for nparray types
-            if value > (360*u.deg) or value < (0*u.deg):
+            value_deg = value.to(u.deg).value
+            out_of_range = np.any((value_deg > 360.0) | (value_deg < 0.0))
+            if out_of_range:
                 if self._bundle is not None and self._bundle._within_solver and not kwargs.get('from_constraint', False):
-                    if abs(value.to(u.deg).value - self._value.to(u.deg).value) > 180:
-                        raise ValueError("value further than 180 deg from {}".format(self._value.to(u.deg).value))
+                    if self._value is not None:
+                        old_deg = self._value.to(u.deg).value
+                        if np.any(np.abs(np.asarray(value_deg) - np.asarray(old_deg)) > 180.0):
+                            raise ValueError("value further than 180 deg from {}".format(old_deg))
                 value = value % (360*u.deg)
                 logger.info("wrapping value of {} to {}".format(self.qualifier, value))
 
@@ -11943,8 +11944,6 @@ class ConstraintParameter(Parameter):
             return False
 
         def get_values(vars, safe_label=True, string_safe_arrays=False, use_distribution=None, needs_builtin=False):
-            # use np.float64 so that dividing by zero will result in a
-            # np.inf
             def _single_value(quantity, string_safe_arrays=False):
                 if isinstance(quantity, u.Quantity):
                     if self.in_solar_units:
@@ -12673,3 +12672,83 @@ class JobParameter(Parameter):
         # TODO: options for whether to pass delete_volume
         self.crimpl_job.resubmit_script()
         self._value = 'unknown'
+
+
+class CodeParameter(StringParameter):
+    @staticmethod
+    def get_code_for_cls(cls, ignore=None):
+        import inspect
+
+        if ignore is None:
+            ignore = []
+
+        # inspect.getmembers_static is unavailable in older Python versions.
+        if hasattr(inspect, 'getmembers_static'):
+            members = inspect.getmembers_static(cls)
+        else:
+            members = [(name, inspect.getattr_static(cls, name)) for name in dir(cls)]
+
+        code = inspect.getsource(cls.__init__)
+        for name, member in members:
+            if name in ignore:
+                continue
+            if name.startswith('__') and name not in ['__repr__']:
+                continue
+            if isinstance(member, property):
+                raise ValueError("input class cannot contain any properties")
+            if hasattr(member, '__call__') or hasattr(member, '__wrapped__'):
+                code += inspect.getsource(member)
+            else:
+                value = getattr(cls, name)
+                if isinstance(value, str):
+                    value = f"'{value}'"
+                code += f"    {name} = {value}\n"
+        return code
+
+    @staticmethod
+    def get_class_from_code(code, clsname='ClassFromCode'):
+        code = f"class {clsname}:\n    def __repr__(self):\n        return '<Feature {clsname}>'\n" + code
+        namespace = {}
+        exec(code, globals(), namespace)
+        return namespace[clsname]
+
+    def set_value(self, value, **kwargs):
+        if isinstance(value, str):
+            str_value = value
+        else:
+            str_value = self.get_code_for_cls(value, ignore=['get_parameters'])
+        try:
+            self.get_class_from_code(str_value)
+        except Exception as err:
+            raise ValueError(f"Error parsing code for {self.kind}: {str(err)}")
+        super().set_value(str_value, **kwargs)
+
+    def get_source_code(self, **kwargs):
+        """
+        Return the raw source string stored in this <phoebe.parameters.CodeParameter>.
+
+        See also:
+        * <phoebe.parameters.CodeParameter.get_value>
+
+        Arguments
+        ----------
+        * `**kwargs`: forwarded to <phoebe.parameters.StringParameter.get_value>
+            for default/override behavior.
+
+        Returns
+        -------
+        * (str): code string used to reconstruct the runtime class.
+        """
+        return super().get_value(**kwargs)
+
+    def to_dict(self):
+        """
+        Return dictionary representation with code serialized as a string.
+        """
+        d = super().to_dict()
+        d['value'] = self.get_source_code()
+        return d
+
+    def get_value(self, **kwargs):
+        str_value = self.get_source_code(**kwargs)
+        return self.get_class_from_code(str_value, self.kind)

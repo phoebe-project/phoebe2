@@ -1,13 +1,16 @@
 /build
 /dist
 .vscode
+/phoebe/atmospheres/tables/scripts
 /phoebe/atmospheres/tables/ck2004
 /phoebe/atmospheres/tables/ck2004i
-/phoebe/atmospheres/tables/phoenix
-/phoebe/atmospheres/tables/tmap
+/phoebe/atmospheres/tables/phoenix*
+/phoebe/atmospheres/tables/tmap*
 /phoebe/atmospheres/tables/tlusty
-/phoebe/atmospheres/tables/phoenix.orig
+/tests/tests/test_passbands/tables
+/tests/benchmark/results
 MANIFEST
+*checkme*
 *_tmp*
 *after.phoebe
 *test.legacy
@@ -18,6 +21,7 @@ MANIFEST
 *.log
 *.txt
 *.png
+*.o
 *.so
 *.egg-info
 .DS_Store

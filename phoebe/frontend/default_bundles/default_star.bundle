@@ -199,7 +199,23 @@ null
 null,
 null
 ],
-"visible_if": "hierarchy.is_contact_binary:False",
+"visible_if": "hierarchy.is_contact_binary:False,atm_in_computes_has_axis:abuns",
+"copy_for": false,
+"Class": "FloatParameter"
+},
+{
+"qualifier": "loghefrac",
+"component": "starA",
+"kind": "star",
+"context": "component",
+"description": "Helium fraction, log(He/H) abundance by number.",
+"value": 0.0,
+"default_unit": "",
+"limits": [
+-10.0,
+10.0
+],
+"visible_if": "hierarchy.is_contact_binary:False,atm_in_computes_has_axis:loghefracs",
 "copy_for": false,
 "Class": "FloatParameter"
 },
@@ -427,7 +443,12 @@ null
 "choices": [
 "auto",
 "phoenix",
-"ck2004"
+"tmap_DAO",
+"ck2004",
+"tmap_DA",
+"tmap_sdO",
+"tremblay",
+"tmap_DO"
 ],
 "value": "auto",
 "visible_if": "ld_mode_bol:lookup",
@@ -760,20 +781,6 @@ null,
 "Class": "ChoiceParameter"
 },
 {
-"qualifier": "boosting_method",
-"compute": "phoebe01",
-"kind": "phoebe",
-"context": "compute",
-"description": "Type of boosting method",
-"choices": [
-"none"
-],
-"value": "none",
-"copy_for": false,
-"advanced": true,
-"Class": "ChoiceParameter"
-},
-{
 "qualifier": "mesh_method",
 "component": "_default",
 "compute": "phoebe01",
@@ -878,10 +885,15 @@ null
 "description": "Atmosphere table",
 "choices": [
 "phoenix",
+"extern_planckint",
 "extern_atmx",
-"ck2004",
+"tmap_DAO",
 "blackbody",
-"extern_planckint"
+"ck2004",
+"tmap_DA",
+"tmap_sdO",
+"tremblay",
+"tmap_DO"
 ],
 "value": "ck2004",
 "copy_for": {
@@ -891,6 +903,93 @@ null
 "component": "*"
 },
 "Class": "ChoiceParameter"
+},
+{
+"qualifier": "atm_extrapolation_method",
+"component": "_default",
+"compute": "phoebe01",
+"kind": "phoebe",
+"context": "compute",
+"description": "Method of extrapolating intensities outside of the atmosphere grid",
+"choices": [
+"none",
+"nearest",
+"linear"
+],
+"value": "linear",
+"visible_if": "atm:!blackbody,atm:!extern_planckint,atm:!extern_atmx",
+"copy_for": {
+"kind": [
+"star"
+],
+"component": "*"
+},
+"Class": "ChoiceParameter"
+},
+{
+"qualifier": "ld_extrapolation_method",
+"component": "_default",
+"compute": "phoebe01",
+"kind": "phoebe",
+"context": "compute",
+"description": "Method of extrapolating limb-darkening intensities outside of the atmosphere grid",
+"choices": [
+"none",
+"nearest",
+"linear"
+],
+"value": "nearest",
+"visible_if": "atm:!blackbody,atm:!extern_planckint,atm:!extern_atmx",
+"copy_for": {
+"kind": [
+"star"
+],
+"component": "*"
+},
+"Class": "ChoiceParameter"
+},
+{
+"qualifier": "blending_method",
+"component": "_default",
+"compute": "phoebe01",
+"kind": "phoebe",
+"context": "compute",
+"description": "Method to use for blending model atmosphere and blackbody intensities off the atmosphere grid",
+"choices": [
+"none",
+"blackbody"
+],
+"value": "blackbody",
+"visible_if": "atm:!blackbody,atm:!extern_planckint,atm:!extern_atmx,atm_extrapolation_method:!none,ld_extrapolation_method:!none",
+"copy_for": {
+"kind": [
+"star"
+],
+"component": "*"
+},
+"Class": "ChoiceParameter"
+},
+{
+"qualifier": "extrapolation_max_frac",
+"component": "_default",
+"compute": "phoebe01",
+"kind": "phoebe",
+"context": "compute",
+"description": "Fraction of the number of surface elements allowed to be outside of the atmosphere grid before an error is raised.  Set to 1 to allow all surface elements to be outside of the atmosphere grid without warning.",
+"value": 0.25,
+"default_unit": "",
+"limits": [
+0.0,
+1.0
+],
+"visible_if": "atm:!blackbody,atm:!extern_planckint,atm:!extern_atmx,atm_extrapolation_method:!none",
+"copy_for": {
+"kind": [
+"star"
+],
+"component": "*"
+},
+"Class": "FloatParameter"
 },
 {
 "qualifier": "fti_method",
@@ -918,7 +1017,7 @@ null
 "compute": "phoebe01",
 "kind": "phoebe",
 "context": "compute",
-"description": "Number of times to sample per-datapoint for finite-time integration",
+"description": "Number of times to sample per-datapoint for finite-time integration (when non-zero exptime)",
 "value": 5,
 "limits": [
 1,
@@ -1034,14 +1133,86 @@ null
 "description": "Atmosphere table",
 "choices": [
 "phoenix",
+"extern_planckint",
 "extern_atmx",
-"ck2004",
+"tmap_DAO",
 "blackbody",
-"extern_planckint"
+"ck2004",
+"tmap_DA",
+"tmap_sdO",
+"tremblay",
+"tmap_DO"
 ],
 "value": "ck2004",
 "copy_for": false,
 "Class": "ChoiceParameter"
+},
+{
+"qualifier": "atm_extrapolation_method",
+"component": "starA",
+"compute": "phoebe01",
+"kind": "phoebe",
+"context": "compute",
+"description": "Method of extrapolating intensities outside of the atmosphere grid",
+"choices": [
+"none",
+"nearest",
+"linear"
+],
+"value": "linear",
+"visible_if": "atm:!blackbody,atm:!extern_planckint,atm:!extern_atmx",
+"copy_for": false,
+"Class": "ChoiceParameter"
+},
+{
+"qualifier": "ld_extrapolation_method",
+"component": "starA",
+"compute": "phoebe01",
+"kind": "phoebe",
+"context": "compute",
+"description": "Method of extrapolating limb-darkening intensities outside of the atmosphere grid",
+"choices": [
+"none",
+"nearest",
+"linear"
+],
+"value": "nearest",
+"visible_if": "atm:!blackbody,atm:!extern_planckint,atm:!extern_atmx",
+"copy_for": false,
+"Class": "ChoiceParameter"
+},
+{
+"qualifier": "blending_method",
+"component": "starA",
+"compute": "phoebe01",
+"kind": "phoebe",
+"context": "compute",
+"description": "Method to use for blending model atmosphere and blackbody intensities off the atmosphere grid",
+"choices": [
+"none",
+"blackbody"
+],
+"value": "blackbody",
+"visible_if": "atm:!blackbody,atm:!extern_planckint,atm:!extern_atmx,atm_extrapolation_method:!none,ld_extrapolation_method:!none",
+"copy_for": false,
+"Class": "ChoiceParameter"
+},
+{
+"qualifier": "extrapolation_max_frac",
+"component": "starA",
+"compute": "phoebe01",
+"kind": "phoebe",
+"context": "compute",
+"description": "Fraction of the number of surface elements allowed to be outside of the atmosphere grid before an error is raised.  Set to 1 to allow all surface elements to be outside of the atmosphere grid without warning.",
+"value": 0.25,
+"default_unit": "",
+"limits": [
+0.0,
+1.0
+],
+"visible_if": "atm:!blackbody,atm:!extern_planckint,atm:!extern_atmx,atm_extrapolation_method:!none",
+"copy_for": false,
+"Class": "FloatParameter"
 },
 {
 "qualifier": "default_time_source",
@@ -1148,7 +1319,7 @@ null
 "qualifier": "phoebe_version",
 "context": "setting",
 "description": "Version of PHOEBE",
-"value": "2.4.15",
+"value": "2.5.0",
 "copy_for": false,
 "readonly": true,
 "advanced": true,

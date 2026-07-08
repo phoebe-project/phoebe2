@@ -145,7 +145,10 @@ def star(component, **kwargs):
     * `requiv_min` (float/quantity, optional): critical (minimum) value of the
         equivalent radius for the given morphology.
     * `teff` (float/quantity, optional): mean effective temperature.
-    * `abun` (float, optional): abundance/metallicity
+    * `abun` (float, optional): abundance/metallicity.
+        Not applicable for all atmosphere models.
+    * `loghefrac` (float, optional): helium fraction, log(He/H) abundance by number.
+        Not applicable for all atmosphere models.
     * `syncpar` (float, optional): synchronicity parameter.
     * `period` (float/quantity, optional): rotation period (wrt the sky).
     * `freq` (float/quantity, optional): rotation frequency (wrt the sky).
@@ -189,7 +192,8 @@ def star(component, **kwargs):
     params += [FloatParameter(qualifier='requiv_max', latexfmt=r'R_{{ \mathrm{{ equiv }}, \mathrm{{ max }}, \mathrm{{ {component} }} }}', value=kwargs.get('requiv_max', 10.0), default_unit=u.solRad, limits=(0.0, None), description='Critical (maximum) value of the equivalent radius for the given morphology')]
     params += [FloatParameter(qualifier='requiv_min', latexfmt=r'R_{{ \mathrm{{ equiv }}, \mathrm{{ min }}, \mathrm{{ {component} }} }}', visible_if='hierarchy.is_contact_binary:True', value=kwargs.get('requiv_min', 0.1), default_unit=u.solRad, limits=(0.0, None), description='Critical (minimum) value of the equivalent radius for the given morphology')]
     params += [FloatParameter(qualifier='teff', latexfmt=r'T_{{ \mathrm{{ eff }}, \mathrm{{ {component} }} }}', value=kwargs.get('teff', 6000.), default_unit=u.K, limits=(300.0,None), description='Mean effective temperature')]
-    params += [FloatParameter(qualifier='abun', visible_if='hierarchy.is_contact_binary:False', value=kwargs.get('abun', 0.), default_unit=u.dimensionless_unscaled, description='Abundance/Metallicity')]   # TODO: correct units??? check if log or not? (logabun = 0)
+    params += [FloatParameter(qualifier='abun', visible_if='hierarchy.is_contact_binary:False,atm_in_computes_has_axis:abuns', value=kwargs.get('abun', 0.), default_unit=u.dimensionless_unscaled, description='Abundance/Metallicity')]   # TODO: correct units??? check if log or not? (logabun = 0)
+    params += [FloatParameter(qualifier='loghefrac', visible_if='hierarchy.is_contact_binary:False,atm_in_computes_has_axis:loghefracs', value=kwargs.get('loghefrac', 0.), default_unit=u.dimensionless_unscaled, limits=(-10, 10), description='Helium fraction, log(He/H) abundance by number.')]
 
     params += [FloatParameter(qualifier='logg', latexfmt=r'\mathrm{{log}}g_\mathrm{{ {component} }}', value=1.0, default_unit=u.dimensionless_unscaled, description='logg at requiv')]
 
@@ -202,8 +206,6 @@ def star(component, **kwargs):
 
     params += [FloatParameter(qualifier='incl', latexfmt=r'i_\mathrm{{ {component} }}', visible_if='hierarchy.is_contact_binary:False', value=kwargs.get('incl', 90), default_unit=u.deg, advanced=True, description='Inclination of the stellar rotation axis')]
     params += [FloatParameter(qualifier='long_an', visible_if='hierarchy.is_contact_binary:False', value=kwargs.get('long_an', 0.0), default_unit=u.deg, advanced=True, description='Longitude of the ascending node (ie. equator) of the star')]
-
-    # params += [FloatParameter(qualifier='vsini', value=kwargs.get('vsini', 1), default_unit=u.km/u.s, description='Projected maximum rotational velocity')]
 
     # params += [ChoiceParameter(qualifier='gravblaw_bol', value=kwargs.get('gravblaw_bol', 'zeipel'), choices=['zeipel', 'espinosa', 'claret'], description='Gravity brightening law')]
 

@@ -39,6 +39,7 @@ lc_columns = []
 lc_columns += ['intensities', 'normal_intensities', 'abs_intensities', 'abs_normal_intensities']
 lc_columns += ['boost_factors', 'ldint']
 lc_columns += ['pblum_ext', 'abs_pblum_ext', 'ptfarea']
+lc_columns += ['blending_factors', 'extrapolation_dists']
 
 # rv columns have all pb-dependent columns except those that require pblum scaling
 rv_columns = [c for c in lc_columns[:] if c not in ['intensities', 'normal_intensities', 'pblum_ext']]
@@ -133,6 +134,9 @@ def lc(syn=False, as_ps=True, is_lc=True, **kwargs):
         and will automtically be checked during
         <phoebe.frontend.bundle.Bundle.run_compute>.  Only applicable
        if `ld_mode` is 'manual'.  Only applicable if `syn` is False.
+    * `boosting_method` (string, optional, default='none'): method to use for Doppler boosting ('none' for no boosting, 'manual' for user-supplied boosting index).
+    * `boosting_index` (float, optional): boosting index. Only applicable if
+    `boosting_method` is 'manual'.
     * `passband` (string, optional): passband.  Only applicable if `syn` is False.
     * `intens_weighting` (string, optional): whether passband intensities are
         weighted by energy or photons.  Only applicable if `syn` is False.
@@ -197,6 +201,13 @@ def lc(syn=False, as_ps=True, is_lc=True, **kwargs):
                                        value=kwargs.get('ld_coeffs', [0.5, 0.5]), default_unit=u.dimensionless_unscaled,
                                        required_shape=[None],
                                        description='Limb darkening coefficients')]
+        params += [ChoiceParameter(qualifier='boosting_method', copy_for={'kind': ['star'], 'component': '*'}, component='_default',
+                                   value=kwargs.get('boosting_method', 'none'), choices=['none', 'manual'],
+                                   description='Method to use for Doppler boosting')]
+        params += [FloatParameter(visible_if='boosting_method:manual', qualifier='boosting_index',
+                                       copy_for={'kind': ['star'], 'component': '*'}, component='_default',
+                                       value=kwargs.get('boosting_index', 1.0), limits=[0.0, None], default_unit=u.dimensionless_unscaled,
+                                       description='Boosting index')]
 
         passbands._init_passbands()  # NOTE: this only actually does something on the first call
         params += [ChoiceParameter(qualifier='passband', value=kwargs.get('passband', 'Johnson:V'), choices=passbands.list_passbands(), description='Passband')]
@@ -325,8 +336,6 @@ def rv(syn=False, as_ps=True, **kwargs):
     if not syn:
         params += [FloatArrayParameter(qualifier='sigmas', visible_if='times:<notempty>', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=_empty_array(kwargs, 'sigmas'), required_shape=None, default_unit=u.km/u.s, description='Observed uncertainty on rv')]
         params += [FloatParameter(qualifier='sigmas_lnf', latexfmt=r'\sigma_\mathrm{{ lnf, {dataset} }}', visible_if='sigmas:<notempty>', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=kwargs.get('sigmas_lnf', -np.inf), default_unit=u.dimensionless_unscaled, limits=(None,None), description='Natural log of the fractional amount to sigmas are underestimate (when calculating chi2/lnlikelihood)')]
-
-        params += [FloatParameter(qualifier='rv_offset', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=kwargs.get('rv_offset', 0.0), default_unit=u.km/u.s, description='Per-component offset to add to synthetic RVs (i.e. for hot stars)')]
 
         params += [FloatArrayParameter(qualifier='compute_times', value=kwargs.get('compute_times', []), required_shape=[None], default_unit=u.d, description='Times to use during run_compute.  If empty, will use times parameter')]
         params += [FloatArrayParameter(qualifier='compute_phases', component=kwargs.get('component_top', None), value=kwargs.get('compute_phases', []), required_shape=[None], default_unit=u.dimensionless_unscaled, description='Phases associated with compute_times.')]
@@ -767,6 +776,10 @@ def mesh(syn=False, as_ps=True, **kwargs):
                     params += [FloatArrayParameter(qualifier='boost_factors', dataset=dataset, time=t, value=[], readonly=True, default_unit=u.dimensionless_unscaled, description='Per-element value of boost_factors for {} dataset'.format(dataset))]
                 if 'ldint@{}'.format(dataset) in columns:
                     params += [FloatArrayParameter(qualifier='ldint', dataset=dataset, time=t, value=kwargs.get('ldint', []), readonly=True, default_unit=u.dimensionless_unscaled, description='Integral of the limb-darkening function')]
+                if 'blending_factors@{}'.format(dataset) in columns:
+                    params += [FloatArrayParameter(qualifier='blending_factors', dataset=dataset, time=t, value=kwargs.get('blending_factors', []), readonly=True, default_unit=u.dimensionless_unscaled, description='Ratio of blended intensity from blackbody atmospheres (0/nan is all from the atm grid, 1 is all from blackbody).')]
+                if 'extrapolation_dists@{}'.format(dataset) in columns:
+                    params += [FloatArrayParameter(qualifier='extrapolation_dists', dataset=dataset, time=t, value=kwargs.get('extrapolation_dists', []), readonly=True, default_unit=u.dimensionless_unscaled, description='Normalized distance each triangle is from the atmosphere grid (0/nan is on grid)')]
 
                 if 'ptfarea@{}'.format(dataset) in columns:
                     params += [FloatParameter(qualifier='ptfarea', dataset=dataset, time=t, value=kwargs.get('ptfarea', 1.0), readonly=True, default_unit=u.m, description='Area of the passband transmission function')]

@@ -320,6 +320,12 @@ class ComputedColumn(object):
             return 0
         return len(self.for_computations)
 
+    def __repr__(self):
+        return f'<ComputedColumn in {self._mesh}, length {len(self)}>'
+
+    def __str__(self):
+        return f'<ComputedColumn in {self._mesh}, length {len(self)}>\n    vertices: {self._vertices}\n    centers: {self._centers}'
+
     @property
     def shape(self):
         return self.for_computations.shape
@@ -515,6 +521,7 @@ class ProtoMesh(object):
         self._gravs             = ComputedColumn(mesh=self)
         self._teffs             = ComputedColumn(mesh=self)
         self._abuns             = ComputedColumn(mesh=self)
+        self._loghefracs        = ComputedColumn(mesh=self)
         self._irrad_frac_refl  = ComputedColumn(mesh=self)
         # self._frac_heats          = ComputedColumn(mesh=self)
         # self._frac_scatts          = ComputedColumn(mesh=self)
@@ -536,7 +543,7 @@ class ProtoMesh(object):
                   'velocities', 'vnormals', 'tnormals',
                   'normgrads', 'volume', 'area',
                   'phis', 'thetas',
-                  'loggs', 'gravs', 'teffs', 'abuns', 'irrad_frac_refl'] # frac_heats, frac_scatts
+                  'loggs', 'gravs', 'teffs', 'abuns', 'loghefracs', 'irrad_frac_refl'] # frac_heats, frac_scatts
         self._keys = keys + kwargs.pop('keys', [])
 
         self.update_columns(**kwargs)
@@ -1064,6 +1071,15 @@ class ProtoMesh(object):
         return self._abuns
 
     @property
+    def loghefracs(self):
+        """
+        Return the array of unitless loghefracs, where each item is a scalar/float.
+
+        (ComputedColumn)
+        """
+        return self._loghefracs
+
+    @property
     def irrad_frac_refl(self):
         """
         Return the array of irrad_frac_refl, where each item is a scalar/float
@@ -1320,6 +1336,7 @@ class Mesh(ScaledProtoMesh):
         # let's store the position.  This is both useful for "undoing" the
         # orbit-offset, and also eventually to allow incremental changes.
         self._pos = pos
+        self._vel = vel
         if component_com_x is not None and component_com_x != 0.0:
             self._pos_center = transform_position_array(np.array([component_com_x, 0.0, 0.0]), pos, euler, False)
         else:

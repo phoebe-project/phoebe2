@@ -24,7 +24,7 @@ def system(**kwargs):
 
     Returns
     --------
-    * (<phoebe.parameters.ParameterSet) ParameterSet of all created Parameters.
+    * (<phoebe.parameters.ParameterSet>) ParameterSet of all created Parameters.
     """
     params = []
     constraints = []

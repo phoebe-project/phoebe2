@@ -17,7 +17,7 @@ Available environment variables:
 
 """
 
-__version__ = '2.4.23'
+__version__ = '2.5.0'
 
 import os as _os
 import sys as _sys
@@ -384,6 +384,7 @@ from . import utils as _utils
 from . import dynamics as dynamics
 from . import distortions as distortions
 from . import algorithms as algorithms
+from . import features as features
 import libphoebe
 
 # Shortcut to building logger
@@ -499,11 +500,6 @@ def default_contact_binary(*args, **kwargs):
     return Bundle.default_contact_binary(*args, **kwargs)
 
 default_contact_binary.__doc__ = Bundle.default_contact_binary.__doc__
-
-def default_triple(*args, **kwargs):
-    return Bundle.default_triple(*args, **kwargs)
-
-default_triple.__doc__ = Bundle.default_triple.__doc__
 
 # Shortcuts to settings
 def reset_settings():
@@ -887,7 +883,6 @@ add_distl_docstring(mvhistogram_from_data)
 add_distl_docstring(uniform_around)
 add_distl_docstring(gaussian_around)
 
-
 # expose available "kinds" per-context
 def _get_phoebe_funcs(module, devel=False):
     ignore = ['_empty_array', 'deepcopy', 'fnmatch',
@@ -898,7 +893,6 @@ def _get_phoebe_funcs(module, devel=False):
 
     if not devel:
         ignore += ['pulsation']
-        ignore += ['photodynam']
 
     mod_split = module.__name__.split('.')
     if mod_split[-1] in ['figure'] or (mod_split[-1] in ['solver'] and 'figure' not in mod_split):
@@ -955,7 +949,7 @@ def list_available_features(devel=False):
     ---------
     * (list of strings)
     """
-    return _get_phoebe_funcs(feature, devel=devel)
+    return list(feature._feature_classes.keys())
 
 def list_available_datasets(devel=False):
     """
