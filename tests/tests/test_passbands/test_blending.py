@@ -8,10 +8,33 @@ interpolate_imus() methods with real data.
 
 import pytest
 import numpy as np
+import phoebe
 
 # Import the modules we need to test
 import phoebe.atmospheres.passbands as passbands
 import phoebe.atmospheres.models as models
+
+
+def _build_offgrid_blending_binary():
+    """Create a small binary configured to require atmosphere extrapolation."""
+    b = phoebe.default_binary()
+    b.add_dataset('lc', times=np.linspace(0, 1, 5))
+
+    # Keep this lightweight for tests while still meshing enough triangles to
+    # sample off-grid points robustly.
+    b.set_value_all('ntriangles', compute='phoebe01', value=200)
+
+    # Force CK2004 atmosphere usage and allow extrapolation + blending.
+    b.set_value_all('atm', value='ck2004')
+    b.set_value_all('atm_extrapolation_method', value='linear')
+    b.set_value_all('ld_extrapolation_method', value='linear')
+    b.set_value_all('blending_method', value='blackbody')
+
+    # Push temperatures well outside CK2004 bounds so extrapolation is needed.
+    b.set_value('teff', component='primary', value=300.0)
+    b.set_value('teff', component='secondary', value=100000.0)
+
+    return b
 
 
 class TestAtmosphereBlending:
@@ -414,6 +437,60 @@ class TestAtmosphereBlending:
             assert result.dists is not None
             assert len(result.bfs) == len(mixed_grid_query.pts)
             assert len(result.dists) == len(mixed_grid_query.pts)
+
+
+def test_run_compute_extrapolation_max_frac_thresholds():
+    """run_compute should fail for zero allowed fraction and pass for relaxed limits."""
+    pb = passbands.get_passband('Johnson:V')
+    if 'ck2004:Imu' not in pb.content:
+        pytest.skip("CK2004 atmosphere tables not available")
+
+    b = _build_offgrid_blending_binary()
+    b.set_value_all('extrapolation_max_frac', value=0.0)
+
+    with pytest.raises(ValueError, match='extrapolation_max_frac'):
+        b.run_compute(model='strict_extrapolation_limit', irrad_method='none')
+
+    b.run_compute(model='relaxed_extrapolation_limit', extrapolation_max_frac=1.0, irrad_method='none')
+
+    fluxes = b.get_value('fluxes', model='relaxed_extrapolation_limit', dataset='lc01')
+    assert len(fluxes) == 5
+
+
+def test_contact_binary_extrapolation_max_frac_enforces_per_half():
+    """Contact binaries should enforce extrapolation limits independently per half."""
+    pb = passbands.get_passband('Johnson:V')
+    if 'ck2004:Imu' not in pb.content:
+        pytest.skip("CK2004 atmosphere tables not available")
+
+    b = phoebe.default_binary(contact_binary=True)
+    b.add_dataset('lc', times=np.linspace(0, 1, 3), passband='Johnson:V')
+
+    # Keep this lightweight while still creating a meaningful mesh.
+    b.set_value_all(qualifier='ntriangles', compute='phoebe01', value=200)
+
+    b.set_value_all(qualifier='atm', value='ck2004')
+    b.set_value_all(qualifier='atm_extrapolation_method', value='linear')
+    b.set_value_all(qualifier='ld_extrapolation_method', value='linear')
+    b.set_value_all(qualifier='blending_method', value='blackbody')
+
+    # Case 1: primary half is strongly off-grid, secondary half is on-grid.
+    b.set_value(qualifier='teff', component='primary', value=300.0)
+    b.set_value(qualifier='teff', component='secondary', value=6000.0)
+    b.set_value(qualifier='extrapolation_max_frac', component='primary', value=0.0)
+    b.set_value(qualifier='extrapolation_max_frac', component='secondary', value=1.0)
+
+    with pytest.raises(ValueError, match="extrapolation_max_frac.*component='primary'"):
+        b.run_compute(model='contact_primary_strict', irrad_method='none')
+
+    # Case 2: swap strict/relaxed roles and move off-grid condition to secondary.
+    b.set_value(qualifier='teff', component='primary', value=6000.0)
+    b.set_value(qualifier='teff', component='secondary', value=100000.0)
+    b.set_value(qualifier='extrapolation_max_frac', component='primary', value=1.0)
+    b.set_value(qualifier='extrapolation_max_frac', component='secondary', value=0.0)
+
+    with pytest.raises(ValueError, match="extrapolation_max_frac.*component='secondary'"):
+        b.run_compute(model='contact_secondary_strict', irrad_method='none')
 
 
 if __name__ == '__main__':

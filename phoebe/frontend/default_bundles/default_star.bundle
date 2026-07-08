@@ -442,13 +442,13 @@ null
 "description": "Source for bolometric limb darkening coefficients (used only for irradiation; 'auto' to interpolate from the applicable table according to the 'atm' parameter, or the name of a specific atmosphere table)",
 "choices": [
 "auto",
-"tmap_DO",
 "phoenix",
 "tmap_DAO",
+"ck2004",
+"tmap_DA",
 "tmap_sdO",
 "tremblay",
-"ck2004",
-"tmap_DA"
+"tmap_DO"
 ],
 "value": "auto",
 "visible_if": "ld_mode_bol:lookup",
@@ -884,16 +884,16 @@ null
 "context": "compute",
 "description": "Atmosphere table",
 "choices": [
-"tmap_DO",
 "phoenix",
-"extern_atmx",
-"tmap_sdO",
-"tmap_DAO",
-"tremblay",
-"ck2004",
 "extern_planckint",
+"extern_atmx",
+"tmap_DAO",
 "blackbody",
-"tmap_DA"
+"ck2004",
+"tmap_DA",
+"tmap_sdO",
+"tremblay",
+"tmap_DO"
 ],
 "value": "ck2004",
 "copy_for": {
@@ -968,6 +968,28 @@ null
 "component": "*"
 },
 "Class": "ChoiceParameter"
+},
+{
+"qualifier": "extrapolation_max_frac",
+"component": "_default",
+"compute": "phoebe01",
+"kind": "phoebe",
+"context": "compute",
+"description": "Fraction of the number of surface elements allowed to be outside of the atmosphere grid before an error is raised.  Set to 1 to allow all surface elements to be outside of the atmosphere grid without warning.",
+"value": 0.25,
+"default_unit": "",
+"limits": [
+0.0,
+1.0
+],
+"visible_if": "atm:!blackbody,atm:!extern_planckint,atm:!extern_atmx,atm_extrapolation_method:!none",
+"copy_for": {
+"kind": [
+"star"
+],
+"component": "*"
+},
+"Class": "FloatParameter"
 },
 {
 "qualifier": "fti_method",
@@ -1110,16 +1132,16 @@ null
 "context": "compute",
 "description": "Atmosphere table",
 "choices": [
-"tmap_DO",
 "phoenix",
-"extern_atmx",
-"tmap_sdO",
-"tmap_DAO",
-"tremblay",
-"ck2004",
 "extern_planckint",
+"extern_atmx",
+"tmap_DAO",
 "blackbody",
-"tmap_DA"
+"ck2004",
+"tmap_DA",
+"tmap_sdO",
+"tremblay",
+"tmap_DO"
 ],
 "value": "ck2004",
 "copy_for": false,
@@ -1174,6 +1196,23 @@ null
 "visible_if": "atm:!blackbody,atm:!extern_planckint,atm:!extern_atmx,atm_extrapolation_method:!none,ld_extrapolation_method:!none",
 "copy_for": false,
 "Class": "ChoiceParameter"
+},
+{
+"qualifier": "extrapolation_max_frac",
+"component": "starA",
+"compute": "phoebe01",
+"kind": "phoebe",
+"context": "compute",
+"description": "Fraction of the number of surface elements allowed to be outside of the atmosphere grid before an error is raised.  Set to 1 to allow all surface elements to be outside of the atmosphere grid without warning.",
+"value": 0.25,
+"default_unit": "",
+"limits": [
+0.0,
+1.0
+],
+"visible_if": "atm:!blackbody,atm:!extern_planckint,atm:!extern_atmx,atm_extrapolation_method:!none",
+"copy_for": false,
+"Class": "FloatParameter"
 },
 {
 "qualifier": "default_time_source",
