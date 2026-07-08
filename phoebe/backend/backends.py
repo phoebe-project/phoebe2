@@ -992,13 +992,13 @@ class PhoebeBackend(BaseBackendByTime):
         hier = b.get_hierarchy()
         starrefs  = hier.get_stars()
         meshablerefs = hier.get_meshables()
-        extrapolation_frac_allowed_override = kwargs.get('extrapolation_frac_allowed', None)
-        extrapolation_frac_allowed = {
+        extrapolation_max_frac_override = kwargs.get('extrapolation_max_frac', None)
+        extrapolation_max_frac = {
             component: computeparams.get_value(
-                qualifier='extrapolation_frac_allowed',
+                qualifier='extrapolation_max_frac',
                 component=component,
-                extrapolation_frac_allowed=extrapolation_frac_allowed_override,
-                default=0.1,
+                extrapolation_max_frac=extrapolation_max_frac_override,
+                default=0.25,
                 **_skip_filter_checks
             )
             for component in starrefs
@@ -1039,7 +1039,7 @@ class PhoebeBackend(BaseBackendByTime):
                     hier=hier,
                     meshablerefs=meshablerefs,
                     starrefs=starrefs,
-                    extrapolation_frac_allowed=extrapolation_frac_allowed,
+                    extrapolation_max_frac=extrapolation_max_frac,
                     dynamics_method=dynamics_method,
                     ts=ts, xs=xs, ys=ys, zs=zs,
                     vxs=vxs, vys=vys, vzs=vzs,
@@ -1053,7 +1053,7 @@ class PhoebeBackend(BaseBackendByTime):
         hier = kwargs.get('hier')
         meshablerefs = kwargs.get('meshablerefs')
         starrefs = kwargs.get('starrefs')
-        extrapolation_frac_allowed = kwargs.get('extrapolation_frac_allowed', {})
+        extrapolation_max_frac = kwargs.get('extrapolation_max_frac', {})
         dynamics_method = kwargs.get('dynamics_method')
         xs = kwargs.get('xs')
         ys = kwargs.get('ys')
@@ -1136,9 +1136,9 @@ class PhoebeBackend(BaseBackendByTime):
                     except Exception:
                         continue
 
-                    extrapolation_frac_allowed_this = extrapolation_frac_allowed.get(component, 1.0)
+                    extrapolation_max_frac_this = extrapolation_max_frac.get(component, 1.0)
 
-                    if extrapolation_frac_allowed_this >= 1:
+                    if extrapolation_max_frac_this >= 1:
                         continue
 
                     finite = np.isfinite(extrapolation_dists)
@@ -1148,15 +1148,15 @@ class PhoebeBackend(BaseBackendByTime):
                     extrapolated = extrapolation_dists[finite] > 0
                     extrapolation_frac = np.count_nonzero(extrapolated) / float(np.count_nonzero(finite))
 
-                    if extrapolation_frac > extrapolation_frac_allowed_this:
+                    if extrapolation_frac > extrapolation_max_frac_this:
                         raise ValueError(
                             "fraction of surface elements requiring atmosphere extrapolation "
-                            "({:.6f} = {}/{}) exceeds extrapolation_frac_allowed={:.6f} "
+                            "({:.6f} = {}/{}) exceeds extrapolation_max_frac={:.6f} "
                             "for component='{}' and dataset='{}' at time={}".format(
                                 extrapolation_frac,
                                 np.count_nonzero(extrapolated),
                                 np.count_nonzero(finite),
-                                extrapolation_frac_allowed_this,
+                                extrapolation_max_frac_this,
                                 component,
                                 dataset,
                                 time

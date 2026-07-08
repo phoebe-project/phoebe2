@@ -970,13 +970,13 @@ null
 "Class": "ChoiceParameter"
 },
 {
-"qualifier": "extrapolation_frac_allowed",
+"qualifier": "extrapolation_max_frac",
 "component": "_default",
 "compute": "phoebe01",
 "kind": "phoebe",
 "context": "compute",
 "description": "Fraction of the number of surface elements allowed to be outside of the atmosphere grid before an error is raised.  Set to 1 to allow all surface elements to be outside of the atmosphere grid without warning.",
-"value": 0.1,
+"value": 0.25,
 "default_unit": "",
 "limits": [
 0.0,
@@ -1198,13 +1198,13 @@ null
 "Class": "ChoiceParameter"
 },
 {
-"qualifier": "extrapolation_frac_allowed",
+"qualifier": "extrapolation_max_frac",
 "component": "starA",
 "compute": "phoebe01",
 "kind": "phoebe",
 "context": "compute",
 "description": "Fraction of the number of surface elements allowed to be outside of the atmosphere grid before an error is raised.  Set to 1 to allow all surface elements to be outside of the atmosphere grid without warning.",
-"value": 0.1,
+"value": 0.25,
 "default_unit": "",
 "limits": [
 0.0,

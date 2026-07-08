@@ -87,7 +87,7 @@ def phoebe(**kwargs):
         of extrapolating limb-darkening intensities outside of the atmosphere grid.
     * `blending_method` (string, optional, default='blackbody'): method to use
         for blending model atmosphere and blackbody intensities off the atmosphere grid.
-    * `extrapolation_frac_allowed` (float, optional, default=0.1): fraction of the
+    * `extrapolation_max_frac` (float, optional, default=0.25): fraction of the
         number of surface elements allowed to be outside of the atmosphere grid
         before an error is raised.  Set to 1 to allow all surface elements to be
         outside of the atmosphere grid without warning.
@@ -177,7 +177,7 @@ def phoebe(**kwargs):
     params += [ChoiceParameter(visible_if='atm:!blackbody,atm:!extern_planckint,atm:!extern_atmx', copy_for = {'kind': ['star'], 'component': '*'}, component='_default', qualifier='atm_extrapolation_method', value=kwargs.get('atm_extrapolation_method', 'linear'), choices=['none', 'nearest', 'linear'], description='Method of extrapolating intensities outside of the atmosphere grid')]
     params += [ChoiceParameter(visible_if='atm:!blackbody,atm:!extern_planckint,atm:!extern_atmx', copy_for = {'kind': ['star'], 'component': '*'}, component='_default', qualifier='ld_extrapolation_method', value=kwargs.get('ld_extrapolation_method', 'nearest'), choices=['none', 'nearest', 'linear'], description='Method of extrapolating limb-darkening intensities outside of the atmosphere grid')]
     params += [ChoiceParameter(visible_if='atm:!blackbody,atm:!extern_planckint,atm:!extern_atmx,atm_extrapolation_method:!none,ld_extrapolation_method:!none', copy_for = {'kind': ['star'], 'component': '*'}, component='_default', qualifier='blending_method', value=kwargs.get('blending_method', 'blackbody'), choices=['none', 'blackbody'], description='Method to use for blending model atmosphere and blackbody intensities off the atmosphere grid')]
-    params += [FloatParameter(visible_if='atm:!blackbody,atm:!extern_planckint,atm:!extern_atmx,atm_extrapolation_method:!none', copy_for = {'kind': ['star'], 'component': '*'}, component='_default', qualifier='extrapolation_frac_allowed', value=kwargs.get('extrapolation_frac_allowed', 0.1), limits=(0,1), default_unit=u.dimensionless_unscaled, description='Fraction of the number of surface elements allowed to be outside of the atmosphere grid before an error is raised.  Set to 1 to allow all surface elements to be outside of the atmosphere grid without warning.')]
+    params += [FloatParameter(visible_if='atm:!blackbody,atm:!extern_planckint,atm:!extern_atmx,atm_extrapolation_method:!none', copy_for = {'kind': ['star'], 'component': '*'}, component='_default', qualifier='extrapolation_max_frac', value=kwargs.get('extrapolation_max_frac', 0.25), limits=(0,1), default_unit=u.dimensionless_unscaled, description='Fraction of the number of surface elements allowed to be outside of the atmosphere grid before an error is raised.  Set to 1 to allow all surface elements to be outside of the atmosphere grid without warning.')]
 
     # PER-DATASET
 

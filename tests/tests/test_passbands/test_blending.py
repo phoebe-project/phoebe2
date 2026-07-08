@@ -439,19 +439,19 @@ class TestAtmosphereBlending:
             assert len(result.dists) == len(mixed_grid_query.pts)
 
 
-def test_run_compute_extrapolation_frac_allowed_thresholds():
+def test_run_compute_extrapolation_max_frac_thresholds():
     """run_compute should fail for zero allowed fraction and pass for relaxed limits."""
     pb = passbands.get_passband('Johnson:V')
     if 'ck2004:Imu' not in pb.content:
         pytest.skip("CK2004 atmosphere tables not available")
 
     b = _build_offgrid_blending_binary()
-    b.set_value_all('extrapolation_frac_allowed', value=0.0)
+    b.set_value_all('extrapolation_max_frac', value=0.0)
 
-    with pytest.raises(ValueError, match='extrapolation_frac_allowed'):
+    with pytest.raises(ValueError, match='extrapolation_max_frac'):
         b.run_compute(model='strict_extrapolation_limit', irrad_method='none')
 
-    b.run_compute(model='relaxed_extrapolation_limit', extrapolation_frac_allowed=1.0, irrad_method='none')
+    b.run_compute(model='relaxed_extrapolation_limit', extrapolation_max_frac=1.0, irrad_method='none')
 
     fluxes = b.get_value('fluxes', model='relaxed_extrapolation_limit', dataset='lc01')
     assert len(fluxes) == 5
