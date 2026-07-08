@@ -457,6 +457,42 @@ def test_run_compute_extrapolation_max_frac_thresholds():
     assert len(fluxes) == 5
 
 
+def test_contact_binary_extrapolation_max_frac_enforces_per_half():
+    """Contact binaries should enforce extrapolation limits independently per half."""
+    pb = passbands.get_passband('Johnson:V')
+    if 'ck2004:Imu' not in pb.content:
+        pytest.skip("CK2004 atmosphere tables not available")
+
+    b = phoebe.default_binary(contact_binary=True)
+    b.add_dataset('lc', times=np.linspace(0, 1, 3), passband='Johnson:V')
+
+    # Keep this lightweight while still creating a meaningful mesh.
+    b.set_value_all(qualifier='ntriangles', compute='phoebe01', value=200)
+
+    b.set_value_all(qualifier='atm', value='ck2004')
+    b.set_value_all(qualifier='atm_extrapolation_method', value='linear')
+    b.set_value_all(qualifier='ld_extrapolation_method', value='linear')
+    b.set_value_all(qualifier='blending_method', value='blackbody')
+
+    # Case 1: primary half is strongly off-grid, secondary half is on-grid.
+    b.set_value(qualifier='teff', component='primary', value=300.0)
+    b.set_value(qualifier='teff', component='secondary', value=6000.0)
+    b.set_value(qualifier='extrapolation_max_frac', component='primary', value=0.0)
+    b.set_value(qualifier='extrapolation_max_frac', component='secondary', value=1.0)
+
+    with pytest.raises(ValueError, match="extrapolation_max_frac.*component='primary'"):
+        b.run_compute(model='contact_primary_strict', irrad_method='none')
+
+    # Case 2: swap strict/relaxed roles and move off-grid condition to secondary.
+    b.set_value(qualifier='teff', component='primary', value=6000.0)
+    b.set_value(qualifier='teff', component='secondary', value=100000.0)
+    b.set_value(qualifier='extrapolation_max_frac', component='primary', value=1.0)
+    b.set_value(qualifier='extrapolation_max_frac', component='secondary', value=0.0)
+
+    with pytest.raises(ValueError, match="extrapolation_max_frac.*component='secondary'"):
+        b.run_compute(model='contact_secondary_strict', irrad_method='none')
+
+
 if __name__ == '__main__':
     # Run tests when executed directly
     pytest.main([__file__, '-v'])
