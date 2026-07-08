@@ -13,12 +13,31 @@ logger.addHandler(logging.NullHandler())
 _feature_classes = {}
 
 
+def _resolve_feature_class(feature_kind):
+    # Built-in kinds are usually passed as strings (for example "rv_offset").
+    if isinstance(feature_kind, str):
+        return _feature_classes.get(feature_kind)
+
+    # Custom features may be passed directly as classes.
+    if hasattr(feature_kind, 'allowed_component_kinds'):
+        return feature_kind
+
+    # Backward-compatible support for callables such as feature.spot.
+    for name, feature_cls in _feature_classes.items():
+        if globals().get(name) is feature_kind:
+            return feature_cls
+
+    return None
+
+
 def _component_allowed_for_feature(feature_kind, component_kind):
-    return component_kind in getattr(feature_kind, 'allowed_component_kinds', [])
+    feature_cls = _resolve_feature_class(feature_kind)
+    return component_kind in getattr(feature_cls, 'allowed_component_kinds', [])
 
 
 def _dataset_allowed_for_feature(feature_kind, dataset_kind):
-    return dataset_kind in getattr(feature_kind, 'allowed_dataset_kinds', [])
+    feature_cls = _resolve_feature_class(feature_kind)
+    return dataset_kind in getattr(feature_cls, 'allowed_dataset_kinds', [])
 
 
 def _register_feature(feature_cls, name):
