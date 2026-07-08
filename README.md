@@ -82,6 +82,8 @@ CHANGELOG
 
 * Adds blending/TMAP atmosphere support and the related passband and intensity infrastructure. [#1132]
 
+* Adds new infrastructure for user-defined features. [#902]
+
 ### 2.4.23
 
 * Fixes differential corrections on SB1 RV data. [#1113]
