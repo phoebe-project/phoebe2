@@ -11,7 +11,7 @@
 
 [project]
 name = "phoebe"
-version = "2.5.0"
+version = "2.5.1"
 description = "PHOEBE: modeling and analysis of eclipsing binary stars"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -62,7 +62,7 @@ dependencies = [
     "scipy",
     "astropy",
     "pytest",
-    "ndpolator == 1.3.0",
+    "ndpolator == 1.3.1",
     "tqdm",
     "corner",
     "requests",
