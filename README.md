@@ -79,6 +79,8 @@ CHANGELOG
 
 ### 2.5.1
 
+* Updates ndpolator version to 1.3.1 which improves support for building on windows. [#1153]
+
 ### 2.5.0
 
 * Adds blending/TMAP atmosphere support and the related passband and intensity infrastructure. [#1132]
