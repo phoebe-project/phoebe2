@@ -23,7 +23,7 @@ from phoebe import pool as _pool
 from packaging.version import parse
 from copy import deepcopy as _deepcopy
 import multiprocessing
-import pickle
+import json
 
 from . import rv_geometry
 from .ebai import ebai_forward
@@ -1171,6 +1171,36 @@ class Rv_PeriodogramBackend(_PeriodogramBaseBackend):
 #                  {'qualifier': 'adopt_parameters', 'value': fitted_twigs, 'choices': fitted_twigs},
 #                 ]]
 
+def _load_ebai_knn(ebai_model_file):
+    """
+    Rebuild a ligeor Ebai k-NN model from a .npz archive.
+
+    The estimators are reconstructed from the stored training arrays instead of
+    being unpickled, so the archive stays readable across scikit-learn releases.
+    Unpickling fitted estimators ties the file to the exact scikit-learn version
+    that wrote it and emits an InconsistentVersionWarning under any other.
+
+    The k-NN regressors are fit with algorithm='brute', so fitting is just a
+    validated copy of the training arrays and the reconstruction is exact. The
+    scaler is fully determined by the per-parameter minima and maxima, so
+    refitting it on those two rows reproduces the original scaling exactly.
+    """
+    from sklearn.neighbors import KNeighborsRegressor
+    from sklearn.preprocessing import MinMaxScaler
+    from phoebe.dependencies.ligeor.ebai.ebai import Ebai
+
+    with np.load(ebai_model_file, allow_pickle=False) as data:
+        knn = KNeighborsRegressor(**json.loads(data['knn_params'].item()))
+        knn.fit(data['fit_X'], data['fit_y'])
+
+        scaler = MinMaxScaler(feature_range=tuple(data['scaler_feature_range']))
+        scaler.fit(np.vstack([data['scaler_data_min'], data['scaler_data_max']]))
+
+        ebai_meta = json.loads(data['ebai_meta'].item())
+
+    return Ebai(model=knn, scaler=scaler, **ebai_meta)
+
+
 class EbaiBackend(BaseSolverBackend):
     """
     See <phoebe.parameters.solver.estimator.ebai>.
@@ -1274,10 +1304,9 @@ class EbaiBackend(BaseSolverBackend):
         if ebai_method == 'knn':
             path = os.path.abspath(__file__)
             dir_path = os.path.dirname(path)
-            ebai_model_file = '{}/knn/{}.{}.knn'.format(dir_path, morphology, db_suffix)
+            ebai_model_file = '{}/knn/{}.{}.knn.npz'.format(dir_path, morphology, db_suffix)
 
-            with open(ebai_model_file, 'rb') as f:
-                ebaiModel = pickle.load(f)
+            ebaiModel = _load_ebai_knn(ebai_model_file)
 
             prediction = ebaiModel.predict(ebai_phases, ebai_fluxes, return_absolute=True, transform_data = True, phases_model = ebai_phases)
             if morphology == 'detached':
