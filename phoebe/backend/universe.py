@@ -1988,7 +1988,7 @@ class Star(Body):
                 for feature in self.features:
                     if self.__class__.__name__ == 'Star_roche_envelope_half' and self.ind_self != self.ind_self_vel:
                         # then this is the secondary half of a contact envelope
-                        roche_coords_for_computations = np.array([1.0, 0.0, 0.0]) - mesh.roche_coords_for_computations
+                        roche_coords_for_computations = np.array([1.0, 0.0, 0.0]) - self.mesh.roche_coords_for_computations
                     else:
                         roche_coords_for_computations = self.mesh.roche_coords_for_computations
                     abs_normal_intensities, abs_intensities = feature.modify_intensities(abs_normal_intensities,

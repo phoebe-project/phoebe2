@@ -79,6 +79,8 @@ CHANGELOG
 
 ### 2.5.2
 
+* Fix bug preventing computing a spot on the secondary component of a contact system. [#1157]
+
 ### 2.5.1
 
 * Updates ndpolator version to 1.3.1 which improves support for building on windows. [#1153]
