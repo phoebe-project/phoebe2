@@ -77,6 +77,8 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.5.3
+
 ### 2.5.2
 
 * Fix bug preventing computing a spot on the secondary component of a contact system. [#1157]
