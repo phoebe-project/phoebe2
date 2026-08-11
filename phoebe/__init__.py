@@ -88,7 +88,12 @@ if _env_variable_bool('PHOEBE_ENABLE_PLOTTING', True):
             except:
                 matplotlib.use('TkAgg')
 
-
+def _usable_cpu_count():
+    if hasattr(_os, 'sched_getaffinity'):
+        return len(_os.sched_getaffinity(0))
+    if hasattr(_os, 'process_cpu_count'):
+        return _os.process_cpu_count() or 1
+    return _multiprocessing.cpu_count()
 
 import logging
 _logger = logging.getLogger("PHOEBE")
@@ -339,17 +344,17 @@ class Settings(object):
 
     def multiprocessing_set_nprocs(self, value):
         if not isinstance(value, int):
-            return TypeError("must be integer")
-        if value > _multiprocessing.cpu_count():
-            return ValueError("only {} CPUs available".format(value))
+            raise TypeError("must be integer")
+        if value > _usable_cpu_count():
+            raise ValueError("only {} CPUs available".format(_usable_cpu_count()))
         elif value < 0:
-            return ValueError("nprocs must be >= 0")
+            raise ValueError("nprocs must be >= 0")
         self._multiprocessing_nprocs = value
 
     @property
     def multiprocessing_nprocs(self):
         if self._multiprocessing_nprocs is None:
-            return _multiprocessing.cpu_count()
+            return _usable_cpu_count()
         return self._multiprocessing_nprocs
 
     def progressbars_on(self):

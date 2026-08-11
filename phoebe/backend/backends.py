@@ -775,7 +775,7 @@ class SampleOverModel(object):
             is_master = True
         else:
             logger.info("run_compute sample_from using multiprocessing with {} procs".format(conf.multiprocessing_nprocs))
-            pool = _pool.MultiPool(processes=conf._multiprocessing_nprocs)
+            pool = _pool.MultiPool(processes=conf.multiprocessing_nprocs)
             is_master = True
 
         # temporarily disable MPI within run_compute to disabled parallelizing

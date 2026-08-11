@@ -9110,7 +9110,7 @@ class Bundle(ParameterSet):
             else:
                 logger.info("require conditions using multiprocessing with {} procs".format(conf.multiprocessing_nprocs))
                 # print("*** require conditions using multiprocessing with {} procs".format(conf.multiprocessing_nprocs))
-                pool = _pool.MultiPool(processes=conf._multiprocessing_nprocs)
+                pool = _pool.MultiPool(processes=conf.multiprocessing_nprocs)
                 is_master = True
 
             if is_master:
