@@ -9,6 +9,7 @@
 /phoebe/atmospheres/tables/tlusty
 /tests/tests/test_passbands/tables
 /tests/benchmark/results
+/tests/local
 MANIFEST
 *checkme*
 *_tmp*
