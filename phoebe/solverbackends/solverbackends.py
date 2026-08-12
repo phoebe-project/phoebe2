@@ -1513,7 +1513,7 @@ class EmceeBackend(BaseSolverBackend):
         else:
             logger.info("emcee: using multiprocessing pool with {} procs".format(conf.multiprocessing_nprocs))
 
-            pool = _pool.MultiPool(processes=conf._multiprocessing_nprocs)
+            pool = _pool.MultiPool(processes=conf.multiprocessing_nprocs)
             failed_samples_buffer = multiprocessing.Manager().list()
             is_master = True
 
@@ -1899,7 +1899,7 @@ class DynestyBackend(BaseSolverBackend):
         else:
             logger.info("dynesty: using multiprocessing pool with {} procs".format(conf.multiprocessing_nprocs))
 
-            pool = _pool.MultiPool(processes=conf._multiprocessing_nprocs)
+            pool = _pool.MultiPool(processes=conf.multiprocessing_nprocs)
             failed_samples_buffer = multiprocessing.Manager().list()
             is_master = True
 
@@ -2583,7 +2583,7 @@ class Differential_EvolutionBackend(BaseSolverBackend):
             is_master = True
         else:
             logger.info("DifferentialEvolution: using multiprocessing pool with {} procs".format(conf.multiprocessing_nprocs))
-            pool = _pool.MultiPool(processes=conf._multiprocessing_nprocs)
+            pool = _pool.MultiPool(processes=conf.multiprocessing_nprocs)
             is_master = True
 
         # temporarily disable MPI within run_compute to disabled parallelizing
