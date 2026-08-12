@@ -79,6 +79,8 @@ CHANGELOG
 
 ### 2.5.3
 
+* Fix bug with automatic detection of available cpus for multiprocessing and related errors. Instead of returning all cores in the node, it now checks for actually available for the process and correctly raises errors. [#1163]
+
 ### 2.5.2
 
 * Fix bug preventing computing a spot on the secondary component of a contact system. [#1157]
