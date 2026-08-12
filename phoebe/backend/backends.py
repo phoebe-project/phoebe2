@@ -561,10 +561,10 @@ class BaseBackendByTime(BaseBackend):
         inds = range(len(times))
 
         if mpi.enabled:
-            # np.array_split(any_input_array, mpi.nprocs)[mpi.myrank]
-            inds = np.array_split(inds, mpi.nprocs)[mpi.myrank]
-            times = np.array_split(times, mpi.nprocs)[mpi.myrank]
-            infolists = np.array_split(infolists, mpi.nprocs)[mpi.myrank]
+            # Split by index to avoid NumPy ragged-array coercion on infolists.
+            inds = np.array_split(np.arange(len(times)), mpi.nprocs)[mpi.myrank]
+            times = [times[i] for i in inds]
+            infolists = [infolists[i] for i in inds]
 
         packetlists = [] # entry per-time
         for i, time, infolist in _progressbar(zip(inds, times, infolists), total=len(times), show_progressbar=not b._within_solver and kwargs.get('progressbar', False)):
@@ -608,8 +608,9 @@ class BaseBackendByDataset(BaseBackend):
         worker_setup_kwargs = self._worker_setup(b, compute, infolist, **kwargs)
 
         if mpi.enabled:
-            # np.array_split(any_input_array, mpi.nprocs)[mpi.myrank]
-            infolist = np.array_split(infolist, mpi.nprocs)[mpi.myrank]
+            # Split by index to avoid NumPy ragged-array coercion on infolist.
+            chunk_inds = np.array_split(np.arange(len(infolist)), mpi.nprocs)[mpi.myrank]
+            infolist = [infolist[i] for i in chunk_inds]
 
         packetlists = [] # entry per-dataset
         for info in _progressbar(infolist, total=len(infolist), show_progressbar=not b._within_solver and kwargs.get('progressbar', False)):
