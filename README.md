@@ -79,6 +79,7 @@ CHANGELOG
 
 ### 2.5.3
 
+* Fix bug in estimators where numpy would raise an error saying `setting an array element with a sequence. The requested array has an inhomogeneous shape after 1 dimensions.` [#1162]
 * Fix bug with automatic detection of available cpus for multiprocessing and related errors. Instead of returning all cores in the node, it now checks for actually available for the process and correctly raises errors. [#1163]
 
 ### 2.5.2
