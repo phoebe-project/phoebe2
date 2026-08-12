@@ -79,6 +79,8 @@ CHANGELOG
 
 ### 2.5.3
 
+* Fix bug setting all sigmas to nan when a bin with <=1 point was encountered. Now it also handles cases of bins with zero scatter. These sigmas are evaluated as median of other bins or default to 1.0 if that is not possible. [#1164]
+
 ### 2.5.2
 
 * Fix bug preventing computing a spot on the secondary component of a contact system. [#1157]
