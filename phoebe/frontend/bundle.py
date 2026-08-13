@@ -4293,6 +4293,44 @@ class Bundle(ParameterSet):
                                     self.filter(qualifier='mesh_method', compute=compute, force_ps=True, check_default=True, check_visible=False).to_list()+addl_parameters,
                                     True, 'run_compute')
 
+            # distortion_method='none' builds no mesh for that component, so it
+            # can neither contribute flux nor act as the luminosity reference
+            if compute_kind == 'phoebe':
+                distortion_method_params = self.filter(qualifier='distortion_method', compute=compute, context='compute', **_skip_filter_checks).to_list()
+                meshables = self.hierarchy.get_meshables()
+                # NOTE: mesh_method='wd' ignores distortion_method and always
+                # meshes as roche (see universe.System.from_bundle), so a stale
+                # 'none' left over from marching must not be flagged here
+                meshless_components = [p.component for p in distortion_method_params
+                                       if p.component in meshables and
+                                       p.get_value(distortion_method=kwargs.get('distortion_method', None)) == 'none' and
+                                       self.get_value(qualifier='mesh_method', component=p.component, compute=compute, context='compute', mesh_method=kwargs.get('mesh_method', None), default='marching', **_skip_filter_checks) != 'wd']
+
+                if len(meshless_components):
+                    # datasets whose synthetics require integrating over a mesh
+                    # (dynamical RVs and orbits do not, so they remain valid)
+                    mesh_dependent_datasets = self.filter(dataset=compute_enabled_datasets, kind=['lc', 'lp', 'mesh'], context='dataset', **_skip_filter_checks).datasets
+                    mesh_dependent_datasets += [ds for ds in self.filter(dataset=compute_enabled_datasets, kind='rv', context='dataset', **_skip_filter_checks).datasets
+                                                if 'flux-weighted' in [p.get_value(rv_method=kwargs.get('rv_method', None)) for p in
+                                                                       self.filter(qualifier='rv_method', compute=compute, dataset=ds, context='compute', **_skip_filter_checks).to_list()]]
+
+                    if len(mesh_dependent_datasets):
+                        if not len([c for c in meshables if c not in meshless_components]):
+                            report.add_item(self,
+                                            "distortion_method='none' for all components in compute='{}', so no mesh is created and datasets {} cannot be computed.".format(compute, mesh_dependent_datasets),
+                                            distortion_method_params+addl_parameters,
+                                            True, 'run_compute')
+                        else:
+                            for pblum_component_param in self.filter(qualifier='pblum_component', dataset=mesh_dependent_datasets, context='dataset', **_skip_filter_checks).to_list():
+                                dataset = pblum_component_param.dataset
+                                if self.get_value(qualifier='pblum_mode', dataset=dataset, context='dataset', **_skip_filter_checks) != 'component-coupled':
+                                    continue
+                                if pblum_component_param.get_value() in meshless_components:
+                                    report.add_item(self,
+                                                    "pblum_component='{}' for dataset='{}' has distortion_method='none' in compute='{}', so it has no luminosity to couple to and all fluxes would be scaled to zero.".format(pblum_component_param.get_value(), dataset, compute),
+                                                    [pblum_component_param]+distortion_method_params+addl_parameters,
+                                                    True, 'run_compute')
+
             # estimate if any body is smaller than any other body's triangles, using a spherical assumption
             if compute_kind=='phoebe' and 'wd' not in mesh_methods:
                 eclipse_method = self.get_value(qualifier='eclipse_method', compute=compute, eclipse_method=kwargs.get('eclipse_method', None), **_skip_filter_checks)

@@ -350,6 +350,19 @@ class System(object):
             abs_normal_intensities = sigma_sb.value * body.mesh.teffs.for_computations**4 / np.pi  # bolometric intensities
             fluxes_intrins_per_body.append(abs_normal_intensities * np.pi)
 
+        if not len(fluxes_intrins_per_body):
+            # no body has a mesh (distortion_method='none' for all components),
+            # so there is nothing to irradiate.  Without this the per-body lists
+            # below are all-None while ld_func_and_coeffs is not, and libphoebe
+            # dereferences those Nones as arrays and segfaults.
+            logger.info("skipping reflection because no bodies have meshes")
+            return
+
+        # NOTE: the lists below are only consistent with each other because a
+        # system can have at most two meshables and any body without a mesh is
+        # caught by one of the two early returns.  Should support for more than
+        # two meshables ever be added, these will need to be filtered on
+        # body.mesh is not None.
         fluxes_intrins_flat = meshes.pack_column_flat(fluxes_intrins_per_body)
 
         if len(fluxes_intrins_per_body) == 1 and np.all([body.is_convex for body in self.bodies]):
