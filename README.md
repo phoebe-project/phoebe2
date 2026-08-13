@@ -77,6 +77,8 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.5.4
+
 ### 2.5.3
 
 * Fix bug in estimators where numpy would raise an error saying `setting an array element with a sequence. The requested array has an inhomogeneous shape after 1 dimensions.` [#1162]
