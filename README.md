@@ -79,6 +79,8 @@ CHANGELOG
 
 ### 2.5.4
 
+* Fixes bug where passbands would not automatically download missing blackbody tables when blending is enabled. [#1168]
+
 ### 2.5.3
 
 * Fix bug in estimators where numpy would raise an error saying `setting an array element with a sequence. The requested array has an inhomogeneous shape after 1 dimensions.` [#1162]
