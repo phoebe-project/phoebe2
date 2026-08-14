@@ -32,7 +32,7 @@ def test_calculate_lnlikelihood_with_mesh_dataset_present():
     b.add_compute(compute='fast_compute')
     b.set_value('irrad_method', compute='fast_compute', value='none')
     b.set_value_all('distortion_method', compute='fast_compute', value='sphere')
-    b.set_value_all('ntriangles', compute='fast_compute', value=80)
+    b.set_value_all('ntriangles', compute='fast_compute', value=100)
 
     b.run_compute(compute='fast_compute', model='fit_model')
     lnlike = b.calculate_lnlikelihood(model='fit_model')
