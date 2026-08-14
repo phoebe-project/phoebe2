@@ -3716,9 +3716,9 @@ class Bundle(ParameterSet):
 
             missing_pb_content = []
 
-            if len(blackbody_blending_params) and 'blackbody' not in installed_pbs.get(pb, {}).get('content', []):
-                if 'blackbody' in online_pbs.get(pb, {}).get('content', []):
-                    missing_pb_content += ['blackbody']
+            if len(blackbody_blending_params) and 'blackbody:Inorm' not in installed_pbs.get(pb, {}).get('content', []):
+                if 'blackbody:Inorm' in online_pbs.get(pb, {}).get('content', []):
+                    missing_pb_content += ['blackbody:Inorm']
                 else:
                     report.add_item(self,
                                     "'{}' passband ({}) does not support blending_method='blackbody'.".format(pb, pbparam.twig),
