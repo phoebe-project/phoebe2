@@ -81,8 +81,8 @@ CHANGELOG
 
 * Fix bug setting all sigmas to nan when a bin with <=1 point was encountered. Now it also handles cases of bins with zero scatter. These sigmas are evaluated as median of other bins or default to 1.0 if that is not possible. [#1169]
 * Fix bug where solvers would raise an error if the lnpriors calculation fails (due to parameter out of bounds or failed constraints).  This now correctly returns an lnprior of -inf. [#1171]
+* Fixes bug where passbands would not automatically download missing blackbody tables when blending is enabled. [#1168]
 * Fixes calculate_lnlikelihood when mesh datasets are included in the referenced model. [#1172]
-
 
 ### 2.5.3
 

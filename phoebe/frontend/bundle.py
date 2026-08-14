@@ -3696,6 +3696,11 @@ class Bundle(ParameterSet):
 
         # TODO: is this robust against flipping constraints?
         pb_needs_ext = self.get_value(qualifier='ebv', context='system', **_skip_filter_checks) != 0
+        blackbody_blending_params = self.filter(qualifier='blending_method',
+                                                compute=computes,
+                                                blending_method='blackbody',
+                                                check_visible=False,
+                                                check_default=True).to_list()
 
         for pbparam in self.filter(qualifier='passband', **_skip_filter_checks).to_list():
 
@@ -3710,6 +3715,15 @@ class Bundle(ParameterSet):
             pb_needs_ldint = True
 
             missing_pb_content = []
+
+            if len(blackbody_blending_params) and 'blackbody:Inorm' not in installed_pbs.get(pb, {}).get('content', []):
+                if 'blackbody:Inorm' in online_pbs.get(pb, {}).get('content', []):
+                    missing_pb_content += ['blackbody:Inorm']
+                else:
+                    report.add_item(self,
+                                    "'{}' passband ({}) does not support blending_method='blackbody'.".format(pb, pbparam.twig),
+                                    [pbparam] + blackbody_blending_params,
+                                    True, 'run_compute')
 
             # TODO: do we really want to run this every time we run checks? Perhaps move to init?
             if pb_needs_ext and pb in ['Stromgren:u', 'Johnson:U', 'SDSS:u', 'SDSS:uprime']:
