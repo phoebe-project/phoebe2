@@ -79,6 +79,8 @@ CHANGELOG
 
 ### 2.5.4
 
+* Fix bug setting all sigmas to nan when a bin with <=1 point was encountered. Now it also handles cases of bins with zero scatter. These sigmas are evaluated as median of other bins or default to 1.0 if that is not possible. [#1169]
+
 ### 2.5.3
 
 * Fix bug in estimators where numpy would raise an error saying `setting an array element with a sequence. The requested array has an inhomogeneous shape after 1 dimensions.` [#1162]
