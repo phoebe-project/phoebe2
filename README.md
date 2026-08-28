@@ -77,6 +77,8 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.5.5
+
 ### 2.5.4
 
 * Fix bug setting all sigmas to nan when a bin with <=1 point was encountered. Now it also handles cases of bins with zero scatter. These sigmas are evaluated as median of other bins or default to 1.0 if that is not possible. [#1169]
