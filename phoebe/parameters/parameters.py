@@ -3819,9 +3819,9 @@ class ParameterSet(object):
             raise TypeError("model must be of type string or None")
 
         if not len(self.filter(context='model', **_skip_filter_checks).models):
-            model_ps = self._bundle.filter(model=model, context='model', dataset=dataset, component=component, **_skip_filter_checks)
+            model_ps = self._bundle.filter(model=model, context='model', dataset=dataset, component=component, **_skip_filter_checks).exclude(kind='mesh', **_skip_filter_checks)
         else:
-            model_ps = self.filter(model=model, context='model', dataset=dataset, component=component, **_skip_filter_checks)
+            model_ps = self.filter(model=model, context='model', dataset=dataset, component=component, **_skip_filter_checks).exclude(kind='mesh', **_skip_filter_checks)
 
         if model is not None and model not in model_ps.models:
             raise ValueError("model '{}' not found".format(model))

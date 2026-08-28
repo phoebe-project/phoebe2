@@ -166,7 +166,12 @@ def _lnprobability(sampled_values, b, params_uniqueids, compute,
         logger.warning("received error while running constraints: {}. lnprobability=-inf".format(err))
         return _return(-np.inf, str(err))
 
-    lnpriors = b.calculate_lnp(distribution=priors, combine=priors_combine, include_constrained=True)
+    try:
+        lnpriors = b.calculate_lnp(distribution=priors, combine=priors_combine, include_constrained=True)
+    except Exception as err:
+        logger.warning("received error while evaluating lnpriors: {}. lnprobability=-inf".format(err))
+        return _return(-np.inf, str(err))
+
     if not np.isfinite(lnpriors):
         # no point in calculating the model then
         return _return(-np.inf, 'lnpriors = -inf')
@@ -301,9 +306,15 @@ def _get_combined_lc(b, datasets, combine, phase_component=None, mask=True, norm
         sigmas_binned, phase_edges, binnumber = binned_statistic(phases, fluxes, statistic='std', bins=phase_bin)
         counts_binned, phase_edges, binnumber = binned_statistic(phases, fluxes, statistic='count', bins=phase_bin)
 
-        if min(counts_binned) <= 1:
-            logger.warning("phase-binning resulted in bin(s) with <=1 entries, ignoring sigmas as cannot determine per-bin sigmas.")
-            sigmas_binned = np.full_like(fluxes_binned, fill_value=np.nan)
+        bad_inds = ~np.isfinite(sigmas_binned) | (sigmas_binned <= 0)
+        if np.any(bad_inds):
+            fill_sigma = np.nanmedian(sigmas_binned[~bad_inds]) if np.any(~bad_inds) else np.nan
+            if not np.isfinite(fill_sigma) or fill_sigma <= 0:
+                fill_sigma = np.nanstd(fluxes_binned)
+            if not np.isfinite(fill_sigma) or fill_sigma <= 0:
+                fill_sigma = 1.0
+            logger.warning("phase-binning resulted in {} of {} bin(s) without a usable per-bin sigma (<=1 entry or zero scatter); adopting sigma={} for those bins.".format(int(np.sum(bad_inds)), len(counts_binned), fill_sigma))
+            sigmas_binned[bad_inds] = fill_sigma
 
         phases_binned = (phase_edges[1:] + phase_edges[:-1]) / 2.
 
@@ -397,9 +408,15 @@ def _get_combined_rv(b, datasets, components, phase_component=None, mask=True, n
         sigmas_binned, phase_edges, binnumber = binned_statistic(phases, rvs, statistic='std', bins=phase_bin)
         counts_binned, phase_edges, binnumber = binned_statistic(phases, rvs, statistic='count', bins=phase_bin)
         counts_single_inds = np.where(counts_binned==0)[0]
-        if min(counts_binned) <= 1:
-            logger.warning("phase-binning resulted in bin(s) with <=1 entries, ignoring sigmas as cannot determine per-bin sigmas.")
-            sigmas_binned = np.full_like(rvs_binned, fill_value=np.nan)
+        bad_inds = ~np.isfinite(sigmas_binned) | (sigmas_binned <= 0)
+        if np.any(bad_inds):
+            fill_sigma = np.nanmedian(sigmas_binned[~bad_inds]) if np.any(~bad_inds) else np.nan
+            if not np.isfinite(fill_sigma) or fill_sigma <= 0:
+                fill_sigma = np.nanstd(rvs_binned)
+            if not np.isfinite(fill_sigma) or fill_sigma <= 0:
+                fill_sigma = 1.0
+            logger.warning("phase-binning resulted in {} of {} bin(s) without a usable per-bin sigma (<=1 entry or zero scatter); adopting sigma={} for those bins.".format(int(np.sum(bad_inds)), len(counts_binned), fill_sigma))
+            sigmas_binned[bad_inds] = fill_sigma
 
         phases_binned = (phase_edges[1:] + phase_edges[:-1]) / 2.
 

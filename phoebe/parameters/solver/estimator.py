@@ -245,12 +245,14 @@ def lc_geometry(**kwargs):
     * `lc_combine` (string, optional, default='median'): How to normalize each
         light curve prior to combining.
     * `phase_bin` (bool, optional, default=True): Bin the input observations (
-        see `phase_nbins`) if more than 2*phase_nbins.  NOTE: input observational
+        see `phase_nbins`) if more than `phase_nbins`.  NOTE: input observational
         sigmas will be ignored during binning and replaced by per-bin standard
-        deviations if possible, or ignored entirely otherwise.
+        deviations.  Bins without a usable per-bin standard deviation (those
+        with a single entry, or with zero scatter) instead adopt the median of
+        the usable per-bin standard deviations.
     * `phase_nbins` (int, optional, default=500): Number of bins to use during
         phase binning input observations
-        (will only be applied if len(times) > 2*`phase_nbins`).  Only applicable
+        (will only be applied if len(times) > `phase_nbins`).  Only applicable
         if `phase_bin` is True.
     * `orbit` (string, optional, default=top-level orbit): Orbit to use for
         phasing the light curve referenced in the `lc_datasets` parameter
@@ -273,8 +275,8 @@ def lc_geometry(**kwargs):
     params += [SelectParameter(qualifier='lc_datasets', value=kwargs.get('lc_datasets', '*'), choices=[], description='Light curve dataset(s) to use to extract eclipse geometry')]
     params += [ChoiceParameter(visible_if='lc_datasets:<plural>', qualifier='lc_combine', value=kwargs.get('lc_combine', 'median'), choices=['median', 'max'], advanced=True, description='How to normalize each light curve prior to combining.')]
 
-    params += [BoolParameter(qualifier='phase_bin', value=kwargs.get('phase_bin', True), description='Bin the input observations (see phase_nbins) if more than 2*phase_nbins.  NOTE: input observational sigmas will be ignored during binning and replaced by per-bin standard deviations if possible, or ignored entirely otherwise.')]
-    params += [IntParameter(qualifier='phase_nbins', visible_if='phase_bin:True', value=kwargs.get('phase_nbins', 500), limits=(100,None), description='Number of bins to use during phase binning input observations (will only be applied if len(times) > 2*phase_nbins)')]
+    params += [BoolParameter(qualifier='phase_bin', value=kwargs.get('phase_bin', True), description='Bin the input observations (see phase_nbins) if more than phase_nbins.  NOTE: input observational sigmas will be ignored during binning and replaced by per-bin standard deviations.  Bins without a usable per-bin standard deviation (those with a single entry, or with zero scatter) instead adopt the median of the usable per-bin standard deviations.')]
+    params += [IntParameter(qualifier='phase_nbins', visible_if='phase_bin:True', value=kwargs.get('phase_nbins', 500), limits=(100,None), description='Number of bins to use during phase binning input observations (will only be applied if len(times) > phase_nbins)')]
 
     params += [ChoiceParameter(qualifier='orbit', value=kwargs.get('orbit', ''), choices=[''], description='Orbit to use for phasing the light curve referenced in the lc_datasets parameter')]
     params += [ChoiceParameter(qualifier='analytical_model', value=kwargs.get('analytical_model', 'two-gaussian'), choices=['two-gaussian', 'polyfit'], description='Analytical model to fit the light curve with.')]
@@ -323,12 +325,14 @@ def rv_geometry(**kwargs):
     * `rv_datasets` (string or list, optional, default='*'): Radial velocity
         dataset(s) to use to extract RV geometry.
     * `phase_bin` (bool, optional, default=True): Bin the input observations (
-        see `phase_nbins`) if more than 2*phase_nbins.  NOTE: input observational
+        see `phase_nbins`) if more than `phase_nbins`.  NOTE: input observational
         sigmas will be ignored during binning and replaced by per-bin standard
-        deviations if possible, or ignored entirely otherwise.
+        deviations.  Bins without a usable per-bin standard deviation (those
+        with a single entry, or with zero scatter) instead adopt the median of
+        the usable per-bin standard deviations.
     * `phase_nbins` (int, optional, default=500): Number of bins to use during
         phase binning input observations
-        (will only be applied if len(times) > 2*`phase_nbins`).  Only applicable
+        (will only be applied if len(times) > `phase_nbins`).  Only applicable
         if `phase_bin` is True.
     * `orbit` (string, optional, default=top-level orbit): Orbit to use for
         estimating orbital parameters.
@@ -346,8 +350,8 @@ def rv_geometry(**kwargs):
     params += [SelectParameter(qualifier='rv_datasets', value=kwargs.get('rv_datasets', '*'), choices=[], description='Radial velocity dataset(s) to use to extract RV geometry')]
     params += [ChoiceParameter(qualifier='orbit', value=kwargs.get('orbit', ''), choices=[''], description='Orbit to use for estimating orbital parameters')]
 
-    params += [BoolParameter(qualifier='phase_bin', value=kwargs.get('phase_bin', True), description='Bin the input observations (see phase_nbins) if more than 2*phase_nbins.  NOTE: input observational sigmas will be ignored during binning and replaced by per-bin standard deviations if possible, or ignored entirely otherwise.')]
-    params += [IntParameter(qualifier='phase_nbins', visible_if='phase_bin:True', value=kwargs.get('phase_nbins', 500), limits=(100,None), description='Number of bins to use during phase binning input observations (will only be applied if len(times) > 2*phase_nbins)')]
+    params += [BoolParameter(qualifier='phase_bin', value=kwargs.get('phase_bin', True), description='Bin the input observations (see phase_nbins) if more than phase_nbins.  NOTE: input observational sigmas will be ignored during binning and replaced by per-bin standard deviations.  Bins without a usable per-bin standard deviation (those with a single entry, or with zero scatter) instead adopt the median of the usable per-bin standard deviations.')]
+    params += [IntParameter(qualifier='phase_nbins', visible_if='phase_bin:True', value=kwargs.get('phase_nbins', 500), limits=(100,None), description='Number of bins to use during phase binning input observations (will only be applied if len(times) > phase_nbins)')]
 
     # params += [BoolParameter(qualifier='t0_near_times', value=kwargs.get('t0_near_times', True), description='Whether the returned value for t0_supconj should be forced to be in the range of the referenced observations.')]
 
@@ -408,12 +412,14 @@ def ebai(**kwargs):
     * `lc_combine` (string, optional, default='median'): How to normalize each
         light curve prior to combining.
     * `phase_bin` (bool, optional, default=True): Bin the input observations (
-        see `phase_nbins`) if more than 2*phase_nbins.  NOTE: input observational
+        see `phase_nbins`) if more than `phase_nbins`.  NOTE: input observational
         sigmas will be ignored during binning and replaced by per-bin standard
-        deviations if possible, or ignored entirely otherwise.
+        deviations.  Bins without a usable per-bin standard deviation (those
+        with a single entry, or with zero scatter) instead adopt the median of
+        the usable per-bin standard deviations.
     * `phase_nbins` (int, optional, default=500): Number of bins to use during
         phase binning input observations
-        (will only be applied if len(times) > 2*`phase_nbins`).  Only applicable
+        (will only be applied if len(times) > `phase_nbins`).  Only applicable
         if `phase_bin` is True.
     * `ebai_method` (str, optional, default='knn'): EBAI method to use. If 'knn',
         a train scikit-learn KNeighborsRegressor will be used. If 'mlp', a custom
@@ -432,8 +438,8 @@ def ebai(**kwargs):
     params += [SelectParameter(qualifier='lc_datasets', value=kwargs.get('lc_datasets', '*'), choices=[], description='Light curve dataset(s) to pass to ebai')]
     params += [ChoiceParameter(visible_if='lc_datasets:<plural>', qualifier='lc_combine', value=kwargs.get('lc_combine', 'median'), choices=['median', 'max'], advanced=True, description='How to normalize each light curve prior to combining.')]
 
-    params += [BoolParameter(qualifier='phase_bin', value=kwargs.get('phase_bin', True), description='Bin the input observations (see phase_nbins) if more than 2*phase_nbins.  NOTE: input observational sigmas will be ignored during binning and replaced by per-bin standard deviations if possible, or ignored entirely otherwise.')]
-    params += [IntParameter(qualifier='phase_nbins', visible_if='phase_bin:True', value=kwargs.get('phase_nbins', 500), limits=(100,None), description='Number of bins to use during phase binning input observations (will only be applied if len(times) > 2*phase_nbins)')]
+    params += [BoolParameter(qualifier='phase_bin', value=kwargs.get('phase_bin', True), description='Bin the input observations (see phase_nbins) if more than phase_nbins.  NOTE: input observational sigmas will be ignored during binning and replaced by per-bin standard deviations.  Bins without a usable per-bin standard deviation (those with a single entry, or with zero scatter) instead adopt the median of the usable per-bin standard deviations.')]
+    params += [IntParameter(qualifier='phase_nbins', visible_if='phase_bin:True', value=kwargs.get('phase_nbins', 500), limits=(100,None), description='Number of bins to use during phase binning input observations (will only be applied if len(times) > phase_nbins)')]
     params += [ChoiceParameter(qualifier='ebai_method', value=kwargs.get('ebai_method', 'knn'), choices=['knn', 'mlp'], description='Choice of machine learning model to use for prediction. knn uses a trained sklearn kNeighborsRegressor, while mlp uses a trained neural network.')]
     params += [ChoiceParameter(qualifier='orbit', value=kwargs.get('orbit', ''), choices=[''], description='Orbit to use for phasing the light curve referenced in the lc_datasets parameter')]
 

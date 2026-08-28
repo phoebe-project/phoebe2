@@ -608,7 +608,7 @@ class TwoGaussianModel(Model):
                 self.fits[key] = curve_fit(self.twogfuncs[key], phases_ext, fluxes_ext, p0=init_params[key], sigma=sigmas_ext, bounds=bounds[key])[0]
             except Exception as err:
                 print("2G model {} failed with error: {}".format(key, err))
-                self.fits[key] = np.array([np.nan*np.ones(len(init_params[key]))])
+                self.fits[key] = np.nan*np.ones(len(init_params[key]))
 
 
     def compute_twoGaussian_models(self):

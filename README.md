@@ -77,6 +77,14 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.5.4
+
+* Fix bug setting all sigmas to nan when a bin with <=1 point was encountered. Now it also handles cases of bins with zero scatter. These sigmas are evaluated as median of other bins or default to 1.0 if that is not possible. [#1169]
+* Fix bug where solvers would raise an error if the lnpriors calculation fails (due to parameter out of bounds or failed constraints).  This now correctly returns an lnprior of -inf. [#1171]
+* Fixes bug where passbands would not automatically download missing blackbody tables when blending is enabled. [#1168]
+* Fixes calculate_lnlikelihood when mesh datasets are included in the referenced model. [#1172]
+* Fixes a segfault when distortion_method='none' for both components. [#1170]
+
 ### 2.5.3
 
 * Fix bug in estimators where numpy would raise an error saying `setting an array element with a sequence. The requested array has an inhomogeneous shape after 1 dimensions.` [#1162]
