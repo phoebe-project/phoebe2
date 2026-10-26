@@ -1421,7 +1421,10 @@ class Star(Body):
         if self.is_single:
             return False
 
-        return self.polar_direction_xyz[2] != 1.0
+        # compare with a tolerance: for an aligned star z equals 1 only up to
+        # rounding (1 - 1.1e-16 or 1 + 2.2e-16 depending on the inclination), and
+        # an exact comparison re-meshes it at every time (#1178)
+        return abs(self.polar_direction_xyz[2] - 1.0) > 1e-12
 
     @property
     def polar_direction_xyz(self):
