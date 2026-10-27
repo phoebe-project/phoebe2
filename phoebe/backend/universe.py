@@ -9,7 +9,7 @@ except ImportError:
     from scipy.special import sph_harm_y as _sph_harm_y
     def Y(m, n, theta, phi):
         return _sph_harm_y(n, m, theta, phi)
-from math import sqrt, sin, cos, acos, atan2, trunc, pi
+from math import sqrt, sin, cos, acos, atan2, trunc, pi, isclose
 import sys, os
 import copy
 from astropy.constants import sigma_sb
@@ -1424,7 +1424,7 @@ class Star(Body):
         # compare with a tolerance: for an aligned star z equals 1 only up to
         # rounding (1 - 1.1e-16 or 1 + 2.2e-16 depending on the inclination), and
         # an exact comparison re-meshes it at every time (#1178)
-        return abs(self.polar_direction_xyz[2] - 1.0) > 1e-12
+        return not isclose(self.polar_direction_xyz[2], 1.0, rel_tol=1e-12)
 
     @property
     def polar_direction_xyz(self):
