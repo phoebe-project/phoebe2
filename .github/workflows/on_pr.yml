@@ -55,7 +55,13 @@ jobs:
       env:
         FC: ${{ steps.setup-fortran.outputs.fc }}
       run: |
-        wget https://www.astro.keele.ac.uk/jkt/codes/jktebop-v44.tgz --no-check-certificate
+        # Keele first; PHOEBE's mirror if Keele is down or does not return a valid archive
+        if wget --timeout=10 --tries=2 --no-check-certificate -O jktebop-v44.tgz https://www.astro.keele.ac.uk/jkt/codes/jktebop-v44.tgz && tar -tzf jktebop-v44.tgz > /dev/null; then
+          echo "jktebop: downloaded from www.astro.keele.ac.uk"
+        else
+          echo "jktebop: Keele failed, downloading from phoebe-project.org"
+          wget --timeout=10 --tries=2 -O jktebop-v44.tgz https://phoebe-project.org/static/deps/jktebop-v44.tgz
+        fi
         tar -xvzf jktebop-v44.tgz
         cd jktebop44
         ${{ env.FC }} -o jktebop jktebop.f
