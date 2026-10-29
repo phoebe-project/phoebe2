@@ -79,6 +79,8 @@ CHANGELOG
 
 ### 2.5.5
 
+* Fix bug where aligned stars in circular orbits were treated as misaligned for about 30% of inclinations (due to an exact floating-point comparison), so they were re-meshed at every time point and run_compute was several times slower. [#1179]
+
 ### 2.5.4
 
 * Fix bug setting all sigmas to nan when a bin with <=1 point was encountered. Now it also handles cases of bins with zero scatter. These sigmas are evaluated as median of other bins or default to 1.0 if that is not possible. [#1169]
