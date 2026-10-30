@@ -79,7 +79,8 @@ CHANGELOG
 
 ### 2.5.5
 
-* Fix bug where aligned stars in circular orbits were treated as misaligned for about 30% of inclinations (due to an exact floating-point comparison), so they were re-meshed at every time point and run_compute was several times slower. [#1179]
+* Fixes a bug where aligned stars in circular orbits were treated as misaligned for about 30% of inclinations (due to an exact floating-point comparison), so they were re-meshed at every time point and run_compute was several times slower. [#1179]
+* Fixes a scipy 0.18+ compatibility issue with spline interpolation.
 
 ### 2.5.4
 
