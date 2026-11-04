@@ -69,7 +69,7 @@ def _create_bolometric(tables_dir, out_path, verbose):
         ptf=os.path.join(tables_dir, 'ptfs', 'bolo900.ptf'),
         pbset='Bolometric',
         pbname='900-40000',
-        wlunits=u.nm,
+        wlunits=u.AA,
         calibrated=True,
         reference='Flat response to simulate bolometric throughput',
         version=1.6,
