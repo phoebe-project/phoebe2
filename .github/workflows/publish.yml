@@ -24,15 +24,21 @@ jobs:
         name: Build wheels on ${{ matrix.os }}
         runs-on: ${{ matrix.os }}
         strategy:
+            fail-fast: false
             matrix:
-                os: [ubuntu-24.04, macos-15]  # https://docs.github.com/en/actions/using-github-hosted-runners/about-github-hosted-runners
+                os: [ubuntu-24.04, macos-15]  # https://github.com/actions/runner-images#available-images
         steps:
             - name: Checkout the sources
               uses: actions/checkout@v7
             - name: Build wheels
               uses: pypa/cibuildwheel@v4.3.5
               env:
-                CIBW_SKIP: pp37-* pp38-* pp39-* pp31*-macosx* *-manylinux_i686
+                # cibuildwheel >= 3 no longer builds PyPy or 32-bit Linux by default.
+                # It does build free-threaded CPython (cp31Xt) by default: skip those
+                # until the extensions declare free-threading support, and cp315 until
+                # Python 3.15 is in the on_pr test matrix.
+                CIBW_SKIP: "cp3??t-* cp315-*"
+                # x86_64 wheels are cross-compiled on the arm64 runner.
                 CIBW_ARCHS_MACOS: "x86_64 arm64"
             - uses: actions/upload-artifact@v7
               with:
@@ -56,9 +62,5 @@ jobs:
                 pattern: cibw-*
                 path: dist
                 merge-multiple: true
-            - name: Set up Python
-              uses: actions/setup-python@v7
-              with:
-                python-version: '3.12'
             - name: Publish package distributions to PyPI
               uses: pypa/gh-action-pypi-publish@release/v1
