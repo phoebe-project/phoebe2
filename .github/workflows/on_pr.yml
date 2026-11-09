@@ -4,56 +4,59 @@ on:
   workflow_dispatch:
   pull_request:
 
+permissions:
+  contents: read
+
+# Cancel superseded runs of the same PR:
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PHOEBE_ENABLE_PLOTTING: 'FALSE'
+  PHOEBE_UPDATE_PASSBAND_IGNORE_VERSION: 'TRUE'
+
 jobs:
   build:
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
     strategy:
       fail-fast: false
       matrix:
         python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
-        os: [ubuntu-latest, macos-14, macos-15-intel, macos-latest]  # https://docs.github.com/en/actions/using-github-hosted-runners/about-github-hosted-runners
-        toolchain:
-            - {compiler: gcc, version: 13}  # https://github.com/fortran-lang/setup-fortran
+        # https://github.com/actions/runner-images#available-images
+        os: [ubuntu-24.04, ubuntu-latest, macos-15, macos-15-intel, macos-latest]
 
     name: ${{ matrix.os }} python${{ matrix.python-version}}
     steps:
     - name: Checkout PHOEBE
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
 
     - name: Setup python ${{ matrix.python-version }}
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v7
       with:
         python-version: ${{ matrix.python-version }}
-
-    - name: PHOEBE environment variables
-      run: |
-        export PHOEBE_ENABLE_PLOTTING='FALSE'
-        export PHOEBE_UPDATE_PASSBAND_IGNORE_VERSION='TRUE'
+        cache: pip
+        cache-dependency-path: pyproject.toml
 
     - name: Update pip
       run: |
         python -m pip install --upgrade pip
 
-    - name: Install phoebe optional modules
+    - name: Install PHOEBE from source, with test and optional extras
       run: |
-        python -m pip install rebound "celerite2<0.3.3" scikit-learn emcee
-
-    - name: Install PHOEBE from source
-      run: |
-        pip install .
+        python -m pip install ".[test,extras]"
 
     - name: Install and run pipdeptree to see package dependencies
       run: |
         python -m pip install pipdeptree
         pipdeptree
 
-    - name: Setup GNU Fortran
-      id: setup-fortran
-      uses: fortran-lang/setup-fortran@v1
-
     - name: Install jktebop
       env:
-        FC: ${{ steps.setup-fortran.outputs.fc }}
+        # gfortran-14 is preinstalled on all runner images in the matrix:
+        # https://github.com/actions/runner-images#available-images
+        FC: gfortran-14
       run: |
         # Keele first; PHOEBE's mirror if Keele is down or does not return a valid archive
         if wget --timeout=10 --tries=2 --no-check-certificate -O jktebop-v44.tgz https://www.astro.keele.ac.uk/jkt/codes/jktebop-v44.tgz && tar -tzf jktebop-v44.tgz > /dev/null; then
