@@ -81,6 +81,7 @@ CHANGELOG
 
 * Fix bug where aligned stars in circular orbits were treated as misaligned for about 30% of inclinations (due to an exact floating-point comparison), so they were re-meshed at every time point and run_compute was several times slower. [#1179]
 * Fixes unit mismatch in the bolometric filter (nm -> A). [#1185]
+* Fix bug where l3_mode='fraction' in datasets with pblum_mode='dataset-scaled' (or dataset-coupled to one) added 4*pi times too much third light, 8*pi for contact systems (present since 2.3.0). The third-light fraction is now taken relative to the same system flux (pbflux) as in the other pblum modes. [#1187]
 
 ### 2.5.4
 
