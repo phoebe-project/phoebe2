@@ -12285,6 +12285,15 @@ class Bundle(ParameterSet):
                 # or for any dataset in which pblum_mode == 'dataset-coupled' and pblum_dataset points to a 'dataset-scaled' dataset
                 datasets_dsscaled = []
                 coupled_datasets = self.filter(qualifier='pblum_mode', dataset=ml_params.datasets, value='dataset-coupled', **_skip_filter_checks).datasets
+
+                # l3_mode='fraction' adds l3_frac/(1-l3_frac) times the system flux, in the units of the not yet
+                # scaled model fluxes: pbflux, i.e. the sum of pblum/(4 pi) over the stars only (an envelope's
+                # pblum already contains its halves), exactly as compute_l3s uses it. The phoebe and legacy
+                # fluxes do not include the distance yet, the other backends were scaled to pbflux above.
+                ds_distance = self.get_value(qualifier='distance', context='system', unit=u.m, **_skip_filter_checks)
+                def _l3_ref_flux(dataset):
+                    pbflux = pbfluxes.get(dataset)
+                    return pbflux * ds_distance**2 if computeparams.kind in ['phoebe', 'legacy'] else pbflux
                 scaled_datasets = self.filter(qualifier='pblum_mode', dataset=ml_params.datasets, value='dataset-scaled', **_skip_filter_checks).datasets
                 for scaled_dataset in scaled_datasets:
                     this_dsscale_datasets = [scaled_dataset] + self.filter(qualifier='pblum_dataset', dataset=coupled_datasets, value=scaled_dataset, **_skip_filter_checks).datasets
@@ -12316,7 +12325,7 @@ class Bundle(ParameterSet):
                         l3_frac_ref = ds_obs_ref.get_value(qualifier='l3_frac', **_skip_filter_checks)
                         l3_fluxes_ref = np.zeros_like(ds_times_ref)
                         l3_fracs_ref = np.full_like(ds_times_ref, fill_value=l3_frac_ref)
-                        l3_pblum_abs_sums_ref = np.full_like(ds_times_ref, fill_value=np.sum(list(pblums_abs.get(scaled_dataset).values())))
+                        l3_pblum_abs_sums_ref = np.full_like(ds_times_ref, fill_value=_l3_ref_flux(scaled_dataset))
 
                     scale_factor_approx = np.median(ds_fluxes_ref / model_fluxes_interp_ref)
 
@@ -12348,7 +12357,7 @@ class Bundle(ParameterSet):
                         else:
                             l3_frac = ds_obs.get_value(qualifier='l3_frac', **_skip_filter_checks)
                             l3_flux = 0.0
-                            l3_pblum_abs_sum = np.sum(list(pblums_abs.get(flux_param.dataset).values()))
+                            l3_pblum_abs_sum = _l3_ref_flux(flux_param.dataset)
 
                         syn_fluxes = _scale_fluxes(flux_param.get_value(unit=u.W/u.m**2), scale_factor, l3_frac, l3_pblum_abs_sum, l3_flux)
 
