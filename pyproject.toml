@@ -11,11 +11,14 @@
 
 [project]
 name = "phoebe"
-version = "2.5.5"
+dynamic = ["version"]  # single source of truth: phoebe/__init__.py:__version__
 description = "PHOEBE: modeling and analysis of eclipsing binary stars"
 readme = "README.md"
 requires-python = ">=3.10"
-license = { text = "GPL-3.0-or-later" }
+license = "GPL-3.0-or-later"
+license-files = [
+    "LICENSE.md",
+]
 authors = [
     { name = "Andrej Prša", email = "aprsa@villanova.edu" },
     { name = "Kyle Conroy", email = "kyle.conroy@villanova.edu" },
@@ -43,7 +46,6 @@ classifiers = [
     "Environment :: Console",
     "Intended Audience :: Education",
     "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
     "Natural Language :: English",
     "Operating System :: POSIX :: Linux",
     "Operating System :: MacOS",
@@ -61,8 +63,7 @@ dependencies = [
     "numpy",
     "scipy",
     "astropy",
-    "pytest",
-    "ndpolator == 1.3.1",
+    "ndpolator == 1.3.2",
     "tqdm",
     "corner",
     "requests",
@@ -79,57 +80,32 @@ homepage = "https://phoebe-project.org"
 repository = "https://github.com/phoebe-project/phoebe2"
 documentation = "https://phoebe-project.org/docs"
 
+[project.optional-dependencies]
+test = ["pytest"]
+extras = ["rebound", "celerite2<0.3.3", "scikit-learn", "emcee"]
+
 [build-system]
 requires = [
-    "setuptools>=68",
-    "wheel",
-    "numpy>=1.26,<2.3",
+    "setuptools>=77",
+    "numpy>=2.0",
 ]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-packages = [
-    "phoebe",
-    "phoebe.parameters",
-    "phoebe.parameters.solver",
-    "phoebe.parameters.figure",
-    "phoebe.frontend",
-    "phoebe.frontend.default_bundles",
-    "phoebe.constraints",
-    "phoebe.dynamics",
-    "phoebe.distortions",
-    "phoebe.algorithms",
-    "phoebe.atmospheres",
-    "phoebe.atmospheres.tables.extinction",
-    "phoebe.atmospheres.tables.passbands",
-    "phoebe.atmospheres.tables.wd",
-    "phoebe.lib",
-    "phoebe.backend",
-    "phoebe.solverbackends",
-    "phoebe.solverbackends.ebai",
-    "phoebe.solverbackends.knn",
-    "phoebe.cli",
-    "phoebe.features",
-    "phoebe.utils",
-    "phoebe.helpers",
-    "phoebe.pool",
-    "phoebe.dependencies",
-    "phoebe.dependencies.autofig",
-    "phoebe.dependencies.nparray",
-    "phoebe.dependencies.distl",
-    "phoebe.dependencies.crimpl",
-    "phoebe.dependencies.unitsiau2015",
-    "phoebe.dependencies.ligeor",
-    "phoebe.dependencies.ligeor.ebai",
-    "phoebe.dependencies.ligeor.ebai.database",
-    "phoebe.dependencies.ligeor.eclipse",
-    "phoebe.dependencies.ligeor.models",
-    "phoebe.dependencies.ligeor.utils",
-]
 script-files = [
     "client-server/phoebe-server",
     "client-server/phoebe-autofig",
 ]
+
+[tool.setuptools.packages.find]
+# every directory under phoebe/ is a package, including the data-only ones
+# (atmospheres/tables/*, frontend/default_bundles) that have no __init__.py:
+include = ["phoebe*"]
+namespaces = true
+
+[tool.setuptools.dynamic]
+# read statically (ast) from the literal in phoebe/__init__.py; no import needed
+version = {attr = "phoebe.__version__"}
 
 [project.scripts]
 phoebe-admin = "phoebe.cli.admin:main"
