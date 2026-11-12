@@ -51,6 +51,10 @@ _url_tables_server = os.getenv('PHOEBE_TABLES_SERVER', 'https://tables.phoebe-pr
 # at some point.
 _pbtable = {}
 
+# Pre-2.5 passband files skipped on initialization, keyed by passband, so that
+# downloading the 2.5 version can replace them:
+_pbtable_obsolete = {}
+
 _initialized = False
 _online_passbands = {}
 _online_passband_failedtries = 0
@@ -1854,6 +1858,21 @@ def _init_passband(fullpath, check_for_update=True):
     """
     global _pbtable
     logger.info("initializing passband (headers only) at {}".format(fullpath))
+
+    # pre-2.5 passband files cannot be loaded by 2.5+, so skip them loudly:
+    header = fits.getheader(fullpath)
+    pb_version = str(header.get('phoebevn', '0'))
+    if parse(pb_version) < parse('2.5'):
+        passband = f"{header['pbset']}:{header['pbname']}"
+        msg = f"PHOEBE: skipping {fullpath}: it is an obsolete passband file (created by PHOEBE {pb_version})."
+        if passband in list_online_passbands(repeat_errors=False):
+            _pbtable_obsolete[passband] = fullpath
+            msg += f" Run phoebe.update_passband('{passband}') to replace it with the 2.5 version from the server."
+        else:
+            msg += f" The {passband} passband is not available from the server, so it cannot be updated."
+        print(msg)
+        return
+
     try:
         pb = Passband.load(fullpath, load_content=False)
     except:
@@ -1899,6 +1918,8 @@ def _init_passbands(refresh=False, query_online=True, passband_directories=None)
         passband_directories = [passband_directories]
 
     if not _initialized or refresh:
+        _pbtable_obsolete.clear()
+
         # load information from online passbands first so that any that are
         # available locally will override
         if query_online:
@@ -2121,6 +2142,12 @@ def download_passband(passband, content=None, local=True, gzipped=None):
     except IOError as e:
         raise IOError("unable to download {} passband - check connection.  Original error: {}".format(passband, e))
     else:
+        # remove the obsolete file that this download supersedes, if any:
+        fname_pre25 = _pbtable_obsolete.pop(passband, None)
+        if fname_pre25 is not None and fname_pre25 != passband_fname_local and os.path.dirname(fname_pre25) == os.path.dirname(pbdir):
+            logger.warning("deleting obsolete passband file: {}".format(fname_pre25))
+            os.remove(fname_pre25)
+
         _init_passband(passband_fname_local)
 
 def list_passband_online_history(passband, since_installed=True):
@@ -2340,7 +2367,9 @@ def update_passband(passband, local=True, content=None, gzipped=None):
     """
     installed_content = list_installed_passbands(full_dict=True).get(passband, {}).get('content', [])
     if content is None:
-        content = installed_content
+        # a skipped obsolete passband has no installed content, so fall back to
+        # the download defaults:
+        content = installed_content or None
     elif isinstance(content, str):
         if content != 'all':
             content = list(set(installed_content + [content]))
