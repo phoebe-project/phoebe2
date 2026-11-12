@@ -614,9 +614,9 @@ class Passband:
             if f'{atm.name}:Inorm' in self.content:
                 if export_to_pre25 and atm.name == 'blackbody':
                     teffs = self.ndp['blackbody'].axes[0]
-                    log10ints = self.ndp['blackbody'].table['inorm@energy']['grid']
+                    log10ints = self.ndp['blackbody'].table['inorm@energy']['grid'][:, 0]
                     bb_func_energy = interpolate.splrep(teffs, log10ints, s=0)
-                    log10ints = self.ndp['blackbody'].table['inorm@photon']['grid']
+                    log10ints = self.ndp['blackbody'].table['inorm@photon']['grid'][:, 0]
                     bb_func_photon = interpolate.splrep(teffs, log10ints, s=0)
 
                     bb_func = Table({'teff': bb_func_energy[0], 'logi_e': bb_func_energy[1], 'logi_p': bb_func_photon[1]}, meta={'extname': 'BB_FUNC'})
