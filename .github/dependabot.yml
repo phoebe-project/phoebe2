@@ -4,7 +4,7 @@ updates:
     - package-ecosystem: "github-actions"
       directory: "/"
       schedule:
-        interval: "monthly"
+        interval: "weekly"
         day: "friday"
         time: "08:00"
         timezone: "America/New_York"
@@ -24,7 +24,7 @@ updates:
     - package-ecosystem: "pip"
       directory: "/"
       schedule:
-        interval: "monthly"
+        interval: "weekly"
         day: "friday"
         time: "08:00"
         timezone: "America/New_York"

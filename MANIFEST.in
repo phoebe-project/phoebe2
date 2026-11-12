@@ -5,3 +5,4 @@ include phoebe/lib/*.h
 recursive-include phoebe/atmospheres/tables *
 recursive-include phoebe/solverbackends *
 recursive-include phoebe/frontend/default_bundles *
+global-exclude *.py[cod]
