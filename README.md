@@ -81,6 +81,7 @@ CHANGELOG
 
 * Fix bug where aligned stars in circular orbits were treated as misaligned for about 30% of inclinations (due to an exact floating-point comparison), so they were re-meshed at every time point and run_compute was several times slower. [#1179]
 * Fixes unit mismatch in the bolometric filter (nm -> A). [#1185]
+* Fix bug where linear extrapolation for off-grid atmospheric parameters in certain circumstances produced intensity spikes. [#1188]
 
 ### 2.5.4
 
