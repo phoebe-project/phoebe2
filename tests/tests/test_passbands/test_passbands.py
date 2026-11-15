@@ -1,6 +1,7 @@
 import phoebe
 from phoebe import u
 from phoebe.atmospheres import models
+from astropy.io import fits
 import os
 
 
@@ -54,13 +55,15 @@ def test_skip_pre25(tmp_path, capsys):
     )
     pb.compute_intensities(atm=models.BlackbodyModelAtmosphere(), include_mus=False, include_ld=False)
 
+    # _init_passband identifies pre-2.5 files by their PHOEBEVN header:
     archive = os.path.join(tmp_path, 'test_pre25.fits')
-    pb.save(archive, export_to_pre25=True)
+    pb.save(archive)
+    fits.setval(archive, 'PHOEBEVN', value='2.4.17')
 
     # pre-2.5 files must be skipped rather than registered (and later fail to load):
     phoebe.atmospheres.passbands._init_passband(archive)
     assert 'test:pre25' not in phoebe.atmospheres.passbands._pbtable
-    assert "phoebe.download_passband('test:pre25')" in capsys.readouterr().out
+    assert 'not available from the server' in capsys.readouterr().out
 
 
 if __name__ == '__main__':
