@@ -761,9 +761,10 @@ class Passband:
                             self.ndp[atm.name].register(name='inorm@energy', associated_axes=None, grid=atm_energy_grid[..., -1, :])
                             self.content.append(f'{atm.name}:Inorm')
 
-                        # specific passband intensities:
-                        self.ndp[atm.name].register(name='imu@photon', associated_axes=(atm.mus,), grid=atm_photon_grid)
-                        self.ndp[atm.name].register(name='imu@energy', associated_axes=(atm.mus,), grid=atm_energy_grid)
+                        # specific passband intensities; the mu grid is stored in the file:
+                        mus = np.array(list(hdul[f'{atm.prefix}_mus'].data['mus'])) if f'{atm.prefix}_mus' in hdul else atm.mus
+                        self.ndp[atm.name].register(name='imu@photon', associated_axes=(mus,), grid=atm_photon_grid)
+                        self.ndp[atm.name].register(name='imu@energy', associated_axes=(mus,), grid=atm_energy_grid)
 
                     if f'{atm.name}:ld' in self.content:
                         self.ndp[atm.name].register(name='ld@photon', associated_axes=None, grid=hdul[f'{atm.prefix}lpgrid'].data)
@@ -1378,11 +1379,13 @@ class Passband:
 
         if atm.name == 'blackbody':
             # blackbody Inorm is never extrapolated: out-of-grid teffs yield
-            # nan regardless of atm_extrapolation_method. Widen atm.teffs if
-            # a wider range is needed.
+            # nan regardless of atm_extrapolation_method. The teff range is
+            # that of the passband file; widen atm.teffs when computing the
+            # passband if a wider range is needed.
             teffs_query = query.subset(atm.basic_axis_names).pts[:, 0]
             tck = self._bb_splines[intens_weighting]
-            lo, hi = atm.teffs[0], atm.teffs[-1]
+            bb_teffs = self.ndp[atm.name].axes[0]
+            lo, hi = bb_teffs[0], bb_teffs[-1]
 
             if teffs_query.size == 0:
                 log_inorms = np.empty((0, 1))
