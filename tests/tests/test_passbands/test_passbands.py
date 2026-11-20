@@ -45,6 +45,29 @@ def test_load():
     os.remove(os.path.join(path, 'test.fits'))
 
 
+def test_skip_pre25(tmp_path, capsys):
+    pb = phoebe.atmospheres.passbands.Passband(
+        ptf=os.path.join(path, 'test.ptf'),
+        pbset='test',
+        pbname='pre25',
+        wlunits=u.nm,
+        calibrated=True,
+        reference='test skipping pre-2.5 passbands on initialization',
+        version=1.0
+    )
+    pb.compute_intensities(atm=models.BlackbodyModelAtmosphere(), include_mus=False, include_ld=False)
+
+    # _init_passband identifies pre-2.5 files by their PHOEBEVN header:
+    archive = os.path.join(tmp_path, 'test_pre25.fits')
+    pb.save(archive)
+    fits.setval(archive, 'PHOEBEVN', value='2.4.17')
+
+    # pre-2.5 files must be skipped rather than registered (and later fail to load):
+    phoebe.atmospheres.passbands._init_passband(archive)
+    assert 'test:pre25' not in phoebe.atmospheres.passbands._pbtable
+    assert 'not available from the server' in capsys.readouterr().out
+
+
 def test_export_to_pre25(tmp_path):
     pb = phoebe.atmospheres.passbands.Passband(
         ptf=os.path.join(path, 'test.ptf'),
@@ -76,3 +99,4 @@ if __name__ == '__main__':
     atm_tables_available = os.path.exists(atm_path)
     test_compute(atm_tables_available=atm_tables_available, atm_path=atm_path)
     test_load()
+    test_skip_pre25()
