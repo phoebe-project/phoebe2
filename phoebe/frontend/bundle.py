@@ -4073,7 +4073,16 @@ class Bundle(ParameterSet):
                             else:
                                 # axis is interpolated - check if value is within range
                                 try:
-                                    axis_limits = atm_cls.get_axis_limits(axis_name)
+                                    # use the axis range stored in the installed passband if
+                                    # available, otherwise the model atmosphere defaults:
+                                    axis_limits = None
+                                    if pb in passbands.list_installed_passbands() and axis_name in atm_cls.basic_axis_names:
+                                        pb_ndp = passbands.get_passband(pb).ndp.get(atm)
+                                        if pb_ndp is not None:
+                                            pb_axis = pb_ndp.axes[atm_cls.basic_axis_names.index(axis_name)]
+                                            axis_limits = (pb_axis[0], pb_axis[-1])
+                                    if axis_limits is None:
+                                        axis_limits = atm_cls.get_axis_limits(axis_name)
                                     if axis_limits is not None:
                                         axis_min, axis_max = axis_limits
                                         if value < axis_min or value > axis_max:
