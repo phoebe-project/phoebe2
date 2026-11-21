@@ -968,8 +968,9 @@ class Passband:
             # initialize arrays for extincted intensities:
             associated_axes = (ebvs, rvs)
             grid_shape = tuple([len(axis) for axis in atm.ndp_basic_axes + associated_axes] + [1])
-            ext_photon_grid = np.empty(shape=grid_shape)
-            ext_energy_grid = np.empty_like(ext_photon_grid)
+            # grid holes (missing models) must stay NaN, as in the intensity grids:
+            ext_photon_grid = np.full(shape=grid_shape, fill_value=np.nan)
+            ext_energy_grid = np.full_like(ext_photon_grid, fill_value=np.nan)
 
             axbx = libphoebe.gordon_extinction(wls)
             ax, bx = axbx[:,0], axbx[:,1]
