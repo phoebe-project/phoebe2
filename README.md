@@ -84,6 +84,7 @@ CHANGELOG
 * Fixes a scipy 0.18+ compatibility issue with spline interpolation. [#1181]
 * Fixes a fits keyword failure on legacy passband load. [#1183]
 * Fix bug where linear extrapolation for off-grid atmospheric parameters in certain circumstances produced intensity spikes. [#1188]
+* Interstellar extinction was interpolated in linear space instead of log10 space of extinction coefficients, which caused large interpolation errors (up to ~17% under-extincted fluxes); interpolation is now done in log10 space, with maximal deviation of <1 mmag.
 
 ### 2.5.4
 
