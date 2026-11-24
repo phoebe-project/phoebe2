@@ -76,8 +76,59 @@ if not os.path.exists(_pbdir_local):
 
 _pbdir_env = os.getenv('PHOEBE_PBDIR', None)
 
+
 def _dict_without_keys(d, skip_keys=[]):
     return {k: v for k, v in d.items() if k not in skip_keys}
+
+
+def _ext_to_log10(grid):
+    """
+    Converts extinction factors to the form they are interpolated in.
+
+    Extinction tables hold the passband-integrated transmitted flux fraction,
+    10^(-0.4 A_pb), on the (ebvs, rvs) grid, and this is what passband files
+    store. The fraction depends exponentially on E(B-V) and R_V, so
+    interpolating it linearly over-predicts the transmitted flux between grid
+    nodes: for nodes that are dA apart in A_pb, A_pb is underestimated by up
+    to ~1.0857 (0.921 dA)^2/8 mag halfway between them, which is ~0.01 mag in
+    the optical (and ~8-17% of A_pb at small E(B-V)) for the default E(B-V)
+    step of 0.103. The tables are therefore interpolated in log10 of the
+    fraction, i.e. linearly in A_pb, which is very nearly linear in both
+    E(B-V) and R_V; <Passband.interpolate_extinct> converts the result back.
+
+    Non-positive entries are not physical and are set to NaN.
+
+    Arguments
+    ----------
+    * `grid` (array): extinction factors (transmitted flux fractions)
+
+    Returns
+    --------
+    * (array) log10 of the extinction factors
+    """
+    grid = np.asarray(grid, dtype=float)
+    with np.errstate(divide='ignore', invalid='ignore'):
+        log10_grid = np.log10(grid)
+    log10_grid[~(grid > 0)] = np.nan
+    return log10_grid
+
+
+def _ext_from_log10(log10_grid):
+    """
+    Inverse of <_ext_to_log10>: extinction factors (transmitted flux fractions)
+    from their log10, as stored in passband files and returned by
+    <Passband.interpolate_extinct>.
+
+    Arguments
+    ----------
+    * `log10_grid` (array): log10 of the extinction factors
+
+    Returns
+    --------
+    * (array) extinction factors
+    """
+    return 10**np.asarray(log10_grid, dtype=float)
+
 
 def blending_factor(d, func='sigmoid', scale=15, offset=0.5):
     """
@@ -652,12 +703,15 @@ class Passband:
                 content.append(f'{atm.name}:ldint')
 
             if f'{atm.name}:ext' in self.content:
+                # extinction tables are interpolated in log10 but stored as transmitted flux fractions:
+                ext_energy_grid = _ext_from_log10(self.ndp[atm.name].table['ext@energy']['grid'])
+                ext_photon_grid = _ext_from_log10(self.ndp[atm.name].table['ext@photon']['grid'])
                 if export_to_pre25 and atm.name == 'blackbody':
-                    data.append(fits.ImageHDU(self.ndp[atm.name].table['ext@energy']['grid'], name=f'{atm.prefix.upper()}EGRID'))
-                    data.append(fits.ImageHDU(self.ndp[atm.name].table['ext@photon']['grid'], name=f'{atm.prefix.upper()}PGRID'))
+                    data.append(fits.ImageHDU(ext_energy_grid, name=f'{atm.prefix.upper()}EGRID'))
+                    data.append(fits.ImageHDU(ext_photon_grid, name=f'{atm.prefix.upper()}PGRID'))
                 else:
-                    data.append(fits.ImageHDU(self.ndp[atm.name].table['ext@energy']['grid'], name=f'{atm.prefix.upper()}XEGRID'))
-                    data.append(fits.ImageHDU(self.ndp[atm.name].table['ext@photon']['grid'], name=f'{atm.prefix.upper()}XPGRID'))
+                    data.append(fits.ImageHDU(ext_energy_grid, name=f'{atm.prefix.upper()}XEGRID'))
+                    data.append(fits.ImageHDU(ext_photon_grid, name=f'{atm.prefix.upper()}XPGRID'))
                 content.append(f'{atm.name}:ext')
 
         # All saved content has been syndicated to the content list:
@@ -783,8 +837,9 @@ class Passband:
                         ebvs = np.array(list(hdul[f'{atm.prefix}_ebvs'].data['ebvs']))
                         rvs = np.array(list(hdul[f'{atm.prefix}_rvs'].data['rvs']))
 
-                        self.ndp[atm.name].register(name='ext@photon', associated_axes=(ebvs, rvs), grid=hdul[f'{atm.prefix}xpgrid'].data)
-                        self.ndp[atm.name].register(name='ext@energy', associated_axes=(ebvs, rvs), grid=hdul[f'{atm.prefix}xegrid'].data)
+                        # files store transmitted flux fractions; they are interpolated in log10:
+                        self.ndp[atm.name].register(name='ext@photon', associated_axes=(ebvs, rvs), grid=_ext_to_log10(hdul[f'{atm.prefix}xpgrid'].data))
+                        self.ndp[atm.name].register(name='ext@energy', associated_axes=(ebvs, rvs), grid=_ext_to_log10(hdul[f'{atm.prefix}xegrid'].data))
 
         return self
 
@@ -904,7 +959,9 @@ class Passband:
         * `include_extinction` (boolean, optional, default=False): should the
             extinction tables be computed as well. The mean effect of reddening
             (a weighted average) on a passband uses the Gordon et al. (2009,
-            2014) prescription of extinction.
+            2014) prescription of extinction. The tables hold transmitted flux
+            fractions and are interpolated in their log10 (see
+            <Passband.interpolate_extinct>).
         * `rvs` (array, optional, default=None): a custom array of extinction
           factor Rv values. Rv is defined at Av / E(B-V) where Av is the visual
           extinction in magnitudes. If None, the default linspace(2, 6, 16) is
@@ -1005,8 +1062,9 @@ class Passband:
 
                 ext_energy_grid = egrid.reshape(len(atm.teffs), len(ebvs), len(rvs), 1)
                 ext_photon_grid = pgrid.reshape(len(atm.teffs), len(ebvs), len(rvs), 1)
-                self.ndp[atm.name].register('ext@energy', (ebvs, rvs), ext_energy_grid)
-                self.ndp[atm.name].register('ext@photon', (ebvs, rvs), ext_photon_grid)
+                # extinction factors are interpolated in log10 (see _ext_to_log10):
+                self.ndp[atm.name].register('ext@energy', (ebvs, rvs), _ext_to_log10(ext_energy_grid))
+                self.ndp[atm.name].register('ext@photon', (ebvs, rvs), _ext_to_log10(ext_photon_grid))
                 if f'{atm.name}:ext' not in self.content:
                     self.content.append(f'{atm.name}:ext')
 
@@ -1061,8 +1119,9 @@ class Passband:
             self.content.append(f'{atm.name}:Imu')
 
         if include_extinction:
-            self.ndp[atm.name].register('ext@photon', (ebvs, rvs), ext_photon_grid)
-            self.ndp[atm.name].register('ext@energy', (ebvs, rvs), ext_energy_grid)
+            # extinction factors are interpolated in log10 (see _ext_to_log10):
+            self.ndp[atm.name].register('ext@photon', (ebvs, rvs), _ext_to_log10(ext_photon_grid))
+            self.ndp[atm.name].register('ext@energy', (ebvs, rvs), _ext_to_log10(ext_energy_grid))
             if f'{atm.name}:ext' not in self.content:
                 self.content.append(f'{atm.name}:ext')
 
@@ -1201,7 +1260,10 @@ class Passband:
 
         Returns
         ---------
-        * (<InterpResult>) extinction correction factors.
+        * (<InterpResult>) extinction correction factors (transmitted flux
+          fractions, 10^(-0.4 A_pb)). The tables are interpolated in log10 of
+          the factors, i.e. linearly in the passband extinction A_pb (see
+          <_ext_to_log10>).
 
         Raises
         --------
@@ -1217,6 +1279,7 @@ class Passband:
             query_pts=query.subset(atm.basic_axis_names + ['ebvs', 'rvs']).pts,
             extrapolation_method=extrapolation_method
         )
+        ndp_output['interps'] = _ext_from_log10(ndp_output['interps'])
 
         return InterpResult.from_ndpolator(ndp_output)
 
